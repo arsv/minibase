@@ -1,0 +1,37 @@
+.TH mountvfs 8
+'''
+.SH NAME
+mountvfs \- mount common virtual file systems
+'''
+.SH SYNOPSIS
+mountvfs \fItag\fR \fItag\fR \fItag\fR ...
+'''
+.SH DESCRIPTION
+\fBmountvfs\fR mounts predefined virtual filesystems into their common
+locations.  It is intended to simplify boot configuration, allowing
+the administrator to drop common definitions from fstab and/or startup scripts.
+.P
+Each tag specifies a single filesystem to mount:
+.P
+.EX
+\fBTag\fR             \fBType\fR            \fBLocation\fR
+tmpdev          tmpfs           /dev
+dev             devtmpfs        /dev
+pts             devpts          /dev/pts
+shm             tmpfs           /dev/shm
+mqueue          mqueue          /dev/mqueue
+proc            proc            /proc
+sys             sysfs           /sys
+run             tmpfs           /run
+tmp             tmpfs           /tmp
+config          configfs        /sys/kernel/config
+debug           debugfs         /sys/kernel/debug
+trace           tracefs         /sys/kernel/debug/tracing
+#cg             tmpfs           /sys/fs/cgroup
+.EE
+.P
+The mounts are performed sequentially left to right.
+The tool aborts at the first failed mount.
+'''
+.SH SEE ALSO
+\fBmount\fR(1), \fBmount\fR(2), \fBhier\fR(7), \fBproc\fR(5).

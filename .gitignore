@@ -1,3 +1,4 @@
 *.o
 libs.a
 hello
+mountvfs
