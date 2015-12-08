@@ -1,0 +1,62 @@
+.TH mount 8
+'''
+.SH NAME
+mount \- attach filesystem tree to a given directory
+'''
+.SH SYNOPSIS
+mount [\fB-rtdxusy\fR] \fIsource\fR \fItarget\fR \fIfstype\fR \fIdata\fR
+.br
+mount \fB-b\fR \fIsource\fR \fItarget\fR
+.br
+mount \fB-v\fR \fIsource\fR \fItarget\fR
+.br
+mount \fB-m[rdxuy]\fR \fItarget\fR \fIdata\fR
+'''
+.SH DESCRIPTION
+mount replaces visible contents of \fItarget\fR directory with some other
+file subtree. Typical invocation attaches a \fIfstype\fR filesystem tree
+contained on block device \fIsource\fR, with optional \fIdata\fR passed
+to the filesystem driver.
+.P
+With relevant options, mount can also attach existing directory trees
+at different locations, and change mount options for already-mounted
+filesystems. 
+'''
+.SH OPTIONS
+Any combination of the options below must be squashed into a single argument:
+\fB-rdx\fR is accepted but \fB-r -d -x\fR is not.
+.P
+The options are bits in \fBmountflags\fR argument for \fBmount\fR(2) common
+for all filesystems.
+Any filesystem-specific settings are passed via \fIdata\fR which is a
+comma-separated list of keys or key=value pairs.
+.IP "\fB-b\fR" 4
+Perform a bind mount, making \fIsource\fR subtree visible at a different
+location \fItarget\fR (MS_BIND).
+.IP "\fB-v\fR" 4
+Move existing mount point \fIsource\fR to a different location \fItarget\fR
+(MS_MOVE).
+.IP "\fB-r\fR" 4
+Mount \fIsource\fR read-only (MS_RDONLY).
+.IP "\fB-t\fR" 4
+Enable reduced updates of inode timestamps (MS_LAZYTIME).
+.IP "\fB-d\fR" 4
+Do not allow access to device files on this filesystem (MS_NODEV).
+.IP "\fB-x\fR" 4
+Do not allow programs to be executed from this filesystem (MS_NOEXEC).
+.IP "\fB-u\fR" 4
+Do not honor set-user-ID and set-group-ID bits when executing programs
+from this filesystem (MS_NOSUID).
+.IP "\fB-m\fR" 4
+Remount \fItarget\fR, possibly changing its mount options (MS_REMOUNT).
+.IP "\fB-s\fR" 4
+Suppress the display of certain messages in the kernel log (MS_SILENT).
+.IP "\fB-y\fR" 4
+Make writes on this filesystem synchronous (MS_SYNCHRONOUS).
+'''
+.SH NOTES
+This tool does not read /etc/fstab and does not update /etc/mtab.
+To check the list of currently mounted filesystems, cat /proc/mounts.
+'''
+.SH SEE ALSO
+\fBmount\fR(2), \fBmountvfs\fR(8).

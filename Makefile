@@ -2,11 +2,13 @@ include config.mk
 include common.mk
 CFLAGS += -I$/libs -I$/libs/arch/$(ARCH)
 
-all = hello mountvfs
+all = hello mount mountvfs
 
 all: $(all)
 
 hello: hello.o
+
+mount: mount.o
 
 mountvfs: mountvfs.o
 
