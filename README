@@ -1,0 +1,44 @@
+What is this?
+~~~~~~~~~~~~~
+This project contains a set of tools intended for early boot environment
+(initrd, initcpio and possibly later stages for small systems).
+The tools are small, statically linked and need no libc.
+
+The project is not complete yet. Some crucial tools are still
+to be written before building a viable initcpio becomes possible.
+Use at your own risk.
+
+
+How is it different from busybox?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Busybox aims to provide common POSIX tools in a package with the
+smallest total size, or something close to that. It is not very
+well suited for providing individual tools, only the whole package.
+
+Busybox typically stays in the memory after being loaded (cached)
+once, saving memory and time for repeated usage.
+
+This project aims to provide small individual tools, so that they
+could be combined freely and picked one at a time. It does not
+attempt to provide anything resembling a usable system.
+
+These tools are meant to be used rarely, perhaps only once during
+boot, then unloaded immediately and discarded.
+
+
+Compatibility
+~~~~~~~~~~~~~
+None. The tools follow Linux syscalls closely instead of trying
+to be compatible with common GNU or busybox implementations.
+
+
+Hybrid setups
+~~~~~~~~~~~~~
+Because the tools are standalone and independent, they can be used
+together with e.g. busybox, providing rarely-used, system-specific
+functions and leaving POSIX stuff to busybox.
+
+
+Licensing
+~~~~~~~~~
+GPL version 2 or any later, see COPYING.
