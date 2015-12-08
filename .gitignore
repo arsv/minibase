@@ -4,3 +4,4 @@ hello
 mount
 mountvfs
 umount
+insmod

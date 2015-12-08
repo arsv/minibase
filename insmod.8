@@ -1,0 +1,17 @@
+.TH insmod 8
+'''
+.SH NAME
+insmod \- insert (load) kernel module
+'''
+.SH SYNOPSIS
+rmmod \fImodule.ko\fR \fIopt=value\fR \fIopt=value\fR ...
+'''
+.SH DESCRIPTION
+insmod attempts to load a single module into the kernel.
+The \fImodule\fR argument must be a file name, not a module name
+as used by \fBrmmod\fR and listed by \fBlsmod\fR.
+.P
+Optional \fIopt=value\fR arguments are passed directly to the module.
+'''
+.SH SEE ALSO
+\fBinit_module\fR(2)
