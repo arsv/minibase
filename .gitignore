@@ -3,3 +3,4 @@ libs.a
 hello
 mount
 mountvfs
+umount
