@@ -1,0 +1,22 @@
+.TH rmmod 8
+'''
+.SH NAME
+rmmod \- remove (unload) kernel module
+'''
+.SH SYNOPSIS
+rmmod [\fB+-\fR]\fImodule\fR
+'''
+.SH DESCRIPTION
+rmmod requests module removal from the kernel.
+Modules are only removed if not in use, otherwise the request fails.
+.P
+\fB+\fR make the request block until the module is removed.
+.P
+\fB-\fR forces removal even if the module is in use. DANGEROUS.
+.P
+rmmod expects internal module name, as reported by \fBlsmod\fR(1).
+Typically, but not necessary, it is the basename of the module file with .ko
+extension removed.
+'''
+.SH SEE ALSO
+\fBdelete_module\fR(2)
