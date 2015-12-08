@@ -2,9 +2,10 @@ ARCH = x86_64
 
 CROSS = 
 CC = $(CROSS)gcc
-AR = $(CROSS)gcc-ar
-LD = $(CROSS)gcc
+AR = $(CROSS)ar
+LD = $(CC)
+AS = $(CC)
 CFLAGS = -nostdinc -Wall -Os -g -fno-asynchronous-unwind-tables
-ASFLAGS = -c -g
+ASFLAGS = -g -c
 LDFLAGS = -nostdlib
 LIBS = -lgcc
