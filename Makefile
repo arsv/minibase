@@ -2,7 +2,7 @@ include config.mk
 include common.mk
 CFLAGS += -I$/libs -I$/libs/arch/$(ARCH)
 
-all = hello mount mountvfs umount insmod rmmod strerror
+all = hello mount mountvfs umount insmod rmmod strerror mknod
 
 all: $(all)
 
@@ -19,6 +19,8 @@ insmod: insmod.o
 rmmod: rmmod.o
 
 strerror: strerror.o
+
+mknod: mknod.o
 
 %: %.o libs.a
 	$(LD) $(LDFLAGS) -o $@ $(filter %.o,$^) libs.a $(LIBS) libs.a

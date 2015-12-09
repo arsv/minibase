@@ -14,4 +14,12 @@
 #define FASYNC		(1<<13)
 #define O_DIRECT	(1<<14)
 
+#define	S_IFDIR		0040000	/* Directory.  */
+#define	S_IFCHR		0020000	/* Character device.  */
+#define	S_IFBLK		0060000	/* Block device.  */
+#define	S_IFREG		0100000	/* Regular file.  */
+#define	S_IFIFO		0010000	/* FIFO.  */
+#define	S_IFLNK		0120000	/* Symbolic link.  */
+#define	S_IFSOCK	0140000	/* Socket.  */
+
 #endif
