@@ -6,3 +6,4 @@ mountvfs
 umount
 insmod
 rmmod
+strerror
