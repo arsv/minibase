@@ -8,4 +8,5 @@ extern const struct errcode {
 #define REPORT(e) { e, #e }
 #define RESTASNUMBERS { 0 }
 
-void fail(const char* tag, const char* msg, const char* obj, int err);
+void fail(const char* tag, const char* msg, const char* obj, int err)
+	__attribute__((noreturn));
