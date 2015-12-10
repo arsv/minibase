@@ -13,6 +13,10 @@
 #define O_DSYNC		(1<<12)
 #define FASYNC		(1<<13)
 #define O_DIRECT	(1<<14)
+#define O_NOFOLLOW	(1<<17)
+#define O_NOATIME	(1<<18)
+#define O_FSYNC		(1<<20)
+#define O_SYNC		(O_FSYNC | O_DSYNC)
 
 #define	S_IFDIR		0040000	/* Directory.  */
 #define	S_IFCHR		0020000	/* Character device.  */
