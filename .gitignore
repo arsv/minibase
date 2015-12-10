@@ -1,11 +1,6 @@
 temp
-*.o
 libs.a
 hello
-mount
-mountvfs
-umount
-insmod
-rmmod
-strerror
-mknod
+*/*
+!*/*.*
+*.o

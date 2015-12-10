@@ -1,29 +1,10 @@
+MAKEFLAGS += --no-print-directory
+
 include config.mk
-include common.mk
-CFLAGS += -I$/libs -I$/libs/arch/$(ARCH)
 
-all = hello mount mountvfs umount insmod rmmod strerror mknod
+subdirs = base misc root
 
-all: $(all)
-
-hello: hello.o
-
-mount: mount.o
-
-mountvfs: mountvfs.o
-
-umount: umount.o
-
-insmod: insmod.o
-
-rmmod: rmmod.o
-
-strerror: strerror.o
-
-mknod: mknod.o
-
-%: %.o libs.a
-	$(LD) $(LDFLAGS) -o $@ $(filter %.o,$^) libs.a $(LIBS) libs.a
+all: libs.a $(subdirs)
 
 libso = $(patsubst %.s,%.o,$(wildcard libs/arch/$(ARCH)/*.s)) \
 	$(patsubst %.c,%.o,$(wildcard libs/*.c))
@@ -31,8 +12,20 @@ libso = $(patsubst %.s,%.o,$(wildcard libs/arch/$(ARCH)/*.s)) \
 libs.a: $(libso)
 	$(AR) cr $@ $?
 
-clean:
-	rm -f *.o libs/*.o libs/arch/*/*.o libs.a
+.PHONY: $(subdirs)
 
-distclean: clean
-	rm -f $(all)
+$(subdirs):
+	$(MAKE) -C $@
+
+clean = $(patsubst %,clean-%,$(subdirs))
+clean: $(clean) clean-libs
+$(clean): clean-%:
+	$(MAKE) -C $* clean
+
+distclean = $(patsubst %,distclean-%,$(subdirs))
+distclean: $(distclean)
+$(distclean): distclean-%:
+	$(MAKE) -C $* distclean
+
+clean-libs:
+	rm -f libs/*.o libs/arch/*/*.o libs.a

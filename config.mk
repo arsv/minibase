@@ -8,4 +8,6 @@ AS = $(CC)
 CFLAGS = -nostdinc -Wall -Os -g -fno-asynchronous-unwind-tables
 ASFLAGS = -g -c
 LDFLAGS = -nostdlib
-LIBS = -lgcc
+LIBS = $/libs.a -lgcc $/libs.a
+
+CFLAGS += -I$/libs -I$/libs/arch/$(ARCH)
