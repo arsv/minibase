@@ -1,0 +1,18 @@
+.TH strerror 1
+'''
+.SH NAME
+\fBstrerror\fR \- describe error code
+'''
+.SH SYNOPSYS
+strerror \fIcode\fR ...
+'''
+.SH DESCRIPTION
+strerror takes eithre a numeric code like 1 or 22 or a symbolic constant
+name like EPERM or EINVAL and output a single-line human-readable error
+message like "Operation not permitted" or "Invalid argument".
+.P
+The tool is meant to be used for Linux system call error codes typically
+defined in <errno.h>.
+'''
+.SH SEE ALSO
+\fBstrerror\fR(3), \fBerrno\fR(3), \fBsyscalls\fR(2).
