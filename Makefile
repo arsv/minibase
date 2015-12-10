@@ -23,7 +23,7 @@ $(clean): clean-%:
 	$(MAKE) -C $* clean
 
 distclean = $(patsubst %,distclean-%,$(subdirs))
-distclean: $(distclean)
+distclean: $(distclean) clean-libs
 $(distclean): distclean-%:
 	$(MAKE) -C $* distclean
 

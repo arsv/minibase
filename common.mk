@@ -18,5 +18,5 @@ endif
 clean:
 	rm -f *.o
 
-distclean:
+distclean: clean
 	rm -f $(all)
