@@ -3,4 +3,5 @@ libs.a
 hello
 */*
 !*/*.*
+!*/Makefile
 *.o
