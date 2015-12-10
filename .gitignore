@@ -1,6 +1,7 @@
 temp
 libs.a
 hello
+test/
 */*
 !*/*.*
 !libs/*
