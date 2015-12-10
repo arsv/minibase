@@ -54,3 +54,15 @@ a single-call binary with lots of internal connections.
 Licensing
 ~~~~~~~~~
 GPL version 2 or any later, see COPYING.
+
+
+See also
+~~~~~~~~
+https://busybox.net/
+http://www.landley.net/toybox/
+http://suckless.org (ubase and sbase)
+https://swtch.com/plan9port/
+
+https://www.gnu.org/software/coreutils/coreutils.html
+https://www.kernel.org/pub/linux/utils/util-linux/
+https://github.com/uutils/coreutils
