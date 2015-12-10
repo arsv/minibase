@@ -1,6 +1,7 @@
-MAKEFLAGS += --no-print-directory
-
 include config.mk
+
+MAKEFLAGS += --no-print-directory
+CFLAGS += -Ilibs -Ilibs/arch/$(ARCH)
 
 subdirs = base misc root
 

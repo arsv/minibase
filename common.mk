@@ -1,5 +1,7 @@
+LIBS = -L.. -ls -lgcc -ls
+CFLAGS += -I../libs -I../libs/arch/$(ARCH)
+
 .SUFFIXES:
-.DEFAULT_GOAL = all
 
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $<
@@ -7,13 +9,13 @@
 %.o: %.s
 	$(AS) $(ASFLAGS) -o $@ $<
 
-%: %.o $/libs.a
+%: %.o ../libs.a
 	$(LD) $(LDFLAGS) -o $@ $(filter %.o,$^) $(LIBS)
 
-ifdef /
-$/libs.a:
-	$(MAKE) -C $/ libs.a
-endif
+all: $(all)
+
+../libs.a:
+	$(MAKE) -C .. libs.a
 
 clean:
 	rm -f *.o
