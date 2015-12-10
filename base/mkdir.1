@@ -1,0 +1,21 @@
+.TH mkdir 1
+'''
+.SH NAME
+\fBmkdir\fR \- make directory
+'''
+.SH SYNOPSYS
+mkdir [\fB-p\fR] \fIdirectory\fR ...
+.br
+mkdir \fB-m\fR[\fBp\fR] \fImode\fR \fIdirectory\fR ...
+'''
+.SH DESCRIPTION
+mkdir creates the last components of each \fIdirectory\fR
+specified in the command line. With \fB-p\fR, parent directories
+are created as well.
+.P
+Octal \fImode\fR determines access permissions for the newly-created
+directory. With no \fB-m\fR specified, the default value 0777 & ~umask
+is used.
+'''
+.SH SEE ALSO
+\fBmkdir\fR(2)
