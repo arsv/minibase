@@ -2,7 +2,7 @@
 include ../config.mk
 include ../common.mk
 
-all = strerror mkdir cat clear write
+all = strerror mkdir cat clear write rmdir
 
 all: $(all)
 
@@ -15,3 +15,5 @@ cat: cat.o
 clear: clear.o
 
 write: write.o
+
+rmdir: rmdir.o
