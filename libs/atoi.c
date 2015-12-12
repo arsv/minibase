@@ -3,13 +3,18 @@
 int atoi(const char* a)
 {
 	int d, n = 0;
-	const char* p;
+	int min = 0;
 
-	for(p = a; *p; p++)
-		if(*p >= '0' && ((d = *p - '0') < 10))
+	if(*a == '-') {
+		a++;
+		min = 1;
+	};
+
+	for(; *a; a++)
+		if(*a >= '0' && ((d = *a - '0') < 10))
 			n = (n*10) + d;
 		else
 			break;
 
-	return n;
+	return min ? -n : n;
 }
