@@ -66,3 +66,10 @@ https://swtch.com/plan9port/
 https://www.gnu.org/software/coreutils/coreutils.html
 https://www.kernel.org/pub/linux/utils/util-linux/
 https://github.com/uutils/coreutils
+
+A lot of code here actually comes from busybox, which in turn
+pulls from util-linux and coreutils, with numerous modifications
+along the way.
+
+Syscall code (static inline functions with asm volatile blocks)
+follows musl. Because they got it right.
