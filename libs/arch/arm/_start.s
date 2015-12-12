@@ -1,5 +1,3 @@
-.equ NR_exit, 1
-
 .text
 .align 4
 
@@ -13,7 +11,7 @@ _start:
 	bl	main
 
 _exit:
-	mov	r7, #NR_exit
+	mov	r7, #1			/* __NR_exit */
 	swi	0			/* never returns */
 
 .type _start,function

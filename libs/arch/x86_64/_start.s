@@ -1,5 +1,3 @@
-.equ NR_exit, 0x3c
-
 .text
 .global _start
 .global _exit
@@ -12,7 +10,7 @@ _start:
 
 	movq	%rax, %rdi
 
-_exit:	mov	$NR_exit, %ax		/* call _exit */
+_exit:	mov	$0x3C, %ax		/* call _exit */
 	movzwl	%ax, %eax
 	mov	%rcx, %r10
 	syscall
