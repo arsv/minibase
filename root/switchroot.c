@@ -23,6 +23,7 @@
 
 #include <fail.h>
 #include <null.h>
+#include <xchk.h>
 
 /* Usage:
 
@@ -40,14 +41,6 @@ ERRLIST = {
 	REPORT(EBUSY), REPORT(EISDIR), REPORT(ENOMEM), REPORT(EPERM),
 	REPORT(EROFS), RESTASNUMBERS
 };
-
-static long xchk(long ret, const char* msg, const char* obj)
-{
-	if(ret < 0)
-		fail(msg, obj, -ret);
-	else
-		return ret;
-}
 
 static int checkramfs(void)
 {
