@@ -1,6 +1,6 @@
 #include <sys/write.h>
 
-#include <itostr.h>
+#include <strint32.h>
 #include <strapp.h>
 #include <fail.h>
 
@@ -21,7 +21,7 @@ static char* strerr(char* buf, char* end, int err)
 	if(p->code)
 		return strapp(buf, end, p->name);
 	else
-		return itostr(buf, end, err);
+		return stri32(buf, end, err);
 };
 
 void warn(const char* msg, const char* obj, int err)
