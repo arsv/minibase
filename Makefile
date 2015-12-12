@@ -23,10 +23,5 @@ clean: $(clean) clean-libs
 $(clean): clean-%:
 	$(MAKE) -C $* clean
 
-distclean = $(patsubst %,distclean-%,$(subdirs))
-distclean: $(distclean) clean-libs
-$(distclean): distclean-%:
-	$(MAKE) -C $* distclean
-
 clean-libs:
 	rm -f libs/*.o libs/arch/*/*.o libs.a

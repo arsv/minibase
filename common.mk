@@ -18,7 +18,4 @@ all: $(all)
 	$(MAKE) -C .. libs.a
 
 clean:
-	rm -f *.o
-
-distclean: clean
-	rm -f $(all)
+	rm -f $(all) *.o
