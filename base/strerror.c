@@ -2,7 +2,6 @@
 #include <sys/write.h>
 
 #include <null.h>
-#include <atoi.h>
 #include <strlen.h>
 #include <strcmp.h>
 #include <strapp.h>
@@ -203,6 +202,26 @@ static void writeline(const char* msg)
 	syswrite(1, buf, len+1);
 };
 
+/* Unlike other tools, strerror does not use fail() with its
+   ERRLIST, which makes brinding in any kind of error-checking
+   generic atoi implementation problematic. */
+
+static int atoerr(const char* a)
+{
+	int d, err = 0;
+
+	for(; *a; a++) {
+		if(*a >= '0' && ((d = *a - '0') <= 9))
+			err = (err*10) + d;
+		else
+			return -1;
+		if(err >= 2048)
+			return -1;
+	}
+
+	return err;
+}
+
 static void reporterror(const char* arg)
 {
 	const struct err* e = NULL;
@@ -210,7 +229,7 @@ static void reporterror(const char* arg)
 	if(*arg == 'E')
 		e = findbyname(arg);
 	else if(*arg >= '0' && *arg <= '9')
-		e = findbycode(atoi(arg));
+		e = findbycode(atoerr(arg));
 	if(e)
 		writeline(e->message);
 	else
