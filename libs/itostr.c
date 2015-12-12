@@ -10,16 +10,16 @@ char* itostr(char* buf, char* end, int num)
 
 	int n;
 
-	for(len = 1, n = num; n; len++)
+	for(len = 1, n = num; n >= 10; len++)
 		n /= 10;
 
 	int i;
 	char* e = buf + len + min;
 	char* p = e - 1; /* len >= 1 so e > buf */
 	
-	for(i = 0; i < len; i++, p--)
+	for(i = 0; i < len; i++, p--, num /= 10)
 		if(p < end)
-			*p = '0' + n % 10;
+			*p = '0' + num % 10;
 	if(min) *p = '-';
 
 	return e; 
