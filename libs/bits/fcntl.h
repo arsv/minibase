@@ -13,6 +13,7 @@
 #define O_DSYNC		(1<<12)
 #define FASYNC		(1<<13)
 #define O_DIRECT	(1<<14)
+#define O_DIRECTORY	(1<<16)
 #define O_NOFOLLOW	(1<<17)
 #define O_NOATIME	(1<<18)
 #define O_FSYNC		(1<<20)
@@ -25,5 +26,10 @@
 #define	S_IFIFO		0010000	/* FIFO.  */
 #define	S_IFLNK		0120000	/* Symbolic link.  */
 #define	S_IFSOCK	0140000	/* Socket.  */
+
+#define AT_FDCWD		-100
+#define AT_REMOVEDIR		0x200
+#define AT_SYMLINK_NOFOLLOW	0x100
+#define AT_EMPTY_PATH		0x1000
 
 #endif
