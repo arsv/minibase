@@ -12,8 +12,7 @@
         (((y)&0xffffff00ULL) << 12) | \
 	(((y)&0x000000ffULL)) )
 
-static const char* TAG = "mknod";
-
+ERRTAG = "mknod";
 ERRLIST = {
 	REPORT(EACCES), REPORT(EDQUOT), REPORT(EEXIST), REPORT(EFAULT),
 	REPORT(EINVAL), REPORT(ELOOP), REPORT(ENOENT), REPORT(ENOMEM),
@@ -27,13 +26,13 @@ static int parsemode(const char* mode)
 	int d, m = 0;
 
 	if(*mode++ != '0')
-		fail(TAG, "mode must be octal", NULL, 0);
+		fail("mode must be octal", NULL, 0);
 
 	for(p = mode; *p; p++)
 		if(*p >= '0' && (d = *p - '0') < 8)
 			m = (m<<3) | d;
 		else
-			fail(TAG, "bad mode specification", mode, 0);
+			fail("bad mode specification", mode, 0);
 
 	return m;
 }
@@ -52,7 +51,7 @@ static int parsetype(const char* type)
 		case 's': return S_IFSOCK;
 	}
 
-bad:	fail(TAG, "bad node type specification", NULL, 0);
+bad:	fail("bad node type specification", NULL, 0);
 }
 
 int main(int argc, char** argv)
@@ -65,7 +64,7 @@ int main(int argc, char** argv)
 	int minor = 0;
 
 	if(argc < 3)
-		fail(TAG, "file name and type must be supplied", NULL, 0);
+		fail("file name and type must be supplied", NULL, 0);
 
 	if(i < argc)
 		name = argv[i++];
@@ -77,9 +76,9 @@ int main(int argc, char** argv)
 	int isdev = (type == S_IFCHR || type == S_IFBLK);
 
 	if(isdev && (i != argc - 2))
-		fail(TAG, "major and minor numbers must be supplied", NULL, 0);
+		fail("major and minor numbers must be supplied", NULL, 0);
 	if(!isdev && (i != argc))
-		fail(TAG, "too many arguments", NULL, 0);
+		fail("too many arguments", NULL, 0);
 
 	if(isdev) {
 		major = atoi(argv[i++]);
@@ -90,7 +89,7 @@ int main(int argc, char** argv)
 	long ret = sysmknod(name, mode | type, dev);
 
 	if(ret < 0)
-		fail(TAG, "cannot create", name, -ret);
+		fail("cannot create", name, -ret);
 
 	return 0;
 }

@@ -6,8 +6,7 @@
 #include <null.h>
 #include <fail.h>
 
-#define TAG "mountvfs"
-
+ERRTAG = "mountvfs";
 ERRLIST = {
 	REPORT(EACCES), REPORT(EINVAL), REPORT(EBUSY), REPORT(EFAULT),
 	REPORT(ELOOP), REPORT(EMFILE), REPORT(ENODEV), REPORT(ENOENT),
@@ -46,7 +45,7 @@ static void mountentry(const struct mount* p)
 
 	if(ret >= 0) return;
 
-	fail(TAG, "cannot mount", p->point, -ret);
+	fail("cannot mount", p->point, -ret);
 }
 
 static void mountbyname(const char* name)
@@ -57,7 +56,7 @@ static void mountbyname(const char* name)
 		if(!strcmp(p->name, name))
 			return mountentry(p);
 
-	fail(TAG, "unknown filesystem", name, 0);
+	fail("unknown filesystem", name, 0);
 }
 
 int main(int argc, char** argv)
@@ -65,7 +64,7 @@ int main(int argc, char** argv)
 	int i;
 
 	if(argc < 2)
-		fail(TAG, "nothing to mount", NULL, 0);
+		fail("nothing to mount", NULL, 0);
 	for(i = 1; i < argc; i++)
 		mountbyname(argv[i]);
 

@@ -5,8 +5,7 @@
 #include <fail.h>
 #include <null.h>
 
-#define TAG "mount"
-
+ERRTAG = "mount";
 ERRLIST = {
 	REPORT(EACCES), REPORT(EINVAL), REPORT(EBUSY), REPORT(EFAULT),
 	REPORT(ELOOP), REPORT(EMFILE), REPORT(ENODEV), REPORT(ENOENT),
@@ -34,7 +33,7 @@ static long parseflags(const char* flagstr)
 		case 'y': flags |= MS_SYNCHRONOUS; break;
 		default: 
 			flg[1] = *p;
-			fail(TAG, "unknown flag", flg, 0);
+			fail("unknown flag", flg, 0);
 	}
 
 	return flags;
@@ -64,7 +63,7 @@ int main(int argc, char** argv)
 	int i = 1;
 
 	if(argc <= 1)
-		fail(TAG, "too few arguments", NULL, 0);
+		fail("too few arguments", NULL, 0);
 
 	if(argv[i][0] == '-')
 		flags = parseflags(argv[i++] + 1);
@@ -74,23 +73,23 @@ int main(int argc, char** argv)
 	if(i < argc)
 		target = argv[i++];
 	else
-		fail(TAG, "too few arguments", NULL, 0);
+		fail("too few arguments", NULL, 0);
 
 	if(i < argc && !(flags & (MS_MOVE | MS_REMOUNT)))
 		fstype = argv[i++];
 	if(i < argc && !(flags & (MS_MOVE | MS_REMOUNT | MS_BIND)))
 		data = argv[i++];
 	if(i < argc)
-		fail(TAG, "too many arguments", NULL, 0);
+		fail("too many arguments", NULL, 0);
 
 	int ret = sysmount(source, target, fstype, flags, data);
 
 	if(ret >= 0) return 0;
 
 	if(flags & MS_REMOUNT)
-		fail(TAG, "cannot remount", target, -ret);
+		fail("cannot remount", target, -ret);
 	else
-		fail(TAG, "cannot mount", target, -ret);
+		fail("cannot mount", target, -ret);
 
 	return -1;
 }

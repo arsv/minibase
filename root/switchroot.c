@@ -32,8 +32,7 @@
    but I feel it must be either dropped or hard-coded.
    There should be no reason to do tricks with /dev/console */
 
-static const char* TAG = "switchroot";
-
+ERRTAG = "switchroot";
 ERRLIST = {
 	REPORT(EACCES), REPORT(EBADF), REPORT(EFAULT), REPORT(EINTR),
 	REPORT(EIO), REPORT(ELOOP), REPORT(ENOENT), REPORT(ENOMEM),
@@ -45,7 +44,7 @@ ERRLIST = {
 static long xchk(long ret, const char* msg, const char* obj)
 {
 	if(ret < 0)
-		fail(TAG, msg, obj, -ret);
+		fail(msg, obj, -ret);
 	else
 		return ret;
 }
@@ -125,7 +124,7 @@ static void changeroot(const char* newroot)
 	long rootdev;
 
 	if(sysgetpid() != 1)
-		fail(TAG, "not running as pid 1", NULL, 0);
+		fail("not running as pid 1", NULL, 0);
 
 	xchk(syschdir(newroot), "chdir", newroot);
 	xchk(sysstat("/", &st), "stat", "/");
@@ -134,12 +133,12 @@ static void changeroot(const char* newroot)
 	xchk(sysstat(".", &st), "stat", newroot);
 
 	if(st.st_dev == rootdev)
-		fail(TAG, "new root is on the same fs", NULL, 0);
+		fail("new root is on the same fs", NULL, 0);
 	if(sysstat("/init", &st) < 0 || !S_ISREG(st.st_mode))
-		fail(TAG, "/init is not a regular file", NULL, 0);
+		fail("/init is not a regular file", NULL, 0);
 
 	if(checkramfs())
-		fail(TAG, "not running on an initramfs", NULL, 0);
+		fail("not running on an initramfs", NULL, 0);
 
 	deleteall(AT_FDCWD, "/", rootdev);
 
@@ -169,7 +168,7 @@ int main(int argc, char** argv)
 		console = "/dev/console";
 
 	if(i >= argc)
-		fail(TAG, "no newroot to switch to", NULL, 0);
+		fail("no newroot to switch to", NULL, 0);
 
 	changeroot(argv[i++]);
 
@@ -185,5 +184,5 @@ int main(int argc, char** argv)
 	}
 
 	long ret = sysexecve(*argv, argv, NULL);
-	fail(TAG, "cannot exec", *argv, -ret);
+	fail("cannot exec", *argv, -ret);
 }

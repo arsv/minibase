@@ -8,6 +8,9 @@
 
 extern void _exit(int code) __attribute__((noreturn));
 
+extern ERRTAG;
+extern ERRLIST;
+
 static char* strerr(char* buf, char* end, int err)
 {
 	const struct errcode* p;
@@ -21,17 +24,18 @@ static char* strerr(char* buf, char* end, int err)
 		return itostr(buf, end, err);
 };
 
-void fail(const char* tag, const char* msg, const char* obj, int err)
+void warn(const char* msg, const char* obj, int err)
 {
 	char buf[ERRBUF];
 	char* end = buf + sizeof(buf) - 1;
 	char* b = buf;
 	char* p = buf;
 
-	if(tag) {
-		p = strapp(p, end, tag);
-		p = strapp(p, end, ": ");
-	} if(msg) {
+	p = strapp(p, end, errtag);
+	p = strapp(p, end, ":");
+
+	if(msg) {
+		p = strapp(p, end, " ");
 		p = strapp(p, end, msg);
 	} if(obj) {
 		p = strapp(p, end, " ");
@@ -43,5 +47,10 @@ void fail(const char* tag, const char* msg, const char* obj, int err)
 
 	*p++ = '\n';
 	syswrite(2, b, p - b);
+}
+
+void fail(const char* msg, const char* obj, int err)
+{
+	warn(msg, obj, err);
 	_exit(-1);
 }

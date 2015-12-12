@@ -5,11 +5,10 @@
 #include <null.h>
 #include <strcbrk.h>
 
-#define TAG "mkdir"
-
 #define PARENTS (1<<0)
 #define SETMODE (1<<1)
 
+ERRTAG = "mkdir";
 ERRLIST = {
 	REPORT(EACCES), REPORT(EDQUOT), REPORT(EEXIST), REPORT(EFAULT),
 	REPORT(ELOOP), REPORT(EMLINK), REPORT(ENOENT), REPORT(ENOMEM),
@@ -29,7 +28,7 @@ static int parseopts(const char* opts)
 			case 'm': ret |= SETMODE; break;
 			default:
 				opt[1] = *p;
-				fail(TAG, "unknown option", opt, 0);
+				fail("unknown option", opt, 0);
 		}
 
 	return ret;
@@ -44,7 +43,7 @@ static int parsemode(const char* mode)
 		if(*p >= '0' && (d = *p - '0') < 8)
 			m = (m<<3) | d;
 		else
-			fail(TAG, "bad mode specification", mode, 0);
+			fail("bad mode specification", mode, 0);
 
 	return m;
 }
@@ -56,7 +55,7 @@ static void makedir(char* name, int mode)
 	if(ret >= 0 || ret == -EEXIST)
 		return;
 
-	fail(TAG, "cannot create", name, -ret);
+	fail("cannot create", name, -ret);
 }
 
 static void makeall(char* name, int mode)
@@ -89,7 +88,7 @@ int main(int argc, char** argv)
 		mode = parsemode(argv[i++]);
 
 	if(i >= argc)
-		fail(TAG, "no directories to create", NULL, 0);
+		fail("no directories to create", NULL, 0);
 
 	while(i < argc)
 		if(opts & PARENTS)

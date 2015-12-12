@@ -4,8 +4,7 @@
 #include <fail.h>
 #include <null.h>
 
-static const char* TAG = "rmdir";
-
+ERRTAG = "rmdir";
 ERRLIST = {
 	REPORT(EACCES), REPORT(EBUSY), REPORT(EFAULT), REPORT(EINVAL),
 	REPORT(ELOOP), REPORT(ENOENT), REPORT(ENOMEM), REPORT(ENOTDIR),
@@ -18,10 +17,10 @@ int main(int argc, char** argv)
 	long ret;
 
 	if(argc < 2)
-		fail(TAG, "no directories to delete", NULL, 0);
+		fail("no directories to delete", NULL, 0);
 	else for(i = 1; i < argc; i++)
 		if((ret = sysrmdir(argv[i])) < 0)
-			fail(TAG, NULL, argv[i], -ret);
+			fail(NULL, argv[i], -ret);
 
 	return 0;
 }

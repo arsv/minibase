@@ -7,9 +7,9 @@
 #include <fail.h>
 #include <null.h>
 
-static const char* TAG = "cat";
 static const int CATBUF = 8000;
 
+ERRTAG = "cat";
 ERRLIST = {
 	REPORT(EAGAIN), REPORT(EBADF), REPORT(EFAULT), REPORT(EINTR),
 	REPORT(EINVAL), REPORT(EIO), REPORT(EISDIR), REPORT(EDQUOT),
@@ -21,7 +21,7 @@ static int xopen(const char* name)
 {
 	long ret = sysopen(name, O_RDONLY);
 	if(ret < 0)
-		fail(TAG, NULL, name, -ret);
+		fail(NULL, name, -ret);
 	return (int)ret;
 }
 
@@ -34,7 +34,7 @@ static void dump(const char* buf, int len)
 			buf += wr;
 			len -= wr;
 		} else {
-			fail(TAG, "write failed", NULL, -wr);
+			fail("write failed", NULL, -wr);
 		}
 }
 
@@ -46,7 +46,7 @@ static void cat(const char* name, int fd)
 	while((rd = sysread(fd, buf, CATBUF)) > 0)
 		dump(buf, rd);
 	if(rd < 0)
-		fail(TAG, "cannot read from", name, -rd);
+		fail("cannot read from", name, -rd);
 }
 
 int main(int argc, const char** argv)

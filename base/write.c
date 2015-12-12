@@ -10,8 +10,7 @@
 #include <strapp.h>
 #include <strlen.h>
 
-static const char* TAG = "write";
-
+ERRTAG = "write";
 ERRLIST = {
 	REPORT(EAGAIN), REPORT(EBADF), REPORT(EFAULT), REPORT(EINTR),
 	REPORT(EINVAL), REPORT(EIO), REPORT(EISDIR), REPORT(EDQUOT),
@@ -50,7 +49,7 @@ static int parsemode(const char* mode)
 		if(*p >= '0' && (d = *p - '0') < 8)
 			m = (m<<3) | d;
 		else
-			fail(TAG, "bad mode specification", mode, 0);
+			fail("bad mode specification", mode, 0);
 
 	return m;
 }
@@ -59,7 +58,7 @@ static int xopen(const char* name, int flags, int mode)
 {
 	long ret = sysopen3(name, flags, mode);
 	if(ret < 0)
-		fail(TAG, "cannot open", name, -ret);
+		fail("cannot open", name, -ret);
 	return (int)ret;
 }
 
@@ -72,7 +71,7 @@ static void writeall(int fd, const char* buf, int len)
 			buf += wr;
 			len -= wr;
 		} else {
-			fail(TAG, NULL, NULL, -wr);
+			fail(NULL, NULL, -wr);
 		}
 }
 
@@ -103,7 +102,7 @@ int main(int argc, char** argv)
 			case 'y': flags |= O_SYNC; break;
 			case 'm': mode = 0; break;
 			default: opt[1] = *p;
-				 fail(TAG, "unknown option", opt, 0);
+				 fail("unknown option", opt, 0);
 		}
 	if(!(flags & O_APPEND))
 		flags |= O_TRUNC;
@@ -112,7 +111,7 @@ int main(int argc, char** argv)
 		mode = parsemode(argv[i++]);
 
 	if(i >= argc)
-		fail(TAG, "need a file to work on", NULL, 0);
+		fail("need a file to work on", NULL, 0);
 
 	int fd = xopen(argv[i++], flags, mode);
 
