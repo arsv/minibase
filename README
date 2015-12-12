@@ -43,8 +43,10 @@ What is this *really* about?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 A side goal of the project is to show that util-linux need not
 be large and/or depend on the POSIX compatibility layer aka libc.
+
 See also: Plan 9 from user space.
-(note however than Linux builds of P9/us are surprisingly large)
+(note however than Linux builds of plan9port are surprisingly large)
+In a way this is an attempt to be more plan9 than plan9 itself.
 
 While busybox is the tool of choice for building small systems,
 it hides the simplicitly of the common tools pretty well by being
@@ -54,6 +56,16 @@ a single-call binary with lots of internal connections.
 Licensing
 ~~~~~~~~~
 GPL version 2 or any later, see COPYING.
+
+
+Credits
+~~~~~~~
+A lot of code here actually comes from busybox, which in turn
+pulls from util-linux and coreutils, with numerous modifications
+along the way.
+
+Syscall code (static inline functions with asm volatile blocks)
+follows musl. Because they got it right.
 
 
 See also
@@ -66,10 +78,3 @@ https://swtch.com/plan9port/
 https://www.gnu.org/software/coreutils/coreutils.html
 https://www.kernel.org/pub/linux/utils/util-linux/
 https://github.com/uutils/coreutils
-
-A lot of code here actually comes from busybox, which in turn
-pulls from util-linux and coreutils, with numerous modifications
-along the way.
-
-Syscall code (static inline functions with asm volatile blocks)
-follows musl. Because they got it right.
