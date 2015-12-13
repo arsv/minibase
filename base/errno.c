@@ -7,7 +7,7 @@
 #include <strapp.h>
 #include <memcpy.h>
 
-#define ERRTAG "errno"
+#define TAG "errno"
 #define ESUCCESS 0
 
 static const struct err {
@@ -179,7 +179,7 @@ static void unknown(const char* obj)
 	char* end = buf + sizeof(buf) - 1; 
 	char* p = buf;
 
-	p = strapp(p, end, ERRTAG ": unknown error ");
+	p = strapp(p, end, TAG ": unknown error ");
 	p = strapp(p, end, obj);
 	*p++ = '\n';
 
