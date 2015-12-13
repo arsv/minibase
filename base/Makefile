@@ -1,5 +1,6 @@
 include ../config.mk
 
-all = errno mkdir cat clear write rmdir basename dirname
+all = errno mkdir cat clear write rmdir basename dirname\
+	true false
 
 include ../common.mk
