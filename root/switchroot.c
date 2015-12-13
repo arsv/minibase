@@ -67,6 +67,8 @@ static inline int dotddot(const char* p)
 	return 0;
 }
 
+static void deletedent(int dirfd, struct dirent64* dep, long rootdev);
+
 static void deleteall(int atdir, const char* dirname, long rootdev)
 {
 	char debuf[DEBUFSIZE];
@@ -74,7 +76,7 @@ static void deleteall(int atdir, const char* dirname, long rootdev)
 	const int delen = sizeof(debuf);
 	struct stat st;
 	/* open, getdents and unlink, stat return vals */
-	long fd, rd, ul, sr;
+	long fd, rd, sr;
 
 	if((fd = sysopenat(atdir, dirname, O_DIRECTORY)) < 0)
 		return;
@@ -88,28 +90,39 @@ static void deleteall(int atdir, const char* dirname, long rootdev)
 		struct dirent64* dep = deptr;
 		struct dirent64* end = deptr + rd;
 
-		while(dep < end) {
-			if(dotddot(dep->d_name))
-				continue;
-			if(dep->d_type == DT_DIR)
-				goto isdir;
-
-			ul = sysunlinkat(fd, dep->d_name, 0);
-			if(ul >= 0 || ul != -EISDIR)
-				goto next;
-		isdir:
-			deleteall(fd, dep->d_name, rootdev);
-			sysunlinkat(fd, dep->d_name, AT_REMOVEDIR);
-			/* XXX: ul=, warn if ul */
-		next:		
+		while(dep < end)
+		{
+			if(!dotddot(dep->d_name))
+				deletedent(fd, dep, rootdev);
 			if(!dep->d_reclen)
 				break;
 			dep += dep->d_reclen;
-		};
+		}
 	};
 out:
 	sysclose(fd);
 };
+
+/* We need to know whether atdir:dename is a dir or not to unlink it
+   properly. There is no need to call statat() however. We can just
+   try to unlink it as file, and if it happens to be a dir, unlink()
+   should fail with EISDIR.
+ 
+   The check may be skipped if getdents promised us it's a dir.
+   Which it is not guaranteed to do. */
+
+static void deletedent(int dirfd, struct dirent64* dep, long rootdev)
+{
+	if(dep->d_type == DT_DIR)
+		goto isdir;
+
+	long ul = sysunlinkat(dirfd, dep->d_name, 0);
+	if(ul >= 0 || ul != -EISDIR)
+		return;
+isdir:
+	deleteall(dirfd, dep->d_name, rootdev);
+	sysunlinkat(dirfd, dep->d_name, AT_REMOVEDIR);
+}
 
 static void changeroot(const char* newroot)
 {
