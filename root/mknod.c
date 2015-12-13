@@ -2,7 +2,7 @@
 #include <bits/fcntl.h>
 #include <sys/mknod.h>
 
-#include <atoi.h>
+#include <xatol.h>
 #include <fail.h>
 #include <null.h>
 
@@ -81,8 +81,8 @@ int main(int argc, char** argv)
 		fail("too many arguments", NULL, 0);
 
 	if(isdev) {
-		major = atoi(argv[i++]);
-		minor = atoi(argv[i++]);
+		major = xatol(argv[i++]);
+		minor = xatol(argv[i++]);
 	}
 
 	long dev = makedev(major, minor);
