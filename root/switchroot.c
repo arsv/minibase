@@ -75,7 +75,7 @@ static void deleteall(int atdir, const char* dirname, long rootdev)
 	struct dirent64* deptr = (struct dirent64*) debuf;
 	const int delen = sizeof(debuf);
 	struct stat st;
-	/* open, getdents and unlink, stat return vals */
+	/* open, getdents and stat return vals */
 	long fd, rd, sr;
 
 	if((fd = sysopenat(atdir, dirname, O_DIRECTORY)) < 0)
@@ -122,6 +122,9 @@ static void deletedent(int dirfd, struct dirent64* dep, long rootdev)
 isdir:
 	deleteall(dirfd, dep->d_name, rootdev);
 	sysunlinkat(dirfd, dep->d_name, AT_REMOVEDIR);
+
+	/* it makes sense to report sysunlinkat() failures, but alas,
+	   we don't have full path to report, only dirfd and bare d_name */
 }
 
 static void changeroot(const char* newroot)
