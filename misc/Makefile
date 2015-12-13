@@ -1,5 +1,5 @@
 include ../config.mk
 
-all = hello args
+all = hello args envp
 
 include ../common.mk

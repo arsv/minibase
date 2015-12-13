@@ -5,6 +5,7 @@
 _start:
 	popq	%rdi			/* %rdi = argc */
 	movq	%rsp,%rsi		/* %rsi = argv */
+	leaq	8(%rsi,%rdi,8),%rdx	/* %rdx = envp = (8*rdi)+%rsi+8 */
 	
 	call	main
 
