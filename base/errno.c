@@ -7,7 +7,7 @@
 #include <strapp.h>
 #include <memcpy.h>
 
-#define ERRTAG "strerror"
+#define ERRTAG "errno"
 #define ESUCCESS 0
 
 static const struct err {
