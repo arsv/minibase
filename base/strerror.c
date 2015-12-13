@@ -7,7 +7,7 @@
 #include <strapp.h>
 #include <memcpy.h>
 
-#define TAG "strerror"
+#define ERRTAG "strerror"
 #define ESUCCESS 0
 
 static const struct err {
@@ -173,17 +173,13 @@ static const struct err* findbycode(int code)
 	return NULL;
 }
 
-static void fail3(const char* tag, const char* msg, const char* obj)
+static void unknown(const char* obj)
 {
-	int len = 100;
-	char buf[len];
-	char* end = buf + len - 1; 
+	char buf[100];
+	char* end = buf + sizeof(buf) - 1; 
 	char* p = buf;
 
-	p = strapp(p, end, tag);
-	p = strapp(p, end, ": ");
-	p = strapp(p, end, msg);
-	p = strapp(p, end, " ");
+	p = strapp(p, end, ERRTAG ": unknown error ");
 	p = strapp(p, end, obj);
 	*p++ = '\n';
 
@@ -233,7 +229,7 @@ static void reporterror(const char* arg)
 	if(e)
 		writeline(e->message);
 	else
-		fail3(TAG, "unknown error", arg);
+		unknown(arg);
 }
 
 int main(int argc, char** argv)
