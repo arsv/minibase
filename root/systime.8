@@ -1,0 +1,79 @@
+.TH systime 8
+'''
+.SH NAME
+systime \- control system time and realtime clock (RTC)
+'''
+.SH SYNOPSIS
+systime [\fB-rws\fR] [\fItime\fR ...]
+.br
+systime \fB-d\fR[\fBrws\fR] \fI/dev/rtc\fR [\fItime\fR ...]
+'''
+.SH DESCRIPTION
+The tool reads and/or writes current time value.
+.P
+Linux kernel keeps internal software clock accessible through
+\fBgettimeofday\fR(2) and \fBsettimeofday\fR(2) syscalls, which is
+used throught the system as current time. In particular, \fBdate\fR(1)
+displays the time returned by \fBgettimeofday\fR, possibly adjusted
+for current timezone.
+.P
+In addition the internal clock, the system may be equipped with one or more
+hardware real time clocks (RTC). Unlike software clocks, RTCs continue running
+even if the system is powered down.
+.P
+The kernel boots with its internal clock zeroed out, and at some point during
+system startup RTC is used to initialize the system clock. While the system is
+running, tools like \fBntpd\fR may be used to keep the software clock running
+true. Before shutdown, current system time is saved to the RTC, to be loaded
+back on the next reboot.
+.P
+RTC access is much more involved than a system clock query, and its precision
+may not be adequate, so RTC is usually left alone while the system is running.
+However if necessary, it is possible to query or set it at any time.
+'''
+.SH OPTIONS
+The options must be squashed: \fB-ds\fR is accepted by \fB-d -s\fR is not.
+At most one of \fB-r\fR, \fB-w\fR or \fB-s\fR may be supplied at any time.
+Without arguments, systime prints current system time to stdout.
+.IP "\fB-d\fR" 4
+Use specified \fI/dev/rtc\fR device instead of the default /dev/rtc0.
+.IP "\fB-s\fR" 4
+Read time from RTC and set system clock.
+.IP "\fB-w\fR" 4
+Write current system time to RTC.
+.IP "\fB-r\fR" 4
+Read current time from RTC and print it to the standard output.
+.P
+In case \fItime\fR is specified with \fB-s\fR or \fB-w\fR, it is used instead
+of current system or RTC time.
+.P
+Time must be specified in the following format:
+.IP "" 8
+\fIYYYY\fB-\fIMM\fB-\fIDD \fIhh\fB:\fImm\fB:\fIss\fR
+.P
+Alternatively, raw UNIX timestamp may be used:
+.IP "" 8
+\fI1234567890\fR
+.P
+(that is, the number of seconds since 00:00:00 Jan 1, 1970).
+.br
+See the entry on Epoch in \fBtime\fR(7) for more info.
+'''
+.SH NOTES
+The system clock and the RTCs should be running in UTC (TZ +0000),
+or more specifically in Unix time as defined in \fBtime\fR(7).
+.P
+This tool does not attempt to do any timezone processing. 
+Whenever a human-readable date is involved, it uses its internal equivalent
+of \fBgmtime\fR(3) to obtain date-time components from relevant Unix timestamps.
+Use \fBdate\fR(1) instead if any kind of local time information is needed.
+.P
+systime does not accept fractional seconds, and neither do RTCs.
+The purpose of systime is coarse and/or manual adjustment aimed at reducing
+time difference just enough to get finer tools like \fBntpd\fR(8) running.
+Once operational, ntpd will use \fBadjtimex\fR(2) to get the system clock
+within subsecond range of the true world time.
+'''
+.SH SEE ALSO
+\fBtime\fR(7), \fBgettimeofday\fR(2), \fBsettimeofday\fR(2), \fBadjtimex\fR(2),
+\fBdate\fR(1), \fBntpd\fR(8).

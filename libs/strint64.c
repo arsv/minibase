@@ -42,4 +42,9 @@ char* stru32(char* buf, char* end, int32_t num)
 	return strint64(buf, end, 0, num);
 }
 
+char* strli(char* buf, char* end, long num)
+	__attribute__((alias("stri64")));
+char* strul(char* buf, char* end, unsigned long num)
+	__attribute__((alias("stru64")));
+
 #endif

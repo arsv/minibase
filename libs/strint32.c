@@ -33,4 +33,9 @@ char* stru32(char* buf, char* end, uint32_t num)
 	return strint32(buf, end, 0, num);
 }
 
+char* strli(char* buf, char* end, long num)
+	__attribute__((alias("stri32")));
+char* strul(char* buf, char* end, unsigned long num)
+	__attribute__((alias("stru32")));
+
 #endif
