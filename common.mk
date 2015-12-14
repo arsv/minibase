@@ -19,3 +19,15 @@ all: $(all)
 
 clean:
 	rm -f $(all) *.o
+
+$(DESTDIR)/bin:
+	mkdir -p $@
+
+install: $(DESTDIR)/bin $(patsubst %,install-%,$(all)) installman
+install-%:
+	cp -a $* $(DESTDIR)/bin $(if $(STRIP),&& $(STRIP) $(DESTDIR)/bin/$*)
+
+installman: installman-1 installman-8
+installman-%:
+	$(if $(wildcard *.$*),\
+		mkdir -p $(DESTDIR)/$(man$*dir) && cp *.$* $(DESTDIR)/$(man$*dir))
