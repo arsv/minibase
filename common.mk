@@ -12,22 +12,26 @@ CFLAGS += -I../libs -I../libs/arch/$(ARCH)
 %: %.o ../libs.a
 	$(LD) $(LDFLAGS) -o $@ $(filter %.o,$^) $(LIBS)
 
-all: $(all)
+all: $(bin) $(sbin)
 
 ../libs.a:
 	$(MAKE) -C .. libs.a
 
 clean:
-	rm -f $(all) *.o
+	rm -f $(bin) $(sbin) *.o
 
-$(DESTDIR)/bin:
+$(DESTDIR)/bin $(DESTDIR)/sbin:
 	mkdir -p $@
 
-install: $(DESTDIR)/bin $(patsubst %,install-%,$(all)) installman
-install-%:
-	cp -a $* $(DESTDIR)/bin $(if $(STRIP),&& $(STRIP) $(DESTDIR)/bin/$*)
+install = $(foreach _, bin sbin man1 man8, $(if $($_),install-$_))
+install: $(install)
+install-man: $(filter install-man%,$(install))
 
-installman: installman-1 installman-8
-installman-%:
-	$(if $(wildcard *.$*),\
-		mkdir -p $(DESTDIR)/$(man$*dir) && cp *.$* $(DESTDIR)/$(man$*dir))
+install-bin install-sbin: install-%:
+	  mkdir -p $(DESTDIR)$($*dir)
+	  cp -a $($*) $(DESTDIR)$($*dir)
+	  $(STRIP) $(patsubst %,$(DESTDIR)$($*dir)/%,$($*))
+
+install-man%:
+	mkdir -p $(DESTDIR)$(man$*dir)
+	cp $(man$*) $(DESTDIR)$(man$*dir)

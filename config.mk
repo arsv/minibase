@@ -12,5 +12,6 @@ LDFLAGS = -nostdlib
 STRIP = $(CROSS)strip
 
 bindir = /bin
+sbindir = /sbin
 man1dir = /man/man1
 man8dir = /man/man8
