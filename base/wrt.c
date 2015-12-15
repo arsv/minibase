@@ -9,6 +9,7 @@
 #include <alloca.h>
 #include <strapp.h>
 #include <strlen.h>
+#include <mergeargs.h>
 
 ERRTAG = "write";
 ERRLIST = {
@@ -17,28 +18,6 @@ ERRLIST = {
 	REPORT(EFBIG), REPORT(ENOSPC), REPORT(EPERM), REPORT(EPIPE),
 	REPORT(EEXIST), RESTASNUMBERS
 };
-
-static int sumlen(int argc, char** argv)
-{
-	int i, len = 0;
-
-	for(i = 0; i < argc; i++)
-		len += strlen(argv[i]);
-
-	return len;
-};
-
-static void mergeargs(char* buf, int len, int argc, char** argv)
-{
-	char* end = buf + len;
-	char* p = buf;
-	int i;
-
-	for(i = 0; i < argc && p < end; i++) {
-		if(i) *p++ = ' ';
-		p = strapp(p, end, argv[i]);
-	}
-}
 
 static int parsemode(const char* mode)
 {
