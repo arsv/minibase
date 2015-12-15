@@ -73,8 +73,9 @@ int main(int argc, char** argv)
 	argv += 2;
 
 	int parlen = sumlen(argc, argv) + argc;
-	char* pars = alloca(parlen);
-	mergeargs(pars, parlen, argc, argv);
+	char* pars = alloca(parlen + 1);
+	char* pend = mergeargs(pars, pars + parlen, argc, argv);
+	*pend = '\0';
 
 	return loadmodule(name, pars);
 }

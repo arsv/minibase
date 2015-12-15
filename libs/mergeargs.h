@@ -1,2 +1,2 @@
 int sumlen(int argc, char** argv);
-void mergeargs(char* buf, int len, int argc, char** argv);
+char* mergeargs(char* buf, char* end, int argc, char** argv);

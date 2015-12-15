@@ -11,16 +11,16 @@ int sumlen(int argc, char** argv)
 	return len;
 };
 
-void mergeargs(char* buf, int len, int argc, char** argv)
+char* mergeargs(char* buf, char* end, int argc, char** argv)
 {
-	char* end = buf + len - 1;
 	char* p = buf;
 	int i;
 
-	for(i = 0; i < argc; i++) {
+	for(i = 0; i < argc && p < end; i++) {
+		if(i) *p++ = ' ';
 		p = strapp(p, end, argv[i]);
-		if(p >= end) break;
-		*p++ = ' ';
 	}
+
+	return p;
 }
 

@@ -56,11 +56,12 @@ static void writeall(int fd, const char* buf, int len)
 
 static void writeargs(int fd, int argc, char** argv)
 {
-	int len = sumlen(argc, argv) + argc - 1;
+	int len = sumlen(argc, argv) + argc;
 	char* buf = alloca(len + 2);
+	char* end = buf + sizeof(buf);
 
-	mergeargs(buf, len, argc, argv);
-	writeall(fd, buf, len);
+	mergeargs(buf, end, argc, argv);
+	writeall(fd, buf, end - buf);
 }
 
 int main(int argc, char** argv)
