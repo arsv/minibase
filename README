@@ -41,8 +41,10 @@ functions and leaving POSIX stuff to busybox.
 
 What is this *really* about?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-A side goal of the project is to show that util-linux need not
-be large and/or depend on the POSIX compatibility layer aka libc.
+Re-thinking the role and design of libc, experimentally.
+
+Also, showing that util-linux are simple by their nature simple, small
+and do not need to depend on the POSIX compatibility layer aka libc.
 
 See also: Plan 9 from user space.
 (note however than Linux builds of plan9port are surprisingly large)
@@ -50,7 +52,7 @@ In a way this is an attempt to be more plan9 than plan9 itself.
 
 While busybox is the tool of choice for building small systems,
 it hides the simplicitly of the common tools pretty well by being
-a single-call binary with lots of internal connections.
+a single-call binary with lots of internal interlinking.
 
 
 Licensing
@@ -66,6 +68,9 @@ along the way.
 
 Syscall code (static inline functions with asm volatile blocks)
 follows musl. Because they got it right.
+
+The Rust coreutils project provided a great deal of inspiration,
+specifically by showing how not to write coreutils.
 
 
 See also
