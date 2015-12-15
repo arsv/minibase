@@ -61,6 +61,14 @@ static char* parse(char* buf, char* end)
 	return q;
 }
 
+/* The code below does the echo.
+   The code above -- all the code above -- is there only to support -e
+
+   Sadly there is no way around it, -e is used and is not easily replaceable.
+   This can't be fixed without fixing the shell, and with that,
+   echo should be dropped in favor of wrt anyway.
+   So yeah, let's stay compatible for this one. */
+
 int main(int argc, char** argv)
 {
 	int i = 1;
