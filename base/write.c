@@ -7,9 +7,9 @@
 #include <fail.h>
 #include <null.h>
 #include <alloca.h>
-#include <strapp.h>
+#include <fmtstr.h>
 #include <strlen.h>
-#include <mergeargs.h>
+#include <argsmerge.h>
 
 ERRTAG = "write";
 ERRLIST = {
@@ -56,11 +56,11 @@ static void writeall(int fd, const char* buf, int len)
 
 static void writeargs(int fd, int argc, char** argv)
 {
-	int len = sumlen(argc, argv) + argc;
+	int len = argsumlen(argc, argv) + argc;
 	char* buf = alloca(len + 2);
 	char* end = buf + sizeof(buf);
 
-	mergeargs(buf, end, argc, argv);
+	argsmerge(buf, end, argc, argv);
 	writeall(fd, buf, end - buf);
 }
 

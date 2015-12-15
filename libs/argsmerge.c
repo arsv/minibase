@@ -1,7 +1,7 @@
 #include "strlen.h"
-#include "strapp.h"
+#include "fmtstr.h"
 
-int sumlen(int argc, char** argv)
+int argsumlen(int argc, char** argv)
 {
 	int i, len = 0;
 
@@ -11,16 +11,15 @@ int sumlen(int argc, char** argv)
 	return len;
 };
 
-char* mergeargs(char* buf, char* end, int argc, char** argv)
+char* argsmerge(char* buf, char* end, int argc, char** argv)
 {
 	char* p = buf;
 	int i;
 
 	for(i = 0; i < argc && p < end; i++) {
 		if(i) *p++ = ' ';
-		p = strapp(p, end, argv[i]);
+		p = fmtstr(p, end, argv[i]);
 	}
 
 	return p;
 }
-

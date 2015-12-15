@@ -11,9 +11,8 @@
 #include <fail.h>
 #include <alloca.h>
 #include <strlen.h>
-#include <strapp.h>
 #include <basename.h>
-#include <mergeargs.h>
+#include <argsmerge.h>
 
 ERRTAG = "insmod";
 ERRLIST = {
@@ -72,9 +71,9 @@ int main(int argc, char** argv)
 	argc -= 2;
 	argv += 2;
 
-	int parlen = sumlen(argc, argv) + argc;
+	int parlen = argsumlen(argc, argv) + argc;
 	char* pars = alloca(parlen + 1);
-	char* pend = mergeargs(pars, pars + parlen, argc, argv);
+	char* pend = argsmerge(pars, pars + parlen, argc, argv);
 	*pend = '\0';
 
 	return loadmodule(name, pars);

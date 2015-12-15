@@ -1,8 +1,8 @@
-#include "strtoi.h"
+#include "parselong.h"
 
-char* strtoi(char* buf, int* np)
+char* parselong(char* buf, long* np)
 {
-	int d, n = 0;
+	long d, n = 0;
 	char* p;
 
 	for(p = buf; *p; p++)

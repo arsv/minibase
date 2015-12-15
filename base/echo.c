@@ -1,8 +1,7 @@
 #include <sys/write.h>
 
 #include <alloca.h>
-#include <mergeargs.h>
-#include <optbits.h>
+#include <argsmerge.h>
 
 #define TAG "echo"
 #define OPT_n (1<<0)
@@ -81,9 +80,9 @@ int main(int argc, char** argv)
 	if(argc <= 0)
 		return 0;
 
-	int len = sumlen(argc, argv) + argc;
+	int len = argsumlen(argc, argv) + argc;
 	char* buf = alloca(len + 5); /* parse() may overshoot for at most 3 chars */
-	char* end = mergeargs(buf, buf + len, argc, argv);
+	char* end = argsmerge(buf, buf + len, argc, argv);
 	*end = '\0'; /* terminate any trailing \-sequence */
 
 	if(opts & OPT_e)

@@ -2,7 +2,7 @@
 #include <bits/fcntl.h>
 #include <sys/mknod.h>
 
-#include <xatol.h>
+#include <parseint.h>
 #include <fail.h>
 #include <null.h>
 
@@ -54,6 +54,17 @@ static int parsetype(const char* type)
 bad:	fail("bad node type specification", NULL, 0);
 }
 
+int xparseint(char* str)
+{
+	int n;
+
+	char* end = parseint(str, &n);
+	if(*end || end == str)
+		fail("not a number", str, 0);
+
+	return n;
+}
+
 int main(int argc, char** argv)
 {
 	int i = 1;
@@ -81,8 +92,8 @@ int main(int argc, char** argv)
 		fail("too many arguments", NULL, 0);
 
 	if(isdev) {
-		major = xatol(argv[i++]);
-		minor = xatol(argv[i++]);
+		major = xparseint(argv[i++]);
+		minor = xparseint(argv[i++]);
 	}
 
 	long dev = makedev(major, minor);

@@ -1,8 +1,8 @@
 #include <fail.h>
 #include <null.h>
-#include "optbits.h"
+#include "argbits.h"
 
-int xbitopts(const char* key, const char* arg)
+int argbits(const char* key, const char* arg)
 {
 	char opt[] = "-?";
 	const char* a;

@@ -1,8 +1,9 @@
-#include "strtol.h"
+#include "parseulong.h"
 
-char* strtol(char* buf, long* np)
+char* parseulong(char* buf, unsigned long* np)
 {
-	long d, n = 0;
+	unsigned long n = 0;
+	int d;
 	char* p;
 
 	for(p = buf; *p; p++)

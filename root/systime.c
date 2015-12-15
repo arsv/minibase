@@ -8,19 +8,20 @@
 #include <sys/gettimeofday.h>
 #include <sys/settimeofday.h>
 
-#include <optbits.h>
+#include <argbits.h>
 #include <memset.h>
 #include <fail.h>
-#include <null.h>
 #include <xchk.h>
+#include <null.h>
 #include <tv2tm.h>
 #include <tm2tv.h>
-#include <strint.h>
+#include <parseint.h>
 #include <strlen.h>
-#include <strapc.h>
-#include <strulp.h>
-#include <strtoi.h>
-#include <strtoul.h>
+#include <fmtchar.h>
+#include <fmtlong.h>
+#include <fmtulp.h>
+#include <parseint.h>
+#include <parseulong.h>
 
 ERRTAG = "systime";
 ERRLIST = { 
@@ -64,60 +65,64 @@ static void setrtctime(struct tm* tm, int rtcfd, const char* rtcname)
 		"cannot set RTC time on", rtcname );
 }
 
-static int parseymd(struct tm* tm, char* a)
+static char* parseymd(struct tm* tm, char* a)
 {
 	char* p = a; /* Expected format: 2015-12-14 */
 	
-	if(*(p = strtoi(p, &tm->tm_year)) != '-')
-		return -1;
-	if(*(p = strtoi(p, &tm->tm_mon)) != '-')
-		return -1;
-	if(*(p = strtoi(p, &tm->tm_mday)))
-		return -1;
+	if(!(p = parseint(p, &tm->tm_year)) || *p != '-')
+		return NULL;
+	if(!(p = parseint(p, &tm->tm_mon)) || *p != '-')
+		return NULL;
+	if(!(p = parseint(p, &tm->tm_mday)) || *p)
+		return NULL;
 
 	if(tm->tm_mon > 12)
-		return -1;
+		return NULL;
 	if(tm->tm_mday > 31)
-		return -1;
+		return NULL;
 	
 	tm->tm_mon--;
 	tm->tm_year -= 1900;
 
-	return 0;
+	return p;
 }
 
-static int parsehms(struct tm* tm, char* a)
+static char* parsehms(struct tm* tm, char* a)
 {
 	char* p = a; /* Expected format: 20:40:17 */
 
-	if(*(p = strtoi(p, &tm->tm_hour)) != ':')
-		return -1;
-	if(*(p = strtoi(p, &tm->tm_min)) != ':')
-		return -1;
-	if(*(p = strtoi(p, &tm->tm_sec)))
-		return -1;
+	if(!(p = parseint(p, &tm->tm_hour)) || *p != ':')
+		return NULL;
+	if(!(p = parseint(p, &tm->tm_min)) || *p != ':')
+		return NULL;
+	if(!(p = parseint(p, &tm->tm_sec)))
+		return NULL;
 
 	if(tm->tm_hour >= 24)
-		return -1;
+		return NULL;
 	if(tm->tm_min >= 60)
-		return -1;
+		return NULL;
 	if(tm->tm_sec >= 60)
-		return -1;
+		return NULL;
 
-	return 0;
+	return p;
 }
 
 static void parsetime(struct timeval* tv, struct tm* tm, int argc, char** argv)
 {
+	char* p;
+
 	if(argc > 2)
 		fail("bad time specification", NULL, 0);
 	if(argc == 1) {
-		if(*(strtoul(argv[0], &(tv->tv_sec))))
+		if(!(p = parseulong(argv[0], &(tv->tv_sec))) || *p)
 			fail("not a timestamp:", argv[0], 0);
 		tv2tm(tv, tm);
 	} else {
-		if(parseymd(tm, argv[0]) || parsehms(tm, argv[1]))
-			fail("cannot parse date (YYYY-MM-DD hh:mm:ss expected)", NULL, 0);
+		if(!(p = parseymd(tm, argv[0])) || *p)
+			fail("cannot parse date (YYYY-MM-DD expected):", argv[0], 0);
+		if(!(p = parsehms(tm, argv[0])) || *p)
+			fail("cannot parse time (hh:mm:ss expected):", argv[1], 0);
 		tm2tv(tm, tv);
 	}
 }
@@ -131,27 +136,27 @@ static void showtime(struct timeval* tv, struct tm* tm)
 	char* end = buf + sizeof(buf) - 1;
 	char* p = buf;
 
-	p = strli(p, end, tv->tv_sec);
-	p = strapc(p, end, ' ');
+	p = fmtulong(p, end, tv->tv_sec);
+	p = fmtchar(p, end, ' ');
 
-	p = strulp(p, end, tm->tm_year + 1900, 4);
-	p = strapc(p, end, '-');
-	p = strulp(p, end, tm->tm_mon + 1, 2);
-	p = strapc(p, end, '-');
-	p = strulp(p, end, tm->tm_mday, 2);
-	p = strapc(p, end, ' ');
+	p = fmtulp(p, end, tm->tm_year + 1900, 4);
+	p = fmtchar(p, end, '-');
+	p = fmtulp(p, end, tm->tm_mon + 1, 2);
+	p = fmtchar(p, end, '-');
+	p = fmtulp(p, end, tm->tm_mday, 2);
+	p = fmtchar(p, end, ' ');
 
-	p = strulp(p, end, tm->tm_hour, 2);
-	p = strapc(p, end, ':');
-	p = strulp(p, end, tm->tm_min, 2);
-	p = strapc(p, end, ':');
-	p = strulp(p, end, tm->tm_sec, 2);
+	p = fmtulp(p, end, tm->tm_hour, 2);
+	p = fmtchar(p, end, ':');
+	p = fmtulp(p, end, tm->tm_min, 2);
+	p = fmtchar(p, end, ':');
+	p = fmtulp(p, end, tm->tm_sec, 2);
 	*p++ = '\n';
 
 	syswrite(1, buf, p - buf);
 }
 
-static const char optline[] = "rswd";
+#define OPTS "rswd"
 #define OPT_r (1<<0)
 #define OPT_s (1<<1)
 #define OPT_w (1<<2)
@@ -180,7 +185,7 @@ int main(int argc, char** argv)
 
 	/* Find out what we're about to do */
 	if(i < argc && argv[i][0] == '-')
-		opts = xbitopts(optline, argv[i++] + 1);
+		opts = argbits(OPTS, argv[i++] + 1);
 	if(!checkmode(opts))
 		fail("cannot use more than one of -rsw", NULL, 0);
 

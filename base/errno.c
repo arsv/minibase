@@ -4,7 +4,7 @@
 #include <null.h>
 #include <strlen.h>
 #include <strcmp.h>
-#include <strapp.h>
+#include <fmtstr.h>
 #include <memcpy.h>
 
 #define TAG "errno"
@@ -179,8 +179,8 @@ static void unknown(const char* obj)
 	char* end = buf + sizeof(buf) - 1; 
 	char* p = buf;
 
-	p = strapp(p, end, TAG ": unknown error ");
-	p = strapp(p, end, obj);
+	p = fmtstr(p, end, TAG ": unknown error ");
+	p = fmtstr(p, end, obj);
 	*p++ = '\n';
 
 	syswrite(2, buf, p - buf);

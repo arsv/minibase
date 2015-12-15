@@ -1,9 +1,8 @@
-#include "strtoul.h"
+#include "parseint.h"
 
-char* strtoul(char* buf, unsigned long* np)
+char* parseint(char* buf, int* np)
 {
-	unsigned long n = 0;
-	int d;
+	int d, n = 0;
 	char* p;
 
 	for(p = buf; *p; p++)

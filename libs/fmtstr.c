@@ -1,6 +1,6 @@
-#include "strapp.h"
+#include "fmtstr.h"
 
-char* strapp(char* dst, char* end, const char* src)
+char* fmtstr(char* dst, char* end, const char* src)
 {
 	char* p = dst;
 	const char* q = src;

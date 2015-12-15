@@ -5,7 +5,7 @@
 
 #include <memcpy.h>
 #include <strlen.h>
-#include <strapp.h>
+#include <fmtstr.h>
 #include <strncmp.h>
 #include <null.h>
 
@@ -17,15 +17,15 @@ static void warn(const char* obj, const char* msg)
 	char* end = buf + sizeof(buf) - 1;
 	char* p = buf;
 
-	p = strapp(p, end, TAG ": ");
+	p = fmtstr(p, end, TAG ": ");
 
 	if(!obj) goto no;
 
-	p = strapp(p, end, obj);
-	p = strapp(p, end, " ");
+	p = fmtstr(p, end, obj);
+	p = fmtstr(p, end, " ");
 no:
-	p = strapp(p, end, msg);
-	p = strapp(p, end, "\n");
+	p = fmtstr(p, end, msg);
+	p = fmtstr(p, end, "\n");
 
 	syswrite(2, buf, p - buf);
 }

@@ -1,12 +1,12 @@
-#include "strulp.h"
+#include "fmtulp.h"
 
-/* Could have merged it with stri{32,64}, but the problem is that
+/* Could have merged it with fmti{32,64}, but the problem is that
    padding only makes sense on unsigned integers, and it's not likely
    that we will ever pad 64-bit integers on 32-bit arches.
 
    So, let's keep it a separate function with a arch-neutral long arg. */
 
-char* strulp(char* buf, char* end, unsigned long num, int pad)
+char* fmtulp(char* buf, char* end, unsigned long num, int pad)
 {
 	int len;
 	unsigned long n;
