@@ -1,6 +1,6 @@
 include ../config.mk
 
 all = errno mkdir cat clear wrt rmdir basename dirname\
-	true false which
+	true false which echo
 
 include ../common.mk
