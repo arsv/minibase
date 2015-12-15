@@ -3,7 +3,7 @@ include config.mk
 MAKEFLAGS += --no-print-directory
 CFLAGS += -Ilibs -Ilibs/arch/$(ARCH)
 
-all: libs.a build-base build-root
+all: libs.a build-admin build-common
 
 libso = $(patsubst %.s,%.o,$(wildcard libs/arch/$(ARCH)/*.s)) \
 	$(patsubst %.c,%.o,$(wildcard libs/*.c))
@@ -14,11 +14,11 @@ libs.a: $(libso)
 build-%:
 	$(MAKE) -C $*
 
-install: install-base install-root
+install: install-admin install-common
 install-%:
 	$(MAKE) -C $* install
 
-clean: clean-base clean-root clean-libs
+clean: clean-admin clean-common clean-libs
 clean-%:
 	$(MAKE) -C $* clean
 clean-libs:
