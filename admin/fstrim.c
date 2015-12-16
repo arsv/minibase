@@ -26,7 +26,7 @@ struct fstrim_range {
 	uint64_t minlen;
 };
 
-static void atoulx(uint64_t* u, const char* n)
+static void parsesuffixed(uint64_t* u, const char* n)
 {
 	uint64_t tmp = 0;
 	const char* p;
@@ -60,11 +60,11 @@ int main(int argc, char** argv)
 	const char* mnt = argv[i++];
 
 	if(i < argc)
-		atoulx(&range.minlen, argv[i++]);
+		parsesuffixed(&range.minlen, argv[i++]);
 	if(i < argc)
-		atoulx(&range.start, argv[i++]);
+		parsesuffixed(&range.start, argv[i++]);
 	if(i < argc)
-		atoulx(&range.len, argv[i++]);
+		parsesuffixed(&range.len, argv[i++]);
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 

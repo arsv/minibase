@@ -24,7 +24,7 @@ static const struct mount {
 	char* point;
 	long flags;
 	char* opts;
-} fstab[] = {
+} vfstab[] = {
  { "dev",	"devtmpfs",	"/dev",				SX,	NULL },
  { "pts",	"devpts",	"/dev/pts",			SX,	NULL },
  { "shm",	"tmpfs",	"/dev/shm",			SX,	NULL },
@@ -52,7 +52,7 @@ static void mountbyname(const char* name)
 {
 	const struct mount* p;
 
-	for(p = fstab; p->name; p++)
+	for(p = vfstab; p->name; p++)
 		if(!strcmp(p->name, name))
 			return mountentry(p);
 
