@@ -1,5 +1,7 @@
 #include "strcbrk.h"
 
+/* Like strpbrk(3) but with a single delimiter character. */
+
 char* strcbrk(char* str, char c)
 {
 	char* p;

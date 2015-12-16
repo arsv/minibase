@@ -1,5 +1,8 @@
 #include "fmtint64.h"
 
+/* Format 64-bit integers. Since 64-bit arches will pass shorted
+   integers in registers anyway, alias fmt32 to theese as well. */
+
 static char* fmtint64(char* buf, char* end, int minus, uint64_t num)
 {
 	int len = 0;

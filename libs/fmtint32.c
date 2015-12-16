@@ -1,6 +1,11 @@
 #include <bits/ints.h>
 #include "fmtint32.h"
 
+/* Format 32-bit integers. Only matters for 32-bit arches where
+   it's the native length and i64 requires additional code.
+
+   64-bit arches use 64-bit formatters for all integers. */
+
 #if BITS == 32
 
 static char* fmtint32(char* buf, char* end, int minus, uint32_t num)

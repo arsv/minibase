@@ -33,7 +33,7 @@ void tv2tm(struct timeval* tv, struct tm* tm)
 		else
 			dsum = next;
 
-	/* Reverse Feb-last-month logic above; mon is 0-based */
+	/* Reverse Feb-last-month logic from tm2tv; mon is 0-based */
 	mday = yday - dsum; mon += 2;
 	if(mon > 11) { mon -= 12; year += 1; }
 
