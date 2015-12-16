@@ -4,11 +4,13 @@
 mount \- attach filesystem tree to a given directory
 '''
 .SH SYNOPSIS
-mount [\fB-rtdxusy\fR] \fIsource\fR \fItarget\fR \fIfstype\fR \fIdata\fR
+mount [\fB-rtdxusy\fR] \fItarget\fR \fIsource\fR [\fIfstype\fR [\fIdata\fR]]
 .br
-mount \fB-b\fR \fIsource\fR \fItarget\fR
+mount \fB-v\fR[\fBrtdxusy\fR] \fItarget\fR \fIfstype\fR [\fIdata\fR]
 .br
-mount \fB-v\fR \fIsource\fR \fItarget\fR
+mount \fB-b\fR \fItarget\fR \fIsource\fR
+.br
+mount \fB-v\fR \fItarget\fR \fIsource\fR
 .br
 mount \fB-m[rdxuy]\fR \fItarget\fR \fIdata\fR
 '''
@@ -26,14 +28,13 @@ filesystems.
 Any combination of the options below must be squashed into a single argument:
 \fB-rdx\fR is accepted but \fB-r -d -x\fR is not.
 .P
-The options are bits in \fBmountflags\fR argument for \fBmount\fR(2) common
-for all filesystems.
-Any filesystem-specific settings are passed via \fIdata\fR which is a
-comma-separated list of keys or key=value pairs.
+The options ste bits in \fBmountflags\fR argument for \fBmount\fR(2) common
+for all filesystems. Any filesystem-specific settings are passed via \fIdata\fR
+which is a comma-separated list of keys or \fIkey\fR=\fIvalue\fR pairs.
 .IP "\fB-b\fR" 4
 Perform a bind mount, making \fIsource\fR subtree visible at a different
 location \fItarget\fR (MS_BIND).
-.IP "\fB-v\fR" 4
+.IP "\fB-m\fR" 4
 Move existing mount point \fIsource\fR to a different location \fItarget\fR
 (MS_MOVE).
 .IP "\fB-r\fR" 4
@@ -47,12 +48,14 @@ Do not allow programs to be executed from this filesystem (MS_NOEXEC).
 .IP "\fB-u\fR" 4
 Do not honor set-user-ID and set-group-ID bits when executing programs
 from this filesystem (MS_NOSUID).
-.IP "\fB-m\fR" 4
+.IP "\fB-e\fR" 4
 Remount \fItarget\fR, possibly changing its mount options (MS_REMOUNT).
 .IP "\fB-s\fR" 4
 Suppress the display of certain messages in the kernel log (MS_SILENT).
 .IP "\fB-y\fR" 4
 Make writes on this filesystem synchronous (MS_SYNCHRONOUS).
+.IP "\fB-v\fR" 4
+Mount virtual file system (\fIsource\fR=NULL).
 '''
 .SH NOTES
 This tool does not read /etc/fstab and does not update /etc/mtab.

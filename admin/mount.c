@@ -13,6 +13,10 @@ ERRLIST = {
 	REPORT(EPERM), RESTASNUMBERS
 };
 
+/* This should not clash with any valid MS_* flags below.
+   (which happen to be the case, those are (1<<0) ... (1<<25) */
+#define MS_X_NONE (1<<31)
+
 static long parseflags(const char* flagstr)
 {
 	const char* p;
@@ -22,15 +26,16 @@ static long parseflags(const char* flagstr)
 	for(p = flagstr; *p; p++) switch(*p)
 	{
 		case 'b': flags |= MS_BIND; break;
-		case 'v': flags |= MS_MOVE; break;
+		case 'm': flags |= MS_MOVE; break;
 		case 'r': flags |= MS_RDONLY; break;
 		case 't': flags |= MS_LAZYTIME; break;
 		case 'd': flags |= MS_NODEV; break;
 		case 'x': flags |= MS_NOEXEC; break;
 		case 'u': flags |= MS_NOSUID; break;
-		case 'm': flags |= MS_REMOUNT; break;
+		case 'e': flags |= MS_REMOUNT; break;
 		case 's': flags |= MS_SILENT; break;
 		case 'y': flags |= MS_SYNCHRONOUS; break;
+		case 'v': flags |= MS_X_NONE; break;
 		default: 
 			flg[1] = *p;
 			fail("unknown flag", flg, 0);
@@ -43,7 +48,7 @@ static long parseflags(const char* flagstr)
    The tool accounts for this by not expecting respective arguments
    in the command line, so that it's
 
-   	mount -r /dev/foo /mnt/blah ext4 discard
+   	mount -r /mnt/blah /dev/foo ext4 discard
 
    in the full case but not when remounting:
 
@@ -62,18 +67,18 @@ int main(int argc, char** argv)
 
 	int i = 1;
 
-	if(argc <= 1)
-		fail("too few arguments", NULL, 0);
-
-	if(argv[i][0] == '-')
+	if(i < argc && argv[i][0] == '-')
 		flags = parseflags(argv[i++] + 1);
 
-	if(i < argc && !(flags & MS_REMOUNT))
-		source = argv[i++];
 	if(i < argc)
 		target = argv[i++];
 	else
-		fail("too few arguments", NULL, 0);
+		fail("mountpoint required", NULL, 0);
+
+	if(i < argc && !(flags & (MS_REMOUNT | MS_X_NONE)))
+		source = argv[i++];
+
+	flags &= ~MS_X_NONE;
 
 	if(i < argc && !(flags & (MS_MOVE | MS_REMOUNT)))
 		fstype = argv[i++];
