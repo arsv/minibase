@@ -3,6 +3,7 @@
 #include <bits/errno.h>
 #include <bits/fcntl.h>
 #include <bits/stat.h>
+#include <bits/stmode.h>
 #include <bits/statfs.h>
 #include <bits/dirent.h>
 
