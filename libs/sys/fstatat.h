@@ -1,6 +1,8 @@
 #include <bits/syscall.h>
 #include <syscall4.h>
 
+struct stat;
+
 inline static long sysfstatat(int dirfd, const char *path,
 		struct stat *buf, int flags)
 {
