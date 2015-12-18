@@ -88,16 +88,19 @@ static void deleteall(int atdir, const char* dirname, long rootdev)
 
 	while((rd = sysgetdents64(fd, deptr, delen)) > 0)
 	{
-		struct dirent64* dep = deptr;
-		struct dirent64* end = deptr + rd;
+		char* ptr = debuf;
+		char* end = debuf + rd;
 
-		while(dep < end)
+		while(ptr < end)
 		{
+			struct dirent64* dep = (struct dirent64*) ptr;
+
 			if(!dotddot(dep->d_name))
 				deletedent(fd, dep, rootdev);
 			if(!dep->d_reclen)
 				break;
-			dep += dep->d_reclen;
+
+			ptr += dep->d_reclen;
 		}
 	};
 out:
