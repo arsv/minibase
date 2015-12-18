@@ -1,0 +1,23 @@
+.TH echo 1
+'''
+.SH NAME
+echo \- display a line of text
+'''
+.SH SYNOPSIS
+echo [\fB-ne\fR] \fIsome\fR \fItext\fR \fIhere\fR ...
+'''
+.SH DESCRIPTION
+echo prints its arguments, joined by spaced, to standard output.
+.P
+With \fB-e\fR given, echo interprets backslash sequences: \fB\\n\fR
+for newline, \fB\\t\fR for tab, \fB\\x\fINN\fR for byte value \fINN\fR
+hexadecimal, \fB\\\fINNN\fR for by value \fINNN\fR octal.
+'''
+.SH OPTIONS
+.IP "\fB-n\fR" 4
+Do not put newline after the arguments.
+.IP "\fB-e\fR" 4
+Parse backslash sequences.
+'''
+.SH SEE ALSO
+\fBcat\fR(1), \fBtee\fR(1)

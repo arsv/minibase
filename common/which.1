@@ -1,0 +1,26 @@
+.TH which 1
+'''
+.SH NAME
+which \- show the full path of a command.
+'''
+.SH SYNOPSIS
+which \fIcommand\fR ...
+'''
+.SH DESCRIPTION
+which attempts to find out the full path of the executable
+the shell and calls like \fBexeclp\fR(3) would run on \fIcommand\fR.
+.P
+which does that by tring to find an executable file in each of the
+colon-separated directories listed in \fB$PATH\fR. Full path of the
+first file found is printed to standard output.
+.P
+If given more than one command, which does the same for each of them.
+.P
+which does not take any options.
+'''
+.SH ENVIRONMENT
+.IP "\fBPATH\fR" 8
+Holds the list of directories to look for executables in.
+'''
+.SH SEE ALSO
+\fBsh\fR(1), \fBexeclp\fR(3).

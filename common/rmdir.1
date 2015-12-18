@@ -1,0 +1,19 @@
+.TH rmdir 1
+'''
+.SH NAME
+rmdir \- remove directories
+'''
+.SH SYNOPSIS
+rmdir \fIdir\fR \fIdir\fR ...
+'''
+.SH DESCRIPTION
+rmdir removes specified directories, presumed to be empty.
+.P
+Unlike \fBrm\fR(1), it does not attempt to delete non-directory nodes
+inside specified directories, and fails in case given directories are
+not empty.
+.P
+rmdir takes no options.
+'''
+.SH SEE ALSO
+\fBrm\fR(1), \fBmkdir\fR(1), \fBrmdir\fR(2), \fBmkdir\fR(2).
