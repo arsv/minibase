@@ -20,6 +20,7 @@
 #include <fmtchar.h>
 #include <fmtlong.h>
 #include <fmtulp.h>
+#include <fmttm.h>
 #include <parseint.h>
 #include <parseulong.h>
 
@@ -138,19 +139,7 @@ static void showtime(struct timeval* tv, struct tm* tm)
 
 	p = fmtulong(p, end, tv->tv_sec);
 	p = fmtchar(p, end, ' ');
-
-	p = fmtulp(p, end, tm->tm_year + 1900, 4);
-	p = fmtchar(p, end, '-');
-	p = fmtulp(p, end, tm->tm_mon + 1, 2);
-	p = fmtchar(p, end, '-');
-	p = fmtulp(p, end, tm->tm_mday, 2);
-	p = fmtchar(p, end, ' ');
-
-	p = fmtulp(p, end, tm->tm_hour, 2);
-	p = fmtchar(p, end, ':');
-	p = fmtulp(p, end, tm->tm_min, 2);
-	p = fmtchar(p, end, ':');
-	p = fmtulp(p, end, tm->tm_sec, 2);
+	p = fmttm(p, end, tm);
 	*p++ = '\n';
 
 	syswrite(1, buf, p - buf);
