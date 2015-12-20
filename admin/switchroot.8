@@ -1,0 +1,54 @@
+.TH switchroot 8
+'''
+.SH NAME
+switchroot \- replace initramfs with a newly mounted root filesystem.
+'''
+.SH SYNOPSIS
+switchroot [\fB+\fR[\fI/dev/console\fR]] \fI/mnt/newroot\fR \fI/sbin/init\fR ...
+'''
+.SH DESCRIPTION
+switchroot is a single-use tool needed to get rid of initramfs once the real
+root has been mounted.
+.P
+Initramfs is a special filesystem loaded into the kernel early during boot,
+serving as the root filesystem until the real root gets mounted. Typically
+it contains just enough of userspace code to find and mount the real rootfs.
+.P
+Unlike any other mounted filesystem, initramfs cannot be unmounted, and
+exchanging it with the real root using \fBpivot_root\fR(2) is not allowed. 
+The real root must be mounted over initramfs, using move mount from its
+original mountpoint to /.
+.P
+Before mounting the real root, initramfs must be wiped by unlinking all
+the files there. Anything left behind will not be accessible but will still
+waste kernel memory.
+.P
+When invoked, switchroot deletes everything on / without crossing file
+system boundaries, move-mounts \fInewroot\fR to /, and executes
+\fI/sbin/init\fR in the new root.
+'''
+.SH OPTIONS
+.IP "\fB+\fR[\fI/dev/console\fR]" 4
+Open \fI/dev/console\fR as stdin, stdout and stderr for \fI/sbin/init\fR.
+In case the argument is not supplied, /dev/console is used.
+'''
+.SH NOTES
+switchroot does the equivalent of rm -r / before switching to the new root.
+That is rather dangerous, so switchroot tries to make extra sure the files
+being deleted reside on initramfs by calling \fBstatfs\fR(2).
+.P
+switchroot must always be run as pid 1, since it execs into \fBinit\fR(8).
+This means the initramfs init must exec into switchroot.
+.P
+Any virtual filesystems that happen to be mounted onto initramfs must be
+moved over to their respective locations under newroot before calling
+switchroot. See \fBmount\fR(8), \fBmountvfs\fR(8).
+.P
+Normally the open /dev/console fds will not hold onto any initramfs inodes
+as the containing /dev filesystem will be moved to the new root.
+This will not happen if /dev is a part of initramfs itself (static device
+nodes with no dynamic management of any sort). In this case, /dev/console
+must be reopened before executing the new init.
+'''
+.SH SEE ALSO
+\fBmount\fR(8), \fBmountvfs\fR(8), \fBmount\fR(2), \fBpivot_root\fR(2).
