@@ -1,0 +1,50 @@
+Big fat warning: POSIX compatibility is *NOT* a goal!
+
+The goal is providing a set of tools that allow one to do the stuff
+possible in POSIX, if perhaps with different commands, while keeping
+the executables small and the code clean.
+
+
+* cp, mv, ln?
+	ln to do symlinks by default, maybe?
+
+* chvt
+	this one should also do deallocvt and openvt, all that fits nicely
+	within a single too. Probably should be called "vt" as well.
+
+* reset and/or tset
+
+* ls and stat
+	ls should probably be list-only tool, and all traditional ls -l
+	stuff should go to stat instead. And instead of ls -lR it should
+	look something like this:
+		ls -r | stat -i		# stat reads stdin and does basename
+		ls -r | xargs -d stat
+	
+* xargs
+	should split on linebreaks by default	
+
+* hexdump
+	with a sane common format, *not* the stuff od does.
+
+* wr (or wrt? or write?)
+	replace current write with a generic tool that writes to a file (and/or
+	stdout) the data read from stdin or files gives or the args themselves.
+	That's all quite similar actually. This tool would replace echo, cat and tee.
+
+* dd (or bcp?)
+	naturally with sane syntax, i.e.
+		dd -b 1M outfile.bin infile.bin
+	instead of
+		dd bs=1M of=outfile.bin if=infile.bin
+
+* merge mount and umount?
+	Seems quite natural but turns out to be really contrieved.
+	The tools are almost completely unrelated, *and* have a lot
+	of option overlap. The idea is of course to make
+
+		mount -u /mntpoint
+
+	do unmounting.
+	
+* ifconfig / ip / iw / arp? maybe iptables?
