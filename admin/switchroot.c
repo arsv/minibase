@@ -57,6 +57,16 @@ static int checkramfs(void)
 	return 0;
 };
 
+/* The whole delete* part could have been a call to rm. And it would
+   actually work, even on initramfs, because our rm is always statically
+   linked. Some care must be taken not to confuse / and . at most.
+
+   However, given the very special role of switchroot, and the fact
+   the code takes just about a screen or so, let's leave it here and
+   keep switchroot completely independent.
+   
+   Btw, calling rm would need about half that code in fork/exec anyway. */
+
 #define DEBUFSIZE 2000
 
 static inline int dotddot(const char* p)
