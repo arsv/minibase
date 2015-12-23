@@ -6,4 +6,5 @@ test/
 !*/*.*
 !libs/*
 !*/Makefile
+!*/README
 *.o
