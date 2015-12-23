@@ -21,11 +21,12 @@
 #include <null.h>
 #include <xchk.h>
 
-#define OPTS "rfxZ"
+#define OPTS "rfxdZ"
 #define OPT_r (1<<0)
 #define OPT_f (1<<1)
 #define OPT_x (1<<2)
-#define OPT_Z (1<<3)
+#define OPT_d (1<<3)
+#define OPT_Z (1<<4)
 
 #define DEBUFSIZE 2000
 
@@ -183,7 +184,10 @@ static void remove(const char* name, int opts, struct stat* rst)
 			dev = st.st_dev;
 	}
 
-	removeany(name, DT_UNKNOWN, dev, opts);
+	/* if we are called with -d, force directory handling */
+	const int type = (opts & OPT_d ? DT_DIR : DT_UNKNOWN);
+
+	removeany(name, type, dev, opts);
 }
 
 int main(int argc, char** argv)
