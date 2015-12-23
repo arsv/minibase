@@ -4,7 +4,7 @@
 rm \- remove files or directories
 '''
 .SH SYNOPSIS
-rm [\fB-frdx\fR] \fIfile\fR \fIfile\fR ...
+rm [\fB-frdxZ\fR] \fIfile\fR \fIfile\fR ...
 '''
 .SH DESCRIPTION
 rm removes (deletes) specified files.
@@ -26,7 +26,7 @@ Continue as far as possible regardless of errors.
 Assume \fIfile\fRs are in fact directories, and call \fBrmdir\fR(2).
 .IP "\fB-x\fR" 4
 Do cross filesystem boundaries.
-.IP "\fB-R\fR" 4
+.IP "\fB-Z\fR" 4
 Do remove / (the root node) if asked to.
 '''
 .SH SEE ALSO
