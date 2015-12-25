@@ -1,0 +1,22 @@
+.TH clr 1
+'''
+.SH NAME
+clr \- clear terminal screen
+'''
+.SH SYNOPSIS
+clr [\fB-r\fR]
+'''
+.SH DESCRIPTION
+clr issues a bunch of ANSI escape codes which cause a compatible terminal
+to clear its screen and reset text attributes.
+.P
+With \fB-r\fR, the underlying terminal port is also reset to its default
+settings. On most sane Linux systems this should only be necessary to clear
+the effects of \fBtcsetattr\fR(3).
+'''
+.SH OPTIONS
+.IP "\fB-r\fR" 4
+Reset terminal port in addition to clearing the screen.
+'''
+.SH SEE ALSO
+\fBconsole_codes\fR(4), \fBtcsetattr\fR(3), \fBstty\fR(1), \fBreset\fR(1).
