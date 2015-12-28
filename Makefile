@@ -3,7 +3,7 @@ include config.mk
 MAKEFLAGS += --no-print-directory
 CFLAGS += -Ilibs -Ilibs/arch/$(ARCH)
 
-all: libs.a build-admin build-common build-devel
+all: libs.a build
 
 libso = $(patsubst %.s,%.o,$(wildcard libs/arch/$(ARCH)/*.s)) \
 	$(patsubst %.c,%.o,$(wildcard libs/*.c))
@@ -11,6 +11,7 @@ libso = $(patsubst %.s,%.o,$(wildcard libs/arch/$(ARCH)/*.s)) \
 libs.a: $(libso)
 	$(AR) cr $@ $?
 
+build: build-admin build-common build-devel
 build-%:
 	$(MAKE) -C $*
 
