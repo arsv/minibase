@@ -8,12 +8,6 @@ the executables small and the code clean.
 * cp, mv, ln?
 	ln to do symlinks by default, maybe?
 
-* chvt
-	this one should also do deallocvt and openvt, all that fits nicely
-	within a single too. Probably should be called "vt" as well.
-
-* reset and/or tset
-
 * ls and stat
 	ls should probably be list-only tool, and all traditional ls -l
 	stuff should go to stat instead. And instead of ls -lR it should
