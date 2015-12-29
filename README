@@ -9,6 +9,21 @@ Some crucial tools are still to be written before building a viable
 initcpio becomes possible. Use at your own risk.
 
 
+Who may want to use it
+~~~~~~~~~~~~~~~~~~~~~~
+First and foremost people who would like to avoid libc dependency
+for whatever reason. This may be useful for initcpio, but also for
+weird cases like messing with binary-only router firmware when
+linking against its internal libc is undesirable or impossible.
+
+Another idea is getting as far as possible with the boot process
+on static tools only, which may lead to a self-contained and very
+fast "base system".
+
+Finally, it is easy to trace and audit these tools down to syscall
+level, both for security and for educational (how it works?) purposes.
+
+
 How is it different from busybox?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Busybox aims to provide common POSIX tools in a package with the
@@ -19,11 +34,10 @@ Busybox typically stays in the memory after being loaded (cached)
 once, saving memory and time for repeated usage.
 
 This project aims to provide small individual tools, so that they
-could be combined freely and picked one at a time. It does not
-attempt to provide anything resembling a usable system.
+could be combined freely and picked one at a time.
 
 These tools are meant to be used rarely, perhaps only once during
-boot, then unloaded immediately and discarded.
+boot, then unloaded immediately.
 
 
 Compatibility
