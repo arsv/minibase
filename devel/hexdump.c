@@ -33,6 +33,23 @@ static void writeall(int fd, char* buf, long size)
 	}
 }
 
+/* The values between 0x20 and 0x7E should be safe to print on pretty
+   much any terminal. Everything else is shown as ".", and we do not
+   bother with UTF-8 sequences. Hexdump is not the kind of tool that
+   should be handling UTF-8 anyway. */
+
+static int isprintable(int c)
+{
+	unsigned char cc = (c & 0xFF);
+	return (cc >= 0x20 && cc < 0x7F);
+}
+
+/* The address (offset within the file) is always shown as a 4-byte value.
+   Hexdumping something over 4GB is a bad idea.
+   Using less than 4 bytes would make sense, but traditionally it has been
+   4 bytes so we keep that. Also, the first alternative would be 2 bytes
+   which is too few for actual real life usage. */
+
 static char* fmtaddr(char* p, char* end, unsigned long addr)
 {
 	int i;
@@ -50,12 +67,6 @@ static char* fmtaddr(char* p, char* end, unsigned long addr)
 	return p < end ? p : end;
 }
 
-static int isprintable(int c)
-{
-	unsigned char cc = (c & 0xFF);
-	return (cc >= 0x20 && cc < 0x7F);
-}
-
 static char* fmthexch(char* p, char* end, char c)
 {
 	if(p < end) *p++ = hexdigits[((c >> 4) & 0x0F)];
@@ -63,8 +74,11 @@ static char* fmthexch(char* p, char* end, char c)
 	return p;
 }
 
-/* This adds a single dump line to the output buffer.
-   The maximum length of the line is well known (~140 chars)
+/* A single output line looks like this:
+
+   00000000   01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F  ................ 
+
+   The maximum length of the line is well known (~72)
    and the buffer is expected to have at least that much
    space available. */
 
@@ -99,8 +113,9 @@ static char* makeline(char* p, char* end, unsigned long addr, char* data, int si
 }
 
 /* Several output lines (each 16 input bytes long) are merged
-   into a single output block. There may be more than one output
-   block per each dumpbuf() call. */
+   into a single output block, to avoid excessive syswrite()s.
+   There may be more than one output block per each dumpbuf()
+   call however */
 
 static void dumpbuf(unsigned long addr, char* data, long size)
 {
@@ -129,7 +144,13 @@ static void dumpbuf(unsigned long addr, char* data, long size)
 /* Input is read in large chunks, not necessary 16-byte aligned.
    The sequence of chunks is then re-arranged and dumpbuf() is called
    with strictly 16-aligned blocks. Except for the last block, which
-   may be shorter. */
+   may be shorter.
+ 
+   The way it is written it may do one syswrite() more than necessary,
+   but it should do a reasonably good job at handling slowly-piped data.
+
+   Not sure if that's important, but then again, hexdump is not something
+   that should be well-optimized anyway. */
 
 static void hexdump(long fd)
 {
@@ -159,17 +180,18 @@ static void hexdump(long fd)
 	}
 }
 
+/* Handling more than a single file probably makes no sense? */
+
 int main(int argc, char** argv)
 {
-	int i = 1;
-
-	if(i >= argc) {
+	if(argc == 1) {
 		hexdump(0);
-	} else while(i < argc) {
-		char* fn = argv[i++];
+	} else if(argc == 2) {
+		char* fn = argv[1];
 		long fd = xchk(sysopen(fn, O_RDONLY), "cannot open", fn);
 		hexdump(fd);
-		if(i < argc) syswrite(1, "\n", 1);
+	} else {
+		fail("too many arguments", NULL, 0);
 	}
 
 	return 0;
