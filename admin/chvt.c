@@ -47,9 +47,6 @@ static long consolefd(void)
 {
 	long ret;
 
-	//if((ret = openconsole("/dev/console")) >= 0)
-	//	return ret;
-
 	if((ret = openconsole("/dev/tty")) >= 0)
 		return ret;
 
