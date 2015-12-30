@@ -5,6 +5,8 @@ mountvfs \- mount common virtual file systems
 '''
 .SH SYNOPSIS
 mountvfs \fItag\fR \fItag\fR \fItag\fR ...
+.br
+mountvfs \fB-m\fR \fIdirectory\fR [\fItag\fR \fItag\fR ...]
 '''
 .SH DESCRIPTION
 \fBmountvfs\fR mounts predefined virtual filesystems into their common
@@ -14,7 +16,7 @@ the administrator to drop common definitions from fstab and/or startup scripts.
 Each tag specifies a single filesystem to mount:
 .P
 .EX
-\fBTag\fR             \fBType\fR            \fBLocation\fR
+\fBTag\fR             \fBType\fR            \fBMountpoint\fR
 tmpdev          tmpfs           /dev
 dev             devtmpfs        /dev
 pts             devpts          /dev/pts
@@ -31,7 +33,28 @@ trace           tracefs         /sys/kernel/debug/tracing
 .EE
 .P
 The mounts are performed sequentially left to right.
-The tool aborts at the first failed mount.
+.P
+With \fB-m\fR, mountvfs moves already mounted filesystems from / to
+the specified directory. This should only be used prior to \fBswitchroot\fR(8)
+to move the filesystems that have been mounted onto initramfs to the real root.
+'''
+.SH OPTIONS
+.IP "\fB-m\fR" 4
+Move-mount specified filesystem to \fIdirectory\fR.
+'''
+.SH ERRORS
+mountvfs normally only reports errors from \fBmount\fR(2).
+.P
+\fBENOENT\fR means the mountpoint is missing. Mountpoint must be an empty
+directory for the call to succeed. With \fB-m\fR, this means the new mountpoint
+under \fIdirectory\fR.
+.P
+\fBENOENT\fR is also reported when \fItag\fR is supplied with \fB-m\fR but
+the original mountpoint does not exist. If it does exist but the filesystem
+is not mounted, \fBEINVAL\fR is reported instead.
+.P
+When \fB-m\fR is used without explicit tags, the entries from the table above
+that do not appear to be mounted are silently skipped.
 '''
 .SH SEE ALSO
 \fBmount\fR(1), \fBmount\fR(2), \fBhier\fR(7), \fBproc\fR(5).
