@@ -11,15 +11,15 @@ libso = $(patsubst %.s,%.o,$(wildcard libs/arch/$(ARCH)/*.s)) \
 libs.a: $(libso)
 	$(AR) cr $@ $?
 
-build: build-admin build-common build-devel
+build: build-admin build-file build-text build-devel
 build-%:
 	$(MAKE) -C $*
 
-install: install-admin install-common install-devel
+install: install-admin install-file install-text install-devel
 install-%:
 	$(MAKE) -C $* install
 
-clean: clean-admin clean-common clean-devel clean-libs
+clean: clean-admin clean-file clean-text clean-devel clean-libs clean-compat
 clean-%:
 	$(MAKE) -C $* clean
 clean-libs:
