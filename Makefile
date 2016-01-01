@@ -19,7 +19,7 @@ install: install-admin install-common install-devel
 install-%:
 	$(MAKE) -C $* install
 
-clean: clean-admin clean-common clean-libs
+clean: clean-admin clean-common clean-devel clean-libs
 clean-%:
 	$(MAKE) -C $* clean
 clean-libs:
