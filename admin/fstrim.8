@@ -1,0 +1,38 @@
+.TH fstrim 8
+'''
+.SH NAME
+fstrim \- discard unused block on a mounted filesystem
+'''
+.SH SYNOPSIS
+fstrim \fImountpoint\fR [\fIminblocksize\fR [\fIstart\fR [\fIlength\fR]]]
+'''
+.SH DESCRIPTION
+fstrim instructs the kernel to discard ("trim") unused blocks of a mounted
+filesystem.
+.P
+Filesystems mounted with \fBdiscard\fR option report unused blocks as such
+to the underlying media the moment the block becomes unused. For performance
+reasons and in some cases to improve media lifetime, it may be better
+to batch discards instead, reporting them in bulk periodically.
+.P
+To do that, the filesystem should be mounted without \fBdiscard\fR,
+and fstrim should be scheduled to run at regular intervals.
+'''
+.SH OPTIONS
+If \fIminblocksize\fR is given, only contiguous areas at least that
+large are discarded; \fIstart\fR and \fIlength\fR specify the
+region of the underlying block device to scan for unused blocks.
+.P
+\fIminblocksize\fR, \fIstart\fR and \fIlength\fR are in bytes. Multiplier
+suffixes \fBK\fR, \fBM\fR and \fBG\fR may be used for all three, denoting
+binary kilo-, mega- and gigabytes (2**10, 2**20 and 2**30 bytes respectively).
+.P
+The blocks are discarded at the filesystem level, so the tool may only be
+called on a mounted filesystem.
+'''
+.SH NOTES
+The tool does FITRIM \fBioctl\fR(2) call on \fImountpoint\fR descriptor;
+ioctl code is defined in <linux/fs.h>.
+'''
+.SH SEE ALSO
+\fBmount\fR(8)
