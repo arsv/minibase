@@ -7,6 +7,8 @@ mountvfs \- mount common virtual file systems
 mountvfs \fItag\fR \fItag\fR \fItag\fR ...
 .br
 mountvfs \fB-m\fR \fIdirectory\fR [\fItag\fR \fItag\fR ...]
+.br
+mountvfs \fB-u\fR [\fItag\fR \fItag\fR \fItag\fR ...]
 '''
 .SH DESCRIPTION
 \fBmountvfs\fR mounts predefined virtual filesystems into their common
@@ -37,10 +39,14 @@ The mounts are performed sequentially left to right.
 With \fB-m\fR, mountvfs moves already mounted filesystems from / to
 the specified directory. This should only be used prior to \fBswitchroot\fR(8)
 to move the filesystems that have been mounted onto initramfs to the real root.
+.P
+Use \fB-u\fR before shutdown to unmount filesystems from the list.
 '''
 .SH OPTIONS
 .IP "\fB-m\fR" 4
 Move-mount specified filesystem to \fIdirectory\fR.
+.IP "\fB-u\fR" 4
+Un-mount specified filesystems.
 '''
 .SH ERRORS
 mountvfs normally only reports errors from \fBmount\fR(2).
