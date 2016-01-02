@@ -16,7 +16,6 @@ static const struct err {
 	char* message;
 } errors[] = {
 #define e(a, b) { a, #a, b }
-/*        01234567890123456 */
 	e(ESUCCESS, 	"Success"),
 	e(EPERM,	"Operation not permitted"),
 	e(ENOENT,	"No such file or directory"),
@@ -199,8 +198,8 @@ static void writeline(const char* msg)
 };
 
 /* Unlike other tools, strerror does not use fail() with its
-   ERRLIST, which makes brinding in any kind of error-checking
-   generic atoi implementation problematic. */
+   ERRLIST, which makes bringing in any kind of error-checking
+   xatoi implementation problematic. */
 
 static int atoerr(const char* a)
 {
