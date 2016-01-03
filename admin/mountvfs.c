@@ -44,7 +44,6 @@ static const struct mount {
  { "config",	"configfs",	"/sys/kernel/config",		0,	NULL },
  { "debug",	"debugfs",	"/sys/kernel/debug",		0,	NULL },
  { "trace",	"tracefs",	"/sys/kernel/debug/tracing",	0,	NULL },
- { NULL }
 };
 
 static const int nvfs = sizeof(vfstab) / sizeof(*vfstab);
