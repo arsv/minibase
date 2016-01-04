@@ -1,1 +1,1 @@
-char* strtol(char* buf, long* n);
+char* parselong(char* buf, long* np);

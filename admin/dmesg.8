@@ -1,0 +1,32 @@
+.TH dmesg 8
+'''
+.SH NAME
+dmesg \- kernel ring buffer tool
+'''
+.SH SYNOPSIS
+dmesg [\fB-acrt\fR]
+.br
+dmesg \fB-n\fR \fIlevel\fR
+'''
+.SH DESCRIPTION
+dmesg dumps the contents of the kernel ring buffer, which is where
+the kernel keeps its log messages.
+.P
+The second form sets kernel log level. Only messages with priority
+less that \fIlevel\fR will be printed to the system console. The ring
+buffer will still get all the messages regardless of their priority value.
+'''
+.SH OPTIONS
+.IP "\fB-a\fR" 4
+Do not colorize output.
+.IP "\fB-c\fR" 4
+Clear the buffer after printing its contents.
+.IP "\fB-n\fR" 4
+Set kernel loglevel.
+.IP "\fB-r\fR" 4
+Dump raw buffer contents without any processing.
+.IP "\fB-t\fR" 4
+Show raw timestamps in seconds.
+'''
+.SH SEE ALSO
+\fBklogctl\fR(2)

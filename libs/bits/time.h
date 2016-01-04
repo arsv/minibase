@@ -26,4 +26,12 @@ struct timeval
 	long  tv_usec;		/* Microseconds. */
 };
 
+/* Same as timeval, except with nanoseconds. WTF. */
+
+struct timespec
+{
+	time_t tv_sec;		/* Seconds. */
+	long  tv_nsec;		/* Nanoseconds. */
+};
+
 #endif
