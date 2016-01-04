@@ -1,0 +1,29 @@
+.TH uptime 8
+'''
+.SH NAME
+uptime \- tell how long the system has been running.
+'''
+.SH SYNOPSIS
+uptime [\fB-w\fR]
+.br
+uptime \fB-s\fR
+'''
+.SH DESCRIPTION
+The system keeps track of the time passes since the boot.
+This value can be used raw, as in "the system has been running
+for N seconds", or together with the realtime clock to guess
+when the last boot happened in real world time.
+.P
+The output is not guaranteed to be precise, even if the realtime clock is.
+'''
+.SH OPTIONS
+.IP "\fB-s\fR" 4
+Show the presumed date and time of the last boot. The output is in UTC,
+timezone data does not affect it.
+.IP "\fB-w\fR" 4
+Show how long the system has been awake. Without this option, the time
+the system spent sleeping is counted into uptime.
+'''
+.SH SEE ALSO
+\fBclock_gettime\fR(2): CLOCK_BOOTTIME, CLOCK_REALTIME and CLOCK_MONOTONIC,
+\fBsysinfo\fR(2), \fBsystime\fR(8).
