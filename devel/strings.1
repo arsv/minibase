@@ -1,0 +1,30 @@
+.TH strings 1
+'''
+.SH NAME
+strings \- print sequences of printable characters from a file
+'''
+.SH SYNOPSIS
+strings [\fB-x\fR] [\fIfile\fR]
+.br
+strings \fB-n\fR[\fBx\fR] \fIlength\fR [\fIfile\fR]
+'''
+.SH DESCRIPTION
+strings scans \fIfile\fR or standard input for uninterrupted sequences
+of at least \fIlength\fR printable bytes. The default length is 6,
+and pritable bytes are those with values 0x20..0x7E or 0x09 (tab).
+'''
+.SH OPTIONS
+.IP "\fB-n\fR" 4
+Set minimal sequence length.
+.IP "\fB-x\fR" 4
+Print offset of each string found.
+'''
+.SH NOTES
+This version of strings treats any file as a sequences of bytes without
+any internal structure.
+.P
+The tool of the same name from GNU binutils can skip non-data sections
+of executable files. This behavior is not supported.
+'''
+.SH SEE ALSO
+\fBhexdump\fR(1)

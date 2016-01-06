@@ -1,7 +1,7 @@
 include ../config.mk
 
-bin = hexdump
+bin = hexdump strings
 
-man1 =
+man1 = strings.1
 
 include ../common.mk
