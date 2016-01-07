@@ -6,6 +6,7 @@
 
 #include <fail.h>
 #include <null.h>
+#include <xchk.h>
 
 static const int CATBUF = 8000;
 
@@ -17,14 +18,6 @@ ERRLIST = {
 	RESTASNUMBERS
 };
 
-static int xopen(const char* name)
-{
-	long ret = sysopen(name, O_RDONLY);
-	if(ret < 0)
-		fail(NULL, name, -ret);
-	return (int)ret;
-}
-
 static void dump(const char* buf, int len)
 {
 	long wr;
@@ -34,7 +27,8 @@ static void dump(const char* buf, int len)
 			buf += wr;
 			len -= wr;
 		} else {
-			fail("write failed", NULL, -wr);
+			/* wr = 0 is probably just as bad as wr < 0 here */
+			fail("write", NULL, -wr);
 		}
 }
 
@@ -43,10 +37,13 @@ static void cat(const char* name, int fd)
 	char buf[CATBUF];
 	long rd;
 	
-	while((rd = sysread(fd, buf, CATBUF)) > 0)
+	while((rd = xchk(sysread(fd, buf, CATBUF), "read", name)))
 		dump(buf, rd);
-	if(rd < 0)
-		fail("cannot read from", name, -rd);
+}
+
+static int xopen(const char* name)
+{
+	return xchk(sysopen(name, O_RDONLY), NULL, name);
 }
 
 int main(int argc, const char** argv)
