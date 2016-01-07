@@ -20,6 +20,8 @@ int main(int argc, char** argv)
 
 	if((ret = sysgetcwd(cwd, MAXCWD-1)) < 0)
 		fail("getcwd", NULL, -ret);
+	else if(!ret)
+		fail("getcwd: empty return", NULL, 0);
 
 	/* getcwd(2) returns the number of bytes written to the buf,
 	   *including* the terminating \0 */
