@@ -1,0 +1,31 @@
+.TH uname 1
+'''
+.SH NAME
+uname \- print system name
+'''
+.SH SYNOPSIS
+uname [\fB-snrvm\fR]
+'''
+.SH DESCRIPTION
+uname queries kernel identification data and prints it.
+.P
+The data printed is merely the contents of certain kernel buffers.
+It is completely passive, and except for node and domain names, static.
+'''
+.SH OPTIONS
+Running uname with no options is the same as running it with \fB-a\fR.
+.IP "\fB-a\fR" 4
+Print sysname, nodename, release, version and machine.
+.IP "\fB-s\fR" 4
+Print sysname ("Linux").
+.IP "\fB-n\fR" 4
+Print nodename, as set by \fBhostname\fR(1).
+.IP "\fB-r\fR" 4
+Print kernel release ("4.2.5-1").
+.IP "\fB-v\fR" 4
+Print kernel version (typically a string indentifying the build; not to be confused with -r).
+.IP "\fB-m\fR" 4
+Print machine hardware name ("x86_64", "arm" etc).
+'''
+.SH SEE ALSO
+\fBuname\fR(2), \fBuptime\fR(1), \fBsysinfo\fR(2), \fBhostname\fR(1).
