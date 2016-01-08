@@ -7,8 +7,6 @@
 #include <fail.h>
 #include <null.h>
 
-static const int CATBUF = 8000;
-
 ERRTAG = "cat";
 ERRLIST = {
 	REPORT(EAGAIN), REPORT(EBADF), REPORT(EFAULT), REPORT(EINTR),
@@ -16,6 +14,8 @@ ERRLIST = {
 	REPORT(EFBIG), REPORT(ENOSPC), REPORT(EPERM), REPORT(EPIPE),
 	RESTASNUMBERS
 };
+
+static char catbuf[256*4096]; /* 1MB */
 
 static void dump(const char* buf, int len)
 {
@@ -33,11 +33,10 @@ static void dump(const char* buf, int len)
 
 static void cat(const char* name, int fd)
 {
-	char buf[CATBUF];
 	long rd;
 	
-	while((rd = xchk(sysread(fd, buf, CATBUF), "read", name)))
-		dump(buf, rd);
+	while((rd = xchk(sysread(fd, catbuf, sizeof(catbuf)), "read", name)))
+		dump(catbuf, rd);
 }
 
 static int xopen(const char* name)
