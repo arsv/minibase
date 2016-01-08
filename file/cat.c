@@ -6,7 +6,6 @@
 
 #include <fail.h>
 #include <null.h>
-#include <xchk.h>
 
 static const int CATBUF = 8000;
 

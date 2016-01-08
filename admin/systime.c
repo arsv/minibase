@@ -11,7 +11,6 @@
 #include <argbits.h>
 #include <memset.h>
 #include <fail.h>
-#include <xchk.h>
 #include <null.h>
 #include <tv2tm.h>
 #include <tm2tv.h>

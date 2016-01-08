@@ -16,7 +16,6 @@
 #include <strlen.h>
 #include <fail.h>
 #include <null.h>
-#include <xchk.h>
 #include <parseint.h>
 #include <parselong.h>
 #include <writeall.h>

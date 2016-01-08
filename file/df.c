@@ -15,7 +15,6 @@
 #include <fmtchar.h>
 #include <fail.h>
 #include <null.h>
-#include <xchk.h>
 
 ERRTAG = "df";
 ERRLIST = { RESTASNUMBERS };

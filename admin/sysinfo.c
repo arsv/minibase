@@ -10,7 +10,6 @@
 #include <fmtulp.h>
 #include <fail.h>
 #include <null.h>
-#include <xchk.h>
 
 ERRTAG = "sysinfo";
 ERRLIST = {

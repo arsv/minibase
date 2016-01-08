@@ -7,7 +7,6 @@
 #include <writeout.h>
 #include <fail.h>
 #include <null.h>
-#include <xchk.h>
 
 #define OPTS "nx"
 #define OPT_n (1<<0)

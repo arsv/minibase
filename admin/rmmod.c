@@ -4,7 +4,6 @@
 
 #include <null.h>
 #include <fail.h>
-#include <xchk.h>
 
 ERRTAG = "rmmod";
 ERRLIST = {

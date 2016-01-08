@@ -6,7 +6,6 @@
 
 #include <fail.h>
 #include <null.h>
-#include <xchk.h>
 
 /* XXX: GNU coreutils allow writing to several files at once.
    Is that useful for anything? */

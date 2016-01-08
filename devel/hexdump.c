@@ -6,7 +6,6 @@
 
 #include <fail.h>
 #include <null.h>
-#include <xchk.h>
 #include <memcpy.h>
 #include <fmtstr.h>
 #include <fmtchar.h>

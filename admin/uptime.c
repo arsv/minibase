@@ -9,7 +9,6 @@
 #include <argbits.h>
 #include <fail.h>
 #include <null.h>
-#include <xchk.h>
 #include <fmtlong.h>
 #include <fmtstr.h>
 #include <fmtchar.h>

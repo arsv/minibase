@@ -19,7 +19,6 @@
 #include <fmtstr.h>
 #include <fmtchar.h>
 #include <null.h>
-#include <xchk.h>
 
 #define OPTS "rfxdZ"
 #define OPT_r (1<<0)

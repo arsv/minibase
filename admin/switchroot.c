@@ -24,7 +24,6 @@
 
 #include <fail.h>
 #include <null.h>
-#include <xchk.h>
 
 /* Usage:
 

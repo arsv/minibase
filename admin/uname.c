@@ -6,7 +6,6 @@
 #include <argbits.h>
 #include <fail.h>
 #include <null.h>
-#include <xchk.h>
 #include <fmtstr.h>
 
 ERRTAG = "uname";
