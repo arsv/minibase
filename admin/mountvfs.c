@@ -31,7 +31,7 @@ static const struct mount {
 	char* point;
 	long flags;
 	char* opts;
-} const vfstab[] = {
+} vfstab[] = {
  { "dev",	"devtmpfs",	"/dev",				SX,	NULL },
  { "pts",	"devpts",	"/dev/pts",			SX,	NULL },
  { "shm",	"tmpfs",	"/dev/shm",			SX,	NULL },
