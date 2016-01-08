@@ -4,7 +4,7 @@
 #include <sys/read.h>
 
 #include <argbits.h>
-#include <bufout.h>
+#include <writeout.h>
 #include <fail.h>
 #include <null.h>
 #include <xchk.h>
@@ -15,27 +15,28 @@
 
 ERRTAG = "strings";
 ERRLIST = {
-	REPORT(ENOENT), REPORT(EINVAL), REPORT(ENOSYS),
+	REPORT(ENOENT), REPORT(EINVAL), REPORT(ENOSYS), REPORT(EACCES),
+	REPORT(EFAULT), REPORT(EFBIG), REPORT(EINTR), REPORT(ELOOP),
+	REPORT(EISDIR), REPORT(EMFILE), REPORT(ENFILE), REPORT(ENODEV),
+	REPORT(ENOMEM), REPORT(ENOSPC), REPORT(EPERM), REPORT(EIO),
 	RESTASNUMBERS
 };
 
 #define PAGE 4096
 
 char inbuf[2*PAGE];
-char outbuf[PAGE];
 
-struct bufout bo;
 struct parsestate {
 	int min;
 	long seq;	/* current uninterrupted sequence length */
 	long pos;	/* position within the file, for -x */
 	long off;	/* offset of current sequence in file */
 	char* buf;	/* string buffer */
-} ps;
+};
 
-static void xbufout(struct bufout* bo, char* buf, int len)
+static void xwriteout(char* buf, int len)
 {
-	xchk(bufout(bo, buf, len), "write", NULL);
+	xchk(writeout(buf, len), "write", NULL);
 }
 
 static int printable(char c)
@@ -57,61 +58,70 @@ static void fmtaddr32(char* p, unsigned long addr)
 	}
 }
 
+static void writeaddr(long off)
+{
+	char addr[10];
+
+	fmtaddr32(addr, off);
+	addr[8] = ' ';
+	addr[9] = ' ';
+	xwriteout(addr, 10);
+}
+
 /* This is basically innards of a state machine, pulled out of
    strings() where it belongs. Not pretty, but keeps nesting levels sane. */
 
-void parseblock(char* buf, int len, int showaddr)
+void parseblock(struct parsestate* ps, char* data, int len, int showaddr)
 {
-	char* p = buf;
-	char* end = buf + len;
+	char* p = data;
+	char* end = data + len;
 
-	for(; p < end; p++) {
+	int min = ps->min;
+	long seq = ps->seq;
+	long off = ps->off;
+	long pos = ps->pos;
+	char* buf = ps->buf;
+
+	for(; p < end; p++, pos++) {
 		if(printable(*p)) {
-			ps.off = ps.pos;
-			if(ps.seq == ps.min && showaddr) {
-				char addr[10];
-				fmtaddr32(addr, ps.off);
-				addr[8] = ' ';
-				addr[9] = ' ';
-				xbufout(&bo, addr, 10);
-			}
-			if(ps.seq < ps.min)
-				ps.buf[ps.seq] = *p;
-			else if(ps.seq == ps.min)
-				xbufout(&bo, ps.buf, ps.seq);
-			if(ps.seq >= ps.min)
-				xbufout(&bo, p, 1);
-			ps.seq++;
+			off = pos;
+			if(seq == min && showaddr)
+				writeaddr(off);
+			if(seq < min)
+				buf[seq] = *p;
+			else if(seq == min)
+				xwriteout(buf, seq);
+			if(seq >= min)
+				xwriteout(p, 1);
+			seq++;
 		} else {
-			if(ps.seq > ps.min)
-				xbufout(&bo, "\n", 1);
-			ps.seq = 0;
+			if(seq > min)
+				xwriteout("\n", 1);
+			seq = 0;
 		}
-		ps.pos++;
 	}
+
+	ps->off = off;
+	ps->pos = pos;
+	ps->seq = seq;
 }
 
 static void strings(int minlen, long fd, int showaddr)
 {
 	long rd;
 	char strbuf[minlen];
-
-	bo.fd = 1;
-	bo.buf = outbuf;
-	bo.len = sizeof(outbuf);
-	bo.ptr = 0;
-
-	ps.pos = 0;
-	ps.seq = 0;
-	ps.buf = strbuf;
-	ps.min = minlen - 1;
+	struct parsestate ps = {
+		.pos = 0,
+		.seq = 0,
+		.off = 0,
+		.buf = strbuf,
+		.min = minlen - 1
+	};
 
 	while((rd = sysread(fd, inbuf, sizeof(inbuf))) > 0)
-		parseblock(inbuf, rd, showaddr);
+		parseblock(&ps, inbuf, rd, showaddr);
 	if(rd < 0)
 		fail("read", NULL, -rd);
-
-	bufoutflush(&bo);
 }
 
 static unsigned int xatou(const char* p)
@@ -148,10 +158,11 @@ int main(int argc, char** argv)
 	if(i < argc) {
 		char* fn = argv[i];
 		long fd = xchk(sysopen(fn, O_RDONLY), "cannot open", fn);
-		strings(minlen, fd, (opts & OPT_x));
+		strings(minlen, fd, !(opts & OPT_x));
 	} else {
-		strings(minlen, 0, (opts & OPT_x));
+		strings(minlen, 0, !(opts & OPT_x));
 	}
+	flushout();
 
 	return 0;
 }
