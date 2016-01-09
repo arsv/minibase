@@ -1,8 +1,0 @@
-The tools here are primarily building blocks for scripts.
-Their interaction with the system is limited to read(0, ...),
-write(1, ...) and write(2, ...).
-
-The distinction is not that important actually, so it is mostly
-about separating common system tools (cp, ls, mkdir and such)
-which are build around specific syscalls, and the stuff that
-mostly works on piped text.

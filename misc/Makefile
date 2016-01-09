@@ -1,5 +1,7 @@
 include ../config.mk
 
-all = hello args envp
+bin = clear
+
+sbin = chvt
 
 include ../common.mk

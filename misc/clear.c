@@ -11,7 +11,7 @@
 
 #define ctrl(c) ((c) & 0x1F)
 
-ERRTAG = "clr";
+ERRTAG = "clear";
 ERRLIST = { REPORT(EINVAL), REPORT(EBADF), RESTASNUMBERS };
 
 static const struct termios sane = {
