@@ -167,7 +167,7 @@ int main(int argc, char** argv)
 	struct tm tm;
 	struct timeval tv;
 
-	long rtcfd;
+	long rtcfd = -1;
 	int opts = 0;
 	int i = 1;
 
