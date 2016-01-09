@@ -1,6 +1,6 @@
 include ../config.mk
 
-bin = uname
+bin = uname dfree
 
 sbin = mount mountvfs umount insmod rmmod mknod switchroot fstrim \
 	systime chvt dmesg uptime sysinfo
