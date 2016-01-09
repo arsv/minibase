@@ -39,8 +39,8 @@ char* fmtu32(char* buf, char* end, uint32_t num)
 }
 
 char* fmtlong(char* buf, char* end, long num)
-	__attribute__((alias("stri32")));
+	__attribute__((alias("fmti32")));
 char* fmtulong(char* buf, char* end, unsigned long num)
-	__attribute__((alias("stru32")));
+	__attribute__((alias("fmtu32")));
 
 #endif
