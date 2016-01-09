@@ -383,4 +383,6 @@
 #define __NR_kcmp                       378
 #define __NR_finit_module               379
 
+#define __NR_newfstatat			1054
+
 #endif

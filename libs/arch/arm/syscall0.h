@@ -3,9 +3,10 @@
 
 inline static long syscall0(int nr)
 {
-	register long r0 asm("r7") = nr;
+	register long r7 asm("r7") = nr;
+	register long r0 asm("r0");
 
-	asm volatile ("svc 0" : "=r"(r0) : "r"(r0));
+	asm volatile ("svc 0" : "=r"(r0) : "r"(r7));
 	
 	return r0;
 }
