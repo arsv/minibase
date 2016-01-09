@@ -45,12 +45,14 @@ Compatibility
 None. The tools follow Linux syscalls closely instead of trying
 to be compatible with common GNU or busybox implementations.
 
-
-Hybrid setups
-~~~~~~~~~~~~~
 Because the tools are standalone and independent, they can be used
 together with e.g. busybox, providing rarely-used, system-specific
 functions and leaving POSIX stuff to busybox.
+
+Some of the tools won't work well on non-MMU systems.
+Given their size and scope, it's easier (and cleaner, code-wise)
+to add non-MMU versions if necessary instead of writing some sort
+of compromise implementations.
 
 
 Licensing
