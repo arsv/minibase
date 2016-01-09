@@ -101,7 +101,7 @@ static void wrheader()
 	       "    Used "
 	       "    Free"
 	    /* |   12%   | */
-	       "         "
+	       "   Use   "
 	       "Mountpoint\n";
 
 	xwriteout((char*)hdr, sizeof(hdr));
