@@ -1,4 +1,3 @@
-#include <bits/errno.h>
 #include <sys/getcwd.h>
 #include <sys/write.h>
 

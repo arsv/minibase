@@ -1,7 +1,5 @@
-#include <bits/syscall.h>
 #include <syscall.h>
-
-struct sysinfo;
+#include <bits/sysinfo.h>
 
 inline static long syssysinfo(struct sysinfo* buf)
 {

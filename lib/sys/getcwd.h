@@ -1,4 +1,3 @@
-#include <bits/syscall.h>
 #include <syscall.h>
 
 inline static long sysgetcwd(char* buf, unsigned long size)

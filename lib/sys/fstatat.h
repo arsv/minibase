@@ -1,7 +1,5 @@
-#include <bits/syscall.h>
 #include <syscall.h>
-
-struct stat;
+#include <bits/stat.h>
 
 #ifndef __NR_fstatat
 #define __NR_fstatat __NR_newfstatat

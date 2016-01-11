@@ -1,7 +1,3 @@
-#include <bits/errno.h>
-#include <bits/stat.h>
-#include <bits/fcntl.h>
-#include <bits/dirent.h>
 #include <sys/unlinkat.h>
 #include <sys/fstat.h>
 #include <sys/open.h>

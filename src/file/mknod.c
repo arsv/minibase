@@ -1,5 +1,3 @@
-#include <bits/errno.h>
-#include <bits/fcntl.h>
 #include <sys/mknod.h>
 
 #include <parseint.h>

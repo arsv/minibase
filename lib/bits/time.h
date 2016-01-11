@@ -34,4 +34,12 @@ struct timespec
 	long  tv_nsec;		/* Nanoseconds. */
 };
 
+/* Not used anywhere */
+
+struct timezone
+{
+	int tz_minuteswest;
+	int tz_dsttime;
+};
+
 #endif

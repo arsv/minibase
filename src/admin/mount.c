@@ -1,5 +1,3 @@
-#include <bits/errno.h>
-#include <bits/mount.h>
 #include <sys/mount.h>
 
 #include <fail.h>

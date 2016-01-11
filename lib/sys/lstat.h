@@ -1,8 +1,6 @@
-#include <bits/syscall.h>
-#include <bits/fcntl.h>
 #include <syscall.h>
-
-struct stat;
+#include <bits/fcntl.h>
+#include <bits/stat.h>
 
 inline static long syslstat(const char *path, struct stat *st)
 {

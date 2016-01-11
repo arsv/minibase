@@ -1,6 +1,3 @@
-#include <bits/errno.h>
-#include <bits/mount.h>
-#include <bits/statfs.h>
 #include <sys/mount.h>
 #include <sys/umount.h>
 #include <sys/mkdir.h>

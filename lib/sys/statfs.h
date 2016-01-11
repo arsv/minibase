@@ -1,7 +1,5 @@
-#include <bits/syscall.h>
 #include <syscall.h>
-
-struct statfs;
+#include <bits/statfs.h>
 
 inline static long sysstatfs(const char* path, struct statfs* st)
 {

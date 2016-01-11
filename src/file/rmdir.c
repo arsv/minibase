@@ -1,4 +1,3 @@
-#include <bits/errno.h>
 #include <sys/rmdir.h>
 
 #include <fail.h>

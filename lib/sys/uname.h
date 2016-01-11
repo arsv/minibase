@@ -1,7 +1,5 @@
-#include <bits/syscall.h>
 #include <syscall.h>
-
-struct utsname;
+#include <bits/uname.h>
 
 inline static long sysuname(struct utsname* buf)
 {

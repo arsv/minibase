@@ -1,5 +1,5 @@
-#include <bits/syscall.h>
 #include <syscall.h>
+#include <bits/ioctl.h>
 
 inline static long sysioctl(int fd, unsigned long request, long arg)
 {

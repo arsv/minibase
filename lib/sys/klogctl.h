@@ -1,5 +1,5 @@
-#include <bits/syscall.h>
 #include <syscall.h>
+#include <bits/klog.h>
 
 inline static long sysklogctl(int op, char* buf, long len)
 {

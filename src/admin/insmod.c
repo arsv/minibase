@@ -1,7 +1,3 @@
-#include <bits/mman.h>
-#include <bits/errno.h>
-#include <bits/fcntl.h>
-#include <bits/stat.h>
 #include <sys/open.h>
 #include <sys/fstat.h>
 #include <sys/mmap.h>

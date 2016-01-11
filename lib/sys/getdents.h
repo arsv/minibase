@@ -1,7 +1,5 @@
-#include <bits/syscall.h>
 #include <syscall.h>
-
-struct dirent64;
+#include <bits/dirent.h>
 
 inline static long sysgetdents64(int fd, struct dirent64* dp, int count)
 {

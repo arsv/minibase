@@ -1,10 +1,5 @@
-#include <bits/errno.h>
-#include <bits/clock.h>
-#include <bits/time.h>
 #include <sys/clock_gettime.h>
 #include <sys/gettimeofday.h>
-#include <tv2tm.h>
-#include <writeall.h>
 
 #include <argbits.h>
 #include <fail.h>
@@ -13,6 +8,8 @@
 #include <fmtstr.h>
 #include <fmtchar.h>
 #include <fmttm.h>
+#include <tv2tm.h>
+#include <writeall.h>
 
 ERRTAG = "uptime";
 ERRLIST = {

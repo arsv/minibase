@@ -1,7 +1,6 @@
-#include <bits/errno.h>
-#include <bits/termios.h>
 #include <sys/write.h>
 #include <sys/ioctl.h>
+#include <bits/termios.h>
 
 #include <argbits.h>
 #include <fail.h>

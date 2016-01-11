@@ -1,4 +1,3 @@
-#include <bits/syscall.h>
 #include <syscall.h>
 
 inline static long syschdir(const char* path)

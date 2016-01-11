@@ -1,5 +1,5 @@
-#include <bits/syscall.h>
 #include <syscall.h>
+#include <bits/mount.h>
 
 inline static long sysumount(const char* target, int flags)
 {

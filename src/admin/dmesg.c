@@ -1,8 +1,3 @@
-#include <bits/errno.h>
-#include <bits/klog.h>
-#include <bits/mman.h>
-#include <bits/time.h>
-#include <bits/clock.h>
 #include <sys/klogctl.h>
 #include <sys/mmap.h>
 #include <sys/clock_gettime.h>

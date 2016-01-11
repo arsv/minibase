@@ -1,5 +1,3 @@
-#include <bits/errno.h>
-#include <bits/uname.h>
 #include <sys/write.h>
 #include <sys/uname.h>
 

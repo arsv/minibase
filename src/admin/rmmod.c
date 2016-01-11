@@ -1,5 +1,3 @@
-#include <bits/fcntl.h>
-#include <bits/errno.h>
 #include <sys/deletemodule.h>
 
 #include <null.h>

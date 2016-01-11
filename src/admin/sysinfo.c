@@ -1,5 +1,3 @@
-#include <bits/errno.h>
-#include <bits/sysinfo.h>
 #include <sys/write.h>
 #include <sys/sysinfo.h>
 

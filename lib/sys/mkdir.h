@@ -1,6 +1,5 @@
-#include <bits/syscall.h>
-#include <bits/fcntl.h>
 #include <syscall.h>
+#include <bits/fcntl.h>
 
 inline static long sysmkdir(const char* pathname, int mode)
 {

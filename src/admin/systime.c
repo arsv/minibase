@@ -1,7 +1,3 @@
-#include <bits/errno.h>
-#include <bits/fcntl.h>
-#include <bits/time.h>
-#include <bits/ioctl.h>
 #include <sys/open.h>
 #include <sys/write.h>
 #include <sys/ioctl.h>

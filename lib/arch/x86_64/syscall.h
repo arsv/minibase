@@ -1,6 +1,9 @@
 #ifndef __SYSCALL_H__
 #define __SYSCALL_H__
 
+#include "bits/syscall.h"
+#include "bits/errno.h"
+
 inline static long syscall0(long nr)
 {
 	register long r0 asm("rax") = nr;

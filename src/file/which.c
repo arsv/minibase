@@ -1,7 +1,6 @@
-#include <bits/access.h>
+#include <sys/access.h>
 #include <sys/write.h>
 #include <sys/_exit.h>
-#include <sys/access.h>
 
 #include <memcpy.h>
 #include <strlen.h>

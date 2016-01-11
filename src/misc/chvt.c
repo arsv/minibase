@@ -1,5 +1,3 @@
-#include <bits/errno.h>
-#include <bits/fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/open.h>
 #include <sys/close.h>

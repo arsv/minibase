@@ -1,4 +1,3 @@
-#include <bits/errno.h>
 #include <sys/write.h>
 #include "writeall.h"
 

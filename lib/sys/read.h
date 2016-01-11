@@ -1,4 +1,3 @@
-#include <bits/syscall.h>
 #include <syscall.h>
 
 inline static long sysread(int fd, char* buf, unsigned long len)

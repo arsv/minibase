@@ -1,8 +1,5 @@
-#include <bits/syscall.h>
 #include <syscall.h>
-
-struct timeval;
-struct timezone;
+#include <bits/time.h>
 
 inline static long sysgettimeofday(struct timeval* tv, struct timezone* tz)
 {

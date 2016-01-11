@@ -1,4 +1,3 @@
-#include <bits/syscall.h>
 #include <syscall.h>
 
 inline static long sysexecve(const char* exe, char** argv, char** envp)

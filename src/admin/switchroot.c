@@ -1,11 +1,5 @@
 #include <bits/magic.h>
-#include <bits/mount.h>
-#include <bits/errno.h>
-#include <bits/fcntl.h>
-#include <bits/stat.h>
 #include <bits/stmode.h>
-#include <bits/statfs.h>
-#include <bits/dirent.h>
 
 #include <sys/execve.h>
 #include <sys/chroot.h>

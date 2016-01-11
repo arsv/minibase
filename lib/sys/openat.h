@@ -1,5 +1,5 @@
-#include <bits/syscall.h>
 #include <syscall.h>
+#include <bits/fcntl.h>
 
 inline static long sysopenat(int dir, const char* path, int flags)
 {

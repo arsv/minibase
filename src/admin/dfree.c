@@ -1,6 +1,3 @@
-#include <bits/errno.h>
-#include <bits/fcntl.h>
-#include <bits/statfs.h>
 #include <sys/statfs.h>
 #include <sys/open.h>
 #include <sys/read.h>

@@ -1,7 +1,5 @@
-#include <bits/syscall.h>
 #include <syscall.h>
-
-struct stat;
+#include <bits/stat.h>
 
 inline static long sysfstat(int fd, struct stat* st)
 {

@@ -1,9 +1,6 @@
-#include <bits/errno.h>
-#include <bits/ioctl.h>
 #include <bits/types.h>
-#include <bits/fcntl.h>
-#include <sys/ioctl.h>
 #include <sys/open.h>
+#include <sys/ioctl.h>
 
 #include <null.h>
 #include <fail.h>

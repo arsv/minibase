@@ -1,7 +1,6 @@
-#include <bits/syscall.h>
 #include <syscall.h>
-
-struct timespec;
+#include <bits/time.h>
+#include <bits/clock.h>
 
 inline static long sysclock_gettime(long clk_id, struct timespec* tp)
 {
