@@ -1,26 +1,32 @@
 include config.mk
 
 MAKEFLAGS += --no-print-directory
-CFLAGS += -Ilibs -Ilibs/arch/$(ARCH)
+CFLAGS += -Ilib -Ilib/arch/$(ARCH)
+
+sdirs = admin devel text file misc
 
 all: libs.a build
 
-libso = $(patsubst %.s,%.o,$(wildcard libs/arch/$(ARCH)/*.s)) \
-	$(patsubst %.c,%.o,$(wildcard libs/*.c))
+build: libs.a $(patsubst %,build-%,$(sdirs))
+
+install: $(patsubst %,install-%,$(sdirs))
+
+clean: clean-lib $(patsubst %,clean-%,$(sdirs))
+
+libso = $(patsubst %.s,%.o,$(wildcard lib/arch/$(ARCH)/*.s)) \
+	$(patsubst %.c,%.o,$(wildcard lib/*.c))
 
 libs.a: $(libso)
 	$(AR) cr $@ $?
 
-build: build-admin build-file build-text build-misc build-devel
-build-%:
-	$(MAKE) -C $*
+build-%: | src/%
+	$(MAKE) -C src/$*
 
-install: install-admin install-file install-text install-misc install-devel
-install-%:
-	$(MAKE) -C $* install
+install-%: | src/%
+	$(MAKE) -C src/$* install
 
-clean: clean-libs clean-admin clean-file clean-text clean-misc clean-devel
-clean-%:
-	$(MAKE) -C $* clean
-clean-libs:
-	rm -f libs/*.o libs/arch/*/*.o libs.a
+clean-lib:
+	rm -f lib/*.o lib/*/*/*.o libs.a
+
+clean-%: | src/%
+	$(MAKE) -C src/$* clean

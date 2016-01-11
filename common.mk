@@ -1,5 +1,7 @@
-LIBS = -L.. -ls -lgcc -ls
-CFLAGS += -I../libs -I../libs/arch/$(ARCH)
+/ ?= ../../
+
+LIBS = -L$/ -ls -lgcc -ls
+CFLAGS += -I$/lib -I$/lib/arch/$(ARCH)
 
 .SUFFIXES:
 
@@ -9,13 +11,13 @@ CFLAGS += -I../libs -I../libs/arch/$(ARCH)
 %.o: %.s
 	$(AS) $(ASFLAGS) -o $@ $<
 
-%: %.o ../libs.a
+%: %.o $/libs.a
 	$(LD) $(LDFLAGS) -o $@ $(filter %.o,$^) $(LIBS)
 
 all: $(bin) $(sbin)
 
-../libs.a:
-	$(MAKE) -C .. libs.a
+$/libs.a:
+	$(MAKE) -C $/ libs.a
 
 clean:
 	rm -f $(bin) $(sbin) *.o
