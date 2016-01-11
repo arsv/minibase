@@ -1,7 +1,8 @@
 #include <bits/syscall.h>
-#include <syscall2.h>
+#include <bits/fcntl.h>
+#include <syscall3.h>
 
 inline static long sysopen(const char* name, int flags)
 {
-	return syscall2(__NR_open, (long)name, flags);
+	return syscall3(__NR_openat, AT_FDCWD, (long)name, flags);
 }

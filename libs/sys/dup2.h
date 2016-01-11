@@ -1,7 +1,7 @@
 #include <bits/syscall.h>
-#include <syscall2.h>
+#include <syscall3.h>
 
 inline static long sysdup2(int fda, int fdb)
 {
-	return syscall2(__NR_dup2, fda, fdb);
+	return syscall3(__NR_dup3, fda, fdb, 0);
 }

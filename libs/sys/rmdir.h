@@ -1,7 +1,8 @@
 #include <bits/syscall.h>
-#include <syscall1.h>
+#include <bits/fcntl.h>
+#include <syscall3.h>
 
 inline static long sysrmdir(const char* dir)
 {
-	return syscall1(__NR_rmdir, (long)dir);
+	return syscall3(__NR_unlinkat, AT_FDCWD, (long)dir, AT_REMOVEDIR);
 }

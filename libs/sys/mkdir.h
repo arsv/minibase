@@ -1,7 +1,8 @@
 #include <bits/syscall.h>
-#include <syscall2.h>
+#include <bits/fcntl.h>
+#include <syscall3.h>
 
 inline static long sysmkdir(const char* pathname, int mode)
 {
-	return syscall2(__NR_mkdir, (long)pathname, mode);
+	return syscall3(__NR_mkdirat, AT_FDCWD, (long)pathname, mode);
 }

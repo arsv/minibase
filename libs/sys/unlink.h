@@ -1,7 +1,8 @@
 #include <bits/syscall.h>
-#include <syscall1.h>
+#include <bits/fcntl.h>
+#include <syscall2.h>
 
 inline static long sysunlink(const char* name)
 {
-	return syscall1(__NR_unlink, (long)name);
+	return syscall2(__NR_unlinkat, AT_FDCWD, (long)name);
 }

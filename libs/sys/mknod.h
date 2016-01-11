@@ -1,7 +1,8 @@
 #include <bits/syscall.h>
-#include <syscall3.h>
+#include <bits/fcntl.h>
+#include <syscall4.h>
 
 inline static long sysmknod(const char* pathname, int mode, int dev)
 {
-	return syscall3(__NR_mknod, (long)pathname, mode, dev);
+	return syscall4(__NR_mknodat, AT_FDCWD, (long)pathname, mode, dev);
 }
