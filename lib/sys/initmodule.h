@@ -1,5 +1,5 @@
 #include <bits/syscall.h>
-#include <syscall3.h>
+#include <syscall.h>
 
 inline static long sysinitmodule(void* image, unsigned long length,
 		const char* params)

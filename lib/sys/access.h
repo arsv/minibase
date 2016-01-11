@@ -1,6 +1,6 @@
 #include <bits/syscall.h>
 #include <bits/fcntl.h>
-#include <syscall4.h>
+#include <syscall.h>
 
 inline static long sysaccess(const char* path, int mode)
 {

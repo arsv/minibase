@@ -1,5 +1,5 @@
 #include <bits/syscall.h>
-#include <syscall3.h>
+#include <syscall.h>
 
 inline static long sysunlinkat(int atfd, const char* name, int flags)
 {

@@ -1,5 +1,5 @@
 #include <bits/syscall.h>
-#include <syscall0.h>
+#include <syscall.h>
 
 inline static long sysgetpid(void)
 {

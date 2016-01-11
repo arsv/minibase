@@ -1,5 +1,5 @@
 #include <bits/syscall.h>
-#include <syscall1.h>
+#include <syscall.h>
 
 struct utsname;
 

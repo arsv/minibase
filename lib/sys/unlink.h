@@ -1,6 +1,6 @@
 #include <bits/syscall.h>
 #include <bits/fcntl.h>
-#include <syscall2.h>
+#include <syscall.h>
 
 inline static long sysunlink(const char* name)
 {

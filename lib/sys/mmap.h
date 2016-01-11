@@ -1,5 +1,5 @@
 #include <bits/syscall.h>
-#include <syscall6.h>
+#include <syscall.h>
 
 inline static long sysmmap(void* addr, unsigned long length, int prot,
 		int flags, int fd, unsigned long offset)

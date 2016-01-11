@@ -1,5 +1,5 @@
 #include <bits/syscall.h>
-#include <syscall1.h>
+#include <syscall.h>
 
 inline static long sysclose(int fd)
 {

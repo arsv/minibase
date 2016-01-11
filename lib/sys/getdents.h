@@ -1,5 +1,5 @@
 #include <bits/syscall.h>
-#include <syscall3.h>
+#include <syscall.h>
 
 struct dirent64;
 

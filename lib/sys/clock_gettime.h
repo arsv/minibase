@@ -1,5 +1,5 @@
 #include <bits/syscall.h>
-#include <syscall2.h>
+#include <syscall.h>
 
 struct timespec;
 

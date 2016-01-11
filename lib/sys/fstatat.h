@@ -1,5 +1,5 @@
 #include <bits/syscall.h>
-#include <syscall4.h>
+#include <syscall.h>
 
 struct stat;
 

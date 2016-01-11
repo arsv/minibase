@@ -1,5 +1,5 @@
 #include <bits/syscall.h>
-#include <syscall3.h>
+#include <syscall.h>
 
 inline static long sysdup2(int fda, int fdb)
 {

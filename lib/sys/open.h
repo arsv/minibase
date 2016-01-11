@@ -1,6 +1,6 @@
 #include <bits/syscall.h>
 #include <bits/fcntl.h>
-#include <syscall3.h>
+#include <syscall.h>
 
 inline static long sysopen(const char* name, int flags)
 {

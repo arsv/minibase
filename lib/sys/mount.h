@@ -1,5 +1,5 @@
 #include <bits/syscall.h>
-#include <syscall5.h>
+#include <syscall.h>
 
 inline static long sysmount(const char* source, const char* target,
 		const char* fstype, long flags, const void* data)
