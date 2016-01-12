@@ -8,9 +8,6 @@ CFLAGS += -I$/lib -I$/lib/arch/$(ARCH)
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-%.o: %.s
-	$(AS) $(ASFLAGS) -o $@ $<
-
 %: %.o $/libs.a
 	$(LD) $(LDFLAGS) -o $@ $(filter %.o,$^) $(LIBS)
 
