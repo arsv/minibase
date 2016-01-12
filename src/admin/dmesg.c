@@ -10,7 +10,6 @@
 #include <bufout.h>
 #include <strlen.h>
 #include <fail.h>
-#include <null.h>
 #include <parseint.h>
 #include <parselong.h>
 #include <writeall.h>

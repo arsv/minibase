@@ -6,8 +6,6 @@
 
 #include <argbits.h>
 #include <memset.h>
-#include <fail.h>
-#include <null.h>
 #include <tv2tm.h>
 #include <tm2tv.h>
 #include <parseint.h>
@@ -18,6 +16,7 @@
 #include <fmttm.h>
 #include <parseint.h>
 #include <parseulong.h>
+#include <fail.h>
 
 ERRTAG = "systime";
 ERRLIST = { 

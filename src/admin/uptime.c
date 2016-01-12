@@ -2,14 +2,13 @@
 #include <sys/gettimeofday.h>
 
 #include <argbits.h>
-#include <fail.h>
-#include <null.h>
 #include <fmtlong.h>
 #include <fmtstr.h>
 #include <fmtchar.h>
 #include <fmttm.h>
 #include <tv2tm.h>
 #include <writeall.h>
+#include <fail.h>
 
 ERRTAG = "uptime";
 ERRLIST = {

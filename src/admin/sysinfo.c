@@ -7,7 +7,6 @@
 #include <fmtint32.h>
 #include <fmtulp.h>
 #include <fail.h>
-#include <null.h>
 
 ERRTAG = "sysinfo";
 ERRLIST = {

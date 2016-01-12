@@ -2,7 +2,6 @@
 
 #include <parseint.h>
 #include <fail.h>
-#include <null.h>
 
 #define makedev(x,y) ( \
         (((x)&0xfffff000ULL) << 32) | \

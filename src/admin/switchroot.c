@@ -17,7 +17,6 @@
 #include <sys/fstatat.h>
 
 #include <fail.h>
-#include <null.h>
 
 /* Usage:
 

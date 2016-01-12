@@ -2,9 +2,8 @@
 #include <sys/uname.h>
 
 #include <argbits.h>
-#include <fail.h>
-#include <null.h>
 #include <fmtstr.h>
+#include <fail.h>
 
 ERRTAG = "uname";
 ERRLIST = {

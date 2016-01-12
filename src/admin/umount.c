@@ -1,7 +1,5 @@
 #include <sys/umount.h>
-
 #include <fail.h>
-#include <null.h>
 
 ERRTAG = "umount";
 ERRLIST = {

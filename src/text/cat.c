@@ -3,7 +3,6 @@
 #include <sys/write.h>
 
 #include <fail.h>
-#include <null.h>
 
 ERRTAG = "cat";
 ERRLIST = {

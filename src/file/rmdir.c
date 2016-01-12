@@ -1,7 +1,5 @@
 #include <sys/rmdir.h>
-
 #include <fail.h>
-#include <null.h>
 
 ERRTAG = "rmdir";
 ERRLIST = {

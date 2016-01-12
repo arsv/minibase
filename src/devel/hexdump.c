@@ -2,11 +2,10 @@
 #include <sys/read.h>
 #include <sys/write.h>
 
-#include <fail.h>
-#include <null.h>
 #include <memcpy.h>
 #include <fmtstr.h>
 #include <fmtchar.h>
+#include <fail.h>
 
 #define RDBUF (1<<12)
 #define WRBUF (1<<14)

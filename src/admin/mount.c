@@ -1,7 +1,5 @@
 #include <sys/mount.h>
-
 #include <fail.h>
-#include <null.h>
 
 ERRTAG = "mount";
 ERRLIST = {

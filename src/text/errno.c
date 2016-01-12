@@ -1,11 +1,11 @@
 #include <bits/errno.h>
 #include <sys/write.h>
 
-#include <null.h>
 #include <strlen.h>
 #include <strcmp.h>
 #include <fmtstr.h>
 #include <memcpy.h>
+#include <null.h>
 
 #define TAG "errno"
 #define ESUCCESS 0

@@ -1,3 +1,5 @@
+#include "null.h"
+
 extern const struct errcode {
 	short code;
 	char* name;

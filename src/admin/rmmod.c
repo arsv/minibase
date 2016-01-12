@@ -1,6 +1,4 @@
 #include <sys/deletemodule.h>
-
-#include <null.h>
 #include <fail.h>
 
 ERRTAG = "rmmod";

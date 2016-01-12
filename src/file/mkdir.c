@@ -1,8 +1,7 @@
 #include <sys/mkdir.h>
 
-#include <fail.h>
-#include <null.h>
 #include <strcbrk.h>
+#include <fail.h>
 
 #define PARENTS (1<<0)
 #define SETMODE (1<<1)

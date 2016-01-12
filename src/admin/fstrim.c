@@ -1,8 +1,6 @@
 #include <bits/types.h>
 #include <sys/open.h>
 #include <sys/ioctl.h>
-
-#include <null.h>
 #include <fail.h>
 
 ERRTAG = "fstrim";

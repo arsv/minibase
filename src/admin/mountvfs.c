@@ -7,7 +7,6 @@
 #include <strcmp.h>
 #include <strlen.h>
 #include <memcpy.h>
-#include <null.h>
 #include <fail.h>
 
 ERRTAG = "mountvfs";

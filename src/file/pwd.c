@@ -1,8 +1,6 @@
 #include <sys/getcwd.h>
 #include <sys/write.h>
-
 #include <fail.h>
-#include <null.h>
 
 #define MAXCWD 2048
 

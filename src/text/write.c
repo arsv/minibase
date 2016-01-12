@@ -2,12 +2,11 @@
 #include <sys/read.h>
 #include <sys/write.h>
 
-#include <fail.h>
-#include <null.h>
 #include <alloca.h>
 #include <fmtstr.h>
 #include <strlen.h>
 #include <argsmerge.h>
+#include <fail.h>
 
 ERRTAG = "write";
 ERRLIST = {

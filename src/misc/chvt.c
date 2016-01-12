@@ -5,7 +5,6 @@
 #include <argbits.h>
 #include <parseint.h>
 #include <fail.h>
-#include <null.h>
 
 #define KDGKBTYPE	0x4B33
 #define VT_ACTIVATE	0x5606

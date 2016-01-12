@@ -4,7 +4,6 @@
 
 #include <argbits.h>
 #include <fail.h>
-#include <null.h>
 
 #define TCSETSW 0x5403
 

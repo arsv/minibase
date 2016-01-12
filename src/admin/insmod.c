@@ -3,12 +3,11 @@
 #include <sys/mmap.h>
 #include <sys/initmodule.h>
 
-#include <null.h>
-#include <fail.h>
 #include <alloca.h>
 #include <strlen.h>
 #include <basename.h>
 #include <argsmerge.h>
+#include <fail.h>
 
 ERRTAG = "insmod";
 ERRLIST = {

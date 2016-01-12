@@ -11,10 +11,9 @@
 
 #include <argbits.h>
 #include <strlen.h>
-#include <fail.h>
 #include <fmtstr.h>
 #include <fmtchar.h>
-#include <null.h>
+#include <fail.h>
 
 #define OPTS "rfxdZ"
 #define OPT_r (1<<0)

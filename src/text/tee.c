@@ -1,9 +1,7 @@
 #include <sys/open.h>
 #include <sys/read.h>
 #include <sys/write.h>
-
 #include <fail.h>
-#include <null.h>
 
 /* XXX: GNU coreutils allow writing to several files at once.
    Is that useful for anything? */
