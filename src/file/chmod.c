@@ -126,7 +126,7 @@ static void chmodst(const char* name, struct chmod* ch, struct stat* st)
 {
 	if((st->st_mode & S_IFMT) == S_IFLNK)
 		return;
-	if((st->st_mode & S_IFMT) == S_IFDIR)
+	if((st->st_mode & S_IFMT) == S_IFDIR && (ch->opts & OPT_r))
 		recurse(name, ch);
 	else if(ch->opts & OPT_d)
 		return;
