@@ -1,0 +1,43 @@
+.TH chmod 1
+'''
+.SH NAME
+chown \- change file owner
+'''
+.SH SYNOPSIS
+chmod [\fB-dfr\fR] \fIuser\fR[\fB:\fIgroup\fR] \fIfile\fR ...
+.br
+chmod \fB-u\fR[\fBdfr\fR] \fIuser\fR \fIfile\fR ...
+.br
+chmod \fB-g\fR[\fBdfr\fR] \fIgroup\fR \fIfile\fR ...
+'''
+.SH DESCRIPTION
+chmod changes file ownership (st_uid and st_gid fields from \fBstat\fR(2))
+for the given \fIfile\fR arguments.
+.P
+\fIuser\fR and \fIgroup\fR may be either names or raw numeric values.
+'''
+.SH OPTIONS
+.IP "\fB-r\fR" 4
+Process directories recursively.
+.IP "\fB-f\fR" 4
+Suppress error messages, do not abort on errors.
+.IP "\fB-d\fR" 4
+Skip non-directories, chown directories only.
+.IP "\fB-n\fR" 4
+Skip directories, chown non-directories only.
+.IP "\fB-u\fR" 4
+Change user only.
+.IP "\fB-g\fR" 4
+Change group only.
+'''
+.SH FILES
+.IP "/etc/passwd, /etc/group" 4
+User and group name dictionaries respectively.
+.br
+Both files are parsed linewise, and each line is expected to start
+with \fIname\fB:\fIignored\fB:\fIid\fB:\fI...\fR
+.br
+Becuase \fB:\fR is used as field separator
+'''
+.SH SEE ALSO
+\fBchown\fR(2), \fBstat\fR(2), \fBaccess\fR(2).

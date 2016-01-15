@@ -18,6 +18,7 @@ src/admin/uptime
 src/devel/hexdump
 src/devel/strings
 src/file/chmod
+src/file/chown
 src/file/mkdir
 src/file/mknod
 src/file/pwd
