@@ -1,4 +1,5 @@
 #include <syscall.h>
+#include <bits/signal.h>
 
 inline static long syskill(int pid, int sig)
 {
