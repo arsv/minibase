@@ -20,6 +20,7 @@
 #define O_SYNC		(O_FSYNC | O_DSYNC)
 #define O_PATH		(1<<21)
 
+#define S_IFMT		0170000 /* Mask */
 #define	S_IFDIR		0040000	/* Directory.  */
 #define	S_IFCHR		0020000	/* Character device.  */
 #define	S_IFBLK		0060000	/* Block device.  */

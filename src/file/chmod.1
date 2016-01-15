@@ -1,0 +1,30 @@
+.TH chmod 1
+'''
+.SH NAME
+chmod \- change file mode
+'''
+.SH SYNOPSIS
+chmod [\fB-dfr\fR] \fImode\fR \fIfile\fR ...
+'''
+.SH DESCRIPTION
+chmod changes file access mode (st_mode field from \fBstat\fR(2)) for the
+given \fIfile\fR arguments.
+.P
+\fImode\fR should be either raw octal value, or a symbolic description:
+[\fBaugo\fR][\fB+-=\fR][\fBrwxst\fR]. The meaning of the symbols: for \fBa\fRll,
+\fBu\fRser, \fBg\fRroup, \fBo\fRthers \fB+\fR (add), \fB-\fR (revoke) or \fB=\fR
+(set exactly) \fBr\fRead, \fBw\fRrite or e\fBx\fRecute permission, \fBs\fRet-id
+flags for s\fBt\fRicky bit.
+'''
+.SH OPTIONS
+.IP "\fB-r\fR" 4
+Process directories recursively.
+.IP "\fB-f\fR" 4
+Suppress error messages, do not abort on errors.
+.IP "\fB-d\fR" 4
+Skip non-directories, chmod directories only.
+.IP "\fB-n\fR" 4
+Skip directories, chmod non-directories only.
+'''
+.SH SEE ALSO
+\fBchmod\fR(2), \fBstat\fR(2), \fBaccess\fR(2).
