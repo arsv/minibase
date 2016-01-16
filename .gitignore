@@ -38,4 +38,5 @@ src/text/false
 src/text/tee
 src/text/true
 src/text/write
+src/text/wc
 src/text/yes
