@@ -24,6 +24,7 @@ src/file/mknod
 src/file/pwd
 src/file/rm
 src/file/rmdir
+src/file/sync
 src/file/which
 src/misc/chvt
 src/misc/clear
