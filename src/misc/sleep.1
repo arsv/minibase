@@ -1,0 +1,18 @@
+.TH sleep 1
+'''
+.SH NAME
+sleep \- delay for a specified amount of time
+'''
+.SH SYNOPSIS
+sleep \fIN\fR[\fBdhms\fR] ...
+'''
+.SH DESCRIPTION
+This command blocks for a given amount of time, doing nothing.
+The time is assumed to be in seconds (integral or fractional), unless
+suffixed with \fBd\fRay, \fBh\fRour or \fBm\fRinute.
+.P
+In case several time intervals are given, they are summed up.
+For example, \fBsleep 3m 15s\fR would pause for 195 seconds.
+'''
+.SH SEE ALSO
+\fBnanosleep\fR(2)
