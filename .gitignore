@@ -31,6 +31,7 @@ src/misc/clear
 src/misc/hello
 src/misc/kill
 src/misc/sleep
+src/misc/xargs
 src/text/basename
 src/text/cat
 src/text/dirname

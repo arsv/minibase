@@ -1,0 +1,35 @@
+.TH xargs 1
+'''
+.SH NAME
+xargs \- run command with arguments passed from standard input
+'''
+.SH SYNOPSIS
+\fIsource\fR | xargs [\fB-01\fR] \fIcommand\fR \fIargs\fR ...
+.br
+xargs \fB-a\fR[\fB01\fR] \fIfile\fR \fIcommand\fR \fIargs\fR ...
+'''
+.SH DESCRIPTION
+xargs reads lines from standard output or from \fIfile\fR,
+passes them as arguments \fIcommand\fR and spawns the command
+as many times as needed to process all the lines.
+.P
+The comands being spawned look like this:
+.EX
+    \fIcommand\fR \fIargs\fR \fIline1\fR ... \fIlineN\fR
+    \fIcommand\fR \fIargs\fR \fIlineN+1\fR ... \fIlineM\fR
+    ...
+.EE
+It is assumed that \fIcommand\fR treats everything past \fIargs\fR
+equally, so it does not matter how many lines are passed to each
+spawned instance.
+'''
+.SH OPTIONS
+.IP "\fB-0\fR" 4
+Assume the lines to be delimited by \\0 characters only.
+.IP "\fB-1\fR" 4
+Spawn one command per input line, pass exactly one argument to each command.
+.IP "\fB-a\fR" 4
+Read lines from \fIfile\fR instead of standard input.
+'''
+.SH SEE ALSO
+\fBfind\fR(1)
