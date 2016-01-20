@@ -34,8 +34,4 @@
 #define AT_SYMLINK_NOFOLLOW	0x100
 #define AT_EMPTY_PATH		0x1000
 
-#define STDIN  0
-#define STDOUT 1
-#define STDERR 2
-
 #endif

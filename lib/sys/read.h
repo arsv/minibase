@@ -1,4 +1,5 @@
 #include <syscall.h>
+#include <bits/stdio.h>
 
 inline static long sysread(int fd, char* buf, unsigned long len)
 {

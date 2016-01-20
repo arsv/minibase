@@ -1,4 +1,5 @@
 #include <syscall.h>
+#include <bits/stdio.h>
 
 inline static long syswrite(int fd, const char* buf, int len)
 {
