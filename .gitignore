@@ -28,6 +28,7 @@ src/file/sync
 src/file/which
 src/misc/chvt
 src/misc/clear
+src/misc/errno
 src/misc/hello
 src/misc/kill
 src/misc/sleep
@@ -36,7 +37,6 @@ src/text/basename
 src/text/cat
 src/text/dirname
 src/text/echo
-src/text/errno
 src/text/false
 src/text/tee
 src/text/true
