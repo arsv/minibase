@@ -14,9 +14,10 @@ ERRLIST = {
 	REPORT(EEXIST), RESTASNUMBERS
 };
 
+static char buf[4*4096];
+
 static void tee(int fd, const char* file)
 {
-	char buf[8000];
 	int rd;
 	long ret;
 
