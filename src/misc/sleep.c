@@ -8,7 +8,7 @@
 
 #define NANOFRAC 1000000000 /* nanoseconds in a second */
 
-/* There's no errno reporting in sleep, so no point in bringing fail(). */
+/* There's no errno reporting in sleep, so no point in linking fail(). */
 
 static void fail2(const char* msg, const char* obj)
 {
@@ -84,7 +84,7 @@ static void parsetime(struct timespec* sp, const char* str)
 
    	sleep 3m 15s -> sleep(195)
 
-   Kind of pointless, but since we support suffixes, well why not. */
+   Kind of pointless, but we support suffixes, so why not. */
 
 static void addtime(struct timespec* sp, const char* str)
 {
