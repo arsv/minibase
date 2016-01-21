@@ -40,16 +40,16 @@ static const struct termios sane = {
 	}
 };
 
-#define ESC "\x1B"	/* 1 byte */
-#define CSI "\x1B["	/* 2 bytes */
+#define ESC "\x1B"
+#define CSI "\x1B["
 
 static const char reset[] =
-	CSI "H"		/* @0+3 move cursor to origin (1,1) */
-	CSI "J"		/* @3+3 erase display, from cursor */
-	CSI "0m"	/* @6+4 reset attributes */
-	ESC "c"		/* @10+1 reset */
-	CSI "?25h"	/* @11+6 make cursor visible */
-	ESC "(B";	/* @17+3 select G0 charset */
+	CSI "H"		/* move cursor to origin (1,1) */
+	CSI "J"		/* erase display, from cursor */
+	CSI "0m"	/* reset attributes */
+	ESC "c"		/* reset */
+	CSI "?25h"	/* make cursor visible */
+	ESC "(B";	/* select G0 charset */
 
 #define OPTS "r"
 #define OPT_r (1<<0)
