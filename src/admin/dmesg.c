@@ -27,12 +27,11 @@
    anyone want to get the last N *bytes* from the kernel log?
    N lines would make sense, yeah, but not bytes. */
 
-#define OPTS "acnrt"
+#define OPTS "acnr"
 #define OPT_a (1<<0)
 #define OPT_c (1<<1)
 #define OPT_n (1<<2)
 #define OPT_r (1<<3)
-#define OPT_t (1<<4)
 
 #define OUTBUF (4*1024)
 #define MINLOGBUF (16*1024)
@@ -43,31 +42,6 @@ ERRLIST = {
 	REPORT(EINVAL), REPORT(EFAULT), REPORT(ENOSYS), REPORT(EPERM),
 	RESTASNUMBERS
 };
-
-/* Time handling in dmesg is fscked up beyond any reasonable limits.
-   The timestamps should follow CLOCK_MONOTONIC, probably, but on my system
-   atm they just happen to be ~600s (10 minutes) ahead.
-
-   There are no obvious sources to get adjustment for this difference.
-
-   Printing raw timestamps does not make much sense since the numbers
-   are somewhat meaningless. Converting them to date-time as util-linux
-   guys do is likely worse, as it makes meaningless numbers look kind-of
-   meaningful.
-   
-   So let's use offsets from CLOCK_MONOTONIC for now, because that's how
-   I would like them to work, while keeping in mind some messages may
-   happen to have apparent timestamps "in the future". */
-
-static long getreftime(void)
-{
-	struct timespec tv;
-
-	xchk(sysclock_gettime(CLOCK_MONOTONIC, &tv),
-		"cannot read monotonic clock", NULL);
-
-	return tv.tv_sec;
-}
 
 /* We could have put logbuf and outbuf to .bss and it would work
    well given MAXLOGBUF is known, but only for MMU systems.
@@ -230,18 +204,13 @@ static int parseline(char* str, char* end, struct logmsg* m)
 	return 0;
 }
 
-/* This pretty gross routine makes something like "[  1243]"
-   or "[    +1]" from ts and ref. Could have been a call to
-   fmtint or something, but most of the code here deals with
-   padding so that would only make things worse.
+/* This pretty gross routine makes something like "[  1243]".
+   Could have been a call to fmtint or something, but most of the code
+   here deals with padding so that would only make things worse.
 
-           v-- sign
-       [   +123455]
-   pad -^^^ ^^^^^^- len
- 
-   Negative time means log timestamp is that much ahead of uptime.
-   We denote that with + instead of - because it's "future".
-   See getreftime() comment above. 
+   pad -vvvv
+       [    123455]
+            ^^^^^^- len
 
    The stamp is padded to 6 internal chars, and we assume size
    is at least 8. */
@@ -253,34 +222,49 @@ static int numlen(long num)
 	return len;
 }
 
+/* Time handling in dmesg is fscked up beyond any reasonable limits.
+   The timestamps should follow CLOCK_MONOTONIC, probably, but on my system
+   atm they just happen to be ~600s (10 minutes) ahead.
+
+   There are no obvious sources to get adjustment for this difference.
+
+   I would much rather prefer something like "n seconds ago" as a timing
+   format for a ring buffer, but alas, it just does not work.
+   The tool started doing exactly that, diffing the stamps against
+   CLOCK_MONOTONIC, but that's unreliable and will only confuse users.
+
+   For the same reason there are no attempt to implement -T option
+   (human-readable wall clock times).
+
+   The attempts to do something with the timestamps is the only reason
+   for parsing them there. As it is now, it would actually be easier
+   to do strcpy or something along those lines, but I hope to fix it
+   at some point. */
+
 static int formattime(char* buf, int size, long dt)
 {
-	int sign = (dt < 0 ? 1 : 0);	/* indicator width */
-	long da = sign ? -dt : dt;	/* abosolute value of dt */
-	int dw = numlen(da);		/* da width in digits */
+	int dw = numlen(dt);
 
-	int pad = 6 - dw - sign; if(pad < 0) pad = 0;
+	int pad = 6 - dw; if(pad < 0) pad = 0;
 
-	int rem = size - 3 - sign - pad; /* space remaining for len */
+	int rem = size - 3 - pad; /* space remaining for len */
 	int len = rem < dw ? rem : dw;
 
 	int i;
 	for(i = 1; i < 1 + pad; i++)
 		buf[i] = ' ';
-	if(sign)
-		buf[1+pad] = '+';
-	for(i = 0; i < dw; i++, da /= 10)
+	for(i = 0; i < dw; i++, dt /= 10)
 		if(i < len)
-			buf[1+pad+sign+(len-i-1)] = '0' + (da % 10);
+			buf[1+pad+(len-i-1)] = '0' + (dt % 10);
 
-	buf[0] = '['; buf[1+pad+sign+len] = ']';
+	buf[0] = '['; buf[1+pad+len] = ']';
 
-	return pad + sign + len + 2;
+	return pad + len + 2;
 }
 
-static void formatline(struct bufout* bo, struct logmsg* m, long ref, int opts)
+static void formatline(struct bufout* bo, struct logmsg* m, int opts)
 {
-	long ts = (opts & OPT_t ? m->ts : (ref - m->ts));
+	long ts = m->ts;
 
 	char timebuf[20];
 	int timelen = formattime(timebuf, sizeof(timebuf), ts);
@@ -317,16 +301,14 @@ static void prettyprint(char* logbuf, int loglen, int opts)
 	char* p = logbuf;	/* start of string */
 	char* e;		/* end of string */
 	struct logmsg m;	/* parsed line */
-	long ref;		/* reference timestamp */
 
 	mmapbufout(&bo, 1, OUTBUF);
-	ref = getreftime();
 
 	while(p < logend) {
 		e = strqbrk(p, "\n"); *e = '\0';
 
 		if(!parseline(p, e, &m))
-			formatline(&bo, &m, ref, opts);
+			formatline(&bo, &m, opts);
 		else
 			writeraw(&bo, p, e);
 
