@@ -36,6 +36,7 @@ struct exec {
 	int total;	/* slots in argv (w/o terminating NULL) */
 	int start;	/* index of the first non-constant slot */
 	int ptr;	/* index of the first free slot */
+	char* exe;
 	char** argv;
 	char** envp;
 	int opts;
@@ -53,12 +54,12 @@ static void spawn(struct exec* ctx)
 	if(pid < 0) {
 		fail("fork", NULL, -pid);
 	} else if(pid == 0) {
-		long ret = sysexecve(*ctx->argv, ctx->argv, ctx->envp);
+		long ret = sysexecve(ctx->exe, ctx->argv, ctx->envp);
 
 		if(ret < 0)
-			fail("exec", *(ctx->argv), -ret);
+			fail("exec", ctx->exe, -ret);
 		else
-			fail("cannot exec", *(ctx->argv), 0);
+			fail("cannot exec", ctx->exe, 0);
 	} else {
 		int status;
 
@@ -199,6 +200,7 @@ static int lookslikepath(const char* cmd)
 static void makefullname(char* buf, char* dir, int dirlen, char* cmd, int cmdlen)
 {
 	char* p = buf;
+	/* buf[dirlen+cmdlen+2] <- "dir/cmd" */
 	memcpy(p, dir, dirlen); p += dirlen; *p++ = '/';
 	memcpy(p, cmd, cmdlen); p += cmdlen; *p = '\0';
 }
@@ -241,8 +243,14 @@ static void makecmd(struct exec* ctx, int fd, char** envp)
 	char cmdbuf[dirlen + cmdlen + 2];
 
 	makefullname(cmdbuf, dir, dirlen, cmd, cmdlen);
-	*(ctx->argv) = cmdbuf;
 
+	ctx->exe = cmdbuf;
+	readinput(ctx, fd);
+}
+
+static void runpath(struct exec* ctx, int fd)
+{
+	ctx->exe = *(ctx->argv);
 	readinput(ctx, fd);
 }
 
@@ -261,13 +269,9 @@ static void makectx(int argc, char** argv, char** envp, int fd, int opts)
 	memcpy(cmdv, argv, argc*sizeof(char*));
 
 	if(lookslikepath(*cmdv))
-		readinput(&ctx, fd);
+		runpath(&ctx, fd);
 	else
 		makecmd(&ctx, fd, envp);
-
-	/* makecmd calls readinput() too, but only after stack-allocating
-	   full path of the executable, so it's a tail-call instead
-	   of update-ctx-return-back followed by a readinput() call. */
 }
 
 int main(int argc, char** argv, char** envp)
