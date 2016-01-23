@@ -1,12 +1,20 @@
 What is this?
 ~~~~~~~~~~~~~
-This project contains a set of tools intended for early boot environment
-(initrd, initcpio and possibly later stages for small systems).
-The tools are small, statically linked and need no libc.
+This project contains small standalone implementations of common
+Linux tools (cat, echo, insmod, mkdir and the likes), written in
+raw syscalls, statically linked, and not dependent on libc.
 
+The goal of the project is to show that the basic tools need not
+be large, bloated and dynamically-linked like the GNU implementations,
+and that the opposite can be achieved without extreme size-reducing
+tricks like those used in busybox.
+
+
+Current status
+~~~~~~~~~~~~~~
 The project is highly experimental and (at this point) incomplete.
-Some crucial tools are still to be written before building a viable
-initcpio becomes possible. Use at your own risk.
+Some crucial tools are still to be written before even building
+a viable initcpio becomes possible. Use at your own risk.
 
 
 Who may want to use it
@@ -21,7 +29,7 @@ on static tools only, which may lead to a self-contained and very
 fast "base system".
 
 Finally, it is easy to trace and audit these tools down to syscall
-level, both for security and for educational (how it works?) purposes.
+level, both for security and for educational purposes.
 
 
 How is it different from busybox?
@@ -36,23 +44,12 @@ once, saving memory and time for repeated usage.
 This project aims to provide small individual tools, so that they
 could be combined freely and picked one at a time.
 
-These tools are meant to be used rarely, perhaps only once during
-boot, then unloaded immediately.
-
 
 Compatibility
 ~~~~~~~~~~~~~
-None. The tools follow Linux syscalls closely instead of trying
-to be compatible with common GNU or busybox implementations.
-
-Because the tools are standalone and independent, they can be used
-together with e.g. busybox, providing rarely-used, system-specific
-functions and leaving POSIX stuff to busybox.
-
-Some of the tools won't work well on non-MMU systems.
-Given their size and scope, it's easier (and cleaner, code-wise)
-to add non-MMU versions if necessary instead of writing some sort
-of compromise implementations.
+The tools are *NOT* meant to be POSIX- or GNU-compatible.
+Instead, the goal is to provide comparable functionality
+by simplier means.
 
 
 Licensing
@@ -84,3 +81,5 @@ https://swtch.com/plan9port/
 https://www.gnu.org/software/coreutils/coreutils.html
 https://www.kernel.org/pub/linux/utils/util-linux/
 https://github.com/uutils/coreutils
+
+https://github.com/mit-pdos/xv6-public (userspace tools)
