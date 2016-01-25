@@ -1,6 +1,6 @@
-#include <sys/write.h>
 #include <alloca.h>
 #include <argsmerge.h>
+#include <writeall.h>
 
 #define TAG "echo"
 #define OPT_n (1<<0)
@@ -98,5 +98,5 @@ int main(int argc, char** argv)
 	if(!(opts & OPT_n))
 		*end++ = '\n';
 
-	return syswrite(1, buf, end - buf) >= 0 ? 0 : -1;
+	return writeall(1, buf, end - buf) >= 0 ? 0 : -1;
 }
