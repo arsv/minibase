@@ -3,8 +3,7 @@
 
 /* We return EPIPE here to indicate incomplete write.
    In all concievable case that should be the only possible
-   cause (but we'll probably get SIGPIPE anyway), so the
-   error message will look like of ok. */
+   cause (and we'll probably get SIGPIPE anyway) */
 
 long writeall(int fd, char* buf, long len)
 {
