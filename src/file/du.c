@@ -16,12 +16,13 @@
 #include <qsort.h>
 #include <strcmp.h>
 
-#define OPTS "scbnd"
+#define OPTS "scbnda"
 #define OPT_s (1<<0)
 #define OPT_c (1<<1)
 #define OPT_b (1<<2)
 #define OPT_n (1<<3)
 #define OPT_d (1<<4)
+#define OPT_a (1<<5)
 
 ERRTAG = "du";
 ERRLIST = {
@@ -35,7 +36,7 @@ struct entsize {
 
 static void addstsize(uint64_t* sum, struct stat* st, int opts)
 {
-	if(opts & OPT_b)
+	if(opts & OPT_a)
 		*sum += st->st_size;
 	else
 		*sum += st->st_blocks*512;
@@ -213,7 +214,7 @@ int main(int argc, char** argv)
 	uint64_t total = 0;
 
 	if(opts & OPT_b)
-		opts |= OPT_n;
+		opts |= OPT_a | OPT_n;
 
 	if(opts & (OPT_s | OPT_c))
 		;
