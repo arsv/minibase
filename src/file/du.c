@@ -8,9 +8,11 @@
 #include <strlen.h>
 #include <memcpy.h>
 #include <fail.h>
-#include <fmtint64.h>
 #include <fmtstr.h>
-#include <fmtchar.h>
+#include <fmtpad.h>
+#include <fmtint64.h>
+#include <fmtsize.h>
+#include <fmtint64.h>
 #include <qsort.h>
 #include <strcmp.h>
 
@@ -30,49 +32,12 @@ struct entsize {
 	char* name;
 };
 
-static char* fmt4is(char* p, char* e, int n)
+static void addstsize(uint64_t* sum, struct stat* st, int opts)
 {
-	if(p + 3 >= e) return e;
-
-	*(p+3) = '0' + (n % 10); n /= 10;
-	*(p+2) = n ? ('0' + n % 10) : ' '; n /= 10;
-	*(p+1) = n ? ('0' + n % 10) : ' '; n /= 10;
-	*(p+0) = n ? ('0' + n % 10) : ' ';
-
-	return p + 4;
-}
-
-static char* fmt1i0(char* p, char* e, int n)
-{
-	if(p < e) *p++ = '0' + (n % 10); return p;
-}
-
-static char* fmtsize(char* p, char* e, uint64_t n)
-{
-	static const char sfx[] = "KMGTP";
-	int sfi = 0;
-	int fr = 0;
-
-	/* find out the largest multiplier we can use */
-	for(; sfi < sizeof(sfx) && n > 1024; sfi++) {
-		fr = n % 1024;
-		n /= 1024;
-	}
-	
-	if(sfi >= sizeof(sfx)) {
-		/* it's too large; format the number and be done with it */
-		p = fmtu64(p, e, n);
-		p = fmtchar(p, e, sfx[sizeof(sfx)-1]);
-	} else {
-		/* it's manageable; do nnnn.d conversion */
-		fr = fr*10/1024; /* one decimal */
-		p = fmt4is(p, e, n);
-		p = fmtchar(p, e, '.');
-		p = fmt1i0(p, e, fr);
-		p = fmtchar(p, e, sfx[sfi]);
-	}
-
-	return p;
+	if(opts & OPT_b)
+		*sum += st->st_size;
+	else
+		*sum += st->st_blocks*512;
 }
 
 /* No buffering here. For each line written, there will be at least one
@@ -87,7 +52,10 @@ static void dump(uint64_t count, char* tag, int opts)
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
 	
-	p = fmtsize(p, e, count >> 1);
+	if(opts & OPT_n)
+		p = fmtpad(p, e, 8, fmtu64(p, e, count));
+	else
+		p = fmtpad(p, e, 5, fmtsize(p, e, count));
 
 	if(tag) {
 		p = fmtstr(p, e, "  ");
@@ -132,7 +100,7 @@ static void scanent(uint64_t* size, char* path, char* name, int opts)
 	if(ret < 0)
 		return;
 
-	*size += st.st_blocks;
+	addstsize(size, &st, opts);
 
 	if((st.st_mode & S_IFMT) != S_IFDIR)
 		return;
@@ -176,7 +144,7 @@ static void scan(uint64_t* size, char* path, int opts)
 	
 	xchk(syslstat(path, &st), "cannot stat", path);
 
-	*size += st.st_blocks;
+	addstsize(size, &st, opts);
 	
 	if((st.st_mode & S_IFMT) == S_IFDIR)
 		scandir(size, path, opts);
@@ -228,6 +196,9 @@ int main(int argc, char** argv)
 
 	char* dot =  ".";
 	uint64_t total = 0;
+
+	if(opts & OPT_b)
+		opts |= OPT_n;
 
 	if(opts & (OPT_s | OPT_c))
 		;
