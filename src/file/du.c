@@ -177,7 +177,7 @@ static void scanall(uint64_t* total, int argc, char** argv, int opts)
 	struct entsize res[argc];
 
 	for(i = 0; i < argc; i++) {
-		uint64_t size;
+		uint64_t size = 0;
 
 		if(scan(&size, argv[i], opts))
 			continue;
