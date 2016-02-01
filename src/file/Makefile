@@ -1,6 +1,6 @@
 include ../../config.mk
 
-bin = rm mkdir rmdir which pwd mknod chmod chown sync du
+bin = rm mkdir rmdir which pwd mknod chmod chown sync du df
 
 man1 = rm.1 mkdir.1 rmdir.1 which.1 pwd.1 chmod.1 chown.1 sync.1
 
