@@ -2,7 +2,6 @@ tmp
 *.a
 *.o
 
-src/admin/dfree
 src/admin/dmesg
 src/admin/fstrim
 src/admin/insmod
@@ -19,6 +18,7 @@ src/devel/hexdump
 src/devel/strings
 src/file/chmod
 src/file/chown
+src/file/df
 src/file/du
 src/file/mkdir
 src/file/mknod
