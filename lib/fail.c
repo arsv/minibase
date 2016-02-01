@@ -40,8 +40,10 @@ void warn(const char* msg, const char* obj, int err)
 	} if(obj) {
 		p = fmtstr(p, end, " ");
 		p = fmtstr(p, end, obj);
+	} if(err && (msg || obj)) {
+		p = fmtstr(p, end, ":");
 	} if(err) {
-		p = fmtstr(p, end, ": ");
+		p = fmtstr(p, end, " ");
 		p = fmterr(p, end, err);
 	}
 
