@@ -1,3 +1,4 @@
+/ = ../
 include ../config.mk
 
 all = $(patsubst %.s,%.o,$(wildcard arch/$(ARCH)/*.s)) \
