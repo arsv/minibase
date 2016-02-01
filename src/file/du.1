@@ -4,7 +4,7 @@
 du \- estimate disk usage
 '''
 .SH SYNOPSIS
-du [\fB-scbn\fR] [\fIfile\fR ...]
+du [\fB-scbnd\fR] [\fIfile\fR ...]
 '''
 .SH DESCRIPTION
 du gives a rough estimate of how much disk space given \fIfile\fR(s) take.
@@ -25,6 +25,8 @@ Show size of each argument.
 Use apparent file sizes (st_size) instead of blocks (st_blocks).
 .IP "\fB-n\fR" 4
 Show raw number of bytes, do not convert to KB/MB/GB.
+.IP "\fB-d\fR" 4
+Skip non-directories among arguments.
 '''
 .SH SEE ALSO
 \fBstat\fR(2), \fBdf\fR(1)

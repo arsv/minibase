@@ -16,11 +16,12 @@
 #include <qsort.h>
 #include <strcmp.h>
 
-#define OPTS "scbn"
+#define OPTS "scbnd"
 #define OPT_s (1<<0)
 #define OPT_c (1<<1)
 #define OPT_b (1<<2)
 #define OPT_n (1<<3)
+#define OPT_d (1<<4)
 
 ERRTAG = "du";
 ERRLIST = {
@@ -138,16 +139,25 @@ static void scandir(uint64_t* size, char* path, int opts)
 	sysclose(fd);
 }
 
-static void scan(uint64_t* size, char* path, int opts)
+static int scan(uint64_t* size, char* path, int opts)
 {
 	struct stat st;
 	
 	xchk(syslstat(path, &st), "cannot stat", path);
 
+	int isdir = ((st.st_mode & S_IFMT) == S_IFDIR);
+
+	if((opts & OPT_d) && !isdir)
+		return -1;
+
 	addstsize(size, &st, opts);
+
+	if(!isdir)
+		return 0;
 	
-	if((st.st_mode & S_IFMT) == S_IFDIR)
-		scandir(size, path, opts);
+	scandir(size, path, opts);
+
+	return 0;
 }
 
 static int sizecmp(const struct entsize* a, const struct entsize* b)
@@ -163,23 +173,28 @@ static int sizecmp(const struct entsize* a, const struct entsize* b)
 static void scanall(uint64_t* total, int argc, char** argv, int opts)
 {
 	int i;
+	int n = 0;
 	struct entsize res[argc];
 
 	for(i = 0; i < argc; i++) {
-		res[i].name = argv[i];
-		res[i].size = 0;
-		uint64_t* sizep = &(res[i].size);
+		uint64_t size;
 
-		scan(sizep, argv[i], opts);
-		*total += *sizep;
+		if(scan(&size, argv[i], opts))
+			continue;
+
+		res[n].name = argv[i];
+		res[n].size = size;
+		*total += size;
+
+		n++;
 	}
 
 	if(!(opts & OPT_s))
 		return;
 
-	qsort(res, argc, sizeof(*res), (qcmp)sizecmp, NULL);
+	qsort(res, n, sizeof(*res), (qcmp)sizecmp, NULL);
 
-	for(i = 0; i < argc; i++)
+	for(i = 0; i < n; i++)
 		dump(res[i].size, res[i].name, opts);
 }
 
