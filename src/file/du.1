@@ -1,0 +1,30 @@
+.TH du 1
+'''
+.SH NAME
+du \- estimate disk usage
+'''
+.SH SYNOPSIS
+du [\fB-scbn\fR] [\fIfile\fR ...]
+'''
+.SH DESCRIPTION
+du gives a rough estimate of how much disk space given \fIfile\fR(s) take.
+In case \fIfile\fR is a directory, the total disk usage of the whole subtree
+under that directory is shown. Symlinks are never followed.
+.P
+Beware the size shown by this tool is merely an estimate obtained from either
+st_blocks or (with \fB-a\fR) st_size field of struct stat (see \fBstat\fR(2)).
+The actual space usage depends on the underlying file system and may be off
+in either direction.
+'''
+.SH OPTIONS
+.IP "\fB-c\fR" 4
+Show total sum for all arguments.
+.IP "\fB-s\fR" 4
+Show size of each argument.
+.IP "\fB-b\fR" 4
+Use apparent file sizes (st_size) instead of blocks (st_blocks).
+.IP "\fB-n\fR" 4
+Show raw number of bytes, do not convert to KB/MB/GB.
+'''
+.SH SEE ALSO
+\fBstat\fR(2), \fBdf\fR(1)
