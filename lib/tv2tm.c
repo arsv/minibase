@@ -4,40 +4,65 @@
    not exactly true, so let's not add to confusion.
    Musl calls it __secs_to_tm() internally.  */
 
+/* Code taken from musl. My oh-so-clever version naturally failed badly
+   on Feb 1, 2016 (leap year). Big surprise, yeah. */
+
+/* 2000-03-01 (mod 400 year, immediately after feb29 */
+#define LEAPOCH (946684800LL + 86400*(31+29))
+
+#define DAYS_PER_400Y (365*400 + 97)
+#define DAYS_PER_100Y (365*100 + 24)
+#define DAYS_PER_4Y   (365*4   + 1)
+
 void tv2tm(struct timeval* tv, struct tm* tm)
 {
 	uint64_t ts = tv->tv_sec;	
 	static const char mdays[] = {31,30,31,30,31,31,30,31,30,31,31,29};
 
-	tm->tm_sec = ts % 60; ts /= 60;
-	tm->tm_min = ts % 60; ts /= 60;
-	tm->tm_hour = ts % 24; ts /= 24;
-	/* ts is days now */
-	ts += 719499;
-	/* ts is (year/4 - year/100 + year/400 + 367*mon/12 + day + 365*year) */
+	ts -= LEAPOCH;
+	int days = ts / 86400;
+	int secs = ts % 86400;
 
-	/* two iterations to account for leap days */
-	int year1 = ts / 365;
-	int diff1 = year1/4 - year1/100 + year1/400;
+	/* with LEAPOCH, ts may happen to be negative */
+	if(secs < 0) { secs += 86400; days--; };
 
-	int year2 = (ts - diff1) / 365;
-	int diff2 = year2/4 - year2/100 + year2/400;
+	int wday = (3+days) % 7;
+	if(wday < 0) wday += 7;
 
-	int year = (ts - diff2) / 365;
-	int yday = ts - year2/4 - year2/100 + year2/400 - 365*year;
+	int qc = days / DAYS_PER_400Y;
+	days = days % DAYS_PER_400Y;
+	if(days < 0) { days += DAYS_PER_400Y; qc--; };
 
-	int mon, mday, next, dsum = 0;
-	for(mon = 0; mon < 12; mon++)
-		if((next = dsum + mdays[mon]) > yday)
-			break;
-		else
-			dsum = next;
+	int nc = days / DAYS_PER_100Y; if(nc == 4) nc--;
+	days -= nc*DAYS_PER_100Y;
 
-	/* Reverse Feb-last-month logic from tm2tv; mon is 0-based */
-	mday = yday - dsum; mon += 2;
-	if(mon > 11) { mon -= 12; year += 1; }
+	int nq = days / DAYS_PER_4Y; if(nq == 25) nq--;
+	days -= nq*DAYS_PER_4Y;
 
-	tm->tm_mday = mday;
-	tm->tm_mon = mon;
-	tm->tm_year = year - 1900;
+	int year = days / 365; if(year == 4) year--;
+	days -= year*365;
+
+	int leap = !year && (nq || !nc);
+	int yday = days + 31 + 28 + leap;
+	if (yday >= 365+leap) yday -= 365+leap;
+
+	year += 4*nq + 100*nc + 400*qc;
+
+	int mon = 0;
+	for(; mon < 12 && mdays[mon] <= days; mon++)
+		days -= mdays[mon];
+
+	tm->tm_year = year + 100;
+	tm->tm_mon = mon + 2;
+	if (tm->tm_mon >= 12) {
+		tm->tm_mon -=12;
+		tm->tm_year++;
+	}
+	tm->tm_mday = days + 1;
+	tm->tm_wday = wday;
+	tm->tm_yday = yday;
+
+	tm->tm_sec = secs % 60; secs /= 60;
+	tm->tm_min = secs % 60; secs /= 60;
+	tm->tm_hour = secs % 24;
 }
