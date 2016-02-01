@@ -182,7 +182,7 @@ static void scan(uint64_t* size, char* path, int opts)
 		scandir(size, path, opts);
 }
 
-static int sizecmp(const struct entsize* a, const struct entsize* b, int opts)
+static int sizecmp(const struct entsize* a, const struct entsize* b)
 {
 	if(a->size < b->size)
 		return -1;
@@ -209,7 +209,7 @@ static void scanall(uint64_t* total, int argc, char** argv, int opts)
 	if(!(opts & OPT_s))
 		return;
 
-	qsort(res, argc, sizeof(*res), (qcmp)sizecmp, (void*)(long)opts);
+	qsort(res, argc, sizeof(*res), (qcmp)sizecmp, NULL);
 
 	for(i = 0; i < argc; i++)
 		dump(res[i].size, res[i].name, opts);
