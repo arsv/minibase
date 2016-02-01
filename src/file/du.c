@@ -11,6 +11,8 @@
 #include <fmtint64.h>
 #include <fmtstr.h>
 #include <fmtchar.h>
+#include <qsort.h>
+#include <strcmp.h>
 
 #define OPTS "scbn"
 #define OPT_s (1<<0)
@@ -21,6 +23,11 @@
 ERRTAG = "du";
 ERRLIST = {
 	REPORT(ENOENT), RESTASNUMBERS
+};
+
+struct entsize {
+	uint64_t size;
+	char* name;
 };
 
 static char* fmt4is(char* p, char* e, int n)
@@ -143,8 +150,7 @@ static void scandir(uint64_t* size, char* path, int opts)
 	long rd;
 	char buf[1024];
 
-	while((rd = sysgetdents64(fd, (struct dirent64*)buf, sizeof(buf))) > 0)
-	{
+	while((rd = sysgetdents64(fd, (struct dirent64*)buf, sizeof(buf))) > 0) {
 		char* ptr = buf;
 		char* end = buf + rd;
 		while(ptr < end) {
@@ -164,21 +170,49 @@ static void scandir(uint64_t* size, char* path, int opts)
 	sysclose(fd);
 }
 
-static void scan(uint64_t* total, char* path, int opts)
+static void scan(uint64_t* size, char* path, int opts)
 {
 	struct stat st;
-
+	
 	xchk(syslstat(path, &st), "cannot stat", path);
 
-	uint64_t size = st.st_blocks;
+	*size += st.st_blocks;
 	
 	if((st.st_mode & S_IFMT) == S_IFDIR)
-		scandir(&size, path, opts);
+		scandir(size, path, opts);
+}
 
-	if(opts & OPT_s)
-		dump(size, path, opts);
+static int sizecmp(const struct entsize* a, const struct entsize* b, int opts)
+{
+	if(a->size < b->size)
+		return -1;
+	if(a->size > b->size)
+		return  1;
+	else
+		return strcmp(a->name, b->name);
+}
 
-	*total += size;
+static void scanall(uint64_t* total, int argc, char** argv, int opts)
+{
+	int i;
+	struct entsize res[argc];
+
+	for(i = 0; i < argc; i++) {
+		res[i].name = argv[i];
+		res[i].size = 0;
+		uint64_t* sizep = &(res[i].size);
+
+		scan(sizep, argv[i], opts);
+		*total += *sizep;
+	}
+
+	if(!(opts & OPT_s))
+		return;
+
+	qsort(res, argc, sizeof(*res), (qcmp)sizecmp, (void*)(long)opts);
+
+	for(i = 0; i < argc; i++)
+		dump(res[i].size, res[i].name, opts);
 }
 
 int main(int argc, char** argv)
@@ -192,6 +226,7 @@ int main(int argc, char** argv)
 	argc -= i;
 	argv += i;
 
+	char* dot =  ".";
 	uint64_t total = 0;
 
 	if(opts & (OPT_s | OPT_c))
@@ -201,10 +236,10 @@ int main(int argc, char** argv)
 	else
 		opts |= OPT_c;
 
-	if(!argc)
-		scan(&total, ".", opts);
-	else for(i = 0; i < argc; i++)
-		scan(&total, argv[i], opts);
+	if(argc)
+		scanall(&total, argc, argv, opts);
+	else 
+		scanall(&total, 1, &dot, opts);
 
 	if(opts & OPT_c)
 		dump(total, NULL, opts);
