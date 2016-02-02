@@ -22,7 +22,7 @@ static void exch(char* base, size_t size, size_t i, size_t j)
 /* Quicksort with 3-way partitioning, ala Sedgewick */
 /* Blame him for the scary variable names */
 /* http://www.cs.princeton.edu/~rs/talks/QuicksortIsOptimal.pdf */
-static void quicksort(char* base, size_t size, ssize_t l, ssize_t r, qcmp compar, void* d)
+static void quicksort(char* base, size_t size, ssize_t l, ssize_t r, qcmp compar, long d)
 {
 	ssize_t i=l-1, j=r, p=l-1, q=r, k;
 	char* v = a(r);
@@ -58,7 +58,7 @@ static void quicksort(char* base, size_t size, ssize_t l, ssize_t r, qcmp compar
 		quicksort(base, size, i, r, compar, d);
 }
 
-void qsort(void* base, size_t nmemb, size_t size, qcmp compar, void* d)
+void qsort(void* base, size_t nmemb, size_t size, qcmp compar, long d)
 {
 	/* XXX: int overflow checks; only needed for (l-1) and similar stuff? */
 

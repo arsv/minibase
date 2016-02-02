@@ -193,7 +193,7 @@ static void scanall(uint64_t* total, int argc, char** argv, int opts)
 	if(!(opts & OPT_s))
 		return;
 
-	qsort(res, n, sizeof(*res), (qcmp)sizecmp, NULL);
+	qsort(res, n, sizeof(*res), (qcmp)sizecmp, 0);
 
 	for(i = 0; i < n; i++)
 		dump(res[i].size, res[i].name, opts);
