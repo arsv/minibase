@@ -2,6 +2,8 @@ tmp
 *.a
 *.o
 
+doc/
+
 src/admin/dmesg
 src/admin/fstrim
 src/admin/insmod
