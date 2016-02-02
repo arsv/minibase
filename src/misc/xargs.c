@@ -52,12 +52,12 @@ static void spawn(struct exec* ctx)
 	long pid = sysfork();
 
 	if(pid < 0) {
-		fail("fork", NULL, -pid);
+		fail("fork", NULL, pid);
 	} else if(pid == 0) {
 		long ret = sysexecve(ctx->exe, ctx->argv, ctx->envp);
 
 		if(ret < 0)
-			fail("exec", ctx->exe, -ret);
+			fail("exec", ctx->exe, ret);
 		else
 			fail("cannot exec", ctx->exe, 0);
 	} else {

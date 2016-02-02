@@ -24,7 +24,7 @@ static void dump(const char* buf, int len)
 			len -= wr;
 		} else {
 			/* wr = 0 is probably just as bad as wr < 0 here */
-			fail("write", NULL, -wr);
+			fail("write", NULL, wr);
 		}
 }
 

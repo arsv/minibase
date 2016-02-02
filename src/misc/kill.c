@@ -67,7 +67,7 @@ static int killpid(int sig, char* pstr)
 	long ret = syskill(neg ? -pid : pid, sig);
 
 	if(ret < 0) {
-		warn("cannot kill", pstr, -ret);
+		warn("cannot kill", pstr, ret);
 		return -1;
 	} else {
 		return 0;

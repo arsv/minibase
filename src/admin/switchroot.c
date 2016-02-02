@@ -199,5 +199,5 @@ int main(int argc, char** argv)
 	}
 
 	long ret = sysexecve(*argv, argv, NULL);
-	fail("cannot exec", *argv, -ret);
+	fail("cannot exec", *argv, ret);
 }

@@ -26,12 +26,12 @@ static void tee(int fd, const char* file)
 			goto wr1;
 
 		if((ret = syswrite(fd, buf, rd)) < 0) {
-			warn("writing to", file, -ret);
+			warn("writing to", file, ret);
 			fd = -1;
 		}
 	wr1:
 		if((ret = syswrite(1, buf, rd)) < 0)
-			fail("writing to stdout", NULL, -ret);
+			fail("writing to stdout", NULL, ret);
 	};
 }
 

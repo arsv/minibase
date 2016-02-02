@@ -25,7 +25,7 @@ static void writeall(int fd, char* buf, long size)
 		buf += wr;
 		size -= wr;
 	} if(wr < 0) {
-		fail("write failed", NULL, -wr);
+		fail("write failed", NULL, wr);
 	}
 }
 

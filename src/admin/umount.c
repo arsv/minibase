@@ -41,7 +41,7 @@ int main(int argc, char** argv)
 
 	for(; i < argc; i++)
 		if((ret = sysumount(argv[i], flags)) < 0)
-			fail("cannot umount", argv[i], -ret);
+			fail("cannot umount", argv[i], ret);
 
 	return 0;
 }

@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 		fail("no directories to delete", NULL, 0);
 	else for(i = 1; i < argc; i++)
 		if((ret = sysrmdir(argv[i])) < 0)
-			fail(NULL, argv[i], -ret);
+			fail(NULL, argv[i], ret);
 
 	return 0;
 }

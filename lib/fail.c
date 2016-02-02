@@ -15,6 +15,8 @@ static char* fmterr(char* buf, char* end, int err)
 {
 	const struct errcode* p;
 
+	err = -err;
+
 	for(p = errlist; p->code; p++)
 		if(p->code == err)
 			break;

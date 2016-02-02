@@ -16,7 +16,7 @@ int main(int argc, char** argv)
 		fail("too many arguments", NULL, 0);
 
 	if((ret = sysgetcwd(cwd, MAXCWD)) < 0)
-		fail("getcwd", NULL, -ret);
+		fail("getcwd", NULL, ret);
 	else if(!ret)
 		fail("getcwd: empty return", NULL, 0);
 

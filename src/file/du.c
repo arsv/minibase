@@ -115,7 +115,7 @@ static void scandir(uint64_t* size, char* path, int opts)
 	long fd = sysopen(path, O_RDONLY | O_DIRECTORY);
 
 	if(fd < 0)
-		fail("cannot open", path, -fd);
+		fail("cannot open", path, fd);
 
 	long rd;
 	char buf[1024];

@@ -117,7 +117,7 @@ static void strings(int minlen, long fd, int showaddr)
 	while((rd = sysread(fd, inbuf, sizeof(inbuf))) > 0)
 		parseblock(&ps, inbuf, rd, showaddr);
 	if(rd < 0)
-		fail("read", NULL, -rd);
+		fail("read", NULL, rd);
 }
 
 static unsigned int xatou(const char* p)

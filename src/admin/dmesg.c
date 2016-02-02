@@ -60,7 +60,7 @@ static char* mmapbuf(long len)
 	long ptr = sysmmap(NULL, len, prot, flags, -1, 0);
 
 	if(MMAPERROR(ptr))
-		fail("mmap", NULL, -ptr);
+		fail("mmap", NULL, ptr);
 	else
 		return (char*)ptr;
 }

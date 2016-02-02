@@ -97,7 +97,7 @@ int main(int argc, char** argv)
 	long ret = sysmknod(name, mode | type, dev);
 
 	if(ret < 0)
-		fail("cannot create", name, -ret);
+		fail("cannot create", name, ret);
 
 	return 0;
 }

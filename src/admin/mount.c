@@ -88,9 +88,9 @@ int main(int argc, char** argv)
 	if(ret >= 0) return 0;
 
 	if(flags & MS_REMOUNT)
-		fail("cannot remount", target, -ret);
+		fail("cannot remount", target, ret);
 	else
-		fail("cannot mount", target, -ret);
+		fail("cannot mount", target, ret);
 
 	return -1;
 }

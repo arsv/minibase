@@ -34,7 +34,7 @@ static int xopen(const char* name, int flags, int mode)
 {
 	long ret = sysopen3(name, flags, mode);
 	if(ret < 0)
-		fail("cannot open", name, -ret);
+		fail("cannot open", name, ret);
 	return (int)ret;
 }
 
@@ -47,7 +47,7 @@ static void writeall(int fd, const char* buf, int len)
 			buf += wr;
 			len -= wr;
 		} else {
-			fail(NULL, NULL, -wr);
+			fail(NULL, NULL, wr);
 		}
 }
 

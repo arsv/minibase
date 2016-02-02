@@ -53,7 +53,7 @@ static void makedir(char* name, int mode)
 	if(ret >= 0 || ret == -EEXIST)
 		return;
 
-	fail("cannot create", name, -ret);
+	fail("cannot create", name, ret);
 }
 
 static void makeall(char* name, int mode)

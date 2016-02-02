@@ -25,17 +25,17 @@ static void* mmapmodule(const char* name, unsigned long* len)
 	struct stat st;
 
 	if((fd = sysopen(name, O_RDONLY)) < 0)
-		fail("cannot open", name, -fd);
+		fail("cannot open", name, fd);
 
 	if((ret = sysfstat(fd, &st)) < 0)
-		fail("cannot stat", name, -ret);
+		fail("cannot stat", name, ret);
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
 	ret = sysmmap(NULL, st.st_size, prot, flags, fd, 0);
 
 	if(MMAPERROR(ret))
-		fail("cannot mmap", name, -ret);
+		fail("cannot mmap", name, ret);
 
 	*len = st.st_size;
 	return (void*) ret;
@@ -51,7 +51,7 @@ static int loadmodule(const char* name, const char* pars)
 	long ret = sysinitmodule(mod, len, pars);
 
 	if(ret < 0)
-		fail("kernel rejects", base, -ret);
+		fail("kernel rejects", base, ret);
 
 	return 0;
 };

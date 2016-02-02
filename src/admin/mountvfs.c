@@ -84,7 +84,7 @@ static void chkmount(const struct mount* p)
 	if((ret = mountentry(p)) >= 0)
 		return;
 
-err:	fail("cannot mount", p->point, -ret);
+err:	fail("cannot mount", p->point, ret);
 }
 
 static void mounttags(int i, int argc, char** argv)
@@ -137,7 +137,7 @@ static void trymove(char* target, const struct mount* p, struct statfs* rst)
 	if(ret > 0 || ret == -EINVAL)
 		return;
 
-	warn("cannot move", p->point, -ret);
+	warn("cannot move", p->point, ret);
 }
 
 static void movetags(int i, int argc, char** argv)
@@ -156,7 +156,7 @@ static void movetags(int i, int argc, char** argv)
 		struct statfs st;
 
 		if((ret = sysstatfs("/", &st)) < 0)
-			fail("cannot statfs", "/", -ret);
+			fail("cannot statfs", "/", ret);
 
 		for(p = vfstab; p < vfstab + nvfs; p++)
 			trymove(target, p, &st);

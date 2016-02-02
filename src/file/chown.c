@@ -61,7 +61,7 @@ static void mfail(long ret, struct chown* ch, const char* msg, const char* obj)
 {
 	if(ch->opts & OPT_f)
 		return;
-	warn(msg, obj, -ret);
+	warn(msg, obj, ret);
 	_exit(-1);
 }
 
@@ -183,7 +183,7 @@ static char* mapfile(const char* name, int* size)
 	long ret = sysmmap(NULL, st.st_size, prot, flags, fd, 0);
 
 	if(MMAPERROR(ret))
-		fail("cannot mmap", name, -ret);
+		fail("cannot mmap", name, ret);
 
 	*size = st.st_size;
 	return (char*)ret;

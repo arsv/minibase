@@ -56,7 +56,7 @@ static int samefs(const char* dirname, int dirfd, long rootdev)
 	long ret = sysfstat(dirfd, &st);
 
 	if(ret < 0)
-		warn("cannot stat", dirname, -ret);
+		warn("cannot stat", dirname, ret);
 
 	/* err on the safe side */
 	return (ret >= 0 && st.st_dev == rootdev);
@@ -73,7 +73,7 @@ static void removedir(const char* dirname, long rootdev, int opts)
 	long dirfd, rd;
 
 	if((dirfd = sysopen(dirname, O_DIRECTORY)) < 0)
-		return mfail(opts, "cannot open", dirname, -dirfd);
+		return mfail(opts, "cannot open", dirname, dirfd);
 
 	if((opts & OPT_x) && !samefs(dirname, dirfd, rootdev))
 		goto out;
@@ -147,7 +147,7 @@ dir:
 	if(ret >= 0)
 		return;
 err:
-	mfail(opts, "cannot unlink", name, -ret);
+	mfail(opts, "cannot unlink", name, ret);
 }
 
 static int samefile(struct stat* a, struct stat* b)
@@ -169,7 +169,7 @@ static void remove(const char* name, int opts, struct stat* rst)
 		struct stat st;
 
 		if((ret = syslstat(name, &st)) < 0)
-			return mfail(opts, "cannot stat", name, -ret);
+			return mfail(opts, "cannot stat", name, ret);
 
 		if(!(opts & OPT_Z) && samefile(&st, rst))
 			return mfail(opts, "refusing to delete root", NULL, 0);

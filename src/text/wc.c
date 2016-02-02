@@ -149,7 +149,7 @@ static void countstdin(struct wc* cnts)
 	long ret = sysmmap(NULL, len, prot, flags, -1, 0);
 
 	if(MMAPERROR(ret))
-		fail("mmap", NULL, -ret);
+		fail("mmap", NULL, ret);
 
 	char* buf = (char*)ret;
 
@@ -178,7 +178,7 @@ static void countfile(struct wc* cnts, const char* fname, int last)
 		long ret = sysmmap(buf, map, prot, flags, fd, off);
 
 		if(MMAPERROR(ret))
-			fail("mmap", fname, -ret);
+			fail("mmap", fname, ret);
 
 		buf = (char*)ret;
 		off += map;

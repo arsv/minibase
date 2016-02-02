@@ -46,7 +46,7 @@ static void mfail(long ret, struct chmod* ch, const char* msg, const char* obj)
 {
 	if(ch->opts & OPT_f)
 		return;
-	warn(msg, obj, -ret);
+	warn(msg, obj, ret);
 	_exit(-1);
 }
 
