@@ -1,0 +1,33 @@
+.TH ren 1
+'''
+.SH NAME
+ren \- rename files
+'''
+.SH SYNOPSIS
+ren [\fB-fw\fR] \fIold-name\fR \fInew-name\fR
+.br
+ren \fB-x\fR \fIfile-a\fR \fIfile-b\fR
+.br
+ren \fB-t\fR[\fBf\fR] \fIdirectory\fR \fIfile\fR ...
+'''
+.SH DESCRIPTION
+Renaming is a fast operation that affects file metadata.
+As such it only works within a single file system.
+Use \fBmv\fR(1) to move files across filesystem boundaries.
+'''
+.SH OPTIONS
+.IP "\fB-f\fR" 4
+Overwrite existing \fInew-name\fR.
+.IP "\fB-t\fR" 4
+Rename each \fIfile\fR to \fIdirectory\fR/\fIbasename\fR.
+.IP "\fB-x\fR" 4
+Atomically exchange \fIfile-a\fR and \fIfile-b\fR.
+.IP "\fB-w\fR" 4
+Whiteout \fIold-name\fR; see \fBrenameat2\fR(2) on this.
+'''
+.SH NOTES
+Directories can be renamed, but renaming something into an existing
+directory results in error.
+'''
+.SH SEE ALSO
+\fBmv\fR(1), \fBcp\fR(1), \fBrenameat2\fR(2).

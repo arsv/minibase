@@ -25,6 +25,7 @@ src/file/du
 src/file/mkdir
 src/file/mknod
 src/file/pwd
+src/file/ren
 src/file/rm
 src/file/rmdir
 src/file/sync
