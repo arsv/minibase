@@ -39,14 +39,10 @@ static char* fmt4is(char* p, char* e, int n)
 	return p + 4;
 }
 
-static char* fmt2i0(char* p, char* e, int n)
+static char* fmt1i0(char* p, char* e, int n)
 {
-	if(p + 1 >= e) return e;
-
-	*(p+1) = '0' + (n % 10); n /= 10;
-	*(p+0) = '0' + (n % 10);
-
-	return p + 2;
+	if(p < e) *p++ = '0' + (n % 10);
+	return p;
 }
 
 static char* fmtmem(char* p, char* e, unsigned long n, int mu)
@@ -70,12 +66,11 @@ static char* fmtmem(char* p, char* e, unsigned long n, int mu)
 		p = fmtlong(p, e, nb);
 		p = fmtchar(p, e, sfx[sizeof(sfx)-1]);
 	} else {
-		/* it's manageable; do nnnn.dd conversion */
-		/* (because of 1000 ~ 1024 confusion there may be nnnn. there */
-		fr = fr*100/1024; /* two decimals */
+		/* it's manageable; do nnnn.d conversion */
+		fr = fr*10/1024; /* one decimals */
 		p = fmt4is(p, e, nb);
 		p = fmtchar(p, e, '.');
-		p = fmt2i0(p, e, fr);
+		p = fmt1i0(p, e, fr);
 		p = fmtchar(p, e, sfx[sfi]);
 	}
 
@@ -92,10 +87,10 @@ static char* fmtmem(char* p, char* e, unsigned long n, int mu)
 static void wrheader()
 {
 	static const char hdr[] = 
-	    /* |1234.12x_| */
-	       "    Size "
-	       "    Used "
-	       "    Free"
+	    /* |1234.1x_| */
+	       "   Size "
+	       "   Used "
+	       "   Free"
 	    /* |   12%   | */
 	       "   Use   "
 	       "Mountpoint\n";
