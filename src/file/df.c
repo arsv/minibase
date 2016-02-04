@@ -6,11 +6,16 @@
 #include <writeout.h>
 #include <memcpy.h>
 #include <strlen.h>
+#include <fmtpad.h>
 #include <strcbrk.h>
 #include <fmtlong.h>
 #include <fmtstr.h>
 #include <fmtchar.h>
 #include <fail.h>
+
+#define OPTS "am"
+#define OPT_a (1<<0)
+#define OPT_m (1<<1)
 
 ERRTAG = "df";
 ERRLIST = { RESTASNUMBERS };
@@ -91,8 +96,8 @@ static void wrheader()
 	       "   Size "
 	       "   Used "
 	       "   Free"
-	    /* |   12%   | */
-	       "   Use   "
+	    /* |    12%   | */
+	       "    Use   "
 	       "Mountpoint\n";
 
 	xwriteout((char*)hdr, sizeof(hdr));
@@ -111,8 +116,13 @@ static char* fmtstatfs(char* p, char* e, struct statfs* st, int opts)
 	p = fmtstr(p, e, " ");
 	p = fmtmem(p, e, st->f_bavail, bs);
 	p = fmtstr(p, e, "   ");
+
+	char* q = p;
 	p = fmtlong(p, e, perc);
-	p = fmtstr(p, e, "%   ");
+	p = fmtstr(p, e, "%");
+	p = fmtpad(q, e, 4, p);
+
+	p = fmtstr(p, e, "   ");
 
 	return p;
 }
@@ -123,7 +133,11 @@ static void reportfs(char* mountpoint, char* devid, int opts)
 
 	/* Major 0 means vfs. Used/free space counts are meaningless
 	   for most of them. */
-	if(devid[0] == '0' && devid[1] == ':')
+	int nodev = (devid[0] == '0' && devid[1] == ':');
+
+	if(nodev && !(opts & (OPT_a | OPT_m)))
+		return;
+	if(!nodev && (opts & OPT_m))
 		return;
 
 	xchk(sysstatfs(mountpoint, &st), "statfs", mountpoint);
@@ -132,6 +146,10 @@ static void reportfs(char* mountpoint, char* devid, int opts)
 	char buf[len];
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
+
+	/* No blocks, it's a vfs with meaningless df output. */
+	if(!st.f_blocks)
+		return;
 
 	p = fmtstatfs(p, e, &st, opts);
 	p = fmtstr(p, e, mountpoint);
@@ -201,8 +219,6 @@ static void scanall(int opts)
 		}
 	}
 }
-
-#define OPTS ""
 
 int main(int argc, char** argv)
 {
