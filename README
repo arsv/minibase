@@ -45,6 +45,23 @@ This project aims to provide small individual tools, so that they
 could be combined freely and picked one at a time.
 
 
+How is it different from common (GNU) tools?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In a lot of ways really, but here's an easy trick that highlights
+the fundamental distinction well.
+Strace some simple tool from a common Linux distro:
+
+	strace echo Hello, world
+
+then repeat with the same tool from this package:
+
+	strace ./echo Hello, world
+
+For best effect, make sure you're using GNU tools linked dynamically
+against GNU libc, though even busybox linked against musl produces
+rather impressive traces.
+
+
 Compatibility
 ~~~~~~~~~~~~~
 The tools are *NOT* meant to be POSIX- or GNU-compatible.
