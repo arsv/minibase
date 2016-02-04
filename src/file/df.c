@@ -228,13 +228,11 @@ int main(int argc, char** argv)
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
+	if(i < argc)
+		fail("too many arguments", NULL, 0);
+
 	wrheader();
-
-	if(i < argc) while(i < argc)
-		reportfs(argv[i++], "", opts);
-	else
-		scanall(opts);
-
+	scanall(opts);
 	flushout();
 
 	return 0;
