@@ -52,7 +52,7 @@ static const char reset[] =
 	ESC "(B";	/* select G0 charset */
 
 #define OPTS "r"
-#define OPT_r (1<<0)
+#define OPT_r (1<<0)	/* reset tty */
 
 int main(int argc, char** argv)
 {

@@ -3,8 +3,8 @@
 #include <writeall.h>
 
 #define TAG "echo"
-#define OPT_n (1<<0)
-#define OPT_e (1<<1)
+#define OPT_n (1<<0)	/* no newline at the end */
+#define OPT_e (1<<1)	/* escape sequences */
 
 static int hexdigit(char c)
 {

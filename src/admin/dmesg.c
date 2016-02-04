@@ -28,10 +28,10 @@
    N lines would make sense, yeah, but not bytes. */
 
 #define OPTS "acnr"
-#define OPT_a (1<<0)
-#define OPT_c (1<<1)
-#define OPT_n (1<<2)
-#define OPT_r (1<<3)
+#define OPT_a (1<<0)	/* no ansi colors */
+#define OPT_c (1<<1)	/* clear kernel ring buffer */
+#define OPT_n (1<<2)	/* set log level instead of reading KRB */
+#define OPT_r (1<<3)	/* dump raw KRB contents, no processing */
 
 #define OUTBUF (4*1024)
 #define MINLOGBUF (16*1024)

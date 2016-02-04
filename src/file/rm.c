@@ -16,11 +16,11 @@
 #include <fail.h>
 
 #define OPTS "rfxdZ"
-#define OPT_r (1<<0)
-#define OPT_f (1<<1)
-#define OPT_x (1<<2)
-#define OPT_d (1<<3)
-#define OPT_Z (1<<4)
+#define OPT_r (1<<0)	/* recursively */
+#define OPT_f (1<<1)	/* force */
+#define OPT_x (1<<2)	/* cross fs boundaries */
+#define OPT_d (1<<3)	/* rmdir */
+#define OPT_Z (1<<4)	/* no-keep-root */
 
 #define DEBUFSIZE 2000
 

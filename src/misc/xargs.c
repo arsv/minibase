@@ -14,9 +14,9 @@
 #include <fail.h>
 
 #define OPTS "01a"
-#define OPT_0 (1<<0)
-#define OPT_1 (1<<1)
-#define OPT_a (1<<2)
+#define OPT_0 (1<<0)	/* 0-terminated */
+#define OPT_1 (1<<1)	/* one argument per command */
+#define OPT_a (1<<2)	/* read arguments from a file */
 
 ERRTAG = "xargs";
 ERRLIST = {

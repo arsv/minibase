@@ -15,10 +15,10 @@
 #include <fail.h>
 
 #define OPTS "rfdn"
-#define OPT_r (1<<0)
-#define OPT_f (1<<1)
-#define OPT_d (1<<2)
-#define OPT_n (1<<3)
+#define OPT_r (1<<0)	/* recursively */
+#define OPT_f (1<<1)	/* force */
+#define OPT_d (1<<2)	/* directories only */
+#define OPT_n (1<<3)	/* non-directories only */
 
 #define DEBUFSIZE 2000
 
@@ -31,8 +31,8 @@ ERRLIST = {
 };
 
 struct chmod {
-	int clr;
-	int set;
+	int clr;	/* file mode transformation: */
+	int set;	/* newmode = (oldmode & ~clr) | set */
 	int opts;
 };
 

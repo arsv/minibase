@@ -55,7 +55,7 @@ static void recdent(const char* dirname, struct chown* ch, struct dirent64* de);
 static void chownst(const char* entname, struct chown* ch, struct stat* st);
 
 /* With -f we keep going *and* suppress the message.
-   Hm. Would be better to report it but keep going, maybe? */
+   (hm, would be better to report it but keep going, maybe?) */
 
 static void mfail(long ret, struct chown* ch, const char* msg, const char* obj)
 {

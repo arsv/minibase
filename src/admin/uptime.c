@@ -96,8 +96,8 @@ static void upsince(void)
 }
 
 #define OPTS "sw"
-#define OPT_s (1<<0)
-#define OPT_w (1<<1)
+#define OPT_s (1<<0)	/* up-since */
+#define OPT_w (1<<1)	/* time awake */
 
 int main(int argc, char** argv)
 {

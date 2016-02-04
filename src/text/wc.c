@@ -16,11 +16,11 @@
 #define MAPSIZE 0x80000000
 
 #define OPTS "lcw"
-#define OPT_l (1<<0)
-#define OPT_c (1<<1)
-#define OPT_w (1<<2)
+#define OPT_l (1<<0)	/* lines */
+#define OPT_c (1<<1)	/* characters */
+#define OPT_w (1<<2)	/* words */
 /* non-option bits in opts */
-#define SET_pad (1<<16)
+#define SET_pad (1<<16)	/* to align output for several files */
 
 ERRTAG = "wc";
 ERRLIST = {

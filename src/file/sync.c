@@ -8,8 +8,8 @@
 #include <fail.h>
 
 #define OPTS "fd"
-#define OPT_f (1<<0)
-#define OPT_d (1<<1)
+#define OPT_f (1<<0) /* syncfs */
+#define OPT_d (1<<1) /* datasync */
 
 ERRTAG = "sync";
 ERRLIST = {

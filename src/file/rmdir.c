@@ -1,6 +1,8 @@
 #include <sys/rmdir.h>
 #include <fail.h>
 
+/* This tool is pointless, rm -d should be used instead */
+
 ERRTAG = "rmdir";
 ERRLIST = {
 	REPORT(EACCES), REPORT(EBUSY), REPORT(EFAULT), REPORT(EINVAL),

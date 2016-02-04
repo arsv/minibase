@@ -6,8 +6,8 @@
 #include <fail.h>
 
 #define OPTS "nx"
-#define OPT_n (1<<0)
-#define OPT_x (1<<1)
+#define OPT_n (1<<0)	/* minimal seq length */
+#define OPT_x (1<<1)	/* do not print offsets */
 
 ERRTAG = "strings";
 ERRLIST = {

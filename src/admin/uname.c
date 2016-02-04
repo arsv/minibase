@@ -11,6 +11,7 @@ ERRLIST = {
 	REPORT(EBADF), REPORT(EPIPE), RESTASNUMBERS
 };
 
+/* All opts select individual fields from struct utsname. */
 #define OPTS "asnrvmpio"
 #define OPT_a (1<<0)
 #define OPT_s (1<<1)
@@ -18,9 +19,9 @@ ERRLIST = {
 #define OPT_r (1<<3)
 #define OPT_v (1<<4)
 #define OPT_m (1<<5)
-#define OPT_p (1<<6)
-#define OPT_i (1<<7)
-#define OPT_o (1<<8)
+#define OPT_p (1<<6)	/* processor */
+#define OPT_i (1<<7)	/* hardware platform */
+#define OPT_o (1<<8)	/* operating system */
 
 static char* fmtpart(char* p, char* end, char* part, int on)
 {
