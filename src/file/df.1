@@ -1,0 +1,23 @@
+.TH df 1
+'''
+.SH NAME
+df \- report disk free space
+'''
+.SH SYNOPSIS
+df [\fB-am\fR]
+'''
+.SH DESCRIPTION
+df reports total and free space on all non-virtual filesystems it finds.
+'''
+.SH OPTIONS
+.IP "\fB-m\fR" 4
+Report virtual filesystems with non-zero total size (tmpfs typically).
+.IP "\fB-a\fR" 4
+Report all filesystems with non-zero total size.
+'''
+.SH FILES
+.IP "/proc/self/mountinfo" 4
+List of mounted filesystems.
+'''
+.SH SEE ALSO
+\fBstatfs\fR(2), \fBdu\fR(1)
