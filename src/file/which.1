@@ -10,17 +10,17 @@ which \fIcommand\fR ...
 which attempts to find out the full path of the executable
 the shell and calls like \fBexeclp\fR(3) would run on \fIcommand\fR.
 .P
-which does that by tring to find an executable file in each of the
+which does that by trying to find an executable file in each of the
 colon-separated directories listed in \fB$PATH\fR. Full path of the
 first file found is printed to standard output.
 .P
-If given more than one command, which does the same for each of them.
+Given more than one command, which does the same for each of them.
 .P
 which does not take any options.
 '''
 .SH ENVIRONMENT
 .IP "\fBPATH\fR" 8
-Holds the list of directories to look for executables in.
+Colon-separated list of directories to search in.
 '''
 .SH SEE ALSO
 \fBsh\fR(1), \fBexeclp\fR(3).
