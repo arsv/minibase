@@ -29,6 +29,7 @@ src/file/ren
 src/file/rm
 src/file/rmdir
 src/file/sync
+src/file/touch
 src/file/which
 src/misc/chvt
 src/misc/clear

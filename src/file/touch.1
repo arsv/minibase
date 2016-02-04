@@ -1,0 +1,23 @@
+.TH touch 1
+'''
+.SH NAME
+touch \- update file timestamps
+'''
+.SH SYNOPSIS
+touch [\fB-am\fR] \fIfile\fR ...
+'''
+.SH DESCRIPTION
+touch sets modification and access times of each \fIfile\fR to current
+system time. If \fIfile\fR does not exist, it is created.
+.P
+To change only one of the timestamps, use \fB-a\fR or \fB-m\fR.
+Newly-created files always have both stamps set to current time.
+'''
+.SH OPTIONS
+.IP "\fB-a\fR" 4
+Update access time.
+.IP "\fB-m\fR" 4
+Update modification time.
+'''
+.SH SEE ALSO
+\fButimensat\fR(2)
