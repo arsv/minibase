@@ -3,5 +3,5 @@
 
 inline static long sysunlink(const char* name)
 {
-	return syscall2(__NR_unlinkat, AT_FDCWD, (long)name);
+	return syscall3(__NR_unlinkat, AT_FDCWD, (long)name, 0);
 }
