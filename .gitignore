@@ -35,6 +35,7 @@ src/errno
 src/hello
 src/kill
 src/sleep
+src/symlink
 src/xargs
 src/basename
 src/cat

@@ -1,0 +1,43 @@
+.TH symlink 1
+'''
+.SH NAME
+symlink \- create symbolic links
+'''
+.SH SYNOPSIS
+symlink [\fB-fx\fR] \fIlinkname\fR \fItarget\fR
+.br
+symlink \fB-t\fR[\fBfx\fR] \fIdirectory\fR \fItarget\fR \fItarget\fR ...
+.br
+symlink \fB-m\fR[\fBfx\fR] \fIdirectory\fR \fItarget\fR \fIbasename\fR \fIbasename\fR ...
+'''
+.SH DESCRIPTION
+Symbolic links (symlinks) are small files that contain a path to another
+file and act as pointers to those files. See \fBsymlink\fR(7) for detailed
+description.
+.P
+This tool creates a symlink named \fIlinkname\fR with \fItarget\fR path
+written in it. The second form creates symlinks named
+\fIdirectory\fR/basename(\fItarget\fR) for each \fItarget\fR given.
+The third form creates several symlinks with different names, all pointing
+to the same target.
+.P
+Once created, symlinks cannot be edited, only deleted and re-created.
+Without \fB-f\fR or \fB-x\fR, the operation will fail if \fIlinkname\fR
+already exists.
+'''
+.SH OPTIONS
+.IP "\fB-f\fR" 4
+Overwrite \fIlinkname\fR but only if it is a symlink.
+.IP "\fB-x\fR" 4
+Overwrite \fIlinkname\fR regardless of its type.
+.IP "\fB-t\fR" 4
+Create symlinks in \fIdirectory\fR named basename(\fItarget\fR) for each given \fItarget\fR.
+.IP "\fB-m\fR" 4
+Create symlinks in \fIdirectory\fR with the same \fItarget\fR but different \fIbasename\fRs.
+'''
+.SH NOTES
+The tool always writes to its first argument.
+This is the opposite of \fBsymlink\fR(2) and \fBln\fR(1) argument order.
+'''
+.SH SEE ALSO
+\fBsymlink\fR(7), \fBsymlink\fR(2), \fBln\fR(1)
