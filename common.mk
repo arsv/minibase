@@ -1,5 +1,3 @@
-/ ?= ../../
-
 LIBS = -L$/ -ls -lgcc -ls
 CFLAGS += -I$/lib -I$/lib/arch/$(ARCH)
 
@@ -13,8 +11,10 @@ CFLAGS += -I$/lib -I$/lib/arch/$(ARCH)
 
 all: $(bin) $(sbin)
 
+ifneq ($/,)
 $/libs.a:
 	$(MAKE) -C $/ libs.a
+endif
 
 clean:
 	rm -f $(bin) $(sbin) *.o

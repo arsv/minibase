@@ -3,11 +3,10 @@ include config.mk
 MAKEFLAGS += --no-print-directory
 CFLAGS += -Ilib -Ilib/arch/$(ARCH)
 
-sdirs = admin devel text file misc
-
 all: libs.a build
 
-build: libs.a $(patsubst %,build-%,$(sdirs))
+build: libs.a
+	$(MAKE) -C src
 
 install: $(patsubst %,install-%,$(sdirs))
 
@@ -19,14 +18,13 @@ libso = $(patsubst %.s,%.o,$(wildcard lib/arch/$(ARCH)/*.s)) \
 libs.a: $(libso)
 	$(AR) cr $@ $?
 
-build-%: | src/%
-	$(MAKE) -C src/$*
+install:
+	$(MAKE) -C src install
 
-install-%: | src/%
-	$(MAKE) -C src/$* install
+clean: clean-lib clean-src
+
+clean-src:
+	rm -f src/*.o
 
 clean-lib:
 	rm -f lib/*.o lib/*/*/*.o libs.a
-
-clean-%: | src/%
-	$(MAKE) -C src/$* clean
