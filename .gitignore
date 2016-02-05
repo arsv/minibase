@@ -2,8 +2,6 @@ tmp
 *.a
 *.o
 
-doc/
-
 src/dmesg
 src/fstrim
 src/insmod
