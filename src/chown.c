@@ -271,7 +271,7 @@ int main(int argc, char** argv)
 	if(i < argc)
 		parseown(argv[i++], &ch);
 	else
-		fail("user:group argument missing", NULL, 0);
+		fail("missing arguments", NULL, 0);
 
 	if(i >= argc)
 		fail("need file names to work on", NULL, 0);
