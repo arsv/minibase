@@ -1,0 +1,47 @@
+.TH stat 1
+'''
+.SH NAME
+stat \- display file status
+'''
+.SH SYNOPSIS
+stat [\fB-n\fR] \fIfile\fR
+.br
+stat \fB-\fR[\fBtpsugkdiamcbr\fR][\fBn\fR] \fIfile\fR
+'''
+.SH DESCRIPTION
+This tool provides command line access to the data returned by \fBstat\fR(2)
+system call. The first form shows human-readable summary for \fIfile\fR,
+the second form allows picking individual fields from struct stat.
+'''
+.SH OPTIONS
+.IP "\fB-n\fR" 4
+Show raw numeric values wherever appropriate.
+.IP "\fB-t\fR" 4
+File type.
+.IP "\fB-p\fR" 4
+Access permissions aka file mode.
+.IP "\fB-s\fR" 4
+File size.
+.IP "\fB-u\fR" 4
+User id (file owner).
+.IP "\fB-g\fR" 4
+Group id (file group).
+.IP "\fB-k\fR" 4
+Number of links.
+.IP "\fB-d\fR" 4
+Device id the file resides on.
+.IP "\fB-i\fR" 4
+Inode.
+.IP "\fB-a\fR" 4
+Access time.
+.IP "\fB-m\fR" 4
+Modification time.
+.IP "\fB-c\fR" 4
+Inode creation time.
+.IP "\fB-b\fR" 4
+Number of 512-blocks.
+.IP "\fB-r\fR" 4
+Represented device id (for device nodes only).
+'''
+.SH SEE ALSO
+\fBstat\fR(2), \fBdu\fR(1).

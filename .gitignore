@@ -26,6 +26,7 @@ src/pwd
 src/ren
 src/rm
 src/rmdir
+src/stat
 src/sync
 src/touch
 src/which
