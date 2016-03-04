@@ -320,14 +320,6 @@ static char* summary(char* p, char* e, struct stat* st, int opts)
 	return p;
 }
 
-static char* formsize(char* p, char* e, struct stat* st, int opts)
-{
-	if(opts & OPT_n)
-		return fmtsize(p, e, st->st_size);
-	else
-		return fmtu64(p, e, st->st_size);
-}
-
 static char* formtime(char* p, char* e, long ts, int opts)
 {
 	if(opts & OPT_n)
@@ -352,7 +344,7 @@ static char* format(char* p, char* e, struct stat* st, int opts)
 	if(opts & OPT_p)
 		return fmtmodeperm(p, e, st, opts);
 	if(opts & OPT_s)
-		return formsize(p, e, st, opts);
+		return fmtu64(p, e, st->st_size);
 	if(opts & OPT_u)
 		return formowner(p, e, st->st_uid, opts, "/etc/passwd");
 	if(opts & OPT_g)
