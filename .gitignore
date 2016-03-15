@@ -22,6 +22,7 @@ src/df
 src/du
 src/mkdir
 src/mknod
+src/ls
 src/pwd
 src/ren
 src/rm
