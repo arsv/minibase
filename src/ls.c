@@ -19,8 +19,9 @@ ERRLIST = {
 
 #define PAGE 4096
 
-#define OPTS "a"
+#define OPTS "au"
 #define OPT_a (1<<0)	/* show all files, including hidden ones */
+#define OPT_u (1<<1)	/* uniform listing, dirs and filex intermixed */
 
 struct dataseg {
 	void* base;
@@ -89,6 +90,9 @@ static void statidx(struct idxent* idx, int nument, int fd, int opts)
 	struct stat st;
 	const int flags = AT_NO_AUTOMOUNT;
 
+	if(opts & OPT_u)
+		return; /* no need to stat anything for uniform lists */
+
 	for(p = idx; p < idx + nument; p++) {
 		if(p->de->d_type != DT_UNKNOWN)
 			continue;
@@ -103,14 +107,15 @@ static void statidx(struct idxent* idx, int nument, int fd, int opts)
 
 static int cmpidx(struct idxent* a, struct idxent* b, int opts)
 {
-	int dira = (a->de->d_type == DT_DIR);
-	int dirb = (b->de->d_type == DT_DIR);
+	if(!(opts & OPT_u)) {
+		int dira = (a->de->d_type == DT_DIR);
+		int dirb = (b->de->d_type == DT_DIR);
 
-	if(dira && !dirb)
-		return -1;
-	if(dirb && !dira)
-		return  1;
-
+		if(dira && !dirb)
+			return -1;
+		if(dirb && !dira)
+			return  1;
+	}
 	return strcmp(a->de->d_name, b->de->d_name);
 }
 
