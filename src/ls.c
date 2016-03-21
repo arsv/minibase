@@ -20,7 +20,7 @@ ERRLIST = {
 #define PAGE 4096
 
 #define OPTS "a"
-#define OPT_a (1<<0)
+#define OPT_a (1<<0)	/* show all files, including hidden ones */
 
 struct dataseg {
 	void* base;
@@ -119,6 +119,15 @@ static void sortidx(struct idxent* idx, int nument, int opts)
 	qsort(idx, nument, sizeof(*idx), (qcmp)cmpidx, opts);
 }
 
+static int dotddot(const char* name)
+{
+	if(name[0] != '.') return 0;
+	if(name[1] == '\0') return 1;
+	if(name[1] != '.') return 0;
+	if(name[2] == '\0') return 1;
+	return 0;
+}
+
 static void dumplist(struct idxent* idx, int nument, int opts)
 {
 	struct bufout bo = {
@@ -134,6 +143,8 @@ static void dumplist(struct idxent* idx, int nument, int opts)
 		char type = p->de->d_type;
 
 		if(*name == '.' && !(opts & OPT_a))
+			continue;
+		if(dotddot(name))
 			continue;
 
 		bufout(&bo, name, strlen(name));
