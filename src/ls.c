@@ -33,16 +33,35 @@ struct idxent {
 	struct dirent64* de;
 };
 
+struct topctx {
+	int opts;
+	struct dataseg ds;
+	struct bufout bo;
+};
+
 char output[PAGE];
 
-static void datainit(struct dataseg* ds)
+static void init(struct topctx* tc)
 {
-	ds->base = (void*)xchk(sysbrk(0), "brk", NULL);
-	ds->end = (void*)xchk(sysbrk(ds->base + PAGE), "brk", NULL);
-	ds->ptr = ds->base;
+	void* brk = (void*)xchk(sysbrk(0), "brk", NULL);
+	void* end = (void*)xchk(sysbrk(brk + PAGE), "brk", NULL);
+
+	tc->ds.base = brk;
+	tc->ds.end = end;
+	tc->ds.ptr = brk;
+
+	tc->bo.fd = 1;
+	tc->bo.buf = output;
+	tc->bo.len = sizeof(output);
+	tc->bo.ptr = 0;
 }
 
-static void datagrow(struct dataseg* ds, long ext)
+static void fini(struct topctx* tc)
+{
+	bufoutflush(&(tc->bo));
+}
+
+static void growdata(struct dataseg* ds, long ext)
 {
 	if(ext % PAGE) ext += PAGE - (ext % PAGE);
 	ds->end = (void*)xchk(sysbrk(ds->end + ext), "brk", NULL);
@@ -55,7 +74,7 @@ static void readwhole(struct dataseg* ds, int fd, const char* dir)
 	while((ret = sysgetdents64(fd, ds->ptr, ds->end - ds->ptr)) > 0) {
 		ds->ptr += ret;
 		if(ds->end - ds->ptr < PAGE/2)
-			datagrow(ds, PAGE);
+			growdata(ds, PAGE);
 	} if(ret < 0)
 		fail("cannot read entries from", dir, ret);
 }
@@ -71,7 +90,7 @@ static int reindex(struct dataseg* ds, void* dents, void* deend)
 
 	int len = nument * sizeof(struct idxent);
 	if(ds->end - ds->ptr < len)
-		datagrow(ds, len);
+		growdata(ds, len);
 	
 	struct idxent* idx = (struct idxent*) ds->ptr;
 	struct idxent* end = idx + len;
@@ -133,15 +152,11 @@ static int dotddot(const char* name)
 	return 0;
 }
 
-static void dumplist(struct idxent* idx, int nument, int opts)
+static void dumplist(struct topctx* tc, struct idxent* idx, int nument)
 {
-	struct bufout bo = {
-		.fd = 1,
-		.buf = output,
-		.len = sizeof(output),
-		.ptr = 0
-	};
 	struct idxent* p;
+	struct bufout* bo = &(tc->bo);
+	int opts = tc->opts;
 
 	for(p = idx; p < idx + nument; p++) {
 		char* name = p->de->d_name;
@@ -152,20 +167,21 @@ static void dumplist(struct idxent* idx, int nument, int opts)
 		if(dotddot(name))
 			continue;
 
-		bufout(&bo, name, strlen(name));
+		bufout(bo, name, strlen(name));
 		if(type == DT_DIR)
-			bufout(&bo, "/", 1);
-		bufout(&bo, "\n", 1);
+			bufout(bo, "/", 1);
+		bufout(bo, "\n", 1);
 	}
-
-	bufoutflush(&bo);
 }
 
-static void list(struct dataseg* ds, const char* path, int opts)
+static void list(struct topctx* tc, const char* path)
 {
 	const char* realpath = path ? path : ".";
 	long fd = xchk(sysopen(realpath, O_RDONLY | O_DIRECTORY),
-			NULL, realpath);
+			"cannot open", realpath);
+
+	struct dataseg* ds = &(tc->ds);
+	int opts = tc->opts;
 
 	void* dents = ds->ptr;
 
@@ -181,24 +197,27 @@ static void list(struct dataseg* ds, const char* path, int opts)
 
 	sortidx(idx, nument, opts);
 
-	dumplist(idx, nument, opts);
+	dumplist(tc, idx, nument);
 }
 
 int main(int argc, char** argv)
 {
-	int opts = 0;
+	struct topctx tc;
 	int i = 1;
 
 	if(i < argc && argv[i][0] == '-')
-		opts = argbits(OPTS, argv[i++] + 1);
+		tc.opts = argbits(OPTS, argv[i++] + 1);
+	else
+		tc.opts = 0;
 
-	struct dataseg ds;
-	datainit(&ds);
+	init(&tc);
 
 	if(i >= argc)
-		list(&ds, NULL, opts);
+		list(&tc, NULL);
 	else for(; i < argc; i++)
-		list(&ds, argv[i], opts);
+		list(&tc, argv[i]);
+
+	fini(&tc);
 
 	return 0;
 }
