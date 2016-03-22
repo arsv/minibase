@@ -24,11 +24,15 @@ ERRLIST = {
 #define MAYBEDIR  0
 #define MUSTBEDIR 1
 
-#define OPTS "aubr"
+#define OPTS "aubrey"
 #define OPT_a (1<<0)	/* show all files, including hidden ones */
 #define OPT_u (1<<1)	/* uniform listing, dirs and filex intermixed */
 #define OPT_b (1<<2)	/* basename listing, do not prepend argument */
 #define OPT_r (1<<3)	/* recurse into subdirectories */
+#define OPT_e (1<<4)	/* list leaf entries (non-dirs) only */
+#define OPT_y (1<<5)	/* list symlinks as files, regardless of target */
+
+#define SET_stat (1<<16) /* do stat() entries */
 
 struct dataseg {
 	void* base;
@@ -58,6 +62,15 @@ static void init(struct topctx* tc, int opts)
 {
 	void* brk = (void*)xchk(sysbrk(0), "brk", NULL);
 	void* end = (void*)xchk(sysbrk(brk + PAGE), "brk", NULL);
+
+	if(opts & OPT_e)
+		opts |= SET_stat; /* need type before entering the dir */
+	else if(!(opts & (OPT_r | OPT_u)))
+		opts |= SET_stat; /* non-recurse, non-uniform list needs stat */
+	else if(opts & OPT_y)
+		; /* no need to stat symlinks */
+	else
+		opts |= SET_stat;
 
 	tc->fd = -1;
 	tc->opts = opts;
@@ -131,20 +144,28 @@ static void statidx(struct idxent* idx, int nument, int fd, int opts)
 {
 	struct idxent* p;
 	struct stat st;
-	const int flags = AT_NO_AUTOMOUNT;
+	int follow = !(opts & OPT_y);
+	int flags = AT_NO_AUTOMOUNT | (!follow ? AT_SYMLINK_NOFOLLOW : 0);
 
-	if(opts & (OPT_u | OPT_r))
-		return; /* no need to stat anything for uniform lists */
+	if(!(opts & SET_stat))
+		return;
 
 	for(p = idx; p < idx + nument; p++) {
-		if(p->de->d_type != DT_UNKNOWN)
-			continue;
+		int type = p->de->d_type;
+
+		if(type == DT_UNKNOWN)
+			;
+		else if((type == DT_LNK) && follow)
+			;
+		else continue;
 
 		if(sysfstatat(fd, p->de->d_name, &st, flags) < 0)
 			continue;
 
 		if(S_ISDIR(st.st_mode))
 			p->de->d_type = DT_DIR;
+		else if(S_ISLNK(st.st_mode))
+			p->de->d_type = DT_LNK;
 		else
 			p->de->d_type = DT_REG; /* neither DIR nor UNKNOWN */
 	}
@@ -181,24 +202,41 @@ static int dotddot(const char* name)
 static void list(struct topctx* tc, const char* realpath, const char* showpath, int strict);
 
 static void recurse(struct topctx* tc, struct dirctx* dc,
-		const char* name, int len, int strict)
+		const char* name, int strict)
 {
+	int namelen = strlen(name);
 	struct dataseg* ds = &(tc->ds);
-	char* fullname = (char*)alloc(ds, dc->len + 1 + len + 1);
+	char* fullname = (char*)alloc(ds, dc->len + 1 + namelen + 1);
 	char* p = fullname;
 
 	memcpy(p, dc->dir, dc->len); p += dc->len;
 	if(p > fullname && *(p-1) != '/') *p++ = '/';
-	memcpy(p, name, len); p += len; *p++ = '\0';
+	memcpy(p, name, namelen); p += namelen; *p++ = '\0';
 
 	list(tc, fullname, fullname, strict);
+}
+
+static void dumpentry(struct topctx* tc, struct dirctx* dc, struct dirent64* de)
+{
+	struct bufout* bo = &(tc->bo);
+	char* name = de->d_name;
+	char type = de->d_type;
+
+	if(dc->len)
+		bufout(bo, dc->dir, dc->len);
+
+	bufout(bo, name, strlen(name));
+
+	if(type == DT_DIR)
+		bufout(bo, "/", 1);
+
+	bufout(bo, "\n", 1);
 }
 
 static void dumplist(struct topctx* tc, struct dirctx* dc,
 		struct idxent* idx, int nument)
 {
 	struct idxent* p;
-	struct bufout* bo = &(tc->bo);
 	int opts = tc->opts;
 
 	for(p = idx; p < idx + nument; p++) {
@@ -210,24 +248,17 @@ static void dumplist(struct topctx* tc, struct dirctx* dc,
 		if(dotddot(name))
 			continue;
 
-		int namelen = strlen(name);
-
-		if(dc->len)
-			bufout(bo, dc->dir, dc->len);
-
-		bufout(bo, name, namelen);
-
-		if(type == DT_DIR)
-			bufout(bo, "/", 1);
-
-		bufout(bo, "\n", 1);
+		if(type == DT_DIR && (opts & OPT_e))
+			;
+		else
+			dumpentry(tc, dc, p->de);
 
 		if(!(opts & OPT_r))
 			continue;
 		if(type == DT_DIR)
-			recurse(tc, dc, name, namelen, MUSTBEDIR);
+			recurse(tc, dc, name, MUSTBEDIR);
 		else if(type == DT_UNKNOWN)
-			recurse(tc, dc, name, namelen, MAYBEDIR);
+			recurse(tc, dc, name, MAYBEDIR);
 	}
 }
 
