@@ -2,12 +2,14 @@
 #include <sys/getdents.h>
 #include <sys/fstatat.h>
 #include <sys/brk.h>
+#include <sys/close.h>
 #include <bits/stmode.h>
 
 #include <argbits.h>
 #include <bufout.h>
 #include <strlen.h>
 #include <strcmp.h>
+#include <memcpy.h>
 #include <qsort.h>
 #include <fail.h>
 
@@ -19,9 +21,10 @@ ERRLIST = {
 
 #define PAGE 4096
 
-#define OPTS "au"
+#define OPTS "aub"
 #define OPT_a (1<<0)	/* show all files, including hidden ones */
 #define OPT_u (1<<1)	/* uniform listing, dirs and filex intermixed */
+#define OPT_b (1<<2)	/* basename listing, do not prepend argument */
 
 struct dataseg {
 	void* base;
@@ -35,8 +38,14 @@ struct idxent {
 
 struct topctx {
 	int opts;
+	int fd;
 	struct dataseg ds;
 	struct bufout bo;
+};
+
+struct dirctx {
+	char* dir;
+	int len;
 };
 
 char output[PAGE];
@@ -45,6 +54,8 @@ static void init(struct topctx* tc)
 {
 	void* brk = (void*)xchk(sysbrk(0), "brk", NULL);
 	void* end = (void*)xchk(sysbrk(brk + PAGE), "brk", NULL);
+
+	tc->fd = -1;
 
 	tc->ds.base = brk;
 	tc->ds.end = end;
@@ -61,10 +72,22 @@ static void fini(struct topctx* tc)
 	bufoutflush(&(tc->bo));
 }
 
-static void growdata(struct dataseg* ds, long ext)
+static void prepspace(struct dataseg* ds, long ext)
 {
-	if(ext % PAGE) ext += PAGE - (ext % PAGE);
+	if(ds->ptr + ext < ds->end)
+		return;
+	if(ext % PAGE)
+		ext += PAGE - (ext % PAGE);
+
 	ds->end = (void*)xchk(sysbrk(ds->end + ext), "brk", NULL);
+}
+
+static void* alloc(struct dataseg* ds, int len)
+{
+	prepspace(ds, len);
+	char* ret = ds->ptr;
+	ds->ptr += len;
+	return ret;
 }
 
 static void readwhole(struct dataseg* ds, int fd, const char* dir)
@@ -73,8 +96,7 @@ static void readwhole(struct dataseg* ds, int fd, const char* dir)
 
 	while((ret = sysgetdents64(fd, ds->ptr, ds->end - ds->ptr)) > 0) {
 		ds->ptr += ret;
-		if(ds->end - ds->ptr < PAGE/2)
-			growdata(ds, PAGE);
+		prepspace(ds, PAGE/2);
 	} if(ret < 0)
 		fail("cannot read entries from", dir, ret);
 }
@@ -89,10 +111,7 @@ static int reindex(struct dataseg* ds, void* dents, void* deend)
 		de = (struct dirent64*) p;
 
 	int len = nument * sizeof(struct idxent);
-	if(ds->end - ds->ptr < len)
-		growdata(ds, len);
-	
-	struct idxent* idx = (struct idxent*) ds->ptr;
+	struct idxent* idx = (struct idxent*) alloc(ds, len);
 	struct idxent* end = idx + len;
 
 	for(p = dents; p < deend && idx < end; idx++, p += de->d_reclen) {
@@ -152,7 +171,7 @@ static int dotddot(const char* name)
 	return 0;
 }
 
-static void dumplist(struct topctx* tc, struct idxent* idx, int nument)
+static void dumplist(struct topctx* tc, struct dirctx* dc, struct idxent* idx, int nument)
 {
 	struct idxent* p;
 	struct bufout* bo = &(tc->bo);
@@ -167,6 +186,8 @@ static void dumplist(struct topctx* tc, struct idxent* idx, int nument)
 		if(dotddot(name))
 			continue;
 
+		if(dc->len)
+			bufout(bo, dc->dir, dc->len);
 		bufout(bo, name, strlen(name));
 		if(type == DT_DIR)
 			bufout(bo, "/", 1);
@@ -174,30 +195,50 @@ static void dumplist(struct topctx* tc, struct idxent* idx, int nument)
 	}
 }
 
-static void list(struct topctx* tc, const char* path)
+static void makedirctx(struct topctx* tc, struct dirctx* dc, const char* path)
 {
-	const char* realpath = path ? path : ".";
-	long fd = xchk(sysopen(realpath, O_RDONLY | O_DIRECTORY),
-			"cannot open", realpath);
+	if(path) {
+		struct dataseg* ds = &(tc->ds);
+		int len = strlen(path);
+		char* buf = (char*)alloc(ds, len + 2);
+		memcpy(buf, path, len);
+		if(len && buf[len-1] != '/')
+			buf[len++] = '/';
+		buf[len] = '\0';
+		dc->dir = buf;
+		dc->len = len;
+	} else {
+		dc->dir = NULL;
+		dc->len = 0;
+	}
+}
 
+static void list(struct topctx* tc, const char* realpath, const char* showpath)
+{
 	struct dataseg* ds = &(tc->ds);
+	struct dirctx dc;
 	int opts = tc->opts;
 
+	if(tc->fd >= 0) sysclose(tc->fd); /* delayed close */
+	tc->fd = xchk(sysopen(realpath, O_RDONLY | O_DIRECTORY),
+			"cannot open", realpath);
+
+	void* oldptr = ds->ptr;		/* start ds frame */
+
+	makedirctx(tc, &dc, showpath);
+
 	void* dents = ds->ptr;
-
-	readwhole(ds, fd, realpath);
-
+	readwhole(ds, tc->fd, realpath);
 	void* deend = ds->ptr;
 
 	int nument = reindex(ds, dents, deend);
-
 	struct idxent* idx = (struct idxent*) deend;
 
-	statidx(idx, nument, fd, opts);
-
+	statidx(idx, nument, tc->fd, opts);
 	sortidx(idx, nument, opts);
+	dumplist(tc, &dc, idx, nument);
 
-	dumplist(tc, idx, nument);
+	ds->ptr = oldptr;		/* end ds frame */
 }
 
 int main(int argc, char** argv)
@@ -213,9 +254,9 @@ int main(int argc, char** argv)
 	init(&tc);
 
 	if(i >= argc)
-		list(&tc, NULL);
+		list(&tc, ".", NULL);
 	else for(; i < argc; i++)
-		list(&tc, argv[i]);
+		list(&tc, argv[i], (tc.opts & OPT_b) ? NULL : argv[i]);
 
 	fini(&tc);
 
