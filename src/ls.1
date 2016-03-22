@@ -1,0 +1,42 @@
+.TH ls 1
+'''
+.SH NAME
+ls \- list directory contents
+'''
+.SH SYNOPSIS
+ls [\fB-aubreyw\fR] [\fIdirectory directory \fR... ]
+'''
+.SH DESCRIPTION
+ls lists files in each \fIdirectory\fR, or in current directory if none
+was specified.
+'''
+.SH OPTIONS
+.IP "\fB-a\fR" 4
+List all files, including hidden ones (those with . at the start of the name).
+.IP "\fB-u\fR" 4
+Produce uniform list, do not sort (sub)directories before files.
+.IP "\fB-b\fR" 4
+List names relative to each, do not prefix them with \fIdirectory\fR/
+.IP "\fB-r\fR" 4
+List subdirectories recursively.
+.IP "\fB-e\fR" 4
+List only the leaf (non-directory) nodes.
+.IP "\fB-y\fR" 4
+List symlinks as files, regardless of their targets. Without this option,
+symlinks pointing to directories get sorted among directories.
+.IP "\fB-w\fR" 4
+Follow symlinks recursively. Normally this is not done, even if the target
+is a directory.
+'''
+.SH NOTES
+ls sorts its output by raw byte values. This is done only to ensure stable
+output not dependent on irrelevant filesystem information. Locale settings
+do not affect the ordering.
+.P
+ls never lists . and .. special entries.
+Those are assumed to be present in any directory.
+.P
+This version of ls does not support \fB-l\fR listing format.
+'''
+.SH SEE ALSO
+\fBstat\fR(1), \fBgetdents\fR(2)
