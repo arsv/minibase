@@ -22,7 +22,7 @@
 #define OPT_m (1<<1)	/* show in-memory filesystems (dev id 0:*) */
 #define SET_x (1<<16)	/* show systems with zero block count */
 
-ERRTAG = "dfree";
+ERRTAG = "df";
 ERRLIST = {
 	REPORT(EACCES), REPORT(EBADF), REPORT(EFAULT), REPORT(ELOOP),
 	REPORT(ENAMETOOLONG), REPORT(ENOENT), REPORT(ENOMEM),
