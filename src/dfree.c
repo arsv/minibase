@@ -1,21 +1,26 @@
 #include <sys/statfs.h>
+#include <sys/close.h>
 #include <sys/open.h>
+#include <sys/stat.h>
 #include <sys/read.h>
 
 #include <argbits.h>
 #include <writeout.h>
 #include <memcpy.h>
 #include <strlen.h>
+#include <strcmp.h>
 #include <fmtpad.h>
 #include <strcbrk.h>
 #include <fmtlong.h>
+#include <fmtint32.h>
 #include <fmtstr.h>
 #include <fmtchar.h>
 #include <fail.h>
 
 #define OPTS "am"
-#define OPT_a (1<<0)
-#define OPT_m (1<<1)
+#define OPT_a (1<<0)	/* show all mounted filesystems */
+#define OPT_m (1<<1)	/* show in-memory filesystems (dev id 0:*) */
+#define SET_x (1<<16)	/* show systems with zero block count */
 
 ERRTAG = "df";
 ERRLIST = { RESTASNUMBERS };
@@ -65,7 +70,7 @@ static char* fmtmem(char* p, char* e, unsigned long n, int mu)
 		fr = nb % 1024;
 		nb /= 1024;
 	}
-	
+
 	if(sfi >= sizeof(sfx)) {
 		/* it's too large; format the number and be done with it */
 		p = fmtlong(p, e, nb);
@@ -91,7 +96,7 @@ static char* fmtmem(char* p, char* e, unsigned long n, int mu)
 
 static void wrheader()
 {
-	static const char hdr[] = 
+	static const char hdr[] =
 	    /* |1234.1x_| */
 	       "   Size "
 	       "   Used "
@@ -108,7 +113,6 @@ static char* fmtstatfs(char* p, char* e, struct statfs* st, int opts)
 	long bs = st->f_bsize;
 	long blocksused = st->f_blocks - st->f_bavail;
 	long blockstotal = st->f_blocks;
-	long perc = 100*blocksused/blockstotal;
 
 	p = fmtmem(p, e, st->f_blocks, bs);
 	p = fmtstr(p, e, " ");
@@ -117,75 +121,63 @@ static char* fmtstatfs(char* p, char* e, struct statfs* st, int opts)
 	p = fmtmem(p, e, st->f_bavail, bs);
 	p = fmtstr(p, e, "   ");
 
-	char* q = p;
-	p = fmtlong(p, e, perc);
-	p = fmtstr(p, e, "%");
-	p = fmtpad(q, e, 4, p);
+	if(blockstotal) {
+		long perc = 100*blocksused/blockstotal;
+		char* q = p;
+		p = fmtlong(p, e, perc);
+		p = fmtstr(p, e, "%");
+		p = fmtpad(q, e, 4, p);
+	} else {
+		p = fmtstr(p, e, "  --");
+	}
 
 	p = fmtstr(p, e, "   ");
 
 	return p;
 }
 
-static void reportfs(char* mountpoint, char* devid, int opts)
+static int checkdev(char* dev, int opts)
+{
+	/* Major 0 means vfs. Used/free space counts are meaningless
+	   for most of them. */
+	int nodev = (dev[0] == '0' && dev[1] == ':');
+
+	if(nodev && !(opts & (OPT_a | OPT_m)))
+		return 0;
+	if(!nodev && (opts & OPT_m))
+		return 0;
+
+	return 1;
+}
+
+static void reportfs(char* statfile, char* mountpoint, int opts)
 {
 	struct statfs st;
 
-	/* Major 0 means vfs. Used/free space counts are meaningless
-	   for most of them. */
-	int nodev = (devid[0] == '0' && devid[1] == ':');
+	xchk(sysstatfs(statfile, &st), "statfs", statfile);
 
-	if(nodev && !(opts & (OPT_a | OPT_m)))
-		return;
-	if(!nodev && (opts & OPT_m))
-		return;
+	char* tag = mountpoint ? mountpoint : statfile;
 
-	xchk(sysstatfs(mountpoint, &st), "statfs", mountpoint);
-
-	int len = strlen(mountpoint) + 100;
+	int len = strlen(tag) + 100;
 	char buf[len];
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
 
-	/* No blocks, it's a vfs with meaningless df output. */
-	if(!st.f_blocks)
-		return;
-
 	p = fmtstatfs(p, e, &st, opts);
-	p = fmtstr(p, e, mountpoint);
-	*p++ = '\n';
-	
-	xwriteout(buf, p - buf);
-}
 
-/* A line from mountinfo looks like this:
-
-   66 21 8:3 / /home rw,noatime,nodiratime shared:25 - ext4 /dev/sda3 rw,stripe=128,data=ordered
-
-   We need fields [2] devid, [4] mountpoint, and possibly [8] device.
-   The fields are presumed to be space-separated, with no spaces within.
-   If they aren't, we'll get garbage.
- 
-   Actually, we don't need [8] device. Too far to the right. */
-
-static void scanline(char* line, int opts)
-{
-	char* parts[5];
-	int i;
-
-	char* p = line;
-	char* q;
-
-	for(i = 0; i < 5; i++) {
-		if(!*(q = strcbrk(p, ' ')))
-			break;
-		parts[i] = p;
-		*q = '\0'; p = q + 1;
-	} if(i < 5) {
+	if(!st.f_blocks && !(opts & SET_x))
 		return;
+
+	if(mountpoint) {
+		p = fmtstr(p, e, mountpoint);
+	} else {
+		p = fmtstr(p, e, "? ");
+		p = fmtstr(p, e, statfile);
 	}
 
-	reportfs(parts[4], parts[2], opts);
+	*p++ = '\n';
+
+	xwriteout(buf, p - buf);
 }
 
 static char* findline(char* p, char* e)
@@ -198,11 +190,40 @@ static char* findline(char* p, char* e)
 	return NULL;
 }
 
-static void scanall(int opts)
+/* A line from mountinfo looks like this:
+
+   66 21 8:3 / /home rw,noatime,nodiratime shared:25 - ext4 /dev/sda3 rw,stripe=128,data=ordered
+
+   We need fields [2] devid, [4] mountpoint, and possibly [8] device.
+   The fields are presumed to be space-separated, with no spaces within.
+   If they aren't, we'll get garbage.
+
+   Actually, we don't need [8] device. Too far to the right. */
+
+#define MP 5
+
+static int splitline(char* line, char** parts, int n)
+{
+	char* p = line;
+	char* q;
+	int i;
+
+	for(i = 0; i < n; i++) {
+		if(!*(q = strcbrk(p, ' ')))
+			break;
+		parts[i] = p;
+		*q = '\0'; p = q + 1;
+	};
+
+	return (i < n);
+}
+
+static void scanall(char* statfile, const char* dev, int opts)
 {
 	long fd = xopen("/proc/self/mountinfo", O_RDONLY);
 	long rd;
 	long of = 0;
+	char* mp[MP];
 
 	while((rd = sysread(fd, minbuf + of, sizeof(minbuf) - of)) > 0) {
 		char* p = minbuf;
@@ -210,14 +231,58 @@ static void scanall(int opts)
 		char* q;
 
 		while((q = findline(p, e))) {
-			*q = '\0';
-			scanline(p, opts);
-			p = q + 1;
+			char* line = p; *q = '\0'; p = q + 1;
+
+			if(splitline(line, mp, MP))
+				continue;
+
+			char* linedev = mp[2];
+			char* linemp = mp[4];
+
+			if(!dev && checkdev(linedev, opts)) {
+				reportfs(linemp, linemp, opts);
+			} else if(dev && !strcmp(linedev, dev)) {
+				reportfs(statfile, linemp, opts);
+				goto done;
+			}
 		} if(p < e) {
 			of = e - p;
 			memcpy(minbuf, p, of);
 		}
 	}
+
+	/* specific file was given but we could not find the mountpoint */
+	if(dev) reportfs(statfile, NULL, opts);
+
+done:	sysclose(fd);
+}
+
+static char* fmtdev(char* p, char* e, uint64_t dev)
+{
+	int min = ((dev >>  0) & 0x000000FF)
+	        | ((dev >> 12) & 0xFFFFFF00);
+	int maj = ((dev >>  8) & 0x00000FFF)
+	        | ((dev >> 32) & 0xFFFFF000);
+
+	p = fmti32(p, e, maj);
+	p = fmtstr(p, e, ":");
+	p = fmti32(p, e, min);
+
+	return p;
+}
+
+static void scan(char* statfile, int opts)
+{
+	struct stat st;
+
+	char buf[20];
+	char* end = buf + sizeof(buf) - 1;
+
+	xchk(sysstat(statfile, &st), "cannot stat", statfile);
+
+	char* p = fmtdev(buf, end, st.st_dev); *p++ = '\0';
+
+	scanall(statfile, buf, opts);
 }
 
 int main(int argc, char** argv)
@@ -228,11 +293,13 @@ int main(int argc, char** argv)
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
-	if(i < argc)
-		fail("too many arguments", NULL, 0);
-
 	wrheader();
-	scanall(opts);
+
+	if(i >= argc)
+		scanall(NULL, NULL, opts);
+	else for(; i < argc; i++)
+		scan(argv[i], opts | SET_x);
+
 	flushout();
 
 	return 0;
