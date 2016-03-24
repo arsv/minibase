@@ -142,19 +142,12 @@ static char* fmtstatfs(char* p, char* e, struct statfs* st, int opts)
 	return p;
 }
 
-static int checkdev(char* dev, int opts)
-{
-	/* Major 0 means vfs. Used/free space counts are meaningless
-	   for most of them. */
-	int nodev = (dev[0] == '0' && dev[1] == ':');
+/* When reporting an explicitly named file, we call statfs() on that
+   particular file, and use mountpoint merely as additional information.
 
-	if(nodev && !(opts & (OPT_a | OPT_m)))
-		return 0;
-	if(!nodev && (opts & OPT_m))
-		return 0;
-
-	return 1;
-}
+   XXX: this is kind of prone to race conditions in-between stat()
+   and statfs(), hm. So is statfs(mountpoint) but at least that would
+   return consistent output line. */
 
 static void reportfs(char* statfile, char* mountpoint, int opts)
 {
@@ -186,6 +179,43 @@ static void reportfs(char* statfile, char* mountpoint, int opts)
 	xwriteout(buf, p - buf);
 }
 
+/* Device major 0 means virtual. Used/free space counts are meaningless
+   for most of them, so they are skipped unless we've got -m or -a.
+
+   With -m or -a, there's further distinction between in-memory filesystems
+   like tmpfs which do have some notion of size and free space,
+   and stuff that's completely virtual like cgroups fs and such.
+   Those are filtered out in reportfs on f_blocks = 0. */
+
+static int checkdev(char* dev, int opts)
+{
+	int nodev = (dev[0] == '0' && dev[1] == ':');
+
+	if(nodev && !(opts & (OPT_a | OPT_m)))
+		return 0;
+	if(!nodev && (opts & OPT_m))
+		return 0;
+
+	return 1;
+}
+
+/* The data is reported by reading /proc/self/mountinfo linewise,
+   filtering interesting lines, and calling reportfs() which in turn
+   calls statfs(2).
+
+   A line from mountinfo looks like this:
+
+   66 21 8:3 / /home rw,noatime,nodiratime shared:25 - ext4 /dev/sda3 rw,stripe=128,data=ordered
+
+   We need fields [2] devid, [4] mountpoint, and possibly [8] device.
+   The fields are presumed to be space-separated, with no spaces within.
+   If they aren't, we'll get garbage.
+
+   Actually, we don't need [8] device. Too far to the right.
+   Let's take 5 leftmost fields and be done with that. */
+
+#define MP 5
+
 static char* findline(char* p, char* e)
 {
 	while(p < e)
@@ -195,18 +225,6 @@ static char* findline(char* p, char* e)
 			p++;
 	return NULL;
 }
-
-/* A line from mountinfo looks like this:
-
-   66 21 8:3 / /home rw,noatime,nodiratime shared:25 - ext4 /dev/sda3 rw,stripe=128,data=ordered
-
-   We need fields [2] devid, [4] mountpoint, and possibly [8] device.
-   The fields are presumed to be space-separated, with no spaces within.
-   If they aren't, we'll get garbage.
-
-   Actually, we don't need [8] device. Too far to the right. */
-
-#define MP 5
 
 static int splitline(char* line, char** parts, int n)
 {
@@ -226,7 +244,8 @@ static int splitline(char* line, char** parts, int n)
 
 static void scanall(char* statfile, const char* dev, int opts)
 {
-	long fd = xopen("/proc/self/mountinfo", O_RDONLY);
+	const char* mountinfo = "/proc/self/mountinfo";
+	long fd = xchk(sysopen(mountinfo, O_RDONLY), "cannot open", mountinfo);
 	long rd;
 	long of = 0;
 	char* mp[MP];
@@ -262,6 +281,12 @@ static void scanall(char* statfile, const char* dev, int opts)
 
 done:	sysclose(fd);
 }
+
+/* statfs(file) provides all the data needed except for mountpoint, which
+   we've got to fish out of /proc/self/mountinfo using device maj:min
+   reported by stat(fs) as the key.
+   
+   This only applies to explicit file arguments of course. */
 
 static char* fmtdev(char* p, char* e, uint64_t dev)
 {
