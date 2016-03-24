@@ -22,8 +22,14 @@
 #define OPT_m (1<<1)	/* show in-memory filesystems (dev id 0:*) */
 #define SET_x (1<<16)	/* show systems with zero block count */
 
-ERRTAG = "df";
-ERRLIST = { RESTASNUMBERS };
+ERRTAG = "dfree";
+ERRLIST = {
+	REPORT(EACCES), REPORT(EBADF), REPORT(EFAULT), REPORT(ELOOP),
+	REPORT(ENAMETOOLONG), REPORT(ENOENT), REPORT(ENOMEM),
+	REPORT(ENOTDIR), REPORT(EOVERFLOW), REPORT(EINTR), REPORT(EIO),
+	REPORT(ENOSYS), REPORT(EISDIR), REPORT(EMFILE), REPORT(ENFILE),
+	RESTASNUMBERS
+};
 
 char minbuf[4096]; /* mountinfo */
 
