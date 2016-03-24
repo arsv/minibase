@@ -142,20 +142,17 @@ static char* fmtstatfs(char* p, char* e, struct statfs* st, int opts)
 	return p;
 }
 
-/* When reporting an explicitly named file, we call statfs() on that
-   particular file, and use mountpoint merely as additional information.
-
-   XXX: this is kind of prone to race conditions in-between stat()
-   and statfs(), hm. So is statfs(mountpoint) but at least that would
-   return consistent output line. */
+/* When reporting an explicitly named file, we call statfs() on its
+   mountpoint found in mountinfo. This is counter-intuitive, but ensures
+   the output lines are consistent (i.e. the numbers do in fact correspond
+   to the mountpoint shown). */
 
 static void reportfs(char* statfile, char* mountpoint, int opts)
 {
 	struct statfs st;
-
-	xchk(sysstatfs(statfile, &st), "statfs", statfile);
-
 	char* tag = mountpoint ? mountpoint : statfile;
+
+	xchk(sysstatfs(tag, &st), "statfs", tag);
 
 	int len = strlen(tag) + 100;
 	char buf[len];
