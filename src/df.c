@@ -154,26 +154,26 @@ static void reportfs(char* statfile, char* mountpoint, int opts)
 
 	xchk(sysstatfs(tag, &st), "statfs", tag);
 
-	int len = strlen(tag) + 100;
-	char buf[len];
+	char buf[100];
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
 
 	p = fmtstatfs(p, e, &st, opts);
 
+	xwriteout(buf, p - buf);
+
 	if(!st.f_blocks && !(opts & SET_x))
 		return;
 
 	if(mountpoint) {
+		xwriteout(mountpoint, strlen(mountpoint));
 		p = fmtstr(p, e, mountpoint);
 	} else {
-		p = fmtstr(p, e, "? ");
-		p = fmtstr(p, e, statfile);
+		xwriteout("? ", 2);
+		xwriteout(statfile, strlen(statfile));
 	}
 
-	*p++ = '\n';
-
-	xwriteout(buf, p - buf);
+	xwriteout("\n", 1);
 }
 
 /* Device major 0 means virtual. Used/free space counts are meaningless
