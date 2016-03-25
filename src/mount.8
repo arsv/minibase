@@ -13,6 +13,8 @@ mount \fB-b\fR \fItarget\fR \fIsource\fR
 mount \fB-m\fR \fItarget\fR \fIsource\fR
 .br
 mount \fB-e\fR[\fBrdxuy\fR] \fItarget\fR \fIdata\fR
+.br
+mount \fB-u\fR[\fBfdxn\fR] \fItarget\fR \fItarget\fR ...
 '''
 .SH DESCRIPTION
 mount replaces visible contents of \fItarget\fR directory with some other
@@ -27,10 +29,14 @@ filesystems.
 .SH OPTIONS
 Any combination of the options below must be squashed into a single argument:
 \fB-rdx\fR is accepted but \fB-r -d -x\fR is not.
+.IP "\fB-u\fR" 4
+Detach each \fItarget\fR by calling \fBumount\fR(2). If used, this must be
+the first option, as it changes the way the following options are interpreted.
 .P
-The options ste bits in \fBmountflags\fR argument for \fBmount\fR(2) common
-for all filesystems. Any filesystem-specific settings are passed via \fIdata\fR
-which is a comma-separated list of keys or \fIkey\fR=\fIvalue\fR pairs.
+Without \fB-u\fR, the options set bits in \fBmountflags\fR argument for
+\fBmount\fR(2). These flags are common for all filesystems; any filesystem-specific
+settings are passed via \fIdata\fR which is a comma-separated list of keys
+or \fIkey\fR=\fIvalue\fR pairs.
 .IP "\fB-b\fR" 4
 Perform a bind mount, making \fIsource\fR subtree visible at a different
 location \fItarget\fR (MS_BIND).
@@ -45,17 +51,27 @@ Enable reduced updates of inode timestamps (MS_LAZYTIME).
 Do not allow access to device files on this filesystem (MS_NODEV).
 .IP "\fB-x\fR" 4
 Do not allow programs to be executed from this filesystem (MS_NOEXEC).
-.IP "\fB-u\fR" 4
+.IP "\fB-s\fR" 4
 Do not honor set-user-ID and set-group-ID bits when executing programs
 from this filesystem (MS_NOSUID).
 .IP "\fB-e\fR" 4
 Remount \fItarget\fR, possibly changing its mount options (MS_REMOUNT).
-.IP "\fB-s\fR" 4
+.IP "\fB-i\fR" 4
 Suppress the display of certain messages in the kernel log (MS_SILENT).
 .IP "\fB-y\fR" 4
 Make writes on this filesystem synchronous (MS_SYNCHRONOUS).
 .IP "\fB-v\fR" 4
 Mount virtual file system (\fIsource\fR=NULL).
+.P
+With \fB-u\fR, the options set flags for \fBumount\fR(2):
+.IP "\fB-f\fR" 4
+Force unmounting (MNT_FORCE).
+.IP "\fB-d\fR" 4
+Perform a lazy unmount (MNT_DETACH).
+.IP "\fB-x\fR" 4
+Make mount point as expired (MNT_EXPIRE).
+.IP "\fB-n\fR" 4
+Do not follow symlinks (UMOUNT_NOFOLLOW).
 '''
 .SH NOTES
 This tool does not read /etc/fstab and does not update /etc/mtab.

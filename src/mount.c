@@ -1,4 +1,5 @@
 #include <sys/mount.h>
+#include <sys/umount.h>
 #include <fail.h>
 
 ERRTAG = "mount";
@@ -9,35 +10,93 @@ ERRLIST = {
 	REPORT(EPERM), RESTASNUMBERS
 };
 
-/* This should not clash with any valid MS_* flags below.
-   (which happen to be the case, those are (1<<0) ... (1<<25) */
-#define MS_X_NONE (1<<31)
+#define OPT_u (1<<0)	/* umount */
+#define OPT_v (1<<1)	/* mount none, virtual fs */
 
-static long parseflags(const char* flagstr)
+struct flag {
+	char key;
+	int val;
+} mountflags[] = {
+	{ 'b', MS_BIND },
+	{ 'm', MS_MOVE },
+	{ 'r', MS_RDONLY },
+	{ 't', MS_LAZYTIME },
+	{ 'd', MS_NODEV },
+	{ 'x', MS_NOEXEC },
+	{ 's', MS_NOSUID },
+	{ 'e', MS_REMOUNT },
+	{ 'i', MS_SILENT },
+	{ 'y', MS_SYNCHRONOUS },
+	{ 0, 0 }
+}, umountflags[] = {
+	{ 'f', MNT_FORCE },
+	{ 'd', MNT_DETACH },
+	{ 'x', MNT_EXPIRE },
+	{ 'n', UMOUNT_NOFOLLOW },
+	{ 0, 0 }
+};
+
+static void badflag(char f)
+{
+	char flg[3];
+
+	flg[0] = '-';
+	flg[1] = f;
+	flg[2] = '\0';
+
+	fail("unknown flag", flg, 0);
+}
+
+static void baduvuse(void)
+{
+	fail("-u and -v may only be used in the first position", NULL, 0);
+}
+
+static int parseflags(const char* str, long* out)
 {
 	const char* p;
-	char flg[3] = "-?";
+	struct flag* f;
 	long flags = 0;
+	int opts = 0;
 
-	for(p = flagstr; *p; p++) switch(*p)
-	{
-		case 'b': flags |= MS_BIND; break;
-		case 'm': flags |= MS_MOVE; break;
-		case 'r': flags |= MS_RDONLY; break;
-		case 't': flags |= MS_LAZYTIME; break;
-		case 'd': flags |= MS_NODEV; break;
-		case 'x': flags |= MS_NOEXEC; break;
-		case 'u': flags |= MS_NOSUID; break;
-		case 'e': flags |= MS_REMOUNT; break;
-		case 's': flags |= MS_SILENT; break;
-		case 'y': flags |= MS_SYNCHRONOUS; break;
-		case 'v': flags |= MS_X_NONE; break;
-		default: 
-			flg[1] = *p;
-			fail("unknown flag", flg, 0);
+	struct flag* table = mountflags;
+
+	if(*str == 'u') {
+		table = umountflags;
+		opts |= OPT_u;
+		str++;
+	} else if(*str == 'v') {
+		opts |= OPT_v;
+		str++;
+	};
+
+	for(p = str; *p; p++) {
+		for(f = table; f->key; f++)
+			if(f->key == *p) {
+				flags |= f->val;
+				break;
+			};
+		if(f->key)
+			continue;
+		else if(*p == 'u' || *p == 'v')
+			baduvuse();
+		else
+			badflag(*p);
 	}
 
-	return flags;
+	*out = flags;
+	return opts;
+}
+
+static int umount(int i, int argc, char** argv, long flags)
+{
+	long ret;
+
+	for(; i < argc; i++)
+		if((ret = sysumount(argv[i], flags)) < 0)
+			fail("cannot umount", argv[i], ret);
+
+	return 0;
 }
 
 /* sysmount may ignore source/fstype/data depending on the flags set.
@@ -58,23 +117,25 @@ int main(int argc, char** argv)
 	char* source = NULL;
 	char* target = NULL;
 	char* fstype = NULL;
-	long flags = 0;
 	char* data = NULL;
+	long flags = 0;
+	int opts = 0;
 
 	int i = 1;
 
 	if(i < argc && argv[i][0] == '-')
-		flags = parseflags(argv[i++] + 1);
+		opts = parseflags(argv[i++] + 1, &flags);
+
+	if(opts & OPT_u)
+		return umount(i, argc, argv, flags);
 
 	if(i < argc)
 		target = argv[i++];
 	else
 		fail("mountpoint required", NULL, 0);
 
-	if(i < argc && !(flags & (MS_REMOUNT | MS_X_NONE)))
+	if((i < argc) && !(flags & MS_REMOUNT) && !(opts & OPT_v))
 		source = argv[i++];
-
-	flags &= ~MS_X_NONE;
 
 	if(i < argc && !(flags & (MS_MOVE | MS_REMOUNT)))
 		fstype = argv[i++];
