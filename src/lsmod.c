@@ -8,7 +8,6 @@
 #include <writeout.h>
 
 #define PAGE 4096
-#define STEP (2*PAGE)
 
 ERRTAG = "lsmod";
 ERRLIST = {
@@ -23,19 +22,28 @@ static char* extend(char* ptr, long len)
 	return (char*)xchk(sysbrk(ptr + len), "brk", NULL);
 }
 
+/* Files in /proc have zero size, so there's no way to tell how
+   large the module list is without reading it. The idea here
+   is to provide a buffer large enough for most reasonable cases
+   to have a single read() call, with subsequent brk() being
+   a kind of undesired fallback scenario.
+ 
+   Moderately bloated Intel laptop running 4.2.5 has /proc/modules
+   about 6KB large, so take 16KB as an upper estimate for sane systems. */
+
 static char* readwhole(const char* fname, char** outend)
 {
 	long fd = xchk(sysopen(fname, O_RDONLY), "cannot open", fname);
 
 	char* brk = extend(NULL, 0);
-	char* end = extend(brk, STEP);
+	char* end = extend(brk, 4*PAGE);
 
 	long rd;
 	char* ptr = brk;
 	while((rd = sysread(fd, ptr, end - ptr)) > 0) {
 		ptr += rd;
 		if(ptr >= end)
-			end = extend(end, STEP);
+			end = extend(end, 2*PAGE);
 	} if(rd < 0) {
 		fail("read", fname, rd);
 	}
@@ -72,6 +80,19 @@ static int split(char* str, char* end, struct strptr* parts, int n)
 
 	return i;
 }
+
+/* A line from /proc/modules looks like this:
+
+     scsi_mod 147456 4 uas,usb_storage,sd_mod,libata, Live 0xffffffffa0217000
+
+   We only need fields #0 module name, #2 refcnt, #3 used-by, so that
+   our output would be
+
+     scsi_mod         4 uas,usb_storage,sd_mod,libata
+
+   Module name gets padded to align refcnt column, and the rest is used as is.
+
+   Non-empty used-by list has a trailing comma, and empty list is "-". */
 
 static void listmods(char* modules, char* end)
 {
