@@ -5,7 +5,7 @@ include ../config.mk
 bin = basename cat chmod chown chvt clear df dirname dmesg du echo errno \
 	false hello hexdump kill mkdir mknod pwd ren del sleep strings sync \
 	sysinfo tee touch true uname uptime wc which write xargs yes symlink \
-	stat ls
+	stat ls whoami
 
 sbin = fstrim insmod mount mountvfs rmmod switchroot systime lsmod
 
