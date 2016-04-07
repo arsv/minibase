@@ -1,1 +1,4 @@
 rmdir
+pwd
+dirname
+basename
