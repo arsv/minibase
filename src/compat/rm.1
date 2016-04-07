@@ -1,0 +1,25 @@
+.TH rm 8
+'''
+.SH NAME
+rm \- delete files or directories
+'''
+.SH SYNOPSIS
+rm [\fB-frdnZ\fR] \fIfile\fR \fIfile\fR ...
+'''
+.SH DESCRIPTION
+rm deletes specified files.
+'''
+.SH OPTIONS
+.IP "\fB-r\fR" 4
+Remove directories recursively.
+.IP "\fB-f\fR" 4
+Continue as far as possible, ignoring errors.
+.IP "\fB-d\fR" 4
+Assume \fIfile\fRs are in fact directories, and call \fBrmdir\fR(2).
+.IP "\fB-n\fR" 4
+Do not cross filesystem boundaries.
+.IP "\fB-Z\fR" 4
+Do remove / (the root node) if asked to.
+'''
+.SH SEE ALSO
+\fBunlink\fR(2), \fBrmdir\fR(2), \fBstat\fR(2).
