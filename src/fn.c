@@ -31,7 +31,7 @@ char cwdbuf[4096];
 
 /* Moves end over basename:  /foo//bar₀ -> /foo//bar₀
                         name ^        ^    ^     ^ end  */
-char* revbase(char* name, char* end)
+static char* revbase(char* name, char* end)
 {
 	char* p;
 
@@ -43,7 +43,7 @@ char* revbase(char* name, char* end)
 
 /* Moves end over path separator:  /foo//bar₀ -> /foo//bar₀
                               name ^     ^       ^   ^ end  */
-char* revpsep(char* name, char* end)
+static char* revpsep(char* name, char* end)
 {
 	char* p;
 
@@ -53,7 +53,7 @@ char* revpsep(char* name, char* end)
 	return p;
 }
 
-void printparts(char* name, int len, int opts)
+static void printparts(char* name, int len, int opts)
 {
 	char* end = name + len;
 	char* ptr = name;
@@ -78,7 +78,7 @@ void printparts(char* name, int len, int opts)
 /* Get rid of multiple slashes and . entries.
    This is always harmless and may be done lexically. */
 
-int normalize(char* name, int len)
+static int normalize(char* name, int len)
 {
 	char* p = name;
 	char* q = name;
@@ -103,7 +103,7 @@ int normalize(char* name, int len)
 	return q - name;
 }
 
-void lexical(char* name, int len, int opts)
+static void lexical(char* name, int len, int opts)
 {
 	char buf[len+1];
 	memcpy(buf, name, len);
@@ -114,7 +114,7 @@ void lexical(char* name, int len, int opts)
 	printparts(buf, len, opts);
 }
 
-void printatcwd(char* orig, char* name, int namelen, int opts)
+static void printatcwd(char* orig, char* name, int namelen, int opts)
 {
 	if(*name == '/')
 		return printparts(name, namelen, opts);
@@ -137,7 +137,7 @@ void printatcwd(char* orig, char* name, int namelen, int opts)
 	printparts(fullname, fnlen, opts);
 }
 
-void abstail(char* orig, char* dir, int dlen, char* tail, int tlen, int opts)
+static void abstail(char* orig, char* dir, int dlen, char* tail, int tlen, int opts)
 {
 	char buf[dlen+1];
 
@@ -150,7 +150,7 @@ void abstail(char* orig, char* dir, int dlen, char* tail, int tlen, int opts)
 	return printatcwd(orig, tail, tlen, opts);
 }
 
-void absolutize(char* orig, char* name, int namelen, int opts)
+static void absolutize(char* orig, char* name, int namelen, int opts)
 {
 	char* end = name + namelen;
 	char* be = end;
@@ -172,7 +172,7 @@ void absolutize(char* orig, char* name, int namelen, int opts)
 	return printatcwd(orig, name, namelen, opts);
 }
 
-void chdirtodirname(char* orig, char* name, int namelen)
+static void chdirtodirname(char* orig, char* name, int namelen)
 {
 	char* end = name + namelen;
 	char* bn = revbase(name, end);
@@ -198,7 +198,7 @@ void chdirtodirname(char* orig, char* name, int namelen)
 		fail(NULL, orig, ENOTDIR);
 }
 
-void canonlink(char* orig, char* name, int namelen, int opts, int depth)
+static void canonlink(char* orig, char* name, int namelen, int opts, int depth)
 {
 	long ret = sysreadlink(name, cwdbuf, sizeof(cwdbuf));
 
@@ -224,7 +224,7 @@ void canonlink(char* orig, char* name, int namelen, int opts, int depth)
 	}
 }
 
-void canonicalize(char* orig, char* name, int namelen, int opts)
+static void canonicalize(char* orig, char* name, int namelen, int opts)
 {
 	if(syschdir(name) >= 0)
 		return printatcwd(orig, "", 0, opts);
@@ -238,7 +238,7 @@ void canonicalize(char* orig, char* name, int namelen, int opts)
 	canonlink(orig, name, namelen, opts, 0);
 }
 
-void dereference(char* orig, char* name, int namelen, int opts)
+static void dereference(char* orig, char* name, int namelen, int opts)
 {
 	long ret;
 
@@ -263,7 +263,7 @@ void dereference(char* orig, char* name, int namelen, int opts)
 		printparts(link, ret, opts);
 }
 
-void printfiles(int argc, char** argv, int opts)
+static void printfiles(int argc, char** argv, int opts)
 {
 	long cwdfd = xchk(sysopen(".", O_PATH | O_RDONLY), "open", ".");
 	int i;
@@ -285,32 +285,10 @@ void printfiles(int argc, char** argv, int opts)
 	}
 }
 
-void printcwd(int opts)
+static int adjopts(int opts, int narg)
 {
-	long len = xchk(sysgetcwd(cwdbuf, sizeof(cwdbuf)), "getcwd", NULL);
-	printparts(cwdbuf, len - 1, opts);
-}
-
-static int countbits(int val)
-{
-	int count = 0;
-	int mask = 1;
-
-	while(mask) {
-		if(mask & val)
-			count++;
-		mask = mask << 1;
-	}
-
-	return count;
-}
-
-int adjopts(int opts, int narg)
-{
-	int part = countbits(opts & (OPT_b | OPT_d));
-
-	if(part > 1)
-		fail("at most one of -bdnp may be used at once", NULL, 0);
+	if((opts & (OPT_b | OPT_d)) == (OPT_b | OPT_d))
+		fail("at most one of -bd may be used at once", NULL, 0);
 
 	if(narg <= 0 && (opts & (OPT_r | OPT_c | OPT_a)))
 		fail("using -acr without arguments makes no sense", NULL, 0);
@@ -340,7 +318,7 @@ int main(int argc, char** argv)
 	opts = adjopts(opts, argc);
 
 	if(argc <= 0)
-		printcwd(opts);
+		printatcwd(NULL, "", 0, opts);
 	else
 		printfiles(argc, argv, opts);
 
