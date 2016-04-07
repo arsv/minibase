@@ -1,0 +1,36 @@
+.TH fn 1
+'''
+.SH NAME
+fn \- file name tool
+'''
+.SH SYNOPSIS
+fn [\fB-abcdr\fR] [\fIfile file ...\fR]
+'''
+.SH DESCRIPTION
+For each \fIfile\fR given, \fBfn\fR prints its absolute path.
+.P
+With no \fIfile\fR arguments, \fBfn\fR print current directory.
+'''
+.SH OPTIONS
+.IP "\fB-b\fR" 4
+Print basename.
+.IP "\fB-d\fR" 4
+Print directory name.
+.IP "\fB-a\fR" 4
+Convert to absolute path before applying -bd.
+.IP "\fB-r\fR" 4
+Call \fBreadlink\fR(2) on each \fIfile\fR before applying \fB-abd\fR.
+Abort with error if \fIfile\fR is not a symlink. Without \fB-bdnp\fR,
+print unmodified symlink target.
+.IP "\fB-c\fR" 4
+Convert to canonical path, resolving all symlinks.
+'''
+.SH NOTES
+This tool uses \fBchdir\fR(2) followed by \fBgetcwd\fR(2) to get
+through .. in paths. Do not expect it to handle non-existant files well.
+.P
+Using getcwd is necessary because of the way symlinks work: foo/bar/..
+may not be equal to foo/ if foo/bar/ happens to be a symlink.
+'''
+.SH SEE ALSO
+\fBgetcwd\fR(1), \fBchdir\fR(2), \fBreadlink\fR(2), \fBpath_resolution\fR(7)
