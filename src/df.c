@@ -154,6 +154,9 @@ static void reportfs(char* statfile, char* mountpoint, int opts)
 
 	xchk(sysstatfs(tag, &st), "statfs", tag);
 
+	if(!st.f_blocks && !(opts & SET_x))
+		return;
+
 	char buf[100];
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
@@ -162,12 +165,8 @@ static void reportfs(char* statfile, char* mountpoint, int opts)
 
 	xwriteout(buf, p - buf);
 
-	if(!st.f_blocks && !(opts & SET_x))
-		return;
-
 	if(mountpoint) {
 		xwriteout(mountpoint, strlen(mountpoint));
-		p = fmtstr(p, e, mountpoint);
 	} else {
 		xwriteout("? ", 2);
 		xwriteout(statfile, strlen(statfile));
