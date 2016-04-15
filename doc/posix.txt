@@ -6,8 +6,8 @@ While it may sound like a bad thing, it's not really. It's merely irrelevant.
 
 POSIX compatibility (specifically the stuff covered by Shell & Utilities volume)
 is needed to run POSIX-compatible code. Foreign shell scripts, in this case.
-But shell scripts are often system-specific anyway, and when they aren't
-it's often scary enough to wish otherwise. See autotools for examples.
+Shell scripts are often system-specific, and when they aren't it's often scary
+enough to wish otherwise. See autotools for examples.
 
 What's more important however is that the system may not be fully POSIX
 compatible and still be able to run the scripts it needs.  The amount
