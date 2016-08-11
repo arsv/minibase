@@ -7,7 +7,9 @@
 
 static char* fmt1i0(char* p, char* e, int n)
 {
-	if(p < e) *p++ = '0' + (n % 10); return p;
+	if(p < e)
+		*p++ = '0' + (n % 10);
+	return p;
 }
 
 char* fmtsize(char* p, char* e, uint64_t n)
