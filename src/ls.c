@@ -70,6 +70,9 @@ static void init(struct topctx* tc, int opts)
 	void* brk = (void*)xchk(sysbrk(0), "brk", NULL);
 	void* end = (void*)xchk(sysbrk(brk + PAGE), "brk", NULL);
 
+	if(brk >= end)
+		fail("cannot initialize heap", NULL, 0);
+
 	if(opts & OPT_e)
 		opts |= SET_stat; /* need type before entering the dir */
 	else if(!(opts & (OPT_r | OPT_u)))
@@ -104,7 +107,13 @@ static void prepspace(struct dataseg* ds, long ext)
 	if(ext % PAGE)
 		ext += PAGE - (ext % PAGE);
 
-	ds->end = (void*)xchk(sysbrk(ds->end + ext), "brk", NULL);
+	void* old = ds->end;
+	void* brk = (void*)xchk(sysbrk(ds->end + ext), "brk", NULL);
+
+	if(brk <= old)
+		fail("brk", NULL, 0);
+
+	ds->end = brk;
 }
 
 static void* alloc(struct dataseg* ds, int len)
