@@ -1,0 +1,37 @@
+.TH bcp 1
+'''
+.SH NAME
+bcp \- block copy tool
+'''
+.SH SYNOPSIS
+bcp \fB-r\fR \fI/dev/block\fR \fIoutput.bin\fR [\fIrange...\fR]
+.br
+bcp \fB-w\fR \fI/dev/block\fR \fIinput.bin\fR [\fIrange...\fR]
+.br
+bcp \fB-z\fR[\fBrw\fR] \fIoutput.bin\fR [\fIrange...\fR]
+'''
+.SH DESCRIPTION
+\fBbcp\fR copies a chunk of data to/from a block device, or to/from
+and image of a block device.
+.P
+The \fIrange\fR to copy is specified in the following form:
+.IP
+[\fIsize\fR][\fB@\fIl-offset\fR][\fB:\fIr-offset\fR] [\fBx\fImultiplier\fR]
+.P
+Total of \fIsize\fR bytes are copied after seeking \fIl-offset\fR into the left
+file (\fI/dev/block\fR) and \fIr-offset\fR into the right file (\fIoutput.bin\fR).
+'''
+.SH OPTIONS
+.IP "\fB-r\fR" 4
+Read data from \fI/dev/block\fR and write it to \fIoutput.bin\fR.
+.IP "\fB-w\fR" 4
+Read data from \fIinput.bin\fR and write it to \fI/dev/block\fR.
+.IP "\fB-z\fR" 4
+Create zero-filled \fIoutput.bin\fR of specified \fIsize\fR.
+.IP "\fB-zr\fR" 4
+Fill \fIoutput.bin\fR with zeros, resizing/truncating it to \fIsize\fR.
+.IP "\fB-zw\fR" 4
+Fill a block in \fIoutput.bin\fR with zeros without changing its size.
+'''
+.SH SEE ALSO
+\fBdd\fR(1), \fBread\fR(2), \fBwrite\fR(2), \fBlseek\fR(2).
