@@ -34,7 +34,7 @@ In case the argument is not supplied, /dev/console is used.
 '''
 .SH NOTES
 switchroot does the equivalent of rm -r / before switching to the new root.
-That is rather dangerous, so switchroot tries to make extra sure the files
+This is rather dangerous, so switchroot tries to make extra sure the files
 being deleted reside on initramfs by calling \fBstatfs\fR(2).
 .P
 switchroot must always be run as pid 1, since it execs into \fBinit\fR(8).
