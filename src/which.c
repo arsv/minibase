@@ -2,10 +2,8 @@
 #include <sys/write.h>
 #include <sys/_exit.h>
 
-#include <memcpy.h>
-#include <strlen.h>
-#include <fmtstr.h>
-#include <strncmp.h>
+#include <string.h>
+#include <format.h>
 #include <null.h>
 
 #define TAG "which"

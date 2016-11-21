@@ -1,10 +1,8 @@
 #include <bits/errno.h>
 #include <sys/write.h>
 
-#include <strlen.h>
-#include <strcmp.h>
-#include <fmtstr.h>
-#include <memcpy.h>
+#include <string.h>
+#include <format.h>
 #include <null.h>
 
 #define TAG "errno"

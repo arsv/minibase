@@ -1,5 +1,5 @@
 #include <sys/write.h>
-#include <strlen.h>
+#include <string.h>
 
 void dumpdname(char* path)
 {

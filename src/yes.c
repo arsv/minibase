@@ -1,7 +1,7 @@
 #include <sys/write.h>
 
 #include <alloca.h>
-#include <argsmerge.h>
+#include <util.h>
 
 /* We do one syscall per line here, instead of making a huge
    buffer and writing it all at once. This is because

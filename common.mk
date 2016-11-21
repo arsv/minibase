@@ -1,5 +1,5 @@
 LIBS = -L$/ -ls -lgcc -ls
-CFLAGS += -I$/lib -I$/lib/arch/$(ARCH)
+CFLAGS += -I$/lib -I$/arch/$(ARCH) -I$/arch/common
 
 .SUFFIXES:
 

@@ -2,8 +2,7 @@
 #include <sys/write.h>
 #include <sys/_exit.h>
 
-#include <strlen.h>
-#include <memcpy.h>
+#include <string.h>
 #include <null.h>
 
 #define NANOFRAC 1000000000 /* nanoseconds in a second */

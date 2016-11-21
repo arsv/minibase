@@ -1,11 +1,8 @@
 #include <sys/write.h>
 #include <sys/sysinfo.h>
 
-#include <argbits.h>
-#include <fmtstr.h>
-#include <fmtlong.h>
-#include <fmtint32.h>
-#include <fmtulp.h>
+#include <format.h>
+#include <util.h>
 #include <fail.h>
 
 ERRTAG = "sysinfo";

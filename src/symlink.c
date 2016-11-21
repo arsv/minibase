@@ -2,10 +2,8 @@
 #include <sys/unlink.h>
 #include <sys/lstat.h>
 
-#include <argbits.h>
-#include <strlen.h>
-#include <basename.h>
-#include <memcpy.h>
+#include <string.h>
+#include <util.h>
 #include <fail.h>
 
 /* Simple symlinking tool, follows the kernel syscall */

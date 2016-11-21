@@ -5,12 +5,8 @@
 #include <sys/access.h>
 #include <sys/waitpid.h>
 
-#include <argbits.h>
-#include <memcpy.h>
-#include <strlen.h>
-#include <strcbrk.h>
-#include <strncmp.h>
-#include <getenv.h>
+#include <string.h>
+#include <util.h>
 #include <fail.h>
 
 #define OPTS "01a"

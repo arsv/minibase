@@ -5,11 +5,8 @@
 #include <sys/open.h>
 #include <sys/readlink.h>
 
-#include <argbits.h>
-#include <strlen.h>
-#include <strcmp.h>
-#include <strncmp.h>
-#include <memcpy.h>
+#include <string.h>
+#include <util.h>
 #include <fail.h>
 
 ERRTAG = "fn";

@@ -8,10 +8,9 @@
 #include <sys/lstat.h>
 #include <sys/_exit.h>
 
-#include <argbits.h>
-#include <strlen.h>
-#include <fmtstr.h>
-#include <fmtchar.h>
+#include <string.h>
+#include <format.h>
+#include <util.h>
 #include <fail.h>
 
 #define OPTS "rfdn"

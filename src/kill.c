@@ -1,8 +1,8 @@
 #include <sys/kill.h>
 
+#include <string.h>
+#include <format.h>
 #include <fail.h>
-#include <strncmp.h>
-#include <parseint.h>
 
 ERRTAG = "kill";
 ERRLIST = {

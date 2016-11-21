@@ -1,6 +1,5 @@
 #include <alloca.h>
-#include <argsmerge.h>
-#include <writeall.h>
+#include <util.h>
 
 #define TAG "echo"
 #define OPT_n (1<<0)	/* no newline at the end */

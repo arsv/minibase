@@ -4,17 +4,10 @@
 #include <sys/stat.h>
 #include <sys/read.h>
 
-#include <argbits.h>
-#include <writeout.h>
-#include <memcpy.h>
-#include <strlen.h>
-#include <strcmp.h>
-#include <fmtpad.h>
-#include <strcbrk.h>
-#include <fmtlong.h>
-#include <fmtint32.h>
-#include <fmtstr.h>
-#include <fmtchar.h>
+#include <string.h>
+#include <format.h>
+#include <output.h>
+#include <util.h>
 #include <fail.h>
 
 #define OPTS "am"

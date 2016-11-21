@@ -5,11 +5,9 @@
 #include <sys/close.h>
 #include <sys/munmap.h>
 
-#include <argbits.h>
-#include <strlen.h>
-#include <fmtstr.h>
-#include <fmtint64.h>
-#include <writeall.h>
+#include <string.h>
+#include <format.h>
+#include <util.h>
 #include <fail.h>
 
 #define BUFSIZE 16*4096
@@ -61,7 +59,7 @@ static const char* pad(uint64_t num, int to)
 	return space + spacelen - padneeded;
 }
 
-static char* fmtpad(char* p, char* e, uint64_t num, int to, int opts)
+static char* fmtpad1(char* p, char* e, uint64_t num, int to, int opts)
 {
 	if(opts & SET_pad)
 		p = fmtstr(p, e, pad(num, to));
@@ -84,17 +82,17 @@ static void dump(struct wc* cnts, const char* file, int opts)
 	char* p = buf;
 
 	if(opts & OPT_l) {
-		p = fmtpad(p, end, cnts->lines, 5, opts);
+		p = fmtpad1(p, end, cnts->lines, 5, opts);
 	} else if(opts & OPT_w) {
-		p = fmtpad(p, end, cnts->words, 5, opts);
+		p = fmtpad1(p, end, cnts->words, 5, opts);
 	} else if(opts & OPT_c) {
-		p = fmtpad(p, end, cnts->bytes, 6, opts);
+		p = fmtpad1(p, end, cnts->bytes, 6, opts);
 	} else {
-		p = fmtpad(p, end, cnts->lines, 5, opts);
+		p = fmtpad1(p, end, cnts->lines, 5, opts);
 		p = fmtstr(p, end, " ");
-		p = fmtpad(p, end, cnts->words, 5, opts);
+		p = fmtpad1(p, end, cnts->words, 5, opts);
 		p = fmtstr(p, end, " ");
-		p = fmtpad(p, end, cnts->bytes, 6, opts);
+		p = fmtpad1(p, end, cnts->bytes, 6, opts);
 	} if(file) {
 		p = fmtstr(p, end, "  ");
 		p = fmtstr(p, end, file);

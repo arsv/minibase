@@ -1,9 +1,7 @@
 #include <sys/renameat2.h>
 
-#include <argbits.h>
-#include <basename.h>
-#include <strlen.h>
-#include <memcpy.h>
+#include <string.h>
+#include <util.h>
 #include <fail.h>
 
 #define OPTS "ftwx"

@@ -5,12 +5,9 @@
 #include <sys/close.h>
 #include <bits/stmode.h>
 
-#include <argbits.h>
-#include <bufout.h>
-#include <strlen.h>
-#include <strcmp.h>
-#include <memcpy.h>
-#include <qsort.h>
+#include <string.h>
+#include <output.h>
+#include <util.h>
 #include <fail.h>
 
 ERRTAG = "ls";

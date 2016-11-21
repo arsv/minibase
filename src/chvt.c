@@ -2,8 +2,9 @@
 #include <sys/open.h>
 #include <sys/close.h>
 
-#include <argbits.h>
-#include <parseint.h>
+#include <string.h>
+#include <format.h>
+#include <util.h>
 #include <fail.h>
 
 #define KDGKBTYPE	0x4B33

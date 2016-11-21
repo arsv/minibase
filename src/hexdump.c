@@ -2,9 +2,8 @@
 #include <sys/read.h>
 #include <sys/write.h>
 
-#include <memcpy.h>
-#include <fmtstr.h>
-#include <fmtchar.h>
+#include <string.h>
+#include <format.h>
 #include <fail.h>
 
 #define RDBUF (1<<12)

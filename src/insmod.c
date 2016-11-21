@@ -4,9 +4,8 @@
 #include <sys/initmodule.h>
 
 #include <alloca.h>
-#include <strlen.h>
-#include <basename.h>
-#include <argsmerge.h>
+#include <string.h>
+#include <util.h>
 #include <fail.h>
 
 ERRTAG = "insmod";

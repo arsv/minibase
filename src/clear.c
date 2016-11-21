@@ -2,7 +2,7 @@
 #include <sys/ioctl.h>
 #include <bits/termios.h>
 
-#include <argbits.h>
+#include <util.h>
 #include <fail.h>
 
 #define TCSETSW 0x5403

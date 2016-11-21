@@ -1,8 +1,8 @@
 #include <sys/open.h>
 #include <sys/read.h>
 
-#include <argbits.h>
-#include <writeout.h>
+#include <output.h>
+#include <util.h>
 #include <fail.h>
 
 #define OPTS "nx"

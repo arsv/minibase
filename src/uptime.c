@@ -1,13 +1,8 @@
 #include <sys/clock_gettime.h>
 #include <sys/gettimeofday.h>
 
-#include <argbits.h>
-#include <fmtlong.h>
-#include <fmtstr.h>
-#include <fmtchar.h>
-#include <fmttm.h>
-#include <tv2tm.h>
-#include <writeall.h>
+#include <format.h>
+#include <util.h>
 #include <fail.h>
 
 ERRTAG = "uptime";

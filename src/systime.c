@@ -4,18 +4,9 @@
 #include <sys/gettimeofday.h>
 #include <sys/settimeofday.h>
 
-#include <argbits.h>
-#include <memset.h>
-#include <tv2tm.h>
-#include <tm2tv.h>
-#include <parseint.h>
-#include <strlen.h>
-#include <fmtchar.h>
-#include <fmtlong.h>
-#include <fmtulp.h>
-#include <fmttm.h>
-#include <parseint.h>
-#include <parseulong.h>
+#include <string.h>
+#include <format.h>
+#include <util.h>
 #include <fail.h>
 
 ERRTAG = "systime";

@@ -1,6 +1,6 @@
 #include <sys/mkdir.h>
 
-#include <strcbrk.h>
+#include <string.h>
 #include <fail.h>
 
 #define PARENTS (1<<0)

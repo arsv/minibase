@@ -3,9 +3,9 @@
 #include <sys/write.h>
 
 #include <alloca.h>
-#include <fmtstr.h>
-#include <strlen.h>
-#include <argsmerge.h>
+#include <string.h>
+#include <format.h>
+#include <util.h>
 #include <fail.h>
 
 ERRTAG = "write";
@@ -38,7 +38,7 @@ static int xopen(const char* name, int flags, int mode)
 	return (int)ret;
 }
 
-static void writeall(int fd, const char* buf, int len)
+static void writebuf(int fd, const char* buf, int len)
 {
 	long wr;
 
@@ -58,7 +58,7 @@ static void writeargs(int fd, int argc, char** argv)
 	char* end = buf + sizeof(buf);
 
 	argsmerge(buf, end, argc, argv);
-	writeall(fd, buf, end - buf);
+	writebuf(fd, buf, end - buf);
 }
 
 int main(int argc, char** argv)

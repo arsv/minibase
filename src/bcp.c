@@ -1,21 +1,18 @@
 #include <sys/open.h>
+#include <sys/close.h>
 #include <sys/fstat.h>
+#include <sys/read.h>
+#include <sys/write.h>
+#include <sys/lseek.h>
 #include <sys/mmap.h>
 #include <sys/munmap.h>
-#include <sys/write.h>
-#include <sys/ioctl.h>
 #include <sys/ftruncate.h>
 #include <sys/fallocate.h>
 #include <sys/sendfile.h>
-#include <sys/lseek.h>
-#include <sys/close.h>
-#include <sys/read.h>
-#include <bits/types.h>
+#include <sys/ioctl.h>
 
-#include <argbits.h>
-#include <parselong.h>
-#include <memcpy.h>
-#include <writeall.h>
+#include <string.h>
+#include <util.h>
 #include <fail.h>
 
 ERRTAG = "bcp";

@@ -2,10 +2,10 @@
 #include <sys/read.h>
 #include <sys/brk.h>
 
+#include <string.h>
+#include <output.h>
+#include <util.h>
 #include <fail.h>
-#include <strlen.h>
-#include <strecbrk.h>
-#include <writeout.h>
 
 #define PAGE 4096
 

@@ -1,6 +1,6 @@
 #include <sys/mknod.h>
 
-#include <parseint.h>
+#include <format.h>
 #include <fail.h>
 
 #define makedev(x,y) ( \

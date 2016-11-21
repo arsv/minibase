@@ -4,7 +4,7 @@
 #include <sys/fsync.h>		/* of one taking optional fd and flags?    */
 #include <sys/fdatasync.h>
 
-#include <argbits.h>
+#include <util.h>
 #include <fail.h>
 
 #define OPTS "fd"

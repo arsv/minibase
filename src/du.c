@@ -4,17 +4,10 @@
 #include <sys/open.h>
 #include <sys/close.h>
 
-#include <argbits.h>
-#include <strlen.h>
-#include <memcpy.h>
+#include <string.h>
+#include <format.h>
+#include <util.h>
 #include <fail.h>
-#include <fmtstr.h>
-#include <fmtpad.h>
-#include <fmtint64.h>
-#include <fmtsize.h>
-#include <fmtint64.h>
-#include <qsort.h>
-#include <strcmp.h>
 
 #define OPTS "scbnda"
 #define OPT_s (1<<0)

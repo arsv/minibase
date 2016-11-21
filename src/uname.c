@@ -1,8 +1,8 @@
 #include <sys/write.h>
 #include <sys/uname.h>
 
-#include <argbits.h>
-#include <fmtstr.h>
+#include <format.h>
+#include <util.h>
 #include <fail.h>
 
 ERRTAG = "uname";

@@ -3,10 +3,8 @@
 #include <sys/mkdir.h>
 #include <sys/statfs.h>
 
-#include <argbits.h>
-#include <strcmp.h>
-#include <strlen.h>
-#include <memcpy.h>
+#include <string.h>
+#include <util.h>
 #include <fail.h>
 
 ERRTAG = "mountvfs";

@@ -1,7 +1,6 @@
 #include <sys/write.h>
 
-#include <fmtint32.h>
-#include <fmtstr.h>
+#include <format.h>
 #include <fail.h>
 
 #define ERRBUF 512

@@ -4,11 +4,10 @@
 #include <sys/mmap.h>
 #include <sys/write.h>
 
+#include <format.h>
+#include <string.h>
+#include <util.h>
 #include <fail.h>
-#include <memcpy.h>
-#include <fmtlong.h>
-#include <strecbrk.h>
-#include <strncmp.h>
 
 ERRTAG = "whoami";
 ERRLIST = {

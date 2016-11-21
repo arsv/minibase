@@ -2,7 +2,7 @@
 #include <sys/close.h>
 #include <sys/utimensat.h>
 
-#include <argbits.h>
+#include <util.h>
 #include <fail.h>
 
 /* Ten times out of ten touch is used to (safely) create an empty file.

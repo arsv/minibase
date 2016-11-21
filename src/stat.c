@@ -4,20 +4,9 @@
 #include <sys/mmap.h>
 #include <bits/stmode.h>
 
-#include <argbits.h>
-#include <strlen.h>
-#include <strncmp.h>
-#include <strecbrk.h>
-#include <writeall.h>
-#include <fmtint32.h>
-#include <fmtint64.h>
-#include <fmtlong.h>
-#include <fmtstr.h>
-#include <fmtstrn.h>
-#include <fmtpad.h>
-#include <fmtsize.h>
-#include <fmttm.h>
-#include <tv2tm.h>
+#include <string.h>
+#include <format.h>
+#include <util.h>
 #include <fail.h>
 
 #define STATBUF 1024

@@ -2,17 +2,12 @@
 #include <sys/mmap.h>
 #include <sys/clock_gettime.h>
 
-#include <argbits.h>
-#include <strlen.h>
 #include <alloca.h>
-#include <strqbrk.h>
-#include <strstr.h>
-#include <bufout.h>
-#include <strlen.h>
+#include <string.h>
+#include <format.h>
+#include <output.h>
+#include <util.h>
 #include <fail.h>
-#include <parseint.h>
-#include <parselong.h>
-#include <writeall.h>
 
 /* This is a simple dmesg utility, right?
    Well nope. It's not that simple, and there's a lot of uncertainity
