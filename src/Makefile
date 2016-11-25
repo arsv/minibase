@@ -17,4 +17,6 @@ man1 = cat.1 chmod.1 chown.1 clear.1 df.1 du.1 echo.1 errno.1 hexdump.1 \
 man8 = dmesg.8 fstrim.8 insmod.8 mount.8 mountvfs.8 rmmod.8 switchroot.8 \
 	sysinfo.8 systime.8 uptime.8 
 
+date: date.o date_find.o date_zone.o date_time.o
+
 include $/common.mk
