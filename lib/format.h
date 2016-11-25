@@ -13,6 +13,7 @@ char* fmtu64(char* buf, char* end, uint64_t num);
 char* fmtlong(char* buf, char* end, long num);
 char* fmtulong(char* buf, char* end, unsigned long num);
 char* fmtpad(char* p, char* e, int width, char* q);
+char* fmtpad0(char* p, char* e, int width, char* q);
 
 char* fmtsize(char* p, char* e, uint64_t n);
 char* fmtstr(char* dst, char* end, const char* src);
