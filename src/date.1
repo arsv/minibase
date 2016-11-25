@@ -1,0 +1,38 @@
+.TH date 1
+'''
+.SH NAME
+date \- show local time and convert time between time zones
+'''
+.SH SYNOPSIS
+date [\fItimezone\fR]
+.br
+date [\fItimezone\fR] \fItimespec\fR
+'''
+.SH USAGE
+No-arguments call shows current system time in local time zone.
+Specify \fItimezone\fR to display time in any other zone.
+Supply \fItimespec\fR to convert it instead of the system time.
+.P
+Timezones may be given as an abbreviation (PDT, EEST, UTC-5 and so on)
+or as a \fBtzdata\fR zone name (US/Pacific).
+.P
+Acceptable \fItimespec\fR format is
+.IP "" 8
+[\fIY\fB-\fIM\fB-\fID\fR] \fIhh\fB:\fImm\fR[:\fIss\fR] [\fItimezone\fR]
+'''
+.SH FILES
+Zone definitions are usually provided by \fBtzdata\fR package.
+.IP "/etc/localtime" 4
+Local time zone definition.
+.IP "/usr/share/zoneinfo" 4
+Locations to look for named zones.
+'''
+.SH ENVIRONMENT
+.IP "TZ" 4
+Local time zone name. If defined, overrides /etc/localtime.
+.br
+Any name valid for \fItimezone\fR argument is valid in \fB$TZ\fR
+as well.
+'''
+.SH SEE ALSO
+\fBsystime\fR(8), \fBtzfile\fR(5)
