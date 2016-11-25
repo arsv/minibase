@@ -3,6 +3,8 @@
 
 #include <bits/ints.h>
 
+typedef unsigned char uint8_t;
+
 typedef uint64_t ino64_t;
 typedef uint64_t off64_t;
 
