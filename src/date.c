@@ -55,26 +55,35 @@ static int lookslikestamp(const char* arg)
 	return 1;
 }
 
-static int looksliketime(const char* arg)
+/* Time is [0-9:]+ and date is [0-9-]+. This is enough to prevent
+   confusion as to what is where. Actual validity will be checked
+   later anyway by parse*. */
+
+static int only_digits_and(char what, char* arg)
 {
-	int len = strlen(arg);
+	char* p;
 
-	if(len == 5 && arg[2] == ':')
-		return 1;
-	if(len == 8 && arg[2] == ':' && arg[5] == ':')
-		return 1;
+	for(p = arg; *p; p++)
+		if(*p >= '0' && *p <= '9')
+			continue;
+		else if(*p == what)
+			continue;
+		else
+			return 0;
+	if(p == arg)
+		return 0;
 
-	return 0;
+	return 1;
 }
 
-static int lookslikedate(const char* arg)
+static int looksliketime(char* arg)
 {
-	int len = strlen(arg);
+	return only_digits_and(':', arg);
+}
 
-	if(len == 4+3+3 && arg[4] == '-' && arg[7] == '-')
-		return 1;
-
-	return 0;
+static int lookslikedate(char* arg)
+{
+	return only_digits_and('-', arg);
 }
 
 static void systemtime(struct timedesc* zt)
@@ -128,8 +137,10 @@ static void decodehms(struct timedesc* zt, char* arg)
 	if(*p++ != ':') goto bad;
 	if(!(p = parseint(p, &m))) goto bad;
 
-	if(*p++ != ':')
+	if(!*p)
 		s = 0;
+	else if(*p != ':')
+		goto bad;
 	else if(!(p = parseint(p, &s)))
 		goto bad;
 	if(*p)
