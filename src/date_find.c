@@ -1,7 +1,6 @@
 #include <sys/open.h>
 #include <sys/fstat.h>
 #include <sys/mmap.h>
-#include <sys/close.h>
 
 #include <string.h>
 #include <format.h>
@@ -168,8 +167,6 @@ static void open_zone_file(struct zonefile* zf, const char* name)
 	zf->name = name;
 	zf->data = (void*)addr;
 	zf->len = st.st_size;
-
-	sysclose(fd);
 }
 
 void open_named_zone(struct zonefile* zf, const char* zone)
