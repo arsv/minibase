@@ -31,9 +31,11 @@
 ERRTAG = "date";
 ERRLIST = { RESTASNUMBERS };
 
-#define OPTS "uf"
+#define OPTS "uftd"
 #define OPT_u (1<<0)
 #define OPT_f (1<<1)
+#define OPT_t (1<<2)
+#define OPT_d (1<<3)
 
 static int lookslikezone(const char* arg)
 {
@@ -191,10 +193,14 @@ static void decodetime(struct timedesc* zt, int argc, char** argv)
 
 static const char* chooseformat(int opts)
 {
+	if(opts & OPT_t)
+		return "h:m:s";
+	if(opts & OPT_d)
+		return "Y-M-D";
 	if(opts & OPT_u)
-		return "Y-M-D h:m:s";
-	else
-		return "Y-M-D h:m:s Z";
+		return "u";
+
+	return "Y-M-D h:m:sz";
 }
 
 static char* fmtint0(char* p, char* end, int n, int w)
@@ -204,7 +210,7 @@ static char* fmtint0(char* p, char* end, int n, int w)
 
 static char* fmtzone(char* p, char* end, int diff)
 {
-	p = fmtstr(p, end, "UTC");
+	p = fmtstr(p, end, " UTC");
 
 	if(!diff) return p;
 
@@ -238,7 +244,7 @@ static void showtime(struct timedesc* zt, const char* format)
 		case 'm': p = fmtint0(p, end, tm->tm_min, 2); break;
 		case 's': p = fmtint0(p, end, tm->tm_sec, 2); break;
 		case 'u': p = fmtlong(p, end, zt->tv.tv_sec); break;
-		case 'Z': p = fmtzone(p, end, zt->offset); break;
+		case 'z': p = fmtzone(p, end, zt->offset); break;
 		default: p = fmtchar(p, end, *c);
 	}
 
