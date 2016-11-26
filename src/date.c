@@ -177,6 +177,8 @@ static void decodetime(struct timedesc* zt, int argc, char** argv)
 		decodehms(zt, argv[1]);
 		zt->type = TIME_TM_ALL;
 	} else {
+		systemtime(zt); /* we'll need tv later */
+
 		if(looksliketime(argv[0]))        /* 10:00 PDT */
 			decodehms(zt, argv[0]);
 		else if(lookslikedate(argv[0]))   /* 2016-11-20 PDT */

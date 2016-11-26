@@ -36,7 +36,7 @@ static void transback_tm_all_to_tv(struct timedesc* zt, struct zonefile* zf)
 
 	zone_shift_rev(zf, zt->tv.tv_sec, &zx);
 
-	zt->tv.tv_sec -= zx.leapoff - zx.leapsec - zx.zoneoff;
+	zt->tv.tv_sec -= zx.leapoff + zx.leapsec + zx.zoneoff;
 
 	zt->type = TIME_TV;
 }
@@ -62,13 +62,25 @@ static void transback_tm_hms_to_tv(struct timedesc* zt, struct zonefile* zf)
 	};
 	struct tm tm;
 
+	int hour = zt->tm.tm_hour;
+	int min = zt->tm.tm_min;
+	int sec = zt->tm.tm_sec;
+
 	tv2tm(&tv, &tm);
-	tm.tm_hour = zt->tm.tm_hour;
-	tm.tm_min = zt->tm.tm_min;
-	tm.tm_sec = zt->tm.tm_sec;
+	memcpy(&zt->tm, &tm, sizeof(tm));
+	zt->tm.tm_hour = hour;
+	zt->tm.tm_min = min;
+	zt->tm.tm_sec = sec;
 	zt->type = TIME_TM_ALL;
 
 	transback_tm_all_to_tv(zt, zf);
+}
+
+static void link_zone_data(struct zonefile* dst, struct zonefile* src)
+{
+	dst->name = src->name;
+	dst->data = src->data;
+	dst->len = src->len;
 }
 
 static void prepare_zones(struct zonefile* tgt, struct zonefile* src,
@@ -89,9 +101,9 @@ static void prepare_zones(struct zonefile* tgt, struct zonefile* src,
 
 	if(!tgt->data && !src->data)
 		open_default_zone(tgt);
-	else if(!src->data)
+	if(!src->data)
 		link_zone_data(src, tgt);
-	else if(!tgt->data)
+	if(!tgt->data)
 		link_zone_data(tgt, src);
 
 	/* TODO: no need to map zonefile for time-only translation

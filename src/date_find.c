@@ -10,6 +10,7 @@
 #include "date.h"
 
 static char zonebase[] = "/usr/share/zoneinfo";
+static char localtime[] = "/etc/localtime";
 
 /* Zone name abbreviation: 10:00 PDT when tzdata only has US/Pacific.
 
@@ -114,13 +115,6 @@ void maybe_utc_zone(struct zonefile* zf, const char* zone)
 	zf->fixed = 1;
 }
 
-void link_zone_data(struct zonefile* dst, struct zonefile* src)
-{
-	dst->name = src->name;
-	dst->data = src->data;
-	dst->len = src->len;
-}
-
 static void open_zone_file(struct zonefile* zf, const char* name)
 {
 	long fd = xchk(sysopen(name, O_RDONLY), "open", name);
@@ -167,5 +161,5 @@ void open_named_zone(struct zonefile* zf, const char* zone)
 
 void open_default_zone(struct zonefile* zf)
 {
-	open_zone_file(zf, "/etc/localtime");
+	open_zone_file(zf, localtime);
 }

@@ -142,7 +142,7 @@ void zone_shift_fwd(struct zonefile* zf, time_t ts, struct zoneshift* zx)
 	struct tzh* tp = &tz;
 	int i;
 
-	tz_init(zf, &tz);
+	tz_init(zf, tp);
 	
 	int lo = 0;
 	int ls = 0;
@@ -151,6 +151,8 @@ void zone_shift_fwd(struct zonefile* zf, time_t ts, struct zoneshift* zx)
 			lo = tz_leapsum(tp, i);
 		} else if(tz_leapbase(tp, i) == ts) {
 			ls = tz_leapsum(tp, i) - lo;
+			break;
+		} else {
 			break;
 		}
 
@@ -173,9 +175,60 @@ void zone_shift_fwd(struct zonefile* zf, time_t ts, struct zoneshift* zx)
 	zx->zoneoff = zo;
 }
 
+/* Find zoneshift zx such that zone_shift_fwd(ts - zx) = zx.
+   The following assumes that DST shifts never occur within about zoneoff
+   of leap seconds. Which is typically true. */
+
 void zone_shift_rev(struct zonefile* zf, time_t ts, struct zoneshift* zx)
 {
-	zx->leapoff = 0;
-	zx->leapsec = 0;
-	zx->zoneoff = 0;
+	struct tzh tz;
+	struct tzh* tp = &tz;
+	int i;
+
+	tz_init(zf, tp);
+
+	int leapoff = 0;
+	int leapsec = 0;
+	for(i = 0; i < tz_leapcnt(tp); i++) {
+		int loff = tz_leapsum(tp, i);
+		int lbase = tz_leapbase(tp, i);
+
+		/* tsorig + loff == ts */
+		/* tsorig == lbase && tsorig + lprev + lsec == ts */
+
+		if(lbase < ts - loff - 1) {
+			leapoff = loff;
+		} else if(lbase == ts - loff - 1) {
+			leapoff = loff;
+			leapsec = 1;
+			break;
+		} else if(lbase == ts - loff) {
+			leapoff = loff;
+			break;
+		} else {
+			break;
+		}
+	}
+
+	zx->leapoff = leapoff;
+	zx->leapsec = leapsec;
+	ts -= leapoff + leapsec;
+
+	int zoneoff = 0;
+
+	if(zf->fixed) {
+		zoneoff = zf->offset;
+	} else {
+		for(i = 0; i < tz_timecnt(tp); i++) {
+			time_t ttime = tz_times(tp, i);
+			int ttype = tz_ttype(tp, i);
+			int off = tz_types(tp, ttype);
+			if(ttime < ts - off)
+				zoneoff = off;
+			else
+				break;
+		}
+	}
+
+	zx->zoneoff = zoneoff;
 }

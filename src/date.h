@@ -33,7 +33,6 @@ void translate(struct timedesc* zt, const char* zone);
 void maybe_utc_zone(struct zonefile* zf, const char* zone);
 void open_named_zone(struct zonefile* zf, const char* zone);
 void open_default_zone(struct zonefile* zf);
-void link_zone_data(struct zonefile* dst, struct zonefile* src);
 
 void zone_shift_fwd(struct zonefile* zf, time_t ts, struct zoneshift* zx);
 void zone_shift_rev(struct zonefile* zf, time_t ts, struct zoneshift* zx);
