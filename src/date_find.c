@@ -126,7 +126,7 @@ bad:
 	fail("bad UTC zone spec", NULL, 0);
 }
 
-void maybe_utc_zone(struct zonefile* zf, const char* zone)
+static void maybe_utc_zone(struct zonefile* zf, const char* zone)
 {
 	struct zoneabbr* p;
 
@@ -169,7 +169,7 @@ static void open_zone_file(struct zonefile* zf, const char* name)
 	zf->len = st.st_size;
 }
 
-void open_named_zone(struct zonefile* zf, const char* zone)
+static void open_named_zone(struct zonefile* zf, const char* zone)
 {
 	int baselen = strlen(zonebase);
 	int zonelen = strlen(zone);
@@ -189,7 +189,42 @@ void open_named_zone(struct zonefile* zf, const char* zone)
 	open_zone_file(zf, buf);
 }
 
-void open_default_zone(struct zonefile* zf)
+static void open_default_zone(struct zonefile* zf)
 {
 	open_zone_file(zf, localtime);
+}
+
+static void link_zone_data(struct zonefile* dst, struct zonefile* src)
+{
+	dst->name = src->name;
+	dst->data = src->data;
+	dst->len = src->len;
+}
+
+void prepare_zones(struct zonefile* tgt, struct zonefile* src,
+                   const char* tgtzone, const char* srczone)
+{
+	memset(tgt, 0, sizeof(*tgt));
+	memset(src, 0, sizeof(*src));
+
+	if(tgtzone)
+		maybe_utc_zone(tgt, tgtzone);
+	if(srczone)
+		maybe_utc_zone(src, srczone);
+
+	if(srczone && !src->fixed)
+		open_named_zone(src, srczone);
+	if(tgtzone && !tgt->fixed)
+		open_named_zone(tgt, tgtzone);
+
+	if(!tgt->data && !src->data)
+		open_default_zone(tgt);
+	if(!src->data)
+		link_zone_data(src, tgt);
+	if(!tgt->data)
+		link_zone_data(tgt, src);
+
+	/* TODO: no need to map zonefile for time-only translation
+	   between two fixed-offset zones, i.e. `date EEST 7:40 EDT`.
+	   The "time-only" clearly depends on the format. */
 }

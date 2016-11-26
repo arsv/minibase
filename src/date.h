@@ -30,9 +30,5 @@ struct zoneshift {
 
 void translate(struct timedesc* zt, const char* zone);
 
-void maybe_utc_zone(struct zonefile* zf, const char* zone);
-void open_named_zone(struct zonefile* zf, const char* zone);
-void open_default_zone(struct zonefile* zf);
-
-void zone_shift_fwd(struct zonefile* zf, time_t ts, struct zoneshift* zx);
-void zone_shift_rev(struct zonefile* zf, time_t ts, struct zoneshift* zx);
+void prepare_zones(struct zonefile* tgt, struct zonefile* src,
+		const char* tgtzone, const char* srczone);
