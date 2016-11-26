@@ -97,9 +97,42 @@ struct zoneabbr {
 	{ "", 0 }
 };
 
+static void plain_utc_zone(struct zonefile* zf, const char* zone)
+{
+	int offset = 0;
+	int negate = 0;
+	const char* p = zone;
+	int n;
+
+	if(!*p) goto out;
+	if(*p != '-' && *p != '+') goto bad;
+	if(*p == '-') negate = 1;
+
+	p = parseint(p+1, &n);
+	offset = 60*60*n;
+
+	if(!*p) goto out;
+	if(*p != ':') goto bad;
+
+	p = parseint(p+1, &n);
+	offset += 60*n;
+	
+	if(*p) goto bad;
+out:
+	zf->fixed = 1;
+	zf->offset = negate ? -offset : offset;
+	return;
+
+bad:
+	fail("bad UTC zone spec", NULL, 0);
+}
+
 void maybe_utc_zone(struct zonefile* zf, const char* zone)
 {
 	struct zoneabbr* p;
+
+	if(!strncmp(zone, "UTC", 3))
+		return plain_utc_zone(zf, zone + 3);
 
 	if(strlen(zone) >= ZNML)
 		return;

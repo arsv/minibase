@@ -107,9 +107,9 @@ static void decodestamp(struct timedesc* zt, char* arg)
 	tv2tm(&zt->tv, &zt->tm);
 }
 
-static void decodeymd(struct timedesc* zt, char* arg)
+static void decodeymd(struct timedesc* zt, const char* arg)
 {
-	char* p = arg;
+	const char* p = arg;
 	int y, m, d;
 
 	if(!(p = parseint(p, &y))) goto bad;
@@ -128,9 +128,9 @@ bad:
 	fail("cannot parse date:", arg, 0);
 }
 
-static void decodehms(struct timedesc* zt, char* arg)
+static void decodehms(struct timedesc* zt, const char* arg)
 {
-	char* p = arg;
+	const char* p = arg;
 	int h, m, s;
 
 	if(!(p = parseint(p, &h))) goto bad;
