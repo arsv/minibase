@@ -19,7 +19,7 @@ void tm2tv(struct tm* tm, struct timeval* tv)
 		year -= 1;
 	}
 
-	uint64_t ts;
+	time_t ts;
 	
 	ts = (year/4 - year/100 + year/400 + 367*mon/12 + day);
 	ts += year*365 - 719499;	/* days */
