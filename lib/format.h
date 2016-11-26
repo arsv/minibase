@@ -22,6 +22,6 @@ char* fmtstrn(char* dst, char* end, const char* src, int len);
 char* fmttm(char* buf, char* end, struct tm* tm);
 char* fmtulp(char* buf, char* end, unsigned long num, int pad);
 
-char* parseint(char* buf, int* np);
+const char* parseint(const char* buf, int* np);
 char* parselong(char* buf, long* np);
 char* parseulong(char* buf, unsigned long* np);
