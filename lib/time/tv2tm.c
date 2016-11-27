@@ -66,4 +66,6 @@ void tv2tm(struct timeval* tv, struct tm* tm)
 	tm->tm_sec = secs % 60; secs /= 60;
 	tm->tm_min = secs % 60; secs /= 60;
 	tm->tm_hour = secs % 24;
+
+	tm->tm_isdst = 0;
 }
