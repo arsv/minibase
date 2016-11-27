@@ -2,6 +2,7 @@
 #include <sys/fstat.h>
 #include <sys/mmap.h>
 
+#include <alloca.h>
 #include <string.h>
 #include <format.h>
 #include <fail.h>
@@ -126,25 +127,29 @@ bad:
 	fail("bad UTC zone spec", NULL, 0);
 }
 
-static void maybe_utc_zone(struct zonefile* zf, const char* zone)
+static int maybe_utc_zone(struct zonefile* zf, const char* zone)
 {
 	struct zoneabbr* p;
 
-	if(!strncmp(zone, "UTC", 3))
-		return plain_utc_zone(zf, zone + 3);
+	if(!strncmp(zone, "UTC", 3)) {
+		plain_utc_zone(zf, zone + 3);
+		return 1;
+	}
 
 	if(strlen(zone) >= ZNML)
-		return;
+		return 0;
 
 	for(p = fixedzones; p->name[0]; p++)
 		if(!strncmp(p->name, zone, 8))
 			break;
 
 	if(!p->name[0])
-		return;
+		return 0;
 
 	zf->offset = p->offset*15*60;
 	zf->fixed = 1;
+
+	return 1;
 }
 
 static void open_zone_file(struct zonefile* zf, const char* name)
@@ -169,31 +174,6 @@ static void open_zone_file(struct zonefile* zf, const char* name)
 	zf->len = st.st_size;
 }
 
-static void open_named_zone(struct zonefile* zf, const char* zone)
-{
-	int baselen = strlen(zonebase);
-	int zonelen = strlen(zone);
-	int len = baselen + 1 + zonelen + 2;
-
-	char buf[len];
-	char* end = buf + sizeof(buf) - 1;
-	char* p = buf;
-
-	p = fmtstrn(p, end, zonebase, baselen);
-	p = fmtstrn(p, end, "/", 1);
-	p = fmtstrn(p, end, zone, zonelen);
-	*p = '\0';
-
-	/* TODO: move path out of here, and keep it in zf->name */
-
-	open_zone_file(zf, buf);
-}
-
-static void open_default_zone(struct zonefile* zf)
-{
-	open_zone_file(zf, localtime);
-}
-
 static void link_zone_data(struct zonefile* dst, struct zonefile* src)
 {
 	dst->name = src->name;
@@ -201,27 +181,65 @@ static void link_zone_data(struct zonefile* dst, struct zonefile* src)
 	dst->len = src->len;
 }
 
+static int open_short_zone(struct zonefile* zf, const char* zone)
+{
+	if(!zone)
+		return 1;
+
+	if(maybe_utc_zone(zf, zone))
+		return 1;
+
+	return 0;
+}
+
+static void make_zone_name(char* buf, int len, int baselen, int zonelen,
+                           const char* zone)
+{
+	char* end = buf + len - 1;
+	char* p = buf;
+
+	p = fmtstrn(p, end, zonebase, baselen);
+	p = fmtstrn(p, end, "/", 1);
+	p = fmtstrn(p, end, zone, zonelen);
+	*p = '\0';
+}
+
+/* The entry point to the whole timezone-handling module owns path
+   name buffers for zone files. This is only needed to have zf->name
+   properly defined in translate(). */
+
 void apply_zones(struct timedesc* zt, const char* tgtzone)
 {
 	struct zonefile tgt;
 	struct zonefile src;
 	const char* srczone = zt->zone;
 
+	int baselen = strlen(zonebase);
+	int zonelen;
+	int pathlen;
+	char* pathbuf;
+
 	memset(&tgt, 0, sizeof(tgt));
 	memset(&src, 0, sizeof(src));
 
-	if(tgtzone)
-		maybe_utc_zone(&tgt, tgtzone);
-	if(srczone)
-		maybe_utc_zone(&src, srczone);
+	if(open_short_zone(&tgt, tgtzone)) goto A;
 
-	if(srczone && !src.fixed)
-		open_named_zone(&src, srczone);
-	if(tgtzone && !tgt.fixed)
-		open_named_zone(&tgt, tgtzone);
+	zonelen = strlen(tgtzone);
+	pathlen = baselen + zonelen + 5;
+	pathbuf = alloca(pathlen);
+	make_zone_name(pathbuf, pathlen, baselen, zonelen, tgtzone);
+	open_zone_file(&tgt, pathbuf);
+A:
+	if(open_short_zone(&src, srczone)) goto B;
 
+	zonelen = strlen(srczone);
+	pathlen = baselen + zonelen + 5;
+	pathbuf = alloca(pathlen);
+	make_zone_name(pathbuf, pathlen, baselen, zonelen, srczone);
+	open_zone_file(&src, pathbuf);
+B:
 	if(!tgt.data && !src.data)
-		open_default_zone(&tgt);
+		open_zone_file(&tgt, localtime);
 	if(!src.data)
 		link_zone_data(&src, &tgt);
 	if(!tgt.data)
