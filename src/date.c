@@ -238,7 +238,7 @@ static void show_time(struct timedesc* zt, const char* format)
 
 	for(c = format; *c; c++) switch(*c) {
 		case 'Y': p = fmtint0(p, end, 1900 + tm->tm_year, 4); break;
-		case 'M': p = fmtint0(p, end, tm->tm_mon, 2); break;
+		case 'M': p = fmtint0(p, end, tm->tm_mon+1, 2); break;
 		case 'D': p = fmtint0(p, end, tm->tm_mday, 2); break;
 		case 'h': p = fmtint0(p, end, tm->tm_hour, 2); break;
 		case 'm': p = fmtint0(p, end, tm->tm_min, 2); break;
