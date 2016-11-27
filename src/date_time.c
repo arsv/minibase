@@ -329,21 +329,16 @@ static void translate_tv_to_local_tm(struct timedesc* zt, struct zonefile* tgt)
 	zt->offset = zsh.zoneoff;
 }
 
-void translate(struct timedesc* zt, const char* targetzone)
+void translate(struct timedesc* zt, struct zonefile* src, struct zonefile* tgt)
 {
-	struct zonefile tgt;
-	struct zonefile src;
-
-	prepare_zones(&tgt, &src, targetzone, zt->zone);
-
 	if(zt->type == TIME_TM_HMS)
-		transback_tm_hms_to_tv(zt, &src);
+		transback_tm_hms_to_tv(zt, src);
 	else if(zt->type == TIME_TM_ALL)
-		transback_tm_all_to_tv(zt, &src);
+		transback_tm_all_to_tv(zt, src);
 
 	/* zt->tv is now a proper unix timestamp */
 
-	translate_tv_to_local_tm(zt, &tgt);
+	translate_tv_to_local_tm(zt, tgt);
 	
 	/* zt->tm is now proper local time representation */
 }

@@ -28,7 +28,5 @@ struct zoneshift {
 	int leapsec;     /* this second is a leap one */
 };
 
-void translate(struct timedesc* zt, const char* zone);
-
-void prepare_zones(struct zonefile* tgt, struct zonefile* src,
-		const char* tgtzone, const char* srczone);
+void apply_zones(struct timedesc* zt, const char* zone);
+void translate(struct timedesc* zt, struct zonefile* src, struct zonefile* dst);

@@ -201,30 +201,35 @@ static void link_zone_data(struct zonefile* dst, struct zonefile* src)
 	dst->len = src->len;
 }
 
-void prepare_zones(struct zonefile* tgt, struct zonefile* src,
-                   const char* tgtzone, const char* srczone)
+void apply_zones(struct timedesc* zt, const char* tgtzone)
 {
-	memset(tgt, 0, sizeof(*tgt));
-	memset(src, 0, sizeof(*src));
+	struct zonefile tgt;
+	struct zonefile src;
+	const char* srczone = zt->zone;
+
+	memset(&tgt, 0, sizeof(tgt));
+	memset(&src, 0, sizeof(src));
 
 	if(tgtzone)
-		maybe_utc_zone(tgt, tgtzone);
+		maybe_utc_zone(&tgt, tgtzone);
 	if(srczone)
-		maybe_utc_zone(src, srczone);
+		maybe_utc_zone(&src, srczone);
 
-	if(srczone && !src->fixed)
-		open_named_zone(src, srczone);
-	if(tgtzone && !tgt->fixed)
-		open_named_zone(tgt, tgtzone);
+	if(srczone && !src.fixed)
+		open_named_zone(&src, srczone);
+	if(tgtzone && !tgt.fixed)
+		open_named_zone(&tgt, tgtzone);
 
-	if(!tgt->data && !src->data)
-		open_default_zone(tgt);
-	if(!src->data)
-		link_zone_data(src, tgt);
-	if(!tgt->data)
-		link_zone_data(tgt, src);
+	if(!tgt.data && !src.data)
+		open_default_zone(&tgt);
+	if(!src.data)
+		link_zone_data(&src, &tgt);
+	if(!tgt.data)
+		link_zone_data(&tgt, &src);
 
 	/* TODO: no need to map zonefile for time-only translation
 	   between two fixed-offset zones, i.e. `date EEST 7:40 EDT`.
 	   The "time-only" clearly depends on the format. */
+
+	translate(zt, &src, &tgt);
 }

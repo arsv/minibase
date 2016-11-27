@@ -94,7 +94,7 @@ static void systemtime(struct timedesc* zt)
 	zt->type = TIME_TV;
 }
 
-static void decodestamp(struct timedesc* zt, char* arg)
+static void decode_stamp(struct timedesc* zt, char* arg)
 {
 	long ts;
 	char* p;
@@ -109,7 +109,7 @@ static void decodestamp(struct timedesc* zt, char* arg)
 	tv2tm(&zt->tv, &zt->tm);
 }
 
-static void decodeymd(struct timedesc* zt, const char* arg)
+static void decode_ymd(struct timedesc* zt, const char* arg)
 {
 	const char* p = arg;
 	int y, m, d;
@@ -130,7 +130,7 @@ bad:
 	fail("cannot parse date:", arg, 0);
 }
 
-static void decodehms(struct timedesc* zt, const char* arg)
+static void decode_hms(struct timedesc* zt, const char* arg)
 {
 	const char* p = arg;
 	int h, m, s;
@@ -157,14 +157,14 @@ bad:
 	fail("cannot parse time:", arg, 0);
 }
 
-static void decodetime(struct timedesc* zt, int argc, char** argv)
+static void decode_time(struct timedesc* zt, int argc, char** argv)
 {
 	zt->zone = NULL;
 
 	if(argc <= 0)
 		return systemtime(zt);
 	if(argc == 1 && lookslikestamp(argv[0]))
-		return decodestamp(zt, argv[0]);
+		return decode_stamp(zt, argv[0]);
 
 	zt->tv.tv_sec = 0;
 	zt->tv.tv_usec = 0;
@@ -175,14 +175,14 @@ static void decodetime(struct timedesc* zt, int argc, char** argv)
 		fail("too many arguments", NULL, 0);
 
 	if(argc == 2) {	/* 2016-11-20 10:00 PDT */
-		decodeymd(zt, argv[0]);
-		decodehms(zt, argv[1]);
+		decode_ymd(zt, argv[0]);
+		decode_hms(zt, argv[1]);
 		zt->type = TIME_TM_ALL;
 	} else {
 		systemtime(zt); /* we'll need tv later */
 
 		if(looksliketime(argv[0]))        /* 10:00 PDT */
-			decodehms(zt, argv[0]);
+			decode_hms(zt, argv[0]);
 		else if(lookslikedate(argv[0]))   /* 2016-11-20 PDT */
 			fail("time must be supplied in this mode", NULL, 0);
 		else
@@ -228,7 +228,7 @@ static char* fmtzone(char* p, char* end, int diff)
 	return p;
 }
 
-static void showtime(struct timedesc* zt, const char* format)
+static void show_time(struct timedesc* zt, const char* format)
 {
 	char buf[200];
 	char* end = buf + sizeof(buf) - 1;
@@ -276,9 +276,9 @@ int main(int argc, char** argv, char** envp)
 	else
 		zone = getenv(envp, "TZ");
 
-	decodetime(&zt, argc - i, argv + i);
-	translate(&zt, zone);
-	showtime(&zt, format);
+	decode_time(&zt, argc - i, argv + i);
+	apply_zones(&zt, zone);
+	show_time(&zt, format);
 
 	return 0;
 }
