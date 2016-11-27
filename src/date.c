@@ -200,7 +200,7 @@ static const char* chooseformat(int opts)
 	if(opts & OPT_u)
 		return "u";
 
-	return "Y-M-D h:m:sz";
+	return "w Y-M-D h:m:sz";
 }
 
 static char* fmtint0(char* p, char* end, int n, int w)
@@ -228,6 +228,17 @@ static char* fmtzone(char* p, char* end, int diff)
 	return p;
 }
 
+static const char wdays[][3] = {
+	"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+};
+
+static char* fmtwday(char* p, char* end, int wday)
+{
+	if(wday < 0 || wday > 6)
+		return fmtlong(p, end, wday);
+	return fmtstrn(p, end, wdays[wday], 3);
+}
+
 static void show_time(struct timedesc* zt, const char* format)
 {
 	char buf[200];
@@ -243,6 +254,7 @@ static void show_time(struct timedesc* zt, const char* format)
 		case 'h': p = fmtint0(p, end, tm->tm_hour, 2); break;
 		case 'm': p = fmtint0(p, end, tm->tm_min, 2); break;
 		case 's': p = fmtint0(p, end, tm->tm_sec, 2); break;
+		case 'w': p = fmtwday(p, end, tm->tm_wday); break;
 		case 'u': p = fmtlong(p, end, zt->tv.tv_sec); break;
 		case 'z': p = fmtzone(p, end, zt->offset); break;
 		default: p = fmtchar(p, end, *c);
