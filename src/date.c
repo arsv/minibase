@@ -31,11 +31,12 @@
 ERRTAG = "date";
 ERRLIST = { RESTASNUMBERS };
 
-#define OPTS "uftd"
+#define OPTS "uftdq"
 #define OPT_u (1<<0)
 #define OPT_f (1<<1)
 #define OPT_t (1<<2)
 #define OPT_d (1<<3)
+#define OPT_q (1<<4)
 
 static int lookslikezone(const char* arg)
 {
@@ -174,7 +175,7 @@ static void decode_time(struct timedesc* zt, int argc, char** argv)
 	if(argc > 2)
 		fail("too many arguments", NULL, 0);
 
-	if(argc == 2) {	/* 2016-11-20 10:00 PDT */
+	if(argc == 2) {   /* 2016-11-20 10:00 PDT */
 		decode_ymd(zt, argv[0]);
 		decode_hms(zt, argv[1]);
 		zt->type = TIME_TM_ALL;
@@ -191,18 +192,6 @@ static void decode_time(struct timedesc* zt, int argc, char** argv)
 	}
 }
 
-static const char* chooseformat(int opts)
-{
-	if(opts & OPT_t)
-		return "h:m:s";
-	if(opts & OPT_d)
-		return "Y-M-D";
-	if(opts & OPT_u)
-		return "u";
-
-	return "w Y-M-D h:m:sz";
-}
-
 static char* fmtint0(char* p, char* end, int n, int w)
 {
 	return fmtpad0(p, end, w, fmti32(p, end, n));
@@ -210,7 +199,7 @@ static char* fmtint0(char* p, char* end, int n, int w)
 
 static char* fmtzone(char* p, char* end, int diff)
 {
-	p = fmtstr(p, end, " UTC");
+	p = fmtstr(p, end, "UTC");
 
 	if(!diff) return p;
 
@@ -265,6 +254,30 @@ static void show_time(struct timedesc* zt, const char* format)
 	writeall(STDOUT, buf, p - buf);
 }
 
+static const char* chooseformat(const char* format, int opts)
+{
+	int mode = opts;
+
+	if(mode == OPT_f)
+		return format;
+	if(mode == OPT_q)
+		return "h:m";
+	if(mode == OPT_t)
+		return "h:m:s";
+	if(mode == OPT_d)
+		return "Y-M-D";
+	if(mode == (OPT_d | OPT_t))
+		return "Y-M-D h:m:s";
+	if(mode == (OPT_d | OPT_q))
+		return "Y-M-D h:m";
+	if(mode == OPT_u)
+		return "u";
+	if(!mode == 0)
+		fail("incorrect use of -dtuqf", NULL, 0);
+
+	return "w Y-M-D h:m:s z";
+}
+
 int main(int argc, char** argv, char** envp)
 {
 	int i = 1;
@@ -281,7 +294,7 @@ int main(int argc, char** argv, char** envp)
 	else if(opts & OPT_f)
 		fail("argument required for -f", NULL, 0);
 	else
-		format = chooseformat(opts);
+		format = NULL;
 
 	if(i < argc && lookslikezone(argv[i]))
 		zone = argv[i++];
@@ -289,7 +302,11 @@ int main(int argc, char** argv, char** envp)
 		zone = getenv(envp, "TZ");
 
 	decode_time(&zt, argc - i, argv + i);
+
 	apply_zones(&zt, zone);
+
+	format = chooseformat(format, opts);
+
 	show_time(&zt, format);
 
 	return 0;
