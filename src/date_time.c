@@ -269,8 +269,6 @@ static void transback_tm_all_to_tv(struct timedesc* zt, struct zonefile* zf)
 	zone_shift_rev(zf, zt->tv.tv_sec, &zx);
 
 	zt->tv.tv_sec -= zx.leapoff + zx.leapsec + zx.zoneoff;
-
-	zt->type = TIME_TV;
 }
 
 /* HMS only transback is tricky. 15:00 PDT (UTC-7) issued at
@@ -303,7 +301,6 @@ static void transback_tm_hms_to_tv(struct timedesc* zt, struct zonefile* zf)
 	zt->tm.tm_hour = hour;
 	zt->tm.tm_min = min;
 	zt->tm.tm_sec = sec;
-	zt->type = TIME_TM_ALL;
 
 	transback_tm_all_to_tv(zt, zf);
 }
@@ -324,7 +321,6 @@ static void translate_tv_to_local_tm(struct timedesc* zt, struct zonefile* tgt)
 
 	zt->tm.tm_sec += zsh.leapsec;
 
-	zt->type = TIME_LOCAL;
 	zt->zone = NULL;
 	zt->offset = zsh.zoneoff;
 }
