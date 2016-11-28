@@ -17,6 +17,8 @@ static char localtime[] = "/etc/localtime";
    There are two cases with different treatment: zones that have
    a fixed UTC offset (e.g. EST, always at UTC-4) and zones that
    have DST or other variations (e.g. ET, which may be -4 or -5).
+   The latter are not handled here; too much ambiguity, and it's
+   way easier to just symlink them in /usr/share/zoneinfo.
 
    https://en.wikipedia.org/wiki/List_of_time_zone_abbreviations */
 
@@ -101,7 +103,7 @@ static void plain_utc_zone(struct zonefile* zf, const char* zone)
 {
 	int offset = 0;
 	int negate = 0;
-	const char* p = zone;
+	char* p = (char*) zone;
 	int n;
 
 	if(!*p) goto out;
