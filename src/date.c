@@ -111,7 +111,7 @@ static void decode_stamp(struct timedesc* zt, char* arg)
 
 static void decode_ymd(struct timedesc* zt, const char* arg)
 {
-	const char* p = arg;
+	char* p = (char*) arg;
 	int y, m, d;
 
 	if(!(p = parseint(p, &y))) goto bad;
@@ -132,7 +132,7 @@ bad:
 
 static void decode_hms(struct timedesc* zt, const char* arg)
 {
-	const char* p = arg;
+	char* p = (char*) arg;
 	int h, m, s;
 
 	if(!(p = parseint(p, &h))) goto bad;
