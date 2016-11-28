@@ -7,6 +7,7 @@
 #include <string.h>
 #include <format.h>
 #include <util.h>
+#include <time.h>
 #include <fail.h>
 
 #define STATBUF 1024

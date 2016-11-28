@@ -7,6 +7,7 @@
 #include <string.h>
 #include <format.h>
 #include <util.h>
+#include <time.h>
 #include <fail.h>
 
 ERRTAG = "systime";
@@ -101,7 +102,7 @@ static void parsetime(struct timeval* tv, struct tm* tm, int argc, char** argv)
 	if(argc > 2)
 		fail("bad time specification", NULL, 0);
 	if(argc == 1) {
-		if(!(p = parseulong(argv[0], &(tv->tv_sec))) || *p)
+		if(!(p = parselong(argv[0], &(tv->tv_sec))) || *p)
 			fail("not a timestamp:", argv[0], 0);
 		tv2tm(tv, tm);
 	} else {

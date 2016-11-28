@@ -4,6 +4,7 @@
 #include <format.h>
 #include <util.h>
 #include <fail.h>
+#include <time.h>
 
 ERRTAG = "uptime";
 ERRLIST = {
