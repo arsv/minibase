@@ -1,0 +1,18 @@
+.TH ff 1
+'''
+.SH NAME
+ff \- find files by name
+'''
+.SH SYNOPSIS
+ff [\fB-i\fR \fIdir\fR] \fIpattern\fR ...
+'''
+.SH USAGE
+ff scans current directory (or \fIdir\fR if given) and prints
+all files whose names start with \fIpattern\fR.
+.P
+Patterns starting with a dot match at the end of the file name.
+Searching for \fB.c\fR will yield the list of all C source files
+in current directory and its subdirectories.
+'''
+.SH SEE ALSO
+\fBls\fR(1), \fBfind\fR(1)
