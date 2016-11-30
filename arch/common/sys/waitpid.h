@@ -1,4 +1,5 @@
 #include <syscall.h>
+#include <bits/wait.h>
 
 inline static long syswaitpid(int pid, int* status, int flags)
 {
