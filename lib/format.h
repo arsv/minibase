@@ -10,6 +10,8 @@ char* fmtu32(char* buf, char* end, uint32_t num);
 char* fmti64(char* buf, char* end,  int64_t num);
 char* fmtu64(char* buf, char* end, uint64_t num);
 
+char* fmtint(char* buf, char* end, int num);
+char* fmtuint(char* buf, char* end, unsigned num);
 char* fmtlong(char* buf, char* end, long num);
 char* fmtulong(char* buf, char* end, unsigned long num);
 char* fmtpad(char* p, char* e, int width, char* q);

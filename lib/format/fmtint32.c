@@ -43,4 +43,9 @@ char* fmtlong(char* buf, char* end, long num)
 char* fmtulong(char* buf, char* end, unsigned long num)
 	__attribute__((alias("fmtu32")));
 
+char* fmtint(char* buf, char* end, int num)
+	__attribute__((alias("fmti32")));
+char* fmtuint(char* buf, char* end, unsigned num)
+	__attribute__((alias("fmtu32")));
+
 #endif
