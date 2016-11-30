@@ -1,0 +1,15 @@
+.TH time 1
+'''
+.SH NAME
+time \- show the time spent running a command
+'''
+.SH SYNOPSIS
+time \fIcommand\fR [\fIargs\fR ...]
+'''
+.SH NOTES
+The time is printed on stderr once the command has finished.
+The tool reports RUSAGE_CHILDREN as described in \fBgetrusage\fR(2);
+see notes there on what exactly gets counted.
+'''
+.SH SEE ALSO
+\fBgetrusage\fR(2), \fBgettimeofday\fR(2)
