@@ -17,4 +17,6 @@ void qsort(void* base, size_t nmemb, size_t size, qcmp cmp, long data);
 
 long writeall(int fd, char* buf, long len);
 
+long execvpe(char* file, char** argv, char** envp);
+
 #endif
