@@ -17,7 +17,7 @@
 
 void tv2tm(struct timeval* tv, struct tm* tm)
 {
-	uint64_t ts = tv->tv_sec;	
+	time_t ts = tv->tv_sec;	
 	static const char mdays[] = {31,30,31,30,31,31,30,31,30,31,31,29};
 
 	ts -= LEAPOCH;
