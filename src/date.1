@@ -6,19 +6,18 @@ date \- show local time and convert time between time zones
 .SH SYNOPSIS
 date [\fItimezone\fR]
 .br
-date [\fItimezone\fR] \fItimespec\fR
+date [\fItimezone\fR] \fItimestamp\fR
+.br
+date [\fItimezone\fR] [\fIY\fB-\fIM\fB-\fID\fR] \fIhh\fB:\fImm\fR[:\fIss\fR] [\fItimezone\fR]
 '''
 .SH USAGE
 No-arguments call shows current system time in local time zone.
-Specify \fItimezone\fR to display time in any other zone.
-Supply \fItimespec\fR to convert it instead of the system time.
+With \fItimezone\fR, shows current system time in that zone.
+Given time specification, either in human-readable format or as a Unix timestamp,
+converts that into local or specified time zone.
 .P
 Timezones may be given as an abbreviation (PDT, EEST, UTC-5 and so on)
 or as a \fBtzdata\fR zone name (US/Pacific).
-.P
-Acceptable \fItimespec\fR format is
-.IP "" 8
-[\fIY\fB-\fIM\fB-\fID\fR] \fIhh\fB:\fImm\fR[:\fIss\fR] [\fItimezone\fR]
 '''
 .SH FILES
 Zone definitions are usually provided by \fBtzdata\fR package.
