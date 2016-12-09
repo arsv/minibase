@@ -1,7 +1,7 @@
 include config.mk
 
 MAKEFLAGS += --no-print-directory
-CFLAGS += -Ilib -Iarch/$(ARCH) -Iarch/common
+CFLAGS += -Ilib/arch/$(ARCH) -Ilib
 
 all: libs.a build
 
@@ -12,7 +12,7 @@ install: $(patsubst %,install-%,$(sdirs))
 
 clean: clean-lib $(patsubst %,clean-%,$(sdirs))
 
-libso = $(patsubst %.s,%.o,$(wildcard arch/$(ARCH)/*.s)) \
+libso = $(patsubst %.s,%.o,$(wildcard lib/arch/$(ARCH)/*.[cs])) \
 	$(patsubst %.c,%.o,$(wildcard lib/*.c lib/*/*.c))
 
 libs.a: $(libso)
@@ -27,4 +27,4 @@ clean-src:
 	rm -f src/*.o
 
 clean-lib:
-	rm -f arch/*/*.o lib/*.o lib/*/*.o libs.a
+	rm -f lib/*.o lib/*/*.o lib/arch/$(ARCH)/*.o libs.a
