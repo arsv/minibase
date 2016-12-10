@@ -1,9 +1,14 @@
 #ifndef __BITS_SOCKET_H__
 #define __BITS_SOCKET_H__
 
-#include <sys/types.h>
+#include <bits/types.h>
 
-#define AF_UNIX 1
+#define AF_UNIX        1
+#define AF_NETLINK    16
+
+#define PF_UNSPEC      0
+#define PF_UNIX        1
+#define PF_NETLINK    16
 
 #define SOCK_STREAM    1
 #define SOCK_DGRAM     2
