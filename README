@@ -76,8 +76,8 @@ GPL version 3, see COPYING.
 
 Credits
 ~~~~~~~
-A lot of code here actually comes from busybox, which in turn
-pulls from util-linux and coreutils, with numerous modifications
+Some of the code here comes from busybox, which in turn pulls
+from util-linux and coreutils, with numerous modifications
 along the way.
 
 Syscall code (static inline functions with asm volatile blocks)
