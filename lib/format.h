@@ -14,6 +14,7 @@ char* fmtint(char* buf, char* end, int num);
 char* fmtuint(char* buf, char* end, unsigned num);
 char* fmtlong(char* buf, char* end, long num);
 char* fmtulong(char* buf, char* end, unsigned long num);
+char* fmtxlong(char* buf, char* end, long num);
 char* fmtpad(char* p, char* e, int width, char* q);
 char* fmtpad0(char* p, char* e, int width, char* q);
 
