@@ -115,6 +115,17 @@ int printf(const char* fmt, ...)
 	return ret;
 }
 
+int putchar(int c)
+{
+        char cc = c;
+        return writeall(STDOUT, &cc, 1);
+}
+
+int puts(const char* str)
+{
+        return writeall(STDOUT, (char*)str, strlen(str));
+}
+
 int eprintf(const char* fmt, ...)
 {
 	int ret;
