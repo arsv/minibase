@@ -12,10 +12,12 @@
 
 #define SOCK_STREAM    1
 #define SOCK_DGRAM     2
+#define SOCK_RAW       3
 #define SOCK_CLOEXEC   02000000
 #define SOCK_NONBLOCK  04000
 
 #define SOL_SOCKET      1
+#define SOL_NETLINK	270
 #define SO_PEERCRED     17
 
 #define SHUT_WR 1
