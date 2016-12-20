@@ -2,6 +2,7 @@
 
 struct tm;
 
+char* fmtbyte(char* dst, char* end, char c);
 char* fmtchar(char* dst, char* end, char c);
 
 char* fmti32(char* buf, char* end,  int32_t num);
