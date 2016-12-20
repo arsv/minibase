@@ -16,7 +16,7 @@ char* fmtxlong(char* buf, char* end, long num)
 	
 	for(i = 0; i < len; i++, p--, num >>= 4)
 		if(p < end)
-			*p = digits[num & 0x07];
+			*p = digits[num & 0x0F];
 
 	return e; 
 }
