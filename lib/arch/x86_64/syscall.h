@@ -45,7 +45,7 @@ inline static long syscall3(long nr, long a1, long a2, long a3)
 
 	asm volatile ("syscall" : "=r"(r0)
 		: "r"(r0), "r"(r1), "r"(r2), "r"(r3)
-		: "rcx", "r11");
+		: "rcx", "r11", "memory");
 
 	return r0;
 };
@@ -60,7 +60,7 @@ inline static long syscall4(long nr, long a1, long a2, long a3, long a4)
 
 	asm volatile ("syscall" : "=r"(r0)
 		: "r"(r0), "r"(r1), "r"(r2), "r"(r3), "r"(r4)
-		: "rcx", "r11");
+		: "rcx", "r11", "memory");
 
 	return r0;
 };
@@ -76,7 +76,7 @@ inline static long syscall5(long nr, long a1, long a2, long a3, long a4, long a5
 
 	asm volatile ("syscall" : "=r"(r0)
 		: "r"(r0), "r"(r1), "r"(r2), "r"(r3), "r"(r4), "r"(r5)
-		: "rcx", "r11");
+		: "rcx", "r11", "memory");
 
 	return r0;
 };
@@ -94,7 +94,7 @@ inline static long syscall6(long nr, long a1, long a2, long a3, long a4,
 
 	asm volatile ("syscall" : "=r"(r0)
 		: "r"(r0), "r"(r1), "r"(r2), "r"(r3), "r"(r4), "r"(r5), "r"(r6)
-		: "rcx", "r11");
+		: "rcx", "r11", "memory");
 
 	return r0;
 };
