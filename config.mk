@@ -5,7 +5,7 @@ CC = $(CROSS)gcc
 AR = $(CROSS)ar
 LD = $(CC)
 AS = $(CC)
-CFLAGS = -nostdinc -Wall -Os -g -fno-asynchronous-unwind-tables
+CFLAGS = -nostdinc -Wall -Os -g -fno-strict-aliasing -fno-asynchronous-unwind-tables
 ASFLAGS = -g -c
 LDFLAGS = -nostdlib
 
