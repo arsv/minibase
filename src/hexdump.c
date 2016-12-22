@@ -18,7 +18,7 @@ static const char hexdigits[] = "0123456789ABCDEF";
 
 static void writeall(int fd, char* buf, long size)
 {
-	long wr;
+	long wr = 0;
 
 	while(size > 0 && (wr = syswrite(fd, buf, size)) > 0) {
 		buf += wr;
