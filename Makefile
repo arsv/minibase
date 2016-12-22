@@ -1,3 +1,5 @@
+/=./
+
 include config.mk
 
 MAKEFLAGS += --no-print-directory

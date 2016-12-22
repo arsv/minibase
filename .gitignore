@@ -1,3 +1,5 @@
 tmp
 *.a
 *.o
+config.mk
+mini-cc

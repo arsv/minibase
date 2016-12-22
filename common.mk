@@ -1,13 +1,10 @@
-LIBS = -L$/ -ls -lgcc -ls
-CFLAGS += -I$/lib -I$/lib/arch/$(ARCH)
-
 .SUFFIXES:
 
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 %: %.o $/libs.a
-	$(LD) $(LDFLAGS) -o $@ $(filter %.o,$^) $(LIBS)
+	$(LD) -o $@ $(filter %.o,$^) $(LIBS)
 
 all: $(bin) $(sbin)
 

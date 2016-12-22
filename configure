@@ -1,0 +1,73 @@
+#!/bin/sh
+
+arch=
+cross=
+
+unset cc ar strip tp
+
+bindir=/bin
+sbindir=/sbin
+mandir=/usr/share/man
+man1dir=$mandir/man1
+man8dir=$mandir/man8
+cflags=-Os
+
+die() { echo "$@" >&2; exit 1; }
+
+for arg in "$@"; do
+	case "$arg" in
+		*dir=*) eval "$arg" ;;
+		cross=*) eval "$arg" ;;
+		x86_64|arm|arm64|riscv) arch=$arg ;;
+		cc=*) eval "$arg" ;;
+		ar=*) eval "$arg" ;;
+		strip=*) eval "$arg" ;;
+		devel) cflags="-Wall -g -Og" ;;
+		*) die "Unexpected argument $arg" ;;
+	esac
+done
+
+tp=${cross:+$cross-}
+test -z "$cc" && cc="${tp}gcc"
+test -z "$ar" && ar="${tp}ar"
+test -z "$strip" && strip="${tp}strip"
+
+if [ -z "$arch" ]; then
+	mach=`$cc -dumpmachine`
+	arch=${mach%%-*}
+	test -n "$arch" || die "Cannot determine target arch"
+	test -d "lib/arch/$arch" || die "Unsupported arch $arch"
+fi
+
+cat > config.mk <<END
+ARCH = $arch
+
+CC = \$/mini-cc
+AR = $ar
+LD = \$(CC)
+AS = \$(CC)
+CFLAGS = $cflags
+ASFLAGS = -g -c
+STRIP = $strip
+
+bindir = $bindir
+sbindir = $sbindir
+man1dir = $man1dir
+man8dir = $man8dir
+END
+
+cat > mini-cc <<END
+#!/bin/sh
+
+case "\$0" in
+	*/*) base=\${0%/*} ;;
+	*) echo "\$0 may not be called from PATH" >&2; exit 1 ;;
+esac
+
+exec $cc \\
+	-nostdinc -I"\$base/lib/arch/$arch" -I"\$base/lib" \\
+	-fno-strict-aliasing -fno-asynchronous-unwind-tables \\
+	"\$@" -nostdlib -L"\$base" -ls -lgcc -ls
+END
+
+chmod a+x mini-cc
