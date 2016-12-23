@@ -25,18 +25,16 @@ void nl_set_rxbuf(struct netlink* nl, void* buf, int len)
 	nl->rxlen = len;
 }
 
-long nl_connect(struct netlink* nl, int protocol)
+long nl_connect(struct netlink* nl, int protocol, int groups)
 {
 	int domain = PF_NETLINK;
 	int type = SOCK_RAW;
 	struct sockaddr_nl nls = {
 		.nl_family = AF_NETLINK,
 		.nl_pid = sysgetpid(),
-		.nl_groups = 0
+		.nl_groups = groups
 	};
 	long ret;
-
-	nls.nl_family = AF_NETLINK;
 
 	if((ret = syssocket(domain, type, protocol)) < 0)
 		return ret;

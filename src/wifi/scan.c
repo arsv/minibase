@@ -378,7 +378,7 @@ int main(int argc, char** argv)
 	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
 	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
 
-	xchk(nl_connect(&nl, NETLINK_GENERIC), "netlink connect", NULL);
+	xchk(nl_connect(&nl, NETLINK_GENERIC, 0), "netlink connect", NULL);
 
 	int nl80211 = resolve_80211_subscribe_scan(&nl);
 	int ifindex = query_interface(&nl, nl80211, ifname);
