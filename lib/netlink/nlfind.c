@@ -52,7 +52,7 @@ static int check_nest(char* buf, int len)
 	return (p == end);
 }
 
-static struct nlattr* attr_0_in(char* buf, int len)
+struct nlattr* attr_0_in(char* buf, int len)
 {
 	if(len < sizeof(struct nlattr))
 		return NULL;

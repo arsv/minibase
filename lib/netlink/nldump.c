@@ -182,6 +182,15 @@ static void nl_dump_gen(struct nlgen* msg)
 		nl_dump_attr(" ATTR", at);
 }
 
+
+void nl_dump_attrs_in(char* buf, int len)
+{
+	struct nlattr* at;
+
+	for(at = attr_0_in(buf, len); at; at = attr_n_in(buf, len, at))
+		nl_dump_attr(" ATTR", at);
+}
+
 static void nl_dump_err(struct nlerr* msg)
 {
 	nl_dump_err_hdr(msg);

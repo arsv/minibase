@@ -105,6 +105,9 @@ uint32_t* nl_u32(struct nlattr* at);
 uint64_t* nl_u64(struct nlattr* at);
 char* nl_str(struct nlattr* at);
 
+struct nlattr* attr_0_in(char* buf, int len);
+struct nlattr* attr_n_in(char* buf, int len, struct nlattr* curr);
+
 struct nlattr* nl_get_0(struct nlgen* msg);
 struct nlattr* nl_get_n(struct nlgen* msg, struct nlattr* curr);
 
@@ -133,3 +136,4 @@ int nl_is_str(struct nlattr* at);
 void nl_dump_tx(struct netlink* nl);
 void nl_dump_rx(struct netlink* nl);
 void nl_hexdump(char* inbuf, int inlen);
+void nl_dump_attrs_in(char* buf, int len);
