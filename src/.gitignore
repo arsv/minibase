@@ -1,10 +1,8 @@
 work/
 dmesg
 fstrim
-insmod
 mount
 mountvfs
-rmmod
 switchroot
 sysinfo
 systime
@@ -41,7 +39,6 @@ true
 write
 wc
 yes
-lsmod
 whoami
 fn
 bcp
