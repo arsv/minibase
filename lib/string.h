@@ -12,3 +12,4 @@ int strncmp(const char* a, const char* b, unsigned long n);
 char* strqbrk(char* s, const char *accept);
 char* strstr(const char* str, const char* sub);
 char* strchr(const char* str, int c);
+char* strerev(char* p, char* e, char c);

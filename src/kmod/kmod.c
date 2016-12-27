@@ -94,15 +94,6 @@ static char* eol(char* p, char* end)
 	return p;
 }
 
-static char* strerev(char* p, char* e, char c)
-{
-	char* z = e;
-
-	while(z > p && *(z-1) != c) z--;
-
-	return z;
-}
-
 static int isspace(int c)
 {
 	return (c == ' ' || c == '\t');
