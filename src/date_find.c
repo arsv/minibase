@@ -156,7 +156,7 @@ static int maybe_utc_zone(struct zonefile* zf, const char* zone)
 
 static void open_zone_file(struct zonefile* zf, const char* name)
 {
-	long fd = xchk(sysopen(name, O_RDONLY), "open", name);
+	long fd = xchk(sysopen(name, O_RDONLY), name, NULL);
 
 	struct stat st;
 	xchk(sysfstat(fd, &st), "stat", name);
