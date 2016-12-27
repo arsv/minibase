@@ -1,0 +1,34 @@
+.TH kmod 8
+'''
+.SH NAME
+kmod \- load or unload kernel module
+'''
+.SH SYNOPSIS
+kmod \fImodule\fR [\fIopt\fR=\fIvalue\fR \fIopt\fR=\fIvalue\fR ...]
+.br
+kmod \fB-r\fR \fImodule\fR [\fImodule\fR \fImodule\fR ...]
+'''
+.SH DESCRIPTION
+kmod attempts to load specified module into the kernel.
+If \fImodule\fR is a path, it is mmaped and loaded directly via
+\fBinit_module\fR(2) syscall. Otherwise, the name is checked against
+modules.dep (see below), and all its dependencies are loaded first.
+.P
+Optional \fIopt\fR=\fIvalue\fR arguments are passed directly to the module.
+Dependencies, if any, are loaded without any options.
+.P
+With \fB-r\fR, kmod calls \fRdelete_module\fR(2) to unload named module.
+Note \fImodule\fR in this case is the name kernel uses internally.
+Usually it's the base name of the module file, but there are no strict
+guarantees on this.
+'''
+.SH FILES
+.IP "/lib/modules/$RELEASE" 4
+Base directory to look for modules.
+.IP "/lib/modules/$RELEASE/modules.dep" 4
+List of module paths and dependencies. 
+.P
+$RELEASE is the running kernel release as returned by \fBuname\fR(2).
+'''
+.SH SEE ALSO
+\fBinit_module\fR(2), \fBdelete_module\fR(2), \fBdepmod\fR(1).

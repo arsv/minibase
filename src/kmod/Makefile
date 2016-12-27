@@ -2,8 +2,8 @@
 
 include $/config.mk
 
-bin = insmod rmmod lsmod
+sbin = kmod insmod rmmod lsmod
 
-man1 = insmod.8 rmmod.8
+man1 = kmod.8 insmod.8 rmmod.8
 
 include $/common.mk
