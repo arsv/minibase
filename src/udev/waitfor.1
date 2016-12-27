@@ -1,0 +1,32 @@
+.TH waitfor 1
+'''
+.SH NAME
+waitfor \- sleep until specified file appears
+'''
+.SH SYNOPSIS
+waitfor [\fB+\fItimeout\fR] \fIfile\fR [\fIfile\fR ...]
+'''
+.SH DESCRIPTION
+During boot device discovery and device nodes allocation in devtmpfs
+may happen concurrently with system init scripts, causing race conditions
+for early mounts and other commands that depend on device node availability.
+.P
+The purpose of \fBwaitfor\fR is to stall the script until the nodes become
+available. It uses \fBinotify\fR(7) interface to listen for file system
+events, exiting immediately once all listed files appear.
+.P
+The tool waits at most 5 seconds, or \fItimeout\fR if it was specified.
+'''
+.SH NOTES
+Timeouts are reported with non-zero exit status, but generally should be
+ignored. Subsequent commands that actually need the files in question
+will likely provide descriptive error messages anyway.
+.P
+This tool is inherently not reliable. It's a faster replacement
+for \fBsleep\fR in scripts, nothing more. Successful exit means that each
+of the requested files was momentarily present at some point in time.
+There are no guarantees that the files are still there by the time waitfor
+exits.
+'''
+.SH SEE ALSO
+\fBinotify\fR(7), \fBsleep\fR(1)

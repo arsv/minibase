@@ -2,9 +2,9 @@
 
 include $/config.mk
 
-bin = waitdev
+bin = waitfor
 
-man1 = waitdev.1
+man1 = waitfor.1
 
 include $/common.mk
 
