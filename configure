@@ -22,7 +22,7 @@ for arg in "$@"; do
 		cc=*) eval "$arg" ;;
 		ar=*) eval "$arg" ;;
 		strip=*) eval "$arg" ;;
-		devel) cflags="-Wall -g -Og" ;;
+		devel) cflags="-Wall -g" ;;
 		*) die "Unexpected argument $arg" ;;
 	esac
 done
