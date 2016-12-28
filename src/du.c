@@ -25,7 +25,10 @@
 
 ERRTAG = "du";
 ERRLIST = {
-	REPORT(ENOENT), RESTASNUMBERS
+	REPORT(EACCES), REPORT(EFBIG), REPORT(EINTR), REPORT(EINVAL),
+	REPORT(EISDIR), REPORT(ENOTDIR), REPORT(ELOOP), REPORT(EMFILE),
+	REPORT(ENFILE), REPORT(ENOMEM), REPORT(ENODEV), REPORT(EPERM),
+	REPORT(EBADF), RESTASNUMBERS
 };
 
 static char debuf[1024];
@@ -33,6 +36,20 @@ static char debuf[1024];
 struct entsize {
 	uint64_t size;
 	char* name;
+};
+
+struct heap {
+	char* brk;
+	char* end;
+	char* ptr;
+
+	int count;
+	char** index;
+};
+
+struct node {
+	int len;
+	char name[];
 };
 
 static void addstsize(uint64_t* sum, struct stat* st, int opts)
@@ -202,20 +219,6 @@ static void scan_each(uint64_t* total, int argc, char** argv, int opts)
 	for(i = 0; i < n; i++)
 		dump(res[i].size, res[i].name, opts);
 }
-
-struct heap {
-	char* brk;
-	char* end;
-	char* ptr;
-
-	int count;
-	char** index;
-};
-
-struct node {
-	int len;
-	char name[];
-};
 
 void init_heap(struct heap* ctx, int size)
 {
