@@ -2,6 +2,7 @@
 #include <sys/getdents.h>
 #include <sys/write.h>
 #include <sys/open.h>
+#include <sys/brk.h>
 #include <sys/close.h>
 
 #include <string.h>
@@ -9,18 +10,25 @@
 #include <util.h>
 #include <fail.h>
 
-#define OPTS "scbnda"
-#define OPT_s (1<<0)
-#define OPT_c (1<<1)
-#define OPT_b (1<<2)
-#define OPT_n (1<<3)
-#define OPT_d (1<<4)
-#define OPT_a (1<<5)
+#define PAGE 4096
+
+#define OPTS "scbndai"
+#define OPT_s (1<<0)	/* size individual dirents */
+#define OPT_c (1<<1)	/* show total size */
+#define OPT_b (1<<2)	/* -an */
+#define OPT_n (1<<3)	/* show raw byte values, w/o KMG suffix */
+#define OPT_d (1<<4)	/* directories only */
+#define OPT_a (1<<5)	/* count apparent size */
+#define OPT_i (1<<6)	/* in given directories */
+
+#define SET_cwd (1<<8)
 
 ERRTAG = "du";
 ERRLIST = {
 	REPORT(ENOENT), RESTASNUMBERS
 };
+
+static char debuf[1024];
 
 struct entsize {
 	uint64_t size;
@@ -77,10 +85,14 @@ static inline int dotddot(const char* p)
 	return 0;
 }
 
-static void scandir(uint64_t* size, char* path, int opts);
+typedef void (*scanner)(char* dir, char* name, void* ptr, int arg);
 
-static void scanent(uint64_t* size, char* path, char* name, int opts)
+static void for_each_in(char* path, scanner sc, void* ptr, int arg);
+
+static void scan_dent(char* path, char* name, void* arg, int opts)
 {
+	uint64_t* size = arg;
+
 	int pathlen = strlen(path);
 	int namelen = strlen(name);
 	char fullname[pathlen + namelen + 2];
@@ -100,10 +112,10 @@ static void scanent(uint64_t* size, char* path, char* name, int opts)
 	if((st.st_mode & S_IFMT) != S_IFDIR)
 		return;
 
-	scandir(size, fullname, opts);
+	for_each_in(fullname, scan_dent, size, opts);
 }
 
-static void scandir(uint64_t* size, char* path, int opts)
+static void for_each_in(char* path, scanner sc, void* scptr, int scarg)
 {
 	long fd = sysopen(path, O_RDONLY | O_DIRECTORY);
 
@@ -111,11 +123,10 @@ static void scandir(uint64_t* size, char* path, int opts)
 		fail("cannot open", path, fd);
 
 	long rd;
-	char buf[1024];
 
-	while((rd = sysgetdents64(fd, (struct dirent64*)buf, sizeof(buf))) > 0) {
-		char* ptr = buf;
-		char* end = buf + rd;
+	while((rd = sysgetdents64(fd, debuf, sizeof(debuf))) > 0) {
+		char* ptr = debuf;
+		char* end = debuf + rd;
 		while(ptr < end) {
 			struct dirent64* de = (struct dirent64*) ptr;
 
@@ -124,7 +135,7 @@ static void scandir(uint64_t* size, char* path, int opts)
 			if(!de->d_reclen)
 				break;
 
-			scanent(size, path, de->d_name, opts);
+			sc(path, de->d_name, scptr, scarg);
 
 			next: ptr += de->d_reclen;
 		}
@@ -133,10 +144,10 @@ static void scandir(uint64_t* size, char* path, int opts)
 	sysclose(fd);
 }
 
-static int scan(uint64_t* size, char* path, int opts)
+static int scan_path(uint64_t* size, char* path, int opts)
 {
 	struct stat st;
-	
+
 	xchk(syslstat(path, &st), "cannot stat", path);
 
 	int isdir = ((st.st_mode & S_IFMT) == S_IFDIR);
@@ -149,7 +160,7 @@ static int scan(uint64_t* size, char* path, int opts)
 	if(!isdir)
 		return 0;
 	
-	scandir(size, path, opts);
+	for_each_in(path, scan_dent, size, opts);
 
 	return 0;
 }
@@ -164,7 +175,7 @@ static int sizecmp(const struct entsize* a, const struct entsize* b)
 		return strcmp(a->name, b->name);
 }
 
-static void scanall(uint64_t* total, int argc, char** argv, int opts)
+static void scan_each(uint64_t* total, int argc, char** argv, int opts)
 {
 	int i;
 	int n = 0;
@@ -173,7 +184,7 @@ static void scanall(uint64_t* total, int argc, char** argv, int opts)
 	for(i = 0; i < argc; i++) {
 		uint64_t size = 0;
 
-		if(scan(&size, argv[i], opts))
+		if(scan_path(&size, argv[i], opts))
 			continue;
 
 		res[n].name = argv[i];
@@ -192,6 +203,121 @@ static void scanall(uint64_t* total, int argc, char** argv, int opts)
 		dump(res[i].size, res[i].name, opts);
 }
 
+struct heap {
+	char* brk;
+	char* end;
+	char* ptr;
+
+	int count;
+	char** index;
+};
+
+struct node {
+	int len;
+	char name[];
+};
+
+void init_heap(struct heap* ctx, int size)
+{
+	ctx->brk = (char*)sysbrk(0);
+	ctx->end = (char*)sysbrk(ctx->brk + size);
+	ctx->ptr = ctx->brk;
+
+	if(ctx->end <= ctx->brk)
+		fail("cannot init heap", NULL, 0);
+
+	ctx->count = 0;
+	ctx->index = NULL;
+}
+
+void* alloc(struct heap* ctx, int len)
+{
+	char* ptr = ctx->ptr;
+	long avail = ctx->end - ptr;
+
+	if(avail < len) {
+		long need = len - avail;
+		need += (PAGE - need % PAGE) % PAGE;
+		char* req = ctx->end + need;
+		char* new = (char*)sysbrk(req);
+
+		if(new < req)
+			fail("cannot allocate memory", NULL, 0);
+
+		ctx->end = new;
+	}
+
+	ctx->ptr += len;
+
+	return ptr;
+}
+
+static void note_dent(char* dir, char* ent, void* ptr, int opts)
+{
+	struct heap* ctx = ptr;
+
+	int dirlen = strlen(dir);
+	int entlen = strlen(ent);
+	int usedir = !(opts & SET_cwd);
+
+	int namelen = usedir ? dirlen + entlen + 2 : entlen + 1;
+	struct node* nd = alloc(ctx, sizeof(struct node) + namelen);
+
+	nd->len = sizeof(struct node) + namelen;
+
+	char* p = nd->name;
+	char* e = nd->name + namelen - 1;
+
+	if(usedir) {
+		p = fmtstr(p, e, dir);
+		p = fmtchar(p, e, '/');
+	}
+	p = fmtstr(p, e, ent);
+	*p++ = '\0';
+
+	ctx->count++;
+}
+
+static void index_notes(struct heap* ctx)
+{
+	char* ptr = ctx->brk;
+	char* end = ctx->end;
+	int n = ctx->count;
+	int i = 0;
+
+	char** index = alloc(ctx, n*sizeof(char*));
+
+	while(ptr < end && i < n) {
+		struct node* nd = (struct node*) ptr;
+		index[i++] = nd->name;
+		ptr += nd->len;
+	}
+
+	ctx->index = index;
+}
+
+static void scan_dirs(uint64_t* total, int argc, char** argv, int opts)
+{
+	struct heap ctx;
+	int i;
+
+	init_heap(&ctx, 2*PAGE);
+
+	for(i = 0; i < argc; i++)
+		for_each_in(argv[i], note_dent, &ctx, opts);
+
+	index_notes(&ctx);
+
+	scan_each(total, ctx.count, ctx.index, opts);
+}
+
+static void scan_cwd(uint64_t* total, int opts)
+{
+	char* list[] = { "." };
+
+	scan_dirs(total, 1, list, opts | SET_cwd);
+}
+
 int main(int argc, char** argv)
 {
 	int i = 1;
@@ -203,7 +329,6 @@ int main(int argc, char** argv)
 	argc -= i;
 	argv += i;
 
-	char* dot =  ".";
 	uint64_t total = 0;
 
 	if(opts & OPT_b)
@@ -211,15 +336,17 @@ int main(int argc, char** argv)
 
 	if(opts & (OPT_s | OPT_c))
 		;
-	else if(argc >= 2)
-		opts |= OPT_s;
-	else
+	else if(argc == 1 && !(opts & OPT_i))
 		opts |= OPT_c;
+	else
+		opts |= OPT_s;
 
-	if(argc)
-		scanall(&total, argc, argv, opts);
+	if(opts & OPT_i)
+		scan_dirs(&total, argc, argv, opts);
+	else if(argc)
+		scan_each(&total, argc, argv, opts);
 	else 
-		scanall(&total, 1, &dot, opts);
+		scan_cwd(&total, opts);
 
 	if(opts & OPT_c)
 		dump(total, NULL, opts);

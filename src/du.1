@@ -4,17 +4,14 @@
 du \- estimate disk usage
 '''
 .SH SYNOPSIS
-du [\fB-scbnda\fR] [\fIfile\fR ...]
+du [\fB-scbnda\fR] [\fIpath\fR ...]
+.br
+du \fB-i\fR[\fBscbnad\fR] \fIdirectory\fR [\fIdirectory\fR ...]
 '''
 .SH DESCRIPTION
 du gives a rough estimate of how much disk space given \fIfile\fR(s) take.
 In case \fIfile\fR is a directory, the total disk usage of the whole subtree
 under that directory is shown. Symlinks are never followed.
-.P
-Beware the size shown by this tool is merely an estimate obtained from either
-st_blocks or (with \fB-a\fR) st_size field of struct stat (see \fBstat\fR(2)).
-The actual space usage depends on the underlying file system and may be off
-in either direction.
 '''
 .SH OPTIONS
 .IP "\fB-c\fR" 4
@@ -29,6 +26,20 @@ Show raw number of bytes, do not convert to KB/MB/GB.
 Skip non-directories among arguments.
 .IP "\fB-a\fR" 4
 Count apparent size (st_size) instead of st_blocks.
+.IP "\fB-i\fR" 4
+Look for files in given directories.
+'''
+.SH NOTES
+Unless told otherwise, \fBdu\fR uses st_block fields from \fBstruct stat\fR.
+The value there is supposed to represent disk space used to store given file.
+The value itself is expressed in POSIX blocks (512 bytes) and most file
+systems allocate space in units even larger than that. For most files,
+their disk usage will be larger than their apparent size.
+.P
+Sparse files, on the other hand, will likely take less space to store than
+their apparent size suggests.
+.P
+Use \fB-a\fR to estimate transfer or archival size of given files.
 '''
 .SH SEE ALSO
 \fBstat\fR(2), \fBdf\fR(1)
