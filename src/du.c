@@ -1,12 +1,12 @@
 #include <sys/lstat.h>
 #include <sys/getdents.h>
-#include <sys/write.h>
 #include <sys/open.h>
 #include <sys/brk.h>
 #include <sys/close.h>
 
 #include <string.h>
 #include <format.h>
+#include <output.h>
 #include <util.h>
 #include <fail.h>
 
@@ -31,7 +31,7 @@ ERRLIST = {
 	REPORT(EBADF), RESTASNUMBERS
 };
 
-static char debuf[1024];
+static char debuf[PAGE];
 
 struct entsize {
 	uint64_t size;
@@ -88,7 +88,7 @@ static void dump(uint64_t count, char* tag, int opts)
 	if(!(opts & OPT_s))
 		while(*q == ' ') q++;
 
-	syswrite(1, q, p - q);
+	writeout(q, p - q);
 }
 
 static inline int dotddot(const char* p)
@@ -353,6 +353,8 @@ int main(int argc, char** argv)
 
 	if(opts & OPT_c)
 		dump(total, NULL, opts);
+
+	flushout();
 
 	return 0;
 }
