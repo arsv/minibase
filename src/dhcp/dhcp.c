@@ -432,17 +432,6 @@ char* fmt_ips(char* p, char* e, uint8_t* ips, int len)
 	return p;
 }
 
-char* fmt_int(char* p, char* e, char* tag, uint8_t* ptr, int len)
-{
-	if(len != 4) return p;
-
-	uint32_t val = ntohl(*((uint32_t*)ptr));
-
-	p = fmtint(p, e, val);
-
-	return p;
-}
-
 char* fmt_time(char* p, char* e, uint8_t* ptr, int len)
 {
 	if(len != 4) return p;
