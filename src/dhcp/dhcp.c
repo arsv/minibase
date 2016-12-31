@@ -53,7 +53,7 @@ struct {
 	uint8_t mac[6];
 } iface;
 
-struct sockaddr_ll broadcast = {
+struct sockaddr_ll sockaddr = {
 	.family = AF_PACKET,
 	.ifindex = 0, /* to be set */
 	.hatype = ARPHRD_NETROM,
@@ -142,10 +142,10 @@ void setup_socket(char* name)
 
 	get_ifhwaddr();
 
-	broadcast.ifindex = iface.index;
-	broadcast.protocol = htons(ETH_P_IP);
+	sockaddr.ifindex = iface.index;
+	sockaddr.protocol = htons(ETH_P_IP);
 
-	xchk(sysbind(sockfd, &broadcast, sizeof(broadcast)), "bind", NULL);
+	xchk(sysbind(sockfd, &sockaddr, sizeof(sockaddr)), "bind", NULL);
 }
 
 /* Send */
@@ -248,7 +248,7 @@ void send_packet(void)
 
 	int len = ntohs(packet.ip.tot_len);
 
-	xchk(syssendto(sockfd, &packet, len, 0, &broadcast, sizeof(broadcast)),
+	xchk(syssendto(sockfd, &packet, len, 0, &sockaddr, sizeof(sockaddr)),
 	     "sendto", NULL);
 }
 
