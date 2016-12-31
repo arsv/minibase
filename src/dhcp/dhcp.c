@@ -3,10 +3,14 @@
 #include <sys/sendto.h>
 #include <sys/recv.h>
 #include <sys/ioctl.h>
+#include <sys/open.h>
+#include <sys/read.h>
+#include <sys/close.h>
 #include <sys/gettimeofday.h>
 #include <bits/socket.h>
 #include <bits/packet.h>
 #include <bits/ioctl/socket.h>
+#include <bits/auxvec.h>
 
 #include <format.h>
 #include <string.h>
@@ -71,6 +75,29 @@ struct {
 struct timeval reftv;
 struct ifreq ifreq;
 char outbuf[1000];
+
+uint32_t xid;
+
+/* Try to come up with a somewhat random xid by pulling auxvec random
+   bytes. Failure is not a big issue here, in the sense that DHCP is
+   quite insecure by design and a trurly random xid hardly improves that. */
+
+static void init_xid(char** envp)
+{
+	char** p = envp;
+
+	while(*p) p++;
+
+	struct auxvec* a = (struct auxvec*)(p + 1);
+
+	for(; a->key; a++)
+		if(a->key == AT_RANDOM)
+			break;
+	if(a->key)
+		memcpy(&xid, (void*)a->val, 4);
+	else
+		memcpy(&xid, iface.mac + 2, 4); /* meh */
+};
 
 /* Socket setup and device queries (mac, ifindex) */
 
@@ -194,8 +221,6 @@ void put_mac(int code, uint8_t* mac)
 
 void put_header(int type)
 {
-	int xid = 1;
-
 	memset(&packet, 0, sizeof(packet));
 	optptr = 0;
 
@@ -482,7 +507,8 @@ void show_config(void)
 	writeall(STDOUT, outbuf, p - outbuf);
 }
 
-int main(int argc, char** argv)
+
+int main(int argc, char** argv, char** envp)
 {
 	int i = 1;
 
@@ -493,6 +519,8 @@ int main(int argc, char** argv)
 
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
+
+	init_xid(envp);
 
 	send_discover();
 	recv_offer();
