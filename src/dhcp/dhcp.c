@@ -317,6 +317,8 @@ int check_dhcp_header(void)
 {
 	if(packet.dhcp.cookie != htonl(DHCP_COOKIE))
 		return 1;
+	if(packet.dhcp.xid != htonl(xid))
+		return 1;
 
 	return 0;
 }
