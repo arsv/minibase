@@ -360,16 +360,18 @@ struct dhcpopt* get_option(int code, int len)
 	int p = 0;
 	struct dhcpopt* opt;
 
-	while(p < optptr - 2) {
+	while(p < optptr - sizeof(*opt)) {
 		opt = (struct dhcpopt*)(packet.options + p);
 		p += sizeof(*opt) + opt->len;
 
+		if(p > optptr)
+			continue; /* truncated option */
 		if(opt->code != code)
 			continue;
 		if(!len || opt->len == len)
 			return opt;
 		else
-			break;
+			break; /* right code but wrong size */
 	}
 
 	return NULL;
@@ -383,7 +385,7 @@ int get_message_type(void)
 
 uint8_t* get_server_addr(void)
 {
-	struct dhcpopt* opt = get_option(54, 4);
+	struct dhcpopt* opt = get_option(DHCP_SERVER_ID, 4);
 	return opt ? (uint8_t*)opt->payload : NULL;
 }
 
@@ -427,6 +429,8 @@ void recv_acknak(void)
 
 void note_reftime(void)
 {
+	/* Lease time is relative, but output should be an absolute
+	   timestamp. Reference time is DHCPACK reception. */
 	xchk(sysgettimeofday(&reftv, NULL), "gettimeofday", NULL);
 }
 
