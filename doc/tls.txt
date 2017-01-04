@@ -1,0 +1,88 @@
+(Ab)using TLS for in-stack global context
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Placing global objects into .data and relying on the ELF loader to allocate
+them has certain disadvantages in the context of small executables, related
+mostly to the rather rigid loading rules.
+
+For minitools, a lone declaration like this:
+
+	int foo;
+
+forces a whole page to be mmaped during load. In Busybox, the same declaration
+found in one applet would be allocated in every single applet, because
+the linker lack the notion of a union (or at least they don't use the tricks
+needed to implement it).
+
+A workaround used in both projects is to globals onto the stack
+and pass the pointer to every single function that uses them:
+
+	struct globals {
+		int foo;
+	};
+
+	void do_blah(struct globals* G, ...)
+	{
+		G->foo++;
+	}
+
+	int main(...) {
+		struct globals G = { ... };
+
+		do_blah(&G, ...);
+
+		...
+	}
+
+This way, first-argument register holds the base address and all globals
+are accesses via offsets to that address. The base address is not known
+at link time but once set early in main(), it does not change.
+
+Reserving a register to point to a global struct -- sounds familiar, right?
+That's exactly how thread pointer works. And the register is actually reserved,
+and the compiler knows it so there is no need to pass it to every single
+function:
+
+	__thead int foo;
+
+	void do_blah(...)
+	{
+		foo++;
+	}
+
+	int main(...)
+	{
+		set_thread_pointer(alloca(sizeof globals));
+
+		do_blah(...);
+		
+		...
+	}
+
+Tempting. It's essentially a clean-er version of busybox-ish struct globals.
+
+The problem is, this feature is surprisingly difficult to set up.
+
+  * On some arches (x86, MIPS?) setting TP is a privileged operation
+    that requires a syscall. On others, it's just a register move.
+
+  * How the data is offset from TP varies wildly between arches;
+    sometimes it's TP+offset sometimes TP-offset and offset rarely
+    starts from 0.
+
+  * Finding out sizeof(globals) requires going through ELF headers;
+    it is not provided as a linker symbol or anything like that.
+
+  * Any initial values (__thread int foo = 1) require going through
+    ELF headers as well. It all must be done in the init code.
+
+This all makes some sense when applied to actual TLS, but because
+the assumption are built into the toolchain, there is no way to relax
+them from a much simplier requirements of minitools or busybox.
+
+All in all, so far the problems with TLS setup outweight the minor
+inconvenience of having a fixed first argument in certain functions
+by a large margin. Maybe this idea warrants a second look, but for now
+it remains shelved.
+
+Also, considering the amounts of initialization code, busybox is much
+more likely to benefit from all this that minitools.
