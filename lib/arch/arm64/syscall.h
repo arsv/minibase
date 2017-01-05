@@ -11,7 +11,8 @@ inline static long syscall0(int nr)
 
 	asm volatile ("svc 0"
 		: "=r"(x0)
-		: "r"(x8));
+		: "r"(x8)
+		: "memory");
 	
 	return x0;
 }
@@ -23,7 +24,8 @@ inline static long syscall1(int nr, long a1)
 
 	asm volatile ("svc 0"
 		: "=r"(x0)
-		: "r"(x8), "r"(x0));
+		: "r"(x8), "r"(x0)
+		: "memory");
 	
 	return x0;
 }
@@ -36,7 +38,8 @@ inline static long syscall2(int nr, long a1, long a2)
 
 	asm volatile ("svc 0"
 		: "=r"(x0)
-		: "r"(x8), "r"(x0), "r"(x1));
+		: "r"(x8), "r"(x0), "r"(x1)
+		: "memory");
 	
 	return x0;
 }

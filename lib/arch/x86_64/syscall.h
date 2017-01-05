@@ -8,7 +8,9 @@ inline static long syscall0(long nr)
 {
 	register long r0 asm("rax") = nr;
 
-	asm volatile ("syscall" : "=r"(r0) : "r"(r0) : "rcx", "r11");
+	asm volatile ("syscall" : "=r"(r0)
+		: "r"(r0)
+		: "rcx", "r11", "memory");
 
 	return r0;
 };
@@ -18,7 +20,9 @@ inline static long syscall1(long nr, long a1)
 	register long r0 asm("rax") = nr;
 	register long r1 asm("rdi") = a1;
 
-	asm volatile ("syscall" : "=r"(r0) : "r"(r0), "r"(r1) : "rcx", "r11");
+	asm volatile ("syscall" : "=r"(r0)
+		: "r"(r0), "r"(r1)
+		: "rcx", "r11", "memory");
 
 	return r0;
 };
@@ -31,7 +35,7 @@ inline static long syscall2(long nr, long a1, long a2)
 
 	asm volatile ("syscall" : "=r"(r0)
 		: "r"(r0), "r"(r1), "r"(r2)
-		: "rcx", "r11");
+		: "rcx", "r11", "memory");
 
 	return r0;
 };
