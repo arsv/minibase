@@ -14,10 +14,10 @@
 
 #include <format.h>
 #include <string.h>
+#include <endian.h>
 #include <util.h>
 #include <fail.h>
 
-#include "endian.h"
 #include "ip.h"
 #include "dhcp.h"
 
