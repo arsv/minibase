@@ -32,7 +32,7 @@ ERRLIST = {
 };
 
 /* All commands this tool sends are small (50 bytes or less), the output
-   lines are sort and printed individually, but incoming packets may be
+   lines are formed and printed individually, but incoming packets may be
    surprisingly large. A single scan entry msg is 600..800 bytes, and there
    may be like 10 to 15 of them. Makes sense to get them all in a single
    recv call. */
