@@ -9,8 +9,3 @@ inline static long sys_arch_prctl(int code, long arg)
 {
 	return syscall2(__NR_arch_prctl, code, arg);
 }
-
-inline static long sys_arch_set_tp(void* addr)
-{
-	return sys_arch_prctl(ARCH_SET_FS, (long)addr);
-}
