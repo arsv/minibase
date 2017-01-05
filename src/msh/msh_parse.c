@@ -7,9 +7,10 @@
 #define ARG 1
 #define DQUOT 2
 #define SQUOT 3
-#define VSIGN 4
-#define VCONT 5
-#define COMM 6
+#define SLASH 4
+#define VSIGN 5
+#define VCONT 6
+#define COMM 7
 
 void dispatch(struct sh* ctx, char c);
 
@@ -124,6 +125,7 @@ void parse_arg(struct sh* ctx, char c)
 		case '$':  start_var(ctx); break;
 		case '"':  push_state(ctx, DQUOT); break;
 		case '\'': push_state(ctx, SQUOT); break;
+		case '\\': push_state(ctx, SLASH); break;
 		default: add_char(ctx, c);
 	}
 }
@@ -133,6 +135,7 @@ void parse_dquote(struct sh* ctx, char c)
 	switch(c) {
 		case '"': pop_state(ctx); break;
 		case '$': start_var(ctx); break;
+		case '\\': push_state(ctx, SLASH); break;
 		default: add_char(ctx, c);
 	}
 }
@@ -145,6 +148,18 @@ void parse_squote(struct sh* ctx, char c)
 	}
 }
 
+void parse_slash(struct sh* ctx, char c)
+{
+	switch(c) {
+		case '\n': c = ' '; break;
+		case 't': c = '\t'; break;
+		case 'n': c = '\n'; break;
+	};
+	
+	add_char(ctx, c);
+	pop_state(ctx);
+}
+
 void parse_vsign(struct sh* ctx, char c)
 {
 	switch(c) {
@@ -155,6 +170,7 @@ void parse_vsign(struct sh* ctx, char c)
 			break;
 		case '"':
 		case '\'':
+		case '\\':
 		case '$':
 		case '\0':
 		case '\n':
@@ -191,6 +207,7 @@ void dispatch(struct sh* ctx, char c)
 		case ARG: parse_arg(ctx, c); break;
 		case DQUOT: parse_dquote(ctx, c); break;
 		case SQUOT: parse_squote(ctx, c); break;
+		case SLASH: parse_slash(ctx, c); break;
 		case VSIGN: parse_vsign(ctx, c); break;
 		case VCONT: parse_vcont(ctx, c); break;
 		case COMM: parse_comm(ctx, c); break;
