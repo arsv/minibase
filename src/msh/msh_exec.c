@@ -33,20 +33,57 @@ static int cmd_exit(struct sh* ctx, int argc, char** argv)
 static int cmd_exec(struct sh* ctx, int argc, char** argv)
 {
 	if(argc < 2)
-		return error(ctx, "exec: too few arguments", NULL, 0);
+		return error(ctx, "exec:", "too few arguments", 0);
 
 	long ret = execvpe(argv[1], argv+1, ctx->envp);
 
 	return error(ctx, "exec", argv[1], ret);
 }
 
+static int cmd_set(struct sh* ctx, int argc, char** argv)
+{
+	char* p;
+
+	if(argc > 3)
+		return error(ctx, "set:", "too many arguments", 0);
+	if(argc < 3)
+		return error(ctx, "set:", "too few arguments", 0);
+
+	int klen = strlen(argv[1]);
+	int vlen = strlen(argv[2]);
+
+	char key[klen+1];
+	char val[vlen+1];
+
+	p = fmtstr(key, key + klen, argv[1]); *p = '\0';
+	p = fmtstr(val, val + vlen, argv[2]); *p = '\0';
+
+	define(ctx, key, val);
+	return 0;
+}
+
+static int cmd_unset(struct sh* ctx, int argc, char** argv)
+{
+	int i;
+
+	if(argc < 2)
+		return error(ctx, "unset:", "too few arguments", 0);
+
+	for(i = 1; i < argc; i++)
+		undef(ctx, argv[i]);
+
+	return 0;
+}
+
 static const struct cmd {
 	char name[NLEN];
 	int (*cmd)(struct sh* ctx, int argc, char** argv);
 } builtins[] = {
-	{ "cd",   cmd_cd   },
-	{ "exit", cmd_exit },
-	{ "exec", cmd_exec },
+	{ "cd",    cmd_cd   },
+	{ "exit",  cmd_exit },
+	{ "exec",  cmd_exec },
+	{ "set",   cmd_set  },
+	{ "unset", cmd_unset },
 	{ "",   NULL }
 };
 

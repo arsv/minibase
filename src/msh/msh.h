@@ -1,28 +1,55 @@
+/* arguments for hset/hreset */
+#define HEAP 0
+#define ESEP 1
+#define CSEP 2
+#define VSEP 3
+
+/* env entry types */
+#define ENVDEL 0
+#define ENVSTR 1
+#define ENVPTR 2
+
 struct sh {
 	char* file;
 	int line;
 
-	char* heap;
-	char* hend;
-	char* hptr;
-
 	int state;
-	char* var;
 	int count;
-
 	char** envp;
-
 	int ret;
+
+	char* heap;
+	char* esep;
+	char* csep;
+	char* hptr;
+	char* hend;
+
+	char* var;
+};
+
+struct env {
+	unsigned short len;
+	char type;
+	char payload[];
+};
+
+struct envptr {
+	unsigned short len;
+	char type;
+	char* ref;
 };
 
 void hinit(struct sh* ctx);
 void* halloc(struct sh* ctx, int len);
-void hrevert(struct sh* ctx, void* ptr);
+void hrev(struct sh* ctx, int type);
+void hset(struct sh* ctx, int what);
 
 void parse(struct sh* ctx, char* buf, int len);
 void pfini(struct sh* ctx);
 
 char* valueof(struct sh* ctx, char* var);
+void define(struct sh* ctx, char* var, char* val);
+void undef(struct sh* ctx, char* var);
 
 void exec(struct sh* ctx, int argc, char** argv);
 

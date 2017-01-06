@@ -31,7 +31,7 @@ static void pop_state(struct sh* ctx)
 
 static void start_var(struct sh* ctx)
 {
-	ctx->var = ctx->hptr;
+	hset(ctx, VSEP);
 	push_state(ctx, VSIGN);
 }
 
@@ -42,12 +42,10 @@ static void end_var(struct sh* ctx)
 	char* val = valueof(ctx, ctx->var);
 	long vlen = strlen(val);
 
-	ctx->hptr = ctx->var;
+	hrev(ctx, VSEP);
 
 	char* spc = halloc(ctx, vlen);
 	memcpy(spc, val, vlen);
-
-	ctx->var = NULL;
 
 	pop_state(ctx);
 }
@@ -68,7 +66,7 @@ static void end_arg(struct sh* ctx)
 static void end_cmd(struct sh* ctx)
 {
 	int argn = ctx->count;
-	char* base = ctx->heap;
+	char* base = ctx->csep;
 	char* bend = ctx->hptr;
 
 	if(!argn) return;
@@ -76,7 +74,7 @@ static void end_cmd(struct sh* ctx)
 	char** argv = halloc(ctx, (argn+1)*sizeof(char*));
 	int argc = 0;
 
-	argv[0] = ctx->heap;
+	argv[0] = ctx->csep;
 	char* p;
 
 	int sep = 1;
@@ -88,9 +86,9 @@ static void end_cmd(struct sh* ctx)
 
 	argv[argc] = NULL;
 
-	exec(ctx, argc, argv);
+	exec(ctx, argc, argv); /* may damage heap, argv, csep! */
 
-	ctx->hptr = ctx->heap;
+	hrev(ctx, CSEP);
 	ctx->count = 0;
 }
 
