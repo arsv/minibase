@@ -12,30 +12,30 @@
 #define VCONT 6
 #define COMM 7
 
-void dispatch(struct sh* ctx, char c);
+static void dispatch(struct sh* ctx, char c);
 
-void set_state(struct sh* ctx, int st)
+static void set_state(struct sh* ctx, int st)
 {
 	ctx->state = (ctx->state & ~0xFF) | (st & 0xFF);
 }
 
-void push_state(struct sh* ctx, int st)
+static void push_state(struct sh* ctx, int st)
 {
 	ctx->state = (ctx->state << 8) | (st & 0xFF);
 }
 
-void pop_state(struct sh* ctx)
+static void pop_state(struct sh* ctx)
 {
 	ctx->state = (ctx->state >> 8);
 }
 
-void start_var(struct sh* ctx)
+static void start_var(struct sh* ctx)
 {
 	ctx->var = ctx->hptr;
 	push_state(ctx, VSIGN);
 }
 
-void end_var(struct sh* ctx)
+static void end_var(struct sh* ctx)
 {
 	*(ctx->hptr) = '\0';	
 
@@ -52,20 +52,20 @@ void end_var(struct sh* ctx)
 	pop_state(ctx);
 }
 
-void add_char(struct sh* ctx, char c)
+static void add_char(struct sh* ctx, char c)
 {
 	char* spc = halloc(ctx, 1);
 	*spc = c;
 }
 
-void end_arg(struct sh* ctx)
+static void end_arg(struct sh* ctx)
 {
 	add_char(ctx, 0);
 	ctx->count++;
 	set_state(ctx, SEP);
 }
 
-void end_cmd(struct sh* ctx)
+static void end_cmd(struct sh* ctx)
 {
 	int argn = ctx->count;
 	char* base = ctx->heap;
@@ -94,7 +94,7 @@ void end_cmd(struct sh* ctx)
 	ctx->count = 0;
 }
 
-void parse_sep(struct sh* ctx, char c)
+static void parse_sep(struct sh* ctx, char c)
 {
 	switch(c) {
 		case '\0':
@@ -115,7 +115,7 @@ void parse_sep(struct sh* ctx, char c)
 	};
 }
 
-void parse_arg(struct sh* ctx, char c)
+static void parse_arg(struct sh* ctx, char c)
 {
 	switch(c) {
 		case '\0':
@@ -130,7 +130,7 @@ void parse_arg(struct sh* ctx, char c)
 	}
 }
 
-void parse_dquote(struct sh* ctx, char c)
+static void parse_dquote(struct sh* ctx, char c)
 {
 	switch(c) {
 		case '"': pop_state(ctx); break;
@@ -140,7 +140,7 @@ void parse_dquote(struct sh* ctx, char c)
 	}
 }
 
-void parse_squote(struct sh* ctx, char c)
+static void parse_squote(struct sh* ctx, char c)
 {
 	switch(c) {
 		case '\'': pop_state(ctx); break;
@@ -148,7 +148,7 @@ void parse_squote(struct sh* ctx, char c)
 	}
 }
 
-void parse_slash(struct sh* ctx, char c)
+static void parse_slash(struct sh* ctx, char c)
 {
 	switch(c) {
 		case '\n': c = ' '; break;
@@ -160,7 +160,7 @@ void parse_slash(struct sh* ctx, char c)
 	pop_state(ctx);
 }
 
-void parse_vsign(struct sh* ctx, char c)
+static void parse_vsign(struct sh* ctx, char c)
 {
 	switch(c) {
 		case 'a'...'z':
@@ -181,13 +181,13 @@ void parse_vsign(struct sh* ctx, char c)
 	}
 }
 
-void parse_comm(struct sh* ctx, char c)
+static void parse_comm(struct sh* ctx, char c)
 {
 	if(c == '\n')
 		set_state(ctx, SEP);
 }
 
-void parse_vcont(struct sh* ctx, char c)
+static void parse_vcont(struct sh* ctx, char c)
 {
 	switch(c) {
 		case 'a'...'z':
@@ -200,7 +200,7 @@ void parse_vcont(struct sh* ctx, char c)
 	}
 }
 
-void dispatch(struct sh* ctx, char c)
+static void dispatch(struct sh* ctx, char c)
 {
 	switch(ctx->state & 0xFF) {
 		case SEP: parse_sep(ctx, c); break;

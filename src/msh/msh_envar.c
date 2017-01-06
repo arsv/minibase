@@ -3,7 +3,7 @@
 
 #include "msh.h"
 
-char* match(char* envline, char* var)
+static char* match(char* envline, char* var)
 {
 	char* a = envline;
 	char* b = var;
