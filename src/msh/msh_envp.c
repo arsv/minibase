@@ -4,6 +4,12 @@
 
 #include "msh.h"
 
+/* Since envp is presumably gets used much more often than it gets
+   updated, each set or unset leaves a usable envp in the heap,
+   as opposed to leaving only struct env-s and building envp on
+   each exec. */
+
+
 static char* match(char* envline, char* var)
 {
 	char* a = envline;
@@ -29,6 +35,17 @@ char* valueof(struct sh* ctx, char* var)
 
 	return "";
 }
+
+/* Until the first set or unset, the original envp from main()
+   is used directly, and ctx->esep is NULL. Once there's a need
+   to change envp, each ptr from the original envp is turned
+   into struct envptr, but the string itself is not copied.
+ 
+   To override or unset a variable, the old envptr gets marked ENVDEL
+   and a struct env with the new string is added if necessary.
+ 
+   The distinction between ENVSTR (inline string) and ENVPTR (pointer)
+   is a kind of petty optimization to avoid copying envp strings. */
 
 static void maybe_init_env(struct sh* ctx)
 {
