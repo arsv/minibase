@@ -40,28 +40,6 @@ static int cmd_exec(struct sh* ctx, int argc, char** argv)
 	return error(ctx, "exec", argv[1], ret);
 }
 
-static int cmd_set(struct sh* ctx, int argc, char** argv)
-{
-	char* p;
-
-	if(argc > 3)
-		return error(ctx, "set:", "too many arguments", 0);
-	if(argc < 3)
-		return error(ctx, "set:", "too few arguments", 0);
-
-	int klen = strlen(argv[1]);
-	int vlen = strlen(argv[2]);
-
-	char key[klen+1];
-	char val[vlen+1];
-
-	p = fmtstr(key, key + klen, argv[1]); *p = '\0';
-	p = fmtstr(val, val + vlen, argv[2]); *p = '\0';
-
-	define(ctx, key, val);
-	return 0;
-}
-
 static int cmd_unset(struct sh* ctx, int argc, char** argv)
 {
 	int i;
@@ -82,7 +60,6 @@ static const struct cmd {
 	{ "cd",    cmd_cd   },
 	{ "exit",  cmd_exit },
 	{ "exec",  cmd_exec },
-	{ "set",   cmd_set  },
 	{ "unset", cmd_unset },
 	{ "",   NULL }
 };

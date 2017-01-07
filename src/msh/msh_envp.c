@@ -131,15 +131,25 @@ static int del_env_entry(struct sh* ctx, char* var)
 	return foreach_env(ctx, match_del_entry, var);
 }
 
-void define(struct sh* ctx, char* var, char* val)
+void define(struct sh* ctx, char* pkey, char* pval)
 {
-	maybe_init_env(ctx);
+	int klen = strlen(pkey);
+	int vlen = strlen(pval);
+
+	char key[klen+1];
+	char val[vlen+1];
+	char* q;
+
+	q = fmtstr(key, key + klen, pkey); *q = '\0';
+	q = fmtstr(val, val + vlen, pval); *q = '\0';
+
+	maybe_init_env(ctx); /* pkey, pval invalid */
 
 	hrev(ctx, ESEP);
 
-	del_env_entry(ctx, var);
+	del_env_entry(ctx, key);
 
-	int len = strlen(var) + strlen(val) + 1;
+	int len = strlen(key) + strlen(val) + 1;
 	int total = sizeof(struct env) + len + 1;
 	struct env* es = halloc(ctx, total);
 
@@ -149,7 +159,7 @@ void define(struct sh* ctx, char* var, char* val)
 	char* p = es->payload;
 	char* e = p + len;
 
-	p = fmtstr(p, e, var);
+	p = fmtstr(p, e, key);
 	p = fmtstr(p, e, "=");
 	p = fmtstr(p, e, val);
 	*p++ = '\0';
