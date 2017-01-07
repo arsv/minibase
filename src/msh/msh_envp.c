@@ -1,5 +1,6 @@
 #include <format.h>
 #include <string.h>
+#include <alloca.h>
 #include <util.h>
 
 #include "msh.h"
@@ -131,17 +132,24 @@ static int del_env_entry(struct sh* ctx, char* var)
 	return foreach_env(ctx, match_del_entry, var);
 }
 
+/* define() gets called with pkey and pval pointing into the area
+   it is about to destroy, so it needs to copy the string onto its
+   stack before doing hrev(). */
+
+static char* sdup(char* str, int len, char* buf)
+{
+	memcpy(buf, str, len); buf[len] = '\0';
+	return buf;
+}
+
+#define allocadup(str, len) sdup(str, len, alloca(len+1))
+
 void define(struct sh* ctx, char* pkey, char* pval)
 {
 	int klen = strlen(pkey);
 	int vlen = strlen(pval);
-
-	char key[klen+1];
-	char val[vlen+1];
-	char* q;
-
-	q = fmtstr(key, key + klen, pkey); *q = '\0';
-	q = fmtstr(val, val + vlen, pval); *q = '\0';
+	char* key = allocadup(pkey, klen);
+	char* val = allocadup(pval, vlen);
 
 	maybe_init_env(ctx); /* pkey, pval invalid */
 
@@ -149,7 +157,7 @@ void define(struct sh* ctx, char* pkey, char* pval)
 
 	del_env_entry(ctx, key);
 
-	int len = strlen(key) + strlen(val) + 1;
+	int len = klen + vlen + 1;
 	int total = sizeof(struct env) + len + 1;
 	struct env* es = halloc(ctx, total);
 
