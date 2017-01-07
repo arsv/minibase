@@ -1,0 +1,52 @@
+.TH msh 1
+'''
+.SH NAME
+msh \- mini shell
+'''
+.SH SYNOPSIS
+msh [\fIscript\fR]
+'''
+.SH DESCRIPTION
+msh is a non-interactive command interpreter capable of running simple
+command sequences, and hardly anything else. It is indended to be used
+in place of (much larger) POSIX shell in cases where the extra features
+provided by the latter are not necessary.
+'''
+.SH EXAMPLE
+.nf
+#!/bin/msh
+
+# Variable assignment
+VAR="some value"
+
+# Running commands
+kmod e1000e
+echo "Module loaded"
+
+# Variable substitution
+echo $VAR
+
+# Built-ins
+exec /sbin/init
+.fi
+'''
+.SH ENVIRONMENT
+.IP "PATH" 8
+Colon-separated list of directories to look for commands,
+see \fBexecvp\fR(3).
+'''
+.SH NOTES
+Common POSIX shell features not supported in msh: redirections (>file),
+pipes (|cmd), globbing (*), background execution (&), jobs, control flow
+(if, while, case), advanced variable substituion (${var...}), backticks.
+.P
+Like make but unlike POSIX shell, msh aborts on the first failed command.
+Prefix the command with \fB-\fR to proceed over failure.
+.P
+Variable references ($var) in msh are always treated as a single token
+regardless of the stored value, more like "$var" works in POSIX shell.
+Example: `ls $dir` will always run ls with a single argument, even if
+$dir is an empty string, or a string with spaces.
+'''
+.SH SEE ALSO
+\fBsh\fR(1), \fBexecvp\fR(3)
