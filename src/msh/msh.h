@@ -1,4 +1,4 @@
-/* arguments for hset/hreset */
+/* arguments for hset/hrev */
 #define HEAP 0
 #define ESEP 1
 #define CSEP 2
@@ -9,14 +9,31 @@
 #define ENVSTR 1
 #define ENVPTR 2
 
+/* Heap layout, at the point when end_cmd() calls exec():
+
+   heap                csep                           hend
+   v                   v                              v
+   Ep Ep Ep Es Es ENVP Arg Arg Arg Arg ARGV ..........|
+                  ^                         ^
+                  esep                      hptr
+
+   Ep = struct envptr
+   Es = struct env with inline payload
+   ENVP = char** envp pointing back to Es-s and/or following Ep-s
+   Arg = raw 0-terminated string
+   ARGV = char** argv pointing back to Arg-s
+
+   Until the first env change, esep=NULL, csep=heap and sh.envp
+   points to the original main() argument. */
+
 struct sh {
-	char* file;
+	char* file;      /* for error reporting */
 	int line;
 
-	int state;
-	int count;
+	int state;       /* of parser */
+	int count;       /* of Arg-s laid out so far */
 	char** envp;
-	int ret;
+	int ret;         /* wait() status of the last cmd */
 
 	char* heap;
 	char* esep;
