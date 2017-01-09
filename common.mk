@@ -1,17 +1,14 @@
 .SUFFIXES:
 
+.SECONDARY:
+
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-%: %.o $/libs.a
+%: %.o
 	$(LD) -o $@ $(filter %.o,$^) $(LIBS)
 
 all: $(bin) $(sbin)
-
-ifneq ($/,)
-$/libs.a:
-	$(MAKE) -C $/ libs.a
-endif
 
 clean:
 	rm -f $(bin) $(sbin) *.o
