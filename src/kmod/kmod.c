@@ -137,6 +137,15 @@ static char* match_depmod_line(char* ls, char* le, char* name, int nlen)
 	return sep;
 }
 
+/* modctx for a given module looks somewhat like this:
+
+       kernel/fs/fat/vfat.ko.gz: kernel/fs/fat/fat.ko.gz
+       ^                       ^                        ^
+       ls                     sep                       le
+
+   The line is not 0-terminated, so individual module names
+   are passed as pointer:length pair. */
+
 static void query_modules_dep(struct modctx* ctx, char* dir, char* name)
 {
 	memset(ctx, 0, sizeof(*ctx));
@@ -219,6 +228,9 @@ static void insmod(char* path, char* pars)
 	else
 		fail("not a module:", path, 0);
 };
+
+/* Module file names (base:blen here) in modules.dep are relative
+   to the directory modules.dep resides in, which is ctx->dir. */
 
 static void insmod_relative(struct modctx* ctx, char* base, int blen, char* pars)
 {
