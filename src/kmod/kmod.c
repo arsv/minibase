@@ -170,11 +170,39 @@ static void query_modules_dep(struct modctx* ctx, char* dir, char* name)
 	ctx->sep = sep;
 }
 
-static void insmod(char* path, char* pars)
+static void insmod_raw(char* path, char* name, char* pars)
 {
 	long len;
 	void* mod = mmapwhole(path, &len);
 
+	xchk(sysinitmodule(mod, len, pars), "init_module", name);
+}
+
+static void insmod_gz(char* path, char* name, char* pars)
+{
+	fail("gzipped module:", path, 0);
+}
+
+static void insmod_xz(char* path, char* name, char* pars)
+{
+	fail("xz compressed module:", path, 0);
+}
+
+static int check_strip_suffix(char* name, int nlen, char* suffix)
+{
+	int slen = strlen(suffix);
+
+	if(nlen < slen)
+		return 0;
+	if(strncmp(name + nlen - slen, suffix, slen))
+		return 0;
+
+	name[nlen-slen] = '\0';
+	return 1;
+}
+
+static void insmod(char* path, char* pars)
+{
 	char* base = (char*)basename(path);
 	int blen = strlen(base);
 	char name[blen+1];
@@ -182,12 +210,14 @@ static void insmod(char* path, char* pars)
 	memcpy(name, base, blen);
 	name[blen] = '\0';
 
-	if(blen > 6 && !strncmp(name + blen - 6, ".ko.gz", 6))
-		fail("gzipped module:", path, 0);
-	else if(blen > 3 && !strncmp(name + blen - 3, ".ko", 3))
-		name[blen-3] = '\0';
-
-	xchk(sysinitmodule(mod, len, pars), "init_module", name);
+	if(check_strip_suffix(name, blen, ".ko"))
+		insmod_raw(path, name, pars);
+	else if(check_strip_suffix(name, blen, ".ko.gz"))
+		insmod_gz(path, name, pars);
+	else if(check_strip_suffix(name, blen, ".ko.xz"))
+		insmod_xz(path, name, pars);
+	else
+		fail("not a module:", path, 0);
 };
 
 static void insmod_relative(struct modctx* ctx, char* base, int blen, char* pars)
