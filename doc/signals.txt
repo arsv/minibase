@@ -1,0 +1,83 @@
+Handling signals with bare syscalls
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The following is not exactly obvious from the docs, which assume that
+everything is done via libc and libc authors know this already.
+
+Suppose we have a singnal handler installed:
+
+	void sighandler(int sig)
+	{
+		...
+	}
+
+	rt_sigaction(SIGsmth, ..., {
+			.sa_handler = sighandler })
+
+The syscalls are designed and described to allow sighandler to be regular
+function, which signal handlers really aren't. They are more like interrupt
+handlers. So what happens when sighandler returns?
+
+Well it cannot really return, it must end with a sigreturn(2) call,
+the same way process ends with a _exit(2) call. But POSIX describes it
+as a regular function, which returns somewhere.
+This is where sa_restorer comes into play.
+
+Most modern libc-s fill .sa_restorer field in struct sigaction:
+
+	rt_sigaction(SIGsmth, ..., {
+			.sa_handler = sighandler,
+			.sa_flags = SA_RESTORER | ...,
+			.sa_restorer = sigrestorer })
+
+which is where the signal handler will jump once it's done, and it's all
+set up with the assumption that the restorer is a *BARE FUNCTION*,
+i.e. it does not affect the stack pointer. So this works:
+
+	sigrestorer:
+		mov	$NR_rt_sigreturn, %eax
+		syscall
+
+but this doesn't:
+
+	void sigrestorer(void)
+	{
+		syscall0(__NR_rt_sigreturn);
+	}
+
+because it starts a function frame but never removes it. And there's no
+__attribute__((bare)) or equivalent on some arches including x86_64.
+
+Since we're using bare syscalls anyway, we can skip it and just call
+sigreturn directly, right?
+
+	void sighandler(int sig)
+	{
+		...
+
+		syscall0(__NR_rt_sigreturn);
+	}
+
+	rt_sigaction(SIGsmth, ..., {
+			.sa_handler = sighandler,
+			.sa_flags = ...,
+			.sa_restorer = NULL })
+
+
+Wrong. Turns out the lack of SA_RESTORER means something entirely different --
+it instructs the kernel to place a simple sighandler onto the stack before
+invoking sighandler, and set .sa_restorer to point there.
+
+In most modern installation however the stack is not executable,
+so jumping there means immediate SIGSEGV. Apparently this gets checked
+early (XXX: check against kernel src?) so even the attempt to put restorer
+onto the stack fails.
+
+This happens in a rather confusing manner: once the signal is received,
+the process gets SIGSEGV immediately with the IP remaining where it was
+when the signal was received (e.g. at the entry of a blocking syscall).
+No handler code ever runs. It's just SIGsmth, followed immediately
+by SIGSEGV.
+
+
+The bottom line is, even though we could end all sighandlers with sigreturn,
+we must instead set up the whole thing the way libc does it.
