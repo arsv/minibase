@@ -59,7 +59,7 @@ static int checkuser(int fd)
 	if(sysgetsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &credlen))
 		return -1;
 
-	if(cred.uid != sysgetuid())
+	if(cred.uid != gg.uid)
 		return -1;
 
 	return 0;

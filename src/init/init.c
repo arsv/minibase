@@ -1,6 +1,7 @@
 #include <sys/clock_gettime.h>
 #include <sys/unlink.h>
 #include <sys/getpid.h>
+#include <sys/getuid.h>
 #include <sys/close.h>
 #include <sys/fork.h>
 #include <sys/waitpid.h>
@@ -17,6 +18,7 @@ static int setup(char** envp)
 {
 	gg.initdir = INITDIR;
 	gg.env = envp;
+	gg.uid = sysgetuid();
 
 	setinitctl();
 

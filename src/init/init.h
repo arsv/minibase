@@ -33,6 +33,8 @@ struct init {
 	int ctlfd;
 	int outfd;
 
+	int uid;
+
 	char* initdir;
 	char** env;
 };
