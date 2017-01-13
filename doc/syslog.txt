@@ -1,0 +1,89 @@
+The syslog problem
+~~~~~~~~~~~~~~~~~~
+During system shutdown, the supervisor typically sends SIGTERM
+to all its children at once. However, it may as well wait for
+processes A, B, ... to die before sending the signal to process
+S, making sure S remains operational during A, B, ... shutdown.
+
+The most common case is S = syslog and A, B, ... anything that
+may use syslog, i.e. any other supervised entity. There may be
+other candidates for S though, in particular dbus-based system
+may need dbus up and running during shutdown.
+
+It looks like a minor feature but it's surprisingly difficult
+to implement in a nice clean way. A single special process
+breaks the uniformity of the supervision list enough to require
+configuration format change.
+
+So what to do about it?
+
+
+Non-uniform supervision lists
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Each entry gets a level, entries with level 0 are killed first,
+waited for, then level 1, level 2 and so on.
+
+The question here is how to assign a level to an entry.
+
+1. Flagline in rc scripts
+
+   #!/bin/msh
+   ##level 2
+
+   Ugly, requires reading each script, does not work with symlinks
+   to binaries (and binaries in general)
+
+2. Directory per level
+
+   0 /etc/rc/ntpd
+   0 /etc/rc/httpd
+   0 /etc/rc/someotherd
+   1 /etc/rc/base/syslog
+   ^
+   level
+
+   Requires handling duplicate names somehow
+   (and storing base directory in initrecs somehow but that's easy)
+
+3. Detached level description
+
+   /etc/rc/ntpd
+   /etc/rc/httpd
+   /etc/rc/syslog
+
+   /etc/init.conf:
+   1 syslog
+   # an 0 everything else implicitly
+
+   This needs a dedicated config parser, and the config is, well, detached.
+   Package management gets difficult with unclear ownership over init.conf.
+
+4. Some sort of stamp files?
+
+   /etc/rc/ntpd
+   /etc/rc/httpd
+   /etc/rc/syslog
+   /etc/rc/special/syslog <-- 0-size file
+
+   Ugly and wasteful.
+
+
+Do we need non-uniformity at all?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Since implementation is problematic, perhaps it's worth questioning
+the idea itself.
+
+Special entries come into play when a regular entry (httpd, mysqld) gets
+SIGTERM and starts doing something complex enough to require e.g. logging
+or (in case of dbus) RPC. Is that an acceptable behavior?
+
+Whatever needs to do involved cleanup upon SIGTERM, will likely lose data
+on an unexpected SIGKILL, including OOM SIGKILL and the SIGKILL the supervisor
+may send if said involved cleanup takes too long. So in a way it's already
+broken and unreliable.
+
+Accepting self-contained cleanup on SIGTERM as the only valid behavior
+makes the whole problem go away. A uniform list would be enough.
+The supervisor becomes be much simplier.
+
+This is likely the way to go.
