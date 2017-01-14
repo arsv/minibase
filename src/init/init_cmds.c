@@ -1,7 +1,8 @@
 #include <sys/kill.h>
 #include <sys/write.h>
-#include <null.h>
+
 #include <format.h>
+#include <util.h>
 
 #include "init.h"
 
@@ -15,6 +16,30 @@ static void killrec(struct initrec* rc, int group, int sig)
 	if(group) pid = -pid;
 
 	syskill(pid, sig);
+}
+
+static void dumpstate(void)
+{
+	int blen = PAGE;
+	char* buf = alloc(blen);
+
+	if(!buf) return;
+
+	char* p = buf;
+	char* e = buf + blen;
+	struct initrec* rc;
+
+	for(rc = firstrec(); rc; rc = nextrec(rc)) {
+		if(rc->pid > 0)
+			p = fmtpad(p, e, 5, fmtint(p, e, rc->pid));
+		else
+			p = fmtpad(p, e, 5, fmtstr(p, e, "-"));
+		p = fmtstr(p, e, " ");
+		p = fmtstr(p, e, rc->name);
+		p = fmtstr(p, e, "\n");
+	}
+
+	writeall(gg.outfd, buf, p - buf);
 }
 
 static void dumpidof(struct initrec* rc)
@@ -82,7 +107,7 @@ void parsecmd(char* cmd)
 		case 'e': enable(rc); break;
 		/* state query */
 		case 'i': dumpidof(rc); break;
-		//case '?': dumpstate(); break;
+		case '?': dumpstate(); break;
 		/* reconfigure */
 		case 'c': reload(); break;
 		default: report("unknown command", cmd, 0);
