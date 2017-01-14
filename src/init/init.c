@@ -25,7 +25,14 @@ static int setup(char** envp)
 	return setsignals();
 }
 
-void advpasstime(int dflt)
+static void reset(void)
+{
+	gg.state = 0;
+	gg.timetowait = -1;
+	gg.outfd = STDERR;
+}
+
+static void advpasstime(int dflt)
 {
 	struct timespec tp = { 0, 0 };
 
@@ -41,13 +48,6 @@ void advpasstime(int dflt)
 	return;
 
 fault:	gg.passtime += dflt;
-}
-
-static void reset(void)
-{
-	gg.state = 0;
-	gg.timetowait = -1;
-	gg.outfd = STDERR;
 }
 
 static int forkreboot(void)

@@ -65,16 +65,15 @@ static int checkuser(int fd)
 	return 0;
 }
 
-static char cbuf[CMDBUF];
-
 static void readcmd(int fd)
 {
 	int rb;
+	char cbuf[NAMELEN+10];
 
-	if((rb = sysread(fd, cbuf, CMDBUF-1)) < 0)
+	if((rb = sysread(fd, cbuf, NAMELEN+1)) < 0)
 		return report("recvmsg", NULL, rb);
-	if(rb >= CMDBUF)
-		return report("recvmsg", "bogus data", 0);
+	if(rb >= NAMELEN)
+		return report("recvmsg", "message too long", 0);
 	cbuf[rb] = '\0';
 
 	gg.outfd = fd;

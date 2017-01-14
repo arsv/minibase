@@ -3,12 +3,12 @@
 
 #include "init.h"
 
-static char tag[] = "init";
-
-char warnbuf[1024];
+static const char tag[] = "init";
 
 void report(char* msg, char* arg, int err)
 {
+	char warnbuf[1024];
+
 	char* p = warnbuf;
 	char* e = warnbuf + sizeof(warnbuf) - 1;
 
@@ -36,6 +36,8 @@ void report(char* msg, char* arg, int err)
 
 void reprec(struct initrec* rc, char* msg)
 {
+	char warnbuf[1024];
+
 	char* p = warnbuf;
 	char* e = warnbuf + sizeof(warnbuf) - 1;
 

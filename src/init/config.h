@@ -11,6 +11,4 @@
 #define TIME_TO_SIGKILL 2
 #define TIME_TO_SKIP    5
 
-#define CMDBUF 100
-
 #define BOOTCLOCKOFFSET 1000

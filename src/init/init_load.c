@@ -7,8 +7,6 @@
 #include <format.h>
 #include "init.h"
 
-static char debuf[PAGE];
-
 static inline int dotddot(const char* p)
 {
 	if(!p[0])
@@ -66,6 +64,8 @@ static void tryfile(char* dir, char* base)
 
 int load_dir_ents(void)
 {
+	char debuf[PAGE/2];
+
 	char* dir = gg.initdir;
 	long fd, rd;
 
