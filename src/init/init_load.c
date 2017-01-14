@@ -64,7 +64,11 @@ static void tryfile(char* dir, char* base)
 
 int load_dir_ents(void)
 {
-	char debuf[PAGE/2];
+	int delen = PAGE;
+	char* debuf = alloc(delen);
+
+	if(!debuf)
+		return -1;
 
 	char* dir = gg.initdir;
 	long fd, rd;
@@ -74,7 +78,7 @@ int load_dir_ents(void)
 		return fd;
 	}
 
-	while((rd = sysgetdents64(fd, debuf, sizeof(debuf))) > 0) {
+	while((rd = sysgetdents64(fd, debuf, delen)) > 0) {
 		char* ptr = debuf;
 		char* end = debuf + rd;
 		while(ptr < end) {

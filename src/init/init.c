@@ -6,6 +6,7 @@
 #include <sys/fork.h>
 #include <sys/waitpid.h>
 #include <sys/execve.h>
+#include <sys/brk.h>
 
 #include <format.h>
 
@@ -19,6 +20,8 @@ static int setup(char** envp)
 	gg.initdir = INITDIR;
 	gg.env = envp;
 	gg.uid = sysgetuid();
+	gg.brk = (char*)sysbrk(NULL);
+	gg.ptr = gg.end = gg.brk;
 
 	setinitctl();
 
@@ -30,6 +33,28 @@ static void reset(void)
 	gg.state = 0;
 	gg.timetowait = -1;
 	gg.outfd = STDERR;
+
+	if(gg.end > gg.brk)
+		gg.end = gg.ptr = (char*)sysbrk(gg.brk);
+}
+
+char* alloc(int len)
+{
+	char* ptr = gg.ptr;
+	char* req = ptr + len;
+
+	if(req <= gg.end)
+		goto done;
+
+	gg.end = (char*)sysbrk(req);
+
+	if(req > gg.end) {
+		report("out of memory", NULL, 0);
+		return NULL;
+	}
+done:
+	gg.ptr += len;
+	return ptr;
 }
 
 static void advpasstime(int dflt)

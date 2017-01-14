@@ -35,6 +35,10 @@ struct init {
 
 	int uid;
 
+	char* brk;
+	char* ptr;
+	char* end;
+
 	char* initdir;
 	char** env;
 };
@@ -64,3 +68,5 @@ void droprec(struct initrec* rc);
 
 void report(char* msg, char* arg, int err);
 void reprec(struct initrec* rc, char* msg);
+
+char* alloc(int len);
