@@ -43,4 +43,6 @@
 #define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
 #define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
 
+#define F_GETFD 1
+
 #endif
