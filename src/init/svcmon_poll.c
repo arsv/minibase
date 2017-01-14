@@ -8,7 +8,7 @@
 #include <format.h>
 #include <null.h>
 
-#include "init.h"
+#include "svcmon.h"
 
 /* A single handler for all signals we care about. */
 
@@ -28,7 +28,7 @@ static void sighandler(int sig)
 	}
 }
 
-int setsignals(void)
+int setsig(void)
 {
 	struct sigaction sa = {
 		.sa_handler = sighandler,

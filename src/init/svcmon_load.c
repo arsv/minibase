@@ -5,7 +5,7 @@
 
 #include <string.h>
 #include <format.h>
-#include "init.h"
+#include "svcmon.h"
 
 static inline int dotddot(const char* p)
 {
@@ -20,7 +20,7 @@ static inline int dotddot(const char* p)
 
 static void addfile(char* base, int blen)
 {
-	struct initrec* rc;
+	struct svcrec* rc;
 
 	if((rc = findrec(base))) {
 		rc->flags &= ~P_STALE;
@@ -28,7 +28,7 @@ static void addfile(char* base, int blen)
 	}
 
 	if(!(rc = makerec()))
-		return report("cannot create initrec", NULL, 0);
+		return report("cannot create svcrec", NULL, 0);
 
 	memset(rc, 0, sizeof(*rc));
 	memcpy(rc->name, base, blen);
@@ -70,7 +70,7 @@ int load_dir_ents(void)
 	if(!debuf)
 		return -1;
 
-	char* dir = gg.initdir;
+	char* dir = gg.dir;
 	long fd, rd;
 
 	if((fd = sysopen(dir, O_RDONLY | O_DIRECTORY)) < 0) {
@@ -104,17 +104,17 @@ int load_dir_ents(void)
 	return rd;
 }
 
-static void mark_stale(struct initrec* rc)
+static void mark_stale(struct svcrec* rc)
 {
 	rc->flags |= P_STALE;
 }
 
-static void unmark_stale(struct initrec* rc)
+static void unmark_stale(struct svcrec* rc)
 {
 	rc->flags &= ~P_STALE;
 }
 
-static void disable_stale(struct initrec* rc)
+static void disable_stale(struct svcrec* rc)
 {
 	if(!(rc->flags & P_STALE))
 		return;
@@ -124,9 +124,9 @@ static void disable_stale(struct initrec* rc)
 		rc->flags |= P_DISABLED;
 }
 
-static void foreach_rec(void (*func)(struct initrec* rc))
+static void foreach_rec(void (*func)(struct svcrec* rc))
 {
-	struct initrec* rc;
+	struct svcrec* rc;
 
 	for(rc = firstrec(); rc; rc = nextrec(rc))
 		func(rc);

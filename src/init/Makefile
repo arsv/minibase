@@ -2,15 +2,15 @@
 
 include $/config.mk
 
-bin = init telinit
+bin = svcmon svc
 
 man1 =
 
 include $/common.mk
 
-init: init.o \
-	init_load.o init_recs.o init_poll.o \
-	init_pass.o init_wait.o init_ctrl.o \
-	init_cmds.o init_warn.o
+svcmon: svcmon.o \
+	svcmon_load.o svcmon_recs.o svcmon_poll.o \
+	svcmon_pass.o svcmon_wait.o svcmon_ctrl.o \
+	svcmon_cmds.o svcmon_warn.o
 
 trap: trap.o

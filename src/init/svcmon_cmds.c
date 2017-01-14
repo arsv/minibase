@@ -4,12 +4,12 @@
 #include <format.h>
 #include <util.h>
 
-#include "init.h"
+#include "svcmon.h"
 
 #define PONLY 0
 #define GROUP 1
 
-static void killrec(struct initrec* rc, int group, int sig)
+static void killrec(struct svcrec* rc, int group, int sig)
 {
 	int pid = rc->pid;
 
@@ -27,7 +27,7 @@ static void dumpstate(void)
 
 	char* p = buf;
 	char* e = buf + blen;
-	struct initrec* rc;
+	struct svcrec* rc;
 
 	for(rc = firstrec(); rc; rc = nextrec(rc)) {
 		if(rc->pid > 0)
@@ -42,7 +42,7 @@ static void dumpstate(void)
 	writeall(gg.outfd, buf, p - buf);
 }
 
-static void dumpidof(struct initrec* rc)
+static void dumpidof(struct svcrec* rc)
 {
 	char buf[40];
 
@@ -59,13 +59,13 @@ static void dumpidof(struct initrec* rc)
 	syswrite(gg.outfd, buf, p - buf);
 }
 
-static void disable(struct initrec* rc)
+static void disable(struct svcrec* rc)
 {
 	rc->lastsig = 0;
 	rc->flags |= P_DISABLED;
 }
 
-static void enable(struct initrec* rc)
+static void enable(struct svcrec* rc)
 {
 	rc->lastrun = 0;
 	rc->flags &= ~P_DISABLED;
@@ -74,7 +74,7 @@ static void enable(struct initrec* rc)
 void parsecmd(char* cmd)
 {
 	char* arg = cmd + 1;
-	struct initrec* rc = NULL;
+	struct svcrec* rc = NULL;
 
 	/* Check whether this command needs arguments */
 	switch(*cmd) {

@@ -15,7 +15,7 @@
 #define P_SIGKILL  (1<<3)
 #define P_STALE    (1<<4)
 
-struct initrec {
+struct svcrec {
 	int pid;
 	uint8_t flags;
 	char name[NAMELEN];
@@ -24,7 +24,7 @@ struct initrec {
 	int status;
 };
 
-struct init {
+struct svcmon {
 	int state;
 	int timetowait;
 	time_t passtime;
@@ -39,34 +39,34 @@ struct init {
 	char* ptr;
 	char* end;
 
-	char* initdir;
+	char* dir;
 	char** env;
 };
 
-extern struct init gg;
+extern struct svcmon gg;
 
 int reload(void);
 
-struct initrec* findrec(char* name);
-struct initrec* makerec(void);
+struct svcrec* findrec(char* name);
+struct svcrec* makerec(void);
 
 void initpass(void);
 void killpass(void);
 void waitpoll(void);
 void waitpids(void);
 
-int setsignals(void);
-void setinitctl(void);
+int setsig(void);
+void setctl(void);
 void acceptctl(void);
 void parsecmd(char* cmd);
 
 int anyrunning(void);
 
-struct initrec* firstrec(void);
-struct initrec* nextrec(struct initrec* rc);
-void droprec(struct initrec* rc);
+struct svcrec* firstrec(void);
+struct svcrec* nextrec(struct svcrec* rc);
+void droprec(struct svcrec* rc);
 
 void report(char* msg, char* arg, int err);
-void reprec(struct initrec* rc, char* msg);
+void reprec(struct svcrec* rc, char* msg);
 
 char* alloc(int len);

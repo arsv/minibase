@@ -3,9 +3,9 @@
 
 #define PAGE 4096
 
-#define INITDIR "./rc"
-#define INITCTL "./initctl"
-#define INITCTL_TIMEOUT 2
+#define SVDIR "./rc"
+#define SVCTL "./initctl"
+#define SVCTL_TIMEOUT 2
 
 #define TIME_TO_RESTART 1
 #define TIME_TO_SIGKILL 2

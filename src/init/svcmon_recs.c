@@ -1,16 +1,16 @@
 #include <null.h>
 #include <string.h>
-#include "init.h"
+#include "svcmon.h"
 
 int nrecs = 0;
-struct initrec recs[MAXRECS];
+struct svcrec recs[MAXRECS];
 
-static int empty(struct initrec* rc)
+static int empty(struct svcrec* rc)
 {
 	return !rc->name[0];
 }
 
-struct initrec* findrec(char* name)
+struct svcrec* findrec(char* name)
 {
 	int i;
 
@@ -23,7 +23,7 @@ struct initrec* findrec(char* name)
 	return NULL;
 }
 
-struct initrec* makerec(void)
+struct svcrec* makerec(void)
 {
 	int i;
 
@@ -39,7 +39,7 @@ struct initrec* makerec(void)
 	return &recs[i];
 }
 
-static struct initrec* advance_to_nonempty(struct initrec* rc)
+static struct svcrec* advance_to_nonempty(struct svcrec* rc)
 {
 	while(rc < &recs[nrecs] && empty(rc))
 		rc++;
@@ -48,19 +48,19 @@ static struct initrec* advance_to_nonempty(struct initrec* rc)
 	return NULL;
 }
 
-struct initrec* firstrec(void)
+struct svcrec* firstrec(void)
 {
 	return advance_to_nonempty(&recs[0]);
 }
 
-struct initrec* nextrec(struct initrec* rc)
+struct svcrec* nextrec(struct svcrec* rc)
 {
 	if((void*)rc < (void*)recs)
 		return NULL;
 	return advance_to_nonempty(rc+1);
 }
 
-void droprec(struct initrec* rc)
+void droprec(struct svcrec* rc)
 {
 	memset(rc, 0, sizeof(*rc));
 }

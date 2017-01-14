@@ -6,11 +6,11 @@
 #include <format.h>
 #include <string.h>
 
-#include "init.h"
+#include "svcmon.h"
 
 static int waitneeded(time_t* last, time_t wait)
 {
-	time_t curtime = gg.passtime; /* start of current initpass, see main() */
+	time_t curtime = gg.passtime;
 	time_t endtime = *last + wait;
 
 	if(endtime <= curtime) {
@@ -24,9 +24,9 @@ static int waitneeded(time_t* last, time_t wait)
 	}
 }
 
-static int child(struct initrec* rc)
+static int child(struct svcrec* rc)
 {
-	char* dir = gg.initdir;
+	char* dir = gg.dir;
 	int dlen = strlen(dir);
 	char* base = rc->name;
 	char blen = strlen(base);
@@ -47,7 +47,7 @@ static int child(struct initrec* rc)
 	return -1;
 }
 
-static void spawn(struct initrec* rc)
+static void spawn(struct svcrec* rc)
 {
 	if(waitneeded(&rc->lastrun, TIME_TO_RESTART))
 		return;
@@ -66,7 +66,7 @@ static void spawn(struct initrec* rc)
 	}
 }
 
-static void stop(struct initrec* rc)
+static void stop(struct svcrec* rc)
 {
 	if(rc->pid <= 0)
 		/* This can only happen on telinit stop, so let the user know */
@@ -108,7 +108,7 @@ static void stop(struct initrec* rc)
 
 void initpass(void)
 {
-	struct initrec* rc;
+	struct svcrec* rc;
 
 	for(rc = firstrec(); rc; rc = nextrec(rc)) {
 		int disabled = (rc->flags & P_DISABLED);
@@ -122,7 +122,7 @@ void initpass(void)
 
 void killpass(void)
 {
-	struct initrec* rc;
+	struct svcrec* rc;
 
 	for(rc = firstrec(); rc; rc = nextrec(rc))
 		if(rc->pid > 0)
@@ -131,7 +131,7 @@ void killpass(void)
 
 int anyrunning(void)
 {
-	struct initrec* rc;
+	struct svcrec* rc;
 
 	for(rc = firstrec(); rc; rc = nextrec(rc))
 		if(rc->pid > 0)

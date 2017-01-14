@@ -14,14 +14,14 @@
 
 #include <string.h>
 
-#include "init.h"
+#include "svcmon.h"
 
-void setinitctl(void)
+void setctl(void)
 {
 	int fd;
 	struct sockaddr_un addr = {
 		.family = AF_UNIX,
-		.path = INITCTL
+		.path = SVCTL
 	};
 
 	/* This way readable "@initctl" can be used for reporting below,
@@ -36,7 +36,7 @@ void setinitctl(void)
 		return report("socket", "AF_UNIX", fd);
 
 	long ret;
-	char* name = INITCTL;
+	char* name = SVCTL;
 
 	gg.ctlfd = fd;
 
@@ -96,7 +96,7 @@ void acceptctl(void)
 			syswrite(fd, denied, strlen(denied));
 		} else {
 			gotcmd = 1;
-			sysalarm(INITCTL_TIMEOUT);
+			sysalarm(SVCTL_TIMEOUT);
 			readcmd(fd);
 		}
 

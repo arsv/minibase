@@ -1,9 +1,9 @@
 #include <sys/waitpid.h>
 #include <format.h>
 
-#include "init.h"
+#include "svcmon.h"
 
-static void markdead(struct initrec* rc, int status)
+static void markdead(struct svcrec* rc, int status)
 {
 	rc->pid = 0;
 	rc->status = status;
@@ -16,7 +16,7 @@ void waitpids(void)
 {
 	pid_t pid;
 	int status;
-	struct initrec *rc;
+	struct svcrec *rc;
 	const int flags = WNOHANG | WUNTRACED | WCONTINUED;
 
 	while((pid = syswaitpid(-1, &status, flags)) > 0)

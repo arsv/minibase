@@ -14,7 +14,7 @@
 
 #include "config.h"
 
-ERRTAG = "telinit";
+ERRTAG = "svc";
 ERRLIST = {
 	REPORT(ENOENT), REPORT(ECONNREFUSED), REPORT(ELOOP), REPORT(ENFILE),
 	REPORT(EMFILE), REPORT(EINTR), REPORT(EINVAL), REPORT(EACCES),
@@ -100,7 +100,7 @@ static int opensocket(void)
 {
 	struct sockaddr_un addr = {
 		.family = AF_UNIX,
-		.path = INITCTL
+		.path = SVCTL
 	};
 
 	if(addr.path[0] == '@')
@@ -110,7 +110,7 @@ static int opensocket(void)
 			"socket", "AF_UNIX SOCK_STREAM");
 
 	xchk(sysconnect(fd, &addr, sizeof(addr)),
-			"connect", INITCTL);
+			"connect", SVCTL);
 
 	return fd;
 }
@@ -122,7 +122,7 @@ static int opensocket(void)
 
 static void sendcmd(int fd, const char* cmd, int len)
 {
-	xchk(syswrite(fd, cmd, len), "write", INITCTL);
+	xchk(syswrite(fd, cmd, len), "write", SVCTL);
 }
 
 /* The tricky part here is demuxing init output, which can be error

@@ -11,21 +11,21 @@
 #include <format.h>
 
 #include <util.h>
-#include "init.h"
+#include "svcmon.h"
 
-struct init gg;
+struct svcmon gg;
 
 static int setup(char** envp)
 {
-	gg.initdir = INITDIR;
+	gg.dir = SVDIR;
 	gg.env = envp;
 	gg.uid = sysgetuid();
 	gg.brk = (char*)sysbrk(NULL);
 	gg.ptr = gg.end = gg.brk;
 
-	setinitctl();
+	setctl();
 
-	return setsignals();
+	return setsig();
 }
 
 static void reset(void)
@@ -110,7 +110,7 @@ int main(int argc, char** argv, char** envp)
 		if(gg.state & S_CTRLREQ)
 			acceptctl();
 		if(gg.state & S_REOPEN)
-			setinitctl();
+			setctl();
 		if(gg.state & S_RELOAD)
 			reload();
 
@@ -131,8 +131,8 @@ int main(int argc, char** argv, char** envp)
 	}
 
 reboot:
-	if(sysgetpid() != 1) {       /* not running as *the* init */
-		sysunlink(INITCTL);
+	if(sysgetpid() != 1) {
+		sysunlink(SVCTL);
 		return 0;
 	} else {
 		return forkreboot();

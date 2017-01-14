@@ -1,9 +1,9 @@
 #include <format.h>
 #include <util.h>
 
-#include "init.h"
+#include "svcmon.h"
 
-static const char tag[] = "init";
+static const char tag[] = "svcmon";
 static char warnbuf[200];
 
 void report(char* msg, char* arg, int err)
@@ -33,7 +33,7 @@ void report(char* msg, char* arg, int err)
 	writeall(gg.outfd, warnbuf, p - warnbuf);
 }
 
-void reprec(struct initrec* rc, char* msg)
+void reprec(struct svcrec* rc, char* msg)
 {
 	char* p = warnbuf;
 	char* e = warnbuf + sizeof(warnbuf) - 1;
