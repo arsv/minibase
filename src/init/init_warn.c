@@ -4,11 +4,10 @@
 #include "init.h"
 
 static const char tag[] = "init";
+static char warnbuf[200];
 
 void report(char* msg, char* arg, int err)
 {
-	char warnbuf[1024];
-
 	char* p = warnbuf;
 	char* e = warnbuf + sizeof(warnbuf) - 1;
 
@@ -36,8 +35,6 @@ void report(char* msg, char* arg, int err)
 
 void reprec(struct initrec* rc, char* msg)
 {
-	char warnbuf[1024];
-
 	char* p = warnbuf;
 	char* e = warnbuf + sizeof(warnbuf) - 1;
 
