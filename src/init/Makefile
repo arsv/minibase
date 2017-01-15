@@ -2,7 +2,7 @@
 
 include $/config.mk
 
-bin = svcmon svc
+bin = svcmon svc init
 
 man1 =
 
