@@ -6,9 +6,9 @@
 #include <format.h>
 #include <null.h>
 
-/* Signal trap, to be used as a stub foreground daemon for ../etc/inittab
-   Trapping signals (normally sent by init) makes it clear what's going on,
-   specifically when and why the process dies.
+/* Signal trap, to be used as a stub for service scripts in ./rc
+   Trapping signals (normally sent by init) makes it clear
+   what's going on, specifically when and why the process dies.
  
    Usage: trap [tag] [sleep-interval]
 
@@ -20,10 +20,6 @@ int interval = 1000;
 
 #define BUF 1024
 static char saybuf[BUF];
-
-/* This should have been printf, but printf from libtest is not one-write
-   (which results in messy output) and bringing in ../sys_printf.c is kinda
-   messy by itself. So why bother, it's not like this is something important. */
 
 void say(const char* what)
 {
