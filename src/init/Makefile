@@ -14,3 +14,7 @@ svcmon: svcmon.o \
 	svcmon_cmds.o svcmon_warn.o
 
 trap: trap.o
+
+ifdef devel
+CFLAGS += -DDEVEL
+endif

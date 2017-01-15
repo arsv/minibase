@@ -22,7 +22,7 @@ for arg in "$@"; do
 		cc=*) eval "$arg" ;;
 		ar=*) eval "$arg" ;;
 		strip=*) eval "$arg" ;;
-		devel) cflags="-Wall -g" ;;
+		devel) cflags="-Wall -g"; devel=yes ;;
 		*) die "Unexpected argument $arg" ;;
 	esac
 done
@@ -54,6 +54,8 @@ bindir = $bindir
 sbindir = $sbindir
 man1dir = $man1dir
 man8dir = $man8dir
+
+devel = $devel
 END
 
 cat > mini-cc <<END

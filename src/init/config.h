@@ -3,8 +3,14 @@
 
 #define PAGE 4096
 
+#ifdef DEVEL
 #define SVDIR "./rc"
-#define SVCTL "./initctl"
+#define SVCTL "./ctl"
+#else
+#define SVDIR "/etc/rc"
+#define SVCTL "/run/svcmon"
+#endif
+
 #define SVCTL_TIMEOUT 2
 
 #define TIME_TO_RESTART 1
