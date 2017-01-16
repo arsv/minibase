@@ -16,18 +16,19 @@
          * umount -a
          * reboot(2)
 
-   Init (well service supervisor) should spawn this tool when it's done.
+   svcmon should spawn this tool when it's done.
 
    There's no other way to do umount -a in minitools, in particular
    mount -u cannot do that. This is because shutdown is the only situation
    when umount -a makes sense, and handling -a requires lots of code
    not used in any other umount mode (reading mountinfo etc.) */
 
-#define OPTS "ph"
+#define OPTS "phr"
 #define OPT_p (1<<0)	/* poweroff */
 #define OPT_h (1<<1)	/* halt */
+#define OPT_r (1<<2)	/* reboot, default */
 
-ERRTAG = "shutdown";
+ERRTAG = "reboot";
 ERRLIST = {
 	REPORT(EPERM), REPORT(ENOENT), REPORT(EBADF), REPORT(EFAULT),
 	REPORT(ELOOP), REPORT(ENOMEM), REPORT(ENOTDIR), REPORT(EOVERFLOW),
@@ -202,12 +203,14 @@ int main(int argc, char** argv)
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
-	if(opts & OPT_p)
+	if(opts == OPT_p)
 		mode = RB_POWER_OFF;
-	else if(opts & OPT_h)
+	else if(opts == OPT_h)
 		mode = RB_HALT_SYSTEM;
-	else
+	else if(opts == OPT_r || !opts)
 		mode = RB_AUTOBOOT;
+	else
+		fail("cannot use -phr together", NULL, 0);
 
 	xchk(syssync(), "sync", NULL);
 

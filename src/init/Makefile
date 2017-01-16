@@ -2,7 +2,7 @@
 
 include $/config.mk
 
-bin = svcmon svc init
+sbin = svcmon svc init reboot
 
 man1 =
 

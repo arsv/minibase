@@ -32,7 +32,7 @@ static int forkreboot(void)
 
 	if(pid == 0) {
 		char arg[] = { '-', gg.rbcode, '\0' };
-		char* argv[] = { "/sbin/shutdown", arg, NULL };
+		char* argv[] = { "/sbin/reboot", arg, NULL };
 		sysexecve(*argv, argv, gg.env);
 	} else if(pid > 0) {
 		int status;

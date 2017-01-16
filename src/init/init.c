@@ -271,8 +271,8 @@ int main(int argc, char** argv, char** envp)
 		exec_into("/sbin/svcmon", newenv);
 	}
 
-	warn("startup failed, going for shutdown", NULL, 0);
-	exec_into("/sbin/shutdown", newenv);
+	warn("startup failed, going for reboot", NULL, 0);
+	exec_into("/sbin/reboot", newenv);
 
 	return -1;
 }
