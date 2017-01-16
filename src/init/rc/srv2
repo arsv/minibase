@@ -1,0 +1,3 @@
+#!/home/alex/bin/msh
+
+exec ./trap srv2 30

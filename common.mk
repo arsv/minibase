@@ -8,10 +8,10 @@
 %: %.o
 	$(LD) -o $@ $(filter %.o,$^) $(LIBS)
 
-all: $(bin) $(sbin)
+all: $(bin) $(sbin) $(also)
 
 clean:
-	rm -f $(bin) $(sbin) *.o
+	rm -f *.o $(bin) $(sbin) $(also)
 
 $(DESTDIR)/bin $(DESTDIR)/sbin:
 	mkdir -p $@
