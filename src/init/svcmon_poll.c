@@ -4,6 +4,9 @@
 #include <sys/sigprocmask.h>
 #include <sys/_exit.h>
 #include <sys/close.h>
+#include <sys/mmap.h>
+#include <sys/munmap.h>
+#include <sys/read.h>
 #include <sys/nanosleep.h>
 
 #include <sigset.h>
@@ -12,10 +15,16 @@
 
 #include "svcmon.h"
 
-/* A single handler for all signals we care about. */
-
 static sigset_t defsigset;
 static struct timespec timetowait;
+
+/* There's always ctlfd in pfds[0], so the indexes for pfds[]
+   are shifted by one compared to rings[] and recs[]. */
+
+static struct pollfd pfds[MAXRECS+1];
+static struct ringbuf rings[MAXRECS];
+
+/* A single handler for all signals we care about. */
 
 static void sighandler(int sig)
 {
@@ -76,13 +85,87 @@ void wakeupin(int seconds)
 	timetowait.tv_nsec = 0;
 }
 
-void setpollfd(int i, int fd)
+static void setfd(int fi, int fd)
 {
-	if(pfds[i].fd > 0)
-		sysclose(pfds[i].fd);
+	if(pfds[fi].fd > 0)
+		sysclose(pfds[fi].fd);
 
-	pfds[i].fd = fd;
-	pfds[i].events = POLLIN;
+	pfds[fi].fd = fd;
+	pfds[fi].events = POLLIN;
+}
+
+void setctrlfd(int fd)
+{
+	setfd(0, fd);
+}
+
+void setpollfd(struct svcrec* rc, int fd)
+{
+	setfd(recindex(rc) + 1, fd); 
+}
+
+struct ringbuf* ringfor(struct svcrec* rc)
+{
+	int ri = recindex(rc);
+	struct ringbuf* rg = &rings[ri];
+
+	return rg->buf ? rg : NULL;
+}
+
+void flushring(struct svcrec* rc)
+{
+	struct ringbuf* rg = ringfor(rc);
+
+	if(!rg) return;
+
+	sysmunmap(rg->buf, RINGSIZE);
+
+	rg->buf = NULL;
+	rg->ptr = 0;
+}
+
+static int mmapring(struct ringbuf* rg)
+{
+	int prot = PROT_READ | PROT_WRITE;
+	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+	long ret = sysmmap(NULL, RINGSIZE, prot, flags, -1, 0);
+
+	if(MMAPERROR(ret)) {
+		return 0;
+	} else {
+		rg->buf = (char*)ret;
+		rg->ptr = 0;
+		return 1;
+	}
+}
+
+static void readring(struct ringbuf* rg, int fd)
+{
+	int off = rg->ptr % RINGSIZE;
+
+	char* start = rg->buf + off;
+	int avail = RINGSIZE - off;
+
+	int rd = sysread(fd, start, avail);
+
+	if(rd <= 0) return;
+
+	int ptr = rg->ptr + rd;
+
+	if(ptr >= RINGSIZE)
+		ptr = RINGSIZE + ptr % RINGSIZE;
+
+	rg->ptr = ptr;
+}
+
+static void bufoutput(int fd, int fdi, int rbi)
+{
+	struct ringbuf* rg = &rings[rbi];
+
+	if(!rg->buf && !mmapring(rg))
+		pfds[fdi].fd = -1;
+	else
+		readring(rg, fd);
 }
 
 static void checkfds(int nr)
@@ -97,9 +180,9 @@ static void checkfds(int nr)
 			if(i == 0)
 				acceptctl(fd);
 			else
-				bufoutput(fd, i);
+				bufoutput(fd, i, i-1);
 		} if(re & POLLHUP) {
-			setpollfd(i, -1);
+			pfds[i].fd = -1;
 		}
 	}
 }

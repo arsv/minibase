@@ -4,6 +4,7 @@
 #include <sys/pipe2.h>
 #include <sys/close.h>
 #include <sys/dup2.h>
+#include <sys/waitpid.h>
 #include <sys/clock_gettime.h>
 #include <sys/_exit.h>
 
@@ -92,7 +93,7 @@ static void spawn(struct svcrec* rc)
 	} else {
 		rc->pid = pid;
 		sysclose(pipe[1]);
-		setpollfd(recindex(rc)+1, pipe[0]);
+		setpollfd(rc, pipe[0]);
 	}
 }
 
@@ -129,6 +130,37 @@ static void stop(struct svcrec* rc)
 
 		/* make sure we'll get initpass to send SIGKILL if necessary */
 		waitneeded(&rc->lastsig, TIME_TO_SIGKILL);
+	}
+}
+
+static void markdead(struct svcrec* rc, int status)
+{
+	rc->pid = 0;
+	rc->status = status;
+
+	if(rc->flags & P_STALE)
+		droprec(rc);
+
+	/* possibly unexpected death */
+	gg.state |= S_PASSREQ;
+}
+
+void waitpids(void)
+{
+	pid_t pid;
+	int status;
+	struct svcrec *rc;
+	const int flags = WNOHANG | WUNTRACED | WCONTINUED;
+
+	while((pid = syswaitpid(-1, &status, flags)) > 0) {
+		if(!(rc = findpid(pid)))
+			continue; /* Some stray child died. Like we care. */
+		if(WIFSTOPPED(status))
+			rc->flags |= P_SIGSTOP;
+		else if(WIFCONTINUED(status))
+			rc->flags &= ~P_SIGSTOP;
+		else
+			markdead(rc, status);
 	}
 }
 
