@@ -46,7 +46,7 @@ static void dumpstate(void)
 	afree();
 }
 
-static void dumpstatus(struct svcrec* rc)
+static void showring(struct svcrec* rc)
 {
 	if(!rc->ring)
 		return;
@@ -96,10 +96,31 @@ static void enable(struct svcrec* rc)
 	gg.state |= S_PASSREQ;
 }
 
-void reboot(char code)
+static void reboot(char code)
 {
 	gg.rbcode = code;
 	stopall();
+}
+
+static void restart(struct svcrec* rc)
+{
+	if(rc->pid > 0)
+		syskill(rc->pid, SIGTERM);
+
+	if(rc->flags & P_DISABLED) {
+		rc->flags &= ~P_DISABLED;
+		gg.state |= S_PASSREQ;
+	}
+
+	flushrec(rc);
+}
+
+static void flusharg(struct svcrec* rc)
+{
+	if(rc)
+		flushrec(rc);
+	else for(rc = firstrec(); rc; rc = nextrec(rc))
+		flushrec(rc);
 }
 
 void parsecmd(char* cmd)
@@ -109,17 +130,21 @@ void parsecmd(char* cmd)
 
 	/* Check whether this command needs arguments */
 	switch(*cmd) {
+		/* Optional arg */
+		case 'f':
+			if(!*arg) break;
+
 		/* Mandatory argument */
-		case 'q':
-		case 'e': case 'd':	/* enable, disable */
-		case 'p': case 'w':	/* pause, resume */
-		case 'h': case 'i':	/* hup, pidof */
+		case 'x':             /* restart */
+		case 'd': case 'e':   /* stop-start (disable-enable) */
+		case 's': case 'c':   /* pause-resume (stop-continue) */
+		case 'u': case 'i':   /* hup, pidof */
+		case 'q':             /* show */
 			if(!(rc = findrec(arg)))
 				return report("no entry named", arg, 0);
 			break;
 
-		/* There are no commands with optional arguments atm */
-		/* There are few that take no argument at all however */
+		/* Anything else is no-argument */
 		default: if(*arg)
 			return report("no argument allowed for", cmd, 0);
 	}
@@ -127,21 +152,23 @@ void parsecmd(char* cmd)
 	/* Now the command itself */
 	switch(*cmd) {
 		/* halt */
-		case 'H': reboot('h'); break;
-		case 'P': reboot('p'); break;
-		case 'R': reboot('r'); break;
+		case 'h': reboot('h'); break;
+		case 'p': reboot('p'); break;
+		case 'r': reboot('r'); break;
 		/* process ops */
-		case 'p': killrec(rc, GROUP, SIGSTOP); break;
-		case 'w': killrec(rc, GROUP, SIGCONT); break;
-		case 'h': killrec(rc, PONLY, SIGHUP); break;
+		case 'x': restart(rc); break;
 		case 'd': disable(rc); break;
 		case 'e': enable(rc); break;
+		case 's': killrec(rc, GROUP, SIGSTOP); break;
+		case 'c': killrec(rc, GROUP, SIGCONT); break;
+		case 'u': killrec(rc, PONLY, SIGHUP); break;
 		/* state query */
+		case 'l': dumpstate(); break;
 		case 'i': dumpidof(rc); break;
-		case 'q': dumpstatus(rc); break;
-		case '?': dumpstate(); break;
+		case 'q': showring(rc); break;
+		case 'f': flusharg(rc); break;
 		/* reconfigure */
-		case 'c': reload(); break;
+		case 'z': reload(); break;
 		default: report("unknown command", cmd, 0);
 	}
 }

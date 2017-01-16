@@ -70,6 +70,7 @@ struct svcrec* firstrec(void);
 struct svcrec* nextrec(struct svcrec* rc);
 int recindex(struct svcrec* rc);
 void droprec(struct svcrec* rc);
+void flushrec(struct svcrec* rc);
 
 void report(char* msg, char* arg, int err);
 void reprec(struct svcrec* rc, char* msg);

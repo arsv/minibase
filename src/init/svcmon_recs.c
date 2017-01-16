@@ -74,15 +74,19 @@ int recindex(struct svcrec* rc)
 	return rc - recs;
 }
 
+void flushrec(struct svcrec* rc)
+{
+	if(!rc->ring) return;
+
+	sysmunmap(rc->ring, RINGSIZE);
+}
+
 void droprec(struct svcrec* rc)
 {
 	int i = recindex(rc);
 
 	setpollfd(i, -1);
-
-	if(rc->ring)
-		sysmunmap(rc->ring, RINGSIZE);
-
+	flushrec(rc);
 	memset(rc, 0, sizeof(*rc));
 
 	if(i == gg.nr-1) gg.nr--;
