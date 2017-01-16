@@ -98,10 +98,6 @@ static void spawn(struct svcrec* rc)
 
 static void stop(struct svcrec* rc)
 {
-	if(rc->pid <= 0)
-		/* This can only happen on telinit stop, so let the user know */
-		return reprec(rc, "not running");
-
 	if(rc->flags & P_SIGKILL) {
 		/* The process has been sent SIGKILL, still refuses
 		   to kick the bucket. Just forget about it then,
