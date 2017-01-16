@@ -1,6 +1,10 @@
 #include <sys/fork.h>
 #include <sys/execve.h>
 #include <sys/kill.h>
+#include <sys/pipe2.h>
+#include <sys/close.h>
+#include <sys/dup2.h>
+#include <sys/clock_gettime.h>
 #include <sys/_exit.h>
 
 #include <format.h>
@@ -8,18 +12,30 @@
 
 #include "svcmon.h"
 
+static time_t passtime;
+
+static void setpasstime(void)
+{
+	struct timespec tp = { 0, 0 };
+	long ret;
+
+	if((ret = sysclock_gettime(CLOCK_MONOTONIC, &tp))) {
+		report("clock_gettime", "CLOCK_MONOTONIC", ret);
+	} else {
+		passtime = BOOTCLOCKOFFSET + tp.tv_sec;
+	}
+}
+
 static int waitneeded(time_t* last, time_t wait)
 {
-	time_t curtime = gg.passtime;
+	time_t curtime = passtime;
 	time_t endtime = *last + wait;
 
 	if(endtime <= curtime) {
-		*last = gg.passtime;
+		*last = passtime;
 		return 0;
 	} else {
-		int ttw = endtime - curtime;
-		if(gg.timetowait < 0 || gg.timetowait > ttw)
-			gg.timetowait = ttw;
+		wakeupin(endtime - curtime);
 		return 1;
 	}
 }
@@ -52,17 +68,31 @@ static void spawn(struct svcrec* rc)
 	if(waitneeded(&rc->lastrun, TIME_TO_RESTART))
 		return;
 
-	int pid = sysfork();
+	rc->lastrun = passtime;
+	rc->lastsig = 0;
 
-	if(pid < 0)
+	int pipe[2];
+	int pid, ret;
+
+	if((ret = syspipe2(pipe, O_NONBLOCK))) {
+		report("pipe", NULL, ret);
 		return;
+	}
+
+	if((pid = sysfork()) < 0) {
+		report("fork", NULL, ret);
+		return;
+	}
 
 	if(pid == 0) {
+		sysclose(pipe[0]);
+		sysdup2(pipe[1], 1);
+		sysdup2(pipe[1], 2);
 		_exit(child(rc));
 	} else {
 		rc->pid = pid;
-		rc->lastrun = gg.passtime;
-		rc->lastsig = 0;
+		sysclose(pipe[1]);
+		setpollfd(recindex(rc)+1, pipe[0]);
 	}
 }
 
@@ -91,7 +121,7 @@ static void stop(struct svcrec* rc)
 		/* Regular stop() invocation, gently ask the process to leave
 		   the kernel process table */
 
-		rc->lastsig = gg.passtime;
+		rc->lastsig = passtime;
 		syskill(rc->pid, SIGTERM);
 		rc->flags |= P_SIGTERM;
 
@@ -109,33 +139,31 @@ static void stop(struct svcrec* rc)
 void initpass(void)
 {
 	struct svcrec* rc;
+	int running = 0;
+
+	setpasstime();
 
 	for(rc = firstrec(); rc; rc = nextrec(rc)) {
 		int disabled = (rc->flags & P_DISABLED);
 
+		if(!disabled || rc->pid > 0)
+			running = 1;
 		if(rc->pid <= 0 && !disabled)
 			spawn(rc);
 		else if(rc->pid > 0 && disabled)
 			stop(rc);
 	}
+
+	if(!running)
+		gg.state |= S_REBOOT;
 }
 
-void killpass(void)
+void stopall(void)
 {
 	struct svcrec* rc;
 
 	for(rc = firstrec(); rc; rc = nextrec(rc))
-		if(rc->pid > 0)
-			stop(rc);
-}
+		rc->flags |= P_DISABLED;
 
-int anyrunning(void)
-{
-	struct svcrec* rc;
-
-	for(rc = firstrec(); rc; rc = nextrec(rc))
-		if(rc->pid > 0)
-			return 1;
-
-	return 0;
+	gg.state |= S_PASSREQ;
 }

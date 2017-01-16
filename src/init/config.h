@@ -18,3 +18,5 @@
 #define TIME_TO_SKIP    5
 
 #define BOOTCLOCKOFFSET 1000
+
+#define RINGSIZE PAGE

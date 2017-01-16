@@ -52,6 +52,7 @@ static struct cmdrec {
 	/* state query */
 	{ '?', 0, "list",	},
 	{ 'i', 1, "pidof",	},
+	{ 'q', 1, "show",	},
 	/* reconfigure */
 	{ 'c', 0, "reload",	},
 	{  0  }

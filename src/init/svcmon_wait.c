@@ -10,6 +10,9 @@ static void markdead(struct svcrec* rc, int status)
 
 	if(rc->flags & P_STALE)
 		droprec(rc);
+
+	/* possibly unexpected death */
+	gg.state |= S_PASSREQ;
 }
 
 void waitpids(void)

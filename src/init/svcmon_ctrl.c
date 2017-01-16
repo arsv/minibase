@@ -38,7 +38,7 @@ void setctl(void)
 	long ret;
 	char* name = SVCTL;
 
-	gg.ctlfd = fd;
+	setpollfd(0, fd);
 
 	if((ret = sysbind(fd, &addr, sizeof(addr))) < 0)
 		report("bind", name, ret);
@@ -47,8 +47,7 @@ void setctl(void)
 	else
 		return;
 
-	sysclose(fd);
-	gg.ctlfd = -1;
+	setpollfd(0, -1);
 }
 
 static int checkuser(int fd)
@@ -81,26 +80,26 @@ static void readcmd(int fd)
 	gg.outfd = STDERR;
 }
 
-void acceptctl(void)
+void acceptctl(int sfd)
 {
-	int fd;
+	int cfd;
 	int gotcmd = 0;
 	struct sockaddr addr;
 	int addr_len = sizeof(addr);
 
-	while((fd = sysaccept(gg.ctlfd, &addr, &addr_len)) > 0) {
-		int nonroot = checkuser(fd);
+	while((cfd = sysaccept(sfd, &addr, &addr_len)) > 0) {
+		int nonroot = checkuser(cfd);
 
 		if(nonroot) {
 			const char* denied = "Access denied\n";
-			syswrite(fd, denied, strlen(denied));
+			syswrite(cfd, denied, strlen(denied));
 		} else {
 			gotcmd = 1;
 			sysalarm(SVCTL_TIMEOUT);
-			readcmd(fd);
+			readcmd(cfd);
 		}
 
-		sysclose(fd);
+		sysclose(cfd);
 
 	} if(gotcmd) {
 		/* disable the timer in case it has been set */

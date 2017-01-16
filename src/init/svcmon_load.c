@@ -67,14 +67,14 @@ int load_dir_ents(void)
 	int delen = PAGE;
 	char* debuf = alloc(delen);
 
-	if(!debuf)
-		return -1;
+	if(!debuf) return -1;
 
 	char* dir = gg.dir;
 	long fd, rd;
 
 	if((fd = sysopen(dir, O_RDONLY | O_DIRECTORY)) < 0) {
 		report("open", dir, fd);
+		afree();
 		return fd;
 	}
 
@@ -100,6 +100,7 @@ int load_dir_ents(void)
 		report("getdents", dir, rd);
 	}
 
+	afree();
 	sysclose(fd);
 	return rd;
 }

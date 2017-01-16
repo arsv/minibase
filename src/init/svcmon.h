@@ -1,13 +1,14 @@
 #include <bits/types.h>
 #include <bits/signal.h>
+#include <bits/ppoll.h>
 #include "config.h"
 
 #define S_SIGCHLD (1<<0)
-#define S_WAITING (1<<1)
+#define S_PASSREQ (1<<1)
 #define S_TERMREQ (1<<2)
-#define S_CTRLREQ (1<<3)
 #define S_REOPEN  (1<<4)
 #define S_RELOAD  (1<<5)
+#define S_REBOOT  (1<<6)
 
 #define P_DISABLED (1<<0)
 #define P_SIGSTOP  (1<<1)
@@ -22,28 +23,29 @@ struct svcrec {
 	time_t lastrun;
 	time_t lastsig;
 	int status;
+
+	char* ring;
+	short head;
+	short tail;
 };
 
 struct svcmon {
 	int state;
-	int timetowait;
-	time_t passtime;
 	char rbcode;
 
-	int ctlfd;
 	int outfd;
 
 	int uid;
 
-	char* brk;
-	char* ptr;
-	char* end;
-
 	char* dir;
 	char** env;
+
+	int nr;
 };
 
 extern struct svcmon gg;
+extern struct svcrec recs[];
+extern struct pollfd pfds[];
 
 int reload(void);
 
@@ -55,18 +57,23 @@ void killpass(void);
 void waitpoll(void);
 void waitpids(void);
 
-int setsig(void);
+int setsignals(void);
 void setctl(void);
-void acceptctl(void);
+void acceptctl(int sfd);
 void parsecmd(char* cmd);
-
-int anyrunning(void);
+void wakeupin(int ttw);
+void stopall(void);
+void setpollfd(int i, int fd);
+void bufoutput(int fd, int i);
 
 struct svcrec* firstrec(void);
 struct svcrec* nextrec(struct svcrec* rc);
+int recindex(struct svcrec* rc);
 void droprec(struct svcrec* rc);
 
 void report(char* msg, char* arg, int err);
 void reprec(struct svcrec* rc, char* msg);
 
+void setbrk(void);
 char* alloc(int len);
+void afree(void);

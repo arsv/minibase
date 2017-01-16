@@ -30,16 +30,39 @@ static void dumpstate(void)
 	struct svcrec* rc;
 
 	for(rc = firstrec(); rc; rc = nextrec(rc)) {
+		p = fmtstr(p, e, " ");
 		if(rc->pid > 0)
 			p = fmtpad(p, e, 5, fmtint(p, e, rc->pid));
 		else
 			p = fmtpad(p, e, 5, fmtstr(p, e, "-"));
+		p = fmtstr(p, e, rc->tail != rc->head ? "*" : " ");
 		p = fmtstr(p, e, " ");
 		p = fmtstr(p, e, rc->name);
 		p = fmtstr(p, e, "\n");
 	}
 
 	writeall(gg.outfd, buf, p - buf);
+
+	afree();
+}
+
+static void dumpstatus(struct svcrec* rc)
+{
+	if(!rc->ring)
+		return;
+
+	char* ring = rc->ring;
+	int head = rc->head;
+	int tail = rc->tail;
+
+	writeall(gg.outfd, "#", 1);
+
+	if(tail > head) {
+		writeall(gg.outfd, ring + head, tail - head);
+	} else {
+		writeall(gg.outfd, ring + head, RINGSIZE - head);
+		writeall(gg.outfd, ring, tail);
+	}
 }
 
 static void dumpidof(struct svcrec* rc)
@@ -63,12 +86,20 @@ static void disable(struct svcrec* rc)
 {
 	rc->lastsig = 0;
 	rc->flags |= P_DISABLED;
+	gg.state |= S_PASSREQ;
 }
 
 static void enable(struct svcrec* rc)
 {
 	rc->lastrun = 0;
 	rc->flags &= ~P_DISABLED;
+	gg.state |= S_PASSREQ;
+}
+
+void reboot(char code)
+{
+	gg.rbcode = code;
+	stopall();
 }
 
 void parsecmd(char* cmd)
@@ -79,7 +110,7 @@ void parsecmd(char* cmd)
 	/* Check whether this command needs arguments */
 	switch(*cmd) {
 		/* Mandatory argument */
-		case 'r':		/* restart */
+		case 'q':
 		case 'e': case 'd':	/* enable, disable */
 		case 'p': case 'w':	/* pause, resume */
 		case 'h': case 'i':	/* hup, pidof */
@@ -96,9 +127,9 @@ void parsecmd(char* cmd)
 	/* Now the command itself */
 	switch(*cmd) {
 		/* halt */
-		case 'H': gg.rbcode = 'h'; break;
-		case 'P': gg.rbcode = 'p'; break;
-		case 'R': gg.rbcode = 'r'; break;
+		case 'H': reboot('h'); break;
+		case 'P': reboot('p'); break;
+		case 'R': reboot('r'); break;
 		/* process ops */
 		case 'p': killrec(rc, GROUP, SIGSTOP); break;
 		case 'w': killrec(rc, GROUP, SIGCONT); break;
@@ -107,6 +138,7 @@ void parsecmd(char* cmd)
 		case 'e': enable(rc); break;
 		/* state query */
 		case 'i': dumpidof(rc); break;
+		case 'q': dumpstatus(rc); break;
 		case '?': dumpstate(); break;
 		/* reconfigure */
 		case 'c': reload(); break;

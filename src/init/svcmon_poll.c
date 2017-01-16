@@ -1,7 +1,9 @@
+#include <bits/time.h>
 #include <sys/ppoll.h>
 #include <sys/sigaction.h>
 #include <sys/sigprocmask.h>
 #include <sys/_exit.h>
+#include <sys/close.h>
 #include <sys/nanosleep.h>
 
 #include <sigset.h>
@@ -13,6 +15,7 @@
 /* A single handler for all signals we care about. */
 
 static sigset_t defsigset;
+static struct timespec timetowait;
 
 static void sighandler(int sig)
 {
@@ -21,6 +24,7 @@ static void sighandler(int sig)
 		case SIGINT:
 		case SIGTERM:
 			gg.rbcode = 'r';
+			stopall();
 			break;
 		case SIGCHLD:
 			gg.state |= S_SIGCHLD;
@@ -28,7 +32,7 @@ static void sighandler(int sig)
 	}
 }
 
-int setsig(void)
+int setsignals(void)
 {
 	struct sigaction sa = {
 		.sa_handler = sighandler,
@@ -61,29 +65,73 @@ int setsig(void)
 	return ret;
 }
 
+void wakeupin(int seconds)
+{
+	time_t ttw = timetowait.tv_sec;
+
+	if(ttw >= 0 && ttw < seconds)
+		return;
+
+	timetowait.tv_sec = seconds;
+	timetowait.tv_nsec = 0;
+}
+
+void setpollfd(int i, int fd)
+{
+	if(pfds[i].fd > 0)
+		sysclose(pfds[i].fd);
+
+	pfds[i].fd = fd;
+	pfds[i].events = POLLIN;
+}
+
+static void checkfds(int nr)
+{
+	int i;
+
+	for(i = 0; i < nr; i++) {
+		int fd = pfds[i].fd;
+		int re = pfds[i].revents;
+
+		if(re & POLLIN) {
+			if(i == 0)
+				acceptctl(fd);
+			else
+				bufoutput(fd, i);
+		} if(re & POLLHUP) {
+			setpollfd(i, -1);
+		}
+	}
+}
+
+static void msleep(int ms)
+{
+	struct timespec sp = { ms/1000, (ms%1000) * 1000000 };
+	sysnanosleep(&sp, NULL);
+}
+
 void waitpoll(void)
 {
-	int r;
-	struct pollfd pfd;
-	struct timespec pts;
-	struct timespec* ppts;
+	int nfds = gg.nr + 1;
+	struct timespec* ts;
 
-	pfd.fd = gg.ctlfd;
-	pfd.events = POLLIN;
-	if(gg.timetowait >= 0) {
-		pts.tv_sec = gg.timetowait;
-		pts.tv_nsec = 0;
-		ppts = &pts;
-	} else {
-		ppts = NULL;
-	}
+	if(timetowait.tv_sec > 0 || timetowait.tv_nsec > 0)
+		ts = &timetowait;
+	else
+		ts = NULL;
 
-	r = sysppoll(&pfd, 1, ppts, &defsigset);
+	int r = sysppoll(pfds, nfds, ts, &defsigset);
 
-	if(r < 0 && r != -EINTR) {
-		_exit(0xFF);
+	if(r == -EINTR) {
+		/* we're ok here, sighandlers did their job */
+	} else if(r < 0) {
+		report("ppoll", NULL, r);
+		msleep(1000);
 	} else if(r > 0) {
-		/* only one fd in pfd, so not that much choice here */
-		gg.state |= S_CTRLREQ;
-	} /* EINTR, on the other hand, is totally ok (SIGCHLD etc) */
+		checkfds(nfds);
+	} else { /* timeout has been reached */
+		timetowait.tv_sec = 0;
+		timetowait.tv_nsec = 0;
+		gg.state |= S_PASSREQ;
+	}
 }

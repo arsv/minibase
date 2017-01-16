@@ -1,4 +1,3 @@
-#include <sys/clock_gettime.h>
 #include <sys/unlink.h>
 #include <sys/getpid.h>
 #include <sys/getuid.h>
@@ -6,11 +5,10 @@
 #include <sys/fork.h>
 #include <sys/waitpid.h>
 #include <sys/execve.h>
-#include <sys/brk.h>
 
 #include <format.h>
-
 #include <util.h>
+
 #include "svcmon.h"
 
 struct svcmon gg;
@@ -20,59 +18,12 @@ static int setup(char** envp)
 	gg.dir = SVDIR;
 	gg.env = envp;
 	gg.uid = sysgetuid();
-	gg.brk = (char*)sysbrk(NULL);
-	gg.ptr = gg.end = gg.brk;
-
-	setctl();
-
-	return setsig();
-}
-
-static void reset(void)
-{
-	gg.state = 0;
-	gg.timetowait = -1;
 	gg.outfd = STDERR;
 
-	if(gg.end > gg.brk)
-		gg.end = gg.ptr = (char*)sysbrk(gg.brk);
-}
+	setbrk();
+	setctl();
 
-char* alloc(int len)
-{
-	char* ptr = gg.ptr;
-	char* req = ptr + len;
-
-	if(req <= gg.end)
-		goto done;
-
-	gg.end = (char*)sysbrk(req);
-
-	if(req > gg.end) {
-		report("out of memory", NULL, 0);
-		return NULL;
-	}
-done:
-	gg.ptr += len;
-	return ptr;
-}
-
-static void advpasstime(int dflt)
-{
-	struct timespec tp = { 0, 0 };
-
-	if(sysclock_gettime(CLOCK_MONOTONIC, &tp))
-		goto fault;
-
-	time_t shifted = tp.tv_sec + BOOTCLOCKOFFSET;
-
-	if(shifted < gg.passtime)
-		goto fault;
-
-	gg.passtime = shifted;
-	return;
-
-fault:	gg.passtime += dflt;
+	return setsignals();
 }
 
 static int forkreboot(void)
@@ -94,40 +45,25 @@ static int forkreboot(void)
 int main(int argc, char** argv, char** envp)
 {
 	if(setup(envp))
-		goto reboot;	/* Initial setup failed badly */
+		goto reboot;
 	if(reload())
 		goto reboot;
 
-	advpasstime(BOOTCLOCKOFFSET);
+	initpass();
 
-	while(!gg.rbcode) {
-		reset();
-		initpass();
+	while(!(gg.state & S_REBOOT)) {
+		gg.state = 0;
+
 		waitpoll();
 
 		if(gg.state & S_SIGCHLD)
 			waitpids();
-		if(gg.state & S_CTRLREQ)
-			acceptctl();
 		if(gg.state & S_REOPEN)
 			setctl();
 		if(gg.state & S_RELOAD)
 			reload();
-
-		advpasstime(gg.timetowait);
-	}
-
-	gg.ctlfd = -1;
-	
-	while(anyrunning()) {
-		reset();
-		killpass();
-		waitpoll();
-
-		if(gg.state & S_SIGCHLD)
-			waitpids();
-
-		advpasstime(gg.timetowait);
+		if(gg.state & S_PASSREQ)
+			initpass();
 	}
 
 reboot:
