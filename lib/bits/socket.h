@@ -3,12 +3,6 @@
 
 #include <bits/types.h>
 
-#define AF_NETLINK    16
-
-#define PF_UNSPEC      0
-#define PF_UNIX        1
-#define PF_NETLINK    16
-
 #define SOCK_STREAM    1
 #define SOCK_DGRAM     2
 #define SOCK_RAW       3
@@ -16,10 +10,12 @@
 #define SOCK_NONBLOCK  04000
 
 #define SOL_SOCKET      1
-#define SOL_NETLINK	270
 #define SO_PEERCRED     17
 
 #define SHUT_WR 1
+
+#define AF_UNSPEC      0
+#define PF_UNSPEC      0
 
 struct sockaddr {
 	uint16_t sa_family;
