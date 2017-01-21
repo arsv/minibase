@@ -1,3 +1,5 @@
+/* socket.protocol = NETLINK_GENERIC, nlmsg.type = GENL_ID_CTRL */
+
 #define GENL_ID_CTRL        0x10
 
 /* Commands */

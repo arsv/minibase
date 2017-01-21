@@ -1,3 +1,6 @@
+/* socket.protocol = NETLINK_GENERIC,
+   nlmsg.type = CTRL_CMD_GETFAMILY("nl80211") */
+
 /* Commands */
 
 #define NL80211_CMD_GET_WIPHY           1

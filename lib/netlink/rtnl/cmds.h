@@ -1,3 +1,5 @@
+/* socket.protocol = NETLINK_ROUTE */
+
 /* Multicast groups */
 
 #define RTMGRP_LINK             (1<<0)
@@ -15,7 +17,7 @@
 #define RTMGRP_IPV6_ROUTE       (1<<10)
 #define RTMGRP_IPV6_IFINFO      (1<<11)
 
-/* Message types */
+/* Message types, nlmsg.type */
 
 #define RTM_NEWLINK	16
 #define RTM_DELLINK	17
@@ -84,27 +86,3 @@
 
 #define RTM_NEWSTATS    92
 #define RTM_GETSTATS    94
-
-struct nlmsg;
-struct nlattr;
-
-struct ifinfomsg {
-	struct nlmsg nlm;
-	uint8_t  family;
-	uint8_t  pad0;
-	uint16_t type;
-	int32_t  index;
-	uint32_t flags;
-	uint32_t change;
-	char payload[];
-} __attribute__((packed));
-
-struct ifaddrmsg {
-	struct nlmsg nlm;
-	uint8_t family;
-	uint8_t prefixlen;
-	uint8_t flags;
-	uint8_t scope;
-	int index;
-	char payload[];
-} __attribute__((packed));

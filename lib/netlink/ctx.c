@@ -1,12 +1,16 @@
+#include <bits/socket.h>
+#include <bits/ioctl/socket.h>
+#include <sys/getpid.h>
 #include <sys/socket.h>
 #include <sys/bind.h>
+#include <sys/ioctl.h>
 #include <sys/recv.h>
-#include <sys/getpid.h>
 #include <sys/sendto.h>
 
 #include <string.h>
-#include <format.h>
-#include <netlink.h>
+
+#include "ctx.h"
+#include "base.h"
 
 void nl_init(struct netlink* nl)
 {
@@ -30,9 +34,9 @@ long nl_connect(struct netlink* nl, int protocol, int groups)
 	int domain = PF_NETLINK;
 	int type = SOCK_RAW;
 	struct sockaddr_nl nls = {
-		.nl_family = AF_NETLINK,
-		.nl_pid = sysgetpid(),
-		.nl_groups = groups
+		.family = AF_NETLINK,
+		.pid = sysgetpid(),
+		.groups = groups
 	};
 	long ret;
 
@@ -47,20 +51,23 @@ long nl_connect(struct netlink* nl, int protocol, int groups)
 	return 0;
 }
 
-static int nl_got_message(struct netlink* nl)
+int nl_ifindex(struct netlink* nl, const char* ifname)
 {
-	int off = nl->msgend;
-	int len = nl->rxend - off;
+	struct ifreq ifreq;
+	int len = strlen(ifname);
 
-	if(len < sizeof(struct nlmsg))
-		return 0;
+	if(len > sizeof(ifreq.name) - 1)
+		return -ENAMETOOLONG;
 
-	struct nlmsg* msg = (struct nlmsg*)(nl->rxbuf + off);
+	memset(&ifreq, 0, sizeof(ifreq));
+	memcpy(ifreq.name, ifname, len);
+	
+	long ret = sysioctl(nl->fd, SIOCGIFINDEX, (long)&ifreq);
 
-	if(msg->len > len)
-		return 0;
+	if(ret < 0)
+		return ret;
 
-	return msg->len;
+	return ifreq.ival;
 }
 
 /* Bare send/recv working in terms of blocks in buffers */
@@ -79,15 +86,15 @@ long nl_recv_chunk(struct netlink* nl)
 	return rd;
 }
 
-long nl_send_chunk(struct netlink* nl)
+long nl_send_txbuf(struct netlink* nl)
 {
 	struct sockaddr_nl nls = {
-		.nl_family = AF_NETLINK,
-		.nl_pid = 0,
-		.nl_groups = 0
+		.family = AF_NETLINK,
+		.pid = 0,
+		.groups = 0
 	};
 
-	long rd = syssendto(nl->fd, nl->txbuf, nl->txlen, 0, &nls, sizeof(nls));
+	long rd = syssendto(nl->fd, nl->txbuf, nl->txend, 0, &nls, sizeof(nls));
 
 	nl->err = (rd < 0 ? rd : 0);
 
@@ -95,6 +102,22 @@ long nl_send_chunk(struct netlink* nl)
 }
 
 /* Message-oriented recv and send */
+
+static int nl_got_message(struct netlink* nl)
+{
+	int off = nl->msgend;
+	int len = nl->rxend - off;
+
+	if(len < sizeof(struct nlmsg))
+		return 0;
+
+	struct nlmsg* msg = (struct nlmsg*)(nl->rxbuf + off);
+
+	if(msg->len > len)
+		return 0;
+
+	return msg->len;
+}
 
 static int nl_no_rx_space(struct netlink* nl)
 {
@@ -150,45 +173,12 @@ gotmsg:
 	return (struct nlmsg*)(nl->rxbuf + nl->msgptr);
 }
 
-struct nlmsg* nl_recv_seq(struct netlink* nl)
-{
-	struct nlmsg* msg;
-
-	while((msg = nl_recv(nl)))
-		if(msg->seq == nl->seq)
-			return msg;
-
-	return NULL;
-}
-
-int nl_send(struct netlink* nl, int flags)
+int nl_send(struct netlink* nl)
 {
 	if(!nl->txend)
 		return (nl->err = -EINVAL);
 	if(nl->txover)
 		return (nl->err = -ENOMEM);
 
-	struct nlmsg* msg = (struct nlmsg*)(nl->txbuf);
-
-	msg->len = nl->txend;
-	msg->flags = flags;
-
-	return (nl_send_chunk(nl) <= 0);
-}
-
-struct nlmsg* nl_send_recv(struct netlink* nl, int flags)
-{
-	if(nl_send(nl, flags) < 0)
-		return NULL;
-	return nl_recv_seq(nl);
-}
-
-int nl_done(struct nlmsg* msg)
-{
-	return (msg->type == NLMSG_DONE);
-}
-
-int nl_inseq(struct netlink* nl, struct nlmsg* msg)
-{
-	return (msg->seq == nl->seq);
+	return (nl_send_txbuf(nl) <= 0);
 }
