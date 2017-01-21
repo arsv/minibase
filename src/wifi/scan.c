@@ -14,8 +14,8 @@
 #include <fail.h>
 
 #include <netlink.h>
-#include <netlink/ctrl.h>
-#include <netlink/80211.h>
+#include <netlink/genl/ctrl.h>
+#include <netlink/genl/nl80211.h>
 
 /* Simple Wi-Fi scan tool, an easier to use equivalent of "iw ... scan".
    Mostly a netlink.h test atm, not really meant to be a permanent part
@@ -140,7 +140,7 @@ void print_scan_entry(struct nlgen* msg)
 	unsigned char* id;
 	int32_t* i32;
 
-	if((id = nl_sub_len(bss, NL80211_BSS_BSSID, 6)))
+	if((id = nl_sub_of_len(bss, NL80211_BSS_BSSID, 6)))
 		p = format_mac(p, e, id);
 	else
 		p = fmtstr(p, e, "XX:XX:XX:XX:XX:XX ");
@@ -163,34 +163,24 @@ void print_scan_entry(struct nlgen* msg)
    from the device. It may be used during scan, and long after scan,
    but only makes sense immediately after NL80211_CMD_NEW_SCAN_RESULTS.
 
-   Unlike NL80211_CMD_TRIGGER_SCAN, this one works for non-privilged
+   Unlike NL80211_CMD_TRIGGER_SCAN, this one works for non-privileged
    users, but the results are often useless. */
 
 void request_ssid_list(struct netlink* nl, int nl80211, int ifindex)
 {
+	struct nlgen* gen;
+
 	nl_new_cmd(nl, nl80211, NL80211_CMD_GET_SCAN, 0);
 	nl_put_u64(nl, NL80211_ATTR_IFINDEX, ifindex);
 
-	nl->dump = 1;
-
-	if(nl_send(nl, NLM_F_REQUEST | NLM_F_ACK | NLM_F_DUMP))
+	if(nl_send_dump(nl))
 		fail("NL80211_CMD_GET_SCAN", NULL, nl->err);
 
-	struct nlmsg* msg;
-	struct nlgen* gen;
-	struct nlerr* err;
-
-	while((msg = nl_recv_seq(nl))) {
-		if(nl_done(msg))
-			break;
-		if((err = nl_err(msg)))
-			fail("NL80211_CMD_GET_SCAN", NULL, err->errno);
-		if(!(gen = nl_gen(msg)))
-			continue;
+	while(nl_recv_multi_into(nl, gen)) {
 		if(gen->cmd == NL80211_CMD_NEW_SCAN_RESULTS)
 			print_scan_entry(gen);
-	} if(!msg) {
-		fail("nl-recv", NULL, nl->err);
+	} if(nl->err) {
+		fail("NL80211_CMD_GET_SCAN", NULL, nl->err);
 	}
 }
 
@@ -205,21 +195,14 @@ struct nlpair {
 void query_nl_family(struct netlink* nl,
                      struct nlpair* fam, struct nlpair* mcast)
 {
-	struct nlmsg* msg = NULL;
-	struct nlgen* gen = NULL;
-	struct nlerr* err = NULL;
+	struct nlgen* gen;
 	struct nlattr* at;
 
 	nl_new_cmd(nl, GENL_ID_CTRL, CTRL_CMD_GETFAMILY, 1);
-	nl_put_astr(nl, CTRL_ATTR_FAMILY_NAME, fam->name);
+	nl_put_str(nl, CTRL_ATTR_FAMILY_NAME, fam->name);
 
-	if(!(msg = nl_send_recv(nl, NLM_F_REQUEST)))
+	if(!(gen = nl_send_recv_genl(nl)))
 		fail("CTRL_CMD_GETFAMILY", fam->name, nl->err);
-
-	if((err = nl_err(msg)))
-		fail("CTRL_CMD_GETFAMILY", fam->name, err->errno);
-	if(!(gen = nl_gen(msg)))
-		fail("CTRL_CMD_GETFAMILY: unexpected response", NULL, 0);
 
 	uint16_t* grpid = nl_get_u16(gen, CTRL_ATTR_FAMILY_ID);
 	struct nlattr* groups = nl_get_nest(gen, CTRL_ATTR_MCAST_GROUPS);
@@ -232,7 +215,7 @@ void query_nl_family(struct netlink* nl,
 	fam->id = *grpid;
 
 	for(at = nl_sub_0(groups); at; at = nl_sub_n(groups, at)) {
-		if(!nl_is_nest(at))
+		if(!nl_attr_is_nest(at))
 			continue;
 
 		char* name = nl_sub_str(at, 1);
@@ -287,70 +270,52 @@ int resolve_80211_subscribe_scan(struct netlink* nl)
 
 void request_scan(struct netlink* nl, int nl80211, int ifindex)
 {
-	struct nlmsg* msg;
-	struct nlerr* err;
-	struct nlgen* gen;
+	struct nlgen* msg;
 	uint32_t* idx;
 
 	nl_new_cmd(nl, nl80211, NL80211_CMD_TRIGGER_SCAN, 0);
 	nl_put_u64(nl, NL80211_ATTR_IFINDEX, ifindex);
 
-	if(!(msg = nl_send_recv(nl, NLM_F_REQUEST | NLM_F_ACK)))
-		fail("nl-send", NULL, nl->err);
+	if(nl_send_recv_ack(nl))
+		fail("NL80211_CMD_TRIGGER_SCAN", NULL, nl->err);
 
-	if(!(err = nl_err(msg)))
-		fail("NL80211_CMD_TRIGGER_SCAN", "unexpected response", 0);
-	if(err->errno)
-		fail("NL80211_CMD_TRIGGER_SCAN", NULL, err->errno);
-
-	while((msg = nl_recv(nl))) {
-		if(msg->seq)
-			fail("unexpected sequence cmd", NULL, 0);
-		if(!(gen = nl_gen(msg)))
-			fail("unexpected non-gen msg", NULL, 0);
-		if(!(idx = nl_get_u32(gen, NL80211_ATTR_IFINDEX)))
+	while((msg = nl_recv_genl_nonseq(nl))) {
+		if(!(idx = nl_get_u32(msg, NL80211_ATTR_IFINDEX)))
 			continue;
 		if(*idx != ifindex)
 			continue;
-		if(gen->cmd == NL80211_CMD_SCAN_ABORTED)
+		if(msg->cmd == NL80211_CMD_SCAN_ABORTED)
 			fail("aborted", NULL, 0);
-		if(gen->cmd == NL80211_CMD_NEW_SCAN_RESULTS)
+		if(msg->cmd == NL80211_CMD_NEW_SCAN_RESULTS)
 			break;
-	} if(!msg)
+	} if(nl->err) {
 		fail("nl-recv", NULL, nl->err);
+	}
 }
 
 static int query_interface(struct netlink* nl, int nl80211, char* name)
 {
-	struct nlmsg* msg;
-	struct nlgen* gen;
-	struct nlerr* err;
+	struct nlgen* msg;
 	uint32_t* idx;
 
 	int ifindex = -1;
 
 	nl_new_cmd(nl, nl80211, NL80211_CMD_GET_INTERFACE, 0);
-	if(nl_send(nl, NLM_F_REQUEST | NLM_F_DUMP))
+	if(nl_send_dump(nl))
 		fail("nl-send", NULL, nl->err);
 
-	while((msg = nl_recv_seq(nl))) {
-		if(nl_done(msg))
-			break;
-		if((err = nl_err(msg)))
-			fail("NL80211_CMD_GET_INTERFACE", name, err->errno);
-		if(!(gen = nl_gen(msg)))
-			fail("NL80211_CMD_GET_INTERFACE", "non-genl response", 0);
-		if(!(idx = nl_get_u32(gen, NL80211_ATTR_IFINDEX)))
+	while((msg = nl_recv_genl_multi(nl))) {
+		if(!(idx = nl_get_u32(msg, NL80211_ATTR_IFINDEX)))
 			continue;
 		if(name) {
-			char* nn = nl_get_str(gen, NL80211_ATTR_IFNAME);
+			char* nn = nl_get_str(msg, NL80211_ATTR_IFNAME);
 			if(!nn || strcmp(nn, name)) continue;
 			ifindex = *idx;
 			break;
 		} else if(ifindex < 0 || ifindex > *idx) {
 			ifindex = *idx;
 		}
-	} if(!msg) {
+	} if(nl->err) {
 		fail("nl-recv", NULL, nl->err);
 	}
 
