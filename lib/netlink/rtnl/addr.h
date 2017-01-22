@@ -1,16 +1,10 @@
-struct nlmsg;
+/* socket.protocol = NETLINK_ROUTE */
 
-/* attribute types for ifaddrmsg */
+/* nlmsg.type */
 
-#define IFA_UNSPEC      0
-#define IFA_ADDRESS     1
-#define IFA_LOCAL       2
-#define IFA_LABEL       3
-#define IFA_BROADCAST   4
-#define IFA_ANYCAST     5
-#define IFA_CACHEINFO   6
-#define IFA_MULTICAST   7
-#define IFA_FLAGS       8
+#define RTM_NEWADDR	20
+#define RTM_DELADDR	21
+#define RTM_GETADDR	22
 
 /* ifaddrmsg.flags */
 
@@ -27,16 +21,19 @@ struct nlmsg;
 #define IFA_F_MCAUTOJOIN      (1<<10)
 #define IFA_F_STABLE_PRIVACY  (1<<11)
 
-struct ifinfomsg {
-	struct nlmsg nlm;
-	uint8_t  family;
-	uint8_t  pad0;
-	uint16_t type;
-	int32_t  index;
-	uint32_t flags;
-	uint32_t change;
-	char payload[];
-} __attribute__((packed));
+/* nlattr.type */
+
+#define IFA_UNSPEC      0
+#define IFA_ADDRESS     1
+#define IFA_LOCAL       2
+#define IFA_LABEL       3
+#define IFA_BROADCAST   4
+#define IFA_ANYCAST     5
+#define IFA_CACHEINFO   6
+#define IFA_MULTICAST   7
+#define IFA_FLAGS       8
+
+struct nlmsg;
 
 struct ifaddrmsg {
 	struct nlmsg nlm;

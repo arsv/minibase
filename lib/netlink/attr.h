@@ -11,6 +11,8 @@ uint32_t* nl_u32(struct nlattr* at);
 uint64_t* nl_u64(struct nlattr* at);
 struct nlattr* nl_nest(struct nlattr* at);
 
+#define PAYLOAD(msg) msg->payload, msg->nlm.len - sizeof(*msg)
+
 struct nlattr* nl_attr_0_in(char* buf, int len);
 struct nlattr* nl_attr_n_in(char* buf, int len, struct nlattr* at);
 struct nlattr* nl_attr_k_in(char* buf, int len, int type);

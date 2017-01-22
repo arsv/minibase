@@ -2,7 +2,9 @@
 
 #include "base.h"
 #include "dump.h"
-#include "rtnl/if.h"
+#include "rtnl/addr.h"
+#include "rtnl/link.h"
+#include "rtnl/route.h"
 
 static void nl_dump_msg_hdr(struct nlmsg* msg)
 {
@@ -45,4 +47,34 @@ void nl_dump_ifaddr(struct ifaddrmsg* msg)
 			msg->index);
 
 	nl_dump_attrs_in(msg->payload, msg->nlm.len - sizeof(*msg));
+}
+
+void nl_dump_rtmsg(struct rtmsg* msg)
+{
+	nl_dump_msg_hdr(&msg->nlm);
+
+	eprintf(" RTMSG family=%i dst_len=%i src_len=%i tos=%i\n",
+		msg->family, msg->dst_len, msg->src_len, msg->tos);
+	eprintf("       table=%i protocol=%i scope=%i type=%i flags=%X\n",
+		msg->table, msg->protocol, msg->scope, msg->type, msg->flags);
+
+	nl_dump_attrs_in(msg->payload, msg->nlm.len - sizeof(*msg));
+}
+
+#define trycast(msg, tt, ff) \
+	if(msg->len >= sizeof(tt)) \
+		return ff((tt*)msg); \
+	else \
+		break
+
+void nl_dump_rtnl(struct nlmsg* msg)
+{
+	switch(msg->type) {
+		case RTM_NEWADDR:
+			trycast(msg, struct ifaddrmsg, nl_dump_ifaddr);
+		case RTM_NEWROUTE:
+			trycast(msg, struct rtmsg, nl_dump_rtmsg);
+		default:
+			nl_dump_msg(msg);
+	}
 }

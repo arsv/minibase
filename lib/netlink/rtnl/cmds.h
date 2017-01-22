@@ -1,37 +1,5 @@
 /* socket.protocol = NETLINK_ROUTE */
 
-/* Multicast groups */
-
-#define RTMGRP_LINK             (1<<0)
-#define RTMGRP_NOTIFY           (1<<1)
-#define RTMGRP_NEIGH            (1<<2)
-#define RTMGRP_TC               (1<<3)
-
-#define RTMGRP_IPV4_IFADDR      (1<<4)
-#define RTMGRP_IPV4_MROUTE      (1<<5)
-#define RTMGRP_IPV4_ROUTE       (1<<6)
-#define RTMGRP_IPV4_RULE        (1<<7)
-
-#define RTMGRP_IPV6_IFADDR      (1<<8)
-#define RTMGRP_IPV6_MROUTE      (1<<9)
-#define RTMGRP_IPV6_ROUTE       (1<<10)
-#define RTMGRP_IPV6_IFINFO      (1<<11)
-
-/* Message types, nlmsg.type */
-
-#define RTM_NEWLINK	16
-#define RTM_DELLINK	17
-#define RTM_GETLINK	18
-#define RTM_SETLINK	19
-
-#define RTM_NEWADDR	20
-#define RTM_DELADDR	21
-#define RTM_GETADDR	22
-
-#define RTM_NEWROUTE	24
-#define RTM_DELROUTE	25
-#define RTM_GETROUTE	26
-
 #define RTM_NEWNEIGH	28
 #define RTM_DELNEIGH	29
 #define RTM_GETNEIGH	30
