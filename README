@@ -76,12 +76,14 @@ GPL version 3, see COPYING.
 
 Credits
 ~~~~~~~
-Some of the code here comes from busybox, which in turn pulls
-from util-linux and coreutils, with numerous modifications
-along the way.
+The whole project was insipred and at early stages heavily influenced
+by busybox. However, because of fundamental distinctions in the base
+libraries and different opinions on POSIX compatibility there's hardly
+any common code left at this point. Still busybox is the best place
+to look for reasonably readable implementation of the tools missing here.
 
 Syscall code (static inline functions with asm volatile blocks)
-follows musl. Because they got it right.
+follows musl, because they got it right.
 
 The Rust coreutils project provided a great deal of inspiration,
 specifically by showing how not to write coreutils.
