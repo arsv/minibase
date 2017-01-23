@@ -19,10 +19,10 @@ int nl_check_zstr(char* buf, int len)
 
 int nl_attr_is_zstr(struct nlattr* at)
 {
-	return nl_check_zstr(at->payload, nl_attr_len(at));
+	return nl_check_zstr(ATPAYLOAD(at));
 }
 
 char* nl_str(struct nlattr* at)
 {
-	return nl_check_zstr(at->payload, nl_attr_len(at)) ? at->payload : NULL;
+	return nl_check_zstr(ATPAYLOAD(at)) ? at->payload : NULL;
 }

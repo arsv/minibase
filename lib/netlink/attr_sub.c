@@ -4,17 +4,17 @@
 
 struct nlattr* nl_sub_0(struct nlattr* at)
 {
-	return nl_attr_0_in(at->payload, at->len - sizeof(*at));
+	return nl_attr_0_in(ATPAYLOAD(at));
 }
 
 struct nlattr* nl_sub_n(struct nlattr* at, struct nlattr* cur)
 {
-	return nl_attr_n_in(at->payload, at->len - sizeof(*at), cur);
+	return nl_attr_n_in(ATPAYLOAD(at), cur);
 }
 
 struct nlattr* nl_sub(struct nlattr* at, uint16_t type)
 {
-	return nl_attr_k_in(at->payload, at->len - sizeof(*at), type);
+	return nl_attr_k_in(ATPAYLOAD(at), type);
 }
 
 void* nl_sub_of_len(struct nlattr* at, uint16_t type, int len)
