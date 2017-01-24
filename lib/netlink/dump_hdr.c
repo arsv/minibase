@@ -93,12 +93,15 @@ void nl_dump_rtnl(struct nlmsg* msg)
 	switch(msg->type) {
 		case RTM_NEWLINK:
 		case RTM_DELLINK:
+		case RTM_GETLINK:
 			trycast(msg, struct ifinfomsg, nl_dump_ifinfo);
 		case RTM_NEWADDR:
 		case RTM_DELADDR:
+		case RTM_GETADDR:
 			trycast(msg, struct ifaddrmsg, nl_dump_ifaddr);
 		case RTM_NEWROUTE:
 		case RTM_DELROUTE:
+		case RTM_GETROUTE:
 			trycast(msg, struct rtmsg, nl_dump_rtmsg);
 		default:
 			nl_dump_msg(msg);
