@@ -2,6 +2,7 @@
 
 #include "base.h"
 #include "dump.h"
+#include "attr.h"
 #include "rtnl/addr.h"
 #include "rtnl/link.h"
 #include "rtnl/route.h"
@@ -20,6 +21,15 @@ void nl_dump_msg(struct nlmsg* msg)
 
 	if(paylen > 0)
 		nl_hexdump(msg->payload, paylen);
+}
+
+void nl_dump_gen(struct nlgen* gen)
+{
+	nl_dump_msg_hdr(&gen->nlm);
+
+	eprintf(" GENL cmd=%i version=%i\n", gen->cmd, gen->version);
+
+	nl_dump_attrs_in(NLPAYLOAD(gen));
 }
 
 void nl_dump_err(struct nlerr* msg)
@@ -58,7 +68,7 @@ void nl_dump_rtmsg(struct rtmsg* msg)
 	eprintf("       table=%i protocol=%i scope=%i type=%i flags=%X\n",
 		msg->table, msg->protocol, msg->scope, msg->type, msg->flags);
 
-	nl_dump_attrs_in(msg->payload, msg->nlm.len - sizeof(*msg));
+	nl_dump_attrs_in(NLPAYLOAD(msg));
 }
 
 #define trycast(msg, tt, ff) \
@@ -77,4 +87,17 @@ void nl_dump_rtnl(struct nlmsg* msg)
 		default:
 			nl_dump_msg(msg);
 	}
+}
+
+void nl_dump_genl(struct nlmsg* msg)
+{
+	struct nlerr* err;
+	struct nlgen* gen;
+
+	if((err = nl_err(msg)))
+		nl_dump_err(err);
+	else if((gen = nl_gen(msg)))
+		nl_dump_gen(gen);
+	else
+		nl_dump_msg(msg);
 }

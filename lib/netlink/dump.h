@@ -11,6 +11,7 @@ struct rtmsg;
 void nl_dump_msg(struct nlmsg* msg);
 void nl_dump_gen(struct nlgen* msg);
 void nl_dump_err(struct nlerr* msg);
+void nl_dump_genl(struct nlmsg* msg);
 
 void nl_dump_rtnl(struct nlmsg* msg);
 void nl_dump_ifinfo(struct ifaddrmsg* msg);
