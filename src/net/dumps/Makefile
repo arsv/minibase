@@ -2,7 +2,7 @@
 
 include $/config.mk
 
-bin = nldump rtdump
+bin = nldump rtdump rtevt
 
 man1 =
 
