@@ -23,7 +23,6 @@
 
 /* nlattr.type */
 
-#define IFA_UNSPEC      0
 #define IFA_ADDRESS     1
 #define IFA_LOCAL       2
 #define IFA_LABEL       3
