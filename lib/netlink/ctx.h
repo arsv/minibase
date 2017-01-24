@@ -27,6 +27,7 @@ void nl_init(struct netlink* nl);
 void nl_set_txbuf(struct netlink* nl, void* buf, int len);
 void nl_set_rxbuf(struct netlink* nl, void* buf, int len);
 long nl_connect(struct netlink* nl, int protocol, int grps);
+long nl_subscribe(struct netlink* nl, int id);
 
 long nl_recv_chunk(struct netlink* nl);
 long nl_send_txbuf(struct netlink* nl);
