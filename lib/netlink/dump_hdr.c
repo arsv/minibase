@@ -48,15 +48,26 @@ void nl_dump_err(struct nlerr* msg)
 		msg->len, msg->type, msg->flags, msg->seq, msg->pid);
 }
 
+void nl_dump_ifinfo(struct ifinfomsg* msg)
+{
+	nl_dump_msg_hdr(&msg->nlm);
+
+	eprintf(" IFINFO family=%i type=%i index=%i flags=%04X change=%04X\n",
+			msg->family, msg->type, msg->index,
+			msg->flags, msg->change);
+
+	nl_dump_attrs_in(NLPAYLOAD(msg));
+}
+
 void nl_dump_ifaddr(struct ifaddrmsg* msg)
 {
 	nl_dump_msg_hdr(&msg->nlm);
 
-	eprintf("    ifaddr family=%i prefix=%i flags=%i scope=%i index=%i\n",
+	eprintf(" IFADDR family=%i prefix=%i flags=%i scope=%i index=%i\n",
 			msg->family, msg->prefixlen, msg->flags, msg->scope,
 			msg->index);
 
-	nl_dump_attrs_in(msg->payload, msg->nlm.len - sizeof(*msg));
+	nl_dump_attrs_in(NLPAYLOAD(msg));
 }
 
 void nl_dump_rtmsg(struct rtmsg* msg)
@@ -80,9 +91,14 @@ void nl_dump_rtmsg(struct rtmsg* msg)
 void nl_dump_rtnl(struct nlmsg* msg)
 {
 	switch(msg->type) {
+		case RTM_NEWLINK:
+		case RTM_DELLINK:
+			trycast(msg, struct ifinfomsg, nl_dump_ifinfo);
 		case RTM_NEWADDR:
+		case RTM_DELADDR:
 			trycast(msg, struct ifaddrmsg, nl_dump_ifaddr);
 		case RTM_NEWROUTE:
+		case RTM_DELROUTE:
 			trycast(msg, struct rtmsg, nl_dump_rtmsg);
 		default:
 			nl_dump_msg(msg);
