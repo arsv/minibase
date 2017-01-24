@@ -10,6 +10,8 @@
 
 ERRTAG = "rtdump";
 
+int align4(int n) { return n + (4 - n % 4) % 4; }
+
 int main(int argc, char** argv)
 {
 	if(argc != 2)
@@ -17,15 +19,25 @@ int main(int argc, char** argv)
 
 	long len;
 	char* buf = mmapwhole(argv[1], &len);
+	long ptr = 0;
 
-	struct nlmsg* msg = (struct nlmsg*) buf;
+	while(ptr < len) {
+		long left = len - ptr;
 
-	if(msg->len > len)
-		fail("incomplete message in", argv[1], 0);
-	if(msg->len < len)
+		if(left < sizeof(struct nlmsg))
+			break;
+
+		struct nlmsg* msg = (struct nlmsg*)(buf + ptr);
+
+		if(msg->len > left)
+			fail("incomplete message in", argv[1], 0);
+
+		nl_dump_rtnl(msg);
+
+		ptr += align4(msg->len);
+	} if(ptr < len) {
 		warn("trailing garbage in", argv[1], 0);
-
-	nl_dump_rtnl(msg);
+	}
 
 	return 0;
 }
