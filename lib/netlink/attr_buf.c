@@ -39,6 +39,8 @@ struct nlattr* nl_attr_n_in(char* buf, int len, struct nlattr* curr)
 
 	if(!ptr_in_buf(buf, len, pcurr)) return NULL;
 
+	if(curr->len < sizeof(*curr)) return NULL;
+
 	char* pnext = pcurr + extend_to_4bytes(curr->len);
 
 	if(!ptr_in_buf(buf, len, pnext)) return NULL;
