@@ -68,7 +68,9 @@ static void nl_dump_attr(char* pref, struct nlattr* at)
 	else
 		bytebuf[0] = '\0';
 
-	if(nl_attr_is_nest(at)) {
+	if(len == 0) {
+		eprintf("%s %i empty\n", pref, at->type);
+	} else if(nl_attr_is_nest(at)) {
 		eprintf("%s %i: nest\n", pref, at->type);
 		nl_dump_rec(pref, at);
 	} else if(nl_attr_is_printable_str(at)) {
