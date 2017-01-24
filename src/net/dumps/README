@@ -1,0 +1,17 @@
+It is often much easier to decode NL packets than to get through
+iproute2 code that generates them. A simple way to dump packets
+is strace -e write=3 (or whatever fd happens to be the NL socket).
+Convert resulting hexdump to raw binaries using hex2bin.px, then
+dump the contents with rtdump.
+
+There's no way for the dumper to tell whether the packet came
+from RTNL or from GENL. The right tool and the right nl_dump_*()
+must be used to get usable results.
+
+
+Expected hex2bin input example:
+
+ | 00000  34 00 00 00 18 00 05 06  bb d0 84 58 00 00 00 00  4..........X.... |
+ | 00010  02 18 00 00 fe 03 00 01  00 00 00 00 08 00 01 00  ................ |
+ | 00020  01 01 01 00 08 00 05 00  0a 00 00 01 08 00 04 00  ................ |
+ | 00030  03 00 00 00                                       ....             |
