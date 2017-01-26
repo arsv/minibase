@@ -5,11 +5,14 @@
 struct nlgen;
 struct nlattr;
 
+void* nl_bin(struct nlattr* at, int len);
 char* nl_str(struct nlattr* at);
-uint16_t* nl_u16(struct nlattr* at);
-uint32_t* nl_u32(struct nlattr* at);
-uint64_t* nl_u64(struct nlattr* at);
 struct nlattr* nl_nest(struct nlattr* at);
+
+#define nl_int(at, tt) (tt*)(nl_bin(at, sizeof(tt)))
+#define nl_u16(at) nl_int(at, uint16_t)
+#define nl_u32(at) nl_int(at, uint32_t)
+#define nl_u64(at) nl_int(at, uint64_t)
 
 #define NLPAYLOAD(msg) msg->payload, (msg->nlm.len - sizeof(*msg))
 #define ATPAYLOAD(at)  at->payload, (at->len - sizeof(*at))
