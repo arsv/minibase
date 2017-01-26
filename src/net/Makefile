@@ -2,7 +2,7 @@
 
 include $/config.mk
 
-bin = ip4cfg
+bin = ip4cfg ip4info
 
 man1 =
 
