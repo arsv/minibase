@@ -26,9 +26,8 @@ ERRLIST = {
 #define OPTS "d"
 #define OPT_d (1<<0)
 
-char outbuf[512];
-char txbuf[512];
-char rxbuf[15*1024];
+char txbuf[1024];
+char rxbuf[3*1024];
 
 static void flush_iface(struct netlink* nl, int idx)
 {
