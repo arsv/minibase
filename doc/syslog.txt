@@ -86,4 +86,34 @@ Accepting self-contained cleanup on SIGTERM as the only valid behavior
 makes the whole problem go away. A uniform list would be enough.
 The supervisor becomes be much simplier.
 
-This is likely the way to go.
+
+Reducing dependency on syslog
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Why is syslog needed during startup?
+
+The primary and the most problematic reason is failing service diagnostics.
+The services start independently, so complaining to stderr is (presumably)
+a bad idea. Instead, the services are expected to complain to syslog.
+Which in turn requires syslog to be available at the time the complaints
+happen.
+
+This approach induces some sort of integration between init and syslog.
+Consider a failing service known to init as "httpd"; how do we pull
+its output from syslog to tell why it's failing? There is no natural
+relation between the name known to init, and the name the service uses
+for syslog (assuming there *is* a name in its syslog messages, some sort
+of fixed prefix or something). Init must then pass the name to syslog
+somehow, outside of common syslog protocol. Systemd does it by providing
+a syslogd implementation (journald).
+
+The whole thing can be simplified a lot if we remove syslogd from the picture
+by allowing stderr to be used the usual way for error reporting. Daemontools
+derivatives often do this with a logger process (which sends the output
+to syslog but it's not important here). Current svmon implementation
+in minitools collects stderr output from its children in 4KB ring buffers
+and allows querying them. This should be enough to tell what happened to a
+failed service, regardless of whether syslog was running at the time.
+
+Once syslog is no longer responsible for logging startup failures, we're free
+to spawn it just like any other process. Or perhaps not to spawn it at all.
+Either way, it's no longer init's responsibility.

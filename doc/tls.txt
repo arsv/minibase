@@ -1,5 +1,5 @@
-(Ab)using TLS for in-stack global context
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+(Ab)using TLS for stack-allocated global context
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Placing global objects into .data and relying on the ELF loader to allocate
 them has certain disadvantages in the context of small executables, related
 mostly to the rather rigid loading rules.
@@ -13,7 +13,7 @@ found in one applet would be allocated in every single applet, because
 the linker lack the notion of a union (or at least they don't use the tricks
 needed to implement it).
 
-A workaround used in both projects is to globals onto the stack
+A workaround used in both projects is to put globals onto the stack
 and pass the pointer to every single function that uses them:
 
 	struct globals {
@@ -38,7 +38,7 @@ are accesses via offsets to that address. The base address is not known
 at link time but once set early in main(), it does not change.
 
 Reserving a register to point to a global struct -- sounds familiar, right?
-That's exactly how thread pointer works. And the register is actually reserved,
+That's exactly how thread pointer works. The register is actually reserved,
 and the compiler knows it so there is no need to pass it to every single
 function:
 
@@ -76,8 +76,8 @@ The problem is, this feature is surprisingly difficult to set up.
     ELF headers as well. It all must be done in the init code.
 
 This all makes some sense when applied to actual TLS, but because
-the assumption are built into the toolchain, there is no way to relax
-them from a much simplier requirements of minitools or busybox.
+the assumption are built into the toolchain, there is no way to adapt
+them to much simplier requirements of minitools or busybox.
 
 All in all, so far the problems with TLS setup outweight the minor
 inconvenience of having a fixed first argument in certain functions
@@ -85,4 +85,5 @@ by a large margin. Maybe this idea warrants a second look, but for now
 it remains shelved.
 
 Also, considering the amounts of initialization code, busybox is much
-more likely to benefit from all this that minitools.
+more likely to benefit from all this than minitools, because busybox
+would only carry a single copy of the code.
