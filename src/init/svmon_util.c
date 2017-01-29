@@ -7,7 +7,7 @@
 #include <format.h>
 #include <util.h>
 
-#include "svcmon.h"
+#include "svmon.h"
 
 struct svcrec recs[MAXRECS];
 
@@ -133,7 +133,7 @@ void afree(void)
 
 /* Error output */
 
-static const char tag[] = "svcmon";
+static const char tag[] = "svmon";
 static char warnbuf[200];
 
 void report(char* msg, char* arg, int err)

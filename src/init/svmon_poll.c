@@ -13,7 +13,7 @@
 #include <format.h>
 #include <null.h>
 
-#include "svcmon.h"
+#include "svmon.h"
 
 static sigset_t defsigset;
 static struct timespec timetowait;

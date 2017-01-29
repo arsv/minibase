@@ -11,7 +11,7 @@
 #include <format.h>
 #include <string.h>
 
-#include "svcmon.h"
+#include "svmon.h"
 
 static time_t passtime;
 

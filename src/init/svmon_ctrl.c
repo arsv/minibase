@@ -16,7 +16,7 @@
 #include <format.h>
 #include <util.h>
 
-#include "svcmon.h"
+#include "svmon.h"
 
 #define PONLY 0
 #define GROUP 1

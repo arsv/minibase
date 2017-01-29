@@ -9,7 +9,7 @@
 #include <format.h>
 #include <util.h>
 
-#include "svcmon.h"
+#include "svmon.h"
 
 struct svcmon gg;
 

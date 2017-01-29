@@ -5,7 +5,8 @@
 
 #include <string.h>
 #include <format.h>
-#include "svcmon.h"
+
+#include "svmon.h"
 
 static inline int dotddot(const char* p)
 {
