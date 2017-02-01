@@ -1,3 +1,4 @@
+#include <bits/types.h>
 #include <syscall.h>
 
 inline static long sysrecv(int fd, void* buf, size_t len, int flags)
