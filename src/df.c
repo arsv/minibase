@@ -1,3 +1,4 @@
+#include <bits/major.h>
 #include <sys/statfs.h>
 #include <sys/close.h>
 #include <sys/open.h>
@@ -279,10 +280,8 @@ done:	sysclose(fd);
 
 static char* fmtdev(char* p, char* e, uint64_t dev)
 {
-	int min = ((dev >>  0) & 0x000000FF)
-	        | ((dev >> 12) & 0xFFFFFF00);
-	int maj = ((dev >>  8) & 0x00000FFF)
-	        | ((dev >> 32) & 0xFFFFF000);
+	int min = minor(dev);
+	int maj = major(dev);
 
 	p = fmti32(p, e, maj);
 	p = fmtstr(p, e, ":");
