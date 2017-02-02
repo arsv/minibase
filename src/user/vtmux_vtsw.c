@@ -184,8 +184,12 @@ static int anything_running_on(int tty)
 
 void activate(int tty)
 {
+	IOCTL(0, VT_UNLOCKSWITCH, 0);
 	IOCTL(0, VT_ACTIVATE, tty);
 	IOCTL(0, VT_WAITACTIVE, tty); /* is this necessary? */
+	IOCTL(0, VT_LOCKSWITCH, 0);
+	/* XXX: race-free code should do VT_GETSTATE here and set
+	   activetty to where the kernel has *actually* switched */
 }
 
 /* Order is somewhat important here: we should better disconnect

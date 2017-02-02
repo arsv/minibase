@@ -54,6 +54,7 @@ extern int nkeyboards;
 /* Cross-module prototypes */
 
 void setup_signals(void);
+void setup_keyboards(void);
 void handlectl(int vi, int fd);
 void handlekbd(int ki, int fd);
 int switchto(int tty);
@@ -62,15 +63,15 @@ void shutdown(void);
 void waitpids(void);
 
 void close_dead_vt(struct vtx* cvt);
-int open_tty_device(int tty);
 
 void engage(int tty);
 void activate(int tty);
 void disengage(void);
 
 void close_dead_client(int pid);
-void spawn_greeter(void);
 int spawn_client(char* cmd);
+void spawn_greeter(void);
+void setup_greeter(void);
 
 void request_fds_update(void);
 

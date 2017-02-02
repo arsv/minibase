@@ -188,3 +188,22 @@ void spawn_greeter(void)
 	activate(cvt->tty);
 	engage(cvt->tty);
 }
+
+void setup_greeter(void)
+{
+	if(!activetty)
+		fail("no active tty (?)", NULL, 0);
+	if(nconsoles)
+		fail("greeter tty re-init", NULL, 0);
+
+	int fd = open_tty_device(activetty);
+
+	if(fd < 0) _exit(0xFF);
+
+	struct vtx* cvt = &consoles[0];
+
+	cvt->tty = activetty;
+	cvt->ttyfd = fd;
+
+	nconsoles = 1;
+}
