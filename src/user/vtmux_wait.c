@@ -16,7 +16,7 @@ void waitpids(void)
 		close_dead_client(pid);
 }
 
-/* Shutdown routines: wait for VTs to die before exiting. */
+/* Shutdown routines: wait for VT clients to die before exiting. */
    
 static int countrunning(void)
 {

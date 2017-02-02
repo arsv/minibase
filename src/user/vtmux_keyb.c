@@ -83,14 +83,23 @@ void handlekbd(int ki, int fd)
 		}
 }
 
-/* Keyboard setup: got through /dev/input/event* nodes, and use
+/* Keyboard setup: go through /dev/input/event* nodes, and use
    those that may generate the key events vtmux needs. There are
    lots of useless nodes in /dev/input typically, so no point in
-   keeping them all open, we only need the main keyboard(s).
+   keeping them all open, we only need the main keyboard(s) with
+   at least Ctrl, Alt and F1 keys.
 
    This should probably not be done like this, it's really udev's
    job to classify devices, but we can't rely on udev actually
-   being configured to do that yet. */
+   being configured to do that yet.
+
+   Finally, Linux allows masking input events, so we request the
+   input drivers to only send the keycodes we're interested in.
+   This should prevent excessive wakeups during regular typing.
+
+   The only documentation available for most of this stuff is in
+   the kernel sources apparently. Refer to linux/include/uapi/input.h
+   and linux/drivers/input/evdev.c. */
 
 static int hascode(uint8_t* bits, int len, int code)
 {

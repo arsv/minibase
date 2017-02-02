@@ -17,7 +17,20 @@
 
 #include "vtmux.h"
 
-/* Open a new VT and start a client there */
+/* Open a new VT and start a client there.
+
+   A client is always a script in /etc/vtx; vtmux starts it with
+   stdin/out/err redirected to a newly allocated tty, and provides
+   a control socket on fd 3. Everything else, including setuid calls
+   and setting VT mode (text or graphic) should be done in the scripts.
+
+   The idea behind these scripts is to limit greeter's ability to run
+   arbitrary commands. Also, in a way, they represent the name => cmd
+   mapping between via first and the last fields in traditional
+   /etc/passwd format.
+
+   Greeter itself is just another client named "login".  The only
+   difference is that it's run on a dedicated reserved tty. */
 
 int open_tty_device(int tty)
 {

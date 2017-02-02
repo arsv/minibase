@@ -26,14 +26,13 @@ static void ioctl(int fd, int req, long arg, char* name)
 #define IOCTL(ff, rr, aa) \
 	ioctl(ff, rr, aa, #rr)
 
-/* Per current systemd-induced design, dri devices can be suspended
+/* Per current systemd-induced design, DRI devices can be suspended
    and resumed but inputs are irrevocably disabled. There's no point
    in retaining dead fds, clients are aware of that and will re-open
    them anyway.
  
-   It's also a good idea to disable devices before releasing them from
-   under a dead client, which might have leaked fds to its child
-   processes. */
+   It's also a good idea to disable devices before releasing them
+   from under a dead client. Leaked fds may still linger about. */
 
 static void disable_device(struct vtd* md, int drop)
 {
@@ -186,6 +185,7 @@ static int anything_running_on(int tty)
 void activate(int tty)
 {
 	IOCTL(0, VT_ACTIVATE, tty);
+	IOCTL(0, VT_WAITACTIVE, tty); /* is this necessary? */
 }
 
 /* Order is somewhat important here: we should better disconnect
