@@ -28,3 +28,6 @@ struct vt_stat {
 #define VT_ACTIVATE	0x5606	/* make vt active */
 #define VT_WAITACTIVE	0x5607	/* wait for vt active */
 #define VT_DISALLOCATE	0x5608  /* free memory associated to vt */
+
+#define VT_LOCKSWITCH   0x560B  /* disallow vt switching */
+#define VT_UNLOCKSWITCH 0x560C  /* allow vt switching */
