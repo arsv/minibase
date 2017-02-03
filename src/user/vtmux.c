@@ -24,25 +24,10 @@ int nconsoles;
 int nvtdevices;
 int nkeyboards;
 
-void setup_globals(void)
-{
-	struct vt_stat vst;
-	long ret;
-
-	if((ret = sysioctl(0, VT_LOCKSWITCH, 0)))
-		fail("ioctl", "VT_LOCKSWITCH", ret);
-
-	if((ret = sysioctl(0, VT_GETSTATE, (long)&vst)))
-		fail("ioctl", "VT_GETSTATE", ret);
-
-	activetty = vst.active;
-}
-
 int main(int argc, char** argv, char** envp)
 {
 	environ = envp;
 
-	setup_globals();
 	setup_greeter();
 	setup_keyboards();
 	spawn_greeter();

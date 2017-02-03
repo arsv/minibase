@@ -64,7 +64,10 @@ void waitpids(void);
 
 void close_dead_vt(struct vtx* cvt);
 
-void engage(int tty);
+int lock_switch(void);
+int unlock_switch(void);
+
+void engage(void);
 void activate(int tty);
 void disengage(void);
 

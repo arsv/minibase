@@ -63,7 +63,7 @@ struct vtx* grab_console_slot(void)
 		return NULL;
 	if(i == nconsoles)
 		nconsoles++;
-	
+
 	struct vtx* cvt = &consoles[i];
 
 	int tty;
@@ -151,21 +151,24 @@ static int start_cmd_on(struct vtx* cvt, char* cmd)
 int spawn_client(char* cmd)
 {
 	int old = activetty;
-	struct vtx* cvt = grab_console_slot();
+	struct vtx* cvt;
+	int ret;
 
-	if(!cvt) return -ENOENT; 
+	if(!(cvt = grab_console_slot()))
+		return -EMFILE;
 
 	disengage();
 	activate(cvt->tty);
 
-	int ret = start_cmd_on(cvt, cmd);
-
-	if(!ret) return 0; /* success */
+	if(!(ret = start_cmd_on(cvt, cmd)))
+	/* success; there is no need to engage a newly alloctated session
+	   because there's no open fds there yet, so just return. */
+		return 0;
 
 	close_dead_vt(cvt);
 
 	activate(old);
-	engage(old);
+	engage();
 
 	return ret;
 }
@@ -183,14 +186,19 @@ void spawn_greeter(void)
 
 	cvt = find_any_running();
 
-	if(!cvt) _exit(0xFF);
-
-	activate(cvt->tty);
-	engage(cvt->tty);
+	if(cvt) {
+		activate(cvt->tty);
+		engage();
+	} else {
+		unlock_switch();
+		_exit(0xFF);
+	}
 }
 
 void setup_greeter(void)
 {
+	if(lock_switch())
+		fail("cannot lock initial console", NULL, 0);
 	if(!activetty)
 		fail("no active tty (?)", NULL, 0);
 	if(nconsoles)
@@ -198,7 +206,8 @@ void setup_greeter(void)
 
 	int fd = open_tty_device(activetty);
 
-	if(fd < 0) _exit(0xFF);
+	if(fd < 0)
+		fail("cannot open greeter tty", NULL, 0);
 
 	struct vtx* cvt = &consoles[0];
 

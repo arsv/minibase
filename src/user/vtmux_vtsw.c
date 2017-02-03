@@ -11,26 +11,73 @@
 #include <fail.h>
 #include "vtmux.h"
 
-/* None of ioctl should ever fail. If they do, there's little we can do
-   other than issuing a warning and proceeding as if nothing happened. */
-
-static void ioctl(int fd, int req, long arg, char* name)
+static long ioctl(int fd, int req, long arg, char* name)
 {
-	long ret = sysioctl(fd, req, arg);
+	long ret;
 
-	if(ret >= 0) return;
+	if((ret = sysioctl(fd, req, arg)) < 0)
+		warn("ioctl", name, ret);
 
-	warn("ioctl", name, ret);
+	return ret;
 }
 
 #define IOCTL(ff, rr, aa) \
 	ioctl(ff, rr, aa, #rr)
 
+/* Locking VT switch prevents non-priviledged processes from switching
+   VTs at will, and disabled in-kernel Ctrl-Alt-Fn handlers so we can
+   use our own. However, vtmux can't switch VTs against the lock either.
+   The lock must be removed first. The procedure is racy, and may end
+   up with something other than the requested VT being active when the
+   lock is back in place. */
+
+int lock_switch(void)
+{
+	struct vt_stat vst;
+	long ret;
+
+	if(activetty)
+		return -EINVAL;
+
+	if((ret = IOCTL(0, VT_LOCKSWITCH, 0)))
+		return ret;
+
+	if((ret = IOCTL(0, VT_GETSTATE, (long)&vst)))
+		return ret;
+
+	activetty = vst.active;
+
+	return ret;
+}
+
+int unlock_switch(void)
+{
+	long ret;
+
+	if(!activetty)
+		return 0;
+
+	if(!(ret = IOCTL(0, VT_UNLOCKSWITCH, 0)))
+		activetty = 0;
+
+	return ret;
+}
+
+void activate(int tty)
+{
+	unlock_switch();
+
+	IOCTL(0, VT_ACTIVATE, tty);
+	IOCTL(0, VT_WAITACTIVE, tty); /* is this necessary? */
+
+	lock_switch();
+}
+
 /* Per current systemd-induced design, DRI devices can be suspended
    and resumed but inputs are irrevocably disabled. There's no point
    in retaining dead fds, clients are aware of that and will re-open
    them anyway.
- 
+
    It's also a good idea to disable devices before releasing them
    from under a dead client. Leaked fds may still linger about. */
 
@@ -44,7 +91,7 @@ static void disable_device(struct vtd* md, int drop)
 		IOCTL(fd, DRM_IOCTL_DROP_MASTER, 0);
 	else if(maj == INPUT_MAJOR)
 		IOCTL(fd, EVIOCREVOKE, 0);
-	
+
 	if(!drop && maj != INPUT_MAJOR)
 		return;
 
@@ -118,13 +165,18 @@ static void send_signal_to_vt_master(int tty, int sig)
 }
 
 /* Session switch sequence:
-   	* disengage DRIs and inputs of the current session
-	* perform VT switch
-	* engage DRIs and inputs of another session
+
+        * disengage DRIs and inputs of the current session
+        * perform VT switch
+        * engage DRIs and inputs of another session
 
    There are slight variations to this sequence when a session
    is being created or destroyed, those are handled separately
-   but with calls to the common code here. */
+   but with calls to the common code here.
+
+   Regardless of which VT is actually active (see lock_switch
+   comments above) fds are fully controlled by vtmux, so activetty
+   here is always the one that has them. */
 
 void disengage(void)
 {
@@ -143,16 +195,15 @@ void disengage(void)
 	}
 
 	send_signal_to_vt_master(tty, SIGTSTP);
-
-	activetty = 0;
 }
 
 /* Only need to activate DRIs here. It's up to the client to re-open inputs.
    (at least for now until EVIOCREVOKE gets un-revoke support in the kernel) */
 
-void engage(int tty)
+void engage(void)
 {
 	int i;
+	int tty = activetty;
 
 	for(i = 0; i < nvtdevices; i++) {
 		struct vtd* mdi = &vtdevices[i];
@@ -171,25 +222,15 @@ void engage(int tty)
 	}
 
 	send_signal_to_vt_master(tty, SIGCONT);
-
-	activetty = tty;
 }
+
+/* No point in switching to dead consoles */
 
 static int anything_running_on(int tty)
 {
 	struct vtx* cvt = find_vt_rec(tty);
 
 	return (cvt && cvt->pid > 0);
-}
-
-void activate(int tty)
-{
-	IOCTL(0, VT_UNLOCKSWITCH, 0);
-	IOCTL(0, VT_ACTIVATE, tty);
-	IOCTL(0, VT_WAITACTIVE, tty); /* is this necessary? */
-	IOCTL(0, VT_LOCKSWITCH, 0);
-	/* XXX: race-free code should do VT_GETSTATE here and set
-	   activetty to where the kernel has *actually* switched */
 }
 
 /* Order is somewhat important here: we should better disconnect
@@ -210,7 +251,7 @@ int switchto(int tty)
 
 	disengage();
 	activate(tty);
-	engage(tty);
+	engage();
 
 	return 0;
 }

@@ -17,7 +17,7 @@ void waitpids(void)
 }
 
 /* Shutdown routines: wait for VT clients to die before exiting. */
-   
+
 static int countrunning(void)
 {
 	int i;
@@ -60,4 +60,6 @@ void shutdown(void)
 		if((pid = syswaitpid(-1, &status, 0)) > 0)
 			markdead(pid);
 		else break;
+
+	unlock_switch();
 }
