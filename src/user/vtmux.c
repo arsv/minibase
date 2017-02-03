@@ -14,6 +14,7 @@ ERRLIST = { RESTASNUMBERS };
 char** environ;
 
 int activetty;
+int ctlsockfd;
 char* greeter = "login";
 
 struct vtx consoles[CONSOLES];
@@ -30,6 +31,7 @@ int main(int argc, char** argv, char** envp)
 
 	setup_greeter();
 	setup_keyboards();
+	setup_ctl_socket();
 	spawn_greeter();
 
 	mainloop();
