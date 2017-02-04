@@ -204,15 +204,16 @@ void setup_greeter(void)
 	if(nconsoles)
 		fail("greeter tty re-init", NULL, 0);
 
-	int fd = open_tty_device(activetty);
+	int tty = 13;
+	int ttyfd = open_tty_device(tty);
 
-	if(fd < 0)
-		fail("cannot open greeter tty", NULL, 0);
+	if(ttyfd < 0)
+		fail("cannot open greeter tty", NULL, ttyfd);
 
 	struct vtx* cvt = &consoles[0];
 
-	cvt->tty = activetty;
-	cvt->ttyfd = fd;
+	cvt->tty = tty;
+	cvt->ttyfd = ttyfd;
 
 	nconsoles = 1;
 }
