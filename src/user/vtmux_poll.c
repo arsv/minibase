@@ -76,8 +76,6 @@ void update_poll_fds(void)
 	for(i = 0; i < nkeyboards && j < PFDS; i++, j++)
 		pfds[j].fd = keyboards[i].fd;
 
-	pfds[j++].fd = ctlsockfd;
-
 	for(i = 0; i < j; i++)
 		pfds[i].events = POLLIN;
 
@@ -97,8 +95,6 @@ void check_polled_fds(void)
 			handlectl(j, pfds[j].fd);
 		else if(j < nconsoles + nkeyboards)
 			handlekbd(j - nconsoles, pfds[j].fd);
-		else if(j == nconsoles + nkeyboards)
-			handlectl(-1, pfds[j].fd);
 }
 
 void mainloop(void)

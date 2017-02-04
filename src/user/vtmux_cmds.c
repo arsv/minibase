@@ -94,26 +94,3 @@ void handlectl(int ci, int fd)
 		warn("recv", NULL, rd);
 	}
 }
-
-/* The control socket will appear in handlectl() as ci=-1 */
-
-void setup_ctl_socket(void)
-{
-	int fd;
-	long ret;
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = "/run/vtmux"
-	};
-
-	if((fd = syssocket(PF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
-		fail("socket", "AF_UNIX", fd);
-
-	if((ret = sysbind(fd, &addr, sizeof(addr))) < 0)
-		fail("bind", addr.path, ret);
-
-	if((ret = syslisten(fd, 1)) < 0)
-		fail("listen", addr.path, ret);
-
-	ctlsockfd = fd;
-}

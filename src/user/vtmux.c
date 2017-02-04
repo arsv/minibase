@@ -31,7 +31,6 @@ int main(int argc, char** argv, char** envp)
 
 	setup_greeter();
 	setup_keyboards();
-	setup_ctl_socket();
 	spawn_greeter();
 
 	mainloop();

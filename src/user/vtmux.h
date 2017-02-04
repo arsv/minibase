@@ -38,7 +38,6 @@ struct kbd {
 extern char* greeter;
 extern char** environ;
 extern int activetty;
-extern int ctlsockfd;
 
 /* Numbers below are upper limits for loops; all arrays may happen
    to have empty slots between used ones. */
@@ -75,8 +74,6 @@ void close_dead_client(int pid);
 int spawn_client(char* cmd);
 void spawn_greeter(void);
 void setup_greeter(void);
-
-void setup_ctl_socket(void);
 
 void request_fds_update(void);
 
