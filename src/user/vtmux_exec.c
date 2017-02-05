@@ -152,7 +152,7 @@ int spawn_client(char* cmd)
 {
 	int old = activetty;
 	struct vtx* cvt;
-	int ret;
+	int ret = -EAGAIN;
 
 	if(!(cvt = grab_console_slot()))
 		return -EMFILE;
@@ -160,15 +160,18 @@ int spawn_client(char* cmd)
 	disengage();
 	activate(cvt->tty);
 
+	if(activetty != cvt->tty)
+		goto missed;
+
 	if(!(ret = start_cmd_on(cvt, cmd)))
 	/* success; there is no need to engage a newly alloctated session
 	   because there's no open fds there yet, so just return. */
 		return 0;
 
-	close_dead_vt(cvt);
-
 	activate(old);
+missed:
 	engage();
+	close_dead_vt(cvt);
 
 	return ret;
 }
@@ -180,13 +183,17 @@ void spawn_greeter(void)
 	disengage();
 	activate(cvt->tty);
 
-	int ret = start_cmd_on(cvt, greeter);
+	if(activetty != cvt->tty) { /* mis-switch */
+		engage();
+		return;
+	}
 
-	if(!ret) return; /* success */
+	if(!start_cmd_on(cvt, greeter))
+		return; /* success */
 
-	cvt = find_any_running();
+	/* couldn't start greeter, try to switch _somewhere_ at least */
 
-	if(cvt) {
+	if((cvt = find_any_running())) {
 		activate(cvt->tty);
 		engage();
 	} else {
