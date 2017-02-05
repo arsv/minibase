@@ -75,6 +75,8 @@ void handlekbd(int ki, int fd)
 		{
 			struct event* ev = (struct event*) ptr;
 
+			if(ev->type != EV_KEY)
+				continue;
 			if(ev->value == 1)
 				keypress(kb, ev->code);
 			else if(ev->value == 0)
@@ -146,7 +148,10 @@ static void set_event_mask(int fd)
 	int blen = sizeof(bits);
 	setcode(bits, blen, KEY_LCTL);
 	setcode(bits, blen, KEY_LALT);
-	setcode(bits, blen, KEY_F1);
+
+	int i;
+	for(i = 0; i < 10; i++)
+		setcode(bits, blen, KEY_F1 + i);
 
 	sysioctl(fd, EVIOCSMASK, (long)&mask);
 
@@ -194,6 +199,7 @@ static void check_dir_ent(char* dir, char* name)
 	p = fmtstr(p, e, dir);
 	p = fmtstr(p, e, "/");
 	p = fmtstr(p, e, name);
+	*p++ = '\0';
 
 	int fd = sysopen(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 
