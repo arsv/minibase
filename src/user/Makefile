@@ -2,7 +2,7 @@
 
 include $/config.mk
 
-bin = vtmux
+bin = vtmux unlock
 
 man1 =
 
