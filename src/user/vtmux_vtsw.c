@@ -224,15 +224,6 @@ void engage(void)
 	send_signal_to_vt_master(tty, SIGCONT);
 }
 
-/* No point in switching to dead consoles */
-
-static int anything_running_on(int tty)
-{
-	struct vtx* cvt = find_vt_rec(tty);
-
-	return (cvt && cvt->pid > 0);
-}
-
 /* Order is somewhat important here: we should better disconnect
    all inputs/drm handles from avt before issuing VT_ACTIVATE.
    This means two passes over vtdevices[].
@@ -240,14 +231,15 @@ static int anything_running_on(int tty)
    It is not clear however how much a single pass would hurt.
    Presumable nothing important should happen until the process
    being activated gets SIGCONT, by which time all fds will be
-   where they should be anyway. */
+   where they should be anyway.
+ 
+   Note: switching to a "dead" console is perfectly ok; a "dead"
+   console may just happen to run something we're not tracking. */
 
 int switchto(int tty)
 {
 	if(activetty == tty)
 		return 0; /* already there */
-	if(!anything_running_on(tty))
-		return -ENOENT;
 
 	disengage();
 	activate(tty);
