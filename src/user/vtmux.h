@@ -1,6 +1,7 @@
 #define CONSOLES 8
 #define KEYBOARDS 10
 #define INPUTS 128
+#define CMDSIZE 16
 
 /* One active VT, with a process running on it.
    Kernel index (N in /dev/ttyN and vtx.tty here) is always
@@ -11,6 +12,8 @@ struct vtx {
 	int ctlfd;    /* control socket */
 	int pid;
 	short tty;
+	short fix;    /* do not close/deallocate VT */
+	char cmd[CMDSIZE];
 };
 
 /* VT-bound device handle, opened on behalf of vtx.pid and multiplexed
@@ -38,6 +41,7 @@ struct kbd {
 extern char* greeter;
 extern char** environ;
 extern int activetty;
+extern int initialtty;
 
 /* Numbers below are upper limits for loops; all arrays may happen
    to have empty slots between used ones. */
@@ -56,25 +60,20 @@ void setup_signals(void);
 void setup_keyboards(void);
 void handlectl(int vi, int fd);
 void handlekbd(int ki, int fd);
-int switchto(int tty);
+
+int lock_switch(int* mask);
+int unlock_switch(void);
+int activate(int tty);
+void closevt(struct vtx* cvt, int keepvt);
 
 void shutdown(void);
 void waitpids(void);
 
-void close_dead_vt(struct vtx* cvt);
-
-int lock_switch(void);
-int unlock_switch(void);
-
-void engage(void);
-void activate(int tty);
-void disengage(void);
-
-void close_dead_client(int pid);
+int switchto(int tty);
 int spawn_client(char* cmd);
-void spawn_greeter(void);
-void setup_greeter(void);
+void switch_somewhere(void);
+int spawn_fixed(struct vtx* cvt);
+void setup_fixed_vts(char* greeter, int n, char** cmds, int spareinitial);
 
 void request_fds_update(void);
-
 void mainloop(void);

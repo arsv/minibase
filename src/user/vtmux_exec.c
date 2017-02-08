@@ -3,6 +3,7 @@
 #include <bits/fcntl.h>
 
 #include <sys/open.h>
+#include <sys/kill.h>
 #include <sys/close.h>
 #include <sys/fork.h>
 #include <sys/dup2.h>
@@ -51,13 +52,26 @@ int open_tty_device(int tty)
 	return fd;
 }
 
+int query_empty_tty(void)
+{
+	int tty;
+	long ret = sysioctl(0, VT_OPENQRY, (long)&tty);
+
+	if(ret < 0)
+		warn("ioctl", "VT_OPENQRY", ret);
+
+	return tty;
+}
+
 struct vtx* grab_console_slot(void)
 {
 	int i;
 
 	/* never grab greeter slot this way */
 	for(i = 1; i < nconsoles; i++)
-		if(!consoles[i].tty)
+		if(consoles[i].fix)
+			continue;
+		else if(consoles[i].pid <= 0)
 			break;
 	if(i >= CONSOLES)
 		return NULL;
@@ -66,36 +80,47 @@ struct vtx* grab_console_slot(void)
 
 	struct vtx* cvt = &consoles[i];
 
-	int tty;
-	long ret = sysioctl(0, VT_OPENQRY, (long)&tty);
+	if(cvt->tty != initialtty) {
+		int tty, ttyfd;
 
-	if(ret < 0) {
-		warn("ioctl", "VT_OPENQRY", ret);
-		return NULL;
+		if((tty = query_empty_tty()) < 0)
+			return NULL;
+		if((ttyfd = open_tty_device(tty)) < 0)
+			return NULL;
+
+		cvt->tty = tty;
+		cvt->ttyfd = ttyfd;
 	}
-
-	int ttyfd = open_tty_device(tty);
-
-	if(ttyfd < 0)
-		return NULL;
-
-	cvt->tty = tty;
-	cvt->ttyfd = ttyfd;
-	cvt->ctlfd = -1;
-	cvt->pid = 0;
 
 	return cvt;
 }
 
-static struct vtx* find_any_running(void)
+int set_slot_command(struct vtx* cvt, char* cmd)
 {
-	int i;
+	int cmdlen = strlen(cmd);
 
-	for(i = 1; i < nconsoles; i++)
-		if(consoles[i].pid > 0)
-			return &consoles[i];
+	if(cmdlen > CMDSIZE - 1)
+		return -ENAMETOOLONG;
 
-	return NULL;
+	memcpy(cvt->cmd, cmd, cmdlen);
+	cvt->cmd[cmdlen] = '\0';
+
+	return 0;
+}
+
+void free_console_slot(struct vtx* cvt)
+{
+	memset(cvt->cmd, 0, sizeof(cvt->cmd));
+
+	cvt->pid = 0;
+	cvt->ctlfd = 0;
+
+	if(cvt->tty == initialtty)
+		return;
+
+	sysclose(cvt->ttyfd);
+	cvt->ttyfd = 0;
+	cvt->tty = 0;
 }
 
 static int child_proc(int ttyfd, int ctlfd, char* cmd)
@@ -115,7 +140,7 @@ static int child_proc(int ttyfd, int ctlfd, char* cmd)
 
 	char* argv[] = { path, NULL };
 
-	sysdup2(ttyfd, 0);
+	sysdup2(ttyfd, 0); /* XXX: CLOEXEC */
 	sysdup2(ttyfd, 1);
 	sysdup2(ttyfd, 2);
 	sysdup2(ctlfd, 3);
@@ -125,7 +150,7 @@ static int child_proc(int ttyfd, int ctlfd, char* cmd)
 	return 0;
 }
 
-static int start_cmd_on(struct vtx* cvt, char* cmd)
+static int start_cmd_on(struct vtx* cvt)
 {
 	int sk[2];
 	int ret = syssocketpair(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0, sk);
@@ -139,7 +164,7 @@ static int start_cmd_on(struct vtx* cvt, char* cmd)
 		return pid;
 
 	if(pid == 0)
-		_exit(child_proc(cvt->ttyfd, sk[1], cmd));
+		_exit(child_proc(cvt->ttyfd, sk[1], cvt->cmd));
 
 	sysclose(sk[1]);
 	cvt->ctlfd = sk[0];
@@ -157,70 +182,114 @@ int spawn_client(char* cmd)
 	if(!(cvt = grab_console_slot()))
 		return -EMFILE;
 
-	disengage();
-	activate(cvt->tty);
+	if((ret = set_slot_command(cvt, cmd)))
+		goto fail;
 
-	if(activetty != cvt->tty)
-		goto missed;
+	if((ret = activate(cvt->tty)) < 0)
+		goto fail;
 
-	if(!(ret = start_cmd_on(cvt, cmd)))
-	/* success; there is no need to engage a newly alloctated session
-	   because there's no open fds there yet, so just return. */
-		return 0;
+	if(!(ret = start_cmd_on(cvt)))
+		goto done;
 
 	activate(old);
-missed:
-	engage();
-	close_dead_vt(cvt);
-
+fail:
+	free_console_slot(cvt);
+done:
 	return ret;
 }
 
-void spawn_greeter(void)
+int spawn_fixed(struct vtx* cvt)
 {
-	struct vtx* cvt = &consoles[0];
+	long ret;
 
-	disengage();
-	activate(cvt->tty);
+	if((ret = activate(cvt->tty)))
+		return ret;
 
-	if(activetty != cvt->tty) { /* mis-switch */
-		engage();
-		return;
-	}
-
-	if(!start_cmd_on(cvt, greeter))
-		return; /* success */
-
-	/* couldn't start greeter, try to switch _somewhere_ at least */
-
-	if((cvt = find_any_running())) {
-		activate(cvt->tty);
-		engage();
-	} else {
-		unlock_switch();
-		_exit(0xFF);
-	}
+	return start_cmd_on(cvt);
 }
 
-void setup_greeter(void)
+static struct vtx* find_vt_rec(int tty)
 {
-	if(lock_switch())
-		fail("cannot lock initial console", NULL, 0);
-	if(!activetty)
-		fail("no active tty (?)", NULL, 0);
-	if(nconsoles)
-		fail("greeter tty re-init", NULL, 0);
+	int i;
 
-	int tty = 13;
-	int ttyfd = open_tty_device(tty);
+	for(i = 0; i < nconsoles; i++)
+		if(consoles[i].tty == tty)
+			return &consoles[i];
 
-	if(ttyfd < 0)
-		fail("cannot open greeter tty", NULL, ttyfd);
+	return NULL;
+}
 
-	struct vtx* cvt = &consoles[0];
+int switchto(int tty)
+{
+	struct vtx* cvt = find_vt_rec(tty);
+
+	if(!cvt)
+		goto act;
+	if(cvt->tty == activetty)
+		return 0;
+
+	if(cvt->pid > 0)
+		syskill(cvt->pid, SIGCONT);
+	else if(cvt->fix)
+		return spawn_fixed(cvt);
+act:
+	return activate(tty);
+}
+
+/* Initial VTs setup: greeter and fixed commands */
+
+static void preset(struct vtx* cvt, char* cmd, int tty)
+{
+	long ret;
+
+	if((ret = set_slot_command(cvt, cmd)))
+		warn(NULL, cmd, ret);
+	else
+		cvt->fix = 1;
+
+	if(tty <= 0) return;
+
+	int fd = open_tty_device(tty);
+
+	if(fd < 0) return;
 
 	cvt->tty = tty;
-	cvt->ttyfd = ttyfd;
+	cvt->ttyfd = fd;
+}
 
-	nconsoles = 1;
+static int choose_some_high_tty(int mask)
+{
+	int i;
+
+	for(i = 10; i < 15; i++)
+		if(!(mask & (1<<i)))
+			return i;
+
+	return 0;
+}
+
+void setup_fixed_vts(char* greeter, int n, char** cmds, int spareinitial)
+{
+	int mask = 0;
+	int i;
+
+	if(n >= CONSOLES - 1)
+		fail("too many pre-set commands", NULL, 0);
+	if((activetty = lock_switch(&mask)) <= 0)
+		fail("cannot setup initial console", NULL, activetty);
+
+	initialtty = activetty;
+
+	for(i = 0; i < n; i++)
+		if(i == 0 && !spareinitial)
+			preset(&consoles[i+1], cmds[i], initialtty);
+		else
+			preset(&consoles[i+1], cmds[i], query_empty_tty());
+
+	if(!n && !spareinitial)
+		preset(&consoles[0], greeter, initialtty);
+	else
+		preset(&consoles[0], greeter, choose_some_high_tty(mask));
+
+	nconsoles = n + 1;
 }

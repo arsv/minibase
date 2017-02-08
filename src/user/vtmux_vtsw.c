@@ -7,8 +7,10 @@
 #include <sys/ioctl.h>
 #include <sys/close.h>
 
+#include <string.h>
 #include <null.h>
 #include <fail.h>
+
 #include "vtmux.h"
 
 static long ioctl(int fd, int req, long arg, char* name)
@@ -31,46 +33,26 @@ static long ioctl(int fd, int req, long arg, char* name)
    up with something other than the requested VT being active when the
    lock is back in place. */
 
-int lock_switch(void)
+int lock_switch(int* mask)
 {
 	struct vt_stat vst;
 	long ret;
 
-	if(activetty)
-		return -EINVAL;
-
-	if((ret = IOCTL(0, VT_LOCKSWITCH, 0)))
+	if((ret = IOCTL(0, VT_LOCKSWITCH, 0)) < 0)
 		return ret;
 
-	if((ret = IOCTL(0, VT_GETSTATE, (long)&vst)))
+	if((ret = IOCTL(0, VT_GETSTATE, (long)&vst)) < 0)
 		return ret;
 
-	activetty = vst.active;
+	if(mask)
+		*mask = vst.state;
 
-	return ret;
+	return vst.active;
 }
 
 int unlock_switch(void)
 {
-	long ret;
-
-	if(!activetty)
-		return 0;
-
-	if(!(ret = IOCTL(0, VT_UNLOCKSWITCH, 0)))
-		activetty = 0;
-
-	return ret;
-}
-
-void activate(int tty)
-{
-	unlock_switch();
-
-	IOCTL(0, VT_ACTIVATE, tty);
-	IOCTL(0, VT_WAITACTIVE, tty); /* is this necessary? */
-
-	lock_switch();
+	return IOCTL(0, VT_UNLOCKSWITCH, 0);
 }
 
 /* Per current systemd-induced design, DRI devices can be suspended
@@ -106,62 +88,34 @@ static void disable_device(struct vtd* md, int drop)
    that the greeter runs on. That one is kept reserved, even if
    the greeter is not running. */
 
-static int client_is_greeter(struct vtx* cvt)
-{
-	return (cvt == &consoles[0]);
-}
-
-void close_dead_vt(struct vtx* cvt)
+void closevt(struct vtx* cvt, int keepvt)
 {
 	int i;
 	int tty = cvt->tty;
+
+	cvt->pid = 0;
 
 	for(i = 0; i < nvtdevices; i++)
 		if(vtdevices[i].tty == tty)
 			disable_device(&vtdevices[i], 1);
 
-	if(cvt->ctlfd > 0)
+	if(cvt->ctlfd > 0) {
 		sysclose(cvt->ctlfd);
-
-	cvt->ctlfd = 0;
-
-	if(!client_is_greeter(cvt)) {
-		sysclose(cvt->ttyfd);
-		cvt->ttyfd = 0;
-		cvt->tty = 0;
+		cvt->ctlfd = 0;
 	}
 
-	cvt->pid = 0;
-}
-
-static struct vtx* find_vt_rec(int tty)
-{
-	int i;
-
-	for(i = 0; i < nconsoles; i++)
-		if(consoles[i].tty == tty)
-			return &consoles[i];
-
-	return NULL;
-}
-
-static struct vtx* find_pid_rec(int pid)
-{
-	int i;
-
-	for(i = 0; i < nconsoles; i++)
-		if(consoles[i].pid == pid)
-			return &consoles[i];
-
-	return NULL;
-}
-
-static void send_signal_to_vt_master(int tty, int sig)
-{
-	struct vtx* cvt = find_vt_rec(tty);
-
-	if(cvt && cvt->pid > 0)
-		syskill(cvt->pid, sig);
+	if(keepvt) {
+		IOCTL(cvt->ttyfd, KDSETMODE, 0);
+	} else {
+		if(!cvt->fix)
+			memset(cvt->cmd, 0, sizeof(cvt->cmd));
+		if(!cvt->fix && cvt->tty != initialtty) {
+			sysclose(cvt->ttyfd);
+			cvt->ttyfd = 0;
+			cvt->tty = 0;
+			IOCTL(0, VT_DISALLOCATE, cvt->tty);
+		}
+	}
 }
 
 /* Session switch sequence:
@@ -178,10 +132,9 @@ static void send_signal_to_vt_master(int tty, int sig)
    comments above) fds are fully controlled by vtmux, so activetty
    here is always the one that has them. */
 
-void disengage(void)
+static void disengage(int tty)
 {
 	int i;
-	int tty = activetty;
 
 	for(i = 0; i < nvtdevices; i++) {
 		struct vtd* mdi = &vtdevices[i];
@@ -193,17 +146,14 @@ void disengage(void)
 
 		disable_device(mdi, 0);
 	}
-
-	send_signal_to_vt_master(tty, SIGTSTP);
 }
 
 /* Only need to activate DRIs here. It's up to the client to re-open inputs.
    (at least for now until EVIOCREVOKE gets un-revoke support in the kernel) */
 
-void engage(void)
+static void engage(int tty)
 {
 	int i;
-	int tty = activetty;
 
 	for(i = 0; i < nvtdevices; i++) {
 		struct vtd* mdi = &vtdevices[i];
@@ -220,8 +170,6 @@ void engage(void)
 
 		IOCTL(mdi->fd, DRM_IOCTL_SET_MASTER, 0);
 	}
-
-	send_signal_to_vt_master(tty, SIGCONT);
 }
 
 /* Order is somewhat important here: we should better disconnect
@@ -231,48 +179,36 @@ void engage(void)
    It is not clear however how much a single pass would hurt.
    Presumable nothing important should happen until the process
    being activated gets SIGCONT, by which time all fds will be
-   where they should be anyway.
- 
-   Note: switching to a "dead" console is perfectly ok; a "dead"
-   console may just happen to run something we're not tracking. */
+   where they should be anyway. */
 
-int switchto(int tty)
+int activate(int tty)
 {
+	long ret = 0;
+	int tries = 0;
+
 	if(activetty == tty)
-		return 0; /* already there */
+		goto out; /* already there */
 
-	disengage();
-	activate(tty);
-	engage();
+	disengage(activetty);
 
-	return 0;
-}
+	do {
+		if((ret = unlock_switch()) < 0)
+			goto out;
 
-static void switch_to_greeter(void)
-{
-	struct vtx* cvt = &consoles[0];
+		IOCTL(0, VT_ACTIVATE, tty);
+		IOCTL(0, VT_WAITACTIVE, tty);
+		/* do we really need to wait here? */
 
-	if(cvt->pid > 0)
-		switchto(cvt->tty);
-	else
-		spawn_greeter();
-}
+		if((ret = lock_switch(NULL)) < 0)
+			goto out;
 
-void close_dead_client(int pid)
-{
-	struct vtx* cvt = find_pid_rec(pid);
+	} while(ret != tty && tries++ < 5);
 
-	if(!cvt) return;
+	activetty = ret;
+	engage(activetty);
 
-	int tty = cvt->tty;
-
-	close_dead_vt(cvt);
-
-	if(tty == activetty)
-		switch_to_greeter();
-
-	if(!find_vt_rec(tty))
-		IOCTL(0, VT_DISALLOCATE, tty);
-
-	request_fds_update();
+	if(activetty != tty)
+		ret = -EAGAIN; /* mis-switch */
+out:
+	return ret;
 }
