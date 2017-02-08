@@ -140,7 +140,7 @@ static int child_proc(int ttyfd, int ctlfd, char* cmd)
 
 	char* argv[] = { path, NULL };
 
-	sysdup2(ttyfd, 0); /* XXX: CLOEXEC */
+	sysdup2(ttyfd, 0);
 	sysdup2(ttyfd, 1);
 	sysdup2(ttyfd, 2);
 	sysdup2(ctlfd, 3);
