@@ -22,14 +22,12 @@ static void reply(int fd, int errno, char* msg)
 	char* p = repbuf;
 	char* e = repbuf + sizeof(repbuf);
 
-	if(errno) {
-		p = fmtstr(p, e, "!");
+	if(errno)
 		p = fmtint(p, e, -errno);
-	} if(errno && msg) {
+	if(errno && msg)
 		p = fmtstr(p, e, " ");
-	} if(msg) {
+	if(msg)
 		p = fmtstr(p, e, msg);
-	}
 
 	syswrite(fd, repbuf, p - repbuf);
 }
