@@ -4,6 +4,7 @@
 #include <sys/waitpid.h>
 #include <sys/close.h>
 
+#include <format.h>
 #include <null.h>
 
 #include "vtmux.h"
@@ -23,7 +24,20 @@ static struct vtx* find_pid_rec(int pid)
 
 static void report_cause(int fd, int status)
 {
-	syswrite(fd, "blah blah blah\n", 15);
+	char msg[32];
+	char* p = msg;
+	char* e = msg + sizeof(msg) - 1;
+
+	if(WIFEXITED(status)) {
+		p = fmtstr(p, e, "Exit ");
+		p = fmtint(p, e, WEXITSTATUS(status));
+	} else {
+		p = fmtstr(p, e, "Signal ");
+		p = fmtint(p, e, WTERMSIG(status));
+	}
+
+	*p++ = '\n';
+	syswrite(fd, msg, p - msg);
 }
 
 void waitpids(void)
