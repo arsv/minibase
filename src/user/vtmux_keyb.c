@@ -254,4 +254,5 @@ void setup_keyboards(void)
 	}
 
 	sysclose(fd);
+	pollready = 0;
 }

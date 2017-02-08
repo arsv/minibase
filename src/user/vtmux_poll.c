@@ -14,12 +14,6 @@ struct pollfd pfds[PFDS];
 static sigset_t defsigset;
 int sigterm;
 int sigchld;
-int fdsready;
-
-void request_fds_update(void)
-{
-	fdsready = 0;
-}
 
 static void sighandler(int sig)
 {
@@ -80,6 +74,7 @@ void update_poll_fds(void)
 		pfds[i].events = POLLIN;
 
 	nfds = j;
+	pollready = 1;
 }
 
 void check_polled_fds(void)
@@ -105,10 +100,8 @@ void mainloop(void)
 	{
 		sigchld = 0;
 
-		if(!fdsready)
+		if(!pollready)
 			update_poll_fds();
-
-		fdsready = 1;
 
 		int r = sysppoll(pfds, nfds, NULL, &defsigset);
 

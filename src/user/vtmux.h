@@ -42,6 +42,7 @@ extern char* greeter;
 extern char** environ;
 extern int activetty;
 extern int initialtty;
+extern int pollready;
 
 /* Numbers below are upper limits for loops; all arrays may happen
    to have empty slots between used ones. */
@@ -75,5 +76,4 @@ void switch_somewhere(void);
 int spawn_fixed(struct vtx* cvt);
 void setup_fixed_vts(char* greeter, int n, char** cmds, int spareinitial);
 
-void request_fds_update(void);
 void mainloop(void);

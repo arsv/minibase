@@ -60,7 +60,7 @@ void waitpids(void)
 		closevt(cvt, !!status);
 	}
 
-	request_fds_update();
+	pollready = 0;
 
 	if(!active)
 		return;
