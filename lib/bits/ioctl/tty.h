@@ -31,3 +31,5 @@ struct vt_stat {
 
 #define VT_LOCKSWITCH   0x560B  /* disallow vt switching */
 #define VT_UNLOCKSWITCH 0x560C  /* allow vt switching */
+
+#define KDSETMODE	0x4B3A	/* set text/graphics mode */
