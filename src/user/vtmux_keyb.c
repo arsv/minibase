@@ -120,16 +120,16 @@ static void setcode(uint8_t* bits, int len, int code)
 static int check_event_bits(int fd)
 {
 	uint8_t bits[32];
+	int bitsize = sizeof(bits);
 
-	memset(bits, 0, sizeof(bits));
+	memset(bits, 0, bitsize);
 
-	if(sysioctl(fd, EVIOCGBIT(EV_KEY, 32), (long)bits) < 0)
+	if(sysioctl(fd, EVIOCGBIT(EV_KEY, bitsize), (long)bits) < 0)
 		return 0;
 
-	int blen = sizeof(bits);
-	int alt = hascode(bits, blen, KEY_LALT);
-	int ctl = hascode(bits, blen, KEY_LCTL);
-	int f1 = hascode(bits, blen, KEY_F1);
+	int alt = hascode(bits, bitsize, KEY_LALT);
+	int ctl = hascode(bits, bitsize, KEY_LCTL);
+	int f1 = hascode(bits, bitsize, KEY_F1);
 
 	return (ctl && alt && f1);
 }
@@ -137,25 +137,26 @@ static int check_event_bits(int fd)
 static void set_event_mask(int fd)
 {
 	uint8_t bits[32];
+	int bitsize = sizeof(bits);
+
 	struct input_mask mask = {
 		.type = EV_KEY,
 		.size = sizeof(bits),
 		.ptr = (long)bits
 	};
 
-	memset(bits, 0, sizeof(bits));
+	memset(bits, 0, bitsize);
 
-	int blen = sizeof(bits);
-	setcode(bits, blen, KEY_LCTL);
-	setcode(bits, blen, KEY_LALT);
+	setcode(bits, bitsize, KEY_LCTL);
+	setcode(bits, bitsize, KEY_LALT);
 
 	int i;
 	for(i = 0; i < 10; i++)
-		setcode(bits, blen, KEY_F1 + i);
+		setcode(bits, bitsize, KEY_F1 + i);
 
 	sysioctl(fd, EVIOCSMASK, (long)&mask);
 
-	memset(bits, 0, sizeof(bits));
+	memset(bits, 0, bitsize);
 	mask.type = EV_MSC;
 
 	sysioctl(fd, EVIOCSMASK, (long)&mask);

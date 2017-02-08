@@ -183,11 +183,11 @@ static void engage(int tty)
 
 int activate(int tty)
 {
-	long ret = 0;
+	long ret;
 	int tries = 0;
 
 	if(activetty == tty)
-		goto out; /* already there */
+		return 0;
 
 	disengage(activetty);
 
