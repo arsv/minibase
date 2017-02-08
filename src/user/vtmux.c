@@ -50,6 +50,8 @@ int main(int argc, char** argv, char** envp)
 		fail("missing argument", NULL, 0);
 
 	int spareinitial = !!(opts & OPT_n);
+
+	setup_signals();
 	setup_fixed_vts(greeter, argc - i, argv + i, spareinitial);
 	setup_keyboards();
 

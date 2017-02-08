@@ -17,15 +17,10 @@ int sigchld;
 
 static void sighandler(int sig)
 {
-	switch(sig)
-	{
+	switch(sig) {
 		case SIGINT:
-		case SIGTERM:
-			sigterm = 1;
-			break;
-		case SIGCHLD:
-			sigchld = 1;
-			break;
+		case SIGTERM: sigterm = 1; break;
+		case SIGCHLD: sigchld = 1; break;
 	}
 }
 
