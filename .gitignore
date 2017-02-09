@@ -3,3 +3,5 @@ tmp
 *.o
 config.mk
 mini-cc
+tags
+cscope.out
