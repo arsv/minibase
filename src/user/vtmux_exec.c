@@ -30,8 +30,7 @@
    mapping between via first and the last fields in traditional
    /etc/passwd format.
 
-   Greeter itself is just another client named "login".  The only
-   difference is that it's run on a dedicated reserved tty. */
+   Greeter itself is just another pinned client named "login". */
 
 int open_tty_device(int tty)
 {
@@ -69,7 +68,7 @@ struct vtx* grab_console_slot(void)
 
 	/* never grab greeter slot this way */
 	for(i = 1; i < nconsoles; i++)
-		if(consoles[i].fix)
+		if(consoles[i].pin)
 			continue;
 		else if(consoles[i].pid <= 0)
 			break;
@@ -218,7 +217,7 @@ int invoke(struct vtx* cvt)
 
 	if(cvt->pid > 0)
 		return syskill(cvt->pid, SIGCONT);
-	else if(cvt->fix)
+	else if(cvt->pin)
 		return start_cmd_on(cvt);
 
 	return -ENOENT;
@@ -234,7 +233,7 @@ int switchto(int tty)
 		return invoke(cvt);
 }
 
-/* Initial VTs setup: greeter and fixed commands */
+/* Initial VTs setup: greeter and pinned commands */
 
 static void preset(struct vtx* cvt, char* cmd, int tty)
 {
@@ -243,7 +242,7 @@ static void preset(struct vtx* cvt, char* cmd, int tty)
 	if((ret = set_slot_command(cvt, cmd)))
 		warn(NULL, cmd, ret);
 	else
-		cvt->fix = 1;
+		cvt->pin = 1;
 
 	if(tty <= 0) return;
 
@@ -267,7 +266,7 @@ static int choose_some_high_tty(int mask)
 	return 0;
 }
 
-void setup_fixed_vts(char* greeter, int n, char** cmds, int spareinitial)
+void setup_pinned(char* greeter, int n, char** cmds, int spareinitial)
 {
 	int mask = 0;
 	int i;

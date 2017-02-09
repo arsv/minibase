@@ -81,7 +81,7 @@ void waitpids(void)
 
 	if(!active)
 		return;
-	if(active->fix)
+	if(active->pin)
 		switchto(active->tty); /* try to restart it */
 	else
 		switchto(consoles[0].tty); /* greeter */

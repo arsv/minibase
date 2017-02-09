@@ -34,6 +34,19 @@ ERRLIST = {
 #define OPT_g (1<<0)
 #define OPT_n (1<<1)
 
+/* Pinned clients are never started in background. We choose one
+   to run in foreground, and leave the rest to be start on the first
+   switch to their respective ttys. Background startup implies no KMS
+   master, so no way to figure out things like display resolution.
+   Some clients might be able to cope with that, some might not.
+
+   Also it is not clear how background startup may be useful.
+
+   If there is anything other than greeter to start, it is likely
+   some kind of auto-login setup and we should drop the user there.
+   The first non-greeter client is always consoles[1]. Otherwise,
+   start greeter from consoles[0] and let it spawn sessions. */
+
 int main(int argc, char** argv, char** envp)
 {
 	int i = 1;
@@ -53,10 +66,10 @@ int main(int argc, char** argv, char** envp)
 	int spareinitial = !!(opts & OPT_n);
 
 	setup_signals();
-	setup_fixed_vts(greeter, argc - i, argv + i, spareinitial);
+	setup_pinned(greeter, argc - i, argv + i, spareinitial);
 	setup_keyboards();
 
-	if(consoles[1].fix)
+	if(consoles[1].pin)
 		invoke(&consoles[1]);
 	else
 		invoke(&consoles[0]);

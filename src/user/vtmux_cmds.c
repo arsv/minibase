@@ -14,11 +14,10 @@
 
 #include "vtmux.h"
 
-char cmdbuf[256];
-char repbuf[256];
-
 static void reply(int fd, int errno, char* msg)
 {
+	char repbuf[256];
+
 	char* p = repbuf;
 	char* e = repbuf + sizeof(repbuf);
 
@@ -83,6 +82,7 @@ invalid:
 
 void handlectl(int ci, int fd)
 {
+	char cmdbuf[256];
 	int rd;
 
 	while((rd = sysrecv(fd, cmdbuf, sizeof(cmdbuf)-1, MSG_DONTWAIT)) > 0) {

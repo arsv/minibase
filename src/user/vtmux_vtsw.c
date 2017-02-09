@@ -107,9 +107,9 @@ void closevt(struct vtx* cvt, int keepvt)
 	if(keepvt) {
 		IOCTL(cvt->ttyfd, KDSETMODE, 0);
 	} else {
-		if(!cvt->fix)
+		if(!cvt->pin)
 			memset(cvt->cmd, 0, sizeof(cvt->cmd));
-		if(!cvt->fix && cvt->tty != initialtty) {
+		if(!cvt->pin && cvt->tty != initialtty) {
 			sysclose(cvt->ttyfd);
 			cvt->ttyfd = -1;
 			cvt->tty = 0;

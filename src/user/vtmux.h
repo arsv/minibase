@@ -1,31 +1,29 @@
-#define CONSOLES 8
+#define CONSOLES 12
 #define KEYBOARDS 10
-#define INPUTS 128
+#define INPUTS 256
 #define CMDSIZE 16
 
 /* One active VT, with a process running on it.
    Kernel index (N in /dev/ttyN and vtx.tty here) is always
-   non-zero and almost never matches indexes in consoles[]. */
+   non-zero and may not match indexes in consoles[]. */
 
 struct vtx {
 	int ttyfd;    /* /dev/ttyN */
 	int ctlfd;    /* control socket */
 	int pid;
-	short tty;
-	short fix;    /* do not close/deallocate VT */
+	short tty;    /* N in ttyN, always 1-based */
+	short pin;    /* the command to this particular tty */
 	char cmd[CMDSIZE];
 };
 
 /* VT-bound device handle, opened on behalf of vtx.pid and multiplexed
-   during VT switches. We keep track of its dev number (maj:min) since
-   different clients will often open the same devices. There's going
-   to be lots of these, like 10 or so per vtx. All of them char devices,
-   some DRM and some inputs. */
+   during VT switches. There's going to be lots of these, like 10 or so
+   per vtx. All of them char devices, some DRM and some inputs. */
 
 struct vtd {
 	int fd;
-	int dev;
-	short tty;
+	int dev;      /* maj:min, in st_dev encoding */
+	short tty;    /* N in ttyN this fd is associated with */
 };
 
 /* Our private handles for keyboard devices which we use to listen
@@ -34,18 +32,17 @@ struct vtd {
 
 struct kbd {
 	int fd;
-	int dev;
-	int mod;
+	int dev;      /* maj:min again */
+	int mod;      /* active modifiers bitmask */
 };
 
-extern char* greeter;
 extern char** environ;
 extern int activetty;
 extern int initialtty;
 extern int pollready;
 
-/* Numbers below are upper limits for loops; all arrays may happen
-   to have empty slots between used ones. */
+/* The numbers below are upper limits for loops, all arrays
+   may happen to have empty slots below resp. limits. */
 
 extern struct vtx consoles[CONSOLES];
 extern struct vtd vtdevices[INPUTS];
@@ -73,6 +70,6 @@ void waitpids(void);
 int switchto(int tty);
 int spawn(char* cmd);
 int invoke(struct vtx* cvt);
-void setup_fixed_vts(char* greeter, int n, char** cmds, int spareinitial);
+void setup_pinned(char* greeter, int n, char** cmds, int spareinitial);
 
 void mainloop(void);
