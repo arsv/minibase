@@ -57,9 +57,9 @@ int main(int argc, char** argv, char** envp)
 	setup_keyboards();
 
 	if(consoles[1].fix)
-		spawn_fixed(&consoles[1]);
+		invoke(&consoles[1]);
 	else
-		spawn_fixed(&consoles[0]);
+		invoke(&consoles[0]);
 
 	mainloop();
 

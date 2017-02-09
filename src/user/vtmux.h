@@ -71,9 +71,8 @@ void shutdown(void);
 void waitpids(void);
 
 int switchto(int tty);
-int spawn_client(char* cmd);
-void switch_somewhere(void);
-int spawn_fixed(struct vtx* cvt);
+int spawn(char* cmd);
+int invoke(struct vtx* cvt);
 void setup_fixed_vts(char* greeter, int n, char** cmds, int spareinitial);
 
 void mainloop(void);

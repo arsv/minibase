@@ -49,7 +49,7 @@ static void cmd_switch(int fd, char* arg)
 
 static void cmd_spawn(int fd, char* arg)
 {
-	long ret = spawn_client(arg);
+	long ret = spawn(arg);
 
 	return reply(fd, ret, NULL);
 }

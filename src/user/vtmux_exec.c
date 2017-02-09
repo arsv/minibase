@@ -173,7 +173,7 @@ static int start_cmd_on(struct vtx* cvt)
 	return 0;
 }
 
-int spawn_client(char* cmd)
+int spawn(char* cmd)
 {
 	int old = activetty;
 	struct vtx* cvt;
@@ -198,16 +198,6 @@ done:
 	return ret;
 }
 
-int spawn_fixed(struct vtx* cvt)
-{
-	long ret;
-
-	if((ret = activate(cvt->tty)) < 0)
-		return ret;
-
-	return start_cmd_on(cvt);
-}
-
 static struct vtx* find_vt_rec(int tty)
 {
 	int i;
@@ -219,21 +209,29 @@ static struct vtx* find_vt_rec(int tty)
 	return NULL;
 }
 
+int invoke(struct vtx* cvt)
+{
+	long ret;
+
+	if((ret = activate(cvt->tty)) < 0)
+		return ret;
+
+	if(cvt->pid > 0)
+		return syskill(cvt->pid, SIGCONT);
+	else if(cvt->fix)
+		return start_cmd_on(cvt);
+
+	return -ENOENT;
+}
+
 int switchto(int tty)
 {
 	struct vtx* cvt = find_vt_rec(tty);
 
 	if(!cvt)
-		goto act;
-	if(cvt->tty == activetty)
-		return 0;
-
-	if(cvt->pid > 0)
-		syskill(cvt->pid, SIGCONT);
-	else if(cvt->fix)
-		return spawn_fixed(cvt);
-act:
-	return activate(tty);
+		return activate(tty);
+	else
+		return invoke(cvt);
 }
 
 /* Initial VTs setup: greeter and fixed commands */
