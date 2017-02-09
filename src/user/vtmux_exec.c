@@ -202,7 +202,7 @@ int spawn_fixed(struct vtx* cvt)
 {
 	long ret;
 
-	if((ret = activate(cvt->tty)))
+	if((ret = activate(cvt->tty)) < 0)
 		return ret;
 
 	return start_cmd_on(cvt);

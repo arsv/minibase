@@ -181,7 +181,10 @@ static void engage(int tty)
    It is not clear however how much a single pass would hurt.
    Presumable nothing important should happen until the process
    being activated gets SIGCONT, by which time all fds will be
-   where they should be anyway. */
+   where they should be anyway.
+
+   VT_WAITACTIVE active below *is* necessary; switch does not
+   occur otherwise. XXX: check what's really going on there. */
 
 int activate(int tty)
 {
@@ -199,7 +202,6 @@ int activate(int tty)
 
 		IOCTL(0, VT_ACTIVATE, tty);
 		IOCTL(0, VT_WAITACTIVE, tty);
-		/* do we really need to wait here? */
 
 		if((ret = lock_switch(NULL)) < 0)
 			goto out;
