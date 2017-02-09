@@ -60,32 +60,29 @@ static void cmd_open(int fd, char* arg)
 
 static void handlecmd(int ci, int fd, char* cmd)
 {
-	if(!*cmd)
-		goto invalid;
-
 	char* arg = cmd + 1;
 
-	if(ci > 0)
-		goto nonpriv;
+	if(*cmd == '@')
+		return cmd_open(fd, arg);
+
+	/* non-greeter clients cannot spawn sessions */
+	if(ci) goto out;
+
 	if(*cmd == '=')
 		return cmd_switch(fd, arg);
 	if(*cmd == '+')
 		return cmd_spawn(fd, arg);
-	if(ci < 0)
-		goto invalid;
-nonpriv:
-	if(*cmd == '@')
-		return cmd_open(fd, arg);
-invalid:
+out:
 	return reply(fd, -EINVAL, "Invalid command");
 }
 
 void handlectl(int ci, int fd)
 {
 	char cmdbuf[256];
+	int cmdsize = sizeof(cmdbuf) - 1;
 	int rd;
 
-	while((rd = sysrecv(fd, cmdbuf, sizeof(cmdbuf)-1, MSG_DONTWAIT)) > 0) {
+	while((rd = sysrecv(fd, cmdbuf, cmdsize, MSG_DONTWAIT)) > 0) {
 		cmdbuf[rd] = '\0';
 		handlecmd(ci, fd, cmdbuf);
 	} if(rd < 0 && rd != -EAGAIN) {

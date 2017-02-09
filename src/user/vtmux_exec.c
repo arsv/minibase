@@ -54,9 +54,9 @@ int open_tty_device(int tty)
 int query_empty_tty(void)
 {
 	int tty;
-	long ret = sysioctl(0, VT_OPENQRY, (long)&tty);
+	long ret;
 
-	if(ret < 0)
+	if((ret = sysioctl(0, VT_OPENQRY, (long)&tty)) < 0)
 		warn("ioctl", "VT_OPENQRY", ret);
 
 	return tty;
@@ -79,17 +79,18 @@ struct vtx* grab_console_slot(void)
 
 	struct vtx* cvt = &consoles[i];
 
-	if(cvt->tty != initialtty) {
-		int tty, ttyfd;
+	if(cvt->tty == initialtty)
+		return cvt;
 
-		if((tty = query_empty_tty()) < 0)
-			return NULL;
-		if((ttyfd = open_tty_device(tty)) < 0)
-			return NULL;
+	int tty, ttyfd;
 
-		cvt->tty = tty;
-		cvt->ttyfd = ttyfd;
-	}
+	if((tty = query_empty_tty()) < 0)
+		return NULL;
+	if((ttyfd = open_tty_device(tty)) < 0)
+		return NULL;
+
+	cvt->tty = tty;
+	cvt->ttyfd = ttyfd;
 
 	return cvt;
 }
@@ -152,14 +153,16 @@ static int child_proc(int ttyfd, int ctlfd, char* cmd)
 static int start_cmd_on(struct vtx* cvt)
 {
 	int sk[2];
-	int ret = syssocketpair(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0, sk);
+	int ret, pid;
 
-	if(ret < 0)
+	int domain = AF_UNIX;
+	int type = SOCK_DGRAM | SOCK_CLOEXEC;
+	int proto = 0;
+
+	if((ret = syssocketpair(domain, type, proto, sk)) < 0)
 		return ret;
 
-	int pid = sysfork();
-
-	if(pid < 0)
+	if((pid = sysfork()) < 0)
 		return pid;
 
 	if(pid == 0)
