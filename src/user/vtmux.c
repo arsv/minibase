@@ -41,7 +41,7 @@ int main(int argc, char** argv, char** envp)
 
 	environ = envp;
 
-	if(i < argc && argv[i][0] == '+')
+	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
 	if(i < argc && opts & OPT_g)
