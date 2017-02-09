@@ -23,10 +23,11 @@
    In-kernel VT switching code must be doing something similar
    at some point too. */
 
+#define KEY_ESC   1
 #define KEY_LCTL 29
 #define KEY_LALT 56
-#define KEY_F1  59
-#define KEY_F10 68
+#define KEY_F1   59
+#define KEY_F10  68
 
 #define MOD_LCTL (1<<0)
 #define MOD_LALT (1<<1)
@@ -56,6 +57,9 @@ void keypress(struct kbd* kb, int code)
 	if(!(ctl && alt)) return;
 
 	switch(code) {
+		case KEY_ESC:
+			switchto(consoles[0].tty);
+			break;
 		case KEY_F1 ... KEY_F10:
 			switchto(code - KEY_F1 + 1);
 			break;
