@@ -79,8 +79,6 @@ void waitpids(void)
 		closevt(cvt, !!status);
 	}
 
-	pollready = 0;
-
 	if(!active)
 		return;
 	if(active->fix)

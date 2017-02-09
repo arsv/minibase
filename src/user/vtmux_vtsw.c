@@ -116,6 +116,8 @@ void closevt(struct vtx* cvt, int keepvt)
 			IOCTL(0, VT_DISALLOCATE, cvt->tty);
 		}
 	}
+
+	pollready = 0;
 }
 
 /* Session switch sequence:
