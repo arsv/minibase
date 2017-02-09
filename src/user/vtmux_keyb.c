@@ -133,9 +133,10 @@ static int check_event_bits(int fd)
 
 	int alt = hascode(bits, bitsize, KEY_LALT);
 	int ctl = hascode(bits, bitsize, KEY_LCTL);
+	int esc = hascode(bits, bitsize, KEY_ESC);
 	int f1 = hascode(bits, bitsize, KEY_F1);
 
-	return (ctl && alt && f1);
+	return (ctl && alt && f1 && esc);
 }
 
 static void set_event_mask(int fd)
@@ -153,6 +154,7 @@ static void set_event_mask(int fd)
 
 	setcode(bits, bitsize, KEY_LCTL);
 	setcode(bits, bitsize, KEY_LALT);
+	setcode(bits, bitsize, KEY_ESC);
 
 	int i;
 	for(i = 0; i < 10; i++)

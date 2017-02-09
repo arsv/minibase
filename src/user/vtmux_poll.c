@@ -2,6 +2,7 @@
 #include <sys/sigprocmask.h>
 #include <sys/sigaction.h>
 
+#include <format.h>
 #include <sigset.h>
 #include <fail.h>
 
@@ -54,16 +55,22 @@ void setup_signals(void)
 	if(ret) fail("signal init failed", NULL, 0);
 }
 
+/* Empty slots have everything = 0, but listening on fd 0
+   aka stdin is not a good idea. The number of taken entries
+   in pfds still has to match nconsoles since we use this
+   later in check_polled_fds to tell whether given fd is a ctlfd
+   or a keyboard. */
+
 void update_poll_fds(void)
 {
 	int i;
 	int j = 0;
 
-	for(i = 0; i < nconsoles && j < PFDS; i++, j++)
-		pfds[j].fd = consoles[i].ctlfd;
+	for(i = 0; i < nconsoles && j < PFDS; i++)
+		pfds[j++].fd = consoles[i].pid > 0 ? consoles[i].ctlfd : -1;
 
-	for(i = 0; i < nkeyboards && j < PFDS; i++, j++)
-		pfds[j].fd = keyboards[i].fd;
+	for(i = 0; i < nkeyboards && j < PFDS; i++)
+		pfds[j++].fd = keyboards[i].fd > 0 ? keyboards[i].fd : -1;
 
 	for(i = 0; i < j; i++)
 		pfds[i].events = POLLIN;

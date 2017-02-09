@@ -119,7 +119,7 @@ void free_console_slot(struct vtx* cvt)
 		return;
 
 	sysclose(cvt->ttyfd);
-	cvt->ttyfd = 0;
+	cvt->ttyfd = -1;
 	cvt->tty = 0;
 }
 
@@ -255,6 +255,7 @@ static void preset(struct vtx* cvt, char* cmd, int tty)
 
 	cvt->tty = tty;
 	cvt->ttyfd = fd;
+	cvt->ctlfd = -1;
 }
 
 static int choose_some_high_tty(int mask)
