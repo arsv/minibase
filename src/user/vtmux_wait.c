@@ -9,7 +9,26 @@
 
 #include "vtmux.h"
 
-/* Non-terminal SIGCHLD handler. */
+/* Non-terminal SIGCHLD handler. Close fds, deallocate VT,
+   and do whatever else cleanup necessary.
+
+   Most clients should die while active, but inactive ones may die
+   as well. Background deaths should not cause VT switching.
+
+   In case of abnormal exit, let the user read whatever the failed
+   process might have printed to its stderr.
+
+   Successful exit means logout and return to greeter. Except on
+   a fixed VT, then it is probably better to restart the client.
+   There's no such thing as "logout" on fixed VTs, and no login
+   either, so no point in activating greeter VT.
+
+   Restarts are not timed. Abnormal exits require user intervention,
+   and normal exits are presumed to not happen too fast.
+
+   Greeter may, and probably should, exit with 0 status if it is not
+   being used for some time. There's no point in keeping it running
+   in background, it will be re-started on request anyway. */
 
 static struct vtx* find_pid_rec(int pid)
 {
