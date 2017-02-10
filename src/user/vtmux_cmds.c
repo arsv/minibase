@@ -184,6 +184,10 @@ static void cmd_spawn(int fd, char* arg)
 	return reply(fd, ret, NULL);
 }
 
+/* Greeter is always ci=0 here. All other clients are only
+   allowed to open/close fds, but greeter should be able
+   to spawn clients and such. */
+
 static void handlecmd(int ci, int fd, char* cmd)
 {
 	char* arg = cmd + 1;
@@ -194,7 +198,6 @@ static void handlecmd(int ci, int fd, char* cmd)
 	if(*cmd == '#')
 		return cmd_close(fd, arg, cvt->tty);
 
-	/* non-greeter clients cannot spawn sessions */
 	if(ci) goto out;
 
 	if(*cmd == '=')
@@ -204,6 +207,11 @@ static void handlecmd(int ci, int fd, char* cmd)
 out:
 	return reply(fd, -EINVAL, "Invalid command");
 }
+
+/* For any sane clients, there should be exactly one pending
+   command at a time, because the client is expected to wait
+   for reply. But, the protocol does not prevent sending cmds
+   in bulk, and dropping the loop here does not save us much. */
 
 void handlectl(int ci, int fd)
 {
