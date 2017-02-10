@@ -63,7 +63,7 @@ int unlock_switch(void)
    It's also a good idea to disable devices before releasing them
    from under a dead client. Leaked fds may still linger about. */
 
-static void disable_device(struct vtd* md, int drop)
+void disable(struct vtd* md, int drop)
 {
 	int dev = md->dev;
 	int maj = major(dev);
@@ -97,7 +97,7 @@ void closevt(struct vtx* cvt, int keepvt)
 
 	for(i = 0; i < nvtdevices; i++)
 		if(vtdevices[i].tty == tty)
-			disable_device(&vtdevices[i], 1);
+			disable(&vtdevices[i], 1);
 
 	if(cvt->ctlfd > 0) {
 		sysclose(cvt->ctlfd);
@@ -146,7 +146,7 @@ static void disengage(int tty)
 		if(mdi->fd <= 0)
 			continue;
 
-		disable_device(mdi, 0);
+		disable(mdi, 0);
 	}
 }
 

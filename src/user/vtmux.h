@@ -63,6 +63,7 @@ int lock_switch(int* mask);
 int unlock_switch(void);
 int activate(int tty);
 void closevt(struct vtx* cvt, int keepvt);
+void disable(struct vtd* md, int drop);
 
 void shutdown(void);
 void waitpids(void);

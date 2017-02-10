@@ -154,10 +154,7 @@ static void cmd_close(int rfd, char* arg, int tty)
 	if(!(vd = find_device_slot(tty, dev)))
 		return reply(rfd, -EBADF, NULL);
 
-	sysclose(vd->fd);
-	vd->fd = 0;
-	vd->tty = 0;
-	vd->dev = 0;
+	disable(vd, 1);
 
 	if(vd == &vtdevices[nvtdevices-1])
 		nvtdevices--;
