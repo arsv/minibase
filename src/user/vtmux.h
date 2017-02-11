@@ -60,8 +60,8 @@ extern int nkeyboards;
 
 void setup_signals(void);
 void setup_keyboards(void);
-void handlectl(int vi, int fd);
-void handlekbd(int ki, int fd);
+void handlectl(struct vtx* cvt, int fd);
+void handlekbd(struct kbd* kb, int fd);
 
 int lock_switch(int* mask);
 int unlock_switch(void);

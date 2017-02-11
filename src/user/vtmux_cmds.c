@@ -202,17 +202,17 @@ static void cmd_spawn(int fd, char* arg)
    allowed to open/close fds, but greeter should be able
    to spawn clients and such. */
 
-static void handlecmd(int ci, int fd, char* cmd)
+static void handlecmd(struct vtx* cvt, int fd, char* cmd)
 {
 	char* arg = cmd + 1;
-	struct vtx* cvt = &consoles[ci];
 
 	if(*cmd == '@')
 		return cmd_open(fd, arg, cvt->tty);
 	if(*cmd == '#')
 		return cmd_close(fd, arg, cvt->tty);
 
-	if(ci) goto out;
+	if(cvt == &consoles[0])
+		goto out;
 
 	if(*cmd == '=')
 		return cmd_switch(fd, arg);
@@ -227,7 +227,7 @@ out:
    for reply. But, the protocol does not prevent sending cmds
    in bulk, and dropping the loop here does not save us much. */
 
-void handlectl(int ci, int fd)
+void handlectl(struct vtx* cvt, int fd)
 {
 	char cmdbuf[256];
 	int cmdsize = sizeof(cmdbuf) - 1;
@@ -235,7 +235,7 @@ void handlectl(int ci, int fd)
 
 	while((rd = sysrecv(fd, cmdbuf, cmdsize, MSG_DONTWAIT)) > 0) {
 		cmdbuf[rd] = '\0';
-		handlecmd(ci, fd, cmdbuf);
+		handlecmd(cvt, fd, cmdbuf);
 	} if(rd < 0 && rd != -EAGAIN) {
 		warn("recv", NULL, rd);
 	}

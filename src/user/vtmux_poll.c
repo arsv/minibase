@@ -1,6 +1,7 @@
 #include <sys/ppoll.h>
 #include <sys/sigprocmask.h>
 #include <sys/sigaction.h>
+#include <sys/close.h>
 
 #include <format.h>
 #include <sigset.h>
@@ -56,10 +57,21 @@ void setup_signals(void)
 }
 
 /* Empty slots have everything = 0, but listening on fd 0
-   aka stdin is not a good idea. The number of taken entries
-   in pfds still has to match nconsoles since we use this
-   later in check_polled_fds to tell whether given fd is a ctlfd
-   or a keyboard. */
+   aka stdin is not a good idea, so we skip those.
+
+   The number of taken entries in pfds still has to match nconsoles
+   so that check_polled_fds would be able to match fd to their
+   respective consoles[] or keyboards[] slots. */
+
+static int consfd(struct vtx* cvt)
+{
+	return cvt->pid > 0 ? cvt->ctlfd : -1;
+}
+
+static int keybfd(struct kbd* kb)
+{
+	return kb->fd > 0 ? kb->fd : -1;
+}
 
 void update_poll_fds(void)
 {
@@ -67,10 +79,10 @@ void update_poll_fds(void)
 	int j = 0;
 
 	for(i = 0; i < nconsoles && j < PFDS; i++)
-		pfds[j++].fd = consoles[i].pid > 0 ? consoles[i].ctlfd : -1;
+		pfds[j++].fd = consfd(&consoles[i]);
 
 	for(i = 0; i < nkeyboards && j < PFDS; i++)
-		pfds[j++].fd = keyboards[i].fd > 0 ? keyboards[i].fd : -1;
+		pfds[j++].fd = keybfd(&keyboards[i]);
 
 	for(i = 0; i < j; i++)
 		pfds[i].events = POLLIN;
@@ -79,19 +91,58 @@ void update_poll_fds(void)
 	pollready = 1;
 }
 
+/* Failing fds are dealt with immediately, to avoid re-queueing
+   them from ppoll. For keyboards, this is also the only place
+   where the fds get closed. Control fds are closed either here
+   or in closevt(). */
+
+static void closectl(struct vtx* cvt)
+{
+	if(cvt->ctlfd > 0) {
+		sysclose(cvt->ctlfd);
+		cvt->ctlfd = -1;
+	}
+}
+
+static void closekbd(struct kbd* kb)
+{
+	sysclose(kb->fd);
+	kb->fd = 0;
+	kb->dev = 0;
+	kb->mod = 0;
+}
+
 void check_polled_fds(void)
 {
-	int j;
+	int j, k;
 
-	for(j = 0; j < nfds; j++)
-		if(!pfds[j].revents)
+	for(j = 0; j < nfds; j++) {
+		int revents = pfds[j].revents;
+		int pollin = revents & POLLIN;
+		int fd = pfds[j].fd;
+
+		if(!revents)
 			continue;
-		else if(!(pfds[j].revents & POLLIN))
+		if(!pollin)
 			pfds[j].fd = -1;
-		else if(j < nconsoles)
-			handlectl(j, pfds[j].fd);
-		else if(j < nconsoles + nkeyboards)
-			handlekbd(j - nconsoles, pfds[j].fd);
+
+		if((k = j) < nconsoles) {
+			struct vtx* cvt = &consoles[k];
+
+			if(pollin)
+				handlectl(cvt, fd);
+			else
+				closectl(cvt);
+
+		} else if((k = j - nconsoles) < nkeyboards) {
+			struct kbd* kb = &keyboards[k];
+
+			if(pollin)
+				handlekbd(kb, fd);
+			else
+				closekbd(kb);
+		}
+	}
 }
 
 void mainloop(void)
