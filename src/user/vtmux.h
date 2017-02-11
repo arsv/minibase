@@ -76,5 +76,6 @@ int switchto(int tty);
 int spawn(char* cmd);
 int invoke(struct vtx* cvt);
 void setup_pinned(char* greeter, int n, char** cmds, int spareinitial);
+int prep_event_dev(int fd);
 
 void mainloop(void);

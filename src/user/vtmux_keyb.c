@@ -15,158 +15,20 @@
 
 #include "vtmux.h"
 
-/* Keyboard-driven switching: the user presses Ctrl-Alt-Fn, vtmux
-   switches to tty(n). */
+/* We expect C-A-Fn keyevents from any available keyboards capable
+   of generating them. The problem is that the keyboards are just
+   indiscriminated eventN entries in /dev/input, so we should identify
+   those we need and ignore everything else there. And like everything
+   else, keyboards may be hot-pluggable, so we watch the directory for
+   changes.
 
-/* Assumption: all keyboards generate somewhat PC-compatible
-   scancodes. This is not as far from reality as one might expect.
-   In-kernel VT switching code must be doing something similar
-   at some point too. */
+   This should probably not be done like this, it's up to udev
+   to classify devices, but we can't rely on udev actually being
+   configured to do that yet.
 
-#define KEY_ESC   1
-#define KEY_LCTL 29
-#define KEY_LALT 56
-#define KEY_F1   59
-#define KEY_F10  68
-
-#define MOD_LCTL (1<<0)
-#define MOD_LALT (1<<1)
-
-/* The kernel only report press/release events, so modifier state
-   must be tracked here. Ctrl-Alt-Fn switching logic is hardcoded,
-   for now at least. */
-
-void keyrelease(struct kbd* kb, int code)
-{
-	switch(code) {
-		case KEY_LALT: kb->mod &= ~MOD_LALT; break;
-		case KEY_LCTL: kb->mod &= ~MOD_LCTL; break;
-	}
-}
-
-void keypress(struct kbd* kb, int code)
-{
-	switch(code) {
-		case KEY_LALT: kb->mod |= MOD_LALT; return;
-		case KEY_LCTL: kb->mod |= MOD_LCTL; return;
-	}
-
-	int alt = kb->mod & MOD_LALT;
-	int ctl = kb->mod & MOD_LCTL;
-
-	if(!(ctl && alt)) return;
-
-	switch(code) {
-		case KEY_ESC:
-			switchto(consoles[0].tty);
-			break;
-		case KEY_F1 ... KEY_F10:
-			switchto(code - KEY_F1 + 1);
-			break;
-	}
-}
-
-void handlekbd(int ki, int fd)
-{
-	struct kbd* kb = &keyboards[ki];
-
-	char buf[256];
-	char* ptr;
-	int rd;
-
-	while((rd = sysread(fd, buf, sizeof(buf))) > 0)
-		for(ptr = buf; ptr < buf + rd; ptr += sizeof(struct event))
-		{
-			struct event* ev = (struct event*) ptr;
-
-			if(ev->type != EV_KEY)
-				continue;
-			if(ev->value == 1)
-				keypress(kb, ev->code);
-			else if(ev->value == 0)
-				keyrelease(kb, ev->code);
-			/* value 2 is autorepeat, ignore */
-		}
-}
-
-/* Keyboard setup: go through /dev/input/event* nodes, and use
-   those that may generate the key events vtmux needs. There are
-   lots of useless nodes in /dev/input typically, so no point in
-   keeping them all open, we only need the main keyboard(s) with
-   at least Ctrl, Alt and F1 keys.
-
-   This should probably not be done like this, it's really udev's
-   job to classify devices, but we can't rely on udev actually
-   being configured to do that yet.
-
-   Finally, Linux allows masking input events, so we request the
-   input drivers to only send the keycodes we're interested in.
-   This should prevent excessive wakeups during regular typing.
-
-   The only documentation available for most of this stuff is in
-   the kernel sources apparently. Refer to linux/include/uapi/input.h
-   and linux/drivers/input/evdev.c. */
-
-static int hascode(uint8_t* bits, int len, int code)
-{
-	if(code / 8 >= len)
-		return 0;
-	return bits[code/8] & (1 << (code % 8));
-}
-
-static void setcode(uint8_t* bits, int len, int code)
-{
-	if(code / 8 >= len)
-		return;
-	bits[code/8] |= (1 << (code % 8));
-}
-
-static int check_event_bits(int fd)
-{
-	uint8_t bits[32];
-	int bitsize = sizeof(bits);
-
-	memset(bits, 0, bitsize);
-
-	if(sysioctl(fd, EVIOCGBIT(EV_KEY, bitsize), (long)bits) < 0)
-		return 0;
-
-	int alt = hascode(bits, bitsize, KEY_LALT);
-	int ctl = hascode(bits, bitsize, KEY_LCTL);
-	int esc = hascode(bits, bitsize, KEY_ESC);
-	int f1 = hascode(bits, bitsize, KEY_F1);
-
-	return (ctl && alt && f1 && esc);
-}
-
-static void set_event_mask(int fd)
-{
-	uint8_t bits[32];
-	int bitsize = sizeof(bits);
-
-	struct input_mask mask = {
-		.type = EV_KEY,
-		.size = sizeof(bits),
-		.ptr = (long)bits
-	};
-
-	memset(bits, 0, bitsize);
-
-	setcode(bits, bitsize, KEY_LCTL);
-	setcode(bits, bitsize, KEY_LALT);
-	setcode(bits, bitsize, KEY_ESC);
-
-	int i;
-	for(i = 0; i < 10; i++)
-		setcode(bits, bitsize, KEY_F1 + i);
-
-	sysioctl(fd, EVIOCSMASK, (long)&mask);
-
-	memset(bits, 0, bitsize);
-	mask.type = EV_MSC;
-
-	sysioctl(fd, EVIOCSMASK, (long)&mask);
-}
+   This file only handles the directory reading/watching part.
+   Keymasks and keyboard identification depend on the keycodes we use,
+   not on the directory stuff, so all that is in _keys. */
 
 static int check_event_dev(int fd)
 {
@@ -174,9 +36,11 @@ static int check_event_dev(int fd)
 
 	if(sysfstat(fd, &st) < 0)
 		return 0;
+	if((st.st_mode & S_IFMT) != S_IFCHR)
+		return 0;
 	if(major(st.st_rdev) != INPUT_MAJOR)
 		return 0;
-	if(!check_event_bits(fd))
+	if(!prep_event_dev(fd))
 		return 0;
 
 	return 1;
@@ -184,8 +48,6 @@ static int check_event_dev(int fd)
 
 static void add_keyboard(int fd, struct kbd* kb)
 {
-	set_event_mask(fd);
-
 	kb->fd = fd;
 	kb->dev = 0;
 	kb->mod = 0;
