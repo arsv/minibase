@@ -84,9 +84,9 @@ void disable(struct vtd* md, int drop)
 	md->tty = 0;
 }
 
-/* Empty VTs are closed/released/disallocated, except for the one
-   that the greeter runs on. That one is kept reserved, even if
-   the greeter is not running. */
+/* Dead VTs are closed/released/disallocated, unless there's
+   a pinned command there, or it's the initial vt vtmux itself
+   runs on. Those are kept open. */
 
 void closevt(struct vtx* cvt, int keepvt)
 {
