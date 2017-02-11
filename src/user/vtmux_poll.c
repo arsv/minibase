@@ -147,8 +147,6 @@ void check_polled_fds(void)
 
 void mainloop(void)
 {
-	sigterm = 0;
-
 	while(!sigterm)
 	{
 		sigchld = 0;
@@ -167,6 +165,4 @@ void mainloop(void)
 		else if(r > 0)
 			check_polled_fds();
 	}
-
-	shutdown();
 }

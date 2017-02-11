@@ -76,5 +76,7 @@ int main(int argc, char** argv, char** envp)
 
 	mainloop();
 
+	shutdown();
+
 	return 0;
 }
