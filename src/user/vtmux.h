@@ -3,6 +3,10 @@
 #define INPUTS 256
 #define CMDSIZE 16
 
+/* disable() arguments */
+#define TEMPORARILY 0
+#define PERMANENTLY 1
+
 /* One active VT, with a process running on it.
    Kernel index (N in /dev/ttyN and vtx.tty here) is always
    non-zero and may not match indexes in consoles[]. */

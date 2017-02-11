@@ -99,6 +99,16 @@ static int check_for_duplicate(struct vtd* vd, int dev, int tty)
 	return 0;
 }
 
+/* A newly-opened device is always in ready-to-use state.
+   Any input is, until REVOKE ioctl. DRI fs becomes master one on open
+   (unless there are other masters for this device, but then we can't
+   steal it anyway).
+
+   There is however a possibility that the open request comes from
+   an inactive tty. If this happens, we must disable inputs *and* DRIs.
+   For DRIs, the active tty may not have yet opened this particular device,
+   so the background one will become master despite being in background. */
+
 static void cmd_open(int rfd, char* arg, int tty)
 {
 	struct vtd* vd;
@@ -117,6 +127,10 @@ static void cmd_open(int rfd, char* arg, int tty)
 
 	vd->fd = dfd;
 	vd->tty = tty;
+
+	if(tty != activetty)
+		disable(vd, TEMPORARILY);
+
 	return reply(rfd, 0, NULL);
 close:
 	vd->dev = 0;
@@ -154,7 +168,7 @@ static void cmd_close(int rfd, char* arg, int tty)
 	if(!(vd = find_device_slot(tty, dev)))
 		return reply(rfd, -EBADF, NULL);
 
-	disable(vd, 1);
+	disable(vd, PERMANENTLY);
 
 	if(vd == &vtdevices[nvtdevices-1])
 		nvtdevices--;

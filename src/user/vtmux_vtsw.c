@@ -97,7 +97,7 @@ void closevt(struct vtx* cvt, int keepvt)
 
 	for(i = 0; i < nvtdevices; i++)
 		if(vtdevices[i].tty == tty)
-			disable(&vtdevices[i], 1);
+			disable(&vtdevices[i], PERMANENTLY);
 
 	if(cvt->ctlfd > 0) {
 		sysclose(cvt->ctlfd);
@@ -146,7 +146,7 @@ static void disengage(int tty)
 		if(mdi->fd <= 0)
 			continue;
 
-		disable(mdi, 0);
+		disable(mdi, TEMPORARILY);
 	}
 }
 
