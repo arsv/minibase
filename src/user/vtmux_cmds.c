@@ -191,16 +191,23 @@ static void cmd_switch(int fd, char* arg)
 	return reply(fd, 0, NULL);
 }
 
+/* No up-directory escapes here. Only basenames */
+
 static void cmd_spawn(int fd, char* arg)
 {
+	char* p;
+
+	for(p = arg; *p; p++)
+		if(*p == '/')
+			return reply(fd, -EACCES, NULL);
+
 	long ret = spawn(arg);
 
 	return reply(fd, ret, NULL);
 }
 
-/* Greeter is always ci=0 here. All other clients are only
-   allowed to open/close fds, but greeter should be able
-   to spawn clients and such. */
+/* All VTs are allowed to open/close fds. Only greeter is allowed
+   to spawn clients and otherwise control vtmux. */
 
 static void handlecmd(struct vtx* cvt, int fd, char* cmd)
 {
