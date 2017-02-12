@@ -8,6 +8,7 @@
 #include <sys/ioctl.h>
 #include <sys/_exit.h>
 #include <sys/getdents.h>
+#include <sys/inotify.h>
 
 #include <string.h>
 #include <format.h>
@@ -29,6 +30,8 @@
    This file only handles the directory reading/watching part.
    Keymasks and keyboard identification depend on the keycodes we use,
    not on the directory stuff, so all that is in _keys. */
+
+static const char devinput[] = "/dev/input";
 
 static int check_event_dev(int fd)
 {
@@ -53,10 +56,25 @@ static void add_keyboard(int fd, struct kbd* kb)
 	kb->mod = 0;
 }
 
+static struct kbd* grab_keyboard_slot(void)
+{
+	int i;
+
+	for(i = 0; i < nkeyboards; i++)
+		if(keyboards[i].fd <= 0)
+			break;
+	if(i >= KEYBOARDS)
+		return NULL;
+	if(i == nkeyboards)
+		nkeyboards++;
+
+	return &keyboards[i];
+}
+
 static void check_dir_ent(char* dir, char* name)
 {
-	if(nkeyboards >= KEYBOARDS)
-		return;
+	struct kbd* kb;
+	int fd;
 
 	int dirlen = strlen(dir);
 	int namelen = strlen(name);
@@ -70,15 +88,17 @@ static void check_dir_ent(char* dir, char* name)
 	p = fmtstr(p, e, name);
 	*p++ = '\0';
 
-	int fd = sysopen(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-
-	if(fd < 0)
+	if((fd = sysopen(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)) < 0)
 		return;
 
-	if(check_event_dev(fd))
-		add_keyboard(fd, &keyboards[nkeyboards++]);
-	else
-		sysclose(fd);
+	if(!check_event_dev(fd))
+		goto close;
+	if(!(kb = grab_keyboard_slot()))
+		goto close;
+
+	return add_keyboard(fd, kb);
+close:
+	sysclose(fd);
 }
 
 static int dotddot(char* p)
@@ -92,17 +112,29 @@ static int dotddot(char* p)
 	return 0;
 }
 
+static void setwatch(char* dir)
+{
+	long fd, wd;
+
+	if((fd = sys_inotify_init()) < 0)
+		fail("inotify_init", NULL, fd);
+
+	if((wd = sys_inotify_add_watch(fd, dir, IN_CREATE)) < 0)
+		fail("inotify_add_watch", dir, wd);
+
+	inotifyfd = fd;
+}
+
 void setup_keyboards(void)
 {
 	char debuf[1024];
-	char* dir = "/dev/input";
+	char* dir = (char*)devinput;
+	long fd, rd;
 
-	long fd = sysopen(dir, O_RDONLY | O_DIRECTORY);
-
-	if(fd < 0)
+	if((fd = sysopen(dir, O_RDONLY | O_DIRECTORY)) < 0)
 		fail("cannot open", dir, fd);
 
-	long rd;
+	setwatch(dir);
 
 	while((rd = sysgetdents64(fd, debuf, sizeof(debuf))) > 0) {
 		char* ptr = debuf;
@@ -124,4 +156,26 @@ void setup_keyboards(void)
 
 	sysclose(fd);
 	pollready = 0;
+}
+
+void handleino(int fd)
+{
+	char buf[512];
+	int len = sizeof(buf);
+	char* dir = (char*)devinput;
+	long rd;
+
+	while((rd = sysread(fd, buf, len)) > 0) {
+		char* end = buf + rd;
+		char* ptr = buf;
+
+		while(ptr < end) {
+			struct inotify_event* ino = (void*) ptr;
+			ptr += sizeof(*ino) + ino->len;
+
+			check_dir_ent(dir, ino->name);
+		}
+	} if(rd < 0) {
+		warn("inotify-read", dir, rd);
+	}
 }

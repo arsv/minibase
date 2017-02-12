@@ -44,6 +44,7 @@ extern char** environ;
 extern int activetty;
 extern int initialtty;
 extern int pollready;
+extern int inotifyfd;
 
 /* The numbers below are upper limits for loops, all arrays
    may happen to have empty slots below resp. limits. */
@@ -62,6 +63,7 @@ void setup_signals(void);
 void setup_keyboards(void);
 void handlectl(struct vtx* cvt, int fd);
 void handlekbd(struct kbd* kb, int fd);
+void handleino(int fd);
 
 int lock_switch(int* mask);
 int unlock_switch(void);

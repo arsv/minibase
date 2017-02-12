@@ -13,6 +13,7 @@ char** environ;
 int activetty;
 int initialtty;
 int pollready;
+int inotifyfd;
 
 struct vtx consoles[CONSOLES];
 struct vtd vtdevices[INPUTS];

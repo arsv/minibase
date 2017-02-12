@@ -84,6 +84,9 @@ void update_poll_fds(void)
 	for(i = 0; i < nkeyboards && j < PFDS; i++)
 		pfds[j++].fd = keybfd(&keyboards[i]);
 
+	if(j < PFDS && inotifyfd > 0)
+		pfds[j++].fd = inotifyfd;
+
 	for(i = 0; i < j; i++)
 		pfds[i].events = POLLIN;
 
@@ -141,6 +144,11 @@ void check_polled_fds(void)
 				handlekbd(kb, fd);
 			else
 				closekbd(kb);
+		} else {
+			if(pollin)
+				handleino(fd);
+			else
+				inotifyfd = -1; /* ugh */
 		}
 	}
 }
