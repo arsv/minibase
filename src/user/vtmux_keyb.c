@@ -33,7 +33,20 @@
 
 static const char devinput[] = "/dev/input";
 
-static int check_event_dev(int fd)
+static int already_polling(int dev)
+{
+	int i;
+
+	for(i = 0; i < nkeyboards; i++)
+		if(keyboards[i].fd <= 0)
+			continue;
+		else if(keyboards[i].dev == dev)
+			return 1;
+
+	return 0;
+}
+
+static int check_event_dev(int fd, int* dev)
 {
 	struct stat st;
 
@@ -43,17 +56,14 @@ static int check_event_dev(int fd)
 		return 0;
 	if(major(st.st_rdev) != INPUT_MAJOR)
 		return 0;
+	if(already_polling(st.st_rdev))
+		return 0;
+	if((*dev = st.st_rdev) != st.st_rdev)
+		return 0;
 	if(!prep_event_dev(fd))
 		return 0;
 
 	return 1;
-}
-
-static void add_keyboard(int fd, struct kbd* kb)
-{
-	kb->fd = fd;
-	kb->dev = 0;
-	kb->mod = 0;
 }
 
 static struct kbd* grab_keyboard_slot(void)
@@ -74,7 +84,7 @@ static struct kbd* grab_keyboard_slot(void)
 static void check_dir_ent(char* dir, char* name)
 {
 	struct kbd* kb;
-	int fd;
+	int fd, dev;
 
 	int dirlen = strlen(dir);
 	int namelen = strlen(name);
@@ -91,12 +101,15 @@ static void check_dir_ent(char* dir, char* name)
 	if((fd = sysopen(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)) < 0)
 		return;
 
-	if(!check_event_dev(fd))
+	if(!check_event_dev(fd, &dev))
 		goto close;
 	if(!(kb = grab_keyboard_slot()))
 		goto close;
 
-	return add_keyboard(fd, kb);
+	kb->fd = fd;
+	kb->dev = dev;
+	kb->mod = 0;
+	return;
 close:
 	sysclose(fd);
 }
