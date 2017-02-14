@@ -4,5 +4,5 @@
 
 void* nl_bin(struct nlattr* at, int len)
 {
-	return (at->len - sizeof(*at) == len) ? at->payload : NULL;
+	return (at && at->len - sizeof(*at) == len) ? at->payload : NULL;
 }
