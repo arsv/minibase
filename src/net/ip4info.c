@@ -239,7 +239,7 @@ void list_ipconf(void)
 {
 	struct ip4link** q;
 
-	banner("Links");
+	banner("Interfaces");
 	for(q = ifs; *q; q++)
 		show_iface(*q, ips);
 }
@@ -256,8 +256,6 @@ char* fmt_route_dst(char* p, char* e, struct rtmsg* msg)
 		p = fmtip(p, e, ip);
 	else
 		p = fmtipm(p, e, ip, msg->dst_len);
-
-	p = fmtstr(p, e, " ");
 
 	return p;
 }
@@ -281,7 +279,7 @@ char* fmt_route_dev(char* p, char* e, struct rtmsg* msg)
 	if(!(oif = nl_u32(rt_get(msg, RTA_OIF))))
 		goto out;
 
-	p = fmtstr(p, e, "to ");
+	p = fmtstr(p, e, ": ");
 
 	if((name = ifi_to_name(*oif))) {
 		p = fmtstr(p, e, name);
