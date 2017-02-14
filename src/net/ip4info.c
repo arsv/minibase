@@ -33,17 +33,24 @@ ERRLIST = {
 	RESTASNUMBERS
 };
 
+/* Link and IP lists are cached in the heap, because we need freely
+   accessible to format links and routes properly. Route data is not
+   cached, just show one message at a time. */
+
+struct heap hp;
+struct netlink nl;
+
 struct ip4addr {
 	unsigned ifi;
 	unsigned flags;
 	uint8_t ip[4];
 	uint8_t mask;
-};
+} **ips;
 
 struct ip4link {
 	unsigned ifi;
 	char name[20];
-};
+} **ifs;
 
 char ifbuf[1024];
 
@@ -85,13 +92,13 @@ static char* fmtipm(char* p, char* e, uint8_t* ip, uint8_t mask)
 	return p;
 }
 
-void** reindex(struct heap* hp, void* p0, void* p1, int size)
+void** reindex(void* p0, void* p1, int size)
 {
 	if((p1 - p0) % size)
 		fail("heap corrupted", NULL, 0);
 
 	int n = (p1 - p0)/size;
-	void** idx = halloc(hp, (n+1)*sizeof(void*));
+	void** idx = halloc(&hp, (n+1)*sizeof(void*));
 
 	int i;
 
@@ -102,24 +109,23 @@ void** reindex(struct heap* hp, void* p0, void* p1, int size)
 	return idx;
 }
 
-struct ip4link** index_ifs(struct heap* hp, void* p0, void* p1)
+struct ip4link** index_ifs(void* p0, void* p1)
 {
-	return (struct ip4link**)reindex(hp, p0, p1, sizeof(struct ip4link));
+	return (struct ip4link**)reindex(p0, p1, sizeof(struct ip4link));
 }
 
-struct ip4addr** index_ips(struct heap* hp, void* p0, void* p1)
+struct ip4addr** index_ips(void* p0, void* p1)
 {
-	return (struct ip4addr**)reindex(hp, p0, p1, sizeof(struct ip4addr));
+	return (struct ip4addr**)reindex(p0, p1, sizeof(struct ip4addr));
 }
 
-void store_ip(struct heap* hp, struct ifaddrmsg* msg)
+void store_ip(struct ifaddrmsg* msg)
 {
-	//char* name = nl_str(ifa_get(msg, IFA_LABEL));
 	uint8_t* addr = nl_bin(ifa_get(msg, IFA_ADDRESS), 4);
 
 	if(!addr) return;
 
-	struct ip4addr* rec = halloc(hp, sizeof(*rec));
+	struct ip4addr* rec = halloc(&hp, sizeof(*rec));
 
 	rec->ifi = msg->index;
 	rec->flags = msg->flags;
@@ -127,36 +133,36 @@ void store_ip(struct heap* hp, struct ifaddrmsg* msg)
 	memcpy(rec->ip, addr, 4);
 }
 
-struct ip4addr** fetch_ips(struct netlink* nl, struct heap* hp)
+void fetch_ips(void)
 {
 	struct ifaddrmsg* msg;
 
-	nl_header(nl, msg, RTM_GETADDR, 0,
+	nl_header(&nl, msg, RTM_GETADDR, 0,
 		.family = AF_INET,
 		.prefixlen = 0,
 		.flags = 0,
 		.scope = 0,
 		.index = 0);
 
-	if(nl_send_dump(nl))
-		fail("netlink", "RTM_GETADDR", nl->err);
+	if(nl_send_dump(&nl))
+		fail("netlink", "RTM_GETADDR", nl.err);
 
-	void* p0 = hp->ptr;
+	void* p0 = hp.ptr;
 
-	while((nl_recv_multi_into(nl, msg)))
-		store_ip(hp, msg);
-	if(nl->err)
-		fail("netlink", "RTM_GETADDR", nl->err);
+	while((nl_recv_multi_into(&nl, msg)))
+		store_ip(msg);
+	if(nl.err)
+		fail("netlink", "RTM_GETADDR", nl.err);
 
-	void* p1 = hp->ptr;
+	void* p1 = hp.ptr;
 
-	return index_ips(hp, p0, p1);
+	ips = index_ips(p0, p1);
 }
 
-void store_if(struct heap* hp, struct ifinfomsg* msg)
+void store_if(struct ifinfomsg* msg)
 {
 	char* name = nl_str(ifl_get(msg, IFLA_IFNAME));
-	struct ip4link* rec = halloc(hp, sizeof(*rec));
+	struct ip4link* rec = halloc(&hp, sizeof(*rec));
 
 	rec->ifi = msg->index;
 	memset(rec->name, 0, sizeof(rec->name));
@@ -165,43 +171,43 @@ void store_if(struct heap* hp, struct ifinfomsg* msg)
 		memcpy(rec->name, name, strlen(name));
 }
 
-struct ip4link** fetch_ifs(struct netlink* nl, struct heap* hp)
+void fetch_ifs(void)
 {
 	struct ifinfomsg* msg;
 
-	nl_header(nl, msg, RTM_GETLINK, 0,
+	nl_header(&nl, msg, RTM_GETLINK, 0,
 		.family = 0,
 		.type = 0,
 		.index = 0,
 		.flags = 0,
 		.change = 0);
 
-	if(nl_send_dump(nl))
-		fail("netlink", "RTM_GETLINK", nl->err);
+	if(nl_send_dump(&nl))
+		fail("netlink", "RTM_GETLINK", nl.err);
 
-	void* p0 = hp->ptr;
+	void* p0 = hp.ptr;
 
-	while((nl_recv_multi_into(nl, msg)))
-		store_if(hp, msg);
-	if(nl->err)
-		fail("netlink", "RTM_GETLINK", nl->err);
+	while((nl_recv_multi_into(&nl, msg)))
+		store_if(msg);
+	if(nl.err)
+		fail("netlink", "RTM_GETLINK", nl.err);
 
-	void* p1 = hp->ptr;
+	void* p1 = hp.ptr;
 
-	return index_ifs(hp, p0, p1);
+	ifs = index_ifs(p0, p1);
 }
 
-void show_iface(struct ip4link* ifs, struct ip4addr** ips)
+void show_iface(struct ip4link* lk, struct ip4addr** ips)
 {
 	char* p = ifbuf;
 	char* e = ifbuf + sizeof(ifbuf) - 1;
 
-	p = fmtstr(p, e, "link#");
-	p = fmtint(p, e, ifs->ifi);
+	p = fmtstr(p, e, "  ");
+	p = fmtint(p, e, lk->ifi);
 
-	if(*(ifs->name)) {
+	if(lk->name[0]) {
 		p = fmtstr(p, e, " ");
-		p = fmtstr(p, e, ifs->name);
+		p = fmtstr(p, e, lk->name);
 	}
 
 	p = fmtstr(p, e, ":");
@@ -210,7 +216,7 @@ void show_iface(struct ip4link* ifs, struct ip4addr** ips)
 	int hasaddr = 0;
 
 	for(qq = ips; (q = *qq); qq++) {
-		if(q->ifi != ifs->ifi)
+		if(q->ifi != lk->ifi)
 			continue;
 		hasaddr = 1;
 		p = fmtstr(p, e, " ");
@@ -223,10 +229,17 @@ void show_iface(struct ip4link* ifs, struct ip4addr** ips)
 	writeout(ifbuf, p - ifbuf);
 }
 
-void list_ipconf(struct ip4link** ifs, struct ip4addr** ips)
+void banner(char* msg)
+{
+	writeout(msg, strlen(msg));
+	writeout("\n", 1);
+}
+
+void list_ipconf(void)
 {
 	struct ip4link** q;
 
+	banner("Links");
 	for(q = ifs; *q; q++)
 		show_iface(*q, ips);
 }
@@ -235,21 +248,21 @@ char* fmt_route_dst(char* p, char* e, struct rtmsg* msg)
 {
 	uint8_t* ip = nl_bin(rt_get(msg, RTA_DST), 4);
 
-	if(msg->dst_len == 0) {
+	if(msg->dst_len == 0)
 		p = fmtstr(p, e, "default");
-	} else if(!ip) {
+	else if(!ip)
 		p = fmtstr(p, e, "no-dst");
-	} else if(msg->dst_len == 32) {
+	else if(msg->dst_len == 32)
 		p = fmtip(p, e, ip);
-	} else {
+	else
 		p = fmtipm(p, e, ip, msg->dst_len);
-	}
+
 	p = fmtstr(p, e, " ");
 
 	return p;
 }
 
-char* ifi_to_name(struct ip4link** ifs, int ifi)
+char* ifi_to_name(int ifi)
 {
 	struct ip4link** q;
 
@@ -260,7 +273,7 @@ char* ifi_to_name(struct ip4link** ifs, int ifi)
 	return *q ? (*q)->name : NULL;
 }
 
-char* fmt_route_dev(char* p, char* e, struct rtmsg* msg, struct ip4link** ifs)
+char* fmt_route_dev(char* p, char* e, struct rtmsg* msg)
 {
 	uint32_t* oif;
 	char* name;
@@ -270,7 +283,7 @@ char* fmt_route_dev(char* p, char* e, struct rtmsg* msg, struct ip4link** ifs)
 
 	p = fmtstr(p, e, "to ");
 
-	if((name = ifi_to_name(ifs, *oif))) {
+	if((name = ifi_to_name(*oif))) {
 		p = fmtstr(p, e, name);
 	} else {
 		p = fmtstr(p, e, "#");
@@ -310,7 +323,7 @@ char* fmt_route_proto(char* p, char* e, struct rtmsg* msg)
 	return p;
 }
 
-void show_route(struct rtmsg* msg, struct ip4link** ifs)
+void show_route(struct rtmsg* msg)
 {
 	char* p = ifbuf;
 	char* e = ifbuf + sizeof(ifbuf) - 1;
@@ -318,10 +331,10 @@ void show_route(struct rtmsg* msg, struct ip4link** ifs)
 	if(msg->type == RTN_LOCAL || msg->type == RTN_BROADCAST)
 		return;
 
-	p = fmtstr(p, e, "route ");
+	p = fmtstr(p, e, "  ");
 
 	p = fmt_route_dst(p, e, msg);
-	p = fmt_route_dev(p, e, msg, ifs);
+	p = fmt_route_dev(p, e, msg);
 	p = fmt_route_gw(p, e, msg);
 	p = fmt_route_proto(p, e, msg);
 
@@ -329,46 +342,51 @@ void show_route(struct rtmsg* msg, struct ip4link** ifs)
 	writeout(ifbuf, p - ifbuf);
 }
 
-void list_routes(struct netlink* nl, struct ip4link** ifs)
+void list_routes(void)
 {
 	struct rtmsg* msg;
 
-	nl_header(nl, msg, RTM_GETROUTE, 0,
-		.family = AF_INET);
+	nl_header(&nl, msg, RTM_GETROUTE, 0, .family = AF_INET);
 
-	if(nl_send_dump(nl))
-		fail("netlink", "RTM_GETROUTE", nl->err);
+	if(nl_send_dump(&nl))
+		fail("netlink", "RTM_GETROUTE", nl.err);
 
-	writeout("\n", 1);
-
-	while((nl_recv_multi_into(nl, msg)))
-		show_route(msg, ifs);
-	if(nl->err)
-		fail("netlink", "RTM_GETROUTE", nl->err);
+	banner("Routes");
+	while((nl_recv_multi_into(&nl, msg)))
+		show_route(msg);
+	if(nl.err)
+		fail("netlink", "RTM_GETROUTE", nl.err);
 }
 
-int main(int argc, char** argv)
+void empty_line(void)
 {
-	struct netlink nl;
-	struct heap hp;
+	writeout("\n", 1);
+}
 
-	int i = 1;
+void setup(void)
+{
+	hinit(&hp, PAGE);
 
 	nl_init(&nl);
 	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
 	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
 	nl_connect(&nl, NETLINK_ROUTE, 0);
+}
 
-	hinit(&hp, PAGE);
+int main(int argc, char** argv)
+{
+	int i = 1;
 
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
-	struct ip4link** ifs = fetch_ifs(&nl, &hp);
-	struct ip4addr** ips = fetch_ips(&nl, &hp);
+	setup();
 
-	list_ipconf(ifs, ips);
-	list_routes(&nl, ifs);
+	fetch_ifs();
+	fetch_ips();
+
+	list_ipconf();
+	list_routes();
 
 	flushout();
 
