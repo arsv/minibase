@@ -51,16 +51,22 @@ long nl_connect(struct netlink* nl, int protocol, int groups)
 
 /* Bare send/recv working in terms of blocks in buffers */
 
-long nl_recv_chunk(struct netlink* nl)
+static long nl_recv_chunk(struct netlink* nl, int flags)
 {
-	int remaining = nl->rxlen - nl->rxend;
+	int fd = nl->fd;
+	char* buf = nl->rxbuf + nl->rxend;
+	int len = nl->rxlen - nl->rxend;
+	long rd;
 
-	long rd = sysrecv(nl->fd, nl->rxbuf + nl->rxend, remaining, 0);
+	if(len <= 0)
+		return -ENOBUFS;
 
-	if(rd > 0)
+	if((rd = sysrecv(fd, buf, len, flags)) > 0) {
 		nl->rxend += rd;
-
-	nl->err = (rd >= 0 ? 0 : rd);
+		nl->err = 0;
+	} else {
+		nl->err = rd;
+	}
 
 	return rd;
 }
@@ -107,7 +113,7 @@ static int nl_no_rx_space(struct netlink* nl)
 	return 1;
 }
 
-static void nl_shift_rxbuf(struct netlink* nl)
+void nl_shift_rxbuf(struct netlink* nl)
 {
 	int off = nl->msgend;
 
@@ -132,11 +138,11 @@ struct nlmsg* nl_recv(struct netlink* nl)
 		goto gotmsg;
 	if(nl->msgend > 0)
 		nl_shift_rxbuf(nl);
-	else if(nl_no_rx_space(nl))
+	if(nl_no_rx_space(nl))
 		return NULL;
 
 	long rd;
-	while((rd = nl_recv_chunk(nl)) > 0) {
+	while((rd = nl_recv_chunk(nl, 0)) > 0) {
 		if((len = nl_got_message(nl)) > 0)
 			goto gotmsg;
 		if(nl_no_rx_space(nl))
@@ -146,6 +152,24 @@ struct nlmsg* nl_recv(struct netlink* nl)
 	return NULL;
 
 gotmsg:
+	nl->msgptr = nl->msgend;
+	nl->msgend = nl->msgptr + len;
+
+	return (struct nlmsg*)(nl->rxbuf + nl->msgptr);
+}
+
+long nl_recv_nowait(struct netlink* nl)
+{
+	return nl_recv_chunk(nl, MSG_DONTWAIT);
+}
+
+struct nlmsg* nl_get_nowait(struct netlink* nl)
+{
+	int len;
+
+	if((len = nl_got_message(nl)) <= 0)
+		return NULL;
+
 	nl->msgptr = nl->msgend;
 	nl->msgend = nl->msgptr + len;
 

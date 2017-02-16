@@ -29,9 +29,6 @@ void nl_set_rxbuf(struct netlink* nl, void* buf, int len);
 long nl_connect(struct netlink* nl, int protocol, int grps);
 long nl_subscribe(struct netlink* nl, int id);
 
-long nl_recv_chunk(struct netlink* nl);
-long nl_send_txbuf(struct netlink* nl);
-
 /* Synchronous (request-reply) queries */
 
 struct nlmsg* nl_recv(struct netlink* nl);
@@ -52,6 +49,12 @@ struct nlgen* nl_recv_genl_multi(struct netlink* nl);
 
 #define nl_recv_multi_into(nl, vv) \
 	(vv = (typeof(vv))nl_recv_multi(nl, sizeof(*vv)))
+
+/* Asynchronous recv */
+
+long nl_recv_nowait(struct netlink* nl);
+struct nlmsg* nl_get_nowait(struct netlink* nl);
+void nl_shift_rxbuf(struct netlink* nl);
 
 /* WTF section */
 
