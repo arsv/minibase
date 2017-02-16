@@ -22,6 +22,7 @@ char* fmtpad0(char* p, char* e, int width, char* q);
 char* fmtsize(char* p, char* e, uint64_t n);
 char* fmtstr(char* dst, char* end, const char* src);
 char* fmtstrn(char* dst, char* end, const char* src, int len);
+char* fmtstrl(char* dst, char* end, const char* src, int len);
 
 char* fmttm(char* buf, char* end, struct tm* tm);
 char* fmtulp(char* buf, char* end, unsigned long num, int pad);

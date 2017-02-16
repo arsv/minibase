@@ -4,10 +4,14 @@
 
 char* fmtstrn(char* dst, char* end, const char* src, int len)
 {
-	if(dst + len >= end)
-		len = end - dst;
+	char* p = dst;
+	const char* q = src;
 
-	memcpy(dst, src, len);
+	if(dst + len < end)
+		end = dst + len;
 
-	return dst + len;
+	while(p < end && *q)
+		*p++ = *q++;
+
+	return p;
 }
