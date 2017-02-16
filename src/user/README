@@ -1,9 +1,9 @@
 What is vtmux
 ~~~~~~~~~~~~~
-Virtual Terminal MUltipleXer allows running several processes willing to access
-/dev/input devices and/or become KMS masters concurrently by proxying their
-access to those devices, and multiplexing data streams in sync with regular
-VT switching.
+Virtual Terminal MUltipleXer allows running several processes willing to
+access /dev/input devices and/or become KMS masters concurrently by proxying
+their access to those devices, and multiplexing data streams in sync with
+regular VT switching.
 
 Or in other words, vtmux is needed to run one wayland compositor on tty1,
 another one on tty2, and a regular text mode console on tty3, so that C-A-Fn
@@ -109,7 +109,7 @@ becomes inactive.
 
 Notes on DRI masters
 ~~~~~~~~~~~~~~~~~~~~
-DRI devices (/dev/dri/cardN) handle both benigh ops like GPU-accelerated
+DRI devices (/dev/dri/cardN) handle both benign ops like GPU-accelerated
 rendering to off-sreen buffers and privileged ops like modesetting (KMS),
 video output configuration, frame buffer allocation, frame flipping.
 
@@ -138,8 +138,8 @@ to re-initialize the device, or at least check its configuration.
 
 Notes on input device revocation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Input device nodes are single-purpose and should not be readable for
-non-privileged processes. There's no mastering or anything like that.
+There is no such thing as input mastering. Inputs are single-purpose and
+should not be readable for non-privileged processes.
 
 Unlike DRIs, disabled input devices cannot be re-enabled. The reasons for this
 are not clear at all. The clients are supposed to re-open all inputs each time
@@ -183,11 +183,12 @@ Using some sort of post-factum switch notification, like polling VT_GETSTATE
 or reading /sys/class/tty/tty0/active, means the synchronous actions
 the multiplexer must take will always be late. Say, VT 5 is already active
 but inputs and DRIs are engaged for the client on VT 4. There is apparently
-no way to stall VT switch from the muxer process. There is VT_RELDISP but it
-is tricky to use and will likely not work with clients that rely on it as well.
+no way to stall VT switch from the multiplexer process. There is VT_RELDISP
+but it is tricky to use and will likely not work with clients that rely on it
+as well.
 
 Doing all the switching entirely in userspace allows (in theory) to do it
-reliably and synchronously, ensuring that the muxed devices can only be
+reliably and synchronously, ensuring that the managed devices can only be
 engaged to the active client at any given time.
 
 In practice, in mixed KMS/VT environments, it's a bit more complicated.
@@ -212,15 +213,15 @@ Opening a new VT implies several steps:
 1. allocating a new VT
 2. querying user credentials (login)
 3. calling setuid/setgid
-4. spawning the actual user UI
+4. spawning UI
 
 Steps 0 and 2 are often free-form and require heavy user interaction. Think
 graphical login screen. Steps 1 and 3 are privileged, but depend on the data
 obtained from steps 0 and 2, and so does step 4.
 
 Traditional tty login process relies on pre-determined answers to 0+1
-("we need 6 VTs") and does steps 2+3 in a single highly priviged process
-called "login". This approach is not viable if anything graphical is involed
+("we need 6 VTs") and does steps 2+3 in a single highly privileged process
+called "login". This approach is not viable if anything graphical is involved
 on steps 1 (like starting X or weston) or 2 (login screen).
 
 X-based DMs typically split step 2 into a dedicated, non-privileged process
@@ -264,11 +265,11 @@ some high VT, typically 10-11-12. This way VT 1 will likely be the first
 user session, VT 2 second user session and so on.
 
 In contrast with common configurations, it is up to greeter to perform user
-credentials check. This allows stuff like smartcard auth or fingerprint
-reading to be done in non-privileged code right next to the password prompt.
-This also means the usual hash password database (/etc/shadow, but more likely
-something entirely different) must be available to the greeter, which will
-likely run with its own uid.
+credentials check. This allows stuff like smart-card authentication or
+fingerprint reading to be done in non-privileged code right next to the
+password prompt. This also means the usual hash password database (/etc/shadow,
+but more likely something entirely different) must be available to the greeter,
+which will likely run with its own uid.
 
 The scripts in /etc/vts are privileged and should not be writable for anyone
 but root. Greeter may be denied from reading them, or even entering
@@ -283,7 +284,7 @@ on how to write greeters.
 Trying vtmux
 ~~~~~~~~~~~~
 Upon startup vtmux will lock VT switching, and may NOT unlock it in case
-of an abnormal exit. Make sure to have something like "sleep 30; ./unlock"
+of abnormal exit. Make sure to have something like "sleep 30; ./unlock"
 running somewhere, or at least some way to run it on request (maybe via
 an ssh session).
 
