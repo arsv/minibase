@@ -1,9 +1,7 @@
 #include <bits/socket.h>
-#include <bits/ioctl/socket.h>
 #include <sys/getpid.h>
 #include <sys/socket.h>
 #include <sys/bind.h>
-#include <sys/ioctl.h>
 #include <sys/recv.h>
 #include <sys/sendto.h>
 
@@ -49,25 +47,6 @@ long nl_connect(struct netlink* nl, int protocol, int groups)
 		return ret;
 
 	return 0;
-}
-
-int nl_ifindex(struct netlink* nl, const char* ifname)
-{
-	struct ifreq ifreq;
-	int len = strlen(ifname);
-
-	if(len > sizeof(ifreq.name) - 1)
-		return -ENAMETOOLONG;
-
-	memset(&ifreq, 0, sizeof(ifreq));
-	memcpy(ifreq.name, ifname, len);
-	
-	long ret = sysioctl(nl->fd, SIOCGIFINDEX, (long)&ifreq);
-
-	if(ret < 0)
-		return ret;
-
-	return ifreq.ival;
 }
 
 /* Bare send/recv working in terms of blocks in buffers */
