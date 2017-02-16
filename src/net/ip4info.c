@@ -312,12 +312,27 @@ char* fmt_route_proto(char* p, char* e, struct rtmsg* msg)
 
 	if(proto == RTPROT_STATIC)
 		p = fmtstr(p, e, "static");
+	else if(proto == RTPROT_KERNEL)
+		p = fmtstr(p, e, "kern");
 	else if(proto == RTPROT_DHCP)
 		p = fmtstr(p, e, "dhcp");
 	else
 		return p;
 
 	p = fmtstr(p, e, " ");
+	return p;
+}
+
+char* fmt_route_misc(char* p, char* e, struct rtmsg* msg)
+{
+	char* q = p;
+
+	p = fmtstr(p, e, "(");
+
+	p = fmt_route_proto(p, e, msg);
+
+	p = p > q ? fmtstr(p-1, e, ")") : p - 1;
+
 	return p;
 }
 
@@ -334,7 +349,8 @@ void show_route(struct rtmsg* msg)
 	p = fmt_route_dst(p, e, msg);
 	p = fmt_route_dev(p, e, msg);
 	p = fmt_route_gw(p, e, msg);
-	p = fmt_route_proto(p, e, msg);
+
+	p = fmt_route_misc(p, e, msg);
 
 	*p++ = '\n';
 	writeout(ifbuf, p - ifbuf);
