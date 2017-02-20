@@ -216,6 +216,7 @@ static int resolve_80211_subscribe_scan(struct netlink* nl)
 		"nl80211", -1 };
 	struct nlpair mcast[] = {
 		{ "config", -1 },
+		{ "mlme", -1 },
 		{ "scan", -1 },
 		{ NULL, 0 } };
 
