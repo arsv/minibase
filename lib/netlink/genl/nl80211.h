@@ -20,206 +20,243 @@
 
 /* Attributes */
 
-#define NL80211_ATTR_WIPHY              1
-#define NL80211_ATTR_WIPHY_NAME         2
-
-#define NL80211_ATTR_IFINDEX            3
-#define NL80211_ATTR_IFNAME             4
-#define NL80211_ATTR_IFTYPE             5
-
-#define NL80211_ATTR_MAC                6
-
-#define NL80211_ATTR_KEY_DATA           7
-#define NL80211_ATTR_KEY_IDX            8
-#define NL80211_ATTR_KEY_CIPHER         9
-#define NL80211_ATTR_KEY_SEQ            10
-#define NL80211_ATTR_KEY_DEFAULT        11
-
-#define NL80211_ATTR_BEACON_INTERVAL    12
-#define NL80211_ATTR_DTIM_PERIOD        13
-#define NL80211_ATTR_BEACON_HEAD        14
-#define NL80211_ATTR_BEACON_TAIL        15
-
-#define NL80211_ATTR_STA_AID            16
-#define NL80211_ATTR_STA_FLAGS          17
-#define NL80211_ATTR_STA_LISTEN_INTERVAL 18
-#define NL80211_ATTR_STA_SUPPORTED_RATES 19
-#define NL80211_ATTR_STA_VLAN           20
-#define NL80211_ATTR_STA_INFO           21
-
-#define NL80211_ATTR_WIPHY_BANDS        22
-
-#define NL80211_ATTR_MNTR_FLAGS         23
-
-#define NL80211_ATTR_MESH_ID            24
-#define NL80211_ATTR_STA_PLINK_ACTION   25
-#define NL80211_ATTR_MPATH_NEXT_HOP     26
-#define NL80211_ATTR_MPATH_INFO         27
-
-#define NL80211_ATTR_BSS_CTS_PROT       28
-#define NL80211_ATTR_BSS_SHORT_PREAMBLE 29
-#define NL80211_ATTR_BSS_SHORT_SLOT_TIME 30
-
-#define NL80211_ATTR_HT_CAPABILITY      31
-
-#define NL80211_ATTR_SUPPORTED_IFTYPES  32
-
-#define NL80211_ATTR_REG_ALPHA2         33
-#define NL80211_ATTR_REG_RULES          34
-
-#define NL80211_ATTR_MESH_CONFIG        35
-
-#define NL80211_ATTR_BSS_BASIC_RATES    36
-
-#define NL80211_ATTR_WIPHY_TXQ_PARAMS   37
-#define NL80211_ATTR_WIPHY_FREQ         38
-#define NL80211_ATTR_WIPHY_CHANNEL_TYPE 39
-
-#define NL80211_ATTR_KEY_DEFAULT_MGMT   40
-
-#define NL80211_ATTR_MGMT_SUBTYPE       41
-#define NL80211_ATTR_IE                 42
-
-#define NL80211_ATTR_MAX_NUM_SCAN_SSIDS 43
-
-#define NL80211_ATTR_SCAN_FREQUENCIES   44
-#define NL80211_ATTR_SCAN_SSIDS         45
-#define NL80211_ATTR_GENERATION         46
-#define NL80211_ATTR_BSS                47
-
-#define NL80211_ATTR_REG_INITIATOR      48
-#define NL80211_ATTR_REG_TYPE           49
-
-#define NL80211_ATTR_SUPPORTED_COMMANDS 50
-
-#define NL80211_ATTR_FRAME              51
-#define NL80211_ATTR_SSID               52
-#define NL80211_ATTR_AUTH_TYPE          53
-#define NL80211_ATTR_REASON_CODE        54
-
-#define NL80211_ATTR_KEY_TYPE           55
-
-#define NL80211_ATTR_MAX_SCAN_IE_LEN    56
-#define NL80211_ATTR_CIPHER_SUITES      57
-
-#define NL80211_ATTR_FREQ_BEFORE        58
-#define NL80211_ATTR_FREQ_AFTER         59
-
-#define NL80211_ATTR_FREQ_FIXED         60
-
-#define NL80211_ATTR_WIPHY_RETRY_SHORT  61
-#define NL80211_ATTR_WIPHY_RETRY_LONG   62
-#define NL80211_ATTR_WIPHY_FRAG_THRESHOLD 63
-#define NL80211_ATTR_WIPHY_RTS_THRESHOLD  64
-
-#define NL80211_ATTR_TIMED_OUT          65
-
-#define NL80211_ATTR_USE_MFP            66
-
-#define NL80211_ATTR_STA_FLAGS2         67
-
-#define NL80211_ATTR_CONTROL_PORT       68
-
-#define NL80211_ATTR_TESTDATA           69
-
-#define NL80211_ATTR_PRIVACY            70
-
-#define NL80211_ATTR_DISCONNECTED_BY_AP 71
-#define NL80211_ATTR_STATUS_CODE        72
-
-#define NL80211_ATTR_CIPHER_SUITES_PAIRWISE 73
-#define NL80211_ATTR_CIPHER_SUITE_GROUP     74
-#define NL80211_ATTR_WPA_VERSIONS       75
-#define NL80211_ATTR_AKM_SUITES         76
-
-#define NL80211_ATTR_REQ_IE             77
-#define NL80211_ATTR_RESP_IE            78
-
-#define NL80211_ATTR_PREV_BSSID         79
-
-#define NL80211_ATTR_KEY                80
-#define NL80211_ATTR_KEYS               81
-
-#define NL80211_ATTR_PID                82
-
-#define NL80211_ATTR_4ADDR              83
-
-#define NL80211_ATTR_SURVEY_INFO        84
-
-#define NL80211_ATTR_PMKID              85
-#define NL80211_ATTR_MAX_NUM_PMKIDS     86
-
-#define NL80211_ATTR_DURATION           87
-
-#define NL80211_ATTR_COOKIE             88
-
-#define NL80211_ATTR_WIPHY_COVERAGE_CLASS 89
-
-#define NL80211_ATTR_TX_RATES           90
-
-#define NL80211_ATTR_FRAME_MATCH        91
-
-#define NL80211_ATTR_ACK                92
-
-#define NL80211_ATTR_PS_STATE           93
-
-#define NL80211_ATTR_CQM                94
-
-#define NL80211_ATTR_LOCAL_STATE_CHANGE 95
-
-#define NL80211_ATTR_AP_ISOLATE         96
-
-#define NL80211_ATTR_WIPHY_TX_POWER_SETTING 97
-#define NL80211_ATTR_WIPHY_TX_POWER_LEVEL   98
-
-#define NL80211_ATTR_TX_FRAME_TYPES     99
-#define NL80211_ATTR_RX_FRAME_TYPES     100
-#define NL80211_ATTR_FRAME_TYPE         101
-
-#define NL80211_ATTR_CONTROL_PORT_ETHERTYPE  102
-#define NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT 103
-
-#define NL80211_ATTR_SUPPORT_IBSS_RSN   104
-
-#define NL80211_ATTR_WIPHY_ANTENNA_TX   105
-#define NL80211_ATTR_WIPHY_ANTENNA_RX   106
-
-#define NL80211_ATTR_MCAST_RATE         107
-
-#define NL80211_ATTR_OFFCHANNEL_TX_OK   108
-
-#define NL80211_ATTR_BSS_HT_OPMODE      109
-
-#define NL80211_ATTR_KEY_DEFAULT_TYPES  110
-
+#define NL80211_ATTR_WIPHY                        1
+#define NL80211_ATTR_WIPHY_NAME                   2
+#define NL80211_ATTR_IFINDEX                      3
+#define NL80211_ATTR_IFNAME                       4
+#define NL80211_ATTR_IFTYPE                       5
+#define NL80211_ATTR_MAC                          6
+#define NL80211_ATTR_KEY_DATA                     7
+#define NL80211_ATTR_KEY_IDX                      8
+#define NL80211_ATTR_KEY_CIPHER                   9
+#define NL80211_ATTR_KEY_SEQ                     10
+#define NL80211_ATTR_KEY_DEFAULT                 11
+#define NL80211_ATTR_BEACON_INTERVAL             12
+#define NL80211_ATTR_DTIM_PERIOD                 13
+#define NL80211_ATTR_BEACON_HEAD                 14
+#define NL80211_ATTR_BEACON_TAIL                 15
+#define NL80211_ATTR_STA_AID                     16
+#define NL80211_ATTR_STA_FLAGS                   17
+#define NL80211_ATTR_STA_LISTEN_INTERVAL         18
+#define NL80211_ATTR_STA_SUPPORTED_RATES         19
+#define NL80211_ATTR_STA_VLAN                    20
+#define NL80211_ATTR_STA_INFO                    21
+#define NL80211_ATTR_WIPHY_BANDS                 22
+#define NL80211_ATTR_MNTR_FLAGS                  23
+#define NL80211_ATTR_MESH_ID                     24
+#define NL80211_ATTR_STA_PLINK_ACTION            25
+#define NL80211_ATTR_MPATH_NEXT_HOP              26
+#define NL80211_ATTR_MPATH_INFO                  27
+#define NL80211_ATTR_BSS_CTS_PROT                28
+#define NL80211_ATTR_BSS_SHORT_PREAMBLE          29
+#define NL80211_ATTR_BSS_SHORT_SLOT_TIME         30
+#define NL80211_ATTR_HT_CAPABILITY               31
+#define NL80211_ATTR_SUPPORTED_IFTYPES           32
+#define NL80211_ATTR_REG_ALPHA2                  33
+#define NL80211_ATTR_REG_RULES                   34
+#define NL80211_ATTR_MESH_CONFIG                 35
+#define NL80211_ATTR_BSS_BASIC_RATES             36
+#define NL80211_ATTR_WIPHY_TXQ_PARAMS            37
+#define NL80211_ATTR_WIPHY_FREQ                  38
+#define NL80211_ATTR_WIPHY_CHANNEL_TYPE          39
+#define NL80211_ATTR_KEY_DEFAULT_MGMT            40
+#define NL80211_ATTR_MGMT_SUBTYPE                41
+#define NL80211_ATTR_IE                          42
+#define NL80211_ATTR_MAX_NUM_SCAN_SSIDS          43
+#define NL80211_ATTR_SCAN_FREQUENCIES            44
+#define NL80211_ATTR_SCAN_SSIDS                  45
+#define NL80211_ATTR_GENERATION                  46
+#define NL80211_ATTR_BSS                         47
+#define NL80211_ATTR_REG_INITIATOR               48
+#define NL80211_ATTR_REG_TYPE                    49
+#define NL80211_ATTR_SUPPORTED_COMMANDS          50
+#define NL80211_ATTR_FRAME                       51
+#define NL80211_ATTR_SSID                        52
+#define NL80211_ATTR_AUTH_TYPE                   53
+#define NL80211_ATTR_REASON_CODE                 54
+#define NL80211_ATTR_KEY_TYPE                    55
+#define NL80211_ATTR_MAX_SCAN_IE_LEN             56
+#define NL80211_ATTR_CIPHER_SUITES               57
+#define NL80211_ATTR_FREQ_BEFORE                 58
+#define NL80211_ATTR_FREQ_AFTER                  59
+#define NL80211_ATTR_FREQ_FIXED                  60
+#define NL80211_ATTR_WIPHY_RETRY_SHORT           61
+#define NL80211_ATTR_WIPHY_RETRY_LONG            62
+#define NL80211_ATTR_WIPHY_FRAG_THRESHOLD        63
+#define NL80211_ATTR_WIPHY_RTS_THRESHOLD         64
+#define NL80211_ATTR_TIMED_OUT                   65
+#define NL80211_ATTR_USE_MFP                     66
+#define NL80211_ATTR_STA_FLAGS2                  67
+#define NL80211_ATTR_CONTROL_PORT                68
+#define NL80211_ATTR_TESTDATA                    69
+#define NL80211_ATTR_PRIVACY                     70
+#define NL80211_ATTR_DISCONNECTED_BY_AP          71
+#define NL80211_ATTR_STATUS_CODE                 72
+#define NL80211_ATTR_CIPHER_SUITES_PAIRWISE      73
+#define NL80211_ATTR_CIPHER_SUITE_GROUP          74
+#define NL80211_ATTR_WPA_VERSIONS                75
+#define NL80211_ATTR_AKM_SUITES                  76
+#define NL80211_ATTR_REQ_IE                      77
+#define NL80211_ATTR_RESP_IE                     78
+#define NL80211_ATTR_PREV_BSSID                  79
+#define NL80211_ATTR_KEY                         80
+#define NL80211_ATTR_KEYS                        81
+#define NL80211_ATTR_PID                         82
+#define NL80211_ATTR_4ADDR                       83
+#define NL80211_ATTR_SURVEY_INFO                 84
+#define NL80211_ATTR_PMKID                       85
+#define NL80211_ATTR_MAX_NUM_PMKIDS              86
+#define NL80211_ATTR_DURATION                    87
+#define NL80211_ATTR_COOKIE                      88
+#define NL80211_ATTR_WIPHY_COVERAGE_CLASS        89
+#define NL80211_ATTR_TX_RATES                    90
+#define NL80211_ATTR_FRAME_MATCH                 91
+#define NL80211_ATTR_ACK                         92
+#define NL80211_ATTR_PS_STATE                    93
+#define NL80211_ATTR_CQM                         94
+#define NL80211_ATTR_LOCAL_STATE_CHANGE          95
+#define NL80211_ATTR_AP_ISOLATE                  96
+#define NL80211_ATTR_WIPHY_TX_POWER_SETTING      97
+#define NL80211_ATTR_WIPHY_TX_POWER_LEVEL        98
+#define NL80211_ATTR_TX_FRAME_TYPES              99
+#define NL80211_ATTR_RX_FRAME_TYPES             100
+#define NL80211_ATTR_FRAME_TYPE                 101
+#define NL80211_ATTR_CONTROL_PORT_ETHERTYPE     102
+#define NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT    103
+#define NL80211_ATTR_SUPPORT_IBSS_RSN           104
+#define NL80211_ATTR_WIPHY_ANTENNA_TX           105
+#define NL80211_ATTR_WIPHY_ANTENNA_RX           106
+#define NL80211_ATTR_MCAST_RATE                 107
+#define NL80211_ATTR_OFFCHANNEL_TX_OK           108
+#define NL80211_ATTR_BSS_HT_OPMODE              109
+#define NL80211_ATTR_KEY_DEFAULT_TYPES          110
 #define NL80211_ATTR_MAX_REMAIN_ON_CHANNEL_DURATION 111
-
-#define NL80211_ATTR_MESH_SETUP         112
-
-#define NL80211_ATTR_WIPHY_ANTENNA_AVAIL_TX 113
-#define NL80211_ATTR_WIPHY_ANTENNA_AVAIL_RX 114
-
-#define NL80211_ATTR_SUPPORT_MESH_AUTH  115
-#define NL80211_ATTR_STA_PLINK_STATE    116
-
-#define NL80211_ATTR_WOWLAN_TRIGGERS    117
-#define NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED 118
-
-#define NL80211_ATTR_SCHED_SCAN_INTERVAL 119
-
-#define NL80211_ATTR_INTERFACE_COMBINATIONS 120
-#define NL80211_ATTR_SOFTWARE_IFTYPES       121
-
-#define NL80211_ATTR_REKEY_DATA         122
-
-#define NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS 123
-#define NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN    124
-
-#define NL80211_ATTR_SCAN_SUPP_RATES    125
-
-#define NL80211_ATTR_HIDDEN_SSID        126
-
-/* ...more to follow */
+#define NL80211_ATTR_MESH_SETUP                 112
+#define NL80211_ATTR_WIPHY_ANTENNA_AVAIL_TX     113
+#define NL80211_ATTR_WIPHY_ANTENNA_AVAIL_RX     114
+#define NL80211_ATTR_SUPPORT_MESH_AUTH          115
+#define NL80211_ATTR_STA_PLINK_STATE            116
+#define NL80211_ATTR_WOWLAN_TRIGGERS            117
+#define NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED  118
+#define NL80211_ATTR_SCHED_SCAN_INTERVAL        119
+#define NL80211_ATTR_INTERFACE_COMBINATIONS     120
+#define NL80211_ATTR_SOFTWARE_IFTYPES           121
+#define NL80211_ATTR_REKEY_DATA                 122
+#define NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS   123
+#define NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN      124
+#define NL80211_ATTR_SCAN_SUPP_RATES            125
+#define NL80211_ATTR_HIDDEN_SSID                126
+#define NL80211_ATTR_IE_PROBE_RESP              127
+#define NL80211_ATTR_IE_ASSOC_RESP              128
+#define NL80211_ATTR_STA_WME                    129
+#define NL80211_ATTR_SUPPORT_AP_UAPSD           130
+#define NL80211_ATTR_ROAM_SUPPORT               131
+#define NL80211_ATTR_SCHED_SCAN_MATCH           132
+#define NL80211_ATTR_MAX_MATCH_SETS             133
+#define NL80211_ATTR_PMKSA_CANDIDATE            134
+#define NL80211_ATTR_TX_NO_CCK_RATE             135
+#define NL80211_ATTR_TDLS_ACTION                136
+#define NL80211_ATTR_TDLS_DIALOG_TOKEN          137
+#define NL80211_ATTR_TDLS_OPERATION             138
+#define NL80211_ATTR_TDLS_SUPPORT               139
+#define NL80211_ATTR_TDLS_EXTERNAL_SETUP        140
+#define NL80211_ATTR_DEVICE_AP_SME              141
+#define NL80211_ATTR_DONT_WAIT_FOR_ACK          142
+#define NL80211_ATTR_FEATURE_FLAGS              143
+#define NL80211_ATTR_PROBE_RESP_OFFLOAD         144
+#define NL80211_ATTR_PROBE_RESP                 145
+#define NL80211_ATTR_DFS_REGION                 146
+#define NL80211_ATTR_DISABLE_HT                 147
+#define NL80211_ATTR_HT_CAPABILITY_MASK         148
+#define NL80211_ATTR_NOACK_MAP                  149
+#define NL80211_ATTR_INACTIVITY_TIMEOUT         150
+#define NL80211_ATTR_RX_SIGNAL_DBM              151
+#define NL80211_ATTR_BG_SCAN_PERIOD             152
+#define NL80211_ATTR_WDEV                       153
+#define NL80211_ATTR_USER_REG_HINT_TYPE         154
+#define NL80211_ATTR_CONN_FAILED_REASON         155
+#define NL80211_ATTR_SAE_DATA                   156
+#define NL80211_ATTR_VHT_CAPABILITY             157
+#define NL80211_ATTR_SCAN_FLAGS                 158
+#define NL80211_ATTR_CHANNEL_WIDTH              159
+#define NL80211_ATTR_CENTER_FREQ1               160
+#define NL80211_ATTR_CENTER_FREQ2               161
+#define NL80211_ATTR_P2P_CTWINDOW               162
+#define NL80211_ATTR_P2P_OPPPS                  163
+#define NL80211_ATTR_LOCAL_MESH_POWER_MODE      164
+#define NL80211_ATTR_ACL_POLICY                 165
+#define NL80211_ATTR_MAC_ADDRS                  166
+#define NL80211_ATTR_MAC_ACL_MAX                167
+#define NL80211_ATTR_RADAR_EVENT                168
+#define NL80211_ATTR_EXT_CAPA                   169
+#define NL80211_ATTR_EXT_CAPA_MASK              170
+#define NL80211_ATTR_STA_CAPABILITY             171
+#define NL80211_ATTR_STA_EXT_CAPABILITY         172
+#define NL80211_ATTR_PROTOCOL_FEATURES          173
+#define NL80211_ATTR_SPLIT_WIPHY_DUMP           174
+#define NL80211_ATTR_DISABLE_VHT                175
+#define NL80211_ATTR_VHT_CAPABILITY_MASK        176
+#define NL80211_ATTR_MDID                       177
+#define NL80211_ATTR_IE_RIC                     178
+#define NL80211_ATTR_CRIT_PROT_ID               179
+#define NL80211_ATTR_MAX_CRIT_PROT_DURATION     180
+#define NL80211_ATTR_PEER_AID                   181
+#define NL80211_ATTR_COALESCE_RULE              182
+#define NL80211_ATTR_CH_SWITCH_COUNT            183
+#define NL80211_ATTR_CH_SWITCH_BLOCK_TX         184
+#define NL80211_ATTR_CSA_IES                    185
+#define NL80211_ATTR_CSA_C_OFF_BEACON           186
+#define NL80211_ATTR_CSA_C_OFF_PRESP            187
+#define NL80211_ATTR_RXMGMT_FLAGS               188
+#define NL80211_ATTR_STA_SUPPORTED_CHANNELS     189
+#define NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES 190
+#define NL80211_ATTR_HANDLE_DFS                 191
+#define NL80211_ATTR_SUPPORT_5_MHZ              192
+#define NL80211_ATTR_SUPPORT_10_MHZ             193
+#define NL80211_ATTR_OPMODE_NOTIF               194
+#define NL80211_ATTR_VENDOR_ID                  195
+#define NL80211_ATTR_VENDOR_SUBCMD              196
+#define NL80211_ATTR_VENDOR_DATA                197
+#define NL80211_ATTR_VENDOR_EVENTS              198
+#define NL80211_ATTR_QOS_MAP                    199
+#define NL80211_ATTR_MAC_HINT                   200
+#define NL80211_ATTR_WIPHY_FREQ_HINT            201
+#define NL80211_ATTR_MAX_AP_ASSOC_STA           202
+#define NL80211_ATTR_TDLS_PEER_CAPABILITY       203
+#define NL80211_ATTR_SOCKET_OWNER               204
+#define NL80211_ATTR_CSA_C_OFFSETS_TX           205
+#define NL80211_ATTR_MAX_CSA_COUNTERS           206
+#define NL80211_ATTR_TDLS_INITIATOR             207
+#define NL80211_ATTR_USE_RRM                    208
+#define NL80211_ATTR_WIPHY_DYN_ACK              209
+#define NL80211_ATTR_TSID                       210
+#define NL80211_ATTR_USER_PRIO                  211
+#define NL80211_ATTR_ADMITTED_TIME              212
+#define NL80211_ATTR_SMPS_MODE                  213
+#define NL80211_ATTR_OPER_CLASS                 214
+#define NL80211_ATTR_MAC_MASK                   215
+#define NL80211_ATTR_WIPHY_SELF_MANAGED_REG     216
+#define NL80211_ATTR_EXT_FEATURES               217
+#define NL80211_ATTR_SURVEY_RADIO_STATS         218
+#define NL80211_ATTR_NETNS_FD                   219
+#define NL80211_ATTR_SCHED_SCAN_DELAY           220
+#define NL80211_ATTR_REG_INDOOR                 221
+#define NL80211_ATTR_MAX_NUM_SCHED_SCAN_PLANS   222
+#define NL80211_ATTR_MAX_SCAN_PLAN_INTERVAL     223
+#define NL80211_ATTR_MAX_SCAN_PLAN_ITERATIONS   224
+#define NL80211_ATTR_SCHED_SCAN_PLANS           225
+#define NL80211_ATTR_PBSS                       226
+#define NL80211_ATTR_BSS_SELECT                 227
+#define NL80211_ATTR_STA_SUPPORT_P2P_PS         228
+#define NL80211_ATTR_PAD                        229
+#define NL80211_ATTR_IFTYPE_EXT_CAPA            230
+#define NL80211_ATTR_MU_MIMO_GROUP_DATA         231
+#define NL80211_ATTR_MU_MIMO_FOLLOW_MAC_ADDR    232
+#define NL80211_ATTR_SCAN_START_TIME_TSF        233
+#define NL80211_ATTR_SCAN_START_TIME_TSF_BSSID  234
+#define NL80211_ATTR_MEASUREMENT_DURATION       235
+#define NL80211_ATTR_MEASUREMENT_DURATION_MANDATORY 236
+#define NL80211_ATTR_MESH_PEER_AID              237
 
 #define NL80211_BSS_BSSID                1  /* byte[6] */
 #define NL80211_BSS_FREQUENCY            2  /* u32, MHz */
