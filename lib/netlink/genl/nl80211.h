@@ -3,20 +3,54 @@
 
 /* Commands */
 
-#define NL80211_CMD_GET_WIPHY           1
-#define NL80211_CMD_SET_WIPHY           2
-#define NL80211_CMD_NEW_WIPHY           3
-#define NL80211_CMD_DEL_WIPHY           4
-
-#define NL80211_CMD_GET_INTERFACE       5
-#define NL80211_CMD_SET_INTERFACE       6
-#define NL80211_CMD_NEW_INTERFACE       7
-#define NL80211_CMD_DEL_INTERFACE       8
-
-#define NL80211_CMD_GET_SCAN           32
-#define NL80211_CMD_TRIGGER_SCAN       33
-#define NL80211_CMD_NEW_SCAN_RESULTS   34
-#define NL80211_CMD_SCAN_ABORTED       35
+#define NL80211_CMD_GET_WIPHY            1
+#define NL80211_CMD_SET_WIPHY            2
+#define NL80211_CMD_NEW_WIPHY            3
+#define NL80211_CMD_DEL_WIPHY            4
+#define NL80211_CMD_GET_INTERFACE        5
+#define NL80211_CMD_SET_INTERFACE        6
+#define NL80211_CMD_NEW_INTERFACE        7
+#define NL80211_CMD_DEL_INTERFACE        8
+#define NL80211_CMD_GET_KEY              9
+#define NL80211_CMD_SET_KEY             10
+#define NL80211_CMD_NEW_KEY             11
+#define NL80211_CMD_DEL_KEY             12
+#define NL80211_CMD_GET_BEACON          13
+#define NL80211_CMD_SET_BEACON          14
+#define NL80211_CMD_NEW_BEACON          15
+#define NL80211_CMD_DEL_BEACON          16
+#define NL80211_CMD_GET_STATION         17
+#define NL80211_CMD_SET_STATION         18
+#define NL80211_CMD_NEW_STATION         19
+#define NL80211_CMD_DEL_STATION         20
+#define NL80211_CMD_GET_MPATH           21
+#define NL80211_CMD_SET_MPATH           22
+#define NL80211_CMD_NEW_MPATH           23
+#define NL80211_CMD_DEL_MPATH           24
+#define NL80211_CMD_SET_BSS             25
+#define NL80211_CMD_SET_REG             26
+#define NL80211_CMD_REQ_SET_REG         27
+#define NL80211_CMD_GET_MESH_CONFIG     28
+#define NL80211_CMD_SET_MESH_CONFIG     29
+#define NL80211_CMD_SET_MGMT_EXTRA_IE   30
+#define NL80211_CMD_GET_REG             31
+#define NL80211_CMD_GET_SCAN            32
+#define NL80211_CMD_TRIGGER_SCAN        33
+#define NL80211_CMD_NEW_SCAN_RESULTS    34
+#define NL80211_CMD_SCAN_ABORTED        35
+#define NL80211_CMD_REG_CHANGE          36
+#define NL80211_CMD_AUTHENTICATE        37
+#define NL80211_CMD_ASSOCIATE           38
+#define NL80211_CMD_DEAUTHENTICATE      39
+#define NL80211_CMD_DISASSOCIATE        40
+#define NL80211_CMD_MICHAEL_MIC_FAILURE 41
+#define NL80211_CMD_REG_BEACON_HINT     42
+#define NL80211_CMD_JOIN_IBSS           43
+#define NL80211_CMD_LEAVE_IBSS          44
+#define NL80211_CMD_TESTMODE            45
+#define NL80211_CMD_CONNECT             46
+#define NL80211_CMD_ROAM                47
+#define NL80211_CMD_DISCONNECT          48
 
 /* Attributes */
 
