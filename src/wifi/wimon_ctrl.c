@@ -23,14 +23,14 @@
 
 #define TIMEOUT 1
 
-static void parsecmd(int fd, char* cmd)
+static void parse_cmd(int fd, char* cmd)
 {
 	char blah[] = "here\n";
 
 	writeall(fd, blah, sizeof(blah));
 }
 
-static int checkuser(int fd)
+static int check_user(int fd)
 {
 	struct ucred cred;
 	int credlen = sizeof(cred);
@@ -44,7 +44,7 @@ static int checkuser(int fd)
 	return 0;
 }
 
-static void readcmd(int fd)
+static void read_cmd(int fd)
 {
 	int rb;
 	char cbuf[NAMELEN+10];
@@ -55,7 +55,7 @@ static void readcmd(int fd)
 		return warn("recvmsg", "message too long", 0);
 	cbuf[rb] = '\0';
 
-	parsecmd(fd, cbuf);
+	parse_cmd(fd, cbuf);
 }
 
 void accept_ctrl(int sfd)
@@ -66,7 +66,7 @@ void accept_ctrl(int sfd)
 	int addr_len = sizeof(addr);
 
 	while((cfd = sysaccept(sfd, &addr, &addr_len)) > 0) {
-		int nonroot = checkuser(cfd);
+		int nonroot = check_user(cfd);
 
 		if(nonroot) {
 			const char* denied = "Access denied\n";
@@ -74,7 +74,7 @@ void accept_ctrl(int sfd)
 		} else {
 			gotcmd = 1;
 			sysalarm(TIMEOUT);
-			readcmd(cfd);
+			read_cmd(cfd);
 		}
 
 		sysclose(cfd);

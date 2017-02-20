@@ -35,6 +35,14 @@ static void trigger_results(int ifi)
 		fail("send", "genl", genl.err);
 }
 
+static void trigger_wilist(void)
+{
+	nl_new_cmd(&genl, nl80211, NL80211_CMD_GET_INTERFACE, 0);
+
+	if(nl_send_dump(&genl))
+		fail("send", "genl", genl.err);
+}
+
 static int get_genl_ifindex(struct nlgen* msg)
 {
 	uint32_t* ifi = nl_get_u32(msg, NL80211_ATTR_IFINDEX);
@@ -145,18 +153,6 @@ void handle_genl(struct nlmsg* nlm)
 
 /* Setup part */
 
-static void request_wiface_list(void)
-{
-	struct nlgen* msg;
-
-	nl_header(&genl, msg, nl80211, NLM_F_DUMP,
-			.cmd = NL80211_CMD_GET_INTERFACE,
-			.version = 0);
-
-	if(nl_send(&genl))
-		fail("send", "genl", genl.err);
-}
-
 /* CTRL_CMD_GETFAMILY provides both family id *and* multicast group ids
    we need for subscription. So we do it all in a single request. */
 
@@ -216,8 +212,12 @@ static void socket_subscribe(struct netlink* nl, int id, const char* name)
 
 static int resolve_80211_subscribe_scan(struct netlink* nl)
 {
-	struct nlpair fam = { "nl80211", -1 };
-	struct nlpair mcast[] = { { "scan", -1 }, { NULL, 0 } };
+	struct nlpair fam = {
+		"nl80211", -1 };
+	struct nlpair mcast[] = {
+		{ "config", -1 },
+		{ "scan", -1 },
+		{ NULL, 0 } };
 
 	query_nl_family(nl, &fam, mcast);
 
@@ -241,5 +241,5 @@ void setup_genl(void)
 
 	nl80211 = resolve_80211_subscribe_scan(&genl);
 
-	request_wiface_list();
+	trigger_wilist();
 }
