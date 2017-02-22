@@ -172,6 +172,8 @@ struct cmdh {
 	{ NL80211_CMD_DISASSOCIATE,     msg_disassociate   },
 	{ NL80211_CMD_CONNECT,          msg_connect        },
 	{ NL80211_CMD_DISCONNECT,       msg_disconnect     },
+	{ NL80211_CMD_NEW_STATION,      NULL               },
+	{ NL80211_CMD_DEL_STATION,      NULL               },
 	{ 0, NULL }
 };
 
