@@ -34,6 +34,13 @@ char genl_tx[512];
 char genl_rx[4*4096];
 int nl80211;
 
+/* Can't request two dumps at the same time. See RTNL on this.
+   A bit different handling here, there's one possible dump per link
+   and also wifi list dump which only ever gets run once. */
+
+int genl_scan_ready;
+int genl_dump_lock;
+
 void trigger_scan(int ifi)
 {
 	nl_new_cmd(&genl, nl80211, NL80211_CMD_TRIGGER_SCAN, 0);
@@ -43,21 +50,25 @@ void trigger_scan(int ifi)
 		fail("send", "genl", genl.err);
 }
 
-static void trigger_results(int ifi)
+static void request_results(int ifi)
 {
 	nl_new_cmd(&genl, nl80211, NL80211_CMD_GET_SCAN, 0);
 	nl_put_u64(&genl, NL80211_ATTR_IFINDEX, ifi);
 
 	if(nl_send_dump(&genl))
 		fail("send", "genl", genl.err);
+
+	genl_dump_lock = 1;
 }
 
-static void trigger_wilist(void)
+static void request_wifi_list(void)
 {
 	nl_new_cmd(&genl, nl80211, NL80211_CMD_GET_INTERFACE, 0);
 
 	if(nl_send_dump(&genl))
 		fail("send", "genl", genl.err);
+
+	genl_dump_lock = 1;
 }
 
 static int get_genl_ifindex(struct nlgen* msg)
@@ -104,14 +115,14 @@ static void msg_del_wifi(struct link* ls, struct nlgen* msg)
 static void msg_scan_start(struct link* ls, struct nlgen* msg)
 {
 	ls->seq++;
-	ls->flags |= F_SCAN;
+	ls->flags |= F_SCANNING;
 
 	eprintf("scan-start %s\n", ls->name);
 }
 
 static void msg_scan_abort(struct link* ls, struct nlgen* msg)
 {
-	ls->flags &= ~F_SCAN;
+	ls->flags &= ~F_SCANNING;
 	eprintf("scan-abort %s\n", ls->name);
 }
 
@@ -120,9 +131,16 @@ static void msg_scan_res(struct link* ls, struct nlgen* msg)
 	if(msg->nlm.flags & NLM_F_MULTI) {
 		parse_scan_result(ls, msg);
 	} else {
-		ls->flags &= ~F_SCAN;
+		ls->flags &= ~F_SCANNING;
+		genl_scan_ready = 1;
 		drop_stale_scan_slots(ls->ifi, ls->seq);
-		trigger_results(ls->ifi);
+
+		if(genl_dump_lock) {
+			ls->flags |= F_SCANRES;
+			genl_scan_ready = 1;
+		} else {
+			request_results(ls->ifi);
+		}
 	}
 }
 
@@ -140,12 +158,12 @@ static void msg_connect(struct link* ls, struct nlgen* msg)
 		memset(ls->bssid, 0, 6);
 	}
 
-	ls->flags |= F_CONN;
+	ls->flags |= F_CONNECT;
 }
 
 static void msg_disconnect(struct link* ls, struct nlgen* msg)
 {
-	ls->flags &= ~F_CONN;
+	ls->flags &= ~F_CONNECT;
 	memset(ls->bssid, 0, 6);
 	eprintf("disconnect\n");
 }
@@ -217,6 +235,27 @@ static void handle_nl80211(struct nlgen* msg)
 		nl_dump_genl(&msg->nlm);
 }
 
+static void handle_genl_done(struct nlmsg* nlm)
+{
+	int i;
+
+	genl_dump_lock = 0;
+
+	if(!genl_scan_ready)
+		return;
+
+	for(i = 0; i < nlinks; i++)
+		if(links[i].flags & F_SCANRES)
+			break;
+
+	if(i < nlinks) {
+		links[i].flags &= ~F_SCANRES;
+		request_results(links[i].ifi);
+	} else {
+		genl_scan_ready = 0;
+	}
+}
+
 static void handle_genl_error(struct nlmsg* nlm)
 {
 	struct nlerr* msg;
@@ -236,6 +275,8 @@ void handle_genl(struct nlmsg* nlm)
 		return;
 	else if(type == NLMSG_ERROR)
 		handle_genl_error(nlm);
+	else if(type == NLMSG_DONE)
+		handle_genl_done(nlm);
 	else if(type != nl80211)
 		return;
 
@@ -335,5 +376,5 @@ void setup_genl(void)
 
 	nl80211 = resolve_80211_subscribe(&genl);
 
-	trigger_wilist();
+	request_wifi_list();
 }

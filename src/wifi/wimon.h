@@ -8,13 +8,14 @@
 #define SSIDLEN 32
 
 /* link.flags */
-#define F_WIFI    (1<<0)
-#define F_SCAN    (1<<1)
-#define F_AUTH    (1<<2)
-#define F_ASSOC   (1<<3)
-#define F_CONN    (1<<4)
-#define F_GATE    (1<<5)
-#define F_ADDR    (1<<6)
+#define F_WIFI     (1<<0)
+#define F_SCANNING (1<<1)
+#define F_SCANRES  (1<<1)
+#define F_AUTH     (1<<2)
+#define F_ASSOC    (1<<3)
+#define F_CONNECT  (1<<4)
+#define F_GATEWAY  (1<<5)
+#define F_HASIP    (1<<6)
 
 struct ip4 {
 	uint8_t addr[4];

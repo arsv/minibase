@@ -140,7 +140,7 @@ void msg_new_addr(struct ifaddrmsg* msg)
 			ip[0], ip[1], ip[2], ip[3],
 			msg->prefixlen, i);
 
-	ls->flags |= F_ADDR;
+	ls->flags |= F_HASIP;
 }
 
 void msg_del_addr(struct ifaddrmsg* msg)
@@ -169,7 +169,7 @@ void msg_del_addr(struct ifaddrmsg* msg)
 		if(ls->ip[i].mask)
 			return;
 
-	ls->flags &= ~F_ADDR;
+	ls->flags &= ~F_HASIP;
 }
 
 void msg_new_route(struct rtmsg* msg)
@@ -187,7 +187,7 @@ void msg_new_route(struct rtmsg* msg)
 	if(!(ls = find_link_slot(*oif)))
 		return;
 
-	ls->flags |= F_GATE;
+	ls->flags |= F_GATEWAY;
 
 	if((gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4))) {
 		memcpy(ls->gw.addr, gw, 4);
@@ -220,7 +220,7 @@ void msg_del_route(struct rtmsg* msg)
 	eprintf("del-route\n");
 	memset(&(ls->gw), 0, sizeof(ls->gw));
 
-	ls->flags &= ~F_GATE;
+	ls->flags &= ~F_GATEWAY;
 }
 
 /* At most one dump may be running at a time; requesting more results
@@ -228,8 +228,7 @@ void msg_del_route(struct rtmsg* msg)
    and del_route may request their respective scans concurrently.
    To avoid errors, requests are serialized.
 
-   NLMSG_DONE packets should never arrive unrequested on RTNL.
-   GENL avoids issue altogether by only having a single requestable dump. */
+   NLMSG_DONE packets should never arrive unrequested on RTNL. */
 
 static void proceed_with_dump(void)
 {
