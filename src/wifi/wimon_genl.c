@@ -63,64 +63,139 @@ static struct link* grab_genl_link(struct nlgen* msg)
 	return ls;
 }
 
-static void handle_new_wifi(struct nlgen* msg)
+static void msg_new_wifi(struct link* ls, struct nlgen* msg)
 {
-	struct link* ls = grab_genl_link(msg); if(!ls) return;
+	if(ls->flags & F_WIFI)
+		return;
 
-	ls->wifi = 1;
+	ls->flags |= F_WIFI;
 
-	eprintf("NEW 80211 ifindex=%i\n", ls->ifi);
+	eprintf("new-wifi %i\n", ls->ifi);
 
 	trigger_scan(ls->ifi);
 }
 
-static void handle_del_wifi(struct nlgen* msg)
+static void msg_del_wifi(struct link* ls, struct nlgen* msg)
 {
-	struct link* ls = find_genl_link(msg); if(!ls) return;
-	
-	ls->wifi = 0;
+	ls->flags &= ~F_WIFI;
 
-	/* purge scan slots for *ifi */
+	drop_scan_slots_for(ls->ifi);
+
+	eprintf("del-wifi %i\n", ls->ifi);
 }
 
-static void handle_scan_start(struct nlgen* msg)
+static void msg_scan_start(struct link* ls, struct nlgen* msg)
 {
-	struct link* ls = find_genl_link(msg); if(!ls) return;
-
 	ls->seq++;
+	ls->flags |= F_SCAN;
 
 	eprintf("scan-start %s\n", ls->name);
 }
 
-static void handle_scan_abort(struct nlgen* msg)
+static void msg_scan_abort(struct link* ls, struct nlgen* msg)
 {
-	struct link* ls = find_genl_link(msg); if(!ls) return;
-
+	ls->flags &= ~F_SCAN;
 	eprintf("scan-abort %s\n", ls->name);
 }
 
-static void handle_scan(struct nlgen* msg)
+static void msg_scan_res(struct link* ls, struct nlgen* msg)
 {
-	struct link* ls = find_genl_link(msg); if(!ls) return;
-
 	if(msg->nlm.flags & NLM_F_MULTI) {
 		parse_scan_result(ls, msg);
 	} else {
+		ls->flags &= ~F_SCAN;
 		drop_stale_scan_slots(ls->ifi, ls->seq);
 		trigger_results(ls->ifi);
 	}
 }
 
+static void msg_connect(struct link* ls, struct nlgen* msg)
+{
+	uint8_t* bssid;
+
+	if((bssid = nl_get_of_len(msg, NL80211_ATTR_MAC, 6))) {
+		eprintf("connect %02X:%02X:%02X:%02X:%02X:%02X\n",
+				bssid[0], bssid[1], bssid[2],
+				bssid[3], bssid[4], bssid[5]);
+		memcpy(ls->bssid, bssid, 6);
+	} else {
+		eprintf("connect ???\n");
+		memset(ls->bssid, 0, 6);
+	}
+
+	ls->flags |= F_CONN;
+}
+
+static void msg_disconnect(struct link* ls, struct nlgen* msg)
+{
+	ls->flags &= ~F_CONN;
+	memset(ls->bssid, 0, 6);
+	eprintf("disconnect\n");
+}
+
+static void msg_associate(struct link* ls, struct nlgen* msg)
+{
+	eprintf("associate %i\n", ls->ifi);
+	ls->flags |= F_ASSOC;
+}
+
+static void msg_authenticate(struct link* ls, struct nlgen* msg)
+{
+	eprintf("authenticate %i\n", ls->ifi);
+	ls->flags |= F_AUTH;
+}
+
+static void msg_deauthenticate(struct link* ls, struct nlgen* msg)
+{
+	eprintf("deauthenticate %i\n", ls->ifi);
+	ls->flags &= ~F_AUTH;
+}
+
+static void msg_disassociate(struct link* ls, struct nlgen* msg)
+{
+	eprintf("disassociate %i\n", ls->ifi);
+	ls->flags &= ~F_ASSOC;
+}
+
+struct cmdh {
+	int cmd;
+	void (*func)(struct link* ls, struct nlgen* msg);
+} genlcmds[] = {
+	{ NL80211_CMD_NEW_INTERFACE,    msg_new_wifi       },
+	{ NL80211_CMD_DEL_INTERFACE,    msg_del_wifi       },
+	{ NL80211_CMD_TRIGGER_SCAN,     msg_scan_start     },
+	{ NL80211_CMD_SCAN_ABORTED,     msg_scan_abort     },
+	{ NL80211_CMD_NEW_SCAN_RESULTS, msg_scan_res       },
+	{ NL80211_CMD_ASSOCIATE,        msg_associate      },
+	{ NL80211_CMD_AUTHENTICATE,     msg_authenticate   },
+	{ NL80211_CMD_DEAUTHENTICATE,   msg_deauthenticate },
+	{ NL80211_CMD_DISASSOCIATE,     msg_disassociate   },
+	{ NL80211_CMD_CONNECT,          msg_connect        },
+	{ NL80211_CMD_DISCONNECT,       msg_disconnect     },
+	{ 0, NULL }
+};
+
 static void handle_nl80211(struct nlgen* msg)
 {
-	switch(msg->cmd) {
-		case NL80211_CMD_NEW_INTERFACE: handle_new_wifi(msg); break;
-		case NL80211_CMD_DEL_INTERFACE: handle_del_wifi(msg); break;
-		case NL80211_CMD_TRIGGER_SCAN:  handle_scan_start(msg); break;
-		case NL80211_CMD_SCAN_ABORTED:  handle_scan_abort(msg); break;
-		case NL80211_CMD_NEW_SCAN_RESULTS: handle_scan(msg); break;
-		default: nl_dump_genl(&msg->nlm);
-	}
+	struct link* ls;
+	struct cmdh* ch;
+
+	if(msg->cmd == NL80211_CMD_NEW_INTERFACE)
+		ls = grab_genl_link(msg);
+	else
+		ls = find_genl_link(msg);
+	if(!ls) return;
+
+	for(ch = genlcmds; ch->cmd; ch++)
+		if(ch->cmd == msg->cmd)
+			break;
+
+	if(ch->func)
+		ch->func(ls, msg);
+	else if(ch->cmd)
+		return;
+	else
+		nl_dump_genl(&msg->nlm);
 }
 
 static void handle_genl_error(struct nlmsg* nlm)
@@ -212,12 +287,11 @@ static void socket_subscribe(struct netlink* nl, int id, const char* name)
 
 static int resolve_80211_subscribe_scan(struct netlink* nl)
 {
-	struct nlpair fam = {
-		"nl80211", -1 };
+	struct nlpair fam = { "nl80211", -1 };
 	struct nlpair mcast[] = {
-		{ "config", -1 },
-		{ "mlme", -1 },
-		{ "scan", -1 },
+		{ "config", -1 },  /* wifi exts on a link */
+		{ "mlme", -1 },    /* assoc/auth/connect */
+		{ "scan", -1 },    /* start/stop/results */
 		{ NULL, 0 } };
 
 	query_nl_family(nl, &fam, mcast);

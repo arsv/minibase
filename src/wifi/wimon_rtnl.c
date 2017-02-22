@@ -1,6 +1,8 @@
 #include <netlink.h>
 #include <netlink/dump.h>
 #include <netlink/rtnl/link.h>
+#include <netlink/rtnl/addr.h>
+#include <netlink/rtnl/route.h>
 #include <netlink/rtnl/mgrp.h>
 
 #include <format.h>
@@ -9,10 +11,50 @@
 
 #include "wimon.h"
 
+/* NETLINK_ROUTE connection is used to keep up-to-date list
+   of available net devices and their (generic) state, like
+   which of them have any ips assigned, which have default
+   routes and so on. */
+
+#define DUMP_LINKS  (1<<0)
+#define DUMP_ADDRS  (1<<1)
+#define DUMP_ROUTES (1<<2)
+
 struct netlink rtnl;
+int rtnl_dump_req;
 
 char rtnl_tx[512];
 char rtnl_rx[4096];
+
+int rtnl_dump_pending;
+int rtnl_dump_lock;
+
+static void rtnl_send_check(void)
+{
+	if(nl_send(&rtnl))
+		fail("send", "rtnl", rtnl.err);
+}
+
+static void request_link_dump(void)
+{
+	struct ifinfomsg* msg;
+	nl_header(&rtnl, msg, RTM_GETLINK, NLM_F_DUMP);
+	rtnl_send_check();
+}
+
+static void request_addr_dump(void)
+{
+	struct ifaddrmsg* msg;
+	nl_header(&rtnl, msg, RTM_GETADDR, NLM_F_DUMP);
+	rtnl_send_check();
+}
+
+static void request_route_dump(void)
+{
+	struct rtmsg* msg;
+	nl_header(&rtnl, msg, RTM_GETROUTE, NLM_F_DUMP);
+	rtnl_send_check();
+}
 
 struct ifinfomsg* nl_ifi(struct nlmsg* nlm)
 {
@@ -26,18 +68,24 @@ struct nlattr* ifi_get(struct ifinfomsg* msg, int key)
 	return nl_attr_k_in(NLPAYLOAD(msg), key);
 }
 
-void handle_new_link(struct nlmsg* nlm)
+struct nlattr* ifa_get(struct ifaddrmsg* msg, uint16_t key)
+{
+	return nl_attr_k_in(NLPAYLOAD(msg), key);
+}
+
+static struct nlattr* rtm_get(struct rtmsg* msg, uint16_t key)
+{
+	return nl_attr_k_in(NLPAYLOAD(msg), key);
+}
+
+void msg_new_link(struct ifinfomsg* msg)
 {
 	struct link* ls;
-	struct ifinfomsg* msg;
 	char* name;
 	int nlen;
 	
-	if(!(msg = nl_ifi(nlm)))
-		return;
 	if(!(name = nl_str(ifi_get(msg, IFLA_IFNAME))))
 		return;
-
 	if((nlen = strlen(name)) > sizeof(ls->name)-1)
 		return;
 	if(!(ls = grab_link_slot(msg->index)))
@@ -47,59 +95,221 @@ void handle_new_link(struct nlmsg* nlm)
 	memset(ls->name, 0, sizeof(ls->name));
 	memcpy(ls->name, name, nlen);
 	
-	eprintf("NEWLINK %i %s\n", msg->index, name);
+	eprintf("new-link %i %s\n", msg->index, name);
 }
 
-void handle_del_link(struct nlmsg* nlm)
+void msg_del_link(struct ifinfomsg* msg)
 {
-	struct link* ls;
-	struct ifinfomsg* msg;
+	struct link* ls = find_link_slot(msg->index);
+	if(!ls) return;
 
-	if(!(msg = nl_ifi(nlm)))
-		return;
-	if(!(ls = find_link_slot(msg->index)))
-		return;
-
-	eprintf("DELLINK %i %s\n", ls->ifi, ls->name);
+	eprintf("del-link %i %s\n", ls->ifi, ls->name);
 
 	free_link_slot(ls);
 }
 
-void warn_rtnl_err(struct nlmsg* msg)
+void msg_rtnl_err(struct nlerr* msg)
 {
-	struct nlerr* err;
-	
-	if(!(err = nl_err(msg)))
-		return;
-
-	warn("rtnl", NULL, err->errno);
+	warn("rtnl", NULL, msg->errno);
 }
 
-void handle_rtnl(struct nlmsg* msg)
+void msg_new_addr(struct ifaddrmsg* msg)
 {
-	switch(msg->type) {
-		case NLMSG_NOOP:
-		case NLMSG_DONE: break;
-		case RTM_NEWLINK: handle_new_link(msg); break;
-		case RTM_DELLINK: handle_del_link(msg); break;
-		case NLMSG_ERROR: warn_rtnl_err(msg); break;
-		default: nl_dump_rtnl(msg);
+	int i;
+	struct link* ls;
+	uint8_t* ip;
+
+	if(!(ls = find_link_slot(msg->index)))
+		return;
+	if(!(ip = nl_bin(ifa_get(msg, IFA_ADDRESS), 4)))
+		return;
+
+	for(i = 0; i < NIPS; i++)
+		if(!memcmp(ls->ip[i].addr, ip, 4))
+			return;
+	for(i = 0; i < NIPS; i++)
+		if(ls->ip[i].mask == 0)
+			break;
+	if(i >= NIPS)
+		return;
+
+	memcpy(ls->ip[i].addr, ip, 4);
+	ls->ip[i].mask = msg->prefixlen;
+
+	eprintf("new-addr %i.%i.%i.%i/%i at %i\n",
+			ip[0], ip[1], ip[2], ip[3],
+			msg->prefixlen, i);
+
+	ls->flags |= F_ADDR;
+}
+
+void msg_del_addr(struct ifaddrmsg* msg)
+{
+	int i;
+	struct link* ls;
+	uint8_t* ip;
+
+	if(!(ls = find_link_slot(msg->index)))
+		return;
+	if(!(ip = nl_bin(ifa_get(msg, IFA_ADDRESS), 4)))
+		return;
+
+	for(i = 0; i < NIPS; i++)
+		if(!memcmp(ls->ip[i].addr, ip, 4))
+			break;
+	if(i >= NIPS)
+		return;
+
+	eprintf("del-addr %i.%i.%i.%i at %i\n",
+			ip[0], ip[1], ip[2], ip[3], i);
+
+	memset(&ls->ip[i], 0, sizeof(ls->ip[i]));
+
+	for(i = 0; i < NIPS; i++)
+		if(ls->ip[i].mask)
+			return;
+
+	ls->flags &= ~F_ADDR;
+}
+
+void msg_new_route(struct rtmsg* msg)
+{
+	struct link* ls;
+	uint32_t* oif;
+	uint8_t* gw;
+
+	if(msg->type != RTN_UNICAST)
+		return;
+	if(msg->dst_len)
+		return;
+	if(!(oif = nl_u32(rtm_get(msg, RTA_OIF))))
+		return;
+	if(!(ls = find_link_slot(*oif)))
+		return;
+
+	ls->flags |= F_GATE;
+
+	if((gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4))) {
+		memcpy(ls->gw.addr, gw, 4);
+		ls->gw.mask = 32;
+		eprintf("new-route gw %i.%i.%i.%i\n",
+				gw[0], gw[1], gw[2], gw[3]);
+	} else {
+		memset(&(ls->gw), 0, sizeof(ls->gw));
+		eprintf("new-route no-gw type=%i\n", msg->type);
 	}
 }
 
-void request_link_list(void)
+void msg_del_route(struct rtmsg* msg)
 {
-	struct ifinfomsg* msg;
+	struct link* ls;
+	uint32_t* oif;
+	uint8_t* gw;
 
-	nl_header(&rtnl, msg, RTM_GETLINK, NLM_F_DUMP,
-		.family = 0,
-		.type = 0,
-		.index = 0,
-		.flags = 0,
-		.change = 0);
+	if(msg->dst_len)
+		return;
+	if(!(oif = nl_u32(rtm_get(msg, RTA_OIF))))
+		return;
+	if(!(ls = find_link_slot(*oif)))
+		return;
 
-	if(nl_send(&rtnl))
-		fail("send", "rtnl", rtnl.err);
+	if((gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
+		if(memcmp(ls->gw.addr, gw, 4))
+			return;
+
+	eprintf("del-route\n");
+	memset(&(ls->gw), 0, sizeof(ls->gw));
+
+	ls->flags &= ~F_GATE;
+}
+
+/* At most one dump may be running at a time; requesting more results
+   in EBUSY. Initially we need to run *three* of them, later del_addr
+   and del_route may request their respective scans concurrently.
+   To avoid errors, requests are serialized.
+
+   NLMSG_DONE packets should never arrive unrequested on RTNL.
+   GENL avoids issue altogether by only having a single requestable dump. */
+
+static void proceed_with_dump(void)
+{
+	int bit;
+	int req = rtnl_dump_pending;
+	void (*func)(void) = NULL;
+
+	if(!req)
+		return;
+	else if(req & (bit = DUMP_LINKS))
+		func = request_link_dump;
+	else if(req & (bit = DUMP_ADDRS))
+		func = request_addr_dump;
+	else if(req & (bit = DUMP_ROUTES))
+		func = request_route_dump;
+	if(!func)
+		return;
+
+	rtnl_dump_pending &= ~bit;
+	rtnl_dump_lock = 1;
+
+	func();
+}
+
+static void msg_rtnl_done(struct nlmsg* msg)
+{
+	rtnl_dump_lock = 0;
+
+	if(rtnl_dump_pending)
+		proceed_with_dump();
+}
+
+static void request_rtnl_dump(int what)
+{
+	rtnl_dump_pending |= what;
+
+	if(!rtnl_dump_lock)
+		proceed_with_dump();
+}
+
+/* This RTNL so we only check packet header length. */
+
+typedef void (*rth)(struct nlmsg* msg);
+
+struct rtnh {
+	int type;
+	rth func;
+	int hdr;
+} rtnlcmds[] = {
+#define MSG(cmd, func, mm) { cmd, (rth)(func), sizeof(struct mm) }
+	MSG(NLMSG_NOOP,   NULL,          nlmsg),
+	MSG(NLMSG_DONE,   msg_rtnl_done, nlmsg),
+	MSG(NLMSG_ERROR,  msg_rtnl_err,  nlerr),
+	MSG(RTM_NEWLINK,  msg_new_link,  ifinfomsg),
+	MSG(RTM_DELLINK,  msg_del_link,  ifinfomsg),
+	MSG(RTM_NEWADDR,  msg_new_addr,  ifaddrmsg),
+	MSG(RTM_DELADDR,  msg_del_addr,  ifaddrmsg),
+	MSG(RTM_NEWROUTE, msg_new_route, rtmsg),
+	MSG(RTM_DELROUTE, msg_del_route, rtmsg),
+#undef MSG
+	{ 0, NULL, 0 }
+};
+
+void handle_rtnl(struct nlmsg* msg)
+{
+	struct rtnh* rh;
+
+	for(rh = rtnlcmds; rh->hdr; rh++)
+		if(msg->type == rh->type)
+			break;
+	if(!rh->hdr)
+		nl_dump_rtnl(msg);
+	if(!rh->hdr)
+		return;
+	if(msg->len < rh->hdr)
+		return;
+	if(!rh->func)
+		return;
+
+	rh->func(msg);
 }
 
 void setup_rtnl(void)
@@ -112,5 +322,5 @@ void setup_rtnl(void)
 	nl_set_rxbuf(&rtnl, rtnl_rx, sizeof(rtnl_rx));
 	nl_connect(&rtnl, NETLINK_ROUTE, mgrp_link | mgrp_ipv4);
 
-	request_link_list();
+	request_rtnl_dump(DUMP_LINKS | DUMP_ADDRS | DUMP_ROUTES);
 }

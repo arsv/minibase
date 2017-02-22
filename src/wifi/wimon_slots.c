@@ -76,3 +76,12 @@ void drop_stale_scan_slots(int ifi, int seq)
 		else
 			free_scan_slot(sc);
 }
+
+void drop_scan_slots_for(int ifi)
+{
+	struct scan* sc;
+
+	for(sc = scans; sc < scans + nscans; sc++)
+		if(sc->ifi == ifi)
+			free_scan_slot(sc);
+}
