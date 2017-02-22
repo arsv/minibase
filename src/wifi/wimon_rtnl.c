@@ -95,7 +95,7 @@ void msg_new_link(struct ifinfomsg* msg)
 	memset(ls->name, 0, sizeof(ls->name));
 	memcpy(ls->name, name, nlen);
 	
-	eprintf("new-link %i %s\n", msg->index, name);
+	eprintf("new-link %i %s\n", msg->index, ls->name);
 }
 
 void msg_del_link(struct ifinfomsg* msg)
@@ -103,7 +103,7 @@ void msg_del_link(struct ifinfomsg* msg)
 	struct link* ls = find_link_slot(msg->index);
 	if(!ls) return;
 
-	eprintf("del-link %i %s\n", ls->ifi, ls->name);
+	eprintf("del-link %s %i\n", ls->ifi, ls->name);
 
 	free_link_slot(ls);
 }
@@ -136,7 +136,8 @@ void msg_new_addr(struct ifaddrmsg* msg)
 	memcpy(ls->ip[i].addr, ip, 4);
 	ls->ip[i].mask = msg->prefixlen;
 
-	eprintf("new-addr %i.%i.%i.%i/%i at %i\n",
+	eprintf("new-addr %s %i.%i.%i.%i/%i at %i\n",
+			ls->name,
 			ip[0], ip[1], ip[2], ip[3],
 			msg->prefixlen, i);
 
@@ -160,7 +161,7 @@ void msg_del_addr(struct ifaddrmsg* msg)
 	if(i >= NIPS)
 		return;
 
-	eprintf("del-addr %i.%i.%i.%i at %i\n",
+	eprintf("del-addr %s %i.%i.%i.%i at %i\n", ls->name,
 			ip[0], ip[1], ip[2], ip[3], i);
 
 	memset(&ls->ip[i], 0, sizeof(ls->ip[i]));
@@ -192,11 +193,11 @@ void msg_new_route(struct rtmsg* msg)
 	if((gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4))) {
 		memcpy(ls->gw.addr, gw, 4);
 		ls->gw.mask = 32;
-		eprintf("new-route gw %i.%i.%i.%i\n",
+		eprintf("new-route %s gw %i.%i.%i.%i\n", ls->name,
 				gw[0], gw[1], gw[2], gw[3]);
 	} else {
 		memset(&(ls->gw), 0, sizeof(ls->gw));
-		eprintf("new-route no-gw type=%i\n", msg->type);
+		eprintf("new-route %s no-gw type=%i\n", ls->name, msg->type);
 	}
 }
 
@@ -217,7 +218,7 @@ void msg_del_route(struct rtmsg* msg)
 		if(memcmp(ls->gw.addr, gw, 4))
 			return;
 
-	eprintf("del-route\n");
+	eprintf("del-route %s\n", ls->name);
 	memset(&(ls->gw), 0, sizeof(ls->gw));
 
 	ls->flags &= ~F_GATEWAY;

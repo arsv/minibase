@@ -98,7 +98,7 @@ static void msg_new_wifi(struct link* ls, struct nlgen* msg)
 
 	ls->flags |= F_WIFI;
 
-	eprintf("new-wifi %i\n", ls->ifi);
+	eprintf("new-wifi %s\n", ls->name);
 
 	trigger_scan(ls->ifi);
 }
@@ -109,7 +109,7 @@ static void msg_del_wifi(struct link* ls, struct nlgen* msg)
 
 	drop_scan_slots_for(ls->ifi);
 
-	eprintf("del-wifi %i\n", ls->ifi);
+	eprintf("del-wifi %s\n", ls->name);
 }
 
 static void msg_scan_start(struct link* ls, struct nlgen* msg)
@@ -149,12 +149,13 @@ static void msg_connect(struct link* ls, struct nlgen* msg)
 	uint8_t* bssid;
 
 	if((bssid = nl_get_of_len(msg, NL80211_ATTR_MAC, 6))) {
-		eprintf("connect %02X:%02X:%02X:%02X:%02X:%02X\n",
+		eprintf("connect %s to %02X:%02X:%02X:%02X:%02X:%02X\n",
+				ls->name,
 				bssid[0], bssid[1], bssid[2],
 				bssid[3], bssid[4], bssid[5]);
 		memcpy(ls->bssid, bssid, 6);
 	} else {
-		eprintf("connect ???\n");
+		eprintf("connect %s to ???\n", ls->name);
 		memset(ls->bssid, 0, 6);
 	}
 
@@ -165,30 +166,30 @@ static void msg_disconnect(struct link* ls, struct nlgen* msg)
 {
 	ls->flags &= ~F_CONNECT;
 	memset(ls->bssid, 0, 6);
-	eprintf("disconnect\n");
+	eprintf("wifi %s disconnected\n", ls->name);
 }
 
 static void msg_associate(struct link* ls, struct nlgen* msg)
 {
-	eprintf("associate %i\n", ls->ifi);
+	eprintf("wifi %s associated\n", ls->name);
 	ls->flags |= F_ASSOC;
 }
 
 static void msg_authenticate(struct link* ls, struct nlgen* msg)
 {
-	eprintf("authenticate %i\n", ls->ifi);
+	eprintf("wifi %s authenticated\n", ls->name);
 	ls->flags |= F_AUTH;
 }
 
 static void msg_deauthenticate(struct link* ls, struct nlgen* msg)
 {
-	eprintf("deauthenticate %i\n", ls->ifi);
+	eprintf("wifi %s deauthenticated\n", ls->name);
 	ls->flags &= ~F_AUTH;
 }
 
 static void msg_disassociate(struct link* ls, struct nlgen* msg)
 {
-	eprintf("disassociate %i\n", ls->ifi);
+	eprintf("wifi %s disassociated\n", ls->name);
 	ls->flags &= ~F_ASSOC;
 }
 
