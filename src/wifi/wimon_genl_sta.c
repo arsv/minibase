@@ -19,7 +19,42 @@ struct ies {
 	char payload[];
 };
 
-struct ies* get_ies_of_type(struct nlattr* at, int type)
+static const char ms_oui[] = { 0x00, 0x50, 0xf2 };
+
+static void parse_vendor_wpa(struct scan* sc, int len, char* buf)
+{
+	sc->flags |= S_WPA;
+}
+
+static void parse_vendor_wps(struct scan* sc, int len, char* buf)
+{
+}
+
+static void parse_vendor_ie(struct scan* sc, int len, char* buf)
+{
+	if(len < 4)
+		return;
+	if(memcmp(buf, ms_oui, sizeof(ms_oui)))
+		return;
+
+	char* data = buf + 4;
+	int dlen = len - 4;
+
+	switch(buf[3]) {
+		case 1: return parse_vendor_wpa(sc, dlen, data);
+		case 4: return parse_vendor_wps(sc, dlen, data);
+	}
+}
+
+static void set_station_ssid(struct scan* sc, int len, char* buf)
+{
+	if(len > sizeof(sc->ssid))
+		len = sizeof(sc->ssid);
+
+	memcpy(sc->ssid, buf, len);
+}
+
+void parse_station_ies(struct scan* sc, struct nlattr* at)
 {
 	int len = nl_attr_len(at);
 	char* buf = at->payload;
@@ -34,31 +69,12 @@ struct ies* get_ies_of_type(struct nlattr* at, int type)
 		if(ptr + ielen > end)
 			break;
 		if(ie->type == 0)
-			return ie;
+			set_station_ssid(sc, ie->len, ie->payload);
+		else if(ie->type == 221)
+			parse_vendor_ie(sc, ie->len, ie->payload);
 
 		ptr += ielen;
 	}
-
-	return NULL;
-}
-
-void parse_station_ies(struct scan* sc, struct nlattr* bss)
-{
-	struct nlattr* at;
-	struct ies* ie;
-
-	if(!(at = nl_sub(bss, NL80211_BSS_INFORMATION_ELEMENTS)))
-		return;
-	if(!(ie = get_ies_of_type(at, 0)))
-		return;
-
-	int len = ie->len;
-	char* ssid = ie->payload;
-
-	if(len > sizeof(sc->ssid))
-		len = sizeof(sc->ssid);
-
-	memcpy(sc->ssid, ssid, len);
 }
 
 int get_i32_or_zero(struct nlattr* bss, int key)
@@ -71,6 +87,7 @@ void parse_scan_result(struct link* ls, struct nlgen* msg)
 {
 	struct scan* sc;
 	struct nlattr* bss;
+	struct nlattr* ies;
 	uint8_t* bssid;
 
 	if(!(bss = nl_get_nest(msg, NL80211_ATTR_BSS)))
@@ -86,7 +103,8 @@ void parse_scan_result(struct link* ls, struct nlgen* msg)
 	sc->freq = get_i32_or_zero(bss, NL80211_BSS_FREQUENCY);
 	sc->signal = get_i32_or_zero(bss, NL80211_BSS_SIGNAL_MBM);
 
-	parse_station_ies(sc, bss);
+	if((ies = nl_sub(bss, NL80211_BSS_INFORMATION_ELEMENTS)))
+		parse_station_ies(sc, ies);
 
 	eprintf("station %i %i \"%s\"\n", sc->freq, sc->signal/100, sc->ssid);
 

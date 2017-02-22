@@ -17,6 +17,9 @@
 #define F_GATEWAY  (1<<5)
 #define F_HASIP    (1<<6)
 
+/* scan.flags */
+#define S_WPA      (1<<0)
+
 struct ip4 {
 	uint8_t addr[4];
 	uint8_t mask;
