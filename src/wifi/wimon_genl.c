@@ -11,6 +11,23 @@
 
 #include "wimon.h"
 
+/* NETLINK_GENERIC connection is used to request and fetch scan results,
+   and also to track 802.11 stack state.
+
+   RTNL and GENL use the same ifindexes to refer to the same devices.
+   For wireless devices RTNL provides common state like IPs and routes
+   while GENL provides wireless status updates. The code must be ready
+   to see GENL packets before the same device appears in RTNL though,
+   it is unlikely but may happen.
+
+   In nl80211, there's a distinction between "phy" devices representing
+   radios, and netdevs bound to phy-s. This part is not tracked here,
+   at least for now. Wimon only deals with netdevs. Something else must
+   be used to configure phy-net relations. Implementing ad-hoc or mesh
+   networks may or may not require changes in this part. Likely anything
+   that can be done with "iw dev" will be ok but "iw phy" will require
+   phy tracking. */
+
 struct netlink genl;
 
 char genl_tx[512];
@@ -228,9 +245,9 @@ void handle_genl(struct nlmsg* nlm)
 	handle_nl80211(msg);
 }
 
-/* Setup part */
+/* Setup part.
 
-/* CTRL_CMD_GETFAMILY provides both family id *and* multicast group ids
+   CTRL_CMD_GETFAMILY provides both family id *and* multicast group ids
    we need for subscription. So we do it all in a single request. */
 
 struct nlpair {
@@ -287,7 +304,7 @@ static void socket_subscribe(struct netlink* nl, int id, const char* name)
 		"setsockopt NETLINK_ADD_MEMBERSHIP", name);
 }
 
-static int resolve_80211_subscribe_scan(struct netlink* nl)
+static int resolve_80211_subscribe(struct netlink* nl)
 {
 	struct nlpair fam = { "nl80211", -1 };
 	struct nlpair mcast[] = {
@@ -316,7 +333,7 @@ void setup_genl(void)
 	nl_set_rxbuf(&genl, genl_rx, sizeof(genl_rx));
 	nl_connect(&genl, NETLINK_GENERIC, 0);
 
-	nl80211 = resolve_80211_subscribe_scan(&genl);
+	nl80211 = resolve_80211_subscribe(&genl);
 
 	trigger_wilist();
 }

@@ -8,6 +8,11 @@
 
 #include "wimon.h"
 
+/* Some station data comes in binary blobs called "IES",
+   which are very similar to nested NL attributes but use
+   a slightly different header. Apparently these come from
+   the device itself. */
+
 struct ies {
 	uint8_t type;
 	uint8_t len;
