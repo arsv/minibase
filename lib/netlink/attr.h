@@ -30,6 +30,7 @@ int nl_attr_is_zstr(struct nlattr* at);
 
 /* GENL shorthands */
 
+struct nlattr* nl_get(struct nlgen* msg, uint16_t type);
 void* nl_get_of_len(struct nlgen* msg, uint16_t type, int len);
 char* nl_get_str(struct nlgen* msg, uint16_t type);
 struct nlattr* nl_get_nest(struct nlgen* msg, uint16_t type);
