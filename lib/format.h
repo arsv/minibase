@@ -30,6 +30,9 @@ char* fmtulp(char* buf, char* end, unsigned long num, int pad);
 char* parseint(char* buf, int* np);
 char* parselong(char* buf, long* np);
 char* parseulong(char* buf, unsigned long* np);
+char* parsebyte(char* p, uint8_t* np);
+
+char* parsemac(char* p, uint8_t* mac);
 
 int printf(const char* fmt, ...);
 int eprintf(const char* fmt, ...);
