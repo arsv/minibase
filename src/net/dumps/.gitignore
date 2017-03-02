@@ -1,6 +1,9 @@
 *.bin
 *.hex
 *.dump
+*.txt
+*.strace
+*.stderr
 rtdump
 nldump
 rtevt

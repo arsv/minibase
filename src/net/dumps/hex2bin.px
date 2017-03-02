@@ -1,18 +1,8 @@
 #!/usr/bin/perl
 
-foreach $in (@ARGV) {
-	die unless $in =~ m!(.*)\.hex$!;
-	$out = "$1.bin";
-	open(IN, '<', $in) || die;
-	open(OUT, '>', $out) || die;
-
-	while(<IN>) {
-		die unless m{^\s*\|\s*
-			[0-9a-f]+\s+
-			(([0-9a-f][0-9a-f]\s\s?)+)}x;
-		$hex = $1;
-		@hex = split /\s+/, $hex;
-		@bin = map { chr(hex($_)) } @hex;
-		print OUT @bin;
-	}
+while(<>) {
+	die unless m{^\s*\|\s*
+		[0-9a-f]+\s+
+		(([0-9a-f][0-9a-f]\s\s?)+)}x;
+	print map { chr(hex($_)) } split(/\s+/, $1);
 }
