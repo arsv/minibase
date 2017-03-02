@@ -1,5 +1,12 @@
 #!/usr/bin/perl
 
+# GENL only! RTNL packets are usually much shorter so there's
+# little need for dedicated scripts there.
+# 
+# Anything other than ctrl is assumed to be nl80211.
+# Handling dynamic family ids is beyond the scope of this
+# little script.
+
 %cmds_nl80211 = ( 
 	 '1' => 'GET_WIPHY',
 	 '2' => 'SET_WIPHY',

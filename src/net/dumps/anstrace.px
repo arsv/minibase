@@ -1,5 +1,11 @@
 #!/usr/bin/perl
 
+# Mixed GENL/RTNL stuff cannot be parsed reliably without tracking
+# which packet is which. This should be done in this script, but
+# for now we just assume everything is GENL.
+#
+# Note wpa_supplicant *does* open and use RTNL alongside GENL.
+
 while(<>) {
 	if(m!^\s+\* \d+ bytes in buffer!) {
 		next;
