@@ -4,6 +4,7 @@ struct netlink;
 
 /* Packet assembly; see wire.h for send-recv stuff. */
 
+void* nl_alloc(struct netlink* nl, int size);
 void* nl_start_packet(struct netlink* nl, int hdrsize);
 
 /* This awful piece makes generic header setup somewhat palatable.
@@ -50,3 +51,6 @@ void nl_put(struct netlink* nl, uint16_t type, const void* buf, int len);
 void nl_put_str(struct netlink* nl, uint16_t type, const char* str);
 void nl_put_u32(struct netlink* nl, uint16_t type, uint32_t val);
 void nl_put_u64(struct netlink* nl, uint16_t type, uint64_t val);
+
+struct nlattr* nl_put_nest(struct netlink* nl, uint16_t type);
+void nl_end_nest(struct netlink* nl, struct nlattr* at);
