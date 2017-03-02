@@ -10,6 +10,7 @@
 #include <fail.h>
 
 #include "wimon.h"
+#include "nlfam.h"
 
 /* NETLINK_GENERIC connection is used to request and fetch scan results,
    and also to track 802.11 stack state.
@@ -287,95 +288,16 @@ void handle_genl(struct nlmsg* nlm)
 	handle_nl80211(msg);
 }
 
-/* Setup part.
-
-   CTRL_CMD_GETFAMILY provides both family id *and* multicast group ids
-   we need for subscription. So we do it all in a single request. */
-
-struct nlpair {
-	const char* name;
-	int id;
-};
-
-static void query_nl_family(struct netlink* nl,
-                            struct nlpair* fam, struct nlpair* mcast)
-{
-	struct nlgen* gen;
-	struct nlattr* at;
-
-	nl_new_cmd(nl, GENL_ID_CTRL, CTRL_CMD_GETFAMILY, 1);
-	nl_put_str(nl, CTRL_ATTR_FAMILY_NAME, fam->name);
-
-	if(!(gen = nl_send_recv_genl(nl)))
-		fail("CTRL_CMD_GETFAMILY", fam->name, nl->err);
-
-	uint16_t* grpid = nl_get_u16(gen, CTRL_ATTR_FAMILY_ID);
-	struct nlattr* groups = nl_get_nest(gen, CTRL_ATTR_MCAST_GROUPS);
-
-	if(!grpid)
-		fail("unknown nl family", fam->name, 0);
-	if(!groups)
-		fail("no mcast groups for", fam->name, 0);
-
-	fam->id = *grpid;
-
-	for(at = nl_sub_0(groups); at; at = nl_sub_n(groups, at)) {
-		if(!nl_attr_is_nest(at))
-			continue;
-
-		char* name = nl_sub_str(at, 1);
-		uint32_t* id = nl_sub_u32(at, 2);
-
-		if(!name || !id)
-			continue;
-
-		struct nlpair* mc;
-		for(mc = mcast; mc->name; mc++)
-			if(!strcmp(name, mc->name))
-				mc->id = *id;
-	}
-}
-
-static void socket_subscribe(struct netlink* nl, int id, const char* name)
-{
-	int fd = nl->fd;
-	int lvl = SOL_NETLINK;
-	int opt = NETLINK_ADD_MEMBERSHIP;
-
-	xchk(syssetsockopt(fd, lvl, opt, &id, sizeof(id)),
-		"setsockopt NETLINK_ADD_MEMBERSHIP", name);
-}
-
-static int resolve_80211_subscribe(struct netlink* nl)
-{
-	struct nlpair fam = { "nl80211", -1 };
-	struct nlpair mcast[] = {
-		{ "config", -1 },  /* wifi exts on a link */
-		{ "mlme", -1 },    /* assoc/auth/connect */
-		{ "scan", -1 },    /* start/stop/results */
-		{ NULL, 0 } };
-
-	query_nl_family(nl, &fam, mcast);
-
-	struct nlpair* p;
-
-	for(p = mcast; p->name; p++)
-		if(p->id >= 0)
-			socket_subscribe(nl, p->id, p->name);
-		else
-			fail("unknown 802.11 mcast group", p->name, 0);
-
-	return fam.id;
-}
-
 void setup_genl(void)
 {
+	const char* names[] = { "nl80211", "config", "mlme", "scan", NULL };
+
 	nl_init(&genl);
 	nl_set_txbuf(&genl, genl_tx, sizeof(genl_tx));
 	nl_set_rxbuf(&genl, genl_rx, sizeof(genl_rx));
 	nl_connect(&genl, NETLINK_GENERIC, 0);
 
-	nl80211 = resolve_80211_subscribe(&genl);
+	nl80211 = query_subscribe(&genl, names);
 
 	request_wifi_list();
 }
