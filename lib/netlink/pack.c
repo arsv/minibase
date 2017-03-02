@@ -1,24 +1,19 @@
-#include <sys/socket.h>
-#include <sys/bind.h>
-#include <sys/recv.h>
-#include <sys/getpid.h>
-#include <sys/sendto.h>
-
 #include <string.h>
 
 #include "base.h"
 #include "ctx.h"
 #include "pack.h"
 
-static void* nl_alloc(struct netlink* nl, int size)
+void* nl_alloc(struct netlink* nl, int size)
 {
 	if(nl->txover)
 		return NULL;
 	if(nl->txend + size > nl->txlen)
 		return NULL;
 
+	int pad = (4 - (size % 4)) % 4;
 	void* ptr = nl->txbuf + nl->txend;
-	nl->txend += size;
+	nl->txend += size + pad;
 
 	memset(ptr, 0, size);
 
@@ -48,22 +43,13 @@ void nl_put(struct netlink* nl, uint16_t type, const void* buf, int len)
 	int full = sizeof(struct nlattr) + len;
 	struct nlattr* at = nl_alloc(nl, full);
 	
-	int ptr = nl->txend;
-	int pad = (4 - (ptr % 4)) % 4;
-	nl->txend += pad;
-
 	if(!at) return;
 
 	at->type = type;
 	at->len = full;
 	memcpy(at->payload, buf, len);
 
-	((struct nlmsg*)(nl->txbuf))->len += full + pad;
-}
-
-void nl_put_str(struct netlink* nl, uint16_t type, const char* str)
-{
-	nl_put(nl, type, str, strlen(str) + 1);
+	((struct nlmsg*)(nl->txbuf))->len = nl->txend;
 }
 
 void nl_put_u32(struct netlink* nl, uint16_t type, uint32_t val)
