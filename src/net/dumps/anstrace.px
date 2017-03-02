@@ -1,10 +1,11 @@
 #!/usr/bin/perl
 
 # Mixed GENL/RTNL stuff cannot be parsed reliably without tracking
-# which packet is which. This should be done in this script, but
-# for now we just assume everything is GENL.
+# which packet is which.
 #
-# Note wpa_supplicant *does* open and use RTNL alongside GENL.
+# Note wpa_supplicant *does* open and RTNL alongside GENL.
+
+our %type = ( );
 
 while(<>) {
 	if(m!^\s+\* \d+ bytes in buffer!) {
@@ -16,13 +17,17 @@ while(<>) {
 		} else {
 			print;
 		}
+	} elsif(m!socket.*NETLINK_([A-Z]+).*= (\d+)!) {
+		warn "fd $2 is $1\n";
+		$type{$2} = $1;
 	} elsif(!m!^exec|write|recv|send!) {
 		next;
 	} else {
 		&dumpchunk if $pending;
 
-		if(m!^(sendmsg|recvmsg).*AF_NETLINK!) {
-			$netlink = 1;
+		if(m!^(send|recv|sendto|recvfrom|sendmsg|recvmsg)\((\d+)!
+		&& defined $type{$2}) {
+			$netlink = $type{$2};
 		} else {
 			$netlink = 0;
 		}
@@ -42,8 +47,15 @@ sub dumpchunk
 {
 	close CHUNK;
 	$pending = 0;
+	my @res;
 
-	my @res = `./hex2bin.px chunk.hex | ./nldump 2>&1 | ./annotate.px`;
+	if($netlink eq 'GENERIC') {
+		@res = `./hex2bin.px chunk.hex | ./nldump 2>&1 | ./annotate.px`;
+	} elsif($netlink eq 'ROUTE') {
+		@res = `./hex2bin.px chunk.hex | ./rtdump 2>&1`;
+	} else {
+		@res = `cat chunk.hex`;
+	}
 
 	foreach(@res) {
 		print "> $_";
