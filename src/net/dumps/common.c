@@ -1,12 +1,15 @@
 #include <sys/fstat.h>
 #include <sys/open.h>
 #include <sys/mmap.h>
+#include <sys/brk.h>
+#include <sys/read.h>
 
 #include <null.h>
 #include <fail.h>
 
 #include "common.h"
 
+#define PAGE 4096
 #define MAX_FILE_SIZE 0x50000
 
 ERRLIST = {
@@ -39,4 +42,28 @@ void* mmapwhole(const char* name, long* len)
 
 	*len = st.st_size;
 	return (void*) ret;
+}
+
+void* readwhole(int fd, long* len)
+{
+	char* brk = (char*)sysbrk(NULL);
+	char* end = (char*)sysbrk(brk + PAGE);
+	char* ptr = brk;
+
+	if(end < ptr + PAGE)
+		fail("out of memory", NULL, 0);
+
+	long rd;
+
+	while((rd = sysread(fd, ptr, end - ptr)) > 0) {
+		ptr += rd;
+
+		if(end - ptr < 100)
+			end = (char*)sysbrk(end + PAGE);
+		if(end - ptr < 100)
+			fail("out of memory", NULL, 0);
+	}
+
+	*len = ptr - brk;
+	return brk;
 }

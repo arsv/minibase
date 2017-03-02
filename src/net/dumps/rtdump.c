@@ -1,6 +1,4 @@
-#include <sys/fstat.h>
-#include <sys/open.h>
-#include <sys/mmap.h>
+#include <sys/read.h>
 
 #include <netlink.h>
 #include <netlink/dump.h>
@@ -14,11 +12,16 @@ int align4(int n) { return n + (4 - n % 4) % 4; }
 
 int main(int argc, char** argv)
 {
-	if(argc != 2)
+	long len;
+	char* buf;
+
+	if(argc == 2)
+		buf = mmapwhole(argv[1], &len);
+	else if(argc == 1)
+		buf = readwhole(STDIN, &len);
+	else
 		fail("bad call", NULL, 0);
 
-	long len;
-	char* buf = mmapwhole(argv[1], &len);
 	long ptr = 0;
 
 	while(ptr < len) {
@@ -30,13 +33,13 @@ int main(int argc, char** argv)
 		struct nlmsg* msg = (struct nlmsg*)(buf + ptr);
 
 		if(msg->len > left)
-			fail("incomplete message in", argv[1], 0);
+			fail("incomplete message", NULL, 0);
 
 		nl_dump_rtnl(msg);
 
 		ptr += align4(msg->len);
 	} if(ptr < len) {
-		warn("trailing garbage in", argv[1], 0);
+		warn("trailing garbage", NULL, 0);
 	}
 
 	return 0;
