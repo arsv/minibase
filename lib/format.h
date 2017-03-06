@@ -2,6 +2,8 @@
 
 struct tm;
 
+char* fmtraw(char* p, char* e, void* data, int len);
+
 char* fmtbyte(char* dst, char* end, char c);
 char* fmtchar(char* dst, char* end, char c);
 
