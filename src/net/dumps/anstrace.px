@@ -8,6 +8,8 @@
 our %type = ( );
 
 while(<>) {
+	s!^\d+\s+!!;
+
 	if(m!^\s+\* \d+ bytes in buffer!) {
 		next;
 	} elsif(m!^ \| .....  !) {
@@ -18,7 +20,6 @@ while(<>) {
 			print;
 		}
 	} elsif(m!socket.*NETLINK_([A-Z]+).*= (\d+)!) {
-		warn "fd $2 is $1\n";
 		$type{$2} = $1;
 	} elsif(!m!^exec|write|recv|send!) {
 		next;
