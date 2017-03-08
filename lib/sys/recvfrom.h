@@ -2,8 +2,8 @@
 #include <syscall.h>
 
 inline static long sysrecvfrom(int fd, void* buf, size_t len, int flags,
-		void* addr, int alen)
+		void* addr, int* alen)
 {
 	return syscall6(__NR_recvfrom, fd, (long)buf, len, flags,
-			(long)addr, alen);
+			(long)addr, (long)alen);
 }
