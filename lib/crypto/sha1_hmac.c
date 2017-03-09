@@ -21,7 +21,7 @@ static void hash_rest(struct sha1* sh, char* input, long inlen, int prev)
 		ptr += block;
 	}
 
-	sha1_last(sh, ptr, inlen + prev);
+	sha1_last(sh, ptr, end - ptr, inlen + prev);
 }
 
 void hmac_sha1(uint8_t out[20], uint8_t* key, int klen, char* input, int inlen)
@@ -51,6 +51,6 @@ void hmac_sha1(uint8_t out[20], uint8_t* key, int klen, char* input, int inlen)
 
 	sha1_init(&sh);
 	sha1_proc(&sh, (char*)pad);
-	sha1_last(&sh, (char*)hash, 64 + hlen);
+	sha1_last(&sh, (char*)hash, hlen, 64 + hlen);
 	sha1_fini(&sh, out);
 }

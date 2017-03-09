@@ -160,7 +160,7 @@ static void sha1_load_pad0(struct sha1* sh, char* ptr, uint64_t total)
 
    SHA1 needs *complete* size of the input, including all regular blocks
    processes from the very start, at the end of padding. The data pointed
-   to by ptr must be (len % 64) bytes long. */
+   to by ptr must be (total % 64) bytes long. */
 
 void sha1_proc(struct sha1* sh, char blk[64])
 {
@@ -168,17 +168,17 @@ void sha1_proc(struct sha1* sh, char blk[64])
 	sha1_hash(sh);
 }
 
-void sha1_last(struct sha1* sh, char* ptr, uint64_t len)
+void sha1_last(struct sha1* sh, char* ptr, int len, uint64_t total)
 {
 	int tail = len % 64;
 
 	if(tail > 55) {
 		sha1_load_pad2(sh, ptr, tail);
 		sha1_hash(sh);
-		sha1_load_pad0(sh, ptr, len);
+		sha1_load_pad0(sh, ptr, total);
 		sha1_hash(sh);
 	} else {
-		sha1_load_pad1(sh, ptr, tail, len);
+		sha1_load_pad1(sh, ptr, tail, total);
 		sha1_hash(sh);
 	}
 }
