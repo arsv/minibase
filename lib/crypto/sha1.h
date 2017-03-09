@@ -11,7 +11,7 @@ void sha1(uint8_t out[20], char* input, long inlen);
 /* multi-block input */
 void sha1_init(struct sha1* sh);
 void sha1_proc(struct sha1* sh, char blk[64]);
-void sha1_last(struct sha1* sh, char* ptr, uint64_t len);
+void sha1_last(struct sha1* sh, char* ptr, int len, uint64_t total);
 void sha1_fini(struct sha1* sh, uint8_t out[20]);
 
 /* HMAC, contiguous only */

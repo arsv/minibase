@@ -15,6 +15,6 @@ void sha1(uint8_t out[20], char* input, long inlen)
 		ptr += block;
 	}
 
-	sha1_last(&sh, ptr, inlen);
+	sha1_last(&sh, ptr, end - ptr, inlen);
 	sha1_fini(&sh, out);
 }
