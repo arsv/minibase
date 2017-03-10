@@ -49,8 +49,10 @@ void nl_new_cmd(struct netlink* nl, uint16_t fam, uint8_t cmd, uint8_t ver);
 
 void nl_put(struct netlink* nl, uint16_t type, const void* buf, int len);
 void nl_put_str(struct netlink* nl, uint16_t type, const char* str);
+void nl_put_u8(struct netlink* nl, uint16_t type, uint8_t val);
 void nl_put_u32(struct netlink* nl, uint16_t type, uint32_t val);
 void nl_put_u64(struct netlink* nl, uint16_t type, uint64_t val);
+void nl_put_empty(struct netlink* nl, uint16_t type);
 
 struct nlattr* nl_put_nest(struct netlink* nl, uint16_t type);
 void nl_end_nest(struct netlink* nl, struct nlattr* at);
