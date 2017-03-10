@@ -374,3 +374,7 @@
 #define NL80211_BSS_PRESP_DATA          14  /* flag */
 #define NL80211_BSS_LAST_SEEN_BOOTTIME  15  /* u64, ns */
 #define NL80211_BSS_PAD                 16  /* pad to 64 align (?) */
+
+/* sub-attributes for NL80211_ATTR_KEY_DEFAULT_TYPES */
+#define NL80211_KEY_DEFAULT_TYPE_UNICAST    1
+#define NL80211_KEY_DEFAULT_TYPE_MULTICAST  2
