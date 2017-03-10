@@ -19,9 +19,6 @@ void aes128_unwrap(uint8_t key[16], void* buf, int len)
 {
 	struct aes128 ae;
 
-	if(len % 8 || len < 16)
-		return;
-
 	int n = len / 8 - 1;
 	uint64_t* R = buf;
 	uint8_t B[16];
