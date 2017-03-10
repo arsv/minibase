@@ -52,6 +52,16 @@ void nl_put(struct netlink* nl, uint16_t type, const void* buf, int len)
 	((struct nlmsg*)(nl->txbuf))->len = nl->txend;
 }
 
+void nl_put_empty(struct netlink* nl, uint16_t type)
+{
+	nl_put(nl, type, NULL, 0);
+}
+
+void nl_put_u8(struct netlink* nl, uint16_t type, uint8_t val)
+{
+	nl_put(nl, type, &val, sizeof(val));
+}
+
 void nl_put_u32(struct netlink* nl, uint16_t type, uint32_t val)
 {
 	nl_put(nl, type, &val, sizeof(val));
