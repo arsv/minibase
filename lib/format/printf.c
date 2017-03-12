@@ -57,7 +57,6 @@ int vfdprintf(int fd, const char* fmt, va_list ap)
 	char* p = buf;
 	char* e = buf + bufsize;
 	char* q;
-	long v;
 
 	while(*fmt) {
 		if(*fmt != '%') {
@@ -80,20 +79,34 @@ int vfdprintf(int fd, const char* fmt, va_list ap)
 
 		if(*fmt == 'l') { flags |= Fl; fmt++; }
 
-		switch(*fmt) {
-		default: v = 0; break; /* make gcc happy */
-		case 'i':
-		case 'u':
-		case 'X': v = (flags & Fl) ? va_arg(ap, long) : va_arg(ap, int);
-		}
-
 		switch(*fmt++) {
-		case 's': q = fmtstr(p, e, va_arg(ap, char*)); break;
-		case 'c': q = fmtchar(p, e, va_arg(ap, int)); break;
-		case 'i': q = fmtlong(p, e, v); break;
-		case 'u': q = fmtulong(p, e, v); break;
-		case 'X': q = fmtxlong(p, e, v); break;
-		case 'p': q = fmtxlong(p, e, (long)va_arg(ap, void*)); break;
+		case 's':
+			q = fmtstr(p, e, va_arg(ap, char*));
+			break;
+		case 'c':
+			q = fmtchar(p, e, va_arg(ap, unsigned));
+			break;
+		case 'i':
+			if(flags & Fl)
+				q = fmtlong(p, e, va_arg(ap, long));
+			else
+				q = fmtint(p, e, va_arg(ap, int));
+			break;
+		case 'u':
+			if(flags & Fl)
+				q = fmtlong(p, e, va_arg(ap, unsigned long));
+			else
+				q = fmtint(p, e, va_arg(ap, unsigned));
+			break;
+		case 'X':
+			if(flags & Fl)
+				q = fmtxlong(p, e, va_arg(ap, unsigned long));
+			else
+				q = fmtxlong(p, e, va_arg(ap, unsigned));
+			break;
+		case 'p':
+			q = fmtxlong(p, e, (long)va_arg(ap, void*));
+			break;
 		default: goto out;
 		};
 
