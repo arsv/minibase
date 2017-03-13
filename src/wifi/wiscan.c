@@ -21,7 +21,7 @@
    Mostly a netlink.h test atm, not really meant to be a permanent part
    of minitools. */
 
-ERRTAG = "scan";
+ERRTAG = "wiscan";
 ERRLIST = {
 	REPORT(EPERM), REPORT(EBUSY), REPORT(ENOENT), REPORT(EBADF),
 	REPORT(ENETDOWN), 
