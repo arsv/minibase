@@ -94,6 +94,15 @@ static void pmk_to_ptk()
 /* Ref. IEEE 802.11-2012 Table 11-6 */
 static const char kde_type_gtk[4] = { 0x00, 0x0F, 0xAC, 0x01 };
 
+/* From wpa_supplicant: swap Tx/Rx for Michael MIC. No idea where
+   this comes from, but it's necessary to get the right key. */
+static void store_gtk(uint8_t buf[32])
+{
+	memcpy(GTK, buf, 16);
+	memcpy(GTK + 16, buf + 24, 8);
+	memcpy(GTK + 24, buf + 16, 8);
+}
+
 static void fetch_gtk(char* buf, int len)
 {
 	struct kde* kd;
@@ -122,7 +131,7 @@ static void fetch_gtk(char* buf, int len)
 		if((kd->data[0] & 0x3) != 0x01)
 			fail("bad GTK index", NULL, 0);
 
-		memcpy(GTK, kd->data + 2, 32);
+		store_gtk(kd->data + 2);
 		return;
 	}
 
