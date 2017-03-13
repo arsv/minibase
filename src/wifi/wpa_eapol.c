@@ -207,6 +207,7 @@ void recv_packet_1(void)
 		fail("packet 1/4 no ACK bit", NULL, 0);
 
 	memcpy(anonce, ek->nonce, sizeof(anonce));
+	memcpy(replay, ek->replay, sizeof(replay));
 
 	pmk_to_ptk();
 }
@@ -257,6 +258,8 @@ void recv_packet_3(void)
 		fail("packet 3/4 from another host", NULL, 0);
 	if(memcmp(anonce, ek->nonce, sizeof(anonce)))
 		fail("packet 3/4 nonce changed", NULL, 0);
+	if(memcmp(replay, ek->replay, sizeof(replay)) > 0)
+		fail("packet 3/4 replay fail", NULL, 0);
 	if(check_mic(ek->mic, KCK, pacbuf, paclen))
 		fail("packet 3/4 bad MIC", NULL, 0);
 
