@@ -50,6 +50,7 @@ uint8_t KCK[16]; /* key check key, for computing MICs */
 uint8_t KEK[16]; /* key encryption key, for AES unwrapping */
 uint8_t PTK[16]; /* pairwise key (just TK in 802.11 terms) */
 uint8_t GTK[32]; /* group temporary key */
+uint8_t RSC[6];  /* ATTR_KEY_SEQ for GTK */
 
 static void pmk_to_ptk()
 {
@@ -273,6 +274,8 @@ void recv_packet_3(void)
 		fail("packet 3/4 cannot unwrap GTK", NULL, 0);
 
 	fetch_gtk(payload + 8, paylen - 8);
+
+	memcpy(RSC, ek->rsc, 6); /* it's 8 bytes but only 6 are used */
 }
 
 /* Packet 4 is just a confirmation, nothing significant is being

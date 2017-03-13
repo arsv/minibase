@@ -253,7 +253,6 @@ static void upload_ptk()
 
 static void upload_gtk()
 {
-	uint8_t seq[6] = { 0, 0, 0, 0, 0, 0 };
 	uint32_t tkip = 0x000FAC02;
 	struct nlattr* at;
 	int ret;
@@ -264,7 +263,7 @@ static void upload_gtk()
 	nl_put_u8(&nl, NL80211_ATTR_KEY_IDX, 1);
 	nl_put_u32(&nl, NL80211_ATTR_KEY_CIPHER, tkip);
 	nl_put(&nl, NL80211_ATTR_KEY_DATA, GTK, 32);
-	nl_put(&nl, NL80211_ATTR_KEY_SEQ, seq, 6);
+	nl_put(&nl, NL80211_ATTR_KEY_SEQ, RSC, 6);
 
 	at = nl_put_nest(&nl, NL80211_ATTR_KEY_DEFAULT_TYPES);
 	nl_put_empty(&nl, NL80211_KEY_DEFAULT_TYPE_MULTICAST);
