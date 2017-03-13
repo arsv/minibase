@@ -251,30 +251,30 @@ static void upload_ptk()
 		fail("NL80211_CMD_NEW_KEY", "PTK", ret);
 }
 
-static void upload_gtk()
-{
-	uint32_t tkip = 0x000FAC02;
-	struct nlattr* at;
-	int ret;
-
-	nl_new_cmd(&nl, nl80211, NL80211_CMD_NEW_KEY, 0);
-	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
-
-	nl_put_u8(&nl, NL80211_ATTR_KEY_IDX, 1);
-	nl_put_u32(&nl, NL80211_ATTR_KEY_CIPHER, tkip);
-	nl_put(&nl, NL80211_ATTR_KEY_DATA, GTK, 32);
-	nl_put(&nl, NL80211_ATTR_KEY_SEQ, RSC, 6);
-
-	at = nl_put_nest(&nl, NL80211_ATTR_KEY_DEFAULT_TYPES);
-	nl_put_empty(&nl, NL80211_KEY_DEFAULT_TYPE_MULTICAST);
-	nl_end_nest(&nl, at);
-
-	if((ret = nl_send_recv_ack(&nl)))
-		fail("NL80211_CMD_NEW_KEY", "GTK", ret);
-}
+//static void upload_gtk()
+//{
+//	uint32_t tkip = 0x000FAC02;
+//	struct nlattr* at;
+//	int ret;
+//
+//	nl_new_cmd(&nl, nl80211, NL80211_CMD_NEW_KEY, 0);
+//	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
+//
+//	nl_put_u8(&nl, NL80211_ATTR_KEY_IDX, 1);
+//	nl_put_u32(&nl, NL80211_ATTR_KEY_CIPHER, tkip);
+//	nl_put(&nl, NL80211_ATTR_KEY_DATA, GTK, 32);
+//	nl_put(&nl, NL80211_ATTR_KEY_SEQ, RSC, 6);
+//
+//	at = nl_put_nest(&nl, NL80211_ATTR_KEY_DEFAULT_TYPES);
+//	nl_put_empty(&nl, NL80211_KEY_DEFAULT_TYPE_MULTICAST);
+//	nl_end_nest(&nl, at);
+//
+//	if((ret = nl_send_recv_ack(&nl)))
+//		fail("NL80211_CMD_NEW_KEY", "GTK", ret);
+//}
 
 void upload_keys(void)
 {
 	upload_ptk();
-	upload_gtk();
+	//upload_gtk();
 }
