@@ -78,11 +78,30 @@ static struct nlattr* rtm_get(struct rtmsg* msg, uint16_t key)
 	return nl_attr_k_in(NLPAYLOAD(msg), key);
 }
 
+static void set_link_carrier(struct link* ls, int carrier)
+{
+	int oldcarr = !!(ls->flags & F_CARRIER);
+
+	if(oldcarr && carrier)
+		return;
+	if(!oldcarr && !carrier)
+		return;
+
+	if(carrier) {
+		ls->flags |= F_CARRIER;
+		eprintf("carrier acquired on %s\n", ls->name);
+	} else {
+		ls->flags &= ~F_CARRIER;
+		eprintf("carrier lost on %s\n", ls->name);
+	}
+}
+
 void msg_new_link(struct ifinfomsg* msg)
 {
 	struct link* ls;
 	char* name;
 	int nlen;
+	uint8_t* u8;
 	
 	if(!(name = nl_str(ifi_get(msg, IFLA_IFNAME))))
 		return;
@@ -96,6 +115,9 @@ void msg_new_link(struct ifinfomsg* msg)
 	memcpy(ls->name, name, nlen);
 	
 	eprintf("new-link %i %s\n", msg->index, ls->name);
+
+	if((u8 = nl_u8(ifi_get(msg, IFLA_CARRIER))))
+		set_link_carrier(ls, *u8);
 }
 
 void msg_del_link(struct ifinfomsg* msg)

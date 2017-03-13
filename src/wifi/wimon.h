@@ -16,6 +16,7 @@
 #define F_CONNECT  (1<<4)
 #define F_GATEWAY  (1<<5)
 #define F_HASIP    (1<<6)
+#define F_CARRIER  (1<<7)
 
 /* scan.flags */
 #define S_WPA      (1<<0)
