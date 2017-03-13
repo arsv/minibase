@@ -2,7 +2,7 @@
 
 include $/config.mk
 
-bin = scan wimon wpa
+bin = wiscan wimon wpa
 
 man1 =
 
