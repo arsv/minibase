@@ -1,5 +1,6 @@
 temp
 test
+todo
 *.a
 *.o
 config.mk
