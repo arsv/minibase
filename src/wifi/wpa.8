@@ -1,0 +1,23 @@
+.TH wpa 8
+'''
+.SH NAME
+wpa \- WPA2 client encryption setup tool
+'''
+.SH USAGE
+\fBexport\fR PSK\fB=\fR\fI00112233...FF0011...EEFF\fR
+.br
+wpa \fIwlp1s0\fR \fI5180\fR \fI00:11:22:33:44:55\fR "\fIBlackhole\fR"
+'''
+.SH DESCRIPTION
+This tool handles client-side WPA2-PSK interface setup with CCMP pairwise
+key and TKIP group key.
+.P
+Given the command above, \fBwpa\fR tunes interface \fIwlp1s0\fR to
+\fI5180\fR MHz and tries to connect to station with bssid
+\fI00:11:22:33:44:55\fR and ssid "\fIBlackhole\fR". Upon successful
+connection, it performs EAPOL key exchange with the station
+and configures the interface to encrypt the traffic.
+.P
+The tools expects 32-byte pre-shared key (PSK) in hex notation.
+For passphrase-based configuration, the key must be derived from
+the passphrase first.
