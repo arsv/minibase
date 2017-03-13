@@ -9,6 +9,7 @@ extern char* ssid;
 extern uint8_t PSK[32];
 extern uint8_t PTK[16];
 extern uint8_t GTK[32];
+extern uint8_t RSC[6];
 
 void setup_netlink(void);
 void reset_netlink(void);
