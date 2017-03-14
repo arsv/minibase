@@ -31,8 +31,6 @@ ERRLIST = {
 	REPORT(EBADF), RESTASNUMBERS
 };
 
-static char debuf[PAGE];
-
 struct entsize {
 	uint64_t size;
 	char* name;
@@ -134,6 +132,8 @@ static void scan_dent(char* path, char* name, void* arg, int opts)
 
 static void for_each_in(char* path, scanner sc, void* scptr, int scarg)
 {
+	char debuf[PAGE];
+
 	long fd = sysopen(path, O_RDONLY | O_DIRECTORY);
 
 	if(fd < 0)
