@@ -146,15 +146,14 @@ static void for_each_in(char* path, scanner sc, void* scptr, int scarg)
 		char* end = debuf + rd;
 		while(ptr < end) {
 			struct dirent64* de = (struct dirent64*) ptr;
+			ptr += de->d_reclen;
 
-			if(dotddot(de->d_name))
-				goto next;
 			if(!de->d_reclen)
 				break;
+			if(dotddot(de->d_name))
+				continue;
 
 			sc(path, de->d_name, scptr, scarg);
-
-			next: ptr += de->d_reclen;
 		}
 	}
 
