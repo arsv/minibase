@@ -11,6 +11,7 @@
 #include <sys/read.h>
 #include <sys/close.h>
 #include <sys/ioctl.h>
+#include <sys/pause.h>
 
 #include <string.h>
 #include <endian.h>
@@ -412,4 +413,9 @@ void cleanup_keys(void)
 	memzero(PTK, sizeof(PTK));
 	memzero(GTK, sizeof(GTK));
 	/* we may need KCK and KEK for GTK rekeying */
+}
+
+void group_rekey(void)
+{
+	syspause();
 }
