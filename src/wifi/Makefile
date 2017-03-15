@@ -9,6 +9,6 @@ man1 =
 include $/common.mk
 
 wimon: wimon.o wimon_rtnl.o wimon_genl.o wimon_proc.o wimon_slots.o \
-	wimon_genl_sta.o wimon_ctrl.o nlfam.o
+	wimon_genl_sta.o wimon_ctrl.o nlfam_sub.o
 
-wpa: wpa.o wpa_radio.o wpa_eapol.o wpa_crypt.o nlfam.o
+wpa: wpa.o wpa_radio.o wpa_eapol.o wpa_crypt.o nlfam_sub.o

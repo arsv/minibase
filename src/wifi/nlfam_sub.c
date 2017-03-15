@@ -20,8 +20,8 @@ struct nlpair {
 	int id;
 };
 
-static void query_family(struct netlink* nl,
-                         struct nlpair* fam, struct nlpair* mcast)
+static void get_family(struct netlink* nl,
+                       struct nlpair* fam, struct nlpair* mcast)
 {
 	struct nlgen* gen;
 	struct nlattr* at;
@@ -99,7 +99,7 @@ int query_subscribe(struct netlink* nl, const char** names)
 	struct nlpair pairs[count+1];
 
 	fill_pairs(count, pairs, names);
-	query_family(nl, &pairs[0], pairs+1);
+	get_family(nl, &pairs[0], pairs+1);
 	subscribe_groups(nl, pairs+1);
 
 	return pairs[0].id;
