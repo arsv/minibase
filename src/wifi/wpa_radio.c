@@ -57,7 +57,7 @@ static struct nlgen* recv_genl(struct netlink* nl)
 	return gen;
 }
 
-static void init_netlink(void)
+void open_netlink(void)
 {
 	nl_init(&nl);
 	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
@@ -71,16 +71,14 @@ void setup_netlink(void)
 {
 	const char* names[] = { "nl80211", "mlme", "scan", NULL };
 
-	init_netlink();
+	open_netlink();
 
 	nl80211 = query_subscribe(&nl, names);
 }
 
-void reset_netlink(void)
+void close_netlink(void)
 {
 	sysclose(nl.fd);
-
-	init_netlink();
 }
 
 int resolve_ifname(char* name)
@@ -227,7 +225,7 @@ void associate(void)
    so we don't even try. Also, if it can re-key, why doesn't it handle
    the rest of EAPOL stuff then? With a much simplier userspace tool. */
 
-static void upload_ptk()
+void upload_ptk(void)
 {
 	uint8_t seq[6] = { 0, 0, 0, 0, 0, 0 };
 	uint32_t ccmp = 0x000FAC04;
@@ -251,7 +249,7 @@ static void upload_ptk()
 		fail("NL80211_CMD_NEW_KEY", "PTK", ret);
 }
 
-static void upload_gtk()
+void upload_gtk(void)
 {
 	uint32_t tkip = 0x000FAC02;
 	struct nlattr* at;
@@ -271,10 +269,4 @@ static void upload_gtk()
 
 	if((ret = nl_send_recv_ack(&nl)))
 		fail("NL80211_CMD_NEW_KEY", "GTK", ret);
-}
-
-void upload_keys(void)
-{
-	upload_ptk();
-	upload_gtk();
 }

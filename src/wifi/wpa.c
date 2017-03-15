@@ -86,12 +86,21 @@ int main(int argc, char** argv, char** envp)
 	authenticate();
 	open_rawsock();
 	associate();
-	reset_netlink();
-	negotiate_keys();
-	upload_keys();
-	cleanup_keys();
+	close_netlink();
 
-	/* TODO: wait for and handle re-keying requests */
+	negotiate_keys();
+	open_netlink();
+	upload_ptk();
+	upload_gtk();
+	cleanup_keys();
+	close_netlink();
+
+	while(1) {
+		group_rekey();
+		open_netlink();
+		upload_gtk();
+		close_netlink();
+	}
 
 	return 0;
 }
