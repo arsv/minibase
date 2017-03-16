@@ -288,16 +288,36 @@ void handle_genl(struct nlmsg* nlm)
 	handle_nl80211(msg);
 }
 
+static void subscribe(struct nlpair* g)
+{
+	int ret;
+
+	if(g->id <= 0)
+		fail("NL group nl80211", g->name, -ENOENT);
+	if((ret = nl_subscribe(&genl, g->id)) < 0)
+		fail("NL subscribe nl80211", g->name, ret);
+}
+
 void setup_genl(void)
 {
-	const char* names[] = { "nl80211", "config", "mlme", "scan", NULL };
+	char* family = "nl80211";
+	struct nlpair grps[] = {
+		{ -1, "config" },
+		{ -1, "mlme" },
+		{ -1, "scan" },
+		{  0, NULL } };
 
 	nl_init(&genl);
 	nl_set_txbuf(&genl, genl_tx, sizeof(genl_tx));
 	nl_set_rxbuf(&genl, genl_rx, sizeof(genl_rx));
 	nl_connect(&genl, NETLINK_GENERIC, 0);
 
-	nl80211 = query_subscribe(&genl, names);
+	if((nl80211 = query_family_grps(&genl, family, grps)) < 0)
+		fail("NL family", family, nl80211);
+
+	subscribe(&grps[0]);
+	subscribe(&grps[1]);
+	subscribe(&grps[2]);
 
 	request_wifi_list();
 }

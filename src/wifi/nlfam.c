@@ -1,3 +1,5 @@
+#include <bits/errno.h>
+
 #include <netlink.h>
 #include <netlink/genl/ctrl.h>
 
@@ -16,10 +18,10 @@ int query_family(struct netlink* nl, const char* name)
 	nl_put_str(nl, CTRL_ATTR_FAMILY_NAME, name);
 
 	if(!(gen = nl_send_recv_genl(nl)))
-		fail("CTRL_CMD_GETFAMILY", name, nl->err);
+		return nl->err;
 
 	if(!(u16 = nl_get_u16(gen, CTRL_ATTR_FAMILY_ID)))
-		fail("unknown nl family", name, 0);
+		return -EBADMSG;
 
 	return *u16;
 }

@@ -67,13 +67,30 @@ void open_netlink(void)
 		"nl-connect", "genl");
 }
 
+static void subscribe(int id, const char* name)
+{
+	int ret;
+
+	if(id <= 0)
+		fail("NL group nl80211", name, -ENOENT);
+	if((ret = nl_subscribe(&nl, id)) < 0)
+		fail("NL subscribe nl80211", name, ret);
+}
+
 void setup_netlink(void)
 {
-	const char* names[] = { "nl80211", "mlme", "scan", NULL };
+	char* family = "nl80211";
+	struct nlpair grps[] = {
+		{ -1, "mlme" },
+		{ -1, "scan" },
+		{  0, NULL } };
 
 	open_netlink();
 
-	nl80211 = query_subscribe(&nl, names);
+	if((nl80211 = query_family_grps(&nl, family, grps)) < 0)
+		fail("NL family", family, nl80211);
+
+	subscribe(grps[0].id, grps[0].name);
 }
 
 void close_netlink(void)
