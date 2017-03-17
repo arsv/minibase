@@ -41,15 +41,26 @@ int devstate = NONE;
 
 /* Ref. IEEE 802.11-2012 8.4.2.27 RSNE */
 
-const char ies[] = {
+const char ies_ccmp[] = {
 	0x30, 0x14, /* ies { type = 48, len = 20 } */
 	    0x01, 0x00, /* version 1 */
-	    0x00, 0x0F, 0xAC, 0x02, /* TKIP group data chipher */
+	    0x00, 0x0F, 0xAC, 0x04, /* CCMP group data chipher */
 	    0x01, 0x00, /* pairwise chipher suite count */
 	    0x00, 0x0F, 0xAC, 0x04, /* CCMP pairwise chipher */
 	    0x01, 0x00, /* authentication and key management */
 	    0x00, 0x0F, 0xAC, 0x02, /* PSK and RSNA key mgmt */
 	    0x00, 0x00, /* preauth capabilities */
+};
+
+const char ies_tkip[] = {
+	0x30, 0x14,      /* everything's the same, except for: */
+	    0x01, 0x00,
+	    0x00, 0x0F, 0xAC, 0x02, /* TKIP group data chipher */
+	    0x01, 0x00,
+	    0x00, 0x0F, 0xAC, 0x04,
+	    0x01, 0x00,
+	    0x00, 0x0F, 0xAC, 0x02,
+	    0x00, 0x00,
 };
 
 void setup_netlink(void)
@@ -325,7 +336,10 @@ void associate(void)
 	   Those are only needed for wext compatibility code
 	   within the kernel, so we skip them. */
 
-	nl_put(&nl, NL80211_ATTR_IE, ies, sizeof(ies));
+	if(compat)
+		nl_put(&nl, NL80211_ATTR_IE, ies_tkip, sizeof(ies_tkip));
+	else
+		nl_put(&nl, NL80211_ATTR_IE, ies_ccmp, sizeof(ies_ccmp));
 
 	send_genl("ASSOCIATE");
 
@@ -364,15 +378,22 @@ void upload_ptk(void)
 void upload_gtk(void)
 {
 	uint32_t tkip = 0x000FAC02;
+	uint32_t ccmp = 0x000FAC04;
 	struct nlattr* at;
 
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_NEW_KEY, 0);
 	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
 
 	nl_put_u8(&nl, NL80211_ATTR_KEY_IDX, 1);
-	nl_put_u32(&nl, NL80211_ATTR_KEY_CIPHER, tkip);
-	nl_put(&nl, NL80211_ATTR_KEY_DATA, GTK, 32);
 	nl_put(&nl, NL80211_ATTR_KEY_SEQ, RSC, 6);
+
+	if(compat) {
+		nl_put_u32(&nl, NL80211_ATTR_KEY_CIPHER, tkip);
+		nl_put(&nl, NL80211_ATTR_KEY_DATA, GTK, 32);
+	} else {
+		nl_put_u32(&nl, NL80211_ATTR_KEY_CIPHER, ccmp);
+		nl_put(&nl, NL80211_ATTR_KEY_DATA, GTK, 16);
+	}
 
 	at = nl_put_nest(&nl, NL80211_ATTR_KEY_DEFAULT_TYPES);
 	nl_put_empty(&nl, NL80211_KEY_DEFAULT_TYPE_MULTICAST);
