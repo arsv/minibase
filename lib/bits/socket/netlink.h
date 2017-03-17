@@ -6,6 +6,7 @@
 /* level and options for setsockopt() */
 #define SOL_NETLINK 270
 #define NETLINK_ADD_MEMBERSHIP 1
+#define NETLINK_DROP_MEMBERSHIP 2
 
 /* protocols for socket() */
 #define NETLINK_ROUTE           0
