@@ -415,7 +415,7 @@ void cleanup_keys(void)
 	/* we may need KCK and KEK for GTK rekeying */
 }
 
-void group_rekey(void)
+int group_rekey(void)
 {
-	syspause();
+	return 0;
 }
