@@ -276,7 +276,7 @@ void recv_packet_3(void)
 		fail("packet 3/4 from another host", NULL, 0);
 	if(memcmp(anonce, ek->nonce, sizeof(anonce)))
 		fail("packet 3/4 nonce changed", NULL, 0);
-	if(memcmp(replay, ek->replay, sizeof(replay)) > 0)
+	if(memcmp(replay, ek->replay, sizeof(replay)) >= 0)
 		fail("packet 3/4 replay fail", NULL, 0);
 	if(check_mic(ek->mic, KCK, pacbuf, paclen))
 		fail("packet 3/4 bad MIC", NULL, 0);
@@ -297,6 +297,7 @@ void recv_packet_3(void)
 	fetch_gtk(payload + 8, paylen - 8);
 
 	memcpy(RSC, ek->rsc, 6); /* it's 8 bytes but only 6 are used */
+	memcpy(replay, ek->replay, sizeof(replay));
 }
 
 /* Packet 4 is just a confirmation, nothing significant is being
@@ -442,7 +443,7 @@ void take_group_1(struct eapolkey* ek, uint8_t mac[6])
 
 	if(memcmp(amac, mac, 6))
 		quit("group 1/2 from another host", NULL, 0);
-	if(memcmp(replay, ek->replay, sizeof(replay)) > 0)
+	if(memcmp(replay, ek->replay, sizeof(replay)) >= 0)
 		quit("group 1/2 replay fail", NULL, 0);
 	if(check_mic(ek->mic, KCK, pacbuf, paclen))
 		quit("group 1/2 bad MIC", NULL, 0);
@@ -456,6 +457,7 @@ void take_group_1(struct eapolkey* ek, uint8_t mac[6])
 	fetch_gtk(payload + 8, paylen - 8);
 
 	memcpy(RSC, ek->rsc, 6); /* it's 8 bytes but only 6 are used */
+	memcpy(replay, ek->replay, sizeof(replay));
 }
 
 void send_group_2(struct eapolkey* ek)
