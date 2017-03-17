@@ -21,6 +21,8 @@ char* ssid;
 int signalled;
 int quitting;
 
+int compat; /* CCMP pairwise but TKIP group */
+
 ERRTAG = "wpa";
 ERRLIST = {
 	REPORT(EINVAL), REPORT(EBUSY), REPORT(ENOENT), REPORT(EPERM),
@@ -140,11 +142,19 @@ static void setup(int argc, char** argv, char** envp)
 	char* arg_freq = argv[i++];
 	char* arg_bssid = argv[i++];
 	char* arg_ssid = argv[i++];
+	char* arg_mode = i < argc ? argv[i++] : NULL;
 
 	if(!(p = parsemac(arg_bssid, bssid)) || *p)
 		fail("invalid bssid:", arg_bssid, 0);
 	if(!(p = parseint(arg_freq, &frequency)) || *p)
 		fail("invalid frequency:", arg_freq, 0);
+
+	if(!arg_mode || !strcmp(arg_mode, "ccmp"))
+		;
+	else if(!strcmp(arg_mode, "tkip"))
+		compat = 1;
+	else
+		fail("invalid mode", arg_mode, 0);
 
 	setup_psk(envp);
 	setup_netlink();

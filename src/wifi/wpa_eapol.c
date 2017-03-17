@@ -96,18 +96,26 @@ static void pmk_to_ptk()
 static const char kde_type_gtk[4] = { 0x00, 0x0F, 0xAC, 0x01 };
 
 /* From wpa_supplicant: swap Tx/Rx for Michael MIC. No idea where
-   this comes from, but it's necessary to get the right key. */
-static void store_gtk(uint8_t buf[32])
+   this comes from, but it's necessary to get the right key.
+
+   Only applies to TKIP. In CCMP mode, the key is 16 bytes and
+   there's no need to swap anything.  */
+
+static void store_gtk(uint8_t* buf)
 {
 	memcpy(GTK, buf, 16);
-	memcpy(GTK + 16, buf + 24, 8);
-	memcpy(GTK + 24, buf + 16, 8);
+
+	if(compat) {
+		memcpy(GTK + 16, buf + 24, 8);
+		memcpy(GTK + 24, buf + 16, 8);
+	}
 }
 
 static void fetch_gtk(char* buf, int len)
 {
 	struct kde* kd;
 	int kdlen;
+	int keylen = compat ? 32 : 16;
 
 	char* ptr = buf;
 	char* end = buf + len;
@@ -122,7 +130,7 @@ static void fetch_gtk(char* buf, int len)
 
 		if(kd->magic != 0xDD)
 			continue;
-		if(kd->len != 6 + 32) /* kd->type[4], flags[1], _[1], GTK[32] */
+		if(kd->len != 6 + keylen) /* kd->type[4], flags[1], _[1], GTK[] */
 			continue;
 		if(memcmp(kd->type, kde_type_gtk, 4))
 			continue;
