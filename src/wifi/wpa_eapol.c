@@ -139,32 +139,40 @@ static void fetch_gtk(char* buf, int len)
 	fail("no group key receieved", NULL, 0);
 }
 
-static struct eapolkey* recv_packet(uint8_t mac[6])
+static struct eapolkey* recv_eapol(uint8_t mac[6])
 {
 	struct sockaddr_ll sender;
 	int psize = sizeof(packet);
 	int asize = sizeof(sender);
 	int fd = rawsock;
 
+	long rd = sysrecvfrom(fd, packet, psize, 0, &sender, &asize);
+
 	struct eapolkey* ek = (struct eapolkey*) packet;
 	int eksize = sizeof(*ek);
-	long rd;
 
-	do {
-		rd = sysrecvfrom(fd, packet, psize, 0, &sender, &asize);
-
-		if(rd < 0)
-			fail("recv", "PF_PACKET", rd);
-		if(rd < eksize)
-			continue;
-		if(ek->paclen + 4 != rd)
-			continue;
-		if(eksize + ek->paylen > rd)
-			continue;
-
-	} while(0);
+	if(rd < 0)
+		fail("recv", "PF_PACKET", rd);
+	if(rd < eksize)
+		return NULL; /* packet too short */
+	if(ntohs(ek->paclen) + 4 != rd)
+		return NULL; /* packet size mismatch */
+	if(eksize + ntohs(ek->paylen) > rd)
+		return NULL; /* truncated payload */
+	if(ek->pactype != EAPOL_KEY)
+		return 0; /* not a key packet */
 
 	memcpy(mac, sender.addr, 6);
+
+	return ek;
+}
+
+static struct eapolkey* recv_valid(uint8_t mac[6])
+{
+	struct eapolkey* ek;
+
+	while(!(ek = recv_eapol(mac)))
+		;
 
 	return ek;
 }
@@ -197,10 +205,10 @@ static void send_packet(char* buf, int len)
 
 void recv_packet_1(void)
 {
-	struct eapolkey* ek = recv_packet(amac);
+	struct eapolkey* ek = recv_valid(amac);
 		
 	/* wpa_supplicant does not check ek->version */
-		
+
 	if(ek->pactype != EAPOL_KEY)
 		fail("packet 1/4 not a key", NULL, 0);
 	if(ek->type != EAPOL_KEY_RSN)
@@ -259,7 +267,7 @@ void send_packet_2(void)
 void recv_packet_3(void)
 {
 	uint8_t mac[6];
-	struct eapolkey* ek = recv_packet(mac);
+	struct eapolkey* ek = recv_valid(mac);
 
 	char* pacbuf = (char*)ek;
 	int paclen = 4 + ntohs(ek->paclen);
@@ -415,7 +423,79 @@ void cleanup_keys(void)
 	/* we may need KCK and KEK for GTK rekeying */
 }
 
+/* Re-keying exchange mostly repeats messages 3 and 4, with minor
+   changes. But it gets called in ppoll loop, so got to be careful
+   here not to block. Return 0 here means not exchange took place.
+
+   This exchange happens over an encrypted connection. Things like
+   MIC failures should never happen and if they do, it's probably
+   a reason to drop connection.
+
+   UNTESTED! my AP cannot rekey apparently, wtf.
+
+   Ref. IEEE 80211-2012 11.6.7 Group Key Handshake */
+
+void take_group_1(struct eapolkey* ek, uint8_t mac[6])
+{
+	char* pacbuf = (char*)ek;
+	int paclen = 4 + ntohs(ek->paclen);
+
+	if(memcmp(amac, mac, 6))
+		quit("group 1/2 from another host", NULL, 0);
+	if(memcmp(replay, ek->replay, sizeof(replay)) > 0)
+		quit("group 1/2 replay fail", NULL, 0);
+	if(check_mic(ek->mic, KCK, pacbuf, paclen))
+		quit("group 1/2 bad MIC", NULL, 0);
+
+	char* payload = ek->payload;
+	int paylen = ntohs(ek->paylen);
+
+	if(unwrap_key(KEK, payload, paylen))
+		quit("group 1/2 cannot unwrap GTK", NULL, 0);
+
+	fetch_gtk(payload + 8, paylen - 8);
+
+	memcpy(RSC, ek->rsc, 6); /* it's 8 bytes but only 6 are used */
+}
+
+void send_group_2(struct eapolkey* ek)
+{
+	//ek->version = 1; /* reused */
+	//ek->pactype = 3; /* reused */
+	//ek->type = 2; /* reused */
+	ek->keyinfo = htons(KI_MIC | KI_SECURE);
+	ek->keylen = 0;
+	//ek->replay is reused
+	memzero(ek->nonce, sizeof(snonce));
+	memzero(ek->iv, sizeof(ek->iv));
+	memzero(ek->rsc, sizeof(ek->rsc));
+	memzero(ek->mic, sizeof(ek->mic));
+	memzero(ek->_reserved, sizeof(ek->_reserved));
+
+	int paclen = sizeof(*ek);
+
+	ek->paylen = htons(0);
+	ek->paclen = htons(paclen);
+
+	make_mic(ek->mic, KCK, packet, paclen);
+
+	send_packet(packet, paclen);
+}
+
 int group_rekey(void)
 {
-	return 0;
+	uint8_t mac[6];
+	struct eapolkey* ek;
+
+	if(!(ek = recv_eapol(mac)))
+		return 0;
+	if(ek->type != EAPOL_KEY_RSN)
+		return 0; /* re-keying w/ a different key type */
+	if(ntohs(ek->keyinfo) != (KI_SECURE | KI_ENCRYPTED | KI_ACK))
+		return 0; /* not a group rekey packet */
+
+	take_group_1(ek, mac);
+	send_group_2(ek);
+
+	return 1;
 }
