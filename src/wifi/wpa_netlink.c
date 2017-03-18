@@ -63,6 +63,10 @@ const char ies_tkip[] = {
 	    0x00, 0x00,
 };
 
+/* MLME group (AUTHENTICATE, CONNECT, DISCONNECT notifications) is subscribed
+   to right away, but scan (NEW_SCAN_RESULTS, SCAN_ABORTED) subscription is
+   delayed until we actually need it, and may not even happen. */
+
 void setup_netlink(void)
 {
 	char* family = "nl80211";
@@ -106,14 +110,15 @@ int resolve_ifname(char* name)
    DISCONNECT notification pretty much at any point.
 
    To make the whole thing somewhat tractable, all commands are treated
-   as async, with no ACK and no waiting for immediate reply, and all
-   non-mainline responses (includuing ERRs) are handled in context-free
-   manner very early during packet analysis. The actual code looks like
+   as async, and all non-mainline responses (ERRs and unexpected state
+   changes) are handled very early in check_msg. The actual code then
+   looks like this:
 
        send(ASSOCIATE)
        wait(ASSOCIATED)
 
-   but that's only the happy path, anything else gets branched to in wait(). */
+   but that's only the happy path, anything else gets branched to
+   in wait() which in turn requires some state tracking. */
 
 #define CONTINUE 1
 #define EXPECTED 0
@@ -190,11 +195,20 @@ static int recv_genl(int expected)
 	return ret;
 }
 
-static int recv_check(int expected)
+/* For commands like AUTHENTICATE, CONNECT we send the request and keep
+   receiving incoming packets until we get the right state change notification.
+   *Wrong* state changes are handled in check_msg.
+
+   Because of the way recv_genl works, cmd 0 here means waiting for ACK or ERR
+   packet of the last command sent. */
+
+#define CMDACK 0
+
+static int wait_for(int cmd)
 {
 	int ret;
 
-	if((ret = recv_genl(expected)) < 0)
+	if((ret = recv_genl(cmd)) < 0)
 		quit(lastcmd, NULL, ret);
 
 	return ret;
@@ -210,7 +224,7 @@ static void send_genl(const char* cmdtag)
 	lastcmd = cmdtag;
 }
 
-static void send_check(const char* cmdtag)
+static void send_sync(const char* cmdtag)
 {
 	struct nlmsg* msg = (struct nlmsg*)(nl.txbuf);
 
@@ -218,7 +232,7 @@ static void send_check(const char* cmdtag)
 
 	send_genl(cmdtag);
 
-	recv_check(0);
+	wait_for(CMDACK);
 }
 
 /* After uploading the keys, we keep monitoring nl.fd for possible
@@ -280,7 +294,7 @@ static void scan_single_freq()
 	scan_group_op(NETLINK_ADD_MEMBERSHIP);
 
 	send_genl("TRIGGER_SCAN");
-	recv_check(NL80211_CMD_NEW_SCAN_RESULTS);
+	wait_for(NL80211_CMD_NEW_SCAN_RESULTS);
 
 	scan_group_op(NETLINK_DROP_MEMBERSHIP);
 }
@@ -313,7 +327,7 @@ void authenticate(void)
 	scan_single_freq();
 
 	send_auth_request();
-	recv_check(cmd);
+	wait_for(cmd);
 }
 
 /* The right IEs here prompt the AP to initiate EAPOL exchange. */
@@ -342,8 +356,7 @@ void associate(void)
 		nl_put(&nl, NL80211_ATTR_IE, ies_ccmp, sizeof(ies_ccmp));
 
 	send_genl("ASSOCIATE");
-
-	recv_check(NL80211_CMD_CONNECT);
+	wait_for(NL80211_CMD_CONNECT);
 }
 
 /* Packet encryption happens in the card's FW (or HW) but the keys
@@ -372,7 +385,7 @@ void upload_ptk(void)
 	nl_put_empty(&nl, NL80211_KEY_DEFAULT_TYPE_UNICAST);
 	nl_end_nest(&nl, at);
 
-	send_check("NEW_KEY PTK");
+	send_sync("NEW_KEY PTK");
 }
 
 void upload_gtk(void)
@@ -399,7 +412,7 @@ void upload_gtk(void)
 	nl_put_empty(&nl, NL80211_KEY_DEFAULT_TYPE_MULTICAST);
 	nl_end_nest(&nl, at);
 
-	send_check("NEW_KEY GTK");
+	send_sync("NEW_KEY GTK");
 }
 
 void disconnect(void)
@@ -412,5 +425,5 @@ void disconnect(void)
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_DISCONNECT, 0);
 	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
 
-	send_check("DISCONNECT");
+	send_sync("DISCONNECT");
 }

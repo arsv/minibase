@@ -125,7 +125,7 @@ static void setup_psk(char** envp)
 }
 
 /* envp: PSK=001122...EEFF
-   argv: wpa wlp1s0 5180 00:11:22:33:44:55 "Blackhole" 
+   argv: wpa wlp1s0 5180 00:11:22:33:44:55 "Blackhole" [tkip]
 
    Tune wlp1s0 to 5180MHz and connect to station 00:11:22:33:44:55
    named "Blackhole" using supplied PSK. */
