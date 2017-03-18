@@ -105,7 +105,7 @@ static void store_gtk(uint8_t* buf)
 {
 	memcpy(GTK, buf, 16);
 
-	if(compat) {
+	if(tkipgroup) {
 		memcpy(GTK + 16, buf + 24, 8);
 		memcpy(GTK + 24, buf + 16, 8);
 	}
@@ -115,7 +115,7 @@ static void fetch_gtk(char* buf, int len)
 {
 	struct kde* kd;
 	int kdlen;
-	int keylen = compat ? 32 : 16;
+	int keylen = tkipgroup ? 32 : 16;
 
 	char* ptr = buf;
 	char* end = buf + len;

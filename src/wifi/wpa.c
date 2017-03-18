@@ -21,7 +21,7 @@ char* ssid;
 int signalled;
 int quitting;
 
-int compat; /* CCMP pairwise but TKIP group */
+int tkipgroup;
 
 ERRTAG = "wpa";
 ERRLIST = {
@@ -152,7 +152,7 @@ static void setup(int argc, char** argv, char** envp)
 	if(!arg_mode || !strcmp(arg_mode, "ccmp"))
 		;
 	else if(!strcmp(arg_mode, "tkip"))
-		compat = 1;
+		tkipgroup = 1;
 	else
 		fail("invalid mode", arg_mode, 0);
 
