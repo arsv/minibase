@@ -336,7 +336,7 @@ void associate(void)
 	   Those are only needed for wext compatibility code
 	   within the kernel, so we skip them. */
 
-	if(compat)
+	if(tkipgroup)
 		nl_put(&nl, NL80211_ATTR_IE, ies_tkip, sizeof(ies_tkip));
 	else
 		nl_put(&nl, NL80211_ATTR_IE, ies_ccmp, sizeof(ies_ccmp));
@@ -387,7 +387,7 @@ void upload_gtk(void)
 	nl_put_u8(&nl, NL80211_ATTR_KEY_IDX, 1);
 	nl_put(&nl, NL80211_ATTR_KEY_SEQ, RSC, 6);
 
-	if(compat) {
+	if(tkipgroup) {
 		nl_put_u32(&nl, NL80211_ATTR_KEY_CIPHER, tkip);
 		nl_put(&nl, NL80211_ATTR_KEY_DATA, GTK, 32);
 	} else {
