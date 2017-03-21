@@ -125,7 +125,7 @@ static void setup_psk(char** envp)
 }
 
 /* envp: PSK=001122...EEFF
-   argv: wpa wlp1s0 5180 00:11:22:33:44:55 "Blackhole" [tkip]
+   argv: wpa wlp1s0 5180 00:11:22:33:44:55 "Blackhole" [ct]
 
    Tune wlp1s0 to 5180MHz and connect to station 00:11:22:33:44:55
    named "Blackhole" using supplied PSK. */
@@ -149,9 +149,9 @@ static void setup(int argc, char** argv, char** envp)
 	if(!(p = parseint(arg_freq, &frequency)) || *p)
 		fail("invalid frequency:", arg_freq, 0);
 
-	if(!arg_mode || !strcmp(arg_mode, "ccmp"))
+	if(!arg_mode || !strcmp(arg_mode, "cc"))
 		;
-	else if(!strcmp(arg_mode, "tkip"))
+	else if(!strcmp(arg_mode, "ct"))
 		tkipgroup = 1;
 	else
 		fail("invalid mode", arg_mode, 0);
