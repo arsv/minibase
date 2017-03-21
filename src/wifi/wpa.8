@@ -6,7 +6,7 @@ wpa \- WPA2-PSK client tool (supplicant).
 .SH SYNOPSYS
 \fBexport\fR PSK\fB=\fR\fI00112233...FF0011...EEFF\fR
 .br
-wpa \fIdevice\fR \fIfreq\fR \fIbssid\fR "\fIssid\fR" [\fIgroup-cipher\fR]
+wpa \fIdevice\fR \fIfreq\fR \fIbssid\fR "\fIssid\fR" [\fImode\fR]
 '''
 .SH DESCRIPTION
 This tool establishes and maintains an encrypted connection to a given
@@ -37,8 +37,9 @@ AP base frequency in MHz (\fT5180\fR).
 MAC address of the AP in hex notation (\fT00:11:22:33:44:55\fR).
 .IP "\fIssid\fR" 4
 Human-readable AP name ("\fTBlackhole\fR").
-.IP "\fIgroup-cipher\fR" 4
-Either \fBtkip\fR or \fBccmp\fR; the latter is the default and may be omited.
+.IP "\fImode\fR" 4
+Determines cipher suite to use: \fBcc\fR for CCMP pairwise CCMP group or
+\fBct\fR CCMP pairwise TKIP group. Defaults to \fBcc\fR if not specified.
 .P
 The tools expects 32-byte pre-shared key (PSK) in hex notation.
 For passphrase-based configuration, the key must be derived from
@@ -57,7 +58,7 @@ it must be sure the chosen AP does in fact support WPA2-PSK.
 Proper WPA2 setups should always use CCMP as both pairwise and group cipher.
 However, there are lots of reasonably modern, ostensibly WPA2 APs operating
 in WPA1/WPA2 compatibility mode with CCMP pairwise but TKIP group ciphers.
-Make sure to check \fIgroup-cipher\fR it connection fails.
+Make sure to check \fImode\fR if connection fails.
 .P
 This tool does not support WPA2 authentication schemes that aren't WPA2-PSK,
 in particular WPA2 Enterprise (including EAP-PSK) and WPA2 FT-PSK (fast
