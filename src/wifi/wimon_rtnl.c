@@ -29,33 +29,6 @@ char rtnl_rx[4096];
 int rtnl_dump_pending;
 int rtnl_dump_lock;
 
-static void rtnl_send_check(void)
-{
-	if(nl_send(&rtnl))
-		fail("send", "rtnl", rtnl.err);
-}
-
-static void request_link_dump(void)
-{
-	struct ifinfomsg* msg;
-	nl_header(&rtnl, msg, RTM_GETLINK, NLM_F_DUMP);
-	rtnl_send_check();
-}
-
-static void request_addr_dump(void)
-{
-	struct ifaddrmsg* msg;
-	nl_header(&rtnl, msg, RTM_GETADDR, NLM_F_DUMP);
-	rtnl_send_check();
-}
-
-static void request_route_dump(void)
-{
-	struct rtmsg* msg;
-	nl_header(&rtnl, msg, RTM_GETROUTE, NLM_F_DUMP);
-	rtnl_send_check();
-}
-
 struct ifinfomsg* nl_ifi(struct nlmsg* nlm)
 {
 	if(nlm->len < sizeof(struct ifinfomsg))
@@ -238,27 +211,48 @@ void msg_del_route(struct rtmsg* msg)
 
    NLMSG_DONE packets should never arrive unrequested on RTNL. */
 
+static void send_dump_req(int cmd, int hdrsize)
+{
+	struct nlmsg* nlm;
+
+	if(hdrsize < sizeof(struct nlmsg))
+		fail("internal scan req inconsistent", NULL, 0);
+
+	if((nlm = nl_start_packet(&rtnl, hdrsize)))
+		*nlm = (struct nlmsg) {
+			.len = hdrsize,
+			.type = cmd,
+			.flags = NLM_F_REQUEST | NLM_F_DUMP,
+			.seq = rtnl.seq,
+			.pid = 0
+		};
+
+	if(nl_send(&rtnl))
+		fail("send", "rtnl", rtnl.err);
+}
+
 static void proceed_with_dump(void)
 {
 	int bit;
 	int req = rtnl_dump_pending;
-	void (*func)(void) = NULL;
 
 	if(!req)
 		return;
 	else if(req & (bit = DUMP_LINKS))
-		func = request_link_dump;
+		send_dump_req(RTM_GETLINK, sizeof(struct ifinfomsg));
 	else if(req & (bit = DUMP_ADDRS))
-		func = request_addr_dump;
+		send_dump_req(RTM_GETADDR, sizeof(struct ifaddrmsg));
 	else if(req & (bit = DUMP_ROUTES))
-		func = request_route_dump;
-	if(!func)
-		return;
+		send_dump_req(RTM_GETROUTE, sizeof(struct rtmsg));
+	else bit = 0;
 
-	rtnl_dump_pending &= ~bit;
-	rtnl_dump_lock = 1;
-
-	func();
+	if(bit) {
+		rtnl_dump_pending &= ~bit;
+		rtnl_dump_lock = 1;
+	} else {
+		/* should not happen; stray bits in rtnl_dump_pending */
+		rtnl_dump_pending = 0;
+	}
 }
 
 static void msg_rtnl_done(struct nlmsg* msg)
