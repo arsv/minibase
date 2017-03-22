@@ -138,13 +138,13 @@ static void fetch_gtk(char* buf, int len)
 		/* Flags in kd->data[0] of GTK KDEs;
 		   Ref. IEEE 802.11-2012 Fig. 11-31 */
 		if((kd->data[0] & 0x3) != 0x01)
-			fail("bad GTK index", NULL, 0);
+			quit("bad GTK index", NULL, 0);
 
 		store_gtk(kd->data + 2);
 		return;
 	}
 
-	fail("no group key receieved", NULL, 0);
+	quit("no group key receieved", NULL, 0);
 }
 
 static struct eapolkey* recv_eapol(uint8_t mac[6])
