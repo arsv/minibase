@@ -149,6 +149,9 @@ static void msg_connect(struct link* ls, struct nlgen* msg)
 {
 	uint8_t* bssid;
 
+	if(ls->flags & F_CONNECT)
+		return;
+
 	if((bssid = nl_get_of_len(msg, NL80211_ATTR_MAC, 6))) {
 		eprintf("connect %s to %02X:%02X:%02X:%02X:%02X:%02X\n",
 				ls->name,
@@ -165,33 +168,12 @@ static void msg_connect(struct link* ls, struct nlgen* msg)
 
 static void msg_disconnect(struct link* ls, struct nlgen* msg)
 {
+	if(!(ls->flags & F_CONNECT))
+		return;
+
 	ls->flags &= ~F_CONNECT;
 	memset(ls->bssid, 0, 6);
 	eprintf("wifi %s disconnected\n", ls->name);
-}
-
-static void msg_associate(struct link* ls, struct nlgen* msg)
-{
-	eprintf("wifi %s associated\n", ls->name);
-	ls->flags |= F_ASSOC;
-}
-
-static void msg_authenticate(struct link* ls, struct nlgen* msg)
-{
-	eprintf("wifi %s authenticated\n", ls->name);
-	ls->flags |= F_AUTH;
-}
-
-static void msg_deauthenticate(struct link* ls, struct nlgen* msg)
-{
-	eprintf("wifi %s deauthenticated\n", ls->name);
-	ls->flags &= ~F_AUTH;
-}
-
-static void msg_disassociate(struct link* ls, struct nlgen* msg)
-{
-	eprintf("wifi %s disassociated\n", ls->name);
-	ls->flags &= ~F_ASSOC;
 }
 
 struct cmdh {
@@ -203,10 +185,10 @@ struct cmdh {
 	{ NL80211_CMD_TRIGGER_SCAN,     msg_scan_start     },
 	{ NL80211_CMD_SCAN_ABORTED,     msg_scan_abort     },
 	{ NL80211_CMD_NEW_SCAN_RESULTS, msg_scan_res       },
-	{ NL80211_CMD_ASSOCIATE,        msg_associate      },
-	{ NL80211_CMD_AUTHENTICATE,     msg_authenticate   },
-	{ NL80211_CMD_DEAUTHENTICATE,   msg_deauthenticate },
-	{ NL80211_CMD_DISASSOCIATE,     msg_disassociate   },
+	{ NL80211_CMD_AUTHENTICATE,     NULL               },
+	{ NL80211_CMD_ASSOCIATE,        NULL               },
+	{ NL80211_CMD_DEAUTHENTICATE,   NULL               },
+	{ NL80211_CMD_DISASSOCIATE,     NULL               },
 	{ NL80211_CMD_CONNECT,          msg_connect        },
 	{ NL80211_CMD_DISCONNECT,       msg_disconnect     },
 	{ NL80211_CMD_NEW_STATION,      NULL               },

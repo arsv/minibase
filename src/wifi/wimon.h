@@ -2,41 +2,32 @@
 
 #define NLINKS 8
 #define NSCANS 64
-#define NIPS 4
 
 #define NAMELEN 16
 #define SSIDLEN 32
+#define PSKLEN 32
 
 /* link.flags */
 #define F_WIFI     (1<<0)
 #define F_SCANNING (1<<1)
-#define F_SCANRES  (1<<1)
-#define F_AUTH     (1<<2)
-#define F_ASSOC    (1<<3)
-#define F_CONNECT  (1<<4)
-#define F_GATEWAY  (1<<5)
-#define F_HASIP    (1<<6)
-#define F_CARRIER  (1<<7)
+#define F_SCANRES  (1<<2)
+#define F_CONNECT  (1<<5)
+#define F_CARRIER  (1<<6)
+#define F_IPADDR   (1<<7)
+#define F_GATEWAY  (1<<8)
 
 /* scan.flags */
 #define S_WPA      (1<<0)
-
-struct ip4 {
-	uint8_t addr[4];
-	uint8_t mask;
-};
 
 struct link {
 	int ifi;
 	int seq;
 	char name[NAMELEN];
-
 	short flags;
-	short mode;
 	uint8_t bssid[6];
-
-	struct ip4 ip[NIPS];
-	struct ip4 gw;
+	uint8_t ip[4];
+	uint8_t mask;
+	uint8_t _;
 };
 
 struct scan {
@@ -49,10 +40,16 @@ struct scan {
 	char ssid[SSIDLEN];
 };
 
+struct gate {
+	int ifi;
+	uint8_t ip[4];
+};
+
 extern struct link links[];
 extern struct scan scans[];
 extern int nlinks;
 extern int nscans;
+extern struct gate gateway;
 
 struct netlink;
 struct nlmsg;
@@ -89,3 +86,6 @@ void drop_stale_scan_slots(int ifi, int seq);
 void drop_scan_slots_for(int ifi);
 
 void parse_scan_result(struct link* ls, struct nlgen* msg);
+
+void add_addr(int ifi, uint8_t ip[4], int mask);
+void del_addr(int ifi, uint8_t ip[4]);

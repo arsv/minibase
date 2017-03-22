@@ -6,6 +6,7 @@ struct link links[NLINKS];
 struct scan scans[NSCANS];
 int nlinks;
 int nscans;
+struct gate gateway;
 
 struct link* find_link_slot(int ifi)
 {

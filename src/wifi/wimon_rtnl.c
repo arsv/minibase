@@ -110,11 +110,11 @@ void msg_new_link(struct ifinfomsg* msg)
 	if(!(ls = grab_link_slot(msg->index)))
 		return;
 
-	ls->ifi = msg->index;
-	memset(ls->name, 0, sizeof(ls->name));
-	memcpy(ls->name, name, nlen);
-	
-	eprintf("new-link %i %s\n", msg->index, ls->name);
+	if(!ls->ifi) {
+		ls->ifi = msg->index;
+		memcpy(ls->name, name, nlen);
+		eprintf("new-link %i %s\n", msg->index, ls->name);
+	}
 
 	if((u8 = nl_u8(ifi_get(msg, IFLA_CARRIER))))
 		set_link_carrier(ls, *u8);
@@ -122,8 +122,10 @@ void msg_new_link(struct ifinfomsg* msg)
 
 void msg_del_link(struct ifinfomsg* msg)
 {
-	struct link* ls = find_link_slot(msg->index);
-	if(!ls) return;
+	struct link* ls;
+
+	if(!(ls = find_link_slot(msg->index)))
+		return;
 
 	eprintf("del-link %s %i\n", ls->ifi, ls->name);
 
@@ -137,7 +139,6 @@ void msg_rtnl_err(struct nlerr* msg)
 
 void msg_new_addr(struct ifaddrmsg* msg)
 {
-	int i;
 	struct link* ls;
 	uint8_t* ip;
 
@@ -145,30 +146,21 @@ void msg_new_addr(struct ifaddrmsg* msg)
 		return;
 	if(!(ip = nl_bin(ifa_get(msg, IFA_ADDRESS), 4)))
 		return;
-
-	for(i = 0; i < NIPS; i++)
-		if(!memcmp(ls->ip[i].addr, ip, 4))
-			return;
-	for(i = 0; i < NIPS; i++)
-		if(ls->ip[i].mask == 0)
-			break;
-	if(i >= NIPS)
+	if(ls->flags & F_IPADDR)
 		return;
 
-	memcpy(ls->ip[i].addr, ip, 4);
-	ls->ip[i].mask = msg->prefixlen;
+	memcpy(ls->ip, ip, 4);
+	ls->mask = msg->prefixlen;
+	ls->flags |= F_IPADDR;
 
-	eprintf("new-addr %s %i.%i.%i.%i/%i at %i\n",
+	eprintf("new-addr %s %i.%i.%i.%i/%i\n",
 			ls->name,
 			ip[0], ip[1], ip[2], ip[3],
-			msg->prefixlen, i);
-
-	ls->flags |= F_HASIP;
+			msg->prefixlen);
 }
 
 void msg_del_addr(struct ifaddrmsg* msg)
 {
-	int i;
 	struct link* ls;
 	uint8_t* ip;
 
@@ -176,23 +168,17 @@ void msg_del_addr(struct ifaddrmsg* msg)
 		return;
 	if(!(ip = nl_bin(ifa_get(msg, IFA_ADDRESS), 4)))
 		return;
-
-	for(i = 0; i < NIPS; i++)
-		if(!memcmp(ls->ip[i].addr, ip, 4))
-			break;
-	if(i >= NIPS)
+	if(!(ls->flags & F_IPADDR))
+		return;
+	if(memcmp(ls->ip, ip, 4))
 		return;
 
-	eprintf("del-addr %s %i.%i.%i.%i at %i\n", ls->name,
-			ip[0], ip[1], ip[2], ip[3], i);
+	memzero(ls->ip, 4);
+	ls->mask = 0;
+	ls->flags &= ~F_IPADDR;
 
-	memset(&ls->ip[i], 0, sizeof(ls->ip[i]));
-
-	for(i = 0; i < NIPS; i++)
-		if(ls->ip[i].mask)
-			return;
-
-	ls->flags &= ~F_HASIP;
+	eprintf("del-addr %s %i.%i.%i.%i\n", ls->name,
+			ip[0], ip[1], ip[2], ip[3]);
 }
 
 void msg_new_route(struct rtmsg* msg)
@@ -201,26 +187,24 @@ void msg_new_route(struct rtmsg* msg)
 	uint32_t* oif;
 	uint8_t* gw;
 
+	if(gateway.ifi)
+		return;
 	if(msg->type != RTN_UNICAST)
 		return;
 	if(msg->dst_len)
 		return;
 	if(!(oif = nl_u32(rtm_get(msg, RTA_OIF))))
 		return;
+	if(!(gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
+		return; /* not a gw route */
 	if(!(ls = find_link_slot(*oif)))
 		return;
 
-	ls->flags |= F_GATEWAY;
+	memcpy(gateway.ip, gw, 4);
+	gateway.ifi = *oif;
 
-	if((gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4))) {
-		memcpy(ls->gw.addr, gw, 4);
-		ls->gw.mask = 32;
-		eprintf("new-route %s gw %i.%i.%i.%i\n", ls->name,
-				gw[0], gw[1], gw[2], gw[3]);
-	} else {
-		memset(&(ls->gw), 0, sizeof(ls->gw));
-		eprintf("new-route %s no-gw type=%i\n", ls->name, msg->type);
-	}
+	eprintf("new-gw %s %i.%i.%i.%i\n",
+			ls->name, gw[0], gw[1], gw[2], gw[3]);
 }
 
 void msg_del_route(struct rtmsg* msg)
@@ -233,17 +217,18 @@ void msg_del_route(struct rtmsg* msg)
 		return;
 	if(!(oif = nl_u32(rtm_get(msg, RTA_OIF))))
 		return;
+	if(!(gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
+		return;
 	if(!(ls = find_link_slot(*oif)))
 		return;
+	if(gateway.ifi != *oif)
+		return;
+	if(memcmp(gateway.ip, gw, 4))
+		return;
 
-	if((gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
-		if(memcmp(ls->gw.addr, gw, 4))
-			return;
+	memzero(&gateway, sizeof(gateway));
 
-	eprintf("del-route %s\n", ls->name);
-	memset(&(ls->gw), 0, sizeof(ls->gw));
-
-	ls->flags &= ~F_GATEWAY;
+	eprintf("del-gw %s\n", ls->name);
 }
 
 /* At most one dump may be running at a time; requesting more results
