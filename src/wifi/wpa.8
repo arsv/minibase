@@ -30,7 +30,7 @@ goes down for external reasons, including on AP request.
 .P
 The following arguments must be passed to \fBwpa\fR:
 .IP "\fIdevice\fR" 4
-Predictable netdev name (\fTwlp1s0\fR).
+Network device name (\fTwlp1s0\fR).
 .IP "\fIfreq\fR" 4
 AP base frequency in MHz (\fT5180\fR).
 .IP "\fIbssid\fR" 4
@@ -49,16 +49,17 @@ the passphrase first.
 Attempts to connect with a wrong key, or using wrong ciphers, are silently
 ignored by the AP. Since normal key exchange is very fast, \fBwpa\fR sets a
 1 second timeout and declares a failure if the time runs out.
-This is a design feature of the authentication protocol (EAPOL).
+The lack of error reporting is a feature of the underlying authentication
+protocol (EAPOL).
 .P
 Ciphers and authentication schemes supported by the AP are usually pulled
-from the scan results. This part is out of scope of this tool. Whoever runs
-it must be sure the chosen AP does in fact support WPA2-PSK.
+from the scan results. Doing so is out of scope of this tool. Whoever starts
+\fBwpa\fR must be sure the chosen AP does in fact support WPA2-PSK.
 .P
 Proper WPA2 setups should always use CCMP as both pairwise and group cipher.
 However, there are lots of reasonably modern, ostensibly WPA2 APs operating
 in WPA1/WPA2 compatibility mode with CCMP pairwise but TKIP group ciphers.
-Make sure to check \fImode\fR if connection fails.
+Use \fImode\fR argument to connect with TKIP group cipher if necessary.
 .P
 This tool does not support WPA2 authentication schemes that aren't WPA2-PSK,
 in particular WPA2 Enterprise (including EAP-PSK) and WPA2 FT-PSK (fast
