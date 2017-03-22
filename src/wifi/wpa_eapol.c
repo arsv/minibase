@@ -311,14 +311,14 @@ void recv_packet_3(void)
 /* Packet 4 is just a confirmation, nothing significant is being
    transmitted here. However, this packet effectively changes
    the state of the link, making the kernel return EINPROGRESS
-   on any authentication/association requests.
+   on any subsequent authentication/association requests.
 
    Until this packet goes through, re-connection to a different
    station is possible without explicit deauth requests as long
-   as the requests are not issues too fast.
+   as the requests are not issued too fast.
 
-   Not sending this will cause the AP to deauthenticate the client
-   really fast. */ 
+   Not sending this confirmation causes the AP to deauthenticate
+   the client after a sub-second timeout. */ 
 
 void send_packet_4(void)
 {
@@ -434,11 +434,12 @@ void cleanup_keys(void)
 
 /* Re-keying exchange mostly repeats messages 3 and 4, with minor
    changes. But it gets called in ppoll loop, so got to be careful
-   here not to block. Return 0 here means not exchange took place.
+   here not to block. Return 0 here means no re-keying happened,
+   and the caller should not re-upload GTK to the card.
 
-   This exchange happens over an encrypted connection. Things like
-   MIC failures should never happen and if they do, it's probably
-   a reason to drop connection.
+   This exchange happens over an encrypted connection.
+   Things like MIC failures should not happen, and if they do
+   it's likely a good reason to disconnect.
 
    UNTESTED! my AP cannot rekey apparently, wtf.
 
