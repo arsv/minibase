@@ -7,7 +7,6 @@
 #include <sys/read.h>
 #include <sys/close.h>
 #include <sys/execve.h>
-#include <sys/gettimeofday.h>
 #include <bits/socket.h>
 #include <bits/packet.h>
 #include <bits/ioctl/socket.h>
@@ -37,20 +36,23 @@ ERRLIST = {
 
 /* DHCP packets are sent via raw sockets, so full ip and udp headers here. */
 
-struct {
+struct dhcpmsg {
 	struct iphdr ip;
 	struct udphdr udp;
 	struct dhcphdr dhcp;
-	char options[1200];
+	char options[500];
 } __attribute__((packed)) packet;
 
 int optptr = 0;
-
-/* All communication happens via a single socket, and essentially
-   with a single server. The socket is of PF_PACKET variety, bound
-   to a netdevice but without any usable ip setup (we assume so). */
-
 int sockfd = 0;
+
+struct ifreq ifreq;
+uint32_t xid;
+
+struct {
+	uint8_t serverip[4];
+	uint8_t yourip[4];
+} offer;
 
 struct {
 	int index;
@@ -67,17 +69,6 @@ struct sockaddr_ll sockaddr = {
 	.halen = 6,
 	.addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF } /* broadcast */
 };
-
-struct {
-	uint8_t serverip[4];
-	uint8_t yourip[4];
-} offer;
-
-struct timeval reftv;
-struct ifreq ifreq;
-char outbuf[1000];
-
-uint32_t xid;
 
 /* Try to come up with a somewhat random xid by pulling auxvec random
    bytes. Failure is not a big issue here, in the sense that DHCP is
@@ -426,167 +417,6 @@ void recv_acknak(void)
 	}
 }
 
-/* Output */
-
-void note_reftime(void)
-{
-	/* Lease time is relative, but output should be an absolute
-	   timestamp. Reference time is DHCPACK reception. */
-	xchk(sysgettimeofday(&reftv, NULL), "gettimeofday", NULL);
-}
-
-char* fmt_ip(char* p, char* e, uint8_t* ip, int len)
-{
-	if(len != 4) return p;
-
-	p = fmtint(p, e, ip[0]);
-	p = fmtstr(p, e, ".");
-	p = fmtint(p, e, ip[1]);
-	p = fmtstr(p, e, ".");
-	p = fmtint(p, e, ip[2]);
-	p = fmtstr(p, e, ".");
-	p = fmtint(p, e, ip[3]);
-
-	return p;
-}
-
-char* fmt_ips(char* p, char* e, uint8_t* ips, int len)
-{
-	int i;
-
-	if(!len || len % 4) return p;
-
-	for(i = 0; i < len; i += 4) {
-		if(i) p = fmtstr(p, e, " ");
-		p = fmt_ip(p, e, ips + i, 4);
-	}
-
-	return p;
-}
-
-char* fmt_time(char* p, char* e, uint8_t* ptr, int len)
-{
-	if(len != 4) return p;
-
-	uint32_t val = ntohl(*((uint32_t*)ptr));
-	time_t ts = reftv.tv_sec + val;
-
-	p = fmti64(p, e, ts);
-
-	return p;
-}
-
-struct showopt {
-	int key;
-	char* (*fmt)(char*, char*, uint8_t* buf, int len);
-	char* tag;
-} showopts[] = {
-	{  1, fmt_ip,  "subnet" },
-	{  3, fmt_ips, "router" },
-	{ 54, fmt_ip,  "server" },
-	{ 51, fmt_time, "until" },
-	{  6, fmt_ips, "dns" },
-	{ 42, fmt_ips, "ntp" },
-	{  0, NULL, NULL }
-};
-
-void show_config(void)
-{
-	char* p = outbuf;
-	char* e = outbuf + sizeof(outbuf);
-
-	p = fmtstr(p, e, "ip ");
-	p = fmt_ip(p, e, packet.dhcp.yiaddr, sizeof(packet.dhcp.yiaddr));
-	p = fmtstr(p, e, "\n");
-
-	struct showopt* sh;
-	struct dhcpopt* opt;
-
-	for(sh = showopts; sh->key; sh++) {
-		if(!(opt = get_option(sh->key, 0)))
-			continue;
-		p = fmtstr(p, e, sh->tag);
-		p = fmtstr(p, e, " ");
-		p = sh->fmt(p, e, opt->payload, opt->len);
-		p = fmtstr(p, e, "\n");
-	};
-
-	writeall(STDOUT, outbuf, p - outbuf);
-}
-
-#define endof(s) (s + sizeof(s))
-
-static char* arg_ip(char* buf, int size, uint8_t ip[4], int mask)
-{
-	char* p = buf;
-	char* e = buf + size - 1;
-
-	p = fmtip(p, e, ip);
-
-	if(mask > 0 && mask < 32) {
-		p = fmtchar(p, e, '/');
-		p = fmtint(p, e, mask);
-	}
-
-	*p++ = '\0';
-
-	return buf;
-}
-
-static int maskbits(void)
-{
-	struct dhcpopt* opt = get_option(1, 4);
-	uint8_t* ip = (uint8_t*)opt->payload;
-	int mask = 0;
-	int i, b;
-
-	if(!opt) return 0;
-
-	for(i = 3; i >= 0; i--) {
-		for(b = 0; b < 8; b++)
-			if(ip[i] & (1<<b))
-				break;
-		mask += b;
-
-		if(b < 8) break;
-	}
-
-	return (32 - mask);
-}
-
-static uint8_t* gateway(void)
-{
-	struct dhcpopt* opt = get_option(3, 4);
-	return opt ? opt->payload : NULL;
-}
-
-void exec_ip4cfg(char* devname, char** envp)
-{
-	char* args[10];
-	char** ap = args;
-	int ret;
-
-	*ap++ = "ip4cfg";
-	*ap++ = devname;
-
-	char ips[30];
-	int mask = maskbits();
-	*ap++ = arg_ip(ips, sizeof(ips), packet.dhcp.yiaddr, mask);
-
-	char gws[20];
-	uint8_t* gw = gateway();
-
-	if(gw) {
-		*ap++ = "gw";
-		*ap++ = arg_ip(gws, sizeof(gws), gw, 0);
-	}
-
-	*ap++ = NULL;
-
-	ret = execvpe(*args, args, envp);
-	fail("exec", *args, ret);
-}
-
 #define OPTS "nr"
 #define OPT_n (1<<0)
 #define OPT_r (1<<1)
@@ -615,12 +445,12 @@ int main(int argc, char** argv, char** envp)
 	send_request();
 	recv_acknak();
 
-	note_reftime();
+	uint8_t* ip = packet.dhcp.yiaddr;
 
 	if(opts & OPT_n)
-		show_config();
+		show_config(ip);
 	else
-		exec_ip4cfg(devname, envp);
+		exec_ip4cfg(devname, ip, envp);
 
 	return 0;
 }
