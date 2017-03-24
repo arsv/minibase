@@ -51,7 +51,7 @@ static char* fmt_time(char* p, char* e, uint8_t* ptr, int len)
 	return p;
 }
 
-struct showopt {
+const struct showopt {
 	int key;
 	char* (*fmt)(char*, char*, uint8_t* buf, int len);
 	char* tag;
@@ -76,7 +76,7 @@ void show_config(uint8_t* ip)
 	p = fmt_ip(p, e, ip, 4);
 	p = fmtstr(p, e, "\n");
 
-	struct showopt* sh;
+	const struct showopt* sh;
 	struct dhcpopt* opt;
 
 	for(sh = showopts; sh->key; sh++) {
