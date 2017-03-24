@@ -1,3 +1,5 @@
+#include <bits/ints.h>
+
 /* RFC 951 */
 
 #define BOOT_SERVER_PORT  67
@@ -17,15 +19,17 @@
 #define DHCPRELEASE    7
 #define DHCPINFORM     8
 
-/* Options from RFC 2132 which aren't really optional for DHCP
+/* Options from RFC 2132 that the code here somehow depends on.
    Everything else is handled by generic routines that only need
    option codes. */
 
 #define DHCP_COOKIE 0x63825363
 
+#define DHCP_NETMASK        1
+#define DHCP_ROUTER_IP      3
+#define DHCP_REQUESTED_IP  50
 #define DHCP_MESSAGE_TYPE  53
 #define DHCP_SERVER_ID     54
-#define DHCP_REQUESTED_IP  50
 #define DHCP_CLIENT_ID     61
 
 /* RFC 2131 */
@@ -55,3 +59,7 @@ struct dhcpopt {
 	uint8_t len;
 	uint8_t payload[];
 } __attribute__((packed));
+
+struct dhcpopt* get_option(int code, int len);
+void show_config(uint8_t* ip);
+void exec_ip4cfg(char* devname, uint8_t* ip, char** envp);
