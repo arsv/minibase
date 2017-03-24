@@ -437,7 +437,6 @@ int main(int argc, char** argv, char** envp)
 		fail("too many arguments", NULL, 0);
 
 	setup_socket(devname);
-
 	init_xid(envp);
 
 	send_discover();
@@ -446,11 +445,12 @@ int main(int argc, char** argv, char** envp)
 	recv_acknak();
 
 	uint8_t* ip = packet.dhcp.yiaddr;
+	int ifi = iface.index;
 
 	if(opts & OPT_n)
 		show_config(ip);
 	else
-		exec_ip4cfg(devname, ip, envp);
+		conf_netdev(ifi, ip);
 
 	return 0;
 }
