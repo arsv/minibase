@@ -7,6 +7,7 @@
 #include <sys/read.h>
 #include <sys/close.h>
 #include <sys/execve.h>
+#include <bits/arp.h>
 #include <bits/socket.h>
 #include <bits/packet.h>
 #include <bits/ioctl/socket.h>
@@ -43,8 +44,8 @@ struct dhcpmsg {
 	char options[500];
 } __attribute__((packed)) packet;
 
-int optptr = 0;
-int sockfd = 0;
+int optptr;
+int sockfd;
 
 struct ifreq ifreq;
 uint32_t xid;
@@ -60,15 +61,7 @@ struct {
 	uint8_t mac[6];
 } iface;
 
-struct sockaddr_ll sockaddr = {
-	.family = AF_PACKET,
-	.ifindex = 0, /* to be set */
-	.hatype = ARPHRD_NETROM,
-	.pkttype = PACKET_HOST,
-	.protocol = 0, /* to be set, htons(ETH_P_IP) */
-	.halen = 6,
-	.addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF } /* broadcast */
-};
+struct sockaddr_ll sockaddr;
 
 /* Try to come up with a somewhat random xid by pulling auxvec random
    bytes. Failure is not a big issue here, in the sense that DHCP is
@@ -140,7 +133,7 @@ void get_ifhwaddr(void)
 
 	ifreq_ioctl(SIOCGIFHWADDR, "SIOCGIFHWADDR");
 
-	if(ifreq.addr.sa_family != 1 /* AF_LOCAL ?!! */)
+	if(ifreq.addr.sa_family != ARPHRD_ETHER)
 		fail("unexpected hwaddr family on", iface.name, 0);
 
 	memcpy(iface.mac, ifreq.addr.sa_data, 6);
@@ -161,8 +154,15 @@ void setup_socket(char* name)
 
 	get_ifhwaddr();
 
-	sockaddr.ifindex = iface.index;
-	sockaddr.protocol = htons(ETH_P_IP);
+	sockaddr = (struct sockaddr_ll) {
+		.family = AF_PACKET,
+		.ifindex = iface.index,
+		.hatype = ARPHRD_NETROM,
+		.pkttype = PACKET_HOST,
+		.protocol = htons(ETH_P_IP),
+		.halen = 6,
+		.addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF } /* broadcast */
+	};
 
 	xchk(sysbind(sockfd, &sockaddr, sizeof(sockaddr)), "bind", NULL);
 }
