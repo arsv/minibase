@@ -25,23 +25,6 @@ static void init_netlink(void)
 		fail("connect", "NETLINK_ROUTE", ret);
 }
 
-static void flush_iface(int idx)
-{
-	struct ifaddrmsg* req;
-
-	nl_header(&nl, req, RTM_DELADDR, 0,
-		.family = AF_INET,
-		.prefixlen = 0,
-		.flags = 0,
-		.scope = 0,
-		.index = idx);
-
-	long ret = nl_send_recv_ack(&nl);
-
-	if(ret && ret != -EADDRNOTAVAIL)
-		fail("RTM_DELADDR", NULL, nl.err);
-}
-
 static void set_iface_address(int ifi, uint8_t ip[4], int mask)
 {
 	struct ifaddrmsg* req;
@@ -120,7 +103,6 @@ void conf_netdev(int ifi, uint8_t* ip)
 
 	init_netlink();
 
-	flush_iface(ifi);
 	set_iface_address(ifi, ip, mask);
 
 	if(!gw) return;
