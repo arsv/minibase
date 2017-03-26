@@ -55,7 +55,7 @@ void quit(const char* msg, const char* arg, int err)
 	if(msg || arg)
 		fail(msg, arg, err);
 	else
-		_exit(0);
+		_exit(0xFF);
 }
 
 static void sighandler(int sig)
