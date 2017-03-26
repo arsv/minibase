@@ -34,7 +34,7 @@ void hmac_sha1(uint8_t out[20], uint8_t* key, int klen, char* input, int inlen)
 	if(klen < 0)
 		klen = 0; /* wtf */
 	if(klen > 64)
-		klen = 64; /* TODO: key-hashing pass */
+		klen = 64; /* TODO: key-hashing pass for longer keys */
 
 	memcpy(pad, key, klen);
 	memset(pad + klen, 0, 64 - klen);
