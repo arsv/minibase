@@ -159,7 +159,7 @@ static void track_state(struct nlgen* msg)
 			devstate = NONE;
 	} else if(devstate == CONNECTED) {
 		if(cmd == NL80211_CMD_DISCONNECT)
-			quit("disconnected", NULL, 0);
+			quit(NULL, NULL, 0);
 	}
 }
 
