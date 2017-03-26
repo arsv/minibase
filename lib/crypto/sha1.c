@@ -38,7 +38,7 @@ void sha1_init(struct sha1* sh)
 	H[4] = 0xC3D2E1F0;
 }
 
-/* Four rounds are exactly the same except for fx() variants
+/* The four rounds are exactly the same except for fx() variants
    and the constants at the end. Unrolled to avoid possible
    indirection penalties. */
 
