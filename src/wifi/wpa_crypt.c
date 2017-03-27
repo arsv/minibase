@@ -84,7 +84,7 @@ int check_mic(uint8_t mic[16], uint8_t kck[16], char* buf, int len)
 
 	hmac_sha1(hash, kck, kcklen, buf, len);
 
-	int ret = memcmp(hash, copy, miclen);
+	int ret = memxcmp(hash, copy, miclen);
 	
 	return ret;
 }
@@ -105,5 +105,5 @@ int unwrap_key(uint8_t kek[16], char* buf, int len)
 
 	aes128_unwrap(kek, buf, len);
 
-	return memcmp(buf, wrapcheck, 8);
+	return memxcmp(buf, wrapcheck, 8);
 }
