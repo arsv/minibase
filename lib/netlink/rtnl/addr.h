@@ -43,3 +43,12 @@ struct ifaddrmsg {
 	int index;
 	char payload[];
 } __attribute__((packed));
+
+/* payload for IFA_CACHEINFO */
+
+struct ifa_cacheinfo {
+	uint32_t prefered;
+	uint32_t valid;
+	uint32_t created;
+	uint32_t updated;
+} __attribute__((packed)); /* is it really packed? */
