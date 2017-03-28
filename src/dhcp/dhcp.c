@@ -19,8 +19,8 @@
 #include <util.h>
 #include <fail.h>
 
-#include "ip.h"
 #include "dhcp.h"
+#include "dhcp_udp.h"
 
 #define ARPHRD_NETROM  0
 #define ETH_P_IP  0x0800

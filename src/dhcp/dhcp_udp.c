@@ -1,4 +1,7 @@
-#include "ip.h"
+#include "dhcp_udp.h"
+
+/* Generic UDP/IP header routines. Does not look like these will be
+   used anywhere else any time soon, at least not in this form. */
 
 static uint32_t checksum(void* addr, int len)
 {

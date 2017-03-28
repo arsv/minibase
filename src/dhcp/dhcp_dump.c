@@ -5,8 +5,8 @@
 #include <util.h>
 #include <fail.h>
 
-#include "ip.h"
 #include "dhcp.h"
+#include "dhcp_udp.h"
 
 /* Output */
 
