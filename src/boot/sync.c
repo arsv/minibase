@@ -105,7 +105,7 @@ static void fstrim(int argc, char** argv, int i)
 
 	long fd = openref(name);
 
-	xchk(sysioctl(fd, FITRIM, (long)&range), NULL, name);
+	xchk(sysioctl(fd, FITRIM, &range), NULL, name);
 }
 
 int main(int argc, char** argv)

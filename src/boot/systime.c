@@ -40,7 +40,7 @@ static void setsystime(struct timeval* tv)
 static void getrtctime(struct timeval* tv, struct tm* tm, int rtcfd, const char* rtcname)
 {
 	memset(tm, 0, sizeof(*tm));
-	xchk( sysioctl(rtcfd, RTC_RD_TIME, (long) tm),
+	xchk( sysioctl(rtcfd, RTC_RD_TIME, tm),
 		"cannot get RTC time on", rtcname );
 	tm2tv(tm, tv);
 }
@@ -48,7 +48,7 @@ static void getrtctime(struct timeval* tv, struct tm* tm, int rtcfd, const char*
 static void setrtctime(struct tm* tm, int rtcfd, const char* rtcname)
 {
 	tm->tm_isdst = 0;
-	xchk( sysioctl(rtcfd, RTC_SET_TIME, (long) tm),
+	xchk( sysioctl(rtcfd, RTC_SET_TIME, tm),
 		"cannot set RTC time on", rtcname );
 }
 

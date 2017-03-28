@@ -16,7 +16,7 @@ int nl_ifindex(struct netlink* nl, const char* ifname)
 	memset(&ifreq, 0, sizeof(ifreq));
 	memcpy(ifreq.name, ifname, len);
 	
-	long ret = sysioctl(nl->fd, SIOCGIFINDEX, (long)&ifreq);
+	long ret = sysioctl(nl->fd, SIOCGIFINDEX, &ifreq);
 
 	if(ret < 0)
 		return ret;

@@ -56,7 +56,7 @@ int query_empty_tty(void)
 	int tty;
 	long ret;
 
-	if((ret = sysioctl(0, VT_OPENQRY, (long)&tty)) < 0)
+	if((ret = sysioctl(0, VT_OPENQRY, &tty)) < 0)
 		warn("ioctl", "VT_OPENQRY", ret);
 
 	return tty;

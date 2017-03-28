@@ -123,7 +123,7 @@ static int check_event_bits(int fd)
 
 	memset(bits, 0, bitsize);
 
-	if(sysioctl(fd, EVIOCGBIT(EV_KEY, bitsize), (long)bits) < 0)
+	if(sysioctl(fd, EVIOCGBIT(EV_KEY, bitsize), bits) < 0)
 		return 0;
 
 	int alt = hascode(bits, bitsize, KEY_LALT);
@@ -155,12 +155,12 @@ static void set_event_mask(int fd)
 	for(i = 0; i < 10; i++)
 		setcode(bits, bitsize, KEY_F1 + i);
 
-	sysioctl(fd, EVIOCSMASK, (long)&mask);
+	sysioctl(fd, EVIOCSMASK, &mask);
 
 	memset(bits, 0, bitsize);
 	mask.type = EV_MSC;
 
-	sysioctl(fd, EVIOCSMASK, (long)&mask);
+	sysioctl(fd, EVIOCSMASK, &mask);
 
 	/* EV_SYN cannot be masked */
 }

@@ -67,7 +67,7 @@ int main(int argc, char** argv)
 	syswrite(1, reset, sizeof(reset) - 1);
 
 	if(opts & OPT_r)
-		xchk(sysioctl(1, TCSETSW, (long) &sane),
+		xchk(sysioctl(1, TCSETSW, (void*)&sane),
 			"ioctl TCSETSW", "stdout");
 
 	return 0;

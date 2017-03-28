@@ -169,7 +169,7 @@ static void openstat(struct file* f, long flags)
 	f->type = st.st_mode & S_IFMT;
 
 	if(f->type == S_IFBLK) {
-		xchk(sysioctl(fd, BLKGETSIZE64, (long)&(f->size)),
+		xchk(sysioctl(fd, BLKGETSIZE64, &(f->size)),
 			"cannot get size of", f->name);
 	} else {
 		f->size = st.st_size;
