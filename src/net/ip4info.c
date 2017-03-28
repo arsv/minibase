@@ -72,18 +72,6 @@ static struct nlattr* rt_get(struct rtmsg* msg, uint16_t key)
 	return nl_attr_k_in(NLPAYLOAD(msg), key);
 }
 
-static char* fmtip(char* p, char* e, uint8_t* ip)
-{
-	p = fmtint(p, e, ip[0]);
-	p = fmtstr(p, e, ".");
-	p = fmtint(p, e, ip[1]);
-	p = fmtstr(p, e, ".");
-	p = fmtint(p, e, ip[2]);
-	p = fmtstr(p, e, ".");
-	p = fmtint(p, e, ip[3]);
-	return p;
-}
-
 static char* fmtipm(char* p, char* e, uint8_t* ip, uint8_t mask)
 {
 	p = fmtip(p, e, ip);
