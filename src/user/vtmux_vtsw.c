@@ -17,7 +17,7 @@ static long ioctl(int fd, int req, long arg, char* name)
 {
 	long ret;
 
-	if((ret = sysioctl(fd, req, arg)) < 0)
+	if((ret = sysioctli(fd, req, arg)) < 0)
 		warn("ioctl", name, ret);
 
 	return ret;

@@ -11,6 +11,6 @@ ERRLIST = {
 
 int main(void)
 {
-	xchk(sysioctl(0, VT_UNLOCKSWITCH, 0), "ioctl", "VT_UNLOCKSWITCH");
+	xchk(sysioctli(0, VT_UNLOCKSWITCH, 0), "ioctl", "VT_UNLOCKSWITCH");
 	return 0;
 }

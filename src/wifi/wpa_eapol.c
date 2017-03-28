@@ -355,7 +355,7 @@ static void fill_smac(void)
 	memzero(&ifr, sizeof(ifr));
 	memcpy(ifr.name, ifname, IFNAMESIZ);
 
-	if((ret = sysioctl(fd, SIOCGIFHWADDR, (long)&ifr)) < 0)
+	if((ret = sysioctl(fd, SIOCGIFHWADDR, &ifr)) < 0)
 		fail("ioctl SIOCGIFHWADDR", ifname, ret);
 
 	if(ifr.addr.sa_family != ARPHRD_ETHER)

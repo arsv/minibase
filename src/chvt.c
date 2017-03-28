@@ -33,7 +33,7 @@ static long openconsole(const char* name)
 	if((fd = sysopen(name, O_RDWR)) < 0)
 		return fd;
 
-	if((io = sysioctl(fd, KDGKBTYPE, (long)&arg)) >= 0)
+	if((io = sysioctl(fd, KDGKBTYPE, &arg)) >= 0)
 		return fd;
 
 	sysclose(fd);
@@ -55,15 +55,15 @@ static long consolefd(void)
 
 static void chvt(long cfd, int vt, char* vtname)
 {
-	xchk(sysioctl(cfd, VT_ACTIVATE, vt),
+	xchk(sysioctli(cfd, VT_ACTIVATE, vt),
 		"ioctl VT_ACTIVATE", vtname);
-	xchk(sysioctl(cfd, VT_WAITACTIVE, vt),
+	xchk(sysioctli(cfd, VT_WAITACTIVE, vt),
 		"ioctl VT_WAITACTIVE", vtname);
 }
 
 static void rmvt(long cfd, int vt, char* vtname)
 {
-	xchk(sysioctl(cfd, VT_DISALLOCATE, vt),
+	xchk(sysioctli(cfd, VT_DISALLOCATE, vt),
 		"ioctl VT_DISALLOCATE", vtname);
 }
 

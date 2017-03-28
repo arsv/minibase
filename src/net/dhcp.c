@@ -93,7 +93,7 @@ static void ifreq_clear(void)
 
 static void ifreq_ioctl(int ctl, char* name)
 {
-	xchk(sysioctl(sockfd, ctl, (long)&ifreq), "ioctl", name);
+	xchk(sysioctl(sockfd, ctl, &ifreq), "ioctl", name);
 }
 
 void get_ifindex(char* name)

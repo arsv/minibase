@@ -65,7 +65,7 @@ int main(int argc, char** argv)
 	const long flags = O_RDONLY | O_DIRECTORY | O_NONBLOCK;
 	long fd = xchk(sysopen(mnt, flags), "cannot open", mnt);
 
-	xchk(sysioctl(fd, FITRIM, (long)&range), "ioctl failed", NULL);
+	xchk(sysioctl(fd, FITRIM, &range), "ioctl failed", NULL);
 
 	return 0;
 }
