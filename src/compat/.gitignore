@@ -1,3 +1,4 @@
+rm
 rmdir
 pwd
 dirname
