@@ -41,7 +41,9 @@ static void set_iface_address(int ifi, uint8_t ip[4], int mask, int leasetime)
 	if(leasetime) {
 		struct ifa_cacheinfo ci = {
 			.valid = leasetime,
-			.prefered = leasetime / 2
+			.prefered = leasetime / 2,
+			.created = 0,
+			.updated = 0
 		};
 		nl_put(&nl, IFA_CACHEINFO, &ci, sizeof(ci));
 	}
