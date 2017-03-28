@@ -96,7 +96,7 @@ static void ifreq_ioctl(int ctl, char* name)
 	xchk(sysioctl(sockfd, ctl, &ifreq), "ioctl", name);
 }
 
-void get_ifindex(char* name)
+static void get_ifindex(char* name)
 {
 	int nlen = strlen(name);
 
@@ -113,7 +113,7 @@ void get_ifindex(char* name)
 	iface.name[nlen] = '\0';
 }
 
-void get_ifname(int idx)
+static void get_ifname(int idx)
 {
 	ifreq_clear();
 	ifreq.ival = idx;
@@ -126,7 +126,7 @@ void get_ifname(int idx)
 	iface.name[strlen(iface.name)] = '\0';
 }
 
-void get_ifhwaddr(void)
+static void get_ifhwaddr(void)
 {
 	ifreq_clear();
 	memcpy(ifreq.name, iface.name, IFNAMESIZ);
@@ -169,13 +169,13 @@ void setup_socket(char* name)
 
 /* Send */
 
-void reset(void)
+static void reset(void)
 {
 	memset(&packet, 0, sizeof(packet));
 	optptr = 0;
 }
 
-struct dhcpopt* add_option(int code, int len)
+static struct dhcpopt* add_option(int code, int len)
 {
 	int alloc = len + sizeof(struct dhcpopt);
 
@@ -192,26 +192,26 @@ struct dhcpopt* add_option(int code, int len)
 	return opt;
 }
 
-void put_byte(int code, uint8_t val)
+static void put_byte(int code, uint8_t val)
 {
 	struct dhcpopt* opt = add_option(code, 1);
 	opt->payload[0] = val;
 }
 
-void put_ip(int code, uint8_t* ip)
+static void put_ip(int code, uint8_t* ip)
 {
 	struct dhcpopt* opt = add_option(code, 4);
 	memcpy(opt->payload, ip, 4);
 }
 
-void put_mac(int code, uint8_t* mac)
+static void put_mac(int code, uint8_t* mac)
 {
 	struct dhcpopt* opt = add_option(code, 7);
 	opt->payload[0] = 0x01;
 	memcpy(opt->payload + 1, mac, 6);
 }
 
-void put_header(int type)
+static void put_header(int type)
 {
 	memset(&packet, 0, sizeof(packet));
 	optptr = 0;
@@ -232,12 +232,12 @@ void put_header(int type)
 	put_byte(DHCP_MESSAGE_TYPE, type);
 }
 
-void put_option_end(void)
+static void put_option_end(void)
 {
 	packet.options[optptr++] = 0xFF;
 }
 
-void set_udp_header(void)
+static void set_udp_header(void)
 {
 	int udpsize = sizeof(packet.udp) + sizeof(packet.dhcp) + optptr;
 	int ipsize = udpsize + sizeof(packet.ip);
@@ -258,7 +258,7 @@ void set_udp_header(void)
 	packet.ip.check = htons(ipchecksum(&packet, sizeof(packet.ip)));
 }
 
-void send_packet(void)
+static void send_packet(void)
 {
 	put_option_end();
 	set_udp_header();
@@ -286,7 +286,7 @@ void send_request(void)
 
 /* Receive */
 
-int check_udp_header(void)
+static int check_udp_header(void)
 {
 	int totlen = ntohs(packet.ip.tot_len);
 	int udplen = ntohs(packet.udp.len);
@@ -305,7 +305,7 @@ int check_udp_header(void)
 	return 0;
 }
 
-int check_dhcp_header(void)
+static int check_dhcp_header(void)
 {
 	if(packet.dhcp.cookie != htonl(DHCP_COOKIE))
 		return 1;
@@ -369,13 +369,13 @@ struct dhcpopt* get_option(int code, int len)
 	return NULL;
 }
 
-int get_message_type(void)
+static int get_message_type(void)
 {
 	struct dhcpopt* opt = get_option(DHCP_MESSAGE_TYPE, 1);
 	return opt ? opt->payload[0] : 0;
 }
 
-uint8_t* get_server_addr(void)
+static uint8_t* get_server_addr(void)
 {
 	struct dhcpopt* opt = get_option(DHCP_SERVER_ID, 4);
 	return opt ? (uint8_t*)opt->payload : NULL;
