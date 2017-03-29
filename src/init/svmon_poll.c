@@ -44,22 +44,22 @@ static void sighandler(int sig)
 int setsignals(void)
 {
 	struct sigaction sa = {
-		.sa_handler = sighandler,
-		.sa_flags = SA_RESTART | SA_RESTORER,
-		.sa_restorer = sigreturn
+		.handler = sighandler,
+		.flags = SA_RESTART | SA_RESTORER,
+		.restorer = sigreturn
 	};
 	/* The stuff below *can* fail due to broken libc, but that is so bad
 	   by itself that there is no point in reporting it properly. */
 	int ret = 0;
 
-	sigemptyset(&sa.sa_mask);
-	sigaddset(&sa.sa_mask, SIGCHLD);
-	ret |= syssigprocmask(SIG_BLOCK, &sa.sa_mask, &defsigset);
+	sigemptyset(&sa.mask);
+	sigaddset(&sa.mask, SIGCHLD);
+	ret |= syssigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
 
-	sigaddset(&sa.sa_mask, SIGINT);
-	sigaddset(&sa.sa_mask, SIGPWR);
-	sigaddset(&sa.sa_mask, SIGTERM);
-	sigaddset(&sa.sa_mask, SIGHUP);
+	sigaddset(&sa.mask, SIGINT);
+	sigaddset(&sa.mask, SIGPWR);
+	sigaddset(&sa.mask, SIGTERM);
+	sigaddset(&sa.mask, SIGHUP);
 
 	ret |= syssigaction(SIGINT,  &sa, NULL);
 	ret |= syssigaction(SIGPWR,  &sa, NULL);
@@ -68,7 +68,7 @@ int setsignals(void)
 
 	/* SIGCHLD is only allowed to arrive in ppoll,
 	   so SA_RESTART just does not make sense. */
-	sa.sa_flags &= ~SA_RESTART;
+	sa.flags &= ~SA_RESTART;
 	ret |= syssigaction(SIGCHLD, &sa, NULL);
 
 	return ret;

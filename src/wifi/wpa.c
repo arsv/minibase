@@ -83,15 +83,15 @@ static void setup_signals(void)
 	int ret = 0;
 
 	struct sigaction sa = {
-		.sa_handler = sighandler,
-		.sa_flags = SA_RESTORER,
-		.sa_restorer = sigreturn,
+		.handler = sighandler,
+		.flags = SA_RESTORER,
+		.restorer = sigreturn,
 	};
 
-	sigemptyset(&sa.sa_mask);
-	sigaddset(&sa.sa_mask, SIGINT);
-	sigaddset(&sa.sa_mask, SIGTERM);
-	sigaddset(&sa.sa_mask, SIGHUP);
+	sigemptyset(&sa.mask);
+	sigaddset(&sa.mask, SIGINT);
+	sigaddset(&sa.mask, SIGTERM);
+	sigaddset(&sa.mask, SIGHUP);
 
 	ret |= syssigaction(SIGINT,  &sa, NULL);
 	ret |= syssigaction(SIGHUP,  &sa, NULL);

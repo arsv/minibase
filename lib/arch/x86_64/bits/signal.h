@@ -49,9 +49,9 @@
 #define SIGRTMAX	(_NSIG-1)
 
 /* SA_FLAGS values: */
-#define SA_NOCLDSTOP	0x00000001
-#define SA_NOCLDWAIT	0x00000002 /* not supported yet */
-#define SA_SIGINFO	0x00000004
+#define SA_NOCLDSTOP	(1<<0)
+#define SA_NOCLDWAIT	(1<<1)
+#define SA_SIGINFO	(1<<2)
 #define SA_RESTORER	0x04000000
 #define SA_ONSTACK	0x08000000
 #define SA_RESTART	0x10000000
@@ -59,39 +59,28 @@
 #define SA_NODEFER	0x40000000
 #define SA_RESETHAND	0x80000000
 
-/* sigaltstack controls */
-#define SS_ONSTACK	1
-#define SS_DISABLE	2
+#define SIG_BLOCK	0
+#define SIG_UNBLOCK	1
+#define SIG_SETMASK	2
 
-#define MINSIGSTKSZ	2048
-#define SIGSTKSZ	8192
+#define SIG_DFL ((void*) 0L)
+#define SIG_IGN ((void*) 1L)
+#define SIG_ERR ((void*)~0L)
 
-#define SIG_BLOCK	0	/* for blocking signals */
-#define SIG_UNBLOCK	1	/* for unblocking signals */
-#define SIG_SETMASK	2	/* for setting the signal mask */
-
-#define SIG_DFL ((sighandler_t)0L)	/* default signal handling */
-#define SIG_IGN ((sighandler_t)1L)	/* ignore signal */
-#define SIG_ERR ((sighandler_t)-1L)	/* error return from signal */
-
-typedef void (*sighandler_t)(int);
 typedef struct siginfo siginfo_t;
 
 typedef struct {
-  unsigned long sig[_NSIG_WORDS];
+	unsigned long sig[_NSIG_WORDS];
 } sigset_t;
 
 struct sigaction {
-  union {
-    sighandler_t _sa_handler;
-    void (*_sa_sigaction)(int, siginfo_t*, void*);
-  } _u;
-  unsigned long sa_flags;
-  void (*sa_restorer)(void);
-  sigset_t sa_mask;
+	union {
+		void (*action)(int, siginfo_t*, void*);
+		void (*handler)(int);
+	};
+	unsigned long flags;
+	void (*restorer)(void);
+	sigset_t mask;
 };
-
-#define sa_handler	_u._sa_handler
-#define sa_sigaction	_u._sa_sigaction
 
 #endif

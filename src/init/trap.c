@@ -49,9 +49,9 @@ void sighandler(int sig)
 void trapsig(void)
 {
 	struct sigaction sa = {
-		.sa_handler = sighandler,
-		.sa_flags = SA_RESTART | SA_RESTORER,
-		.sa_restorer = sigreturn
+		.handler = sighandler,
+		.flags = SA_RESTART | SA_RESTORER,
+		.restorer = sigreturn
 	};
 
 	syssigaction(SIGINT,  &sa, NULL);
