@@ -417,9 +417,9 @@ void recv_acknak(void)
 	}
 }
 
-#define OPTS "nr"
+#define OPTS "ng"
 #define OPT_n (1<<0)
-#define OPT_r (1<<1)
+#define OPT_g (1<<1)
 
 int main(int argc, char** argv, char** envp)
 {
@@ -450,7 +450,7 @@ int main(int argc, char** argv, char** envp)
 	if(opts & OPT_n)
 		show_config(ip);
 	else
-		conf_netdev(ifi, ip);
+		conf_netdev(ifi, ip, (opts & OPT_g));
 
 	return 0;
 }

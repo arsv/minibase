@@ -63,4 +63,4 @@ struct dhcpopt {
 
 struct dhcpopt* get_option(int code, int len);
 void show_config(uint8_t* ip);
-void conf_netdev(int ifi, uint8_t* ip);
+void conf_netdev(int ifi, uint8_t* ip, int skipgw);

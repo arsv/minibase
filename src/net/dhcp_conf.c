@@ -119,7 +119,7 @@ static int leasetime(void)
 	return ntohl(*((uint32_t*)opt->payload));
 }
 
-void conf_netdev(int ifi, uint8_t* ip)
+void conf_netdev(int ifi, uint8_t* ip, int skipgw)
 {
 	int mask = maskbits();
 	uint8_t* gw = gateway();
@@ -129,7 +129,7 @@ void conf_netdev(int ifi, uint8_t* ip)
 
 	set_iface_address(ifi, ip, mask, lt);
 
-	if(!gw) return;
+	if(!gw || skipgw) return;
 
 	add_default_route(ifi, gw);
 }
