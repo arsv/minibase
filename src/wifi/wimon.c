@@ -18,6 +18,7 @@ ERRLIST = {
 };
 
 char** environ;
+int envcount;
 
 #define NFDS 3
 
@@ -107,9 +108,20 @@ static void check_polled_fds(void)
 		accept_ctrl(ctrlfd);	
 }
 
+static void setup_env(char** envp)
+{
+	char** p;
+
+	environ = envp;
+	envcount = 0;
+
+	for(p = envp; *p; p++)
+		envcount++;
+}
+
 int main(int argc, char** argv, char** envp)
 {
-	environ = envp;
+	setup_env(envp);
 
 	setup_rtnl();
 	setup_genl();

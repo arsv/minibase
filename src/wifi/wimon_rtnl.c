@@ -10,6 +10,8 @@
 #include <fail.h>
 
 #include "wimon.h"
+#include "wimon_proc.h"
+#include "wimon_slot.h"
 
 /* NETLINK_ROUTE connection is used to keep up-to-date list
    of available net devices and their (generic) state, like
@@ -51,22 +53,32 @@ static struct nlattr* rtm_get(struct rtmsg* msg, uint16_t key)
 	return nl_attr_k_in(NLPAYLOAD(msg), key);
 }
 
-static void set_link_carrier(struct link* ls, int carrier)
+void set_link_operstate(int ifi, int operstate)
 {
-	int oldcarr = !!(ls->flags & F_CARRIER);
+	struct ifinfomsg* msg;
 
-	if(oldcarr && carrier)
-		return;
-	if(!oldcarr && !carrier)
-		return;
+	nl_header(&rtnl, msg, RTM_SETLINK, 0,
+			.index = ifi);
+	nl_put_u8(&rtnl, IFLA_OPERSTATE, operstate);
 
-	if(carrier) {
-		ls->flags |= F_CARRIER;
-		eprintf("carrier acquired on %s\n", ls->name);
-	} else {
-		ls->flags &= ~F_CARRIER;
-		eprintf("carrier lost on %s\n", ls->name);
-	}
+	nl_send(&rtnl);
+}
+
+static int iff_to_state(int iff)
+{
+	int ret = 0;
+
+	if(iff & IFF_UP)
+		ret |= S_ENABLED;
+	if(iff & IFF_RUNNING)
+		ret |= S_CARRIER;
+
+	return ret;
+}
+
+static int bitgain(int prev, int curr, int bit)
+{
+	return (!(prev & bit) && (curr & bit));
 }
 
 void msg_new_link(struct ifinfomsg* msg)
@@ -74,23 +86,36 @@ void msg_new_link(struct ifinfomsg* msg)
 	struct link* ls;
 	char* name;
 	int nlen;
-	uint8_t* u8;
 	
 	if(!(name = nl_str(ifi_get(msg, IFLA_IFNAME))))
 		return;
 	if((nlen = strlen(name)) > sizeof(ls->name)-1)
 		return;
+	if(msg->flags & IFF_LOOPBACK)
+		return;
 	if(!(ls = grab_link_slot(msg->index)))
 		return;
 
-	if(!ls->ifi) {
-		ls->ifi = msg->index;
-		memcpy(ls->name, name, nlen);
-		eprintf("new-link %i %s\n", msg->index, ls->name);
-	}
+	int prev = ls->state;
+	int curr = iff_to_state(msg->flags);
 
-	if((u8 = nl_u8(ifi_get(msg, IFLA_CARRIER))))
-		set_link_carrier(ls, *u8);
+	if(!ls->ifi) {
+		/* new link notification */
+		ls->ifi = msg->index;
+		ls->state = curr;
+		memcpy(ls->name, name, nlen);
+		link_new(ls);
+	} else if(curr != prev) {
+		/* state change notification */
+		ls->state = curr;
+
+		if(bitgain(curr, prev, S_CARRIER))
+			link_down(ls);
+		else if(bitgain(prev, curr, S_CARRIER))
+			link_carrier(ls);
+		else if(bitgain(prev, curr, S_ENABLED))
+			link_enabled(ls);
+	}
 }
 
 void msg_del_link(struct ifinfomsg* msg)
@@ -101,6 +126,8 @@ void msg_del_link(struct ifinfomsg* msg)
 		return;
 
 	eprintf("del-link %s %i\n", ls->ifi, ls->name);
+
+	link_del(ls);
 
 	free_link_slot(ls);
 }
@@ -119,17 +146,19 @@ void msg_new_addr(struct ifaddrmsg* msg)
 		return;
 	if(!(ip = nl_bin(ifa_get(msg, IFA_ADDRESS), 4)))
 		return;
-	if(ls->flags & F_IPADDR)
+	if(ls->state & S_IPADDR)
 		return;
 
 	memcpy(ls->ip, ip, 4);
 	ls->mask = msg->prefixlen;
-	ls->flags |= F_IPADDR;
+	ls->state |= S_IPADDR;
 
 	eprintf("new-addr %s %i.%i.%i.%i/%i\n",
 			ls->name,
 			ip[0], ip[1], ip[2], ip[3],
 			msg->prefixlen);
+
+	link_addr(ls);
 }
 
 void msg_del_addr(struct ifaddrmsg* msg)
@@ -141,14 +170,14 @@ void msg_del_addr(struct ifaddrmsg* msg)
 		return;
 	if(!(ip = nl_bin(ifa_get(msg, IFA_ADDRESS), 4)))
 		return;
-	if(!(ls->flags & F_IPADDR))
+	if(!(ls->state & S_IPADDR))
 		return;
 	if(memcmp(ls->ip, ip, 4))
 		return;
 
 	memzero(ls->ip, 4);
 	ls->mask = 0;
-	ls->flags &= ~F_IPADDR;
+	ls->state &= ~S_IPADDR;
 
 	eprintf("del-addr %s %i.%i.%i.%i\n", ls->name,
 			ip[0], ip[1], ip[2], ip[3]);

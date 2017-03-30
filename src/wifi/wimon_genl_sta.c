@@ -7,6 +7,7 @@
 #include <fail.h>
 
 #include "wimon.h"
+#include "wimon_slot.h"
 
 /* Some station data comes in binary blobs called "IES",
    which are very similar to nested NL attributes but use
@@ -23,7 +24,7 @@ static const char ms_oui[] = { 0x00, 0x50, 0xf2 };
 
 static void parse_vendor_wpa(struct scan* sc, int len, char* buf)
 {
-	sc->flags |= S_WPA;
+	sc->type |= ST_WPA2_CC; /* XXX */
 }
 
 static void parse_vendor_wps(struct scan* sc, int len, char* buf)
@@ -94,11 +95,12 @@ void parse_scan_result(struct link* ls, struct nlgen* msg)
 		return;
 	if(!(bssid = nl_sub_of_len(bss, NL80211_BSS_BSSID, 6)))
 		return;
-	if(!(sc = grab_scan_slot(ls->ifi, bssid)))
+	if(!(sc = grab_scan_slot(bssid))) {
+		eprintf("out of scan slots\n");
 		return;
+	}
 
 	sc->ifi = ls->ifi;
-	sc->seq = ls->seq;
 	memcpy(sc->bssid, bssid, 6);
 	sc->freq = get_i32_or_zero(bss, NL80211_BSS_FREQUENCY);
 	sc->signal = get_i32_or_zero(bss, NL80211_BSS_SIGNAL_MBM);

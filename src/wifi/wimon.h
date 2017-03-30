@@ -2,40 +2,66 @@
 
 #define NLINKS 8
 #define NSCANS 64
+#define NCHILDREN 10
 
 #define NAMELEN 16
 #define SSIDLEN 32
 #define PSKLEN 32
 
-/* link.flags */
-#define F_WIFI     (1<<0)
-#define F_SCANNING (1<<1)
-#define F_SCANRES  (1<<2)
-#define F_CONNECT  (1<<5)
-#define F_CARRIER  (1<<6)
-#define F_IPADDR   (1<<7)
-#define F_GATEWAY  (1<<8)
+/* link.state */
+#define S_ENABLED  (1<<0)
+#define S_WIRELESS (1<<1)
+//#define S_SCANNING (1<<2)
+//#define S_SCANRES  (1<<3)
+#define S_CONNECT  (1<<4)
+#define S_CARRIER  (1<<5)
+#define S_IPADDR   (1<<6)
 
-/* scan.flags */
-#define S_WPA      (1<<0)
+/* link.scan */
+#define SC_NONE    0
+#define SC_REQUEST 1
+#define SC_ONGOING 2
+#define SC_RESULTS 3
+
+/* link.mode2 */
+#define M2_KEEP    0
+#define M2_DOWN    1
+#define M2_SCAN    2
+
+/* link.mode3 */
+#define M3_DHCP    0
+#define M3_LOCAL   1
+#define M3_FIXED   2
+
+/* scan.type */
+#define ST_UNKNOWN  0
+#define ST_WPA2_CC  1
+#define ST_WPA2_CT  2
+
+#define OPERSTATE_DOWN 2
+#define OPERSTATE_UP   6
 
 struct link {
 	int ifi;
 	int seq;
 	char name[NAMELEN];
-	short flags;
+
 	uint8_t bssid[6];
 	uint8_t ip[4];
 	uint8_t mask;
-	uint8_t _;
+
+	uint8_t state;
+	uint8_t scan;
+	uint8_t mode2;
+	uint8_t mode3;
+	uint8_t failed;
 };
 
 struct scan {
 	int ifi;
-	int seq;
 	int freq;
 	int signal;
-	int flags;
+	int type;
 	uint8_t bssid[6];
 	char ssid[SSIDLEN];
 };
@@ -45,47 +71,40 @@ struct gate {
 	uint8_t ip[4];
 };
 
+struct child {
+	int ifi;
+	int pid;
+};
+
 extern struct link links[];
 extern struct scan scans[];
 extern int nlinks;
 extern int nscans;
 extern struct gate gateway;
+extern struct child children[];
+extern int nchildren;
 
 struct netlink;
 struct nlmsg;
 struct nlgen;
 
 extern char** environ;
+extern int envcount;
 
 extern struct netlink rtnl;
 extern struct netlink genl;
 extern int nl80211;
 extern int ctrlfd;
 
-void setup_signals(void);
-void setup_pollfds(void);
-
 void setup_rtnl(void);
 void setup_genl(void);
 void setup_ctrl(void);
+void accept_ctrl(int sfd);
 void unlink_ctrl(void);
-
 void handle_rtnl(struct nlmsg* msg);
 void handle_genl(struct nlmsg* msg);
-void accept_ctrl(int sfd);
-
-void mainloop(void);
+void set_link_operstate(int ifi, int operstate);
 void waitpids(void);
 
-struct link* find_link_slot(int ifi);
-struct link* grab_link_slot(int ifi);
-void free_link_slot(struct link* ls);
-
-struct scan* grab_scan_slot(int ifi, uint8_t* bssid);
-void drop_stale_scan_slots(int ifi, int seq);
-void drop_scan_slots_for(int ifi);
-
+void trigger_scan(struct link* ls);
 void parse_scan_result(struct link* ls, struct nlgen* msg);
-
-void add_addr(int ifi, uint8_t ip[4], int mask);
-void del_addr(int ifi, uint8_t ip[4]);
