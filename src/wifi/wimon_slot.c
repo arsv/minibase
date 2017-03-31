@@ -79,21 +79,12 @@ struct scan* grab_scan_slot(uint8_t* bssid)
 void free_scan_slot(struct scan* sc)
 {
 	memset(sc, 0, sizeof(*sc));
+
+	if(sc == &scans[nscans-1])
+		nscans--;
 }
 
-/* Assumption: only one netdev sees the station at a time
-   (or at least we only care about one netdev) */
-
-void drop_scan_slots_freq(int freq)
-{
-	struct scan* sc;
-
-	for(sc = scans; sc < scans + nscans; sc++)
-		if(sc->freq == freq)
-			free_scan_slot(sc);
-}
-
-void drop_scan_slots_dev(int ifi)
+void drop_scan_slots(int ifi)
 {
 	struct scan* sc;
 

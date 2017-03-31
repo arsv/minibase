@@ -126,7 +126,7 @@ static void msg_del_wifi(struct link* ls, struct nlgen* msg)
 {
 	ls->state &= ~S_WIRELESS;
 
-	drop_scan_slots_dev(ls->ifi);
+	drop_scan_slots(ls->ifi);
 }
 
 static void msg_scan_start(struct link* ls, struct nlgen* msg)
@@ -141,18 +141,35 @@ static void msg_scan_abort(struct link* ls, struct nlgen* msg)
 	eprintf("scan-abort %s\n", ls->name);
 }
 
-static void drop_stale_scan_slots(struct nlgen* msg)
+static void mark_stale_scan_slots(int ifi, struct nlgen* msg)
 {
 	struct nlattr* at;
 	struct nlattr* sb;
 	uint32_t* fq;
+	struct scan* sc;
 
 	if(!(at = nl_get_nest(msg, NL80211_ATTR_SCAN_FREQUENCIES)))
 		return;
 
-	for(sb = nl_sub_0(at); sb; sb = nl_sub_n(at, sb))
-		if((fq = nl_u32(sb)))
-			drop_scan_slots_freq(*fq);
+	for(sc = scans; sc < scans + nscans; sc++) {
+		if(sc->ifi != ifi || !sc->freq)
+			continue;
+		for(sb = nl_sub_0(at); sb; sb = nl_sub_n(at, sb))
+			if(!(fq = nl_u32(sb)))
+				continue;
+			else if(*fq == sc->freq)
+				break;
+		if(sb) sc->freq = 0;
+	}
+}
+
+static void drop_stale_scan_slots(int ifi)
+{
+	struct scan* sc;
+
+	for(sc = scans; sc < scans + nscans; sc++)
+		if(sc->ifi == ifi && !sc->freq)
+			free_scan_slot(sc);
 }
 
 static void msg_scan_res(struct link* ls, struct nlgen* msg)
@@ -160,7 +177,7 @@ static void msg_scan_res(struct link* ls, struct nlgen* msg)
 	if(msg->nlm.flags & NLM_F_MULTI) {
 		parse_scan_result(ls, msg);
 	} else {
-		drop_stale_scan_slots(msg);
+		mark_stale_scan_slots(ls->ifi, msg);
 		request_results(ls);
 	}
 }
@@ -246,8 +263,11 @@ static void notify_scan_done(void)
 	if(!genl_scan_dump)
 		return;
 
-	if((ls = find_link_slot(genl_scan_dump)))
-		link_scan(ls);
+	if(!(ls = find_link_slot(genl_scan_dump)))
+		return;
+
+	drop_stale_scan_slots(ls->ifi);
+	link_scan(ls);
 
 	genl_scan_dump = 0;
 }
