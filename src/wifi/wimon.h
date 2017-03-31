@@ -34,9 +34,14 @@
 #define M3_FIXED   2
 
 /* scan.type */
-#define ST_UNKNOWN  0
-#define ST_WPA2_CC  1
-#define ST_WPA2_CT  2
+#define ST_WPS        (1<<0)
+#define ST_WPA        (1<<1)
+#define ST_RSN        (1<<3)
+#define ST_RSN_PSK    (1<<4)
+#define ST_RSN_P_TKIP (1<<5)
+#define ST_RSN_P_CCMP (1<<6)
+#define ST_RSN_G_TKIP (1<<7)
+#define ST_RSN_G_CCMP (1<<8)
 
 #define OPERSTATE_DOWN 2
 #define OPERSTATE_UP   6
