@@ -1,3 +1,5 @@
+#include <bits/socket/inet.h>
+
 #include <netlink.h>
 #include <netlink/dump.h>
 #include <netlink/rtnl/link.h>
@@ -60,6 +62,22 @@ void set_link_operstate(int ifi, int operstate)
 	nl_header(&rtnl, msg, RTM_SETLINK, 0,
 			.index = ifi);
 	nl_put_u8(&rtnl, IFLA_OPERSTATE, operstate);
+
+	nl_send(&rtnl);
+}
+
+void flush_link_address(int ifi)
+{
+	struct ifaddrmsg* req;
+
+	eprintf("flush %i\n", ifi);
+
+	nl_header(&rtnl, req, RTM_DELADDR, 0,
+		.family = AF_INET,
+		.prefixlen = 0,
+		.flags = 0,
+		.scope = 0,
+		.index = ifi);
 
 	nl_send(&rtnl);
 }

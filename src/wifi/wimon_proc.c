@@ -56,6 +56,11 @@ static void abnormal_exit(struct link* ls, int pid)
 	ls->failed = 1;
 
 	stop_link_procs(ls->ifi, pid);
+
+	if(!(ls->state & S_IPADDR))
+		return;
+
+	flush_link_address(ls->ifi);
 }
 
 void waitpids(void)
@@ -174,6 +179,7 @@ void link_down(struct link* ls)
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
 	stop_link_procs(ls->ifi, 0);
+	flush_link_address(ls->ifi);
 }
 
 void link_addr(struct link* ls)

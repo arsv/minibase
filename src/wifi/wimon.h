@@ -109,6 +109,7 @@ void unlink_ctrl(void);
 void handle_rtnl(struct nlmsg* msg);
 void handle_genl(struct nlmsg* msg);
 void set_link_operstate(int ifi, int operstate);
+void flush_link_address(int ifi);
 void waitpids(void);
 
 void trigger_scan(struct link* ls);
