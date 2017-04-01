@@ -34,17 +34,18 @@
 #define M3_FIXED   2
 
 /* scan.type */
-#define ST_WPS        (1<<0)
-#define ST_WPA        (1<<1)
-#define ST_RSN        (1<<3)
-#define ST_RSN_PSK    (1<<4)
-#define ST_RSN_P_TKIP (1<<5)
-#define ST_RSN_P_CCMP (1<<6)
-#define ST_RSN_G_TKIP (1<<7)
-#define ST_RSN_G_CCMP (1<<8)
+#define ST_WPS         (1<<0)
+#define ST_WPA         (1<<1)
+#define ST_RSN         (1<<3)
+#define ST_RSN_PSK     (1<<4)
+#define ST_RSN_P_TKIP  (1<<5) /* pairwise */
+#define ST_RSN_P_CCMP  (1<<6)
+#define ST_RSN_G_TKIP  (1<<7) /* group */
+#define ST_RSN_G_CCMP  (1<<8)
 
-#define OPERSTATE_DOWN 2
-#define OPERSTATE_UP   6
+/* for set_link_operstate; from linux/if.h, ref. RFC 2863 */
+#define IF_OPER_DOWN   2
+#define IF_OPER_UP     6
 
 struct link {
 	int ifi;

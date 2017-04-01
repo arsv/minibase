@@ -196,9 +196,7 @@ int conf_down(struct link* ls)
 	ls->mode3 = M3_DHCP;
 
 	stop_link_procs(ls->ifi, 0);
-
-	if(ls->state & S_WIRELESS)
-		set_link_operstate(ls->ifi, OPERSTATE_DOWN);
+	set_link_operstate(ls->ifi, IF_OPER_DOWN);
 
 	return 0;
 }
@@ -211,7 +209,7 @@ int conf_auto(struct link* ls)
 	if((ls->state & (S_CARRIER | S_IPADDR)) == S_CARRIER)
 		link_carrier(ls);
 	else if(!(ls->state & S_ENABLED))
-		set_link_operstate(ls->ifi, OPERSTATE_UP);
+		set_link_operstate(ls->ifi, IF_OPER_UP);
 
 	return 0;
 }
