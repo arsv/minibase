@@ -90,14 +90,9 @@ static void parse_vendor(struct scan* sc, int len, char* buf)
 	if(memcmp(buf, ms_oui, 3))
 		return;
 
-	int key = buf[3];
-
-	buf += 4;
-	len -= 4;
-
-	if(key == 1)
+	if(buf[3] == 1)
 		sc->type |= ST_WPA;
-	else if(key == 4)
+	else if(buf[3] == 4)
 		sc->type |= ST_WPS;
 }
 
