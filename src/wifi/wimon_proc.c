@@ -57,9 +57,9 @@ static int any_link_procs(int ifi)
 	return 0;
 }
 
-static void link_is_now_down(struct link* ls)
+static void link_terminated(struct link* ls)
 {
-	eprintf("link-is-now-down %s\n", ls->name);
+	eprintf("link_terminated %s\n", ls->name);
 	ls->failed = 0;
 }
 
@@ -76,9 +76,9 @@ static void terminate_link(struct link* ls)
 	else if(procs)
 		; /* wait until everything terminates via child_exit */
 	else if(ls->state & S_IPADDR)
-		flush_link_address(ifi); /* and wait for link_flush */
+		flush_link_address(ifi); /* and wait link_lost_ip */
 	else
-		link_is_now_down(ls);
+		link_terminated(ls);
 }
 
 static void child_exit(struct link* ls, int pid, int abnormal)
@@ -158,7 +158,7 @@ void link_wifi(struct link* ls)
 		trigger_scan(ls);
 }
 
-void link_scan(struct link* ls)
+void link_scan_done(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 }
@@ -195,18 +195,18 @@ void link_carrier(struct link* ls)
 		spawn_dhcp(ls, "-");
 }
 
-void link_down(struct link* ls)
+void link_disconnected(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 	terminate_link(ls);
 }
 
-void link_addr(struct link* ls)
+void link_got_ip(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 }
 
-void link_flush(struct link* ls)
+void link_lost_ip(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 

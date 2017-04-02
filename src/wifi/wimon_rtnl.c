@@ -126,7 +126,7 @@ void msg_new_link(struct ifinfomsg* msg)
 		ls->state = curr;
 
 		if(bitgain(curr, prev, S_CARRIER))
-			link_down(ls);
+			link_disconnected(ls);
 		else if(bitgain(prev, curr, S_CARRIER))
 			link_carrier(ls);
 		else if(bitgain(prev, curr, S_ENABLED))
@@ -174,7 +174,7 @@ void msg_new_addr(struct ifaddrmsg* msg)
 			ip[0], ip[1], ip[2], ip[3],
 			msg->prefixlen);
 
-	link_addr(ls);
+	link_got_ip(ls);
 }
 
 void msg_del_addr(struct ifaddrmsg* msg)
@@ -198,7 +198,7 @@ void msg_del_addr(struct ifaddrmsg* msg)
 	eprintf("del-addr %s %i.%i.%i.%i\n", ls->name,
 			ip[0], ip[1], ip[2], ip[3]);
 
-	link_flush(ls);
+	link_lost_ip(ls);
 }
 
 void msg_new_route(struct rtmsg* msg)

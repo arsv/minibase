@@ -267,7 +267,7 @@ static void notify_scan_done(void)
 		return;
 
 	drop_stale_scan_slots(ls->ifi);
-	link_scan(ls);
+	link_scan_done(ls);
 
 	genl_scan_dump = 0;
 }

@@ -13,9 +13,11 @@ struct link;
 void link_new(struct link* ls);
 void link_del(struct link* ls);
 void link_wifi(struct link* ls);
+
 void link_enabled(struct link* ls);
 void link_carrier(struct link* ls);
-void link_down(struct link* ls);
-void link_flush(struct link* ls);
-void link_scan(struct link* ls);
-void link_addr(struct link* ls);
+void link_disconnected(struct link* ls);
+void link_scan_done(struct link* ls);
+
+void link_got_ip(struct link* ls);
+void link_lost_ip(struct link* ls);
