@@ -1,3 +1,9 @@
+#include <bits/arp.h>
+#include <bits/socket.h>
+#include <bits/packet.h>
+#include <bits/ioctl/socket.h>
+#include <bits/auxvec.h>
+
 #include <sys/socket.h>
 #include <sys/bind.h>
 #include <sys/sendto.h>
@@ -6,12 +12,8 @@
 #include <sys/open.h>
 #include <sys/read.h>
 #include <sys/close.h>
+#include <sys/alarm.h>
 #include <sys/execve.h>
-#include <bits/arp.h>
-#include <bits/socket.h>
-#include <bits/packet.h>
-#include <bits/ioctl/socket.h>
-#include <bits/auxvec.h>
 
 #include <format.h>
 #include <string.h>
@@ -435,6 +437,8 @@ int main(int argc, char** argv, char** envp)
 		fail("too few arguments", NULL, 0);
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
+
+	sysalarm(1);
 
 	setup_socket(devname);
 	init_xid(envp);
