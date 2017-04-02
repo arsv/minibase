@@ -46,21 +46,50 @@ static void deif_link_procs(int ifi)
 			ch->ifi = -1;
 }
 
-static void abnormal_exit(struct link* ls, int pid)
+static int any_link_procs(int ifi)
 {
-	eprintf("abnormal exit on link %s\n", ls->name);
+	struct child* ch;
 
-	if(ls->failed)
-		return;
+	for(ch = children; ch < children + nchildren; ch++)
+		if(ch->ifi == ifi)
+			return 1;
+
+	return 0;
+}
+
+static void link_is_now_down(struct link* ls)
+{
+	eprintf("link-is-now-down %s\n", ls->name);
+	ls->failed = 0;
+}
+
+static void terminate_link(struct link* ls)
+{
+	int ifi = ls->ifi;
+	int procs = any_link_procs(ifi);
+	int firstcall = !ls->failed;
 
 	ls->failed = 1;
 
-	stop_link_procs(ls->ifi, pid);
+	if(procs && firstcall)
+		stop_link_procs(ifi, 0);
+	else if(procs)
+		; /* wait until everything terminates via child_exit */
+	else if(ls->state & S_IPADDR)
+		flush_link_address(ifi); /* and wait for link_flush */
+	else
+		link_is_now_down(ls);
+}
 
-	if(!(ls->state & S_IPADDR))
-		return;
+static void child_exit(struct link* ls, int pid, int abnormal)
+{
+	if(abnormal)
+		eprintf("abnormal exit on link %s\n", ls->name);
+	else
+		eprintf("normal exit on link %s\n", ls->name);
 
-	flush_link_address(ls->ifi);
+	if(abnormal || ls->failed)
+		terminate_link(ls);
 }
 
 void waitpids(void)
@@ -73,11 +102,9 @@ void waitpids(void)
 	while((pid = syswaitpid(-1, &status, WNOHANG)) > 0) {
 		if(!(ch = find_child_slot(pid)))
 			continue;
-		if(!(ls = find_link_slot(ch->ifi)))
-			goto next;
-		if(status)
-			abnormal_exit(ls, ch->pid);
-	next:
+		if((ls = find_link_slot(ch->ifi)))
+			child_exit(ls, ch->pid, status);
+
 		free_child_slot(ch);
 	}
 }
@@ -104,7 +131,13 @@ void spawn(struct link* ls, char** args, char** envp)
 		return;
 	}
 fail:
-	abnormal_exit(ls, 0);
+	child_exit(ls, 0, -1);
+}
+
+static void spawn_dhcp(struct link* ls, char* opts)
+{
+	char* args[] = { "dhcp", opts, ls->name, NULL };
+	spawn(ls, args, environ);
 }
 
 /* link_* are callbacks for link status changes, called by the NL code */
@@ -138,18 +171,6 @@ void link_del(struct link* ls)
 	deif_link_procs(ls->ifi);
 }
 
-static void spawn_dhcp(struct link* ls)
-{
-	char* args[] = { "dhcp", ls->name, NULL };
-	spawn(ls, args, environ);
-}
-
-static void spawn_dhcp_local(struct link* ls)
-{
-	char* args[] = { "dhcp", "-g", ls->name, NULL };
-	spawn(ls, args, environ);
-}
-
 void link_enabled(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
@@ -169,22 +190,29 @@ void link_carrier(struct link* ls)
 	if(ls->mode3 == M3_FIXED)
 		; /* ... */
 	else if(ls->mode3 == M3_LOCAL)
-		spawn_dhcp_local(ls);
+		spawn_dhcp(ls, "-g");
 	else if(ls->mode3 == M3_DHCP)
-		spawn_dhcp(ls);
+		spawn_dhcp(ls, "-");
 }
 
 void link_down(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
-	stop_link_procs(ls->ifi, 0);
-	flush_link_address(ls->ifi);
+	terminate_link(ls);
 }
 
 void link_addr(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
+}
+
+void link_flush(struct link* ls)
+{
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
+
+	if(ls->failed)
+		terminate_link(ls);
+	/* else we don't care */
 }
 
 /* conf_* are active commands to change link state, coming either

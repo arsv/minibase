@@ -70,8 +70,6 @@ void flush_link_address(int ifi)
 {
 	struct ifaddrmsg* req;
 
-	eprintf("flush %i\n", ifi);
-
 	nl_header(&rtnl, req, RTM_DELADDR, 0,
 		.family = AF_INET,
 		.prefixlen = 0,
@@ -82,16 +80,16 @@ void flush_link_address(int ifi)
 	nl_send(&rtnl);
 }
 
-static int iff_to_state(int iff)
+static int iff_to_state(int state, int iff)
 {
-	int ret = 0;
+	state &= ~(S_ENABLED | S_CARRIER);
 
 	if(iff & IFF_UP)
-		ret |= S_ENABLED;
+		state |= S_ENABLED;
 	if(iff & IFF_RUNNING)
-		ret |= S_CARRIER;
+		state |= S_CARRIER;
 
-	return ret;
+	return state;
 }
 
 static int bitgain(int prev, int curr, int bit)
@@ -115,7 +113,7 @@ void msg_new_link(struct ifinfomsg* msg)
 		return;
 
 	int prev = ls->state;
-	int curr = iff_to_state(msg->flags);
+	int curr = iff_to_state(ls->state, msg->flags);
 
 	if(!ls->ifi) {
 		/* new link notification */
@@ -199,6 +197,8 @@ void msg_del_addr(struct ifaddrmsg* msg)
 
 	eprintf("del-addr %s %i.%i.%i.%i\n", ls->name,
 			ip[0], ip[1], ip[2], ip[3]);
+
+	link_flush(ls);
 }
 
 void msg_new_route(struct rtmsg* msg)
