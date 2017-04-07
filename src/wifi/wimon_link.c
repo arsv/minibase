@@ -1,9 +1,11 @@
 #include <null.h>
 #include <format.h>
+#include <string.h>
 
 #include "wimon.h"
 #include "wimon_slot.h"
 #include "wimon_proc.h"
+#include "wimon_save.h"
 
 #define WM_NOSCAN    (1<<0)
 #define WM_CONNECT   (1<<1)
@@ -12,21 +14,40 @@
 
 struct wifi {
 	int mode;
-	int freq;
 	int ifi;
+	int freq;
+	short slen;
 	uint8_t ssid[SSIDLEN];
 	char psk[2*32+1];
 } wifi;
 
 /* */
 
+static int allbits(int val, int bits)
+{
+	return ((val & bits) == bits);
+}
+
+static int anybits(int val, int bits)
+{
+	return ((val & bits));
+}
+
+static int wpa_ccmp_ccmp(struct scan* sc)
+{
+	return allbits(sc->type, ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_CCMP);
+}
+
+static int wpa_ccmp_tkip(struct scan* sc)
+{
+	return allbits(sc->type, ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_TKIP);
+}
+
 static int looks_connectable(struct scan* sc)
 {
-	if(!(sc->type & ST_RSN_PSK))
+	if(!allbits(sc->type, ST_RSN_PSK | ST_RSN_P_CCMP))
 		return 0;
-	if(!(sc->type & ST_RSN_P_CCMP))
-		return 0;
-	if(!(sc->type & (ST_RSN_G_CCMP | ST_RSN_G_TKIP)))
+	if(!anybits(sc->type, ST_RSN_G_CCMP | ST_RSN_G_TKIP))
 		return 0;
 
 	return 1;
@@ -66,14 +87,16 @@ static int any_ongoing_scans(void)
 	return 0;
 }
 
-static int load_psk_for(struct scan* sc)
+static int load_station(struct scan* sc)
 {
-	return 0;
-}
+	if(!load_psk(sc->ssid, sc->slen, wifi.psk, sizeof(wifi.psk)))
+		return 0;
 
-static void try_connect(struct link* ls, struct scan* sc)
-{
-	eprintf("try_connect %s %s\n", ls->name, sc->ssid);
+	wifi.freq = sc->freq;
+	wifi.slen = sc->slen;
+	memcpy(wifi.ssid, sc->ssid, sc->slen);
+
+	return 1;
 }
 
 static int maybe_connect_to_something(void)
@@ -84,12 +107,17 @@ static int maybe_connect_to_something(void)
 	while((sc = get_best_station())) {
 		sc->seen = 1;
 
-		if(!load_psk_for(sc))
-			continue;
 		if(!(ls = find_link_slot(sc->ifi)))
 			continue;
+		if(!load_station(sc))
+			continue;
 
-		try_connect(ls, sc);
+		if(wpa_ccmp_ccmp(sc))
+			spawn_wpa(ls, sc, NULL, wifi.psk);
+		else if(wpa_ccmp_tkip(sc))
+			spawn_wpa(ls, sc, "ct", wifi.psk);
+		else
+			continue;
 
 		return 1;
 	};
@@ -131,7 +159,7 @@ static void scan_all_wifis(void)
 
 	for(ls = links; ls < links + nlinks; ls++)
 		if(scannable(ls))
-			trigger_scan(ls);
+			scan_link(ls);
 }
 
 static void reassess_wifi_situation(void)
@@ -154,8 +182,7 @@ void link_new(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	/* load settings */
-	/* sets DISABLED, MANUAL flags, maybe also ips */
+	load_link(ls);
 }
 
 void link_wifi(struct link* ls)
