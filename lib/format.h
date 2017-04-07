@@ -29,6 +29,7 @@ char* fmtstrl(char* dst, char* end, const char* src, int len);
 char* fmttm(char* buf, char* end, struct tm* tm);
 char* fmtulp(char* buf, char* end, unsigned long num, int pad);
 char* fmtip(char* p, char* e, uint8_t ip[4]);
+char* fmtmac(char* p, char* e, uint8_t mac[6]);
 
 char* parseint(char* buf, int* np);
 char* parselong(char* buf, long* np);
