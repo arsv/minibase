@@ -11,27 +11,25 @@
 /* link.state */
 #define S_ENABLED  (1<<0)
 #define S_WIRELESS (1<<1)
-//#define S_SCANNING (1<<2)
-//#define S_SCANRES  (1<<3)
-#define S_CONNECT  (1<<4)
-#define S_CARRIER  (1<<5)
-#define S_IPADDR   (1<<6)
+#define S_CONNECT  (1<<2)
+#define S_CARRIER  (1<<3)
+#define S_IPADDR   (1<<4)
 
 /* link.scan */
 #define SC_NONE    0
 #define SC_REQUEST 1
 #define SC_ONGOING 2
 #define SC_RESULTS 3
+#define SC_DUMPING 4
 
-/* link.mode2 */
-#define M2_KEEP    0
-#define M2_DOWN    1
-#define M2_SCAN    2
-
-/* link.mode3 */
-#define M3_DHCP    0
-#define M3_LOCAL   1
-#define M3_FIXED   2
+/* link.mode */
+#define LM_NOTOUCH (1<<0)
+#define LM_MANUAL  (1<<1) /* do not run dhcp */
+#define LM_LOCAL   (1<<2) /* run dhpc in local mode only */
+#define LM_NOWIFI  (1<<3) /* do not use for wifi autoscans */
+#define LM_SCANRQ  (1<<4) /* scan requested (ls->scan is not spontaneous) */
+#define LM_CCHECK  (1<<5) /* carrier check requested */
+#define LM_TERMRQ  (1<<6) /* terminate_link called */
 
 /* scan.type */
 #define ST_WPS         (1<<0)
@@ -50,17 +48,15 @@
 struct link {
 	int ifi;
 	int seq;
-	char name[NAMELEN];
+	char name[NAMELEN+2];
+	short flags;
 
 	uint8_t bssid[6];
 	uint8_t ip[4];
 	uint8_t mask;
 
-	uint8_t state;
 	uint8_t scan;
-	uint8_t mode2;
-	uint8_t mode3;
-	uint8_t failed;
+	uint8_t mode;
 };
 
 struct scan {
@@ -68,6 +64,7 @@ struct scan {
 	int freq;
 	int signal;
 	int type;
+	short seen;
 	uint8_t bssid[6];
 	char ssid[SSIDLEN];
 };
@@ -110,7 +107,7 @@ void unlink_ctrl(void);
 void handle_rtnl(struct nlmsg* msg);
 void handle_genl(struct nlmsg* msg);
 void set_link_operstate(int ifi, int operstate);
-void flush_link_address(int ifi);
+void del_link_addresses(int ifi);
 void waitpids(void);
 
 void trigger_scan(struct link* ls);

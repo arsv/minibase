@@ -66,7 +66,7 @@ void set_link_operstate(int ifi, int operstate)
 	nl_send(&rtnl);
 }
 
-void flush_link_address(int ifi)
+void del_link_addresses(int ifi)
 {
 	struct ifaddrmsg* req;
 
@@ -80,16 +80,16 @@ void flush_link_address(int ifi)
 	nl_send(&rtnl);
 }
 
-static int iff_to_state(int state, int iff)
+static int iff_to_flags(int flags, int iff)
 {
-	state &= ~(S_ENABLED | S_CARRIER);
+	flags &= ~(S_ENABLED | S_CARRIER);
 
 	if(iff & IFF_UP)
-		state |= S_ENABLED;
+		flags |= S_ENABLED;
 	if(iff & IFF_RUNNING)
-		state |= S_CARRIER;
+		flags |= S_CARRIER;
 
-	return state;
+	return flags;
 }
 
 static int bitgain(int prev, int curr, int bit)
@@ -112,18 +112,18 @@ void msg_new_link(struct ifinfomsg* msg)
 	if(!(ls = grab_link_slot(msg->index)))
 		return;
 
-	int prev = ls->state;
-	int curr = iff_to_state(ls->state, msg->flags);
+	int prev = ls->flags;
+	int curr = iff_to_flags(ls->flags, msg->flags);
 
 	if(!ls->ifi) {
 		/* new link notification */
 		ls->ifi = msg->index;
-		ls->state = curr;
+		ls->flags = curr;
 		memcpy(ls->name, name, nlen);
 		link_new(ls);
 	} else if(curr != prev) {
 		/* state change notification */
-		ls->state = curr;
+		ls->flags = curr;
 
 		if(bitgain(curr, prev, S_CARRIER))
 			link_disconnected(ls);
@@ -162,19 +162,19 @@ void msg_new_addr(struct ifaddrmsg* msg)
 		return;
 	if(!(ip = nl_bin(ifa_get(msg, IFA_ADDRESS), 4)))
 		return;
-	if(ls->state & S_IPADDR)
+	if(ls->flags & S_IPADDR)
 		return;
 
 	memcpy(ls->ip, ip, 4);
 	ls->mask = msg->prefixlen;
-	ls->state |= S_IPADDR;
+	ls->flags |= S_IPADDR;
 
 	eprintf("new-addr %s %i.%i.%i.%i/%i\n",
 			ls->name,
 			ip[0], ip[1], ip[2], ip[3],
 			msg->prefixlen);
 
-	link_got_ip(ls);
+	link_configured(ls);
 }
 
 void msg_del_addr(struct ifaddrmsg* msg)
@@ -186,19 +186,19 @@ void msg_del_addr(struct ifaddrmsg* msg)
 		return;
 	if(!(ip = nl_bin(ifa_get(msg, IFA_ADDRESS), 4)))
 		return;
-	if(!(ls->state & S_IPADDR))
+	if(!(ls->flags & S_IPADDR))
 		return;
 	if(memcmp(ls->ip, ip, 4))
 		return;
 
 	memzero(ls->ip, 4);
 	ls->mask = 0;
-	ls->state &= ~S_IPADDR;
+	ls->flags &= ~S_IPADDR;
 
 	eprintf("del-addr %s %i.%i.%i.%i\n", ls->name,
 			ip[0], ip[1], ip[2], ip[3]);
 
-	link_lost_ip(ls);
+	link_deconfed(ls);
 }
 
 void msg_new_route(struct rtmsg* msg)

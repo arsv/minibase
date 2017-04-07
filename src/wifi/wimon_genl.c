@@ -76,7 +76,7 @@ static void request_results(struct link* ls)
 	genl_dump_lock = 1;
 	genl_scan_dump = ls->ifi;
 
-	ls->scan = SC_NONE;
+	ls->scan = SC_DUMPING;
 }
 
 static void request_wifi_list(void)
@@ -114,17 +114,17 @@ static struct link* grab_genl_link(struct nlgen* msg)
 
 static void msg_new_wifi(struct link* ls, struct nlgen* msg)
 {
-	if(ls->state & S_WIRELESS)
+	if(ls->flags & S_WIRELESS)
 		return;
 
-	ls->state |= S_WIRELESS;
+	ls->flags |= S_WIRELESS;
 
 	link_wifi(ls);
 }
 
 static void msg_del_wifi(struct link* ls, struct nlgen* msg)
 {
-	ls->state &= ~S_WIRELESS;
+	ls->flags &= ~S_WIRELESS;
 
 	drop_scan_slots(ls->ifi);
 }
@@ -138,7 +138,10 @@ static void msg_scan_start(struct link* ls, struct nlgen* msg)
 static void msg_scan_abort(struct link* ls, struct nlgen* msg)
 {
 	ls->scan = SC_NONE;
+
 	eprintf("scan-abort %s\n", ls->name);
+
+	link_scan_done(ls);
 }
 
 static void mark_stale_scan_slots(int ifi, struct nlgen* msg)
@@ -186,7 +189,7 @@ static void msg_connect(struct link* ls, struct nlgen* msg)
 {
 	uint8_t* bssid;
 
-	if(ls->state & S_CONNECT)
+	if(ls->flags & S_CONNECT)
 		return;
 
 	if((bssid = nl_get_of_len(msg, NL80211_ATTR_MAC, 6))) {
@@ -200,15 +203,15 @@ static void msg_connect(struct link* ls, struct nlgen* msg)
 		memset(ls->bssid, 0, 6);
 	}
 
-	ls->state |= S_CONNECT;
+	ls->flags |= S_CONNECT;
 }
 
 static void msg_disconnect(struct link* ls, struct nlgen* msg)
 {
-	if(!(ls->state & S_CONNECT))
+	if(!(ls->flags & S_CONNECT))
 		return;
 
-	ls->state &= ~S_CONNECT;
+	ls->flags &= ~S_CONNECT;
 	memset(ls->bssid, 0, 6);
 	eprintf("wifi %s disconnected\n", ls->name);
 }
@@ -266,6 +269,7 @@ static void notify_scan_done(void)
 	if(!(ls = find_link_slot(genl_scan_dump)))
 		return;
 
+	ls->scan = SC_NONE;
 	drop_stale_scan_slots(ls->ifi);
 	link_scan_done(ls);
 

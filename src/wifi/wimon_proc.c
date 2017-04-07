@@ -4,6 +4,7 @@
 #include <sys/kill.h>
 #include <sys/_exit.h>
 #include <format.h>
+#include <string.h>
 #include <util.h>
 #include <null.h>
 #include <fail.h>
@@ -11,8 +12,6 @@
 #include "wimon.h"
 #include "wimon_proc.h"
 #include "wimon_slot.h"
-
-struct wpaconf wp;
 
 static void dump_spawn(struct link* ls, char** args)
 {
@@ -37,12 +36,14 @@ static void stop_link_procs(int ifi, int except)
 			syskill(ch->pid, SIGTERM);
 }
 
-static void deif_link_procs(int ifi)
+void drop_link_procs(struct link* ls)
 {
 	struct child* ch;
 
+	stop_link_procs(ls->ifi, 0);
+
 	for(ch = children; ch < children + nchildren; ch++)
-		if(ch->ifi == ifi)
+		if(ch->ifi == ls->ifi)
 			ch->ifi = -1;
 }
 
@@ -57,28 +58,24 @@ static int any_link_procs(int ifi)
 	return 0;
 }
 
-static void link_terminated(struct link* ls)
-{
-	eprintf("link_terminated %s\n", ls->name);
-	ls->failed = 0;
-}
-
-static void terminate_link(struct link* ls)
+void terminate_link(struct link* ls)
 {
 	int ifi = ls->ifi;
 	int procs = any_link_procs(ifi);
-	int firstcall = !ls->failed;
+	int firstcall = (ls->mode & LM_TERMRQ);
 
-	ls->failed = 1;
-
+	if(firstcall)
+		ls->mode |= LM_TERMRQ;
 	if(procs && firstcall)
-		stop_link_procs(ifi, 0);
+		return stop_link_procs(ifi, 0);
 	else if(procs)
-		; /* wait until everything terminates via child_exit */
-	else if(ls->state & S_IPADDR)
-		flush_link_address(ifi); /* and wait link_lost_ip */
-	else
-		link_terminated(ls);
+		return; /* wait until everything terminates via child_exit */
+	if(ls->flags & S_IPADDR)
+		return del_link_addresses(ifi); /* and wait for link_deconfed */
+
+	ls->flags &= ~LM_TERMRQ;
+
+	link_terminated(ls);
 }
 
 static void child_exit(struct link* ls, int pid, int abnormal)
@@ -88,7 +85,7 @@ static void child_exit(struct link* ls, int pid, int abnormal)
 	else
 		eprintf("normal exit on link %s\n", ls->name);
 
-	if(abnormal || ls->failed)
+	if(abnormal || ls->mode & LM_TERMRQ)
 		terminate_link(ls);
 }
 
@@ -109,7 +106,7 @@ void waitpids(void)
 	}
 }
 
-void spawn(struct link* ls, char** args, char** envp)
+static void spawn(struct link* ls, char** args, char** envp)
 {
 	struct child* ch;
 	int pid;
@@ -134,139 +131,71 @@ fail:
 	child_exit(ls, 0, -1);
 }
 
-static void spawn_dhcp(struct link* ls, char* opts)
+void spawn_dhcp(struct link* ls, char* opts)
 {
-	char* args[] = { "dhcp", opts, ls->name, NULL };
+	char* args[5];
+	char** p = args;
+	
+	*p++ = "dhcp";
+	if(opts) *p++ = opts;
+	*p++ = ls->name;
+	*p++ = NULL;
+
 	spawn(ls, args, environ);
 }
 
-/* link_* are callbacks for link status changes, called by the NL code */
-
-void link_new(struct link* ls)
+static void prep_wpa_bssid(char* buf, int len, uint8_t* bssid)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
+	char* p = buf;
+	char* e = buf + len - 1;
+
+	p = fmtmac(p, e, bssid);
+	*p++ = '\0';
 }
 
-void link_wifi(struct link* ls)
+static void prep_wpa_freq(char* buf, int len, int freq)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
+	char* p = buf;
+	char* e = buf + len - 1;
 
-	if(ls->mode2 == M2_KEEP)
-		ls->mode2 = M2_SCAN;
-
-	if(ls->mode2 == M2_SCAN)
-		trigger_scan(ls);
+	p = fmtint(p, e, freq);
+	*p++ = '\0';
 }
 
-void link_scan_done(struct link* ls)
+static void prep_wpa_psk(char* buf, int len, char* psk)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
+	char* p = buf;
+	char* e = buf + len - 1;
+
+	p = fmtstr(p, e, "PSK=");
+	p = fmtstr(p, e, psk);
+	*p++ = '\0';
 }
 
-void link_del(struct link* ls)
+static void prep_wpa_env(char** envp, char* pskvar, int envc)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-	
-	stop_link_procs(ls->ifi, 0);
-	deif_link_procs(ls->ifi);
+	envp[0] = pskvar;
+	memcpy(envp + 1, environ, (envc+1)*sizeof(char*));
 }
 
-void link_enabled(struct link* ls)
+void spawn_wpa(struct link* ls, struct scan* sc, char* mode, char* psk)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
+	char bssid[6*3];
+	char freq[10];
+	char* ssid = sc->ssid;
 
-	if(!(ls->state & S_WIRELESS))
-		return;
-	if(ls->mode2 != M2_SCAN)
-		return;
+	prep_wpa_bssid(bssid, sizeof(bssid), sc->bssid);
+	prep_wpa_freq(freq, sizeof(freq), sc->freq);
 
-	trigger_scan(ls);
-}
+	char* argv[] = { "wpa", freq, bssid, ssid, mode, NULL };
 
-void link_carrier(struct link* ls)
-{
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
-	if(ls->mode3 == M3_FIXED)
-		; /* ... */
-	else if(ls->mode3 == M3_LOCAL)
-		spawn_dhcp(ls, "-g");
-	else if(ls->mode3 == M3_DHCP)
-		spawn_dhcp(ls, "-");
-}
-
-void link_disconnected(struct link* ls)
-{
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-	terminate_link(ls);
-}
-
-void link_got_ip(struct link* ls)
-{
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-}
-
-void link_lost_ip(struct link* ls)
-{
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
-	if(ls->failed)
-		terminate_link(ls);
-	/* else we don't care */
-}
-
-/* conf_* are active commands to change link state, coming either
-   from the user or from saved-configuration code */
-
-int conf_down(struct link* ls)
-{
-	ls->mode2 = M2_DOWN;
-	ls->mode3 = M3_DHCP;
-
-	stop_link_procs(ls->ifi, 0);
-	set_link_operstate(ls->ifi, IF_OPER_DOWN);
-
-	return 0;
-}
-
-int conf_auto(struct link* ls)
-{
-	ls->mode2 = M2_SCAN;
-	ls->mode3 = M3_DHCP;
-
-	if((ls->state & (S_CARRIER | S_IPADDR)) == S_CARRIER)
-		link_carrier(ls);
-	else if(!(ls->state & S_ENABLED))
-		set_link_operstate(ls->ifi, IF_OPER_UP);
-
-	return 0;
-}
-
-static void spawn_wpa(struct link* ls)
-{
-	char* argv[] = { "wpa", wp.freq, wp.bssid, wp.ssid, wp.mode, NULL };
+	char pskvar[10+strlen(psk)];
 	char* envp[envcount+2];
-	int i;
 
-	envp[0] = wp.psk;
-	for(i = 0; i < envcount; i++)
-		envp[i+1] = environ[i];
-	envp[i+1] = NULL;
-	
+	prep_wpa_psk(pskvar, sizeof(pskvar), psk);
+	prep_wpa_env(envp, pskvar, envcount);
+
 	spawn(ls, argv, envp);
-}
-
-int conf_wpa(struct link* ls)
-{
-	if(!(ls->state & S_WIRELESS))
-		return -EINVAL;
-	if(ls->state & S_CARRIER)
-		return -EBUSY;
-
-	ls->mode2 = M2_SCAN;
-	ls->mode3 = M3_DHCP;
-
-	spawn_wpa(ls);
-
-	return 0;
+	
+	memzero(pskvar, sizeof(pskvar));
 }
