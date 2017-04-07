@@ -3,6 +3,7 @@
 #define NLINKS 8
 #define NSCANS 64
 #define NCHILDREN 10
+#define NTASKS 4
 
 #define NAMELEN 16
 #define SSIDLEN 32
@@ -109,6 +110,7 @@ void handle_genl(struct nlmsg* msg);
 void set_link_operstate(int ifi, int operstate);
 void del_link_addresses(int ifi);
 void waitpids(void);
+void schedule(void (*call)(void), int secs);
 
 void trigger_scan(struct link* ls);
 void parse_scan_result(struct link* ls, struct nlgen* msg);

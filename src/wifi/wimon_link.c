@@ -5,7 +5,7 @@
 #include "wimon_slot.h"
 #include "wimon_proc.h"
 
-#define WM_FREESCAN  (1<<0)
+#define WM_NOSCAN    (1<<0)
 #define WM_CONNECT   (1<<1)
 #define WM_APLOCK    (1<<2)
 #define WM_RETRY     (1<<3)
@@ -76,11 +76,6 @@ static void try_connect(struct link* ls, struct scan* sc)
 	eprintf("try_connect %s %s\n", ls->name, sc->ssid);
 }
 
-static void schedule_rescan(void)
-{
-	eprintf("schedule_rescan\n");
-}
-
 static int maybe_connect_to_something(void)
 {
 	struct scan* sc;
@@ -102,27 +97,55 @@ static int maybe_connect_to_something(void)
 	return 0;
 }
 
+static void scan_link(struct link* ls)
+{
+	ls->mode |= LM_SCANRQ;
+	trigger_scan(ls);
+}
+
+static int scannable(struct link* ls)
+{
+	if(!ls->ifi)
+		return 0;
+	if(!(ls->flags & S_WIRELESS))
+		return 0;
+	if(ls->mode & (LM_NOTOUCH | LM_NOWIFI))
+		return 0;
+	return 1;
+}
+
+static int any_active_wifis(void)
+{
+	struct link* ls;
+
+	for(ls = links; ls < links + nlinks; ls++)
+		if(scannable(ls))
+			return 1;
+
+	return 0;
+}
+
+static void scan_all_wifis(void)
+{
+	struct link* ls;
+
+	for(ls = links; ls < links + nlinks; ls++)
+		if(scannable(ls))
+			trigger_scan(ls);
+}
+
 static void reassess_wifi_situation(void)
 {
 	eprintf("%s\n", __FUNCTION__);
 
 	if(maybe_connect_to_something())
 		return;
-
-	if(wifi.mode & WM_FREESCAN)
-		schedule_rescan();
-	/* no usable stations */
-}
-
-static void maybe_scan(struct link* ls)
-{
-	if((ls->mode & (LM_NOTOUCH | LM_NOWIFI)))
+	if(wifi.mode & WM_NOSCAN)
 		return;
-	if(!(wifi.mode & WM_FREESCAN))
+	if(!any_active_wifis())
 		return;
 
-	ls->mode |= LM_SCANRQ;
-	trigger_scan(ls);
+	schedule(scan_all_wifis, 60);
 }
 
 /* link_* are callbacks for link status changes, called by the NL code */
@@ -139,14 +162,15 @@ void link_wifi(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	maybe_scan(ls);
+	if(scannable(ls))
+		scan_link(ls);
 }
 
 void link_scan_done(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(!(wifi.mode & WM_FREESCAN))
+	if(wifi.mode & WM_NOSCAN)
 		return;
 	if(any_ongoing_scans())
 		return;
@@ -203,8 +227,8 @@ void link_enabled(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(ls->flags & S_WIRELESS) {
-		maybe_scan(ls);
+	if(scannable(ls)) {
+		scan_link(ls);
 	} else if(ls->mode & LM_CCHECK) {
 		ls->mode &= ~LM_CCHECK;
 		/* XXX */

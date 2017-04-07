@@ -32,6 +32,99 @@ static sigset_t defsigset;
 int sigterm;
 int sigchld;
 
+struct task {
+	struct timespec tv;
+	void (*call)(void);
+} tasks[NTASKS];
+
+void schedule(void (*call)(void), int secs)
+{
+	struct task* tk;
+	int up;
+
+	for(tk = tasks; tk < tasks + NTASKS; tk++)
+		if(tk->call == call)
+			goto got;
+	for(tk = tasks; tk < tasks + NTASKS; tk++)
+		if(!tk->call)
+			goto got;
+
+	return fail("too many scheduled tasks", NULL, 0);
+got:
+	up = tk->tv.tv_nsec > 0 ? 1 : 0;
+
+	if(tk->tv.tv_sec <= 0 && tk->tv.tv_nsec <= 0)
+		;
+	else if(tk->tv.tv_sec + up <= secs)
+		return;
+
+	tk->tv.tv_sec = secs;
+	tk->tv.tv_nsec = 0;
+	tk->call = call;
+}
+
+static void timesub(struct timespec* ta, struct timespec* tb)
+{
+	int carry;
+
+	if(ta->tv_nsec >= tb->tv_nsec) {
+		carry = 0;
+		ta->tv_nsec -= tb->tv_nsec;
+	} else {
+		carry = 1;
+		ta->tv_nsec = 1000000000 - tb->tv_nsec;
+	}
+
+	ta->tv_sec -= tb->tv_sec + carry;
+}
+
+static struct timespec* poll_timeout(struct timespec* ts, struct timespec* te)
+{
+	struct task* tk;
+	struct timespec *pt = NULL;
+
+	for(tk = tasks; tk < tasks + NTASKS; tk++) {
+		if(!tk->call)
+			continue;
+		if(!pt)
+			*(pt = te) = tk->tv;
+		else if(pt->tv_sec > tk->tv.tv_sec)
+			continue;
+		else if(pt->tv_nsec > tk->tv.tv_nsec)
+			continue;
+		else *pt = tk->tv;
+	}
+
+	if(pt) *ts = *pt;
+
+	return pt;
+}
+
+static void update_sched(struct timespec* ts, struct timespec* te)
+{
+	struct task* tk;
+	struct timespec td = *ts;
+
+	if(!te) return;
+
+	timesub(&td, te);
+
+	for(tk = tasks; tk < tasks + NTASKS; tk++) {
+		if(!tk->call)
+			continue;
+
+		timesub(&tk->tv, &td);
+
+		if(tk->tv.tv_sec > 0)
+			continue;
+		if(tk->tv.tv_nsec > 0)
+			continue;
+
+		(tk->call)();
+		tk->call = NULL;
+	};
+}
+
 static void sighandler(int sig)
 {
 	switch(sig) {
@@ -121,6 +214,8 @@ static void setup_env(char** envp)
 
 int main(int argc, char** argv, char** envp)
 {
+	struct timespec ts, te, *tp;
+
 	setup_env(envp);
 
 	setup_rtnl();
@@ -134,7 +229,9 @@ int main(int argc, char** argv, char** envp)
 	{
 		sigchld = 0;
 
-		int r = sysppoll(pfds, NFDS, NULL, &defsigset);
+		tp = poll_timeout(&ts, &te);
+
+		int r = sysppoll(pfds, NFDS, tp, &defsigset);
 
 		if(sigchld)
 			waitpids();
@@ -144,6 +241,8 @@ int main(int argc, char** argv, char** envp)
 			fail("ppoll", NULL, r);
 		else if(r > 0)
 			check_polled_fds();
+
+		update_sched(&ts, tp);
 	}
 
 	unlink_ctrl();
