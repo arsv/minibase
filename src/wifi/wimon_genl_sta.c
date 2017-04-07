@@ -98,10 +98,18 @@ static void parse_vendor(struct scan* sc, int len, char* buf)
 
 static void set_station_ssid(struct scan* sc, int len, char* buf)
 {
+	int i;
+
 	if(len > sizeof(sc->ssid))
 		len = sizeof(sc->ssid);
 
 	memcpy(sc->ssid, buf, len);
+
+	for(i = len; i > 0; i--)
+		if(buf[i-1])
+			break;
+
+	sc->slen = i;
 }
 
 void parse_station_ies(struct scan* sc, struct nlattr* at)

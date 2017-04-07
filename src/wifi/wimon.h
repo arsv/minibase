@@ -67,6 +67,7 @@ struct scan {
 	int type;
 	short seen;
 	uint8_t bssid[6];
+	short slen;
 	uint8_t ssid[SSIDLEN];
 };
 
@@ -114,5 +115,3 @@ void schedule(void (*call)(void), int secs);
 
 void trigger_scan(struct link* ls);
 void parse_scan_result(struct link* ls, struct nlgen* msg);
-
-int ssidlen(uint8_t* ssid);
