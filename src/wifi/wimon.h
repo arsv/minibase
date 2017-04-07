@@ -67,7 +67,7 @@ struct scan {
 	int type;
 	short seen;
 	uint8_t bssid[6];
-	char ssid[SSIDLEN];
+	uint8_t ssid[SSIDLEN];
 };
 
 struct gate {
@@ -114,3 +114,5 @@ void schedule(void (*call)(void), int secs);
 
 void trigger_scan(struct link* ls);
 void parse_scan_result(struct link* ls, struct nlgen* msg);
+
+int ssidlen(uint8_t* ssid);

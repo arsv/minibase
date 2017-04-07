@@ -153,6 +153,16 @@ static void prep_wpa_bssid(char* buf, int len, uint8_t* bssid)
 	*p++ = '\0';
 }
 
+static void prep_wpa_ssid(char* buf, int len, uint8_t* ssid)
+{
+	char* p = buf;
+	char* e = buf + len - 1;
+
+	int slen = ssidlen(ssid);
+	p = fmtraw(p, e, ssid, slen);
+	*p++ = '\0';
+}
+
 static void prep_wpa_freq(char* buf, int len, int freq)
 {
 	char* p = buf;
@@ -182,8 +192,9 @@ void spawn_wpa(struct link* ls, struct scan* sc, char* mode, char* psk)
 {
 	char bssid[6*3];
 	char freq[10];
-	char* ssid = sc->ssid;
+	char ssid[SSIDLEN+2];
 
+	prep_wpa_ssid(ssid, sizeof(ssid), sc->ssid);
 	prep_wpa_bssid(bssid, sizeof(bssid), sc->bssid);
 	prep_wpa_freq(freq, sizeof(freq), sc->freq);
 

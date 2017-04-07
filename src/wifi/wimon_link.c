@@ -14,7 +14,7 @@ struct wifi {
 	int mode;
 	int freq;
 	int ifi;
-	char ssid[NAMELEN];
+	uint8_t ssid[SSIDLEN];
 	char psk[2*32+1];
 } wifi;
 
