@@ -243,10 +243,6 @@ void link_terminated(struct link* ls)
 	if(ls->ifi != wifi.ifi)
 		return;
 
-	if(wifi.mode & (WM_CONNECT | WM_RETRY)) {
-		wifi.mode &= ~WM_RETRY;
-	}
-
 	reassess_wifi_situation();
 }
 
@@ -254,14 +250,8 @@ void link_enabled(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(scannable(ls)) {
+	if(scannable(ls))
 		scan_link(ls);
-	} else if(ls->mode & LM_CCHECK) {
-		ls->mode &= ~LM_CCHECK;
-		/* XXX */
-		eprintf("carrier check on %s: %s\n", ls->name, 
-			(ls->flags & S_CARRIER) ? "yes" : "no");
-	}
 }
 
 void link_carrier(struct link* ls)

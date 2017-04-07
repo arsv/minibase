@@ -29,8 +29,7 @@
 #define LM_LOCAL   (1<<2) /* run dhpc in local mode only */
 #define LM_NOWIFI  (1<<3) /* do not use for wifi autoscans */
 #define LM_SCANRQ  (1<<4) /* scan requested (ls->scan is not spontaneous) */
-#define LM_CCHECK  (1<<5) /* carrier check requested */
-#define LM_TERMRQ  (1<<6) /* terminate_link called */
+#define LM_TERMRQ  (1<<5) /* terminate_link called */
 
 /* scan.type */
 #define ST_WPS         (1<<0)
