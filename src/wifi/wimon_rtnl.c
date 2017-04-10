@@ -126,7 +126,7 @@ void msg_new_link(struct ifinfomsg* msg)
 		ls->flags = curr;
 
 		if(bitgain(curr, prev, S_CARRIER))
-			link_disconnected(ls);
+			link_carrier_lost(ls);
 		else if(bitgain(prev, curr, S_CARRIER))
 			link_carrier(ls);
 		else if(bitgain(prev, curr, S_ENABLED))

@@ -81,7 +81,7 @@ static int any_ongoing_scans(void)
 	struct link* ls;
 
 	for(ls = links; ls < links + nlinks; ls++)
-		if((ls->mode & LM_SCANRQ) && ls->scan)
+		if(ls->scan)
 			return 1;
 
 	return 0;
@@ -127,7 +127,6 @@ static int maybe_connect_to_something(void)
 
 static void scan_link(struct link* ls)
 {
-	ls->mode |= LM_SCANRQ;
 	trigger_scan(ls);
 }
 
@@ -203,37 +202,6 @@ void link_scan_done(struct link* ls)
 		return;
 
 	reassess_wifi_situation();
-}
-
-void link_deconfed(struct link* ls)
-{
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
-	if(ls->mode & LM_TERMRQ)
-		terminate_link(ls);
-	/* else we don't care */
-}
-
-void link_disconnected(struct link* ls)
-{
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
-	if(ls->mode & (LM_NOTOUCH))
-		return;
-
-	terminate_link(ls);
-}
-
-void link_del(struct link* ls)
-{
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-	
-	drop_link_procs(ls);
-
-	if(ls->mode & (LM_NOTOUCH))
-		return;
-
-	link_terminated(ls);
 }
 
 void link_terminated(struct link* ls)

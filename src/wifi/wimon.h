@@ -12,9 +12,11 @@
 /* link.state */
 #define S_ENABLED  (1<<0)
 #define S_WIRELESS (1<<1)
-#define S_CONNECT  (1<<2)
-#define S_CARRIER  (1<<3)
-#define S_IPADDR   (1<<4)
+#define S_ACTIVE   (1<<2)
+#define S_CONNECT  (1<<3)
+#define S_CARRIER  (1<<4)
+#define S_IPADDR   (1<<5)
+#define S_TERMRQ   (1<<6)
 
 /* link.scan */
 #define SC_NONE    0
@@ -28,8 +30,6 @@
 #define LM_MANUAL  (1<<1) /* do not run dhcp */
 #define LM_LOCAL   (1<<2) /* run dhpc in local mode only */
 #define LM_NOWIFI  (1<<3) /* do not use for wifi autoscans */
-#define LM_SCANRQ  (1<<4) /* scan requested (ls->scan is not spontaneous) */
-#define LM_TERMRQ  (1<<5) /* terminate_link called */
 
 /* scan.type */
 #define ST_WPS         (1<<0)

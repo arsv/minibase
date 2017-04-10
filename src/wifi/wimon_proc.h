@@ -28,7 +28,7 @@ void link_wifi(struct link* ls);
 
 void link_enabled(struct link* ls);
 void link_carrier(struct link* ls);
-void link_disconnected(struct link* ls);
+void link_carrier_lost(struct link* ls);
 void link_scan_done(struct link* ls);
 
 void link_configured(struct link* ls);

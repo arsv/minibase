@@ -13,6 +13,18 @@
 #include "wimon_proc.h"
 #include "wimon_slot.h"
 
+/* This part mostly deals with child processes spawned to bring up the link,
+   but also with link termination because it's closely tied to the processes.
+   
+   Normal (status 0) exits are always allowed, and indicate that the tool
+   has done its job. Any abnormal exit is assumed to be non-recoverable,
+   at least at this level; the link gets terminated, and it's up to the
+   management code to re-try if necessary.
+
+   The code tries to distinguish between links that were brought up by wimon,
+   and those that came up spontaneously, with S_ACTIVE flag. This is to avoid
+   spurious link_terminated calls. */
+
 static void dump_spawn(struct link* ls, char** args)
 {
 	char** p;
@@ -58,23 +70,49 @@ static int any_link_procs(int ifi)
 	return 0;
 }
 
+void link_deconfed(struct link* ls)
+{
+	if(!(ls->flags & S_TERMRQ))
+		return;
+	ls->flags &= ~S_TERMRQ;
+	link_terminated(ls);
+}
+
+static void wait_for_children(struct link* ls)
+{
+	if(any_link_procs(ls->ifi))
+		return;
+	if(ls->flags & S_IPADDR)
+		return del_link_addresses(ls->ifi);
+	else
+		link_deconfed(ls);
+}
+
 void terminate_link(struct link* ls)
 {
-	int ifi = ls->ifi;
-	int procs = any_link_procs(ifi);
-	int firstcall = (ls->mode & LM_TERMRQ);
+	ls->flags |= S_TERMRQ;
+	stop_link_procs(ls->ifi, 0);
+	wait_for_children(ls);
+}
 
-	if(firstcall)
-		ls->mode |= LM_TERMRQ;
-	if(procs && firstcall)
-		return stop_link_procs(ifi, 0);
-	else if(procs)
-		return; /* wait until everything terminates via child_exit */
-	if(ls->flags & S_IPADDR)
-		return del_link_addresses(ifi); /* and wait for link_deconfed */
+void link_carrier_lost(struct link* ls)
+{
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	ls->flags &= ~LM_TERMRQ;
+	if(!(ls->flags & S_ACTIVE))
+		return;
 
+	terminate_link(ls);
+}
+
+void link_del(struct link* ls)
+{
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
+
+	if(!(ls->flags & S_ACTIVE))
+		return;
+
+	drop_link_procs(ls);
 	link_terminated(ls);
 }
 
@@ -85,8 +123,11 @@ static void child_exit(struct link* ls, int pid, int abnormal)
 	else
 		eprintf("normal exit on link %s\n", ls->name);
 
-	if(abnormal || ls->mode & LM_TERMRQ)
+	if(ls->flags & S_TERMRQ)
+		wait_for_children(ls);
+	else if(abnormal)
 		terminate_link(ls);
+	/* else we're ok, the child has done its job */
 }
 
 void waitpids(void)
@@ -114,11 +155,13 @@ static void spawn(struct link* ls, char** args, char** envp)
 
 	dump_spawn(ls, args);
 
+	ls->flags |= S_ACTIVE;
+
 	if(!(ch = grab_child_slot()))
 		goto fail;
 	if((pid = sysfork()) < 0)
 		goto fail;
-	
+
 	if(pid == 0) {
 		ret = execvpe(*args, args, envp);
 		fail("exec", *args, ret);
@@ -135,7 +178,7 @@ void spawn_dhcp(struct link* ls, char* opts)
 {
 	char* args[5];
 	char** p = args;
-	
+
 	*p++ = "dhcp";
 	if(opts) *p++ = opts;
 	*p++ = ls->name;
@@ -206,6 +249,6 @@ void spawn_wpa(struct link* ls, struct scan* sc, char* mode, char* psk)
 	prep_wpa_env(envp, pskvar, envcount);
 
 	spawn(ls, argv, envp);
-	
+
 	memzero(pskvar, sizeof(pskvar));
 }
