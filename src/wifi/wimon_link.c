@@ -11,17 +11,17 @@
 #define WM_CONNECT   (1<<1)
 #define WM_APLOCK    (1<<2)
 #define WM_RETRY     (1<<3)
+#define WM_UNSAVED   (1<<4)
 
 struct wifi {
 	int mode;
 	int ifi;
-	int freq;
+	short freq;
+	short prio;
 	short slen;
 	uint8_t ssid[SSIDLEN];
 	char psk[2*32+1];
 } wifi;
-
-/* */
 
 static int allbits(int val, int bits)
 {
@@ -43,7 +43,7 @@ static int wpa_ccmp_tkip(struct scan* sc)
 	return allbits(sc->type, ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_TKIP);
 }
 
-static int looks_connectable(struct scan* sc)
+static int check_wpa(struct scan* sc)
 {
 	if(!allbits(sc->type, ST_RSN_PSK | ST_RSN_P_CCMP))
 		return 0;
@@ -53,23 +53,56 @@ static int looks_connectable(struct scan* sc)
 	return 1;
 }
 
-static struct scan* get_best_station(void)
+static void check_new_aps(int ifi)
+{
+	struct scan* sc;
+
+	for(sc = scans; sc < scans + nscans; sc++) {
+		if(sc->ifi != ifi)
+			continue;
+		if(sc->flags & SF_SEEN)
+			continue;
+
+		sc->flags |= SF_SEEN;
+		sc->prio = saved_psk_prio(sc->ssid, sc->slen);
+
+		if(check_wpa(sc))
+			sc->flags |= SF_GOOD;
+	}
+}
+
+static int check_ssid(struct scan* sc)
+{
+	if(!(wifi.mode & (WM_APLOCK | WM_RETRY)))
+		return 1; /* any ap will do */
+	if(sc->slen != wifi.slen)
+		return 0;
+	if(memcmp(sc->ssid, wifi.ssid, sc->slen))
+		return 0;
+	return 1;
+}
+
+static struct scan* get_best_ap(void)
 {
 	struct scan* sc;
 	struct scan* best = NULL;
-	int signal = 0;
 
 	for(sc = scans; sc < scans + nscans; sc++) {
-		if(sc->seen)
-			continue;
 		if(sc->ifi <= 0)
 			continue;
-		if(!looks_connectable(sc)) /* XXX: move to link_scan_done */
+		if(sc->flags & SF_TRIED && !(wifi.mode & WM_RETRY))
 			continue;
-		if(signal && signal > sc->signal)
+		if(!check_ssid(sc))
+			continue;
+		else if(sc->prio <= 0)
+			continue;
+		if(!(sc->flags & SF_GOOD))
+			continue;
+		if(best && best->prio > sc->prio)
+			continue;
+		if(best && best->signal > sc->signal)
 			continue;
 
-		signal = sc->signal;
 		best = sc;
 	};
 
@@ -87,11 +120,12 @@ static int any_ongoing_scans(void)
 	return 0;
 }
 
-static int load_station(struct scan* sc)
+static int load_ap(struct scan* sc)
 {
 	if(!load_psk(sc->ssid, sc->slen, wifi.psk, sizeof(wifi.psk)))
 		return 0;
 
+	wifi.ifi = sc->ifi;
 	wifi.freq = sc->freq;
 	wifi.slen = sc->slen;
 	memcpy(wifi.ssid, sc->ssid, sc->slen);
@@ -99,17 +133,19 @@ static int load_station(struct scan* sc)
 	return 1;
 }
 
-static int maybe_connect_to_something(void)
+static int connect_to_something(void)
 {
 	struct scan* sc;
 	struct link* ls;
 
-	while((sc = get_best_station())) {
-		sc->seen = 1;
+	while((sc = get_best_ap())) {
+		sc->flags |= SF_TRIED;
+
+		eprintf("best ap %s\n", sc->ssid);
 
 		if(!(ls = find_link_slot(sc->ifi)))
 			continue;
-		if(!load_station(sc))
+		if(!load_ap(sc))
 			continue;
 
 		if(wpa_ccmp_ccmp(sc))
@@ -123,11 +159,6 @@ static int maybe_connect_to_something(void)
 	};
 
 	return 0;
-}
-
-static void scan_link(struct link* ls)
-{
-	trigger_scan(ls);
 }
 
 static int scannable(struct link* ls)
@@ -152,30 +183,50 @@ static int any_active_wifis(void)
 	return 0;
 }
 
+static int rescan_for_current_ap(void)
+{
+	struct link* ls;
+
+	if(!(ls = find_link_slot(wifi.ifi)))
+		return 0;
+
+	trigger_scan(ls, wifi.freq);
+
+	return 1;
+}
+
 static void scan_all_wifis(void)
 {
 	struct link* ls;
 
 	for(ls = links; ls < links + nlinks; ls++)
 		if(scannable(ls))
-			scan_link(ls);
+			trigger_scan(ls, 0);
 }
 
 static void reassess_wifi_situation(void)
 {
 	eprintf("%s\n", __FUNCTION__);
 
-	if(maybe_connect_to_something())
+	if(connect_to_something())
 		return;
+
+	if(wifi.mode & WM_RETRY) {
+		wifi.mode &= ~WM_RETRY;
+		scan_all_wifis();
+		return;
+	}
+
 	if(wifi.mode & WM_NOSCAN)
 		return;
 	if(!any_active_wifis())
 		return;
 
+	eprintf("next scan in 60sec\n");
 	schedule(scan_all_wifis, 60);
 }
 
-/* link_* are callbacks for link status changes, called by the NL code */
+/* link_* are notification of link status changes from the NL code */
 
 void link_new(struct link* ls)
 {
@@ -189,7 +240,15 @@ void link_wifi(struct link* ls)
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
 	if(scannable(ls))
-		scan_link(ls);
+		trigger_scan(ls, 0);
+}
+
+void link_enabled(struct link* ls)
+{
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
+
+	if(scannable(ls))
+		trigger_scan(ls, 0);
 }
 
 void link_scan_done(struct link* ls)
@@ -201,25 +260,8 @@ void link_scan_done(struct link* ls)
 	if(any_ongoing_scans())
 		return;
 
+	check_new_aps(ls->ifi);
 	reassess_wifi_situation();
-}
-
-void link_terminated(struct link* ls)
-{
-	eprintf("link_terminated %s\n", ls->name);
-
-	if(ls->ifi != wifi.ifi)
-		return;
-
-	reassess_wifi_situation();
-}
-
-void link_enabled(struct link* ls)
-{
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
-	if(scannable(ls))
-		scan_link(ls);
 }
 
 void link_carrier(struct link* ls)
@@ -241,6 +283,33 @@ void link_configured(struct link* ls)
 	if(wifi.ifi != ls->ifi)
 		return;
 
+	if(wifi.mode & WM_UNSAVED) {
+		save_psk(wifi.ssid, wifi.slen, wifi.psk, strlen(wifi.psk));
+		wifi.mode &= ~WM_UNSAVED;
+	}
+
 	wifi.mode &= ~WM_RETRY;
 	wifi.mode |= WM_CONNECT;
+}
+
+void link_terminated(struct link* ls)
+{
+	eprintf("link_terminated %s\n", ls->name);
+
+	if(ls->ifi != wifi.ifi) {
+		eprintf("not our master wifi\n");
+		return;
+	}
+
+	/* WM_RETRY here means we tried to reconnect but failed */
+	if(wifi.mode & WM_RETRY)
+		wifi.mode &= ~(WM_RETRY | WM_CONNECT);
+	else if(wifi.mode & WM_CONNECT)
+		wifi.mode |= WM_RETRY;
+
+	if(wifi.mode & WM_RETRY)
+		if(rescan_for_current_ap())
+			return;
+
+	reassess_wifi_situation();
 }

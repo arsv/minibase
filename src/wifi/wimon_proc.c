@@ -83,7 +83,7 @@ static void wait_for_children(struct link* ls)
 	if(any_link_procs(ls->ifi))
 		return;
 	if(ls->flags & S_IPADDR)
-		return del_link_addresses(ls->ifi);
+		del_link_addresses(ls->ifi);
 	else
 		link_deconfed(ls);
 }
@@ -116,7 +116,7 @@ void link_del(struct link* ls)
 	link_terminated(ls);
 }
 
-static void child_exit(struct link* ls, int pid, int abnormal)
+static void child_exit(struct link* ls, int abnormal)
 {
 	if(abnormal)
 		eprintf("abnormal exit on link %s\n", ls->name);
@@ -140,10 +140,11 @@ void waitpids(void)
 	while((pid = syswaitpid(-1, &status, WNOHANG)) > 0) {
 		if(!(ch = find_child_slot(pid)))
 			continue;
-		if((ls = find_link_slot(ch->ifi)))
-			child_exit(ls, ch->pid, status);
 
+		ls = find_link_slot(ch->ifi);
 		free_child_slot(ch);
+
+		if(ls) child_exit(ls, status);
 	}
 }
 
@@ -171,7 +172,7 @@ static void spawn(struct link* ls, char** args, char** envp)
 		return;
 	}
 fail:
-	child_exit(ls, 0, -1);
+	child_exit(ls, -1);
 }
 
 void spawn_dhcp(struct link* ls, char* opts)
@@ -240,7 +241,7 @@ void spawn_wpa(struct link* ls, struct scan* sc, char* mode, char* psk)
 	prep_wpa_bssid(bssid, sizeof(bssid), sc->bssid);
 	prep_wpa_freq(freq, sizeof(freq), sc->freq);
 
-	char* argv[] = { "wpa", freq, bssid, ssid, mode, NULL };
+	char* argv[] = { "wpa", ls->name, freq, bssid, ssid, mode, NULL };
 
 	char pskvar[10+strlen(psk)];
 	char* envp[envcount+2];

@@ -41,6 +41,10 @@
 #define ST_RSN_G_TKIP  (1<<7) /* group */
 #define ST_RSN_G_CCMP  (1<<8)
 
+#define SF_SEEN        (1<<0)
+#define SF_GOOD        (1<<1)
+#define SF_TRIED       (1<<2)
+
 /* for set_link_operstate; from linux/if.h, ref. RFC 2863 */
 #define IF_OPER_DOWN   2
 #define IF_OPER_UP     6
@@ -61,10 +65,11 @@ struct link {
 
 struct scan {
 	int ifi;
-	int freq;
-	int signal;
-	int type;
-	short seen;
+	short freq;
+	short signal;
+	short type;
+	short prio;
+	short flags;
 	uint8_t bssid[6];
 	short slen;
 	uint8_t ssid[SSIDLEN];
@@ -112,5 +117,5 @@ void del_link_addresses(int ifi);
 void waitpids(void);
 void schedule(void (*call)(void), int secs);
 
-void trigger_scan(struct link* ls);
+void trigger_scan(struct link* ls, int freq);
 void parse_scan_result(struct link* ls, struct nlgen* msg);

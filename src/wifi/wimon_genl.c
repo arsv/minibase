@@ -45,13 +45,21 @@ int genl_scan_ready;
 int genl_dump_lock;
 int genl_scan_dump;
 
-void trigger_scan(struct link* ls)
+void trigger_scan(struct link* ls, int freq)
 {
+	struct nlattr* at;
+
 	if(ls->scan)
 		return;
 
 	nl_new_cmd(&genl, nl80211, NL80211_CMD_TRIGGER_SCAN, 0);
 	nl_put_u64(&genl, NL80211_ATTR_IFINDEX, ls->ifi);
+
+	if(freq) {
+		at = nl_put_nest(&genl, NL80211_ATTR_SCAN_FREQUENCIES);
+		nl_put_u32(&genl, 0, freq);
+		nl_end_nest(&genl, at);
+	}
 
 	if(nl_send(&genl))
 		fail("send", "genl", genl.err);

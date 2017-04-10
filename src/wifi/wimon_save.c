@@ -31,6 +31,16 @@ extern char* test_psk;
 extern uint8_t test_ssid[];
 extern int test_slen;
 
+int saved_psk_prio(uint8_t* ssid, int slen)
+{
+	if(slen != test_slen)
+		return -1;
+	if(memcmp(ssid, test_ssid, slen))
+		return -1;
+
+	return 1;
+}
+
 int load_psk(uint8_t* ssid, int slen, char* psk, int plen)
 {
 	eprintf("%s %s\n", __FUNCTION__, ssid);
