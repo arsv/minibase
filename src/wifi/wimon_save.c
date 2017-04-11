@@ -133,6 +133,18 @@ out:	sysclose(fd);
 	return ret;
 }
 
+static int isspace(int c)
+{
+	return (c == ' ' || c == '\t' || c == '\n');
+}
+
+static char* skipline(char* p, char* e)
+{
+	while(p < e && *p != '\n')
+		p++;
+	return p;
+}
+
 static int setline(struct line* ln, char* p)
 {
 	char* confend = config + datalen;
@@ -143,7 +155,7 @@ static int setline(struct line* ln, char* p)
 		p = NULL;
 
 	ln->start = p ? p : NULL;
-	ln->end = p ? strecbrk(p, confend, '\n') : NULL;
+	ln->end = p ? skipline(p, confend) : NULL;
 
 	return !!p;
 }
@@ -156,11 +168,6 @@ static int firstline(struct line* ln)
 static int nextline(struct line* ln)
 {
 	return setline(ln, ln->end + 1);
-}
-
-static int isspace(int c)
-{
-	return (c == ' ' || c == '\t' || c == '\n');
 }
 
 static int prefixed(struct line* ln, char* pref, int len)
@@ -176,20 +183,34 @@ static int prefixed(struct line* ln, char* pref, int len)
 	return 1;
 }
 
+static char* skiparg(char* p, char* e)
+{
+	for(; p < e && !isspace(*p); p++)
+		if(*p == '\\') p++;
+	return p;
+}
+
+static char* skipsep(char* p, char* e)
+{
+	while(p < e && isspace(*p))
+		p++;
+	return p;
+}
+
 static int splitline(struct line* ln, struct chunk* ck, int nc)
 {
 	char* end = ln->end;
 	char* p = ln->start;
 	int i;
 
-	while(p < end && isspace(*p)) p++;
+	p = skipsep(p, end);
 
 	while(p < end && i < nc) {
 		ck[i].start = p;
-		while(p < end && !isspace(*p)) p++;
+		p = skiparg(p, end);
 		ck[i].end = p;
 		i++;
-		while(p < end && isspace(*p)) p++;
+		p = skipsep(p, end);
 	}
 
 	return i;
@@ -264,8 +285,12 @@ static void prep_ssid(char* buf, int len, uint8_t* ssid, int slen)
 		if(ssid[i] == '\\') {
 			p = fmtchar(p, e, '\\');
 			p = fmtchar(p, e, '\\');
-		} if(ssid[i] <= 0x20) {
+		} else if(ssid[i] == ' ') {
 			p = fmtchar(p, e, '\\');
+			p = fmtchar(p, e, ' ');
+		} else if(ssid[i] <= 0x20) {
+			p = fmtchar(p, e, '\\');
+			p = fmtchar(p, e, 'x');
 			p = fmtbyte(p, e, ssid[i]);
 		} else {
 			p = fmtchar(p, e, ssid[i]);
