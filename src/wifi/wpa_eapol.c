@@ -90,7 +90,7 @@ static void pmk_to_ptk()
    there should be one with the GTK. The whole thing is really
    messed up, so refer to the standard for clues. KDE structure
    comes directly from 802.11, it's actually a kind of tagged
-   union there but we only need a single case, namely GTK KDE. */
+   union there but we only need a single case, namely the GTK KDE. */
 
 /* Ref. IEEE 802.11-2012 Table 11-6 */
 static const char kde_type_gtk[4] = { 0x00, 0x0F, 0xAC, 0x01 };
@@ -168,7 +168,7 @@ static struct eapolkey* recv_eapol(uint8_t mac[6])
 	if(eksize + ntohs(ek->paylen) > rd)
 		return NULL; /* truncated payload */
 	if(ek->pactype != EAPOL_KEY)
-		return 0; /* not a key packet */
+		return 0;
 
 	memcpy(mac, sender.addr, 6);
 
@@ -200,16 +200,12 @@ static void send_packet(char* buf, int len)
 		fail("send", "PF_PACKET", wr);
 }
 
-/* The standard says (vaguely) that we should silently drop any
-   unexpected packets. However, if we see something other than
+/* The standard says (roughly) that we should silently drop any
+   unexpected packets. But if we see something other than
    4-way handshake right after the connection has been established,
    we're doing something really wrong and should probably abort
-   right away.
-   
-   Ignoring the packet will just delay the inevitable, and possibly
-   hide what's really going on. I.e. the user will see "timeout"
-   when in fact there's something wrong with the AP, or there are
-   injected packets in the channel. */
+   right away. Ignoring the packet will just delay the inevitable,
+   and possibly hide what's really going on. */
 
 void recv_packet_1(void)
 {
