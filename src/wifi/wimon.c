@@ -76,6 +76,11 @@ static void timesub(struct timespec* ta, struct timespec* tb)
 	}
 
 	ta->tv_sec -= tb->tv_sec + carry;
+
+	if(ta->tv_nsec < 0)
+		ta->tv_nsec = 0;
+	if(ta->tv_sec < 0)
+		ta->tv_sec = 0;
 }
 
 static struct timespec* poll_timeout(struct timespec* ts, struct timespec* te)
