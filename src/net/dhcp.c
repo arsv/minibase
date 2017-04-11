@@ -13,6 +13,7 @@
 #include <sys/read.h>
 #include <sys/close.h>
 #include <sys/alarm.h>
+#include <sys/ppoll.h>
 #include <sys/execve.h>
 #include <sys/sigaction.h>
 
@@ -36,7 +37,7 @@ ERRLIST = {
 	REPORT(ENOBUFS), REPORT(ENOMEM), REPORT(EPROTONOSUPPORT),
 	REPORT(EADDRINUSE), REPORT(EBADF), REPORT(ENOTSOCK),
 	REPORT(EADDRNOTAVAIL), REPORT(EFAULT), REPORT(ENODEV),
-	REPORT(ENETDOWN), RESTASNUMBERS
+	REPORT(ENETDOWN), REPORT(ETIMEDOUT), RESTASNUMBERS
 };
 
 /* DHCP packets are sent via raw sockets, so full ip and udp headers here. */
@@ -292,21 +293,6 @@ static void send_packet(void)
 	     "sendto", NULL);
 }
 
-void send_discover(void)
-{
-	put_header(DHCPDISCOVER);
-	send_packet();
-}
-
-void send_request(void)
-{
-	put_header(DHCPREQUEST);
-	put_ip(DHCP_REQUESTED_IP, offer.yourip);
-	put_ip(DHCP_SERVER_ID, offer.serverip);
-	put_mac(DHCP_CLIENT_ID, iface.mac);
-	send_packet();
-}
-
 /* Receive */
 
 static int check_udp_header(void)
@@ -338,7 +324,32 @@ static int check_dhcp_header(void)
 	return 0;
 }
 
-void recv_packet(void)
+/* Sadly DHCP has a tendency to fail unpredictably on newly-established
+   wifi connections. It's difficult to deal with otherwise, so here's some
+   timed retries. */
+
+static int timedrecv(int fd, char* buf, int len)
+{
+	struct timespec ts = {
+		.tv_sec = 0,
+		.tv_nsec = 150*1000*1000 /* 150ms */
+	};
+	struct pollfd pfd = {
+		.fd = fd,
+		.events = POLLIN
+	};
+
+	int ret = sysppoll(&pfd, 1, &ts, NULL);
+
+	if(!ret)
+		return -ETIMEDOUT;
+	if(ret < 0)
+		return ret;
+
+	return sysrecv(fd, buf, len, 0);
+}
+
+int recv_packet(void)
 {
 	long rd;
 
@@ -351,7 +362,7 @@ void recv_packet(void)
 
 	reset();
 
-	while((rd = sysrecv(sockfd, buf, len, 0)) > 0) {
+	while((rd = timedrecv(sockfd, buf, len)) > 0) {
 		if(rd < udplen)
 			continue; /* too short */
 		if(rd < (totlen = ntohs(packet.ip.tot_len)))
@@ -364,10 +375,12 @@ void recv_packet(void)
 			continue; /* malformed DHCP, wrong xid */
 		break;
 	} if(rd <= 0) {
-		fail("recv", NULL, rd);
+		return rd;
 	}
 
 	optptr = totlen - hdrlen;
+
+	return totlen;
 }
 
 struct dhcpopt* get_option(int code, int len)
@@ -404,12 +417,21 @@ static uint8_t* get_server_addr(void)
 	return opt ? (uint8_t*)opt->payload : NULL;
 }
 
-void recv_offer(void)
+void send_discover_recv_offer(void)
 {
 	uint8_t* srv;
+	int ret, tries = 3;
+again:  
+	put_header(DHCPDISCOVER);
+	send_packet();
 
 	while(1) {
-		recv_packet();
+		if((ret = recv_packet()) >= 0)
+			;
+		else if(ret == -ETIMEDOUT && --tries)
+			goto again;
+		else
+			fail(NULL, "discover", ret);
 
 		if(get_message_type() != DHCPOFFER)
 			continue;
@@ -423,10 +445,23 @@ void recv_offer(void)
 	memcpy(offer.yourip, packet.dhcp.yiaddr, 4);
 }
 
-void recv_acknak(void)
+void send_request_recv_acknak(void)
 {
+	int ret, tries = 3;
+again:
+	put_header(DHCPREQUEST);
+	put_ip(DHCP_REQUESTED_IP, offer.yourip);
+	put_ip(DHCP_SERVER_ID, offer.serverip);
+	put_mac(DHCP_CLIENT_ID, iface.mac);
+	send_packet();
+	
 	while(1) {
-		recv_packet();
+		if((ret = recv_packet()) >= 0)
+			;
+		else if(ret == ETIMEDOUT && --tries)
+			goto again;
+		else
+			fail(NULL, "request", ret);
 
 		if(memcmp(&packet.ip.saddr, offer.serverip, 4))
 			continue;
@@ -463,10 +498,8 @@ int main(int argc, char** argv, char** envp)
 	setup_socket(devname);
 	init_xid(envp);
 
-	send_discover();
-	recv_offer();
-	send_request();
-	recv_acknak();
+	send_discover_recv_offer();
+	send_request_recv_acknak();
 
 	uint8_t* ip = packet.dhcp.yiaddr;
 	int ifi = iface.index;
