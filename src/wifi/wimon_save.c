@@ -22,18 +22,26 @@
 	psk 91234A...47AC 0 publicnet
 	psk F419BE...01F5 0 someothernet
 
-   and wimon needs to add/remove/modify lines whenever device or AP settings
-   change. The data gets read into memory on demand, queried (several times,
-   in particular when sorting APs in link_scan_done), modified in memory if
-   necessary, and synced back to disk once it's clear no queries will come
-   any time soon. Defaults are generally not saved. */
+   and wimon needs to search/parse on certain events and add/remove/modify
+   lines whenever device or AP settings change.
+
+   The data gets read into memory on demand, queried, modified in memory
+   if necessary, and synced back to disk.
+
+   The events that cause config loading are often independent but sometimes
+   have strong tendency to come in packs; think initial devices dump, or
+   scan followed by auto-connect. To make things easier on the caller side,
+   config is loaded on demand and unloading is schedule to happen several
+   seconds later. This should be enough to avoid excessive load-save-load
+   sequences. */
 
 #define PAGE 4096
 #define MAX_CONFIG_SIZE 64*1024
 
-char* config;
-int blocklen;
-int datalen;
+static char* config;
+static int blocklen;
+static int datalen;
+static int modified;
 
 struct line {
 	char* start;
@@ -50,18 +58,50 @@ static int pagealign(long size)
 	return size + (PAGE - size % PAGE) % PAGE;
 }
 
-void preload_config(void)
+void save_config(void)
+{
+	int fd;
+
+	if(!config)
+		return;
+	if(!modified)
+		return;
+
+	if((fd = sysopen3(WICFG, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0) {
+		warn("cannot open", WICFG, fd);
+		return;
+	}
+
+	writeall(fd, config, datalen);
+	sysclose(fd);
+	modified = 0;
+}
+
+static void drop_config(void)
+{
+	if(!config)
+		return;
+	if(modified)
+		save_config();
+
+	eprintf("%s\n", __FUNCTION__);
+
+	sysmunmap(config, blocklen);
+	config = NULL;
+	blocklen = 0;
+	datalen = 0;
+}
+
+static int load_config(void)
 {
 	int fd;
 	long ret;
 	struct stat st;
 
-	eprintf("%s\n", __FUNCTION__);
-
-	if(config) return;
-
+	if(config)
+		return 0;
 	if((fd = sysopen(WICFG, O_RDONLY)) < 0)
-		return;
+		return fd;
 	if((ret = sysfstat(fd, &st)) < 0)
 		goto out;
 	if(st.st_size > MAX_CONFIG_SIZE) {
@@ -80,34 +120,17 @@ void preload_config(void)
 	config = (char*)ret;
 	blocklen = size;
 	datalen = st.st_size;
+	modified = 0;
 	ret = 0;
 
-	eprintf("got config of size %i\n", datalen);
+	schedule(drop_config, 10);
 
 out:	sysclose(fd);
 
 	if(ret && ret != -ENOENT)
 		warn(NULL, WICFG, ret);
-}
 
-void release_config(void)
-{
-	int fd;
-
-	eprintf("%s\n", __FUNCTION__);
-
-	if(!config)
-		return;
-
-	if((fd = sysopen3(WICFG, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0) {
-		warn("cannot open", WICFG, fd);
-	} else {
-		writeall(fd, config, datalen);
-		sysclose(fd);
-	}
-
-	sysmunmap(config, blocklen);
-	config = NULL;
+	return ret;
 }
 
 static int setline(struct line* ln, char* p)
@@ -211,17 +234,14 @@ int load_link(struct link* ls)
 
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(!config) {
-		warn("no config to load from", NULL, 0);
+	if(load_config())
 		return 0;
-	}
-
 	if(!findline(&ln, ck, 3, "dev", 1, ls->name))
 		return 0;
 
 	eprintf("load %s\n", ls->name);
 
-	return 0;
+	return 0; /* XXX */
 }
 
 void save_link(struct link* ls)
@@ -266,6 +286,8 @@ int saved_psk_prio(uint8_t* ssid, int slen)
 	char* p;
 	int prio;
 
+	if(load_config())
+		return -1;
 	if(!findline(&ln, ck, 4, "psk", 3, ssidstr))
 		return -1;
 
@@ -285,6 +307,8 @@ int load_psk(uint8_t* ssid, int slen, char* psk, int plen)
 	char ssidstr[3*32+4];
 	prep_ssid(ssidstr, sizeof(ssidstr), ssid, slen);
 
+	if(load_config())
+		return 0;
 	if(!findline(&ln, ck, 4, "psk", 3, ssidstr))
 		return 0;
 

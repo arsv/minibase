@@ -57,8 +57,6 @@ static void check_new_aps(int ifi)
 {
 	struct scan* sc;
 
-	preload_config();
-
 	for(sc = scans; sc < scans + nscans; sc++) {
 		if(sc->ifi != ifi)
 			continue;
