@@ -2,6 +2,10 @@
 
 include $/config.mk
 
+ifdef devel
+CFLAGS += -DDEVEL
+endif
+
 bin = wiscan wimon wpa pbkdf
 
 man1 =
