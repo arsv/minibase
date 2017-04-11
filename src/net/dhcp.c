@@ -14,10 +14,12 @@
 #include <sys/close.h>
 #include <sys/alarm.h>
 #include <sys/execve.h>
+#include <sys/sigaction.h>
 
 #include <format.h>
 #include <string.h>
 #include <endian.h>
+#include <sigset.h>
 #include <util.h>
 #include <fail.h>
 
@@ -64,6 +66,25 @@ struct {
 } iface;
 
 struct sockaddr_ll sockaddr;
+
+static void sigalarm(int sig)
+{
+	fail("timeout", NULL, 0);
+}
+
+static void setup_alarm(void)
+{
+	struct sigaction sa = {
+		.handler = sigalarm,
+		.flags = SA_RESTORER,
+		.restorer = sigreturn
+	};
+
+	sigemptyset(&sa.mask);
+	syssigaction(SIGALRM, &sa, NULL);
+
+	sysalarm(1);
+}
 
 /* Try to come up with a somewhat random xid by pulling auxvec random
    bytes. Failure is not a big issue here, in the sense that DHCP is
@@ -438,8 +459,7 @@ int main(int argc, char** argv, char** envp)
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
-	sysalarm(1);
-
+	setup_alarm();
 	setup_socket(devname);
 	init_xid(envp);
 
