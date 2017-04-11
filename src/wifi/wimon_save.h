@@ -1,5 +1,6 @@
 #include <bits/ints.h>
 
+void preload_config(void);
 void release_config(void);
 
 int load_link(struct link* ls);

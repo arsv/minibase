@@ -4,4 +4,4 @@ wpa
 wpa.sh
 pbkdf
 wimon.txt
-testap.c
+var/

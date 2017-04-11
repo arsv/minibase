@@ -1,7 +1,7 @@
 #ifdef DEVEL
 #define WICTL "./run/wimon"
-#define WIDIR "./var/net"
+#define WICFG "./var/wimon.state"
 #else
 #define WICTL "/run/wimon"
-#define WIDIR "/var/net"
+#define WICFG "/var/wimon.state"
 #endif
