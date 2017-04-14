@@ -8,4 +8,4 @@ man1 =
 
 include $/common.mk
 
-msh: msh.o msh_parse.o msh_envp.o msh_exec.o msh_heap.o msh_fail.o
+msh: msh.o msh_parse.o msh_environ.o msh_command.o msh_util.o
