@@ -1,6 +1,11 @@
 #include <bits/errno.h>
-#include <sys/brk.h>
 #include <sys/_exit.h>
+#include <sys/brk.h>
+#include <sys/open.h>
+#include <sys/fstat.h>
+#include <sys/close.h>
+#include <sys/mmap.h>
+#include <sys/munmap.h>
 
 #include <string.h>
 #include <format.h>
@@ -159,4 +164,89 @@ void hset(struct sh* ctx, int what)
 		case ESEP: ctx->esep = ctx->hptr; break;
 		case VSEP: ctx->var = ctx->hptr; break;
 	}
+}
+
+/* User/group id parsing for setuid/setgid/setgroups builtins */
+
+int mmapfile(struct mbuf* mb, char* name)
+{
+	int fd;
+	long ret;
+	struct stat st;
+
+	if((fd = sysopen(name, O_RDONLY | O_CLOEXEC)) < 0)
+		return fd;
+	if((ret = sysfstat(fd, &st)) < 0)
+		goto out;
+	/* get larger-than-int files out of the picture */
+	if(st.st_size > 0x7FFFFFFF) {
+		ret = -E2BIG;
+		goto out;
+	}
+
+	const int prot = PROT_READ;
+	const int flags = MAP_SHARED;
+
+	ret = sysmmap(NULL, st.st_size, prot, flags, fd, 0);
+
+	if(MMAPERROR(ret))
+		goto out;
+
+	mb->len = st.st_size;
+	mb->buf = (char*)ret;
+	ret = 0;
+out:
+	sysclose(fd);
+	return ret;
+}
+
+int munmapfile(struct mbuf* mb)
+{
+	return sysmunmap(mb->buf, mb->len);
+}
+
+/* We do not close fd and never unmap the area explicitly.
+   It's a shared r/o map, and there's at most two of them
+   anyway, so that would be just two pointless syscalls. */
+
+static int mapid(struct mbuf* mb, char* name)
+{
+	char* filedata = mb->buf;
+	char* fileend = filedata + mb->len;
+	int id;
+
+	/* user:x:500:...\n */
+	/* ls  ue un     le */
+	char *ls, *le;
+	char *ue, *un;
+	char *ne = NULL;
+	for(ls = filedata; ls < fileend; ls = le + 1) {
+		le = strecbrk(ls, fileend, '\n');
+		ue = strecbrk(ls, le, ':');
+		if(ue >= le) continue;
+		un = strecbrk(ue + 1, le, ':') + 1;
+		if(un >= le) continue;
+
+		if(strncmp(name, ls, ue - ls))
+			continue;
+
+		ne = parseint(un, &id);
+		break;
+	};
+
+	if(!ne || *ne != ':')
+		return -1;
+
+	return id;
+}
+
+int pwname2id(struct mbuf* mb, char* name)
+{
+	int id;
+	char* p;
+
+	if((p = parseint(name, &id)) && !*p)
+		return id;
+
+	return mapid(mb, name);
 }

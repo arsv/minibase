@@ -2,6 +2,7 @@
 #include <sys/_exit.h>
 #include <sys/chdir.h>
 #include <sys/waitpid.h>
+#include <sys/setresuid.h>
 
 #include <string.h>
 #include <format.h>
@@ -17,6 +18,30 @@ static int fchk(long ret, struct sh* ctx, const char* msg, char* arg)
 		return error(ctx, msg, arg, ret);
 	else
 		return 0;
+}
+
+static int cmd_setuid(struct sh* ctx, int argc, char** argv)
+{
+	if(argc != 2)
+		return error(ctx, "single argument required", NULL, 0);
+
+	struct mbuf mb;
+	char* pwfile = "/etc/passwd";
+	int ret;
+
+	if((ret = mmapfile(&mb, pwfile)) < 0)
+		return error(ctx, "cannot mmap", pwfile, ret);
+
+	char* user = argv[1];
+
+	if((ret = pwname2id(&mb, user)) < 0)
+		error(ctx, "unknown user", user, 0);
+	else if((ret = sys_setresuid(ret, ret, ret)) < 0)
+		error(ctx, "setuid", user, ret);
+
+	munmapfile(&mb);
+
+	return ret;
 }
 
 static int cmd_cd(struct sh* ctx, int argc, char** argv)
@@ -57,11 +82,12 @@ static const struct cmd {
 	char name[NLEN];
 	int (*cmd)(struct sh* ctx, int argc, char** argv);
 } builtins[] = {
-	{ "cd",    cmd_cd   },
-	{ "exit",  cmd_exit },
-	{ "exec",  cmd_exec },
-	{ "unset", cmd_unset },
-	{ "",   NULL }
+	{ "cd",       cmd_cd      },
+	{ "exit",     cmd_exit    },
+	{ "exec",     cmd_exec    },
+	{ "unset",    cmd_unset   },
+	{ "setuid",   cmd_setuid  },
+	{ "",         NULL        }
 };
 
 static int spawn(struct sh* ctx, int argc, char** argv)
