@@ -1,6 +1,7 @@
 #include <sys/fork.h>
 #include <sys/_exit.h>
 #include <sys/chdir.h>
+#include <sys/chroot.h>
 #include <sys/waitpid.h>
 #include <sys/setresuid.h>
 #include <sys/setresgid.h>
@@ -57,8 +58,12 @@ static int cmd_setgid(struct sh* ctx, int argc, char** argv)
 
 static int cmd_cd(struct sh* ctx, int argc, char** argv)
 {
-	return fchk(syschdir(argv[1]),
-			ctx, "chdir", argv[1]);
+	return fchk(syschdir(argv[1]), ctx, "chdir", argv[1]);
+}
+
+static int cmd_chroot(struct sh* ctx, int argc, char** argv)
+{
+	return fchk(syschroot(argv[1]), ctx, "chroot", argv[1]);
 }
 
 static int cmd_exit(struct sh* ctx, int argc, char** argv)
@@ -99,6 +104,7 @@ static const struct cmd {
 	{ "unset",    cmd_unset   },
 	{ "setuid",   cmd_setuid  },
 	{ "setgid",   cmd_setgid  },
+	{ "chroot",   cmd_chroot  },
 	{ "",         NULL        }
 };
 
