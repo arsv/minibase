@@ -5,6 +5,7 @@
 #include <sys/waitpid.h>
 #include <sys/setresuid.h>
 #include <sys/setresgid.h>
+#include <sys/setpriority.h>
 
 #include <string.h>
 #include <format.h>
@@ -66,6 +67,19 @@ static int cmd_chroot(struct sh* ctx, int argc, char** argv)
 	return fchk(syschroot(argv[1]), ctx, "chroot", argv[1]);
 }
 
+static int cmd_setprio(struct sh* ctx, int argc, char** argv)
+{
+	char* p;
+	int prio;
+
+	if(argc != 2)
+		return error(ctx, "single argument required", NULL, 0);
+	if((p = parseint(argv[1], &prio)) || *p)
+		return error(ctx, "argument must be numeric", NULL, 0);
+
+	return fchk(sys_setpriority(0, 0, prio), ctx, "setpriority", argv[1]);
+}
+
 static int cmd_exit(struct sh* ctx, int argc, char** argv)
 {
 	_exit(0);
@@ -105,6 +119,7 @@ static const struct cmd {
 	{ "setuid",   cmd_setuid  },
 	{ "setgid",   cmd_setgid  },
 	{ "chroot",   cmd_chroot  },
+	{ "setprio",  cmd_setprio },
 	{ "",         NULL        }
 };
 
