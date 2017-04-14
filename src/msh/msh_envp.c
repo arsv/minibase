@@ -10,7 +10,6 @@
    as opposed to leaving only struct env-s and building envp on
    each exec. */
 
-
 static char* match(char* envline, char* var)
 {
 	char* a = envline;
