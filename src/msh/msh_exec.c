@@ -64,14 +64,10 @@ static const struct cmd {
 	{ "",   NULL }
 };
 
-static void builtin(struct sh* ctx, const struct cmd* bi, int argc, char** argv)
-{
-	ctx->ret = bi->cmd(ctx, argc, argv);
-}
-
-static void spawn(struct sh* ctx, int argc, char** argv)
+static int spawn(struct sh* ctx, int argc, char** argv)
 {
 	long pid = sysfork();
+	int status;
 
 	if(pid < 0)
 		fail("fork", NULL, pid);
@@ -82,14 +78,17 @@ static void spawn(struct sh* ctx, int argc, char** argv)
 		_exit(0xFF);
 	}
 
-	if((pid = syswaitpid(pid, &ctx->ret, 0)) < 0)
+	if((pid = syswaitpid(pid, &status, 0)) < 0)
 		fail("wait", *argv, pid);
+
+	return status;
 }
 
 void exec(struct sh* ctx, int argc, char** argv)
 {
 	const struct cmd* bi;
 	int noerror = 0;
+	int ret;
 
 	if(argv[0][0] == '-') {
 		noerror = 1;
@@ -100,11 +99,11 @@ void exec(struct sh* ctx, int argc, char** argv)
 		if(!strcmp(bi->name, argv[0]))
 			break;
 	if(bi->cmd)
-		builtin(ctx, bi, argc, argv);
+		ret = bi->cmd(ctx, argc, argv);
 	else
-		spawn(ctx, argc, argv);
+		ret = spawn(ctx, argc, argv);
 
-	if(!ctx->ret || noerror)
+	if(!ret || noerror)
 		return;
 
 	fatal(ctx, "command failed", NULL);

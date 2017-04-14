@@ -33,7 +33,6 @@ struct sh {
 	int state;       /* of parser */
 	int count;       /* of Arg-s laid out so far */
 	char** envp;
-	int ret;         /* wait() status of the last cmd */
 
 	char* heap;
 	char* esep;
