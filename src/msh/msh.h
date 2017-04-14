@@ -79,6 +79,5 @@ void fail(const char* err, char* arg, long ret) NR;
 int error(struct sh* ctx, const char* err, char* arg, long ret);
 void fatal(struct sh* ctx, const char* err, char* arg) NR;
 
-int mmapfile(struct mbuf* mb, char* name);
-int munmapfile(struct mbuf* mb);
-int pwname2id(struct mbuf* mb, char* name);
+int pwresolve(struct sh* ctx, char* pwfile,
+              int n, char** names, int* ids, char* notfound);

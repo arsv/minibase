@@ -22,26 +22,19 @@ static int fchk(long ret, struct sh* ctx, const char* msg, char* arg)
 
 static int cmd_setuid(struct sh* ctx, int argc, char** argv)
 {
+	int ret, uid;
+	char* pwfile = "/etc/passwd";
+
 	if(argc != 2)
 		return error(ctx, "single argument required", NULL, 0);
 
-	struct mbuf mb;
-	char* pwfile = "/etc/passwd";
-	int ret;
+	if((ret = pwresolve(ctx, pwfile, 1, &argv[1], &uid, "unknown user")))
+		return ret;
 
-	if((ret = mmapfile(&mb, pwfile)) < 0)
-		return error(ctx, "cannot mmap", pwfile, ret);
+	if((ret = sys_setresuid(uid, uid, uid)) < 0)
+		return error(ctx, "setuid", argv[1], ret);
 
-	char* user = argv[1];
-
-	if((ret = pwname2id(&mb, user)) < 0)
-		error(ctx, "unknown user", user, 0);
-	else if((ret = sys_setresuid(ret, ret, ret)) < 0)
-		error(ctx, "setuid", user, ret);
-
-	munmapfile(&mb);
-
-	return ret;
+	return 0;
 }
 
 static int cmd_cd(struct sh* ctx, int argc, char** argv)

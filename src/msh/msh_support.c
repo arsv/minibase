@@ -168,7 +168,7 @@ void hset(struct sh* ctx, int what)
 
 /* User/group id parsing for setuid/setgid/setgroups builtins */
 
-int mmapfile(struct mbuf* mb, char* name)
+static int mmapfile(struct mbuf* mb, char* name)
 {
 	int fd;
 	long ret;
@@ -200,7 +200,7 @@ out:
 	return ret;
 }
 
-int munmapfile(struct mbuf* mb)
+static int munmapfile(struct mbuf* mb)
 {
 	return sysmunmap(mb->buf, mb->len);
 }
@@ -240,7 +240,7 @@ static int mapid(struct mbuf* mb, char* name)
 	return id;
 }
 
-int pwname2id(struct mbuf* mb, char* name)
+static int pwname2id(struct mbuf* mb, char* name)
 {
 	int id;
 	char* p;
@@ -249,4 +249,22 @@ int pwname2id(struct mbuf* mb, char* name)
 		return id;
 
 	return mapid(mb, name);
+}
+
+int pwresolve(struct sh* ctx, char* pwfile,
+                   int n, char** names, int* ids, char* notfound)
+{
+	struct mbuf mb;
+	int err = 0, ret, i;
+
+	if((ret = mmapfile(&mb, pwfile)) < 0)
+		return error(ctx, "cannot mmap", pwfile, ret);
+
+	for(i = 0; i < n; i++)
+		if((ids[i] = pwname2id(&mb, names[i])) < 0)
+			err |= error(ctx, notfound, names[i], 0);
+
+	munmapfile(&mb);
+
+	return err;
 }
