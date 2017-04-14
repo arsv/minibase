@@ -3,6 +3,7 @@
 #include <sys/chdir.h>
 #include <sys/waitpid.h>
 #include <sys/setresuid.h>
+#include <sys/setresgid.h>
 
 #include <string.h>
 #include <format.h>
@@ -33,6 +34,23 @@ static int cmd_setuid(struct sh* ctx, int argc, char** argv)
 
 	if((ret = sys_setresuid(uid, uid, uid)) < 0)
 		return error(ctx, "setuid", argv[1], ret);
+
+	return 0;
+}
+
+static int cmd_setgid(struct sh* ctx, int argc, char** argv)
+{
+	int ret, gid;
+	char* pwfile = "/etc/group";
+
+	if(argc != 2)
+		return error(ctx, "single argument required", NULL, 0);
+
+	if((ret = pwresolve(ctx, pwfile, 1, &argv[1], &gid, "unknown group")))
+		return ret;
+
+	if((ret = sys_setresgid(gid, gid, gid)) < 0)
+		return error(ctx, "setgid", argv[1], ret);
 
 	return 0;
 }
@@ -80,6 +98,7 @@ static const struct cmd {
 	{ "exec",     cmd_exec    },
 	{ "unset",    cmd_unset   },
 	{ "setuid",   cmd_setuid  },
+	{ "setgid",   cmd_setgid  },
 	{ "",         NULL        }
 };
 
