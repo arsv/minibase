@@ -2,10 +2,14 @@
 #include <sys/_exit.h>
 #include <sys/chdir.h>
 #include <sys/chroot.h>
+#include <sys/open.h>
+#include <sys/close.h>
+#include <sys/write.h>
 #include <sys/waitpid.h>
 #include <sys/setresuid.h>
 #include <sys/setresgid.h>
 #include <sys/prlimit.h>
+#include <sys/getpid.h>
 #include <sys/seccomp.h>
 #include <sys/setpriority.h>
 
@@ -63,6 +67,58 @@ static int cmd_rlimit(struct sh* ctx, int argc, char** argv)
 		return error(ctx, "invalid value", argv[3], 0);
 
 	return fchk(sys_prlimit(0, rp->res, &rl, NULL), ctx, "fchk", argv[1]);
+}
+
+static int setcg(struct sh* ctx, char* base, char* grp, char* pbuf, int plen)
+{
+	int blen = strlen(base);
+	int glen = strlen(grp);
+	char path[blen+glen+20];
+	int fd, wr;
+
+	char* p = path;
+	char* e = path + sizeof(path) - 1;
+
+	p = fmtstr(p, e, base);
+	p = fmtstr(p, e, "/");
+	p = fmtstr(p, e, grp);
+	p = fmtstr(p, e, "/tasks");
+	*p = '\0';
+
+	if((fd = sysopen(path, O_WRONLY)) < 0)
+		return fd;
+
+	wr = syswrite(fd, pbuf, plen);
+
+	sysclose(fd);
+
+	return (wr == plen);
+}
+
+static int cmd_setcg(struct sh* ctx, int argc, char** argv)
+{
+	char* base = "/sys/fs/cgroup";
+	int i = 1;
+	int ret = 0;
+
+	if(i < argc && argv[i][0] == '+')
+		base = argv[i++] + 1;
+	if(i >= argc)
+		return error(ctx, "too few arguments", NULL, 0);
+
+	int pid = sysgetpid();
+	char pidbuf[20];
+	char* p = pidbuf;
+	char* e = pidbuf + sizeof(pidbuf) - 1;
+
+	p = fmtint(p, e, pid);
+	*p = '\0';
+
+	for(; i < argc; i++)
+		if((ret = setcg(ctx, base, argv[i], pidbuf, p - pidbuf)))
+			break;
+
+	return ret;
 }
 
 static int cmd_seccomp(struct sh* ctx, int argc, char** argv)
@@ -191,6 +247,7 @@ static const struct cmd {
 	{ "setprio",  cmd_setprio },
 	{ "rlimit",   cmd_rlimit  },
 	{ "seccomp",  cmd_seccomp },
+	{ "setcg" ,   cmd_setcg   },
 	{ "",         NULL        }
 };
 
