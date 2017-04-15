@@ -5,6 +5,7 @@
 #include <sys/waitpid.h>
 #include <sys/setresuid.h>
 #include <sys/setresgid.h>
+#include <sys/prlimit.h>
 #include <sys/setpriority.h>
 
 #include <string.h>
@@ -14,6 +15,56 @@
 #include "msh.h"
 
 #define NLEN 11
+
+struct rlpair {
+	char name[10];
+	short res;
+} rlimits[] = {
+	{ "as",       RLIMIT_AS         },
+	{ "core",     RLIMIT_CORE       },
+	{ "cpu",      RLIMIT_CPU        },
+	{ "data",     RLIMIT_DATA       },
+	{ "fsize",    RLIMIT_FSIZE      },
+	{ "locks",    RLIMIT_LOCKS      },
+	{ "memlock",  RLIMIT_MEMLOCK    },
+	{ "msgqueue", RLIMIT_MSGQUEUE   },
+	{ "nice",     RLIMIT_NICE       },
+	{ "nofile",   RLIMIT_NOFILE     },
+	{ "nproc",    RLIMIT_NPROC      },
+	{ "rss",      RLIMIT_RSS        },
+	{ "rtprio",   RLIMIT_RTPRIO     },
+	{ "rttime",   RLIMIT_RTTIME     },
+	{ "sigpend",  RLIMIT_SIGPENDING },
+	{ "stack",    RLIMIT_STACK      },
+	{ "",         0                 }
+};
+
+static int cmd_rlimit(struct sh* ctx, int argc, char** argv)
+{
+	char* p;
+	struct rlpair* rp;
+	struct rlimit rl;
+
+	if(argc < 3)
+		return error(ctx, "too few arguments", NULL, 0);
+	if(argc > 4)
+		return error(ctx, "too many arguments", NULL, 0);
+
+	for(rp = rlimits; rp->name[0]; rp++)
+		if(!strcmp(rp->name, argv[1]))
+			break;
+	if(!rp->name[0])
+		return error(ctx, "unknown limit", argv[1], 0);
+
+	if(!(p = parseu64(argv[2], &rl.cur)) || *p)
+		return error(ctx, "invalid value", argv[2], 0);
+	if(argc < 4)
+		rl.max = rl.cur;
+	else if(!(p = parseu64(argv[3], &rl.max)) || *p)
+		return error(ctx, "invalid value", argv[3], 0);
+
+	return fchk(sys_prlimit(0, rp->res, &rl, NULL), ctx, "fchk", argv[1]);
+}
 
 static int cmd_setuid(struct sh* ctx, int argc, char** argv)
 {
@@ -112,6 +163,7 @@ static const struct cmd {
 	{ "setgid",   cmd_setgid  },
 	{ "chroot",   cmd_chroot  },
 	{ "setprio",  cmd_setprio },
+	{ "rlimit",   cmd_rlimit  },
 	{ "",         NULL        }
 };
 
