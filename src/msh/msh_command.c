@@ -21,6 +21,35 @@
 
 #include "msh.h"
 
+static int numargs(struct sh* ctx, int argc, int min, int max)
+{
+	if(min && argc < min)
+		return error(ctx, "too few arguments", NULL, 0);
+	if(max && argc > max)
+		return error(ctx, "too many arguments", NULL, 0);
+	return 0;
+}
+
+static int argint(struct sh* ctx, char* arg, int* dst)
+{
+	char* p;
+
+	if(!(p = parseint(arg, dst)) || *p)
+		return error(ctx, "numeric argument rquired", arg, 0);
+
+	return 0;
+}
+
+static int argu64(struct sh* ctx, char* arg, uint64_t* dst)
+{
+	char* p;
+
+	if(!(p = parseu64(arg, dst)) || *p)
+		return error(ctx, "numeric argument rquired", arg, 0);
+
+	return 0;
+}
+
 static const struct rlpair {
 	char name[10];
 	short res;
@@ -46,14 +75,12 @@ static const struct rlpair {
 
 static int cmd_rlimit(struct sh* ctx, int argc, char** argv)
 {
-	char* p;
+	int ret;
 	const struct rlpair* rp;
 	struct rlimit rl;
 
-	if(argc < 3)
-		return error(ctx, "too few arguments", NULL, 0);
-	if(argc > 4)
-		return error(ctx, "too many arguments", NULL, 0);
+	if((ret = numargs(ctx, argc, 3, 4)))
+		return ret;
 
 	for(rp = rlimits; rp->name[0]; rp++)
 		if(!strcmp(rp->name, argv[1]))
@@ -61,12 +88,12 @@ static int cmd_rlimit(struct sh* ctx, int argc, char** argv)
 	if(!rp->name[0])
 		return error(ctx, "unknown limit", argv[1], 0);
 
-	if(!(p = parseu64(argv[2], &rl.cur)) || *p)
-		return error(ctx, "invalid value", argv[2], 0);
+	if((ret = argu64(ctx, argv[2], &rl.cur)))
+		return ret;
 	if(argc < 4)
 		rl.max = rl.cur;
-	else if(!(p = parseu64(argv[3], &rl.max)) || *p)
-		return error(ctx, "invalid value", argv[3], 0);
+	else if((ret = argu64(ctx, argv[3], &rl.max)))
+		return ret;
 
 	return fchk(sys_prlimit(0, rp->res, &rl, NULL), ctx, "fchk", argv[1]);
 }
@@ -100,24 +127,18 @@ static int setcg(struct sh* ctx, char* base, char* grp, char* pbuf, int plen)
 static int cmd_setcg(struct sh* ctx, int argc, char** argv)
 {
 	char* base = "/sys/fs/cgroup";
-	int i = 1;
-	int ret = 0;
-
-	if(i < argc && argv[i][0] == '+')
-		base = argv[i++] + 1;
-	if(i >= argc)
-		return error(ctx, "too few arguments", NULL, 0);
+	int i, ret;
 
 	int pid = sysgetpid();
-	char pidbuf[20];
-	char* p = pidbuf;
-	char* e = pidbuf + sizeof(pidbuf) - 1;
+	char pbuf[20];
+	char* p = fmtint(pbuf, pbuf + sizeof(pbuf) - 1, pid); *p = '\0';
+	int plen = p - pbuf;
 
-	p = fmtint(p, e, pid);
-	*p = '\0';
+	if((ret = numargs(ctx, argc, 2, 0)))
+		return ret;
 
-	for(; i < argc; i++)
-		if((ret = setcg(ctx, base, argv[i], pidbuf, p - pidbuf)))
+	for(i = 1; i < argc; i++)
+		if((ret = setcg(ctx, base, argv[i], pbuf, plen)))
 			break;
 
 	return ret;
@@ -128,25 +149,24 @@ static int cmd_seccomp(struct sh* ctx, int argc, char** argv)
 	struct mbuf mb;
 	int ret;
 
-	if(argc != 2)
-		return error(ctx, "single argument required", NULL, 0);
-	if((ret = mmapfile(&mb, argv[1])) < 0)
-		return error(ctx, "cannot read", argv[1], ret);
+	if((ret = numargs(ctx, argc, 2, 2)))
+		return ret;
+	if((ret = fchk(mmapfile(&mb, argv[1]), ctx, "mmap", argv[1])))
+		return ret;
+	if(!mb.len || mb.len % 8) {
+		ret = error(ctx, "odd size:", argv[1], 0);
+		goto out;
+	}
 
 	struct seccomp sc = {
 		.len = mb.len / 8,
 		.buf = mb.buf
 	};
 
-	if(!mb.len || mb.len % 8)
-		ret = error(ctx, "odd size:", argv[1], 0);
-	else if((ret = sys_seccomp(SECCOMP_SET_MODE_FILTER, 0, &sc)) < 0)
-		ret = error(ctx, "seccomp", argv[1], ret);
-	else
-		ret = 0;
-
+	int mode = SECCOMP_SET_MODE_FILTER;
+	ret = fchk(sys_seccomp(mode, 0, &sc), ctx, "seccomp", argv[1]);
+out:
 	munmapfile(&mb);
-
 	return ret;
 }
 
@@ -155,16 +175,12 @@ static int cmd_setuid(struct sh* ctx, int argc, char** argv)
 	int ret, uid;
 	char* pwfile = "/etc/passwd";
 
-	if(argc != 2)
-		return error(ctx, "single argument required", NULL, 0);
-
+	if((ret = numargs(ctx, argc, 2, 2)))
+		return ret;
 	if((ret = pwresolve(ctx, pwfile, 1, &argv[1], &uid, "unknown user")))
 		return ret;
 
-	if((ret = sys_setresuid(uid, uid, uid)) < 0)
-		return error(ctx, "setuid", argv[1], ret);
-
-	return 0;
+	return fchk(sys_setresuid(uid, uid, uid), ctx, "setuid", argv[1]);
 }
 
 static int cmd_setgid(struct sh* ctx, int argc, char** argv)
@@ -172,8 +188,8 @@ static int cmd_setgid(struct sh* ctx, int argc, char** argv)
 	int ret, gid;
 	char* pwfile = "/etc/group";
 
-	if(argc != 2)
-		return error(ctx, "single argument required", NULL, 0);
+	if((ret = numargs(ctx, argc, 2, 2)))
+		return ret;
 	if((ret = pwresolve(ctx, pwfile, 1, &argv[1], &gid, "unknown group")))
 		return ret;
 
@@ -187,8 +203,8 @@ static int cmd_groups(struct sh* ctx, int argc, char** argv)
 	int grp[ng];
 	int ret;
 
-	if(argc < 2)
-		return error(ctx, "too few arguments", NULL, 0);
+	if((ret = numargs(ctx, argc, 2, 0)))
+		return ret;
 	if((ret = pwresolve(ctx, pwfile, ng, &argv[1], grp, "unknown group")))
 		return ret;
 
@@ -214,9 +230,7 @@ static int openflags(struct sh* ctx, int* dst, char* str)
 
 static int cmd_open(struct sh* ctx, int argc, char** argv)
 {
-	int fd, rfd;
-	char* p;
-	int i = 1;
+	int fd, rfd, ret, i = 1;
 	int flags = O_RDWR;
 
 	if(i < argc && argv[i][0] == '-')
@@ -225,88 +239,101 @@ static int cmd_open(struct sh* ctx, int argc, char** argv)
 	char* srfd = argv[i++];
 	char* name = argv[i];
 
-	if(i != argc - 2)
-		return error(ctx, "bad arguments", NULL, 0);
-	if(!(p = parseint(srfd, &rfd)) || *p)
-		return error(ctx, "numeric argument required", srfd, 0);
+	if((ret = numargs(ctx, argc - i, 2, 2)))
+		return ret;
+	if((ret = argint(ctx, srfd, &rfd)))
+		return ret;
 
 	if((fd = sysopen3(name, flags, 0666)) < 0)
 		return error(ctx, "open", name, fd);
 	if(fd == rfd)
 		return 0;
 
-	int ret = fchk(sysdup2(fd, rfd), ctx, "dup", srfd);
+	ret = fchk(sysdup2(fd, rfd), ctx, "dup", srfd);
 	sysclose(fd);
+
 	return ret;
 }
 
 static int cmd_close(struct sh* ctx, int argc, char** argv)
 {
-	int fd;
-	char* p;
+	int ret, fd;
 
-	if(argc != 2)
-		return error(ctx, "single argument required", NULL, 0);
-	if(!(p = parseint(argv[1], &fd)) || *p)
-		return error(ctx, "numeric argument required", NULL, 0);
+	if((ret = numargs(ctx, argc, 2, 2)))
+		return ret;
+	if((ret = argint(ctx, argv[1], &fd)))
+		return ret;
 
-	int ret = sysclose(fd);
-
-	if(ret < 0 && ret != -EBADF)
-		return error(ctx, "close", argv[1], ret);
-
-	return 0;
-}
-
-static int cmd_cd(struct sh* ctx, int argc, char** argv)
-{
-	return fchk(syschdir(argv[1]), ctx, "chdir", argv[1]);
-}
-
-static int cmd_chroot(struct sh* ctx, int argc, char** argv)
-{
-	return fchk(syschroot(argv[1]), ctx, "chroot", argv[1]);
+	return fchk(sysclose(fd), ctx, "close", argv[1]);
 }
 
 static int cmd_setprio(struct sh* ctx, int argc, char** argv)
 {
-	char* p;
 	int prio;
+	int ret;
 
-	if(argc != 2)
-		return error(ctx, "single argument required", NULL, 0);
-	if((p = parseint(argv[1], &prio)) || *p)
-		return error(ctx, "argument must be numeric", NULL, 0);
+	if((ret = numargs(ctx, argc, 2, 2)))
+		return ret;
+	if((ret = argint(ctx, argv[1], &prio)))
+		return ret;
 
 	return fchk(sys_setpriority(0, 0, prio), ctx, "setpriority", argv[1]);
 }
 
-static int cmd_exit(struct sh* ctx, int argc, char** argv)
-{
-	_exit(0);
-}
-
 static int cmd_exec(struct sh* ctx, int argc, char** argv)
 {
-	if(argc < 2)
-		return error(ctx, "exec:", "too few arguments", 0);
+	int ret;
 
-	long ret = execvpe(argv[1], argv+1, ctx->envp);
+	if((ret = numargs(ctx, argc, 2, 0)))
+		return ret;
 
-	return error(ctx, "exec", argv[1], ret);
+	return fchk(execvpe(argv[1], argv+1, ctx->envp), ctx, "exec", argv[1]);
 }
 
 static int cmd_unset(struct sh* ctx, int argc, char** argv)
 {
 	int i;
+	int ret;
 
-	if(argc < 2)
-		return error(ctx, "unset:", "too few arguments", 0);
+	if((ret = numargs(ctx, argc, 2, 0)))
+		return ret;
 
 	for(i = 1; i < argc; i++)
 		undef(ctx, argv[i]);
 
 	return 0;
+}
+
+static int cmd_exit(struct sh* ctx, int argc, char** argv)
+{
+	int ret, code = 0;
+
+	if((ret = numargs(ctx, argc, 1, 2)))
+		return ret;
+	if(argc > 1 && (ret = argint(ctx, argv[1], &code)))
+		return ret;
+
+	_exit(code);
+}
+
+static int cmd_chroot(struct sh* ctx, int argc, char** argv)
+{
+	int ret;
+
+	if((ret = numargs(ctx, argc, 2, 2)))
+		return ret;
+
+	return fchk(syschroot(argv[1]), ctx, "chroot", argv[1]);
+}
+
+static int cmd_cd(struct sh* ctx, int argc, char** argv)
+{
+	int ret;
+
+	if((ret = numargs(ctx, argc, 2, 2)))
+		return ret;
+
+	return fchk(syschdir(argv[1]), ctx, "chdir", argv[1]);
 }
 
 static const struct cmd {
