@@ -15,14 +15,6 @@
 
 #define NLEN 11
 
-static int fchk(long ret, struct sh* ctx, const char* msg, char* arg)
-{
-	if(ret < 0)
-		return error(ctx, msg, arg, ret);
-	else
-		return 0;
-}
-
 static int cmd_setuid(struct sh* ctx, int argc, char** argv)
 {
 	int ret, uid;

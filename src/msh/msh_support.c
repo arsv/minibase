@@ -103,6 +103,14 @@ void fatal(struct sh* ctx, const char* err, char* arg)
 	_exit(0xFF);
 }
 
+int fchk(long ret, struct sh* ctx, const char* msg, char* arg)
+{
+	if(ret < 0)
+		return error(ctx, msg, arg, ret);
+	else
+		return 0;
+}
+
 /* Heap routines. See msh.h for heap layout. */
 
 #define PAGE 4096

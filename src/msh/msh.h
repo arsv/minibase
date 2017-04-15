@@ -78,6 +78,7 @@ void exec(struct sh* ctx, int argc, char** argv);
 void fail(const char* err, char* arg, long ret) NR;
 int error(struct sh* ctx, const char* err, char* arg, long ret);
 void fatal(struct sh* ctx, const char* err, char* arg) NR;
+int fchk(long ret, struct sh* ctx, const char* msg, char* arg);
 
 int pwresolve(struct sh* ctx, char* pwfile,
               int n, char** names, int* ids, char* notfound);
