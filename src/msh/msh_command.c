@@ -295,6 +295,31 @@ static int cmd_setprio(struct sh* ctx, int argc, char** argv)
 	return fchk(sys_setpriority(0, 0, prio), ctx, "setpriority", argv[1]);
 }
 
+static int print(struct sh* ctx, int argc, char** argv, int fd)
+{
+	int ret;
+
+	if((ret = numargs(ctx, argc, 2, 2)))
+		return ret;
+
+	int len = strlen(argv[1]);
+	argv[1][len] = '\n';
+	syswrite(fd, argv[1], len+1);
+	argv[1][len] = '\0';
+
+	return 0;
+}
+
+static int cmd_echo(struct sh* ctx, int argc, char** argv)
+{
+	return print(ctx, argc, argv, STDOUT);
+}
+
+static int cmd_warn(struct sh* ctx, int argc, char** argv)
+{
+	return print(ctx, argc, argv, STDERR);
+}
+
 static int cmd_exec(struct sh* ctx, int argc, char** argv)
 {
 	int ret;
@@ -358,6 +383,8 @@ static const struct cmd {
 	{ "cd",       cmd_cd      },
 	{ "exit",     cmd_exit    },
 	{ "exec",     cmd_exec    },
+	{ "echo",     cmd_echo    },
+	{ "warn",     cmd_warn    },
 	{ "unset",    cmd_unset   },
 	{ "open",     cmd_open    },
 	{ "dupfd",    cmd_dupfd   },
