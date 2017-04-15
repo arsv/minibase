@@ -364,5 +364,6 @@
 #define __NR_kcmp 312
 #define __NR_finit_module 313
 #define __NR_renameat2 316
+#define __NR_seccomp 317
 
 #endif
