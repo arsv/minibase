@@ -221,6 +221,7 @@ static int openflags(struct sh* ctx, int* dst, char* str)
 		case 'r': flags |= O_RDONLY; break;
 		case 'a': flags |= O_APPEND; break;
 		case 'c': flags |= O_CREAT; break;
+		case 'x': flags |= O_EXCL; break;
 		default: return error(ctx, "open", "unknown flags", 0);
 	}
 
