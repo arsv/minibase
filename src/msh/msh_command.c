@@ -14,7 +14,7 @@
 
 #include "msh.h"
 
-struct rlpair {
+static const struct rlpair {
 	char name[10];
 	short res;
 } rlimits[] = {
@@ -40,7 +40,7 @@ struct rlpair {
 static int cmd_rlimit(struct sh* ctx, int argc, char** argv)
 {
 	char* p;
-	struct rlpair* rp;
+	const struct rlpair* rp;
 	struct rlimit rl;
 
 	if(argc < 3)
