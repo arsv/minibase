@@ -255,6 +255,20 @@ static int cmd_open(struct sh* ctx, int argc, char** argv)
 	return ret;
 }
 
+static int cmd_dupfd(struct sh* ctx, int argc, char** argv)
+{
+	int ret, oldfd, newfd;
+
+	if((ret = numargs(ctx, argc, 3, 3)))
+		return ret;
+	if((ret = argint(ctx, argv[1], &oldfd)))
+		return ret;
+	if((ret = argint(ctx, argv[2], &newfd)))
+		return ret;
+
+	return fchk(sysdup2(oldfd, newfd), ctx, "dup", argv[1]);
+}
+
 static int cmd_close(struct sh* ctx, int argc, char** argv)
 {
 	int ret, fd;
@@ -345,6 +359,7 @@ static const struct cmd {
 	{ "exec",     cmd_exec    },
 	{ "unset",    cmd_unset   },
 	{ "open",     cmd_open    },
+	{ "dupfd",    cmd_dupfd   },
 	{ "close",    cmd_close   },
 	{ "setuid",   cmd_setuid  },
 	{ "setgid",   cmd_setgid  },
