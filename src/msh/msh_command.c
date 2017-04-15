@@ -14,8 +14,6 @@
 
 #include "msh.h"
 
-#define NLEN 11
-
 struct rlpair {
 	char name[10];
 	short res;
@@ -152,7 +150,7 @@ static int cmd_unset(struct sh* ctx, int argc, char** argv)
 }
 
 static const struct cmd {
-	char name[NLEN];
+	char name[8];
 	int (*cmd)(struct sh* ctx, int argc, char** argv);
 } builtins[] = {
 	{ "cd",       cmd_cd      },
