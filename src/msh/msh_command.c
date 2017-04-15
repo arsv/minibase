@@ -248,6 +248,7 @@ static const struct cmd {
 	{ "rlimit",   cmd_rlimit  },
 	{ "seccomp",  cmd_seccomp },
 	{ "setcg" ,   cmd_setcg   },
+	/* unshare is tricky */
 	{ "",         NULL        }
 };
 
