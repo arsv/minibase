@@ -176,7 +176,7 @@ void hset(struct sh* ctx, int what)
 
 /* User/group id parsing for setuid/setgid/setgroups builtins */
 
-static int mmapfile(struct mbuf* mb, char* name)
+int mmapfile(struct mbuf* mb, char* name)
 {
 	int fd;
 	long ret;
@@ -208,7 +208,7 @@ out:
 	return ret;
 }
 
-static int munmapfile(struct mbuf* mb)
+int munmapfile(struct mbuf* mb)
 {
 	return sysmunmap(mb->buf, mb->len);
 }

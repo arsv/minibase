@@ -80,5 +80,7 @@ int error(struct sh* ctx, const char* err, char* arg, long ret);
 void fatal(struct sh* ctx, const char* err, char* arg) NR;
 int fchk(long ret, struct sh* ctx, const char* msg, char* arg);
 
+int mmapfile(struct mbuf* mb, char* name);
+int munmapfile(struct mbuf* mb);
 int pwresolve(struct sh* ctx, char* pwfile,
               int n, char** names, int* ids, char* notfound);

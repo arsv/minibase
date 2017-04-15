@@ -6,6 +6,7 @@
 #include <sys/setresuid.h>
 #include <sys/setresgid.h>
 #include <sys/prlimit.h>
+#include <sys/seccomp.h>
 #include <sys/setpriority.h>
 
 #include <string.h>
@@ -62,6 +63,33 @@ static int cmd_rlimit(struct sh* ctx, int argc, char** argv)
 		return error(ctx, "invalid value", argv[3], 0);
 
 	return fchk(sys_prlimit(0, rp->res, &rl, NULL), ctx, "fchk", argv[1]);
+}
+
+static int cmd_seccomp(struct sh* ctx, int argc, char** argv)
+{
+	struct mbuf mb;
+	int ret;
+
+	if(argc != 2)
+		return error(ctx, "single argument required", NULL, 0);
+	if((ret = mmapfile(&mb, argv[1])) < 0)
+		return error(ctx, "cannot read", argv[1], ret);
+
+	struct seccomp sc = {
+		.len = mb.len / 8,
+		.buf = mb.buf
+	};
+
+	if(!mb.len || mb.len % 8)
+		ret = error(ctx, "odd size:", argv[1], 0);
+	else if((ret = sys_seccomp(SECCOMP_SET_MODE_FILTER, 0, &sc)) < 0)
+		ret = error(ctx, "seccomp", argv[1], ret);
+	else
+		ret = 0;
+
+	munmapfile(&mb);
+
+	return ret;
 }
 
 static int cmd_setuid(struct sh* ctx, int argc, char** argv)
@@ -162,6 +190,7 @@ static const struct cmd {
 	{ "chroot",   cmd_chroot  },
 	{ "setprio",  cmd_setprio },
 	{ "rlimit",   cmd_rlimit  },
+	{ "seccomp",  cmd_seccomp },
 	{ "",         NULL        }
 };
 
