@@ -182,6 +182,38 @@ static int cmd_setgid(struct sh* ctx, int argc, char** argv)
 	return 0;
 }
 
+static int close(struct sh* ctx, char* arg, int fd)
+{
+	if(fd < 3)
+		return error(ctx, "refusing to close standard fds", NULL, 0);
+
+	int ret = sysclose(fd);
+
+	if(ret >= 0)
+		return 0;
+	if(ret == -EBADF)
+		return 0;
+
+	return error(ctx, "close", arg, ret);
+}
+
+static int cmd_close(struct sh* ctx, int argc, char** argv)
+{
+	int i, fd, ret;
+	char* p;
+
+	if(argc < 2)
+		return error(ctx, "too few arguments", NULL, 0);
+
+	for(i = 1; i < argc; i++)
+		if(!(p = parseint(argv[i], &fd)) || *p)
+			return error(ctx, "close", "non-numeric argument", 0);
+		else if((ret = close(ctx, argv[i], fd)))
+			return ret;
+
+	return 0;
+}
+
 static int cmd_cd(struct sh* ctx, int argc, char** argv)
 {
 	return fchk(syschdir(argv[1]), ctx, "chdir", argv[1]);
@@ -241,6 +273,7 @@ static const struct cmd {
 	{ "exit",     cmd_exit    },
 	{ "exec",     cmd_exec    },
 	{ "unset",    cmd_unset   },
+	{ "close",    cmd_close   },
 	{ "setuid",   cmd_setuid  },
 	{ "setgid",   cmd_setgid  },
 	{ "chroot",   cmd_chroot  },
