@@ -236,15 +236,14 @@ static int cmd_open(struct sh* ctx, int argc, char** argv)
 
 	if(i < argc && argv[i][0] == '-')
 		flags = openflags(ctx, &flags, argv[i++] + 1);
-
-	char* srfd = argv[i++];
-	char* name = argv[i];
-
 	if((ret = numargs(ctx, argc - i, 2, 2)))
 		return ret;
+
+	char* srfd = argv[i++];
+	char* name = argv[i++];
+
 	if((ret = argint(ctx, srfd, &rfd)))
 		return ret;
-
 	if((fd = sysopen3(name, flags, 0666)) < 0)
 		return error(ctx, "open", name, fd);
 	if(fd == rfd)
