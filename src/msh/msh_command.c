@@ -11,6 +11,7 @@
 #include <sys/prlimit.h>
 #include <sys/getpid.h>
 #include <sys/seccomp.h>
+#include <sys/setgroups.h>
 #include <sys/setpriority.h>
 
 #include <string.h>
@@ -172,14 +173,25 @@ static int cmd_setgid(struct sh* ctx, int argc, char** argv)
 
 	if(argc != 2)
 		return error(ctx, "single argument required", NULL, 0);
-
 	if((ret = pwresolve(ctx, pwfile, 1, &argv[1], &gid, "unknown group")))
 		return ret;
 
-	if((ret = sys_setresgid(gid, gid, gid)) < 0)
-		return error(ctx, "setgid", argv[1], ret);
+	return fchk(sys_setresgid(gid, gid, gid), ctx, "setgid", argv[1]);
+}
 
-	return 0;
+static int cmd_groups(struct sh* ctx, int argc, char** argv)
+{
+	char* pwfile = "/etc/group";
+	int ng = argc - 1;
+	int grp[ng];
+	int ret;
+
+	if(argc < 2)
+		return error(ctx, "too few arguments", NULL, 0);
+	if((ret = pwresolve(ctx, pwfile, ng, &argv[1], grp, "unknown group")))
+		return ret;
+
+	return fchk(sys_setgroups(ng, grp), ctx, "setgroups", NULL);
 }
 
 static int cmd_close(struct sh* ctx, int argc, char** argv)
@@ -262,6 +274,7 @@ static const struct cmd {
 	{ "close",    cmd_close   },
 	{ "setuid",   cmd_setuid  },
 	{ "setgid",   cmd_setgid  },
+	{ "groups",   cmd_groups  },
 	{ "chroot",   cmd_chroot  },
 	{ "setprio",  cmd_setprio },
 	{ "rlimit",   cmd_rlimit  },
