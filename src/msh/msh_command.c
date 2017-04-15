@@ -4,6 +4,7 @@
 #include <sys/chroot.h>
 #include <sys/open.h>
 #include <sys/close.h>
+#include <sys/dup2.h>
 #include <sys/write.h>
 #include <sys/waitpid.h>
 #include <sys/setresuid.h>
@@ -194,6 +195,51 @@ static int cmd_groups(struct sh* ctx, int argc, char** argv)
 	return fchk(sys_setgroups(ng, grp), ctx, "setgroups", NULL);
 }
 
+static int openflags(struct sh* ctx, int* dst, char* str)
+{
+	int flags = 0;
+	char* p;
+
+	for(p = str; *p; p++) switch(*p) {
+		case 'w': flags |= O_WRONLY; break;
+		case 'r': flags |= O_RDONLY; break;
+		case 'a': flags |= O_APPEND; break;
+		case 'c': flags |= O_CREAT; break;
+		default: return error(ctx, "open", "unknown flags", 0);
+	}
+
+	*dst = flags;
+	return 0;
+}
+
+static int cmd_open(struct sh* ctx, int argc, char** argv)
+{
+	int fd, rfd;
+	char* p;
+	int i = 1;
+	int flags = O_RDWR;
+
+	if(i < argc && argv[i][0] == '-')
+		flags = openflags(ctx, &flags, argv[i++] + 1);
+
+	char* srfd = argv[i++];
+	char* name = argv[i];
+
+	if(i != argc - 2)
+		return error(ctx, "bad arguments", NULL, 0);
+	if(!(p = parseint(srfd, &rfd)) || *p)
+		return error(ctx, "numeric argument required", srfd, 0);
+
+	if((fd = sysopen3(name, flags, 0666)) < 0)
+		return error(ctx, "open", name, fd);
+	if(fd == rfd)
+		return 0;
+
+	int ret = fchk(sysdup2(fd, rfd), ctx, "dup", srfd);
+	sysclose(fd);
+	return ret;
+}
+
 static int cmd_close(struct sh* ctx, int argc, char** argv)
 {
 	int fd;
@@ -271,6 +317,7 @@ static const struct cmd {
 	{ "exit",     cmd_exit    },
 	{ "exec",     cmd_exec    },
 	{ "unset",    cmd_unset   },
+	{ "open",     cmd_open    },
 	{ "close",    cmd_close   },
 	{ "setuid",   cmd_setuid  },
 	{ "setgid",   cmd_setgid  },
