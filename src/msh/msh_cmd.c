@@ -102,14 +102,15 @@ static int spawn(struct sh* ctx, int argc, char** argv)
 void command(struct sh* ctx, int argc, char** argv)
 {
 	const struct cmd* bi;
+	int ret;
 
 	if((bi = findcmd(ifelses, argv)))
-		bi->cmd(ctx, argc, argv);
+		if(bi->cmd(ctx, argc, argv))
+			_exit(0xFF);
 	if(bi || ctx->cond & CSKIP)
 		return;
 
 	int noerror = leadingdash(argv);
-	int ret;
 
 	if((bi = findcmd(builtin, argv)))
 		ret = bi->cmd(ctx, argc, argv);
