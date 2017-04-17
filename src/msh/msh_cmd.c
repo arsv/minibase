@@ -57,37 +57,6 @@ static const struct cmd builtin[] = {
 	{ "",         NULL        }
 };
 
-/* For the individual commands to use */
-
-int numargs(struct sh* ctx, int argc, int min, int max)
-{
-	if(min && argc < min)
-		return error(ctx, "too few arguments", NULL, 0);
-	if(max && argc > max)
-		return error(ctx, "too many arguments", NULL, 0);
-	return 0;
-}
-
-int argint(struct sh* ctx, char* arg, int* dst)
-{
-	char* p;
-
-	if(!(p = parseint(arg, dst)) || *p)
-		return error(ctx, "numeric argument rquired", arg, 0);
-
-	return 0;
-}
-
-int argu64(struct sh* ctx, char* arg, uint64_t* dst)
-{
-	char* p;
-
-	if(!(p = parseu64(arg, dst)) || *p)
-		return error(ctx, "numeric argument rquired", arg, 0);
-
-	return 0;
-}
-
 /* Top-level commands stuff */
 
 static const struct cmd* findcmd(const struct cmd table[], char** argv)
