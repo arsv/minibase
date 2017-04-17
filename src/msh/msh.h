@@ -1,3 +1,5 @@
+#include <bits/ints.h>
+
 /* arguments for hset/hrev */
 #define HEAP 0
 #define ESEP 1
@@ -90,6 +92,9 @@ void fail(const char* err, char* arg, long ret) NR;
 int error(struct sh* ctx, const char* err, char* arg, long ret);
 void fatal(struct sh* ctx, const char* err, char* arg) NR;
 int fchk(long ret, struct sh* ctx, const char* msg, char* arg);
+int numargs(struct sh* ctx, int argc, int min, int max);
+int argint(struct sh* ctx, char* arg, int* dst);
+int argu64(struct sh* ctx, char* arg, uint64_t* dst);
 
 int mmapfile(struct mbuf* mb, char* name);
 int munmapfile(struct mbuf* mb);
