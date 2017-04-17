@@ -42,16 +42,19 @@ static void start_var(struct sh* ctx)
 
 static void end_var(struct sh* ctx)
 {
+	char* val;
+
 	*(ctx->hptr) = '\0';	
 
 	if(ctx->cond & CSKIP)
 		return;
 
-	char* val = valueof(ctx, ctx->var);
-	long vlen = strlen(val);
+	if(!(val = valueof(ctx, ctx->var)))
+		fatal(ctx, "undefined variable", ctx->var);
 
 	hrev(ctx, VSEP);
 
+	long vlen = strlen(val);
 	char* spc = halloc(ctx, vlen);
 	memcpy(spc, val, vlen);
 }

@@ -33,7 +33,7 @@ char* valueof(struct sh* ctx, char* var)
 		if((v = match(*e, var)))
 			return v;
 
-	fatal(ctx, "undefined variable", var);
+	return NULL;
 }
 
 /* Until the first set or unset, the original envp from main()
