@@ -30,3 +30,4 @@ CMD(open);
 CMD(close);
 CMD(dupfd);
 CMD(setcg);
+CMD(sleep);
