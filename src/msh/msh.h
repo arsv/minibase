@@ -9,6 +9,16 @@
 #define ENVSTR 1
 #define ENVPTR 2
 
+/* sh.cond */
+#define CSKIP (1<<0)
+#define CIF   (1<<1)
+#define CELSE (1<<2)
+#define CELIF (CIF | CELSE)
+#define CHIGH (1<<3)
+
+#define CSHIFT 4
+#define CGUARD (CIF << 7*CSHIFT)
+
 /* Heap layout, at the point when end_cmd() calls exec():
 
    heap                csep                           hend
@@ -41,6 +51,8 @@ struct sh {
 	char* hend;
 
 	char* var;
+
+	int cond;
 };
 
 struct env {
@@ -72,7 +84,7 @@ char* valueof(struct sh* ctx, char* var);
 void define(struct sh* ctx, char* var, char* val);
 void undef(struct sh* ctx, char* var);
 
-void exec(struct sh* ctx, int argc, char** argv);
+void command(struct sh* ctx, int argc, char** argv);
 
 #define NR __attribute__((noreturn))
 void fail(const char* err, char* arg, long ret) NR;
@@ -82,5 +94,3 @@ int fchk(long ret, struct sh* ctx, const char* msg, char* arg);
 
 int mmapfile(struct mbuf* mb, char* name);
 int munmapfile(struct mbuf* mb);
-int pwresolve(struct sh* ctx, char* pwfile,
-              int n, char** names, int* ids, char* notfound);

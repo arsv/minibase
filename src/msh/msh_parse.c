@@ -44,6 +44,9 @@ static void end_var(struct sh* ctx)
 {
 	*(ctx->hptr) = '\0';	
 
+	if(ctx->cond & CSKIP)
+		return;
+
 	char* val = valueof(ctx, ctx->var);
 	long vlen = strlen(val);
 
@@ -59,9 +62,24 @@ static void add_char(struct sh* ctx, char c)
 	*spc = c;
 }
 
+static int unskip(struct sh* ctx, char* cmd)
+{
+	if((ctx->cond >> CSHIFT) & CSKIP)
+		return 0;
+	if(!strcmp(cmd, "else"))
+		return 1;
+	if(!strcmp(cmd, "elif"))
+		return 1;
+	return 0;
+}
+
 static void end_arg(struct sh* ctx)
 {
 	add_char(ctx, 0);
+
+	if(!ctx->count && unskip(ctx, ctx->csep))
+		ctx->cond &= ~CSKIP;
+
 	ctx->count++;
 }
 
@@ -93,11 +111,14 @@ static char** put_argv(struct sh* ctx, int argn)
 
 static void end_val(struct sh* ctx)
 {
+	if(ctx->cond & CSKIP)
+		goto out;
+	
 	add_char(ctx, 0);
 	char** argv = put_argv(ctx, 2);
 
 	define(ctx, argv[0], argv[1]); /* may damage heap, argv, csep! */
-
+out:
 	hrev(ctx, CSEP);
 	ctx->count = 0;
 }
@@ -110,7 +131,7 @@ static void end_cmd(struct sh* ctx)
 
 	char** argv = put_argv(ctx, argc);
 
-	exec(ctx, argc, argv); /* may damage heap, argv, csep! */
+	command(ctx, argc, argv); /* may damage heap, argv, csep! */
 
 	hrev(ctx, CSEP);
 	ctx->count = 0;
