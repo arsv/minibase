@@ -9,12 +9,8 @@
 #include <sys/sendto.h>
 #include <sys/recv.h>
 #include <sys/ioctl.h>
-#include <sys/open.h>
-#include <sys/read.h>
-#include <sys/close.h>
 #include <sys/alarm.h>
 #include <sys/ppoll.h>
-#include <sys/execve.h>
 #include <sys/sigaction.h>
 
 #include <format.h>
@@ -325,8 +321,8 @@ static int check_dhcp_header(void)
 }
 
 /* Sadly DHCP has a tendency to fail unpredictably on newly-established
-   wifi connections. It's difficult to deal with otherwise, so here's some
-   timed retries. */
+   wifi connections. It's difficult to deal with otherwise, so we do
+   a small number of timed retries here. */
 
 static int timedrecv(int fd, char* buf, int len)
 {
