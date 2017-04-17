@@ -10,14 +10,13 @@
 #define ENVPTR 2
 
 /* sh.cond */
-#define CSKIP (1<<0)
-#define CIF   (1<<1)
-#define CELSE (1<<2)
-#define CELIF (CIF | CELSE)
-#define CHIGH (1<<3)
+#define CSKIP    (1<<0)
+#define CHADIF   (1<<1)
+#define CHADELSE (1<<2)
+#define CHADTRUE (1<<3)
 
 #define CSHIFT 4
-#define CGUARD (CIF << 7*CSHIFT)
+#define CGUARD (CHADIF << 7*CSHIFT)
 
 /* Heap layout, at the point when end_cmd() calls exec():
 

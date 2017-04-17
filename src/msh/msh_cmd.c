@@ -27,7 +27,7 @@ struct cmd {
 	int (*cmd)(struct sh* ctx, int argc, char** argv);
 };
 
-static const struct cmd ifelses[] = {
+static const struct cmd flowctl[] = {
 	{ "if",       cmd_if   },
 	{ "else",     cmd_else },
 	{ "elif",     cmd_elif },
@@ -102,15 +102,17 @@ static int spawn(struct sh* ctx, int argc, char** argv)
 void command(struct sh* ctx, int argc, char** argv)
 {
 	const struct cmd* bi;
-	int ret;
 
-	if((bi = findcmd(ifelses, argv)))
+	if((bi = findcmd(flowctl, argv)))
 		if(bi->cmd(ctx, argc, argv))
 			_exit(0xFF);
-	if(bi || ctx->cond & CSKIP)
+		else
+			return;
+	else if(ctx->cond & CSKIP)
 		return;
 
 	int noerror = leadingdash(argv);
+	int ret;
 
 	if((bi = findcmd(builtin, argv)))
 		ret = bi->cmd(ctx, argc, argv);
