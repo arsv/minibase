@@ -266,7 +266,6 @@ static void parse_vsign(struct sh* ctx, char c)
 		case '"':
 		case '\'':
 		case '\\':
-		case '$':
 		case '\0':
 		case '\n':
 			fatal(ctx, "invalid syntax", NULL);
