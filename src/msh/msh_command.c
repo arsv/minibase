@@ -20,15 +20,6 @@ static const struct cmd {
 	{ "", NULL }
 };
 
-static int leadingdash(char** argv)
-{
-	int ret = (argv[0][0] == '-');
-
-	if(ret) argv[0]++;
-
-	return ret;
-}
-
 static int spawn(struct sh* ctx, int argc, char** argv)
 {
 	long pid = sysfork();
@@ -65,16 +56,23 @@ static int command(struct sh* ctx, int argc, char** argv)
 
 /* Flow control commands */
 
-static int cond_defined(struct sh* ctx, char** args)
+static int cond_def(struct sh* ctx, char** args)
 {
-	return valueof(ctx, args[0]) != 0 ? 0 : 1;
+	return valueof(ctx, args[0]) != 0;
+}
+
+static int cond_set(struct sh* ctx, char** args)
+{
+	char* val = valueof(ctx, args[0]);
+
+	return val && *val;
 }
 
 static int cond_exists(struct sh* ctx, char** args)
 {
 	struct stat st;
 
-	return sysstat(args[0], &st) >= 0 ? 0 : 1;
+	return sysstat(args[0], &st) >= 0;
 }
 
 static const struct cond {
@@ -82,9 +80,10 @@ static const struct cond {
 	int (*func)(struct sh* ctx, char** args);
 	int nargs;
 } conds[] = {
-	{ "defined",  cond_defined, 1 },
-	{ "exists",   cond_exists,  1 },
-	{ "",         NULL,         0 }
+	{ "def",     cond_def,     1 },
+	{ "set",     cond_set,     1 },
+	{ "exists",  cond_exists,  1 },
+	{ "",        NULL,         0 }
 };
 
 static int condition(struct sh* ctx, int argc, char** argv)
@@ -196,6 +195,15 @@ static int flowcontrol(struct sh* ctx, int argc, char** argv)
 	fc->func(ctx, argc, argv);
 
 	return 1;
+}
+
+static int leadingdash(char** argv)
+{
+	int ret = (argv[0][0] == '-');
+
+	if(ret) argv[0]++;
+
+	return ret;
 }
 
 void statement(struct sh* ctx, int argc, char** argv)
