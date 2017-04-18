@@ -201,15 +201,11 @@ static void send_packet(char* buf, int len)
 }
 
 /* The standard says (roughly) that we should silently drop any
-   unexpected packets. However, if we see something other than
+   unexpected packets. But if we see something other than
    4-way handshake right after the connection has been established,
    we're doing something really wrong and should probably abort
-   right away.
-   
-   Ignoring the packet will just delay the inevitable, and possibly
-   hide what's really going on. I.e. the user will see "timeout"
-   when in fact there's something wrong with the AP, or there are
-   injected packets in the channel. */
+   right away. Ignoring the packet will just delay the inevitable,
+   and possibly hide what's really going on. */
 
 void recv_packet_1(void)
 {
