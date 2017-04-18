@@ -75,6 +75,11 @@ static int cond_exists(struct sh* ctx, char** args)
 	return sysstat(args[0], &st) >= 0;
 }
 
+static int cond_nexist(struct sh* ctx, char** args)
+{
+	return !cond_exists(ctx, args);
+}
+
 static const struct cond {
 	char name[8];
 	int (*func)(struct sh* ctx, char** args);
@@ -83,6 +88,7 @@ static const struct cond {
 	{ "def",     cond_def,     1 },
 	{ "set",     cond_set,     1 },
 	{ "exists",  cond_exists,  1 },
+	{ "nexist",  cond_nexist,  1 },
 	{ "",        NULL,         0 }
 };
 
