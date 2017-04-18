@@ -8,8 +8,9 @@
 
 /* env entry types */
 #define ENVDEL 0
-#define ENVSTR 1
-#define ENVPTR 2
+#define ENVPTR 1
+#define ENVSTR 2
+#define ENVLOC 3
 
 /* sh.cond */
 #define CSKIP    (1<<0)
@@ -82,8 +83,10 @@ void parse(struct sh* ctx, char* buf, int len);
 void pfini(struct sh* ctx);
 
 char* valueof(struct sh* ctx, char* var);
+void setenv(struct sh* ctx, char* pkey, char* pval);
 void define(struct sh* ctx, char* var, char* val);
 void undef(struct sh* ctx, char* var);
+int export(struct sh* ctx, char* var);
 
 void statement(struct sh* ctx, int argc, char** argv);
 
