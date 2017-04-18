@@ -134,7 +134,7 @@ static void end_cmd(struct sh* ctx)
 
 	char** argv = put_argv(ctx, argc);
 
-	command(ctx, argc, argv); /* may damage heap, argv, csep! */
+	statement(ctx, argc, argv); /* may damage heap, argv, csep! */
 
 	hrev(ctx, CSEP);
 	ctx->count = 0;

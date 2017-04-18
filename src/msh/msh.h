@@ -85,7 +85,7 @@ char* valueof(struct sh* ctx, char* var);
 void define(struct sh* ctx, char* var, char* val);
 void undef(struct sh* ctx, char* var);
 
-void command(struct sh* ctx, int argc, char** argv);
+void statement(struct sh* ctx, int argc, char** argv);
 
 #define NR __attribute__((noreturn))
 void fail(const char* err, char* arg, long ret) NR;

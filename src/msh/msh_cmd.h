@@ -1,34 +1,25 @@
-struct sh;
+#ifndef CMD
+#define CMD(name) int cmd_##name(struct sh* ctx, int argc, char** argv);
+#endif
 
-#define CMD(name) int cmd_##name(struct sh* ctx, int argc, char** argv)
+CMD(open)
+CMD(dupfd)
+CMD(close)
+CMD(echo)
+CMD(warn)
+CMD(rlimit)
+CMD(seccomp)
+CMD(setprio)
+CMD(umask)
+CMD(chroot)
+CMD(cd)
+CMD(exec)
+CMD(exit)
+CMD(setcg)
+CMD(unset)
+CMD(sleep)
+CMD(setuid)
+CMD(setgid)
+CMD(groups)
 
-/* cmd_ifelse.c */
-CMD(if);
-CMD(elif);
-CMD(else);
-CMD(fi);
-
-/* cmd_proc.c */
-CMD(exec);
-CMD(exit);
-CMD(cd);
-CMD(chroot);
-CMD(setprio);
-CMD(rlimit);
-CMD(seccomp);
-
-/* cmd_uidgid.c */
-CMD(setuid);
-CMD(setgid);
-CMD(groups);
-
-/* cmd_file.c */
-CMD(echo);
-CMD(warn);
-CMD(unset);
-CMD(open);
-CMD(close);
-CMD(dupfd);
-CMD(setcg);
-CMD(sleep);
-CMD(umask);
+#undef CMD
