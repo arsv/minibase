@@ -54,7 +54,20 @@ static int command(struct sh* ctx, int argc, char** argv)
 		return spawn(ctx, argc, argv);
 }
 
-/* Flow control commands */
+/* Flow control commands.
+   
+   The whole thing with condition should probably look different,
+   but how exactly is not clear atm. It's tempting to do some sort
+   of && and || and return code checks for arbitrary commands, but
+   actual usage is going to be limited to a single check per if
+   and just a couple of predicates apparently (def, set, nexist).
+
+   Either way it seems like a bad idea to treat conditions as
+   generic commands unless explicitly told to, i.e. allow
+   "if grep ..." and similar.
+
+   Oh and the body will be one-liner in lots of cases.
+   Maybe the syntax should reflect that. Maybe not. */
 
 static int cond_def(struct sh* ctx, char** args)
 {
