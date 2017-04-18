@@ -30,6 +30,7 @@ char* parseint(char* buf, int* np);
 char* parselong(char* buf, long* np);
 char* parseulong(char* buf, unsigned long* np);
 char* parseu64(char* buf, uint64_t* np);
+char* parseoct(char* buf, int* np);
 
 int printf(const char* fmt, ...);
 int eprintf(const char* fmt, ...);
