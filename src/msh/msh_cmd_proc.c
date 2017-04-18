@@ -125,35 +125,3 @@ int cmd_chroot(struct sh* ctx, int argc, char** argv)
 
 	return fchk(syschroot(argv[1]), ctx, "chroot", argv[1]);
 }
-
-int cmd_cd(struct sh* ctx, int argc, char** argv)
-{
-	int ret;
-
-	if((ret = numargs(ctx, argc, 2, 2)))
-		return ret;
-
-	return fchk(syschdir(argv[1]), ctx, "chdir", argv[1]);
-}
-
-int cmd_exec(struct sh* ctx, int argc, char** argv)
-{
-	int ret;
-
-	if((ret = numargs(ctx, argc, 2, 0)))
-		return ret;
-
-	return fchk(execvpe(argv[1], argv+1, ctx->envp), ctx, "exec", argv[1]);
-}
-
-int cmd_exit(struct sh* ctx, int argc, char** argv)
-{
-	int ret, code = 0;
-
-	if((ret = numargs(ctx, argc, 1, 2)))
-		return ret;
-	if(argc > 1 && (ret = argint(ctx, argv[1], &code)))
-		return ret;
-
-	_exit(code);
-}

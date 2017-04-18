@@ -78,28 +78,3 @@ int cmd_close(struct sh* ctx, int argc, char** argv)
 
 	return fchk(sysclose(fd), ctx, "close", argv[1]);
 }
-
-static int print(struct sh* ctx, int argc, char** argv, int fd)
-{
-	int ret;
-
-	if((ret = numargs(ctx, argc, 2, 2)))
-		return ret;
-
-	int len = strlen(argv[1]);
-	argv[1][len] = '\n';
-	syswrite(fd, argv[1], len+1);
-	argv[1][len] = '\0';
-
-	return 0;
-}
-
-int cmd_echo(struct sh* ctx, int argc, char** argv)
-{
-	return print(ctx, argc, argv, STDOUT);
-}
-
-int cmd_warn(struct sh* ctx, int argc, char** argv)
-{
-	return print(ctx, argc, argv, STDERR);
-}
