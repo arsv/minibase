@@ -1,35 +1,53 @@
 What is this?
 ~~~~~~~~~~~~~
-This project contains small standalone implementations of common
-Linux tools (cat, echo, insmod, mkdir and the likes), written in
-raw syscalls, statically linked, and not dependent on libc.
+minibase is a set of small userspace tools for Linux intended to
+boot the system and provide a lightweight but reliable foundation
+to build the rest of the system on.
 
-The goal of the project is to show that the basic tools need not
-be large, bloated and dynamically-linked like the GNU implementations,
-and that the opposite can be achieved without extreme size-reducing
-tricks like those used in busybox.
+The tools are written in raw syscalls, statically linked, and have
+no external dependencies, not even libc. They are easy to build,
+and once built can be used on any cpu-compatible Linux system.
 
 
-Current status
-~~~~~~~~~~~~~~
+What's inside / Current status
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The project is highly experimental and (at this point) incomplete.
-Some crucial tools are still to be written before even building
-a viable initcpio becomes possible. Use at your own risk.
+Some tools are missing, and some tools still need work.
 
+  * Simple non-interactive shell (msh) for scripting the boot
+    process and service startup.
+  
+  * Early-stage boot utils (switchroot, kmod, mount, waitfor).
+  * Small basic unix tools (ls, du, df, cat, kill etc)
+  * Several small linux-specific tools (systime, fstrim, dmesg etc)
+  
+  * Process supervisor suite aka init (init, scv, scvmon, reboot),
+    split stage implementation similar to daemontools or runit.
+  
+  - No udevd yet.
+  - No unprivileged mount daemon yet.
+  - No controlled privilege escalation daemon (sud/sudo) yet.
 
-Who may want to use it
-~~~~~~~~~~~~~~~~~~~~~~
-First and foremost people who would like to avoid libc dependency
-for whatever reason. This may be useful for initcpio, but also for
-weird cases like messing with binary-only router firmware when
-linking against its internal libc is undesirable or impossible.
+  * DHCP client (dhcp) and manual interface setup tools (ip4cfg, ip4info).
+  - No sntpd yet.
 
-Another idea is getting as far as possible with the boot process
-on static tools only, which may lead to a self-contained and very
-fast "base system".
+  * Wi-Fi scanner and connection manager (wimon), also capable
+    of handling wired interfaces.
+  * Minimalistic wpa supplicant (wpa);
+    WPA2-PSK only, CCMP/CCMP or CCMP/TKIP.
 
-Finally, it is easy to trace and audit these tools down to syscall
-level, both for security and for educational purposes.
+  - No package manager yet.
+  - No http download tool yet.
+
+  * VT/DRM/input multiplexer (vtmux) aka that part of systemd-logind
+    everyone keeps asking about.
+
+  - No vtmux-compatible getty or greeters yet.
+
+  - No interactive shell yet.
+
+With everything in place, the system should be able to boot, on minibase
+alone, up to the point where it's ready to download, install and start GUI.
 
 
 How is it different from busybox?
@@ -41,15 +59,17 @@ well suited for providing individual tools, only the whole package.
 Busybox typically stays in the memory after being loaded (cached)
 once, saving memory and time for repeated usage.
 
-This project aims to provide small individual tools, so that they
-could be combined freely and picked one at a time.
+Minibase aims to provide small *individual* tools, so that they
+could be combined freely, picked one at a time, and discarded
+once no longer needed. The scope of the tools provided by minibase
+is also quite different.
 
 
 How is it different from common (GNU) tools?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 In a lot of ways really, but here's an easy trick that highlights
-the fundamental distinction well.
-Strace some simple tool from a common Linux distro:
+the fundamental distinction well. Strace some simple tool from
+a common Linux distro:
 
 	strace echo Hello, world
 
@@ -64,23 +84,32 @@ rather impressive traces.
 
 Compatibility
 ~~~~~~~~~~~~~
-The tools are *NOT* meant to be POSIX- or GNU-compatible.
-Instead, the goal is to provide comparable functionality
-by simplier means.
+The tools are *NOT* meant to be POSIX-, GNU-, or anything else compatible.
+Instead the goal is to provide comparable functionality by simplier means.
 
 
 Licensing
 ~~~~~~~~~
-GPL version 3, see COPYING.
+GNU Public License version 3, see COPYING.
+
+Note that due to the nature of the tools, most of the common GPL gripes
+do not apply to this package. You should not be linking against them
+or extending them anyhow. However, non-tivoization clause is still there.
+
+Limited closed-box use is allowed on different terms, see COPYING.alt.
+
+The code in lib/sys, lib/bits and lib/arch constitutes the public interface
+of the Linux kernel. No claims are made for that code, and it should not be
+copyrightable anyway. If unsure, grab corresponding fragments from either
+the kernel sources (GPLv2) or the musl libc (MIT).
+
+The code from lib/crypto is in public domain. See README there.
 
 
 Credits
 ~~~~~~~
-The whole project was insipred and at early stages heavily influenced
-by busybox. However, because of fundamental distinctions in the base
-libraries and different opinions on POSIX compatibility there's hardly
-any common code left at this point. Still busybox is the best place
-to look for reasonably readable implementation of the tools missing here.
+The whole project was inspired and initially heavily influenced by busybox.
+Certain decision from skarnet/s6 project also played significant role.
 
 Syscall code (static inline functions with asm volatile blocks)
 follows musl, because they got it right.
@@ -96,6 +125,7 @@ http://www.landley.net/toybox/
 http://www.fefe.de/embutils/
 http://skarnet.org/software/ (portable-utils, linux-utils)
 http://suckless.org (ubase and sbase)
+http://jdebp.eu/Softwares/nosh/
 https://swtch.com/plan9port/
 
 https://www.gnu.org/software/coreutils/coreutils.html
