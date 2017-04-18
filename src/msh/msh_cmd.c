@@ -46,6 +46,7 @@ static const struct cmd builtin[] = {
 	{ "dupfd",    cmd_dupfd   },
 	{ "close",    cmd_close   },
 	{ "sleep",    cmd_sleep   },
+	{ "umask",    cmd_umask   },
 	{ "setuid",   cmd_setuid  },
 	{ "setgid",   cmd_setgid  },
 	{ "groups",   cmd_groups  },

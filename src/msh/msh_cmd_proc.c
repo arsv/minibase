@@ -1,4 +1,5 @@
 #include <sys/_exit.h>
+#include <sys/umask.h>
 #include <sys/chdir.h>
 #include <sys/chroot.h>
 #include <sys/prlimit.h>
@@ -6,6 +7,7 @@
 #include <sys/setpriority.h>
 
 #include <string.h>
+#include <format.h>
 #include <util.h>
 
 #include "msh.h"
@@ -96,6 +98,22 @@ int cmd_setprio(struct sh* ctx, int argc, char** argv)
 		return ret;
 
 	return fchk(sys_setpriority(0, 0, prio), ctx, "setpriority", argv[1]);
+}
+
+int cmd_umask(struct sh* ctx, int argc, char** argv)
+{
+	int ret;
+	int val;
+	char* p;
+
+	if((ret = numargs(ctx, argc, 2, 2)))
+		return ret;
+	if(argv[1][0] != '0')
+		return error(ctx, "non-octal mask", NULL, 0);
+	if(!(p = parseoct(argv[1], &val)) || *p)
+		return error(ctx, "invalid mask", NULL, 0);
+
+	return fchk(sysumask(val), ctx, "umask", NULL);
 }
 
 int cmd_chroot(struct sh* ctx, int argc, char** argv)

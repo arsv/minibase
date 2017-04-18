@@ -31,3 +31,4 @@ CMD(close);
 CMD(dupfd);
 CMD(setcg);
 CMD(sleep);
+CMD(umask);
