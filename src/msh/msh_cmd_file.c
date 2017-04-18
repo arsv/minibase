@@ -1,10 +1,7 @@
-#include <bits/ints.h>
 #include <sys/open.h>
 #include <sys/close.h>
 #include <sys/write.h>
 #include <sys/dup2.h>
-
-#include <string.h>
 
 #include "msh.h"
 #include "msh_cmd.h"

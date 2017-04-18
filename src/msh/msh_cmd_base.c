@@ -3,7 +3,6 @@
 #include <sys/write.h>
 
 #include <string.h>
-#include <format.h>
 #include <util.h>
 
 #include "msh.h"

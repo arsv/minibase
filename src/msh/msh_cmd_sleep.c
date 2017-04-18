@@ -1,6 +1,5 @@
 #include <sys/nanosleep.h>
 
-#include <string.h>
 #include <format.h>
 #include <null.h>
 

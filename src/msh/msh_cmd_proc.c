@@ -1,6 +1,5 @@
 #include <sys/_exit.h>
 #include <sys/umask.h>
-#include <sys/chdir.h>
 #include <sys/chroot.h>
 #include <sys/prlimit.h>
 #include <sys/seccomp.h>
@@ -8,7 +7,6 @@
 
 #include <string.h>
 #include <format.h>
-#include <util.h>
 
 #include "msh.h"
 #include "msh_cmd.h"
