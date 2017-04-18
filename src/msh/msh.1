@@ -65,7 +65,6 @@ See \fBprlimit\fR(2). \fIKey\fR for \fBRLIMIT_CPU\fR is just \fBcpu\fR.
 .IP "\fBseccomp\fR \fIfile\fR" 4
 See \fBseccomp\fR(2), \fBSECCOMP_SET_MODE_FILTER\fR. The \fIfile\fR
 is expected to contain compiled BPF opcodes.
-
 '''
 .SH ENVIRONMENT
 .IP "PATH" 8
@@ -75,7 +74,7 @@ see \fBexecvp\fR(3).
 .SH NOTES
 Common POSIX shell features not supported in msh: redirections (>file),
 pipes (|cmd), globbing (*), background execution (&), jobs, control flow
-(if, while, case), advanced variable substituion (${var...}), backticks.
+(while, case), advanced variable substituion (${var...}), backticks.
 .P
 Like make but unlike POSIX shell, msh aborts on the first failed command.
 Prefix the command with \fB-\fR to proceed over failure.
