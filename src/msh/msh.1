@@ -30,6 +30,43 @@ echo $VAR
 exec /sbin/init
 .fi
 '''
+.SH BUILTINS
+These commands are run in the context of the shell process.
+'''
+.IP "\fBcd\fR \fIdirectory\fR" 4
+See \fBchdir\fR(2).
+.IP "\fBecho\fR \fImessage\fR" 4
+Write \fImessage\fR to stdout.
+.IP "\fBwarn\fR \fImessage\fR" 4
+Same, to stderr.
+.IP "\fBsleep\fR \fIseconds\fR" 4
+See \fBnanosleep\fR(2). Fractional values are supported.
+.IP "\fBexit\fR \fIvalue\fR" 4
+.IP "\fBexec\fR \fIcommand\fR \fIarg\fR \fIarg\fR ..." 4
+Replace current process with \fIcommand\fR. See \fBexecve\fR(2).
+.IP "\fBopen\fR [\fB-rwacx\fR] \fIfd\fR \fIfile\fR" 4
+Open \fIfile\fR and \fBdup2\fR(2) the result to \fIfd\fR.
+Options: \fBr\fRead, \fBw\fRrite, \fBa\fRppend, \fBc\fRreate, e\fBx\fRclusively.
+.IP "\fBclose\fR \fIfd\fR" 4
+.IP "\fBdupfd\fR \fIold\fR \fInew\fR" 4
+See \fBdup2\fR(2).
+.IP "\fBchroot\fR \fIdirectory\fR" 4
+.IP "\fBumask\fR \fIvalue\fR" 4
+.IP "\fBsetuid\fR \fIuser\fR" 4
+Set real, effective and saved user ids to those of \fIuser\fR.
+.IP "\fBsetgid\fR \fIgroup\fR" 4
+Same with group ids.
+.IP "\fBgroups\fR \fIgroup\fR \fIgroup\fR ..." 4
+See \fBsetgroups\fR(2).
+.IP "\fBsetprio\fR \fInumber\fR" 4
+See \fBsetpriority\fR(2). The argument is in Linux units, 1-40.
+.IP "\fBrlimit\fR \fIkey\fR \fIcur\fR [\fImax\fR]" 4
+See \fBprlimit\fR(2). \fIKey\fR for \fBRLIMIT_CPU\fR is just \fBcpu\fR.
+.IP "\fBseccomp\fR \fIfile\fR" 4
+See \fBseccomp\fR(2), \fBSECCOMP_SET_MODE_FILTER\fR. The \fIfile\fR
+is expected to contain compiled BPF opcodes.
+
+'''
 .SH ENVIRONMENT
 .IP "PATH" 8
 Colon-separated list of directories to look for commands,
