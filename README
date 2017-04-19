@@ -48,6 +48,17 @@ With everything in place, the system should be able to boot, on minibase
 alone, up to the point where it's ready to download, install and start GUI.
 
 
+What's the inteded hardware for this?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+minibase is being written primarily with a personal laptop in mind.
+
+This choice only affects certain tools (svcmon, wimon, vtmux) which
+either allow or expect some user interaction. For unattended or headless
+systems, it would be better to replace them with simplier and more
+autonomous equivalents. Which may get written at some point, but aren't
+a priority right now.
+
+
 How is it different from busybox?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Busybox aims to provide common POSIX tools in a package with the
