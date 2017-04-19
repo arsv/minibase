@@ -12,17 +12,17 @@ and once built can be used on any cpu-compatible Linux system.
 What's inside / Current status
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The project is highly experimental and (at this point) incomplete.
-Some tools are missing, and some tools still need work.
+Some tools are missing, and some still need work.
 
   * Simple non-interactive shell (msh) for scripting the boot
     process and service startup.
   
   * Early-stage boot utils (switchroot, kmod, mount, waitfor).
-  * Small basic unix tools (ls, du, df, cat, kill etc)
+  * Small basic unix tools (cat, ls, du, df etc)
   * Several small linux-specific tools (systime, fstrim, dmesg etc)
   
-  * Process supervisor suite aka init (init, scv, scvmon, reboot),
-    split stage implementation similar to daemontools or runit.
+  * Process supervisor suite (init, scv, scvmon, reboot), split stage
+    implementation similar to daemontools or runit.
   
   - No udevd yet.
   - No unprivileged mount daemon yet.
@@ -31,13 +31,11 @@ Some tools are missing, and some tools still need work.
   * DHCP client (dhcp) and manual interface setup tools (ip4cfg, ip4info).
   - No sntpd yet.
 
-  * Wi-Fi scanner and connection manager (wimon), also capable
-    of handling wired interfaces.
-  * Minimalistic wpa supplicant (wpa);
-    WPA2-PSK only, CCMP/CCMP or CCMP/TKIP.
+  * Wi-Fi scanner and connection manager (wimon), also capable of handling
+    wired interfaces.
+  * Minimalistic wpa supplicant (wpa), WPA2-PSK only, CCMP/CCMP or CCMP/TKIP.
 
-  - No package manager yet.
-  - No http download tool yet.
+  - No package manager / download tool yet.
 
   * VT/DRM/input multiplexer (vtmux) aka that part of systemd-logind
     everyone keeps asking about.
@@ -56,13 +54,13 @@ Busybox aims to provide common POSIX tools in a package with the
 smallest total size, or something close to that. It is not very
 well suited for providing individual tools, only the whole package.
 
-Busybox typically stays in the memory after being loaded (cached)
-once, saving memory and time for repeated usage.
+Busybox typically stays in the memory after being loaded (cached) once,
+saving memory and time for repeated usage.
 
-Minibase aims to provide small *individual* tools, so that they
-could be combined freely, picked one at a time, and discarded
-once no longer needed. The scope of the tools provided by minibase
-is also quite different.
+Minibase aims to provide small *individual* tools, so that they could
+be combined freely, picked one at a time, and discarded once no longer
+needed. The scope of the tools provided by minibase is also quite different,
+with much heavier focus on Linux-specific stuff.
 
 
 How is it different from common (GNU) tools?
@@ -85,7 +83,7 @@ rather impressive traces.
 Compatibility
 ~~~~~~~~~~~~~
 The tools are *NOT* meant to be POSIX-, GNU-, or anything else compatible.
-Instead the goal is to provide comparable functionality by simplier means.
+Instead the goal is to provide comparable functionality by simpler means.
 
 
 Licensing
@@ -101,7 +99,7 @@ Limited closed-box use is allowed on different terms, see COPYING.alt.
 The code in lib/sys, lib/bits and lib/arch constitutes the public interface
 of the Linux kernel. No claims are made for that code, and it should not be
 copyrightable anyway. If unsure, grab corresponding fragments from either
-the kernel sources (GPLv2) or the musl libc (MIT).
+the kernel sources (GPLv2) or the musl libc (MIT license).
 
 The code from lib/crypto is in public domain. See README there.
 
@@ -114,7 +112,7 @@ Certain decision from skarnet/s6 project also played significant role.
 Syscall code (static inline functions with asm volatile blocks)
 follows musl, because they got it right.
 
-The Rust coreutils project provided a great deal of inspiration,
+The Rust coreutils project provided great deal of inspiration,
 specifically by showing how not to write coreutils.
 
 
