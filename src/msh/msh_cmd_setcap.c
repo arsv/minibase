@@ -58,7 +58,6 @@ static const struct cap {
 #define OPT_i (1<<2)
 #define OPT_p (1<<3)
 #define OPT_e (1<<4)
-#define OPT_r (1<<5)
 
 static int parsecaps(struct sh* ctx, int argn, char** args, int* bits)
 {
@@ -193,8 +192,6 @@ static int prepcaps(struct sh* ctx, int* caps, int opts, struct cap_data* cd)
 	if((ret = sys_capget(&ch, cd)) < 0)
 		return error(ctx, "capget", NULL, ret);
 
-	if(!(opts & OPT_r))
-		return 0;
 	if(cd[0].effective == cd[0].permitted)
 		return 0;
 
@@ -221,7 +218,6 @@ static int capopts(struct sh* ctx, char* arg)
 			case 'i': opts |= OPT_i; break;
 			case 'p': opts |= OPT_p; break;
 			case 'e': opts |= OPT_e; break;
-			case 'r': opts |= OPT_r; break;
 			default: return error(ctx, "bad mode", arg, 0);
 		}
 
@@ -238,7 +234,7 @@ int cmd_setcaps(struct sh* ctx, int argc, char** argv)
 	if(i < argc && argv[i][0] == '-')
 		opts = capopts(ctx, argv[i++] + 1);
 	else
-		opts = OPT_a | OPT_b | OPT_p | OPT_i | OPT_r;
+		opts = OPT_a | OPT_b | OPT_p | OPT_i;
 
 	if((ret = parsecaps(ctx, argc - i, argv + i, caps)))
 		return ret;
