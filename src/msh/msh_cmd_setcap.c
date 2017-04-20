@@ -58,6 +58,7 @@ static const struct cap {
 #define OPT_i (1<<2)
 #define OPT_p (1<<3)
 #define OPT_e (1<<4)
+#define OPT_r (1<<5)
 
 static int parsecaps(struct sh* ctx, int argn, char** args, int* bits)
 {
@@ -157,29 +158,52 @@ static int setacaps(struct sh* ctx, int* bits, int opts)
 	return 0;
 }
 
-static int setepicaps(struct sh* ctx, int* bits, int opts)
+static int setepicaps(struct sh* ctx, int* bits, int opts, struct cap_data* cd)
 {
-	int ret;
-	struct cap_data cd[2];
 	struct cap_header ch = {
 		.version = LINUX_CAPABILITY_VERSION,
 		.pid = 0
 	};
 
-	if(opts & (OPT_p | OPT_i | OPT_e))
-		memset(&cd, 0, sizeof(cd));
-	else if((ret = fchk(sys_capget(&ch, cd), ctx, "capget", NULL)))
-		return ret;
-
 	if(opts & OPT_p) {
 		cd[0].permitted = bits[0];
 		cd[1].permitted = bits[1];
-	} if(opts & OPT_i) {
+	} if(opts & (OPT_i | OPT_a)) {
 		cd[0].inheritable = bits[0];
 		cd[1].inheritable = bits[1];
 	} if(opts & OPT_e) {
 		cd[0].effective = bits[0];
 		cd[1].effective = bits[1];
+	} else {
+		cd[0].effective &= cd[0].permitted;
+		cd[1].effective &= cd[1].permitted;
+	}
+
+	return fchk(sys_capset(&ch, cd), ctx, "capset", NULL);
+}
+
+static int prepcaps(struct sh* ctx, int* caps, int opts, struct cap_data* cd)
+{
+	int ret;
+	struct cap_header ch = {
+		.version = LINUX_CAPABILITY_VERSION,
+		.pid = 0
+	};
+
+	if((ret = sys_capget(&ch, cd)) < 0)
+		return error(ctx, "capget", NULL, ret);
+
+	if(!(opts & OPT_r))
+		return 0;
+	if(cd[0].effective == cd[0].permitted)
+		return 0;
+
+	cd[0].effective = cd[0].permitted;
+	cd[1].effective = cd[1].permitted;
+
+	if(opts & OPT_a) {
+		cd[0].inheritable |= caps[0];
+		cd[1].inheritable |= caps[1];
 	}
 
 	return fchk(sys_capset(&ch, cd), ctx, "capset", NULL);
@@ -197,6 +221,7 @@ static int capopts(struct sh* ctx, char* arg)
 			case 'i': opts |= OPT_i; break;
 			case 'p': opts |= OPT_p; break;
 			case 'e': opts |= OPT_e; break;
+			case 'r': opts |= OPT_r; break;
 			default: return error(ctx, "bad mode", arg, 0);
 		}
 
@@ -205,6 +230,7 @@ static int capopts(struct sh* ctx, char* arg)
 
 int cmd_setcaps(struct sh* ctx, int argc, char** argv)
 {
+	struct cap_data dh[2];
 	int caps[2] = { 0, 0 };
 	int opts, i = 1;
 	int ret;
@@ -212,16 +238,18 @@ int cmd_setcaps(struct sh* ctx, int argc, char** argv)
 	if(i < argc && argv[i][0] == '-')
 		opts = capopts(ctx, argv[i++] + 1);
 	else
-		opts = OPT_a | OPT_b | OPT_p | OPT_i;
+		opts = OPT_a | OPT_b | OPT_p | OPT_i | OPT_r;
 
 	if((ret = parsecaps(ctx, argc - i, argv + i, caps)))
 		return ret;
 
-	if((ret = setepicaps(ctx, caps, opts)))
+	if((ret = prepcaps(ctx, caps, opts, dh)))
 		return ret;
 	if((ret = setbcaps(ctx, caps, opts)))
 		return ret;
 	if((ret = setacaps(ctx, caps, opts)))
+		return ret;
+	if((ret = setepicaps(ctx, caps, opts, dh)))
 		return ret;
 
 	return 0;
