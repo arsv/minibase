@@ -156,7 +156,7 @@ static void chmod(const char* name, struct chmod* ch)
 
 /* Octal modes are simply raw st_mode values */
 
-static void parseoct(char* modstr, struct chmod* ch)
+static void parsenum(char* modstr, struct chmod* ch)
 {
 	int n = 0, d;
 	char* c;
@@ -228,7 +228,7 @@ done:	if(*p || !op || (!rwx && !sid && !sticky))
 static void parsemod(char* modstr, struct chmod* ch)
 {
 	if(*modstr >= '0' && *modstr <= '7')
-		parseoct(modstr, ch);
+		parsenum(modstr, ch);
 	else
 		parsesym(modstr, ch);
 }
