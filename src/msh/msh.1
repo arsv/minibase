@@ -8,9 +8,10 @@ msh [\fIscript\fR]
 '''
 .SH DESCRIPTION
 msh is a non-interactive command interpreter capable of running simple
-command sequences, and hardly anything else. It is indended to be used
-in place of (much larger) POSIX shell in cases where the extra features
-provided by the latter are not necessary.
+command sequences and setting up process environment. It is indended
+to be used in place of (much larger) POSIX shell for system and service
+startup scripts that make no use of advanced scripting features but
+could benefit from smaller interpreter and specific builtins.
 '''
 .SH EXAMPLE
 .nf
