@@ -379,7 +379,7 @@ void parse(struct sh* ctx, char* buf, int len)
 
 void pfini(struct sh* ctx)
 {
-	dispatch(ctx, '\0');
+	dispatch(ctx, '\n');
 
 	if(ctx->state)
 		fatal(ctx, "unexpected EOF", NULL);
