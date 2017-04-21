@@ -1,43 +1,43 @@
 #include "msh.h"
 #include "msh_cmd.h"
 
-int cmd_setenv(struct sh* ctx, int argc, char** argv)
+int cmd_setenv(struct sh* ctx)
 {
-	int ret;
+	char *var, *val;
 
-	if((ret = numargs(ctx, argc, 3, 3)))
-		return ret;
+	if(shift_str(ctx, &var))
+		return -1;
+	if(shift_str(ctx, &val))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
 
-	setenv(ctx, argv[1], argv[2]);
+	setenv(ctx, var, val);
 
 	return 0;
 }
 
-int cmd_unset(struct sh* ctx, int argc, char** argv)
+int cmd_unset(struct sh* ctx)
 {
-	int i;
-	int ret;
+	char* var;
 
-	if((ret = numargs(ctx, argc, 2, 0)))
-		return ret;
-
-	for(i = 1; i < argc; i++)
-		undef(ctx, argv[i]);
+	if(noneleft(ctx))
+		return -1;
+	while((var = shift(ctx)))
+		undef(ctx, var);
 
 	return 0;
 }
 
-int cmd_export(struct sh* ctx, int argc, char** argv)
+int cmd_export(struct sh* ctx)
 {
-	int i;
-	int ret;
+	char* var;
 
-	if((ret = numargs(ctx, argc, 2, 0)))
-		return ret;
-
-	for(i = 1; i < argc; i++)
-		if(export(ctx, argv[i]))
-			return error(ctx, "undefined variable", argv[i], 0);
+	if(noneleft(ctx))
+		return -1;
+	while((var = shift(ctx)))
+		if(export(ctx, var))
+			return error(ctx, "undefined variable", var, 0);
 
 	return 0;
 }

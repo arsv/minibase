@@ -36,15 +36,17 @@ inval:
 	return error(ctx, "invalid time spec", str, 0);
 }
 
-int cmd_sleep(struct sh* ctx, int argc, char** argv)
+int cmd_sleep(struct sh* ctx)
 {
 	struct timespec sp;
 	int ret;
 
-	if((ret = numargs(ctx, argc, 2, 2)))
+	if(noneleft(ctx))
+		return -1;
+	if((ret = parsetime(ctx, &sp, shift(ctx))))
 		return ret;
-	if((ret = parsetime(ctx, &sp, argv[1])))
-		return ret;
+	if(moreleft(ctx))
+		return -1;
 	if((ret = sysnanosleep(&sp, NULL)))
 		return error(ctx, "sleep", NULL, ret);
 

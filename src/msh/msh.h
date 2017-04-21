@@ -55,6 +55,10 @@ struct sh {
 	char* var;
 
 	int cond;
+
+	char** argv;	/* of the command being parsed */
+	int argc;
+	int argp;
 };
 
 struct env {
@@ -88,16 +92,25 @@ void define(struct sh* ctx, char* var, char* val);
 void undef(struct sh* ctx, char* var);
 int export(struct sh* ctx, char* var);
 
-void statement(struct sh* ctx, int argc, char** argv);
+void statement(struct sh* ctx);
 
 #define NR __attribute__((noreturn))
 void fail(const char* err, char* arg, long ret) NR;
 int error(struct sh* ctx, const char* err, char* arg, long ret);
 void fatal(struct sh* ctx, const char* err, char* arg) NR;
-int fchk(long ret, struct sh* ctx, const char* msg, char* arg);
-int numargs(struct sh* ctx, int argc, int min, int max);
-int argint(struct sh* ctx, char* arg, int* dst);
-int argu64(struct sh* ctx, char* arg, uint64_t* dst);
+int fchk(long ret, struct sh* ctx, char* arg);
+
+int numleft(struct sh* ctx);
+int dasharg(struct sh* ctx);
+int moreleft(struct sh* ctx);
+int noneleft(struct sh* ctx);
+char** argsleft(struct sh* ctx);
+char* peek(struct sh* ctx);
+char* shift(struct sh* ctx);
+int shift_str(struct sh* ctx, char** dst);
+int shift_int(struct sh* ctx, int* dst);
+int shift_u64(struct sh* ctx, uint64_t* dst);
+int shift_oct(struct sh* ctx, int* dst);
 
 int mmapfile(struct mbuf* mb, char* name);
 int munmapfile(struct mbuf* mb);

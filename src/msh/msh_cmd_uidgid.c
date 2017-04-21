@@ -73,43 +73,49 @@ static int pwresolve(struct sh* ctx, char* pwfile,
 	return err;
 }
 
-int cmd_setuid(struct sh* ctx, int argc, char** argv)
+int cmd_setuid(struct sh* ctx)
 {
-	int ret, uid;
+	int uid;
 	char* pwfile = "/etc/passwd";
+	char* user;
 
-	if((ret = numargs(ctx, argc, 2, 2)))
-		return ret;
-	if((ret = pwresolve(ctx, pwfile, 1, &argv[1], &uid, "unknown user")))
-		return ret;
+	if(shift_str(ctx, &user))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
+	if(pwresolve(ctx, pwfile, 1, &user, &uid, "unknown user"))
+		return -1;
 
-	return fchk(sys_setresuid(uid, uid, uid), ctx, "setuid", argv[1]);
+	return fchk(sys_setresuid(uid, uid, uid), ctx, user);
 }
 
-int cmd_setgid(struct sh* ctx, int argc, char** argv)
+int cmd_setgid(struct sh* ctx)
 {
-	int ret, gid;
+	int gid;
 	char* pwfile = "/etc/group";
+	char* group;
 
-	if((ret = numargs(ctx, argc, 2, 2)))
-		return ret;
-	if((ret = pwresolve(ctx, pwfile, 1, &argv[1], &gid, "unknown group")))
-		return ret;
+	if(shift_str(ctx, &group))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
+	if(pwresolve(ctx, pwfile, 1, &group, &gid, "unknown group"))
+		return -1;
 
-	return fchk(sys_setresgid(gid, gid, gid), ctx, "setgid", argv[1]);
+	return fchk(sys_setresgid(gid, gid, gid), ctx, group);
 }
 
-int cmd_groups(struct sh* ctx, int argc, char** argv)
+int cmd_groups(struct sh* ctx)
 {
 	char* pwfile = "/etc/group";
-	int ng = argc - 1;
-	int grp[ng];
-	int ret;
+	int num = numleft(ctx);
+	char** groups = argsleft(ctx);
+	int gids[num];
 
-	if((ret = numargs(ctx, argc, 2, 0)))
-		return ret;
-	if((ret = pwresolve(ctx, pwfile, ng, &argv[1], grp, "unknown group")))
-		return ret;
+	if(noneleft(ctx))
+		return -1;
+	if(pwresolve(ctx, pwfile, num, groups, gids, "unknown group"))
+		return -1;
 
-	return fchk(sys_setgroups(ng, grp), ctx, "setgroups", NULL);
+	return fchk(sys_setgroups(num, gids), ctx, NULL);
 }

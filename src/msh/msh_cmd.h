@@ -1,5 +1,5 @@
 #ifndef CMD
-#define CMD(name) int cmd_##name(struct sh* ctx, int argc, char** argv);
+#define CMD(name) int cmd_##name(struct sh* ctx);
 #endif
 
 CMD(cd)

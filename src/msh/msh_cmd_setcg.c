@@ -9,6 +9,9 @@
 #include "msh.h"
 #include "msh_cmd.h"
 
+/* This should be dropped as soon as $$ gets implemented.
+   Then it would be just "write $$ /sys/fs/cgroup/.../tasks". */
+
 static int setcg(struct sh* ctx, char* base, char* grp, char* pbuf, int plen)
 {
 	int blen = strlen(base);
@@ -35,22 +38,21 @@ static int setcg(struct sh* ctx, char* base, char* grp, char* pbuf, int plen)
 	return (wr == plen);
 }
 
-int cmd_setcg(struct sh* ctx, int argc, char** argv)
+int cmd_setcg(struct sh* ctx)
 {
 	char* base = "/sys/fs/cgroup";
-	int i, ret;
+	char* group;
 
 	int pid = sysgetpid();
 	char pbuf[20];
 	char* p = fmtint(pbuf, pbuf + sizeof(pbuf) - 1, pid); *p = '\0';
 	int plen = p - pbuf;
 
-	if((ret = numargs(ctx, argc, 2, 0)))
-		return ret;
+	if(noneleft(ctx))
+		return -1;
+	while((group = shift(ctx)))
+		if(setcg(ctx, base, group, pbuf, plen))
+			return -1;
 
-	for(i = 1; i < argc; i++)
-		if((ret = setcg(ctx, base, argv[i], pbuf, plen)))
-			break;
-
-	return ret;
+	return 0;
 }

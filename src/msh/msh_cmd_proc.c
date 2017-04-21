@@ -34,42 +34,44 @@ static const struct rlpair {
 	{ "",         0                 }
 };
 
-int cmd_rlimit(struct sh* ctx, int argc, char** argv)
+int cmd_rlimit(struct sh* ctx)
 {
-	int ret;
 	const struct rlpair* rp;
 	struct rlimit rl;
+	char* key;
 
-	if((ret = numargs(ctx, argc, 3, 4)))
-		return ret;
+	if(shift_str(ctx, &key))
+		return -1;
+	if(shift_u64(ctx, &rl.cur))
+		return -1;
+	if(!numleft(ctx))
+		rl.max = rl.cur;
+	else if(shift_u64(ctx, &rl.max))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
 
 	for(rp = rlimits; rp->name[0]; rp++)
-		if(!strcmp(rp->name, argv[1]))
+		if(!strcmp(rp->name, key))
 			break;
 	if(!rp->name[0])
-		return error(ctx, "unknown limit", argv[1], 0);
+		return error(ctx, "unknown limit", key, 0);
 
-	if((ret = argu64(ctx, argv[2], &rl.cur)))
-		return ret;
-	if(argc < 4)
-		rl.max = rl.cur;
-	else if((ret = argu64(ctx, argv[3], &rl.max)))
-		return ret;
-
-	return fchk(sys_prlimit(0, rp->res, &rl, NULL), ctx, "fchk", argv[1]);
+	return fchk(sys_prlimit(0, rp->res, &rl, NULL), ctx, key);
 }
 
-int cmd_seccomp(struct sh* ctx, int argc, char** argv)
+int cmd_seccomp(struct sh* ctx)
 {
 	struct mbuf mb;
 	int ret;
+	char* file;
 
-	if((ret = numargs(ctx, argc, 2, 2)))
-		return ret;
-	if((ret = fchk(mmapfile(&mb, argv[1]), ctx, "mmap", argv[1])))
-		return ret;
+	if(shift_str(ctx, &file))
+		return -1;
+	if(fchk(mmapfile(&mb, file), ctx, file))
+		return -1;
 	if(!mb.len || mb.len % 8) {
-		ret = error(ctx, "odd size:", argv[1], 0);
+		ret = error(ctx, "odd size:", file, 0);
 		goto out;
 	}
 
@@ -79,47 +81,44 @@ int cmd_seccomp(struct sh* ctx, int argc, char** argv)
 	};
 
 	int mode = SECCOMP_SET_MODE_FILTER;
-	ret = fchk(sys_seccomp(mode, 0, &sc), ctx, "seccomp", argv[1]);
+	ret = fchk(sys_seccomp(mode, 0, &sc), ctx, file);
 out:
 	munmapfile(&mb);
 	return ret;
 }
 
-int cmd_setprio(struct sh* ctx, int argc, char** argv)
+int cmd_setprio(struct sh* ctx)
 {
 	int prio;
-	int ret;
 
-	if((ret = numargs(ctx, argc, 2, 2)))
-		return ret;
-	if((ret = argint(ctx, argv[1], &prio)))
-		return ret;
+	if(shift_int(ctx, &prio))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
 
-	return fchk(sys_setpriority(0, 0, prio), ctx, "setpriority", argv[1]);
+	return fchk(sys_setpriority(0, 0, prio), ctx, NULL);
 }
 
-int cmd_umask(struct sh* ctx, int argc, char** argv)
+int cmd_umask(struct sh* ctx)
 {
-	int ret;
-	int val;
-	char* p;
+	int mask;
 
-	if((ret = numargs(ctx, argc, 2, 2)))
-		return ret;
-	if(argv[1][0] != '0')
-		return error(ctx, "non-octal mask", NULL, 0);
-	if(!(p = parseoct(argv[1], &val)) || *p)
-		return error(ctx, "invalid mask", NULL, 0);
+	if(shift_oct(ctx, &mask))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
 
-	return fchk(sysumask(val), ctx, "umask", NULL);
+	return fchk(sysumask(mask), ctx, NULL);
 }
 
-int cmd_chroot(struct sh* ctx, int argc, char** argv)
+int cmd_chroot(struct sh* ctx)
 {
-	int ret;
+	char* dir;
 
-	if((ret = numargs(ctx, argc, 2, 2)))
-		return ret;
+	if(shift_str(ctx, &dir))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
 
-	return fchk(syschroot(argv[1]), ctx, "chroot", argv[1]);
+	return fchk(syschroot(dir), ctx, dir);
 }

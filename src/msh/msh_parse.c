@@ -86,8 +86,9 @@ static void end_arg(struct sh* ctx)
 	ctx->count++;
 }
 
-static char** put_argv(struct sh* ctx, int argn)
+static char** put_argv(struct sh* ctx)
 {
+	int argn = ctx->count;
 	char* base = ctx->csep;
 	char* bend = ctx->hptr;
 
@@ -116,9 +117,11 @@ static void end_val(struct sh* ctx)
 {
 	if(ctx->cond & CSKIP)
 		goto out;
+	if(ctx->count != 1) /* XXX */
+		goto out;
 	
 	add_char(ctx, 0);
-	char** argv = put_argv(ctx, 2);
+	char** argv = put_argv(ctx);
 
 	define(ctx, argv[0], argv[1]); /* may damage heap, argv, csep! */
 out:
@@ -128,16 +131,20 @@ out:
 
 static void end_cmd(struct sh* ctx)
 {
-	int argc = ctx->count;
+	if(!ctx->count) return;
 
-	if(!argc) return;
+	ctx->argc = ctx->count;
+	ctx->argv = put_argv(ctx);
+	ctx->argp = 1;
 
-	char** argv = put_argv(ctx, argc);
-
-	statement(ctx, argc, argv); /* may damage heap, argv, csep! */
+	statement(ctx); /* may damage heap, argv, csep! */
 
 	hrev(ctx, CSEP);
+
 	ctx->count = 0;
+	ctx->argc = 0;
+	ctx->argv = NULL;
+	ctx->argp = 0;
 }
 
 static void parse_sep(struct sh* ctx, char c)

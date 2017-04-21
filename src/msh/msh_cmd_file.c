@@ -10,7 +10,7 @@
 #include "msh.h"
 #include "msh_cmd.h"
 
-static int openflags(struct sh* ctx, int* dst, char* str)
+static int openflags(struct sh* ctx, char* str, int* dst)
 {
 	int flags = 0;
 	char* p;
@@ -28,67 +28,73 @@ static int openflags(struct sh* ctx, int* dst, char* str)
 	return 0;
 }
 
-int cmd_open(struct sh* ctx, int argc, char** argv)
+int cmd_open(struct sh* ctx)
 {
-	int fd, rfd, ret, i = 1;
+	int fd, rfd, ret;
 	int flags = O_RDWR;
+	char* name;
 
-	if(i < argc && argv[i][0] == '-')
-		flags = openflags(ctx, &flags, argv[i++] + 1);
-	if((ret = numargs(ctx, argc - i, 2, 2)))
-		return ret;
+	if(noneleft(ctx))
+		return -1;
+	if(dasharg(ctx))
+		if(openflags(ctx, shift(ctx)+1, &flags))
+			return -1;
+	if(shift_int(ctx, &rfd))
+		return -1;
+	if(shift_str(ctx, &name))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
 
-	char* srfd = argv[i++];
-	char* name = argv[i++];
-
-	if((ret = argint(ctx, srfd, &rfd)))
-		return ret;
 	if((fd = sysopen3(name, flags, 0666)) < 0)
 		return error(ctx, "open", name, fd);
 	if(fd == rfd)
 		return 0;
 
-	ret = fchk(sysdup2(fd, rfd), ctx, "dup", srfd);
+	ret = fchk(sysdup2(fd, rfd), ctx, name);
 	sysclose(fd);
 
 	return ret;
 }
 
-int cmd_dupfd(struct sh* ctx, int argc, char** argv)
+int cmd_dupfd(struct sh* ctx)
 {
-	int ret, oldfd, newfd;
+	int oldfd, newfd;
 
-	if((ret = numargs(ctx, argc, 3, 3)))
-		return ret;
-	if((ret = argint(ctx, argv[1], &oldfd)))
-		return ret;
-	if((ret = argint(ctx, argv[2], &newfd)))
-		return ret;
+	if(shift_int(ctx, &oldfd))
+		return -1;
+	if(shift_int(ctx, &newfd))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
 
-	return fchk(sysdup2(oldfd, newfd), ctx, "dup", argv[1]);
+	return fchk(sysdup2(oldfd, newfd), ctx, NULL);
 }
 
-int cmd_close(struct sh* ctx, int argc, char** argv)
+int cmd_close(struct sh* ctx)
 {
-	int ret, fd;
+	int fd;
 
-	if((ret = numargs(ctx, argc, 2, 2)))
-		return ret;
-	if((ret = argint(ctx, argv[1], &fd)))
-		return ret;
+	if(shift_int(ctx, &fd))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
 
-	return fchk(sysclose(fd), ctx, "close", argv[1]);
+	return fchk(sysclose(fd), ctx, NULL);
 }
 
-int cmd_write(struct sh* ctx, int argc, char** argv)
+int cmd_write(struct sh* ctx)
 {
 	int fd, ret;
+	char* data;
+	char* name;
 
-	if((ret = numargs(ctx, argc, 3, 3)))
-		return ret;
-
-	char* data = argv[1];
-	char* name = argv[2];
+	if(shift_str(ctx, &data))
+		return -1;
+	if(shift_str(ctx, &name))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
 
 	if((fd = sysopen(name, O_WRONLY)) < 0)
 		return error(ctx, "open", name, 0);
@@ -106,16 +112,15 @@ int cmd_write(struct sh* ctx, int argc, char** argv)
 	return 0;
 }
 
-int cmd_unlink(struct sh* ctx, int argc, char** argv)
+int cmd_unlink(struct sh* ctx)
 {
-	int i, ret;
+	char* name;
 
-	if((ret = numargs(ctx, argc, 2, 0)))
-		return ret;
-
-	for(i = 1; i < argc; i++)
-		if((ret = sysunlink(argv[i])) < 0)
-			return error(ctx, "unlink", argv[i], ret);
+	if(noneleft(ctx))
+		return -1;
+	while((name = shift(ctx)))
+		if(fchk(sysunlink(name), ctx, name))
+			return -1;
 
 	return 0;
 
@@ -161,18 +166,15 @@ out:
 	return ret;
 }
 
-int cmd_mkdirs(struct sh* ctx, int argc, char** argv)
+int cmd_mkdirs(struct sh* ctx)
 {
-	int ret;
 	int mode = 0755;
+	char* name;
 
-	if((ret = numargs(ctx, argc, 2, 3)))
-		return ret;
+	if(shift_str(ctx, &name))
+		return -1;
+	if(numleft(ctx) && shift_oct(ctx, &mode))
+		return -1;
 
-	char* name = argv[1];
-
-	if((ret = mkdirs(name, mode)) < 0)
-		return error(ctx, "mkdir", name, ret);
-
-	return 0;
+	return fchk(mkdirs(name, mode), ctx, name);
 }

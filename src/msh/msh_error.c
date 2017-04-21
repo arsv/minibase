@@ -96,39 +96,122 @@ void fatal(struct sh* ctx, const char* err, char* arg)
 	_exit(0xFF);
 }
 
-int fchk(long ret, struct sh* ctx, const char* msg, char* arg)
+int fchk(long ret, struct sh* ctx, char* arg)
 {
 	if(ret < 0)
-		return error(ctx, msg, arg, ret);
+		return error(ctx, *ctx->argv, arg, ret);
 	else
 		return 0;
 }
 
-int numargs(struct sh* ctx, int argc, int min, int max)
+/* Arguments handling for builtins */
+
+int numleft(struct sh* ctx)
 {
-	if(min && argc < min)
-		return error(ctx, "too few arguments", NULL, 0);
-	if(max && argc > max)
+	return ctx->argc - ctx->argp;
+}
+
+int dasharg(struct sh* ctx)
+{
+	char* arg = peek(ctx);
+
+	return arg && *arg == '-';
+}
+
+int moreleft(struct sh* ctx)
+{
+	if(numleft(ctx) > 0)
 		return error(ctx, "too many arguments", NULL, 0);
+	else
+		return 0;
+}
+
+int noneleft(struct sh* ctx)
+{
+	if(numleft(ctx) <= 0)
+		return error(ctx, "too few arguments", NULL, 0);
+	else
+		return 0;
+}
+
+char** argsleft(struct sh* ctx)
+{
+	return &(ctx->argv[ctx->argp]);
+}
+
+char* peek(struct sh* ctx)
+{
+	if(ctx->argp < ctx->argc)
+		return ctx->argv[ctx->argp];
+	else
+		return NULL;
+}
+
+char* shift(struct sh* ctx)
+{
+	char* arg;
+
+	if((arg = peek(ctx)))
+		ctx->argp++;
+
+	return arg;
+}
+
+int shift_str(struct sh* ctx, char** dst)
+{
+	char* str;
+
+	if(!(str = shift(ctx)))
+		return error(ctx, "argument required", NULL, 0);
+
+	*dst = str;
 	return 0;
 }
 
-int argint(struct sh* ctx, char* arg, int* dst)
+static int argument_required(struct sh* ctx)
+{
+	return error(ctx, "argument required", NULL, 0);
+}
+
+static int numeric_arg_required(struct sh* ctx)
+{
+	return error(ctx, "numeric argument required", NULL, 0);
+}
+
+int shift_int(struct sh* ctx, int* dst)
 {
 	char* p;
 
-	if(!(p = parseint(arg, dst)) || *p)
-		return error(ctx, "numeric argument rquired", arg, 0);
+	if(!(p = shift(ctx)))
+		return argument_required(ctx);
+	if(!(p = parseint(p, dst)) || *p)
+		return numeric_arg_required(ctx);
 
 	return 0;
 }
 
-int argu64(struct sh* ctx, char* arg, uint64_t* dst)
+int shift_u64(struct sh* ctx, uint64_t* dst)
 {
 	char* p;
 
-	if(!(p = parseu64(arg, dst)) || *p)
-		return error(ctx, "numeric argument rquired", arg, 0);
+	if(!(p = shift(ctx)))
+		return argument_required(ctx);
+	if(!(p = parseu64(p, dst)) || *p)
+		return numeric_arg_required(ctx);
+
+	return 0;
+}
+
+int shift_oct(struct sh* ctx, int* dst)
+{
+	char* p;
+
+	if(!(p = shift(ctx)))
+		return argument_required(ctx);
+	if(*p != '0')
+		return error(ctx, "mode must be octal", NULL, 0);
+	if(!(p = parseoct(p, dst)) || *p)
+		return numeric_arg_required(ctx);
 
 	return 0;
 }

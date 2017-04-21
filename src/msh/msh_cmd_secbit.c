@@ -17,25 +17,29 @@ static const struct secbit {
 	{ "",         0                           }
 };
 
-int cmd_secbits(struct sh* ctx, int argc, char** argv)
+static int striplock(char* str)
 {
-	int ret;
+	int len = strlen(str);
+
+	if(len <= 5)
+		return 0;
+	if(strncmp(str + len - 5, "-lock", 5))
+		return 0;
+
+	str[len-5] = '\0';
+	return 1;
+}
+
+int cmd_secbits(struct sh* ctx)
+{
 	const struct secbit* sb;
+	char* arg;
 	int bits = 0;
-	int i;
 
-	if((ret = numargs(ctx, argc, 2, 0)))
-		return ret;
-
-	for(i = 1; i < argc; i++) {
-		char* arg = argv[i];
-		int arglen = strlen(arg);
-		int lock = 0;
-
-		if(arglen > 5 && !strncmp(arg + arglen - 5, "-lock", 5)) {
-			lock = 1;
-			arg[arglen + arglen - 5] = '\0';
-		}
+	if(noneleft(ctx))
+		return -1;
+	while((arg = shift(ctx))) {
+		int lock = striplock(arg);
 
 		for(sb = secbits; sb->name[0]; sb++)
 			if(!strncmp(sb->name, arg, sizeof(sb->name)))
@@ -47,7 +51,6 @@ int cmd_secbits(struct sh* ctx, int argc, char** argv)
 		if(!lock) continue;
 		bits |= (1 << (sb->bit + 1));
 	}
-	
-	return fchk(sys_prctl(PR_SET_SECUREBITS, bits, 0, 0, 0),
-			ctx, "prctl", "PR_SET_SECUREBITS");
+
+	return fchk(sys_prctl(PR_SET_SECUREBITS, bits, 0, 0, 0), ctx, NULL);
 }

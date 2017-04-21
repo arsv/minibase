@@ -8,65 +8,69 @@
 #include "msh.h"
 #include "msh_cmd.h"
 
-int cmd_cd(struct sh* ctx, int argc, char** argv)
+int cmd_cd(struct sh* ctx)
 {
-	int ret;
+	char* dir;
 
-	if((ret = numargs(ctx, argc, 2, 2)))
-		return ret;
+	if(shift_str(ctx, &dir))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
 
-	return fchk(syschdir(argv[1]), ctx, "chdir", argv[1]);
+	return fchk(syschdir(dir), ctx, dir);
 }
 
-int cmd_exec(struct sh* ctx, int argc, char** argv)
+int cmd_exec(struct sh* ctx)
 {
-	int ret;
+	if(noneleft(ctx))
+		return -1;
 
-	if((ret = numargs(ctx, argc, 2, 0)))
-		return ret;
+	char** argv = argsleft(ctx);
 
-	return fchk(execvpe(argv[1], argv+1, ctx->envp), ctx, "exec", argv[1]);
+	return fchk(execvpe(*argv, argv, ctx->envp), ctx, *argv);
 }
 
-int cmd_exit(struct sh* ctx, int argc, char** argv)
+int cmd_exit(struct sh* ctx)
 {
-	int ret, code = 0;
+	int code = 0;
 
-	if((ret = numargs(ctx, argc, 1, 2)))
-		return ret;
-	if(argc > 1 && (ret = argint(ctx, argv[1], &code)))
-		return ret;
+	if(!numleft(ctx))
+		;
+	else if(shift_int(ctx, &code))
+		return -1;
 
 	_exit(code);
 }
 
-static int print(struct sh* ctx, int argc, char** argv, int fd)
+static int print(struct sh* ctx, int fd)
 {
-	int ret;
+	char* msg;
 
-	if((ret = numargs(ctx, argc, 2, 2)))
-		return ret;
+	if(shift_str(ctx, &msg))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
 
-	int len = strlen(argv[1]);
-	argv[1][len] = '\n';
-	syswrite(fd, argv[1], len+1);
-	argv[1][len] = '\0';
+	int len = strlen(msg);
+	msg[len] = '\n';
+	syswrite(fd, msg, len+1);
+	msg[len] = '\0';
 
 	return 0;
 }
 
-int cmd_echo(struct sh* ctx, int argc, char** argv)
+int cmd_echo(struct sh* ctx)
 {
-	return print(ctx, argc, argv, STDOUT);
+	return print(ctx, STDOUT);
 }
 
-int cmd_warn(struct sh* ctx, int argc, char** argv)
+int cmd_warn(struct sh* ctx)
 {
-	return print(ctx, argc, argv, STDERR);
+	return print(ctx, STDERR);
 }
 
-int cmd_die(struct sh* ctx, int argc, char** argv)
+int cmd_die(struct sh* ctx)
 {
-	cmd_warn(ctx, argc, argv);
+	cmd_warn(ctx);
 	_exit(0xFF);
 }
