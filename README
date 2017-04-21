@@ -18,8 +18,9 @@ Some tools are missing, and some still need work.
     process and service startup.
   
   * Early-stage boot utils (switchroot, kmod, mount, waitfor).
-  * Small basic unix tools (cat, ls, du, df etc)
-  * Several small linux-specific tools (systime, fstrim, dmesg etc)
+  * Small basic unix tools (cat, ls, du, df etc).
+  * Several small linux-specific tools (systime, fstrim, dmesg etc).
+  - No FDE tooling yet.
   
   * Process supervisor suite (init, scv, scvmon, reboot), split stage
     implementation similar to daemontools or runit.
@@ -28,20 +29,22 @@ Some tools are missing, and some still need work.
   - No unprivileged mount daemon yet.
   - No controlled privilege escalation daemon (sud/sudo) yet.
 
-  * DHCP client (dhcp) and manual interface setup tools (ip4cfg, ip4info).
+  * DHCP client (dhcp) [unmerged]
+  * manual interface setup tools (ip4cfg, ip4info) [incomplete].
   - No sntpd yet.
 
   * Wi-Fi scanner and connection manager (wimon), also capable of handling
-    wired interfaces.
-  * Minimalistic wpa supplicant (wpa), WPA2-PSK only, CCMP/CCMP or CCMP/TKIP.
+    wired interfaces [incomplete].
+  * Minimalistic wpa supplicant (wpa),
+    WPA2-PSK only, CCMP/CCMP or CCMP/TKIP [unmerged]
 
   - No package manager / download tool yet.
 
   * VT/DRM/input multiplexer (vtmux) aka that part of systemd-logind
-    everyone keeps asking about.
+    everyone keeps asking about [needs testing].
 
-  - No vtmux-compatible getty or greeters yet.
-
+  - No vtmux-compatible getty.
+  - No greeters yet.
   - No interactive shell yet.
 
 With everything in place, the system should be able to boot, on minibase
