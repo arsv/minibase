@@ -10,10 +10,21 @@
    as opposed to leaving only struct env-s and building envp on
    each exec. */
 
-
-static char* match(char* envline, char* var)
+static char* stringptr(struct env* es)
 {
-	char* a = envline;
+	if(es->type == ENVPTR)
+		return ((struct envptr*)es)->ref;
+	if(es->type == ENVSTR)
+		return es->payload;
+	if(es->type == ENVLOC)
+		return es->payload;
+
+	return NULL;
+}
+
+static char* match(struct sh* ctx, char* env, char* var)
+{
+	char* a = env;
 	char* b = var;
 
 	while(*a == *b) {
@@ -25,16 +36,9 @@ static char* match(char* envline, char* var)
 	return a + 1;
 }
 
-char* valueof(struct sh* ctx, char* var)
+static int match_env(struct sh* ctx, struct env* es, char* var)
 {
-	char** e;
-	char* v;
-
-	for(e = ctx->envp; *e; e++)
-		if((v = match(*e, var)))
-			return v;
-
-	return "";
+	return !!match(ctx, stringptr(es), var);
 }
 
 /* Until the first set or unset, the original envp from main()
@@ -72,64 +76,65 @@ static void maybe_init_env(struct sh* ctx)
    it's just happens the common part of otherwise unrelated rebuild_envp()
    and del_env_entry(). Basically just a loop over env entries. */
 
-typedef int (*envf)(struct sh* ctx, struct env* es, char* str, char* var);
+typedef int (*envf)(struct sh* ctx, struct env* es, char* var);
 
-static int foreach_env(struct sh* ctx, envf func, char* var)
+static struct env* foreach_env(struct sh* ctx, envf func, char* var)
 {
 	char* ptr = ctx->heap;
 	char* end = ctx->esep;
 	char* p = ptr;
 
-	ctx->envp = (char**)ctx->hptr;
-
 	while(p < end) {
 		struct env* es = (struct env*) p;
-		char* str;
 
 		p += es->len;
 
 		if(!es->len)
 			break;
-		if(es->type == ENVSTR)
-			str = es->payload;
-		else if(es->type == ENVPTR)
-			str = ((struct envptr*)es)->ref;
-		else
+		if(es->type == ENVDEL)
 			continue;
-
-		if(func(ctx, es, str, var))
-			return 1;
+		if(func(ctx, es, var))
+			return es;
 	}
 
-	return 0;
+	return NULL;
 }
 
-static int add_env_ptr(struct sh* ctx, struct env* _, char* str, char* __)
+static int add_env_ptr(struct sh* ctx, struct env* es, char* _)
 {
+	if(es->type == ENVLOC)
+		return 0;
+
 	char** ptr = halloc(ctx, sizeof(char*));
-	*ptr = str;
+	*ptr = stringptr(es);
+
 	return 0;
 }
 
 static void rebuild_envp(struct sh* ctx)
 {
-	foreach_env(ctx, add_env_ptr, NULL);
-	add_env_ptr(ctx, NULL, NULL, NULL);
-}
+	hset(ctx, ESEP);
 
-static int match_del_entry(struct sh* ctx, struct env* es, char* str, char* var)
-{
-	if(match(str, var)) {
-		es->type = ENVDEL;
-		return 1;
-	} else {
-		return 0;
-	}
+	foreach_env(ctx, add_env_ptr, NULL);
+
+	char** ptr = halloc(ctx, sizeof(char*));
+	*ptr = NULL;
+
+	hset(ctx, CSEP);
+
+	ctx->envp = (char**)ctx->esep;
 }
 
 static int del_env_entry(struct sh* ctx, char* var)
 {
-	return foreach_env(ctx, match_del_entry, var);
+	struct env* es;
+
+	if(!(es = foreach_env(ctx, match_env, var)))
+		return 0;
+
+	es->type = ENVDEL;
+
+	return 1;
 }
 
 /* define() gets called with pkey and pval pointing into the area
@@ -144,7 +149,7 @@ static char* sdup(char* str, int len, char* buf)
 
 #define allocadup(str, len) sdup(str, len, alloca(len+1))
 
-void define(struct sh* ctx, char* pkey, char* pval)
+static void putvar(struct sh* ctx, char* pkey, char* pval, int type)
 {
 	int klen = strlen(pkey);
 	int vlen = strlen(pval);
@@ -162,7 +167,7 @@ void define(struct sh* ctx, char* pkey, char* pval)
 	struct env* es = halloc(ctx, total);
 
 	es->len = total;
-	es->type = ENVSTR;
+	es->type = type;
 
 	char* p = es->payload;
 	char* e = p + len;
@@ -172,21 +177,89 @@ void define(struct sh* ctx, char* pkey, char* pval)
 	p = fmtstr(p, e, val);
 	*p++ = '\0';
 
-	hset(ctx, ESEP);
-
 	rebuild_envp(ctx);
-
-	hset(ctx, CSEP);
 }
 
-void undef(struct sh* ctx, char* var)
+void define(struct sh* ctx, char* pkey, char* pval)
 {
+	putvar(ctx, pkey, pval, ENVLOC);
+}
+
+void setenv(struct sh* ctx, char* pkey, char* pval)
+{
+	putvar(ctx, pkey, pval, ENVSTR);
+}
+
+void undef(struct sh* ctx, char* pkey)
+{
+	int klen = strlen(pkey);
+	char* key = allocadup(pkey, klen);
+
 	maybe_init_env(ctx);
 
+	if(!del_env_entry(ctx, key))
+		return;
+
 	hrev(ctx, ESEP);
+	rebuild_envp(ctx);
+}
 
-	if(del_env_entry(ctx, var))
-		rebuild_envp(ctx);
+int export(struct sh* ctx, char* var)
+{
+	struct env* es;
 
-	hset(ctx, CSEP);
+	if(!ctx->esep)
+		return 0;
+	if(!(es = foreach_env(ctx, match_env, var)))
+		return -1;
+	if(es->type != ENVLOC)
+		return 0;
+
+	es->type = ENVSTR;
+
+	hrev(ctx, ESEP);
+	rebuild_envp(ctx);
+
+	return 0;
+}
+
+/* valueof may be called before maybe_init_env(), in which case
+   it should use the original envp; or after that, then it has
+   to deal with local/global stuff and thus stuct env-s. */
+
+static char* valueof_envs(struct sh* ctx, char* var)
+{
+	struct env* es;
+	char* p;
+
+	if(!(es = foreach_env(ctx, match_env, var)))
+		return NULL;
+	if(!(p = stringptr(es)))
+		return NULL;
+
+	while(*p && *p != '=') p++;
+
+	if(!*p) return NULL;
+
+	return p + 1;
+}
+
+static char* valueof_orig(struct sh* ctx, char* var)
+{
+	char** p;
+	char* r;
+
+	for(p = ctx->envp; *p; p++)
+		if((r = match(ctx, *p, var)))
+			return r;
+
+	return NULL;
+}
+
+char* valueof(struct sh* ctx, char* var)
+{
+	if(ctx->esep)
+		return valueof_envs(ctx, var);
+	else
+		return valueof_orig(ctx, var);
 }

@@ -8,9 +8,10 @@ msh [\fIscript\fR]
 '''
 .SH DESCRIPTION
 msh is a non-interactive command interpreter capable of running simple
-command sequences, and hardly anything else. It is indended to be used
-in place of (much larger) POSIX shell in cases where the extra features
-provided by the latter are not necessary.
+command sequences and setting up process environment. It is indended
+to be used in place of (much larger) POSIX shell for system and service
+startup scripts that make no use of advanced scripting features but
+could benefit from smaller interpreter and specific builtins.
 '''
 .SH EXAMPLE
 .nf
@@ -30,6 +31,59 @@ echo $VAR
 exec /sbin/init
 .fi
 '''
+.SH BUILTINS
+These commands are run in the context of the shell process.
+'''
+.IP "\fBcd\fR \fIdirectory\fR" 4
+See \fBchdir\fR(2).
+.IP "\fBecho\fR \fImessage\fR" 4
+Write \fImessage\fR to stdout.
+.IP "\fBwarn\fR \fImessage\fR" 4
+Same, to stderr.
+.IP "\fBsleep\fR \fIseconds\fR" 4
+See \fBnanosleep\fR(2). Fractional values are supported.
+.IP "\fBexit\fR \fIvalue\fR" 4
+.IP "\fBexec\fR \fIcommand\fR \fIarg\fR \fIarg\fR ..." 4
+Replace current process with \fIcommand\fR. See \fBexecve\fR(2).
+.IP "\fBopen\fR [\fB-rwacx\fR] \fIfd\fR \fIfile\fR" 4
+Open \fIfile\fR and \fBdup2\fR(2) the result to \fIfd\fR.
+.br
+Options: \fBr\fRead, \fBw\fRrite, \fBa\fRppend, \fBc\fRreate, e\fBx\fRclusively.
+.IP "\fBclose\fR \fIfd\fR" 4
+.IP "\fBdupfd\fR \fIold\fR \fInew\fR" 4
+See \fBdup2\fR(2).
+.IP "\fBwrite\fR \fIstring\fR \fIfile\fR" 4
+For small writes to /sys and similar files.
+.IP "\fBmkdirs\fR \fIname\fR \fImode\fR" 4
+Creates intermediate directories if necessary.
+.IP "\fBchroot\fR \fIdirectory\fR" 4
+.IP "\fBumask\fR \fIvalue\fR" 4
+.IP "\fBexport\fR \fIvariable\fR" 4
+Add \fIvariable\fR to \fBenvp\fR passed to newly spawned children.
+.IP "\fBsetenv\fR \fIvariable\fR \fIvalue\fR" 4
+Same as "\fIvariable\fR=\fIvalue\fR; \fBexport\fR \fIvariable\fR".
+.IP "\fBsetuid\fR \fIuser\fR" 4
+Set real, effective and saved user ids to those of \fIuser\fR.
+.IP "\fBsetgid\fR \fIgroup\fR" 4
+Same with group ids.
+.IP "\fBgroups\fR \fIgroup\fR \fIgroup\fR ..." 4
+See \fBsetgroups\fR(2).
+.IP "\fBsetprio\fR \fInumber\fR" 4
+See \fBsetpriority\fR(2). The argument is in Linux units, 1-40.
+.IP "\fBrlimit\fR \fIkey\fR \fIcur\fR [\fImax\fR]" 4
+See \fBprlimit\fR(2). \fIKey\fR for \fBRLIMIT_CPU\fR is just \fBcpu\fR.
+.IP "\fBseccomp\fR \fIfile\fR" 4
+See \fBseccomp\fR(2), \fBSECCOMP_SET_MODE_FILTER\fR. The \fIfile\fR
+is expected to contain compiled BPF opcodes.
+.IP "\fBsecbits\fR \fIkey\fR \fIkey\fR ..." 4
+See \fBcapabilities\fR(7) section "The securebits flags".
+Possible \fIkey\fRs: \fBkeepcaps\fR, \fBnosetuid\fR, \fBnoroot\fR,
+\fBnoraise\fR. Add \fB-lock\fR suffix to lock the bit.
+.IP "\fBsetcaps\fR [\fB-peiab\fR] \fIkey\fR \fIkey\fR ..." 4
+See \fBcapabilities\fR(7). \fIKey\fR for \fBCAP_DAC_OVERRIDE\fR is
+\fBdac-override\fR. Options: \fBp\fRermitted, \fBe\fRffective,
+\fBi\fRnheritable, \fBa\fRmbient, \fBb\fRounding. Default is \fB-peiab\fR.
+'''
 .SH ENVIRONMENT
 .IP "PATH" 8
 Colon-separated list of directories to look for commands,
@@ -38,7 +92,7 @@ see \fBexecvp\fR(3).
 .SH NOTES
 Common POSIX shell features not supported in msh: redirections (>file),
 pipes (|cmd), globbing (*), background execution (&), jobs, control flow
-(if, while, case), advanced variable substituion (${var...}), backticks.
+(while, case), advanced variable substituion (${var...}), backticks.
 .P
 Like make but unlike POSIX shell, msh aborts on the first failed command.
 Prefix the command with \fB-\fR to proceed over failure.
@@ -47,6 +101,20 @@ Variable references ($var) in msh are always treated as a single token
 regardless of the stored value, more like "$var" works in POSIX shell.
 Example: `ls $dir` will always run ls with a single argument, even if
 $dir is an empty string, or a string with spaces.
+'''
+.SS Capabilities, security bits and uid changes
+To run a child with non-priviledged uid but some capabilities set,
+use the following sequence:
+.P
+.nf
+	secbits keepcaps
+	setuid \fIuser\fR
+	setcaps \fIcap\fR \fIcap\fR ...
+	exec \fIcommand\fR ...
+.fi
+.P
+Capability-aware \fIcommands\fR normally should only need \fI-i\fR
+or \fI-ib\fR, but may require \fB-a\fR. Refer to \fBcapabilities\fR(7).
 '''
 .SH SEE ALSO
 \fBsh\fR(1), \fBexecvp\fR(3)

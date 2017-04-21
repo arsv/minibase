@@ -42,13 +42,19 @@ static void start_var(struct sh* ctx)
 
 static void end_var(struct sh* ctx)
 {
+	char* val;
+
 	*(ctx->hptr) = '\0';	
 
-	char* val = valueof(ctx, ctx->var);
-	long vlen = strlen(val);
+	if(ctx->cond & CSKIP)
+		return;
+
+	if(!(val = valueof(ctx, ctx->var)))
+		fatal(ctx, "undefined variable", ctx->var);
 
 	hrev(ctx, VSEP);
 
+	long vlen = strlen(val);
 	char* spc = halloc(ctx, vlen);
 	memcpy(spc, val, vlen);
 }
@@ -59,9 +65,24 @@ static void add_char(struct sh* ctx, char c)
 	*spc = c;
 }
 
+static int unskip(struct sh* ctx, char* cmd)
+{
+	if((ctx->cond >> CSHIFT) & CSKIP)
+		return 0;
+	if(!strcmp(cmd, "else"))
+		return 1;
+	if(!strcmp(cmd, "elif"))
+		return 1;
+	return 0;
+}
+
 static void end_arg(struct sh* ctx)
 {
 	add_char(ctx, 0);
+
+	if(!ctx->count && unskip(ctx, ctx->csep))
+		ctx->cond &= ~CSKIP;
+
 	ctx->count++;
 }
 
@@ -93,11 +114,14 @@ static char** put_argv(struct sh* ctx, int argn)
 
 static void end_val(struct sh* ctx)
 {
+	if(ctx->cond & CSKIP)
+		goto out;
+	
 	add_char(ctx, 0);
 	char** argv = put_argv(ctx, 2);
 
 	define(ctx, argv[0], argv[1]); /* may damage heap, argv, csep! */
-
+out:
 	hrev(ctx, CSEP);
 	ctx->count = 0;
 }
@@ -110,7 +134,7 @@ static void end_cmd(struct sh* ctx)
 
 	char** argv = put_argv(ctx, argc);
 
-	exec(ctx, argc, argv); /* may damage heap, argv, csep! */
+	statement(ctx, argc, argv); /* may damage heap, argv, csep! */
 
 	hrev(ctx, CSEP);
 	ctx->count = 0;
@@ -245,7 +269,6 @@ static void parse_vsign(struct sh* ctx, char c)
 		case '"':
 		case '\'':
 		case '\\':
-		case '$':
 		case '\0':
 		case '\n':
 			fatal(ctx, "invalid syntax", NULL);
@@ -356,7 +379,7 @@ void parse(struct sh* ctx, char* buf, int len)
 
 void pfini(struct sh* ctx)
 {
-	dispatch(ctx, '\0');
+	dispatch(ctx, '\n');
 
 	if(ctx->state)
 		fatal(ctx, "unexpected EOF", NULL);

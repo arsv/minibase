@@ -1,3 +1,5 @@
+#include <bits/ints.h>
+
 /* arguments for hset/hrev */
 #define HEAP 0
 #define ESEP 1
@@ -6,8 +8,18 @@
 
 /* env entry types */
 #define ENVDEL 0
-#define ENVSTR 1
-#define ENVPTR 2
+#define ENVPTR 1
+#define ENVSTR 2
+#define ENVLOC 3
+
+/* sh.cond */
+#define CSKIP    (1<<0)
+#define CHADIF   (1<<1)
+#define CHADELSE (1<<2)
+#define CHADTRUE (1<<3)
+
+#define CSHIFT 4
+#define CGUARD (CHADIF << 7*CSHIFT)
 
 /* Heap layout, at the point when end_cmd() calls exec():
 
@@ -33,7 +45,6 @@ struct sh {
 	int state;       /* of parser */
 	int count;       /* of Arg-s laid out so far */
 	char** envp;
-	int ret;         /* wait() status of the last cmd */
 
 	char* heap;
 	char* esep;
@@ -42,6 +53,8 @@ struct sh {
 	char* hend;
 
 	char* var;
+
+	int cond;
 };
 
 struct env {
@@ -56,6 +69,11 @@ struct envptr {
 	char* ref;
 };
 
+struct mbuf {
+	char* buf;
+	int len;
+};
+
 void hinit(struct sh* ctx);
 void* halloc(struct sh* ctx, int len);
 void hrev(struct sh* ctx, int type);
@@ -65,12 +83,21 @@ void parse(struct sh* ctx, char* buf, int len);
 void pfini(struct sh* ctx);
 
 char* valueof(struct sh* ctx, char* var);
+void setenv(struct sh* ctx, char* pkey, char* pval);
 void define(struct sh* ctx, char* var, char* val);
 void undef(struct sh* ctx, char* var);
+int export(struct sh* ctx, char* var);
 
-void exec(struct sh* ctx, int argc, char** argv);
+void statement(struct sh* ctx, int argc, char** argv);
 
 #define NR __attribute__((noreturn))
 void fail(const char* err, char* arg, long ret) NR;
 int error(struct sh* ctx, const char* err, char* arg, long ret);
 void fatal(struct sh* ctx, const char* err, char* arg) NR;
+int fchk(long ret, struct sh* ctx, const char* msg, char* arg);
+int numargs(struct sh* ctx, int argc, int min, int max);
+int argint(struct sh* ctx, char* arg, int* dst);
+int argu64(struct sh* ctx, char* arg, uint64_t* dst);
+
+int mmapfile(struct mbuf* mb, char* name);
+int munmapfile(struct mbuf* mb);

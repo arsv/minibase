@@ -1,11 +1,20 @@
-#include <sys/brk.h>
+#include <bits/errno.h>
 #include <sys/_exit.h>
+#include <sys/brk.h>
+#include <sys/open.h>
+#include <sys/fstat.h>
+#include <sys/close.h>
+#include <sys/mmap.h>
+#include <sys/munmap.h>
 
 #include <string.h>
 #include <format.h>
+#include <null.h>
 #include <util.h>
 
 #include "msh.h"
+
+/* Heap routines. See msh.h for heap layout. */
 
 #define PAGE 4096
 
@@ -66,4 +75,43 @@ void hset(struct sh* ctx, int what)
 		case ESEP: ctx->esep = ctx->hptr; break;
 		case VSEP: ctx->var = ctx->hptr; break;
 	}
+}
+
+/* User/group id parsing for setuid/setgid/setgroups builtins */
+
+int mmapfile(struct mbuf* mb, char* name)
+{
+	int fd;
+	long ret;
+	struct stat st;
+
+	if((fd = sysopen(name, O_RDONLY | O_CLOEXEC)) < 0)
+		return fd;
+	if((ret = sysfstat(fd, &st)) < 0)
+		goto out;
+	/* get larger-than-int files out of the picture */
+	if(st.st_size > 0x7FFFFFFF) {
+		ret = -E2BIG;
+		goto out;
+	}
+
+	const int prot = PROT_READ;
+	const int flags = MAP_SHARED;
+
+	ret = sysmmap(NULL, st.st_size, prot, flags, fd, 0);
+
+	if(MMAPERROR(ret))
+		goto out;
+
+	mb->len = st.st_size;
+	mb->buf = (char*)ret;
+	ret = 0;
+out:
+	sysclose(fd);
+	return ret;
+}
+
+int munmapfile(struct mbuf* mb)
+{
+	return sysmunmap(mb->buf, mb->len);
 }
