@@ -20,3 +20,21 @@ man8 = dmesg.8 fstrim.8 mount.8 mountvfs.8 switchroot.8 \
 include $/common.mk
 
 date: date.o date_find.o date_time.o
+
+# Recursive stuff; single level atm, so here and not in ../common.mk
+
+subdirs = init msh kmod net dhcp user compat
+makesub = $(patsubst %,sub-%,$(subdirs))
+cleansub = $(patsubst %,clean-%,$(subdirs))
+
+rec: all subdirs
+
+subdirs: $(makesub)
+
+$(makesub): sub-%:
+	$(MAKE) -C $*
+
+clean-rec: clean $(cleansub)
+
+$(cleansub): clean-%:
+	$(MAKE) -C $* clean

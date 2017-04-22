@@ -12,7 +12,7 @@ lib/all.a:
 	$(MAKE) -C lib
 
 build: lib/all.a
-	$(MAKE) -C src
+	$(MAKE) -C src rec
 
 install:
 	$(MAKE) -C src install
@@ -20,7 +20,7 @@ install:
 clean: clean-lib clean-src
 
 clean-src:
-	$(MAKE) -C src clean
+	$(MAKE) -C src clean-rec
 
 clean-lib:
 	$(MAKE) -C lib clean
