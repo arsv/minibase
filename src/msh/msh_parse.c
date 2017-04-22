@@ -115,9 +115,11 @@ static char** put_argv(struct sh* ctx)
 
 static void end_val(struct sh* ctx)
 {
+	ctx->count++;
+
 	if(ctx->cond & CSKIP)
 		goto out;
-	if(ctx->count != 1) /* XXX */
+	if(ctx->count != 2)
 		goto out;
 	
 	add_char(ctx, 0);
