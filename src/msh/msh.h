@@ -46,7 +46,7 @@ struct sh {
 
 	int state;       /* of the parser */
 	int argc;
-	char** argv;	 /* the command being parsed */
+	char** argv;     /* the command being parsed */
 	int argp;
 
 	char* heap;      /* layout scheme above */
@@ -57,6 +57,7 @@ struct sh {
 	char* var;       /* heap ptr to $var being substituted */
 
 	int cond;        /* if/else/fi state and stack */
+	int dash;        /* leading - to suppress abort-on-failure */
 };
 
 struct env {

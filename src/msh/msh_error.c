@@ -53,16 +53,15 @@ void report(const char* file, int line, const char* err, char* arg, long ret)
 	char* p = buf;
 	char* e = buf + sizeof(buf);
 
-	if(file) {
+	if(file && line) {
 		p = fmtstr(p, e, file);
 		p = fmtstr(p, e, ":");
-	} if(line) {
 		p = fmtint(p, e, line);
-		p = fmtstr(p, e, ":");
-	} if(file || line) {
-		p = fmtstr(p, e, " ");
+	} else {
+		p = fmtstr(p, e, tag);
 	}
 
+	p = fmtstr(p, e, ": ");
 	p = fmtstr(p, e, err);
 
 	if(arg) {

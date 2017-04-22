@@ -20,6 +20,31 @@ static const struct cmd {
 	{ "", NULL }
 };
 
+static int child(struct sh* ctx, char* cmd)
+{
+	long ret = execvpe(cmd, ctx->argv, ctx->envp);
+	error(ctx, "exec", cmd, ret);
+	return 0xFF;
+}
+
+static int describe(struct sh* ctx, int status)
+{
+	char buf[20];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
+	char* msg;
+
+	if(WTERMSIG(status)) {
+		msg = "command killed by signal";
+		p = fmtint(p, e, WTERMSIG(status));
+	} else {
+		msg = "command failed with code";
+		p = fmtint(p, e, WEXITSTATUS(status));
+	}; *p++ = '\0';
+
+	return error(ctx, msg, buf, 0);
+}
+
 static int spawn(struct sh* ctx)
 {
 	long pid = sysfork();
@@ -28,17 +53,16 @@ static int spawn(struct sh* ctx)
 
 	if(pid < 0)
 		fail("fork", NULL, pid);
-
-	if(!pid) {
-		long ret = execvpe(cmd, ctx->argv, ctx->envp);
-		error(ctx, "exec", cmd, ret);
-		_exit(0xFF);
-	}
+	if(pid == 0)
+		_exit(child(ctx, cmd));
 
 	if((pid = syswaitpid(pid, &status, 0)) < 0)
 		fail("wait", cmd, pid);
 
-	return status;
+	if(!status || ctx->dash)
+		return 0;
+
+	return describe(ctx, status);
 }
 
 static int command(struct sh* ctx)
@@ -218,26 +242,31 @@ static int flowcontrol(struct sh* ctx)
 	return 1;
 }
 
-static int leadingdash(char** argv)
+static int prepcmd(struct sh* ctx)
 {
-	int ret = (argv[0][0] == '-');
+	if(!ctx->argc)
+		return -1;
 
-	if(ret) argv[0]++;
+	if(ctx->argv[0][0] == '0') {
+		ctx->argv[0]++;
+		ctx->dash = 1;
+	} else {
+		ctx->dash = 0;
+	}
 
-	return ret;
+	return 0;
 }
 
 void statement(struct sh* ctx)
 {
-	if(!ctx->argc)
+	if(prepcmd(ctx))
 		return;
 	if(flowcontrol(ctx))
 		return;
 	if(ctx->cond & CSKIP)
 		return;
-
-	int noerror = leadingdash(ctx->argv);
-
-	if(command(ctx) && !noerror)
-		fatal(ctx, "command failed", NULL);
+	if(!command(ctx))
+		return;
+	if(!ctx->dash)
+		_exit(0xFF);
 }

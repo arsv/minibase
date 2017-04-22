@@ -63,7 +63,6 @@ int main(int argc, char** argv, char** envp)
 
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.envp = envp;
-	ctx.line = 1;
 
 	if(i < argc && argv[i][0] == '-')
 		opts = parseopts(&ctx, argv[i++] + 1);
@@ -71,6 +70,8 @@ int main(int argc, char** argv, char** envp)
 		script = argv[i++];
 	if(!(opts & OPT_c) && script)
 		fd = openfile(&ctx, script);
+	if(!(opts & OPT_c))
+		ctx.line = 1;
 
 	hinit(&ctx);
 
