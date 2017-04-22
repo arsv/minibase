@@ -80,15 +80,15 @@ static void end_arg(struct sh* ctx)
 {
 	add_char(ctx, 0);
 
-	if(!ctx->count && unskip(ctx, ctx->csep))
+	if(!ctx->argc && unskip(ctx, ctx->csep))
 		ctx->cond &= ~CSKIP;
 
-	ctx->count++;
+	ctx->argc++;
 }
 
 static char** put_argv(struct sh* ctx)
 {
-	int argn = ctx->count;
+	int argn = ctx->argc;
 	char* base = ctx->csep;
 	char* bend = ctx->hptr;
 
@@ -115,11 +115,11 @@ static char** put_argv(struct sh* ctx)
 
 static void end_val(struct sh* ctx)
 {
-	ctx->count++;
+	ctx->argc++;
 
 	if(ctx->cond & CSKIP)
 		goto out;
-	if(ctx->count != 2)
+	if(ctx->argc != 2)
 		goto out;
 	
 	add_char(ctx, 0);
@@ -128,14 +128,13 @@ static void end_val(struct sh* ctx)
 	define(ctx, argv[0], argv[1]); /* may damage heap, argv, csep! */
 out:
 	hrev(ctx, CSEP);
-	ctx->count = 0;
+	ctx->argc = 0;
 }
 
 static void end_cmd(struct sh* ctx)
 {
-	if(!ctx->count) return;
+	if(!ctx->argc) return;
 
-	ctx->argc = ctx->count;
 	ctx->argv = put_argv(ctx);
 	ctx->argp = 1;
 
@@ -143,7 +142,6 @@ static void end_cmd(struct sh* ctx)
 
 	hrev(ctx, CSEP);
 
-	ctx->count = 0;
 	ctx->argc = 0;
 	ctx->argv = NULL;
 	ctx->argp = 0;
@@ -165,7 +163,7 @@ static void parse_sep(struct sh* ctx, char c)
 			set_state(ctx, SEP);
 			break;
 		default:
-			set_state(ctx, ctx->count ? ARG : LEAD);
+			set_state(ctx, ctx->argc ? ARG : LEAD);
 			dispatch(ctx, c);
 	};
 }

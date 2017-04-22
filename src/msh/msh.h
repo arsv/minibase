@@ -42,23 +42,21 @@ struct sh {
 	char* file;      /* for error reporting */
 	int line;
 
-	int state;       /* of parser */
-	int count;       /* of Arg-s laid out so far */
 	char** envp;
 
-	char* heap;
+	int state;       /* of the parser */
+	int argc;
+	char** argv;	 /* the command being parsed */
+	int argp;
+
+	char* heap;      /* layout scheme above */
 	char* esep;
 	char* csep;
 	char* hptr;
 	char* hend;
+	char* var;       /* heap ptr to $var being substituted */
 
-	char* var;
-
-	int cond;
-
-	char** argv;	/* of the command being parsed */
-	int argc;
-	int argp;
+	int cond;        /* if/else/fi state and stack */
 };
 
 struct env {
