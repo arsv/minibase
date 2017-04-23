@@ -28,7 +28,6 @@ clear
 errno
 hello
 kill
-sleep
 symlink
 xargs
 cat
