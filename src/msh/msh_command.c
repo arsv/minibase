@@ -247,7 +247,7 @@ static int prepcmd(struct sh* ctx)
 	if(!ctx->argc)
 		return -1;
 
-	if(ctx->argv[0][0] == '0') {
+	if(ctx->argv[0][0] == '-') {
 		ctx->argv[0]++;
 		ctx->dash = 1;
 	} else {
