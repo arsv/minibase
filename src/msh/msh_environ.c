@@ -1,3 +1,5 @@
+#include <sys/getpid.h>
+
 #include <format.h>
 #include <string.h>
 #include <alloca.h>
@@ -256,8 +258,63 @@ static char* valueof_orig(struct sh* ctx, char* var)
 	return NULL;
 }
 
+static char* valueof_argv(struct sh* ctx, int i)
+{
+	if(i < 0)
+		return NULL;
+	if(i == 0)
+		return ctx->topargv[0];
+	if(i + ctx->topargp <= ctx->topargc)
+		return ctx->topargv[ctx->topargp + i - 1];
+	return NULL;
+}
+
+static char* valueof_pid(struct sh* ctx)
+{
+	if(*ctx->pid)
+		goto out;
+
+	int pid = sysgetpid();
+	char* p = ctx->pid;
+	char* e = ctx->pid + sizeof(ctx->pid) - 1;
+
+	p = fmtint(p, e, pid);
+	*p = '\0';
+out:
+	return ctx->pid;
+}
+
+static char* valueof_spec(struct sh* ctx, char* var)
+{
+	char c = *var;
+
+	if(c >= '0' && c <= '9')
+		return valueof_argv(ctx, c - '0');
+	if(c == '$')
+		return valueof_pid(ctx);
+
+	return NULL;
+}
+
+static int special(char* var)
+{
+	if(!var[0] || var[1])
+		return 0;
+
+	char c = var[0];
+
+	if(c >= '0' || c <= '1')
+		return 1;
+	if(c == '$')
+		return 1;
+
+	return 0;
+}
+
 char* valueof(struct sh* ctx, char* var)
 {
+	if(special(var))
+		return valueof_spec(ctx, var);
 	if(ctx->esep)
 		return valueof_envs(ctx, var);
 	else

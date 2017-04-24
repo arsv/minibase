@@ -37,22 +37,26 @@ static void pop_state(struct sh* ctx)
 
 static void start_var(struct sh* ctx)
 {
-	hset(ctx, VSEP);
+	ctx->var = ctx->hptr;
 }
 
 static void end_var(struct sh* ctx)
 {
-	char* val;
-
-	*(ctx->hptr) = '\0';	
-
-	if(ctx->cond & CSKIP)
+	if(ctx->cond & CSKIP) {
+		/* leave $VAR as is */
+		ctx->var = NULL;
 		return;
+	}
 
-	if(!(val = valueof(ctx, ctx->var)))
-		fatal(ctx, "undefined variable", ctx->var);
+	/* terminate and substitute $VAR */
+	*(ctx->hptr) = '\0';	
+	ctx->hptr = ctx->var;
+	ctx->var = NULL;
 
-	hrev(ctx, VSEP);
+	char *var = ctx->hptr, *val;
+
+	if(!(val = valueof(ctx, var)))
+		fatal(ctx, "undefined variable", var);
 
 	long vlen = strlen(val);
 	char* spc = halloc(ctx, vlen);

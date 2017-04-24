@@ -44,6 +44,10 @@ struct sh {
 
 	char** envp;
 
+	int topargc;     /* for the script itself */
+	int topargp;
+	char** topargv;
+
 	int state;       /* of the parser */
 	int argc;
 	char** argv;     /* the command being parsed */
@@ -58,6 +62,8 @@ struct sh {
 
 	int cond;        /* if/else/fi state and stack */
 	int dash;        /* leading - to suppress abort-on-failure */
+
+	char pid[20];
 };
 
 struct env {
@@ -85,6 +91,7 @@ void hset(struct sh* ctx, int what);
 void parse(struct sh* ctx, char* buf, int len);
 void pfini(struct sh* ctx);
 
+void loadvar(struct sh* ctx, char* var);
 char* valueof(struct sh* ctx, char* var);
 void setenv(struct sh* ctx, char* pkey, char* pval);
 void define(struct sh* ctx, char* var, char* val);

@@ -50,10 +50,6 @@ ptr:
 void hrev(struct sh* ctx, int what)
 {
 	switch(what) {
-		case VSEP:
-			ctx->hptr = ctx->var;
-			ctx->var = NULL;
-			break;
 		case CSEP:
 			ctx->hptr = ctx->csep;
 			break;
@@ -73,7 +69,6 @@ void hset(struct sh* ctx, int what)
 	switch(what) {
 		case CSEP: ctx->csep = ctx->hptr; break;
 		case ESEP: ctx->esep = ctx->hptr; break;
-		case VSEP: ctx->var = ctx->hptr; break;
 	}
 }
 

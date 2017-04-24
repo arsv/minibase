@@ -73,6 +73,10 @@ int main(int argc, char** argv, char** envp)
 	if(!(opts & OPT_c))
 		ctx.line = 1;
 
+	ctx.topargc = argc;
+	ctx.topargp = i;
+	ctx.topargv = argv;
+
 	hinit(&ctx);
 
 	if(!(opts & OPT_c))
