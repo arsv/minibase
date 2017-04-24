@@ -77,8 +77,6 @@ void hset(struct sh* ctx, int what)
 	}
 }
 
-/* User/group id parsing for setuid/setgid/setgroups builtins */
-
 int mmapfile(struct mbuf* mb, char* name)
 {
 	int fd;
