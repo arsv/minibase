@@ -1,0 +1,81 @@
+Booting the system with minibase
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Happy path only. Note some of the tools are not ready at the time of writing.
+
+* The kernel loads initrd, starts /linuxrc (msh script)
+* linuxrc runs waitdev to find the root partition
+	* waitdev starts udev and waits until relevant /dev links appears
+	* udev listens for events and runs blkid on new block devices
+	* blkid does it work and creates relevant links in /dev
+	* once done, waitdev shuts down udev
+* linuxrc sets up decryption for the root partition if necessary
+	* runs mini UI to prompt for user secret and derive the key
+	* UI runs cryptsetup to pass the key to the kernel
+* linuxrc mounts the root partition
+* linuxrc execs into switchroot
+
+* switchroot replaces initrd / with the real root
+	* moves mounts onto the real root
+	* cleans up initrd
+	* pivots the root
+* switchroot execs into /sbin/init (on the real root partition)
+
+* init is a simple executable (../src/init/init.c)
+* init sets up basic process environment
+* init runs /etc/sysinit and waits for it to exit
+	* sysinit is a host-specific script (part of the host config)
+	* sysinit performs one-time system configuration
+		* sysctl and related stuff
+		* hwclock
+		* loadkeys, setfonts if necessary
+		* possibly iptables
+* init execs into /sbin/svmon
+
+* svmon runs as pid 1 for the whole time the system is up
+* svmon (re)spawns all long-running services
+	* udevd
+	* wimon
+	* vtmux
+	...
+* on SIGTERM/SIGINT/svctl request, svmon kills all spawned services
+  and waits for them to terminate
+* svmon execs into /sbin/reboot
+
+* reboot syncs, umounts all mounted partitions and calls reboot(2)
+* that's all really, this part is not scripted in any way
+
+
+User session startup sequence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* vtmux makes decision to start a new session based on its inputs
+  (keyboard events, greeter commands, or autonomously)
+* vtmux spawns /etc/vts/$name with all fds directed to /dev/ttyN
+* $name is a host-specific msh script
+* $name changes its credentials (uid, gid, groups, maybe also caps)
+* $name execs into appropriate interactive shell (xinit, weston, bash etc)
+* vtmux reaps the process once it dies
+
+The script itself is a part of host configuration, replacing the rightmost
+fields in conventional /etc/passwd and the 3rd field in /etc/groups.
+
+
+Service startup sequence
+~~~~~~~~~~~~~~~~~~~~~~~~
+* svmon spawns /etc/rc/$name which is a msh script
+* $name sets up process environment, uids, gids and so on
+* $name execs into the actual service executable
+
+The script itself is a part of host configuration.
+
+
+Implementation notes
+~~~~~~~~~~~~~~~~~~~~
+The purpose of init (the small executable that bootstraps svmon) is to handle
+possible failures in /etc/sysinit. If that one fails, init execs directly into
+/sbin/reboot in attempt to bring the system down. Doing this nicely is just
+slightly above msh scripting abilities at this moment. Maybe at some point
+it should become a script. Maybe not.
+
+Same logic applies to linuxrc, but it's simpler and less likely to require
+proper termination. Root should be probably be mounted read-only at that point,
+with remounting later in /etc/sysinit.
