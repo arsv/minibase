@@ -1,0 +1,11 @@
+This directory contains implementations of well-known commands
+which somehow do not fit in the minibase set (superseeded, pointless,
+made into msh builtins). They still may be used to replace bloatier
+equivalents outside of minibase scope.
+
+One of the reason a command may end up here is that its primary use
+is in shell scripting, for stuff that really should be a part of the
+scripting language and not a standlone process.
+
+Some of the commands are simplified compared to GNU/POSIX equivalents,
+and some were written as sketches to test the library.
