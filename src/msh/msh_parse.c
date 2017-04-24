@@ -379,7 +379,7 @@ void parse(struct sh* ctx, char* buf, int len)
 	for(p = buf; p < end; p++) {
 		if(!*p) fatal(ctx, "stray \\0 in script", NULL);
 		dispatch(ctx, *p);
-		if(*p == '\n')
+		if(*p == '\n' && ctx->line)
 			ctx->line++;
 	}
 }
