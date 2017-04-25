@@ -103,7 +103,6 @@ static void fstrim(int argc, char** argv, int i)
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
-	const long flags = O_RDONLY | O_DIRECTORY | O_NONBLOCK;
 	long fd = openref(name);
 
 	xchk(sysioctl(fd, FITRIM, (long)&range), NULL, name);
