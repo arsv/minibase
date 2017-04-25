@@ -6,7 +6,7 @@ mount \- attach filesystem tree to a given directory
 .SH SYNOPSIS
 mount [\fB-rtdxusy\fR] \fItarget\fR \fIsource\fR [\fIfstype\fR [\fIdata\fR]]
 .br
-mount \fB-v\fR[\fBrtdxusy\fR] \fItarget\fR \fIfstype\fR [\fIdata\fR]
+mount \fB-n\fR[\fBrtdxusy\fR] \fItarget\fR \fIfstype\fR [\fIdata\fR]
 .br
 mount \fB-b\fR \fItarget\fR \fIsource\fR
 .br
@@ -15,6 +15,8 @@ mount \fB-m\fR \fItarget\fR \fIsource\fR
 mount \fB-e\fR[\fBrdxuy\fR] \fItarget\fR \fIdata\fR
 .br
 mount \fB-u\fR[\fBfdxn\fR] \fItarget\fR \fItarget\fR ...
+.br
+mount \fB-v\fR \fItarget\fR \fItarget\fR ...
 '''
 .SH DESCRIPTION
 mount replaces visible contents of \fItarget\fR directory with some other

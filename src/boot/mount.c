@@ -1,5 +1,7 @@
 #include <sys/mount.h>
+#include <sys/mkdir.h>
 #include <sys/umount.h>
+#include <string.h>
 #include <fail.h>
 
 ERRTAG = "mount";
@@ -7,99 +9,84 @@ ERRLIST = {
 	REPORT(EACCES), REPORT(EINVAL), REPORT(EBUSY), REPORT(EFAULT),
 	REPORT(ELOOP), REPORT(EMFILE), REPORT(ENODEV), REPORT(ENOENT),
 	REPORT(ENOMEM), REPORT(ENOTBLK), REPORT(ENOTDIR), REPORT(ENXIO),
-	REPORT(EPERM), RESTASNUMBERS
+	REPORT(EPERM), REPORT(EROFS), RESTASNUMBERS
 };
 
-#define OPT_u (1<<0)	/* umount */
-#define OPT_v (1<<1)	/* mount none, virtual fs */
+/* Pre-defined virtual filesystems. Most of the time these are mounted
+   at exactly the same locations, with exactly the same options, so no
+   point in forcing the users to script it all the time. */
 
-struct flag {
-	char key;
-	int val;
-} mountflags[] = {
-	{ 'b', MS_BIND },
-	{ 'm', MS_MOVE },
-	{ 'r', MS_RDONLY },
-	{ 't', MS_LAZYTIME },
-	{ 'd', MS_NODEV },
-	{ 'x', MS_NOEXEC },
-	{ 's', MS_NOSUID },
-	{ 'e', MS_REMOUNT },
-	{ 'i', MS_SILENT },
-	{ 'y', MS_SYNCHRONOUS },
-	{ 0, 0 }
-}, umountflags[] = {
-	{ 'f', MNT_FORCE },
-	{ 'd', MNT_DETACH },
-	{ 'x', MNT_EXPIRE },
-	{ 'n', UMOUNT_NOFOLLOW },
-	{ 0, 0 }
+#define SX	(MS_NOSUID | MS_NOEXEC)
+#define SD	(MS_NOSUID | MS_NODEV)
+#define SDX	(MS_NOSUID | MS_NODEV | MS_NOEXEC)
+
+static const struct vfs {
+	char* name;
+	char* type;
+	long flags;
+	char* point;
+} vfstab[] = {
+	{ "dev",     "devtmpfs",   SX,   "/dev",                      },
+	{ "pts",     "devpts",     SX,   "/dev/pts",                  },
+	{ "shm",     "tmpfs",      SX,   "/dev/shm",                  },
+	{ "mq",      "mqueue",     0,    "/dev/mqueue",               },
+	{ "proc",    "proc",       SDX,  "/proc",                     },
+	{ "sys",     "sysfs",      SDX,  "/sys",                      },
+	{ "run",     "tmpfs",      SD,   "/run",                      },
+	{ "tmp",     "tmpfs",      SD,   "/tmp",                      },
+	{ "config",  "configfs",   0,    "/sys/kernel/config",        },
+	{ "debug",   "debugfs",    0,    "/sys/kernel/debug",         },
+	{ "trace",   "tracefs",    0,    "/sys/kernel/debug/tracing", },
+	{ NULL,      NULL,         0,    NULL                         }
 };
 
-static void badflag(char f)
+static int mountcg(char* path)
 {
-	char flg[3];
+	char* pref = "/sys/fs/cgroup/";
+	int len = strlen(pref);
 
-	flg[0] = '-';
-	flg[1] = f;
-	flg[2] = '\0';
+	if(strncmp(path, pref, len))
+		return 0;
+	if(!path[len])
+		return 0;
 
-	fail("unknown flag", flg, 0);
+	char* group = path + len;
+	int flags = MS_NODEV | MS_NOSUID | MS_NOEXEC | MS_RELATIME;
+
+	xchk(sysmount(NULL, path, "cgroup", flags, group), path, NULL);
+
+	return 1;
 }
 
-static void baduvuse(void)
+static void mountvfs(char* tag, long flags)
 {
-	fail("-u and -v may only be used in the first position", NULL, 0);
+	const struct vfs* p;
+
+	if(mountcg(tag))
+		return;
+
+	for(p = vfstab; p->name; p++)
+		if(!strcmp(p->name, tag))
+			break;
+		else if(!strcmp(p->point, tag))
+			break;
+	if(!p->name)
+		fail("unknown vfs", tag, 0);
+
+	flags |= p->flags | MS_RELATIME;
+
+	xchk(sysmount(NULL, p->point, p->type, flags, ""), p->point, NULL);
 }
 
-static int parseflags(const char* str, long* out)
+static void mntvfs(int argc, char** argv, int i, char* flagstr)
 {
-	const char* p;
-	struct flag* f;
-	long flags = 0;
-	int opts = 0;
-
-	struct flag* table = mountflags;
-
-	if(*str == 'u') {
-		table = umountflags;
-		opts |= OPT_u;
-		str++;
-	} else if(*str == 'v') {
-		opts |= OPT_v;
-		str++;
-	};
-
-	for(p = str; *p; p++) {
-		for(f = table; f->key; f++)
-			if(f->key == *p) {
-				flags |= f->val;
-				break;
-			};
-		if(f->key)
-			continue;
-		else if(*p == 'u' || *p == 'v')
-			baduvuse();
-		else
-			badflag(*p);
-	}
-
-	*out = flags;
-	return opts;
-}
-
-static int umount(int i, int argc, char** argv, long flags)
-{
-	long ret;
-
+	if(i >= argc)
+		fail("nothing to mount", NULL, 0);
 	for(; i < argc; i++)
-		if((ret = sysumount(argv[i], flags)) < 0)
-			fail("cannot umount", argv[i], ret);
-
-	return 0;
+		mountvfs(argv[i], 0);
 }
 
-/* sysmount may ignore source/fstype/data depending on the flags set.
+/* mount(2) may ignore source/fstype/data depending on the flags set.
    The tool accounts for this by not expecting respective arguments
    in the command line, so that it's
 
@@ -112,46 +99,122 @@ static int umount(int i, int argc, char** argv, long flags)
    Otherwise, we follow the syscall pretty closely.
    No writes to mtab of course, there's /proc/mounts for that. */
 
-int main(int argc, char** argv)
+#define MOUNT_NONE (1<<30)
+#define MOUNT_MASK (~MOUNT_NONE)
+
+struct flag {
+	char key;
+	int val;
+} mountflags[] = {
+	{ 'b', MS_BIND },
+	{ 'm', MS_MOVE },
+	{ 'r', MS_RDONLY },
+	{ 'l', MS_LAZYTIME },
+	{ 'd', MS_NODEV },
+	{ 'x', MS_NOEXEC },
+	{ 's', MS_NOSUID },
+	{ 'e', MS_REMOUNT },
+	{ 'i', MS_SILENT },
+	{ 'y', MS_SYNCHRONOUS },
+	{ 'n', MOUNT_NONE },
+	{ 0, 0 }
+}, umountflags[] = {
+	{ 'f', MNT_FORCE },
+	{ 'd', MNT_DETACH },
+	{ 'x', MNT_EXPIRE },
+	{ 'n', UMOUNT_NOFOLLOW },
+	{ 0, 0 }
+};
+
+static long parseflags(struct flag* table, char* str)
 {
-	char* source = NULL;
-	char* target = NULL;
-	char* fstype = NULL;
-	char* data = NULL;
+	char* p;
+	struct flag* f;
 	long flags = 0;
-	int opts = 0;
+	char flg[3] = "-\0";
 
-	int i = 1;
+	for(p = str; *p; p++) {
+		for(f = table; f->key; f++)
+			if(f->key == *p)
+				break;
+		if(!f->key)
+			flags |= f->val;
+		else
+			goto bad;
+	}
 
-	if(i < argc && argv[i][0] == '-')
-		opts = parseflags(argv[i++] + 1, &flags);
+	return flags;
+bad:
+	flg[1] = *p;
+	fail("unknown flag", flg, 0);
+}
 
-	if(opts & OPT_u)
-		return umount(i, argc, argv, flags);
+static int umount(int argc, char** argv, int i, char* flagstr)
+{
+	long flags = parseflags(umountflags, flagstr);
+
+	for(; i < argc; i++)
+		xchk(sysumount(argv[i], flags), argv[i], NULL);
+
+	return 0;
+}
+
+static void mount(int argc, char** argv, int i, char* flagstr)
+{
+	long flags = parseflags(mountflags, flagstr);
+	char *source, *target, *fstype, *data;
 
 	if(i < argc)
 		target = argv[i++];
 	else
 		fail("mountpoint required", NULL, 0);
 
-	if((i < argc) && !(flags & MS_REMOUNT) && !(opts & OPT_v))
+	if(flags & (MS_REMOUNT | MOUNT_NONE))
+		source = NULL;
+	else if(i < argc)
 		source = argv[i++];
+	else if(i == argc)
+		return mountvfs(target, flags);
+	else
+		fail("need device to mount", NULL, 0);
 
-	if(i < argc && !(flags & (MS_MOVE | MS_REMOUNT)))
+	if(flags & (MS_MOVE | MS_REMOUNT))
+		fstype = NULL;
+	else if(i < argc)
 		fstype = argv[i++];
+	else
+		fail("missing fstype", NULL, 0);
+
 	if(i < argc && !(flags & (MS_MOVE | MS_REMOUNT | MS_BIND)))
 		data = argv[i++];
+	else
+		data = NULL;
+
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
-	int ret = sysmount(source, target, fstype, flags, data);
+	flags &= MOUNT_MASK;
 
-	if(ret >= 0) return 0;
+	/* Errors from mount(2) may apply to either the source *or* the target.
+	   There's no way to tell, so generic "mount: errno" message got to be
+	   the least confusing one. */
+	xchk(sysmount(source, target, fstype, flags, data), NULL, NULL);
+}
 
-	if(flags & MS_REMOUNT)
-		fail("cannot remount", target, ret);
+
+int main(int argc, char** argv)
+{
+	if(argc < 2)
+		fail("too few arguments", NULL, 0);
+
+	if(argv[1][0] != '-')
+		mount(argc, argv, 1, "");
+	else if(argv[1][1] == 'u')
+		umount(argc, argv, 2, argv[1] + 2);
+	else if(argv[1][1] == 'v')
+		mntvfs(argc, argv, 2, argv[1] + 2);
 	else
-		fail("cannot mount", target, ret);
+		mount(argc, argv, 2, argv[1] + 1);
 
-	return -1;
+	return 0;
 }
