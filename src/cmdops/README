@@ -1,5 +1,4 @@
 Generic commands for everyday interactive use.
-Mostly system query with human-readable output.
 
 Some of these probably should become builtins of the visual shell
 (aka file manager) at some point.
