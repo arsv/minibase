@@ -9,7 +9,6 @@ pwd
 rm
 rmdir
 sleep
-sync
 tee
 touch
 true

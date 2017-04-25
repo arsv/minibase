@@ -3,5 +3,6 @@ mknod
 mount
 mountvfs
 switchroot
+sync
 systime
 waitfor
