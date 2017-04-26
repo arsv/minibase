@@ -4,6 +4,7 @@
 #include <sys/execve.h>
 #include <sys/chroot.h>
 #include <sys/statfs.h>
+#include <sys/fstat.h>
 #include <sys/dup2.h>
 #include <sys/stat.h>
 #include <sys/open.h>
@@ -215,6 +216,25 @@ static int checkramfs(void)
 	return 0;
 };
 
+static void maybe_reopen_fds(struct root* ctx)
+{
+	struct stat st;
+	int fd, i;
+
+	if((sysfstat(0, &st)) < 0)
+		return;
+	if(st.st_dev != ctx->olddev)
+		return;
+	if((fd = sysopen("/dev/console", O_RDWR)) < 0)
+		return;
+
+	for(i = 0; i <= 2; i++)
+		if(fd != i)
+			sysdup2(fd, i);
+	if(fd > 2)
+		sysclose(fd);
+}
+
 static void changeroot(char* newroot)
 {
 	struct root ctx;
@@ -234,6 +254,8 @@ static void changeroot(char* newroot)
 	xchk(sysmount(".", "/", NULL, MS_MOVE, NULL), "mount", ". to /");
 	xchk(syschroot("."), "chroot", ".");
 	xchk(syschdir("/"), "chdir", "/");
+
+	maybe_reopen_fds(&ctx);
 }
 
 /* Usage: switchroot /newroot [/sbin/init ...] */
