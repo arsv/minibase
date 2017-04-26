@@ -1,8 +1,13 @@
+#include <bits/stdio.h>
+#include <bits/ioctl/common.h>
+
 #include <sys/_exit.h>
 #include <sys/umask.h>
 #include <sys/chroot.h>
 #include <sys/prlimit.h>
 #include <sys/seccomp.h>
+#include <sys/setsid.h>
+#include <sys/ioctl.h>
 #include <sys/setpriority.h>
 
 #include <string.h>
@@ -121,4 +126,18 @@ int cmd_chroot(struct sh* ctx)
 		return -1;
 
 	return fchk(syschroot(dir), ctx, dir);
+}
+
+int cmd_setsid(struct sh* ctx)
+{
+	int ret;
+
+	if(moreleft(ctx))
+		return -1;
+	if((ret = sys_setsid()) < 0)
+		return error(ctx, NULL, NULL, ret);
+	if((ret = sysioctl(STDOUT, TIOCSCTTY, 0)) < 0)
+		return error(ctx, "ioctl(TIOCSCTTY)", NULL, ret);
+
+	return 0;
 }
