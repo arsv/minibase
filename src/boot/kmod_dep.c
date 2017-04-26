@@ -106,11 +106,10 @@ static void query_modules_dep(struct modctx* ctx, struct mbuf* mb)
        ls                     sep                       le
 
    The line is not 0-terminated, so individual module names
-   are passed as pointer:length pair. */
+   are passed as pointer:length pairs.
 
-
-/* Module file names (base:blen here) in modules.dep are relative
-   to the directory modules.dep resides in, which is ctx->dir. */
+   Module file names in modules.dep are relative to the directory
+   modules.dep resides in, that's ctx->dir here. */
 
 static void insmod_relative(struct modctx* ctx, char* bp, int bl, char* pars)
 {

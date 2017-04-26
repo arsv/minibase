@@ -17,8 +17,11 @@
 
 #include "kmod.h"
 
-#define PAGE 4096
+/* The module must be loaded to process memory prior to init_module call.
+   Uncompressed modules are mmaped whole. For compresses ones, the output
+   of decompressor process is read into a growing chunk of memory. */
 
+#define PAGE 4096
 #define MAX_FILE_SIZE 20*1024*1024 /* 20MB */
 
 static char* mmapanon(long size)
