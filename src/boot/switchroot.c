@@ -16,15 +16,13 @@
 #include <sys/unlinkat.h>
 #include <sys/fstatat.h>
 
+#include <format.h>
+#include <string.h>
 #include <fail.h>
 
-/* Usage:
-
-   	switchroot [+/dev/console] /newroot [/sbin/init ...]
-
-   It's not clear (yet) how to handle the console part,
-   but I feel it must be either dropped or hard-coded.
-   There should be no reason to do tricks with /dev/console */
+/* Note this *may* happen to run with empty fds 0-2, but since it never
+   opens anything r/w itself it's ok. At worst it will try to write its
+   errors into a read-only fd pointing to a directory, failing silently. */
 
 ERRTAG = "switchroot";
 ERRLIST = {
@@ -35,31 +33,14 @@ ERRLIST = {
 	REPORT(EROFS), RESTASNUMBERS
 };
 
-static int checkramfs(void)
-{
-	struct statfs st;
-
-	if(sysstatfs("/", &st) < 0)
-		return -1;
-
-	if(st.f_type != RAMFS_MAGIC
-	&& st.f_type != TMPFS_MAGIC)
-		return -1;
-
-	return 0;
-};
-
-/* The whole delete* part could have been a call to rm. And it would
-   actually work, even on initramfs, because our rm is always statically
-   linked. Some care must be taken not to confuse / and . at most.
-
-   However, given the very special role of switchroot, and the fact
-   the code takes just about a screen or so, let's leave it here and
-   keep switchroot completely independent.
-   
-   Btw, calling rm would need about half that code in fork/exec anyway. */
-
 #define DEBUFSIZE 2000
+
+struct root {
+	long olddev;
+	long newdev;
+	char* newroot;
+	int newrlen;
+};
 
 static inline int dotddot(const char* p)
 {
@@ -70,130 +51,195 @@ static inline int dotddot(const char* p)
 	return 0;
 }
 
-static void deletedent(int dirfd, struct dirent64* dep, long rootdev);
+static void delete_ent(struct root* ctx, char* dir, int dirfd, struct dirent64* de);
 
-static void deleteall(int atdir, const char* dirname, long rootdev)
+/* Directory tree recursion is done here in (atfd, path) mode.
+   The actualy file ops are done via the directory fd, but proper
+   absolute path is also kept for error reporting and in this case
+   for mount() calls. */
+
+static void delete_rec(struct root* ctx, int dirfd, char* dir)
 {
 	char debuf[DEBUFSIZE];
-	struct dirent64* deptr = (struct dirent64*) debuf;
-	const int delen = sizeof(debuf);
-	struct stat st;
-	/* open, getdents and stat return vals */
-	long fd, rd, sr;
+	int delen = sizeof(debuf);
+	long rd;
 
-	if((fd = sysopenat(atdir, dirname, O_DIRECTORY)) < 0)
-		return;
-	if((sr = sysfstatat(atdir, "", &st, AT_EMPTY_PATH)) < 0)
-		goto out;
-	if(st.st_dev != rootdev)
-		goto out;
-
-	while((rd = sysgetdents64(fd, deptr, delen)) > 0)
+	while((rd = sysgetdents64(dirfd, debuf, delen)) > 0)
 	{
 		char* ptr = debuf;
 		char* end = debuf + rd;
 
 		while(ptr < end)
 		{
-			struct dirent64* dep = (struct dirent64*) ptr;
+			struct dirent64* de = (struct dirent64*) ptr;
+			ptr += de->d_reclen;
 
-			if(!dotddot(dep->d_name))
-				deletedent(fd, dep, rootdev);
-			if(!dep->d_reclen)
+			if(!de->d_reclen)
 				break;
+			if(dotddot(de->d_name))
+				continue;
 
-			ptr += dep->d_reclen;
+			delete_ent(ctx, dir, dirfd, de);
 		}
 	};
-out:
-	sysclose(fd);
 };
 
-/* We need to know whether atdir:dename is a dir or not to unlink it
-   properly. There is no need to call statat() however. We can just
-   try to unlink it as file, and if it happens to be a dir, unlink()
-   should fail with EISDIR.
- 
-   The check may be skipped if getdents promised us it's a dir.
-   Which it is not guaranteed to do. */
-
-static void deletedent(int dirfd, struct dirent64* dep, long rootdev)
+static void makepath(char* buf, int len, char* dir, char* name)
 {
-	if(dep->d_type == DT_DIR)
-		goto isdir;
+	char* p = buf;
+	char* e = buf + len - 1;
 
-	long ul = sysunlinkat(dirfd, dep->d_name, 0);
-	if(ul >= 0 || ul != -EISDIR)
-		return;
-isdir:
-	deleteall(dirfd, dep->d_name, rootdev);
-	sysunlinkat(dirfd, dep->d_name, AT_REMOVEDIR);
-
-	/* it makes sense to report sysunlinkat() failures, but alas,
-	   we don't have full path to report, only dirfd and bare d_name */
+	p = fmtstr(p, e, dir);
+	p = fmtstr(p, e, "/");
+	p = fmtstr(p, e, name);
+	*p = '\0';
 }
 
-static void changeroot(const char* newroot)
+static void movemount(struct root* ctx, char* path)
+{
+	char newpath[ctx->newrlen + strlen(path) + 5];
+
+	char* p = newpath;
+	char* e = newpath + sizeof(newpath) - 1;
+
+	p = fmtstr(p, e, ctx->newroot);
+	p = fmtstr(p, e, path);
+	*p = '\0';
+
+	int ret;
+
+	if((ret = sysmount(path, newpath, NULL, MS_MOVE, NULL)) < 0)
+		warn("mount", newpath, ret);
+}
+
+/* This one gets de@dirfd = "$dir/$de.name" but we don't know what kind
+   of direntry it is yet. There is no need to call statat() however.
+   We can just try to unlink it as a file, and if it happens to be a dir,
+   unlink() whould fail with EISDIR.
+
+   The check may be skipped if getdents promises us it's a dir. */
+
+static void delete_ent(struct root* ctx, char* dir, int dirfd, struct dirent64* de)
+{
+	int fd, ret;
+	struct stat st;
+	char* name = de->d_name;
+	char path[strlen(dir) + strlen(name) + 5];
+
+	makepath(path, sizeof(path), dir, name);
+
+	if(de->d_type == DT_DIR)
+		goto dir;
+	if((ret = sysunlinkat(dirfd, name, 0)) >= 0)
+		return;
+	if(ret != EISDIR)
+		goto err;
+dir:
+	if((fd = sysopenat(dirfd, name, O_DIRECTORY)) < 0)
+		return;
+	if((ret = sysfstatat(fd, "", &st, AT_EMPTY_PATH)) < 0)
+		goto out;
+
+	if(st.st_dev == ctx->olddev) {
+		delete_rec(ctx, fd, path);
+		ret = sysunlinkat(dirfd, name, AT_REMOVEDIR);
+	} else if(st.st_dev == ctx->newdev) {
+		/* do nothing */
+		ret = 0;
+	} else {
+		movemount(ctx, path);
+		ret = 0;
+	}
+out:
+	sysclose(fd);
+err:
+	if(ret) warn(NULL, path, ret);
+}
+
+/* Before starting directory tree recursion, we need to figure out
+   what the boundaries are. Only the stuff on oldroot should be unlinked,
+   and anything that's neither oldroot nor newroot has to be move-mounted
+   onto the newroot.
+  
+   The tricky part: if newroot is not mounted directly under oldroot,
+   the move-mount code will try to move newroot's parent into newroot. */
+
+static int stat_old_new_root(struct root* ctx, char* newroot)
 {
 	struct stat st;
-	long rootdev;
+
+	ctx->newroot = newroot;
+	ctx->newrlen = strlen(newroot);
+
+	xchk(sysstat(newroot, &st), "stat", newroot);
+
+	ctx->newdev = st.st_dev;
+
+	int fd = xchk(sysopen("/", O_DIRECTORY), "open", "/");
+
+	xchk(sysfstatat(fd, "", &st, AT_EMPTY_PATH), "stat", "/");
+
+	ctx->olddev = st.st_dev;
+
+	if(ctx->newdev == ctx->olddev)
+		fail("new root is on the same fs", NULL, 0);
+
+	/* . = newroot, so .. is its parent directory */
+	xchk(sysstat("..", &st), "stat", "..");
+
+	if(st.st_dev != ctx->olddev)
+		fail(newroot, "is not directly under /", 0);
+
+	return fd;
+}
+
+/* Avoid deleting any actual permanent files as hard as possible. */
+
+static int checkramfs(void)
+{
+	struct statfs st;
+
+	if(sysstatfs("/", &st) < 0)
+		return -1;
+	if(st.f_type != RAMFS_MAGIC && st.f_type != TMPFS_MAGIC)
+		return -1;
+
+	return 0;
+};
+
+static void changeroot(char* newroot)
+{
+	struct root ctx;
 
 	if(sysgetpid() != 1)
 		fail("not running as pid 1", NULL, 0);
+	if(checkramfs())
+		fail("not running on ramfs", NULL, 0);
 
 	xchk(syschdir(newroot), "chdir", newroot);
-	xchk(sysstat("/", &st), "stat", "/");
-	rootdev = st.st_dev;
 
-	xchk(sysstat(".", &st), "stat", newroot);
+	int rfd = stat_old_new_root(&ctx, newroot);
 
-	if(st.st_dev == rootdev)
-		fail("new root is on the same fs", NULL, 0);
-	if(sysstat("/init", &st) < 0 || !S_ISREG(st.st_mode))
-		fail("/init is not a regular file", NULL, 0);
-
-	if(checkramfs())
-		fail("not running on an initramfs", NULL, 0);
-
-	deleteall(AT_FDCWD, "/", rootdev);
+	delete_rec(&ctx, rfd, "");
+	sysclose(rfd);
 
 	xchk(sysmount(".", "/", NULL, MS_MOVE, NULL), "mount", ". to /");
 	xchk(syschroot("."), "chroot", ".");
 	xchk(syschdir("/"), "chdir", "/");
 }
 
-static void changefds(const char* console)
-{
-	long fd = sysopen(console, O_RDWR);
-	if(fd < 0) return;
-	sysclose(0);
-	sysdup2(0, 1);
-	sysdup2(0, 2);
-}
+/* Usage: switchroot /newroot [/sbin/init ...] */
 
 int main(int argc, char** argv)
 {
-	char* console = NULL;
-
-	int i = 1;
-
-	if(i < argc && argv[i][0] == '+')
-		console = argv[i++] + 1;
-	if(console && !*console)
-		console = "/dev/console";
-
-	if(i >= argc)
+	if(argc < 2)
 		fail("no newroot to switch to", NULL, 0);
 
-	changeroot(argv[i++]);
+	changeroot(argv[1]);
 
-	if(console)
-		changefds(console);
-
-	if(i <= argc) {
-		argv += i;
-	} else {
-		/* no init has been supplied */
+	if(argc >= 3) {
+		argv += 2;
+	} else { /* no init has been supplied */
 		argv[0] = "/sbin/init";
 		argv[1] = NULL;
 	}
