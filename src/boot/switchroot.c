@@ -12,6 +12,7 @@
 #include <sys/getdents.h>
 #include <sys/getpid.h>
 #include <sys/mount.h>
+#include <sys/umount.h>
 #include <sys/openat.h>
 #include <sys/unlinkat.h>
 #include <sys/fstatat.h>
@@ -108,8 +109,15 @@ static void movemount(struct root* ctx, char* path)
 
 	int ret;
 
-	if((ret = sysmount(path, newpath, NULL, MS_MOVE, NULL)) < 0)
-		warn("mount", newpath, ret);
+	if((ret = sysmount(path, newpath, NULL, MS_MOVE, NULL)) >= 0)
+		return;
+
+	warn("mount", newpath, ret);
+
+	if((ret = sysumount(path, MNT_DETACH)) >= 0)
+		return;
+
+	warn("umount", path, ret);
 }
 
 /* This one gets de@dirfd = "$dir/$de.name" but we don't know what kind
