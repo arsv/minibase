@@ -86,3 +86,69 @@ requiring any changes in /dev tree is small. This may point out than the
 long-running udevd needs to do some event filtering, maybe configure or
 maybe not. There are clearly lots of devices than could be safely ignored
 by udev because no-one should ever want to chown or rename them.
+
+Standalone udevh (and udevtrigger) also become external dependencies for
+udevd, so from this position alone it may be better to merge them.
+
+
+Startup, restarts, initial pass
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The events udevd gets from the socket are the events that happen after
+the socket connection has been made. Devices created before udevd started
+need some additional effort to get identified/chowned/etc. The common way
+to handle this is by traversing /sys and triggering "create" events for
+all devices that need it once udevd is ready and listening.
+
+	echo add > /sys/devices/pci0000:00/0000:00:02.0/drm/card0/uevent
+
+The problem is how to find which devices need the events triggered.
+There's no need to re-process devices that have already been handled by udevd.
+Even if that was another instance of udevd, and it has been restarted since.
+
+Listing all devices is relatively simple:
+
+	/sys/dev/char/*
+	/sys/dev/block/*
+
+Their device nodes can be found in
+
+	/dev/char/
+	/dev/block/
+
+What's left is marking "seen" devices somehow. /sys does not allow arbitrary
+writes but /dev does, so makes sense to use that. Device nodes generally ignore 
+the sticky bit, so we can just use that to mark seen nodes. Would be great
+to set the bit on symlinks in /dev/{char,block}/* but apparently Linux does
+not support (f)chmod(at) on symlinks currently.
+
+Which process should mark and check the sticky bits? Very likely the socket
+listening udevd process itself, with the code like this:
+
+	while((event = recv(socket))) {
+		if(!(dev = get_device_node_for(event)))
+			continue;
+		if(has_sticky_bit_set(dev))
+			continue;
+		set_sticky_bit(dev);
+		...
+	}
+
+The reasoning for early setting and early checks is that udevd has no idea
+what's in the kernel queue for the socket, so it may trigger events despite
+kernel-generated ones for the same devices already being queued.
+
+
+Handling non-uniform devices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Events with no MAJOR/MINOR numbers should probably be ignored by udevd.
+XXX: check what kind of events this actually applies to.
+See busybox/util-linux/mdev.c comments.
+
+Netdevs are not devices in Linux.
+
+Linked devices are problematic. That's when several nodes are connected
+physically but each generates its own event, like partitions of a drive,
+or multiple USB endpoints in a single device. Because of the way blkid
+will supposedly work, there's a strong incentive to drop partition events
+completely. It may be beneficial to time-buffer events and only run udevh
+once, with multiple arguments, saving some extra exec() calls.
