@@ -1,0 +1,130 @@
+Re-thinking login
+~~~~~~~~~~~~~~~~~
+Most Linux systems greet their interactive users with a prompt that asks
+for username and password. Graphical or console, the basic design of this
+prompt and its (PAM-mediated) effects are pretty much the same.
+
+What's the purpose of such a prompt?
+
+The idea to ask for username tracks back to early Unixes, but those were
+written for multi-user systems. Not multiple uids, but actually multiple
+physical users. Lots of Linux installations nowadays are strictly single
+user systems. Most laptops are, for instance. Do they really need to ask
+who's using them? And if so, how?
+
+The following is a vision of how various password prompts should work in
+a single-user Linux system in a way that would make sense.
+
+  1. The system firmware loads kernel and initrd, possibly checking
+     their authenticity. If everything is ok, control is passed to the kernel.
+
+  2. The kernel boots and runs initrd code, which locates the system drive.
+
+  3. If the drive is encrypted, initrd asks the user for decryption
+     secret (password) and supplies the kernel with the keys needed
+     to read/write the system drive.
+
+     If the password entered is incorrect, nothing happens.
+     The disk remains encrypted.
+
+  4. Initrd passes control to the main system, which boots and drops
+     the user into the primary GUI session without asking anything.
+
+  5. To change roles / GUI sessions, the user calls greeter with a key
+     combo. The greeter presents the choice of roles to switch to, but
+     does not ask for any passwords.
+
+  6. The user may decide to suspend the system with a key combo. This
+     action switches VT to the greeter, "locks" the greeter, and puts
+     the system into relevant sleep mode.
+  
+  7. The system wakes up with greeter in the "locked" state and VT
+     switching disabled. The greeter asks for a weak unlock code
+     (aka PIN; or it may be a short password), then switches back to
+     the last active session.
+
+     In case incorrect code gets entered more than N times (N ~ 5 or so),
+     the greeter reboots the system, wiping the disk encryption keys from
+     the main memory, and sending whoever happens to be at the keyboard
+     back to step 1.
+
+Notice there are effectively no usernames in this scheme. GUI sessions may
+be named, but this naming is superficial and is not bound to any password
+checks. And it's more like role names than user names anyway.
+
+
+SSH authentication and related issues
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Given the scheme above, how should sshd running on a laptop authenticate
+incoming connections?
+
+The answer is, however it wants -- this is NOT related to the scheme above!
+
+Traditionally sshd got configured to accept the name and password used for
+the (pointless) interactive logins. This relation is purely accidental.
+
+SSH should be set up so that a remote party with certain SSH-specific
+credentials gets certain permissions on the host. The kind of credentials
+required and their mapping to the host permissions are up to the specific
+SSH implementation.
+
+Most modern systems should not deal with any passwords at all, but rely on
+pre-shared keys instead. If the system is configured to use uids for roles,
+its makes a lot of sense to have a dedicated role for network access,
+as opposed to interactive usage. And the "name" field, well, it's basically
+a free-form tag that may or may not be a part of the authentication scheme.
+XXX: does ssh actually transmits names in key-only schemes?
+
+The same logic applies to other services dealing with "user names".
+PAM has no place in the system described above.
+
+
+Fingerprints and other unusual authentication schemes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Speaking of PAM, what if we want to use fingerprints instead of PINs?
+
+Well the part that handles that particular kind of authentication should be
+written to interact directly with the device, in any way deemed reasonable.
+For fingerprints, the greeter (and only the greeter) should be updated to
+read the scanner and maybe even display the scanned image.
+
+In PAM-based systems, this kind of setup looked weird specifically because
+of accidental connections between subsystems that were in fact unrelated.
+
+
+Interactive sessions and privilege escalation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The user (who owns the box) should be able to install packages and do pretty
+much anything else with the system. At the same time, random apps should not
+be allowed to do the same behind user's back. How should it work?
+
+This is really mostly an input management problem. How to tell for sure when
+the input is coming from the user and has not been impersonated by some app.
+Which realistically translates to how separate trusted input pathways from
+non-trusted apps.
+
+Linux provides a good kernel-mediated way to separate inputs: VTs, or managed
+inputs for non-VT systems. So one way to do this is to spawn a dedicated
+"root session", keep untrusted apps out of it, and let the user do any system
+configuration there. The only downside is making it work with trusted apps
+only.
+
+Another approach is creating a sort of enclave within the regular user session
+and (re-)authenticating the user there, also known as su or sudo.
+The assumption behind this is that the rogue apps will fail to authenticate,
+and won't be able to inject anything into the input stream of a properly
+authenticated enclave. This assumption does not hold in X environment,
+and barely holds in Wayland, relying mostly on correctness of a userspace
+process running with the same uid as the apps it tries to keep apart.
+This is unlike "root sessions", which are kept separated by the kernel.
+
+Contrary to popular opinion, root logins are more secure than sudo if done
+correctly, and just barely more insecure that sudo if done wrong.
+Actually, sudo as implemented is fundamentally wrong and has no place in
+a well-designed system.
+
+Note that a "root session" does not mean running the whole session as uid 0.
+The processes within such session should be running as some non-privileged
+uid. All that's needed is a token that would allow selected apps to issue
+privileged commands when necessary, preferably without ever gaining those
+actual privileges themselves (see ./nosuid.txt).
