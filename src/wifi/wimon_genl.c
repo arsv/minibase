@@ -11,8 +11,6 @@
 
 #include "nlfam.h"
 #include "wimon.h"
-#include "wimon_link.h"
-#include "wimon_slot.h"
 
 /* NETLINK_GENERIC connection is used to request and fetch scan results,
    and also to track 802.11 stack state.

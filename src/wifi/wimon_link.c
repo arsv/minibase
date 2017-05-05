@@ -3,9 +3,6 @@
 #include <string.h>
 
 #include "wimon.h"
-#include "wimon_slot.h"
-#include "wimon_link.h"
-#include "wimon_save.h"
 
 #define WM_NOSCAN    (1<<0)
 #define WM_CONNECT   (1<<1)

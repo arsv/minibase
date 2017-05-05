@@ -12,8 +12,6 @@
 #include <fail.h>
 
 #include "wimon.h"
-#include "wimon_link.h"
-#include "wimon_slot.h"
 
 /* NETLINK_ROUTE connection is used to keep up-to-date list
    of available net devices and their (generic) state, like

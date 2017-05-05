@@ -100,6 +100,8 @@ struct nlgen;
 extern char** environ;
 extern int envcount;
 
+/* wimon_rtnl.c and wimon_genl.c */
+
 extern struct netlink rtnl;
 extern struct netlink genl;
 extern int nl80211;
@@ -119,3 +121,51 @@ void schedule(void (*call)(void), int secs);
 
 void trigger_scan(struct link* ls, int freq);
 void parse_scan_result(struct link* ls, struct nlgen* msg);
+
+/* wimon_slot.c */
+
+struct link* find_link_slot(int ifi);
+struct link* grab_link_slot(int ifi);
+void free_link_slot(struct link* ls);
+
+struct scan* grab_scan_slot(uint8_t* bssid);
+void drop_scan_slots(int ifi);
+void free_scan_slot(struct scan* sc);
+
+struct child* grab_child_slot(void);
+struct child* find_child_slot(int pid);
+void free_child_slot(struct child* ch);
+
+/* wimon_link.c */
+
+void link_new(struct link* ls);
+void link_del(struct link* ls);
+void link_wifi(struct link* ls);
+
+void link_enabled(struct link* ls);
+void link_carrier(struct link* ls);
+void link_carrier_lost(struct link* ls);
+void link_scan_done(struct link* ls);
+
+void link_configured(struct link* ls);
+void link_terminated(struct link* ls);
+
+/* wimon_proc.c */
+
+void link_deconfed(struct link* ls);
+
+void spawn_dhcp(struct link* ls, char* opts);
+void spawn_wpa(struct link* ls, struct scan* sc, char* mode, char* psk);
+
+void terminate_link(struct link* ls);
+void drop_link_procs(struct link* ls);
+
+/* wimon_save.c */
+
+int load_link(struct link* ls);
+void save_link(struct link* ls);
+
+int saved_psk_prio(uint8_t* ssid, int slen);
+
+int load_psk(uint8_t* ssid, int slen, char* psk, int plen);
+void save_psk(uint8_t* ssid, int slen, char* psk, int plen);

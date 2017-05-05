@@ -2,7 +2,6 @@
 #include <null.h>
 
 #include "wimon.h"
-#include "wimon_slot.h"
 
 struct link links[NLINKS];
 struct scan scans[NSCANS];

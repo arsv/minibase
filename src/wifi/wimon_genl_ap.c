@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include "wimon.h"
-#include "wimon_slot.h"
 
 /* Most of the information about the stations come encoded in IEs.
    IEs are a pain to deal with and carry a lot more than we need,

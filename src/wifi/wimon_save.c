@@ -13,7 +13,6 @@
 
 #include "config.h"
 #include "wimon.h"
-#include "wimon_save.h"
 
 /* Mini text editor for the config file. The config looks something like this:
 
