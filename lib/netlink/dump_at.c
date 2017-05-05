@@ -56,6 +56,18 @@ static void nl_hexbytes(char* outbuf, int outlen, char* inbuf, int inlen)
 	*p = '\0';
 }
 
+static void nl_hexstring(char* output, char* inbuf, int len)
+{
+	int i;
+
+	for(i = 0; i < len; i++)
+		if(inbuf[i] >= 0x20 && inbuf[i] <= 0x7F)
+			output[i] = inbuf[i];
+		else
+			output[i] = '.';
+	output[i] = '\0';
+}
+
 static void nl_dump_attr(char* pref, struct nlattr* at)
 {
 	char bytebuf[3*20];
@@ -85,9 +97,11 @@ static void nl_dump_attr(char* pref, struct nlattr* at)
 	} else if(len == 2) {
 		eprintf("%s %i: %s = short %i\n",
 				pref, at->type, bytebuf, *(int16_t*)buf);
-	} else if(len <= 16) {
-		eprintf("%s %i: %s\n",
-				pref, at->type, bytebuf);
+	} else if(len < 15) {
+		char prn[len+1];
+		nl_hexstring(prn, buf, len);
+		eprintf("%s %i: %s    %s\n",
+				pref, at->type, bytebuf, prn);
 	} else {
 		eprintf("%s %i: %i bytes\n",
 				pref, at->type, len);
