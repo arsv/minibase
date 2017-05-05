@@ -12,22 +12,143 @@
 #include <sys/socket.h>
 #include <sys/write.h>
 #include <sys/unlink.h>
+#include <sys/brk.h>
 
+#include <nlusctl.h>
 #include <string.h>
 #include <format.h>
+#include <heap.h>
 #include <fail.h>
 #include <util.h>
 
 #include "config.h"
+#include "common.h"
 #include "wimon.h"
 
 #define TIMEOUT 1
 
-static void parse_cmd(int fd, char* cmd)
+static void reply(int fd, struct ucbuf* uc)
 {
-	char blah[] = "here\n";
+	writeall(fd, uc->brk, uc->ptr - uc->brk);
+}
 
-	writeall(fd, blah, sizeof(blah));
+static void reply_simple(int fd, int err)
+{
+	char cbuf[16];
+	struct ucbuf uc;
+
+	uc_buf_set(&uc, cbuf, sizeof(cbuf));
+	uc_put_hdr(&uc, err);
+	uc_put_end(&uc);
+
+	reply(fd, &uc);
+}
+
+static void unknown_command(int fd)
+{
+	reply_simple(fd, -ENOSYS);
+}
+
+static int estimate_status(void)
+{
+	int scansp = nscans*(sizeof(struct scan) + 10*sizeof(struct ucattr));
+	int linksp = nlinks*(sizeof(struct link) + 10*sizeof(struct ucattr));
+
+	return scansp + linksp + 128;
+}
+
+static void prep_heap(struct heap* hp, int size)
+{
+	hp->brk = (void*)sysbrk(NULL);
+
+	size += (PAGE - size % PAGE) % PAGE;
+
+	hp->ptr = hp->brk;
+	hp->end = (void*)sysbrk(hp->brk + size);
+}
+
+static void free_heap(struct heap* hp)
+{
+	sysbrk(hp->brk);
+}
+
+static void put_status_links(struct ucbuf* uc)
+{
+	struct link* lk;
+	struct ucattr* nn;
+
+	for(lk = links; lk < links + nlinks; lk++) {
+		if(!lk->ifi) continue;
+
+		nn = uc_put_nest(uc, ATTR_LINK);
+		uc_put_u32(uc, ATTR_IFI,    lk->ifi);
+		uc_put_str(uc, ATTR_NAME,   lk->name);
+		uc_put_u32(uc, ATTR_FLAGS,  lk->flags);
+		uc_end_nest(uc, nn);
+	}
+}
+
+static void put_status_scans(struct ucbuf* uc)
+{
+	struct scan* sc;
+	struct ucattr* nn;
+
+	for(sc = scans; sc < scans + nscans; sc++) {
+		if(!sc->ifi) continue;
+
+		nn = uc_put_nest(uc, ATTR_SCAN);
+		uc_put_u32(uc, ATTR_IFI,    sc->ifi);
+		uc_put_u32(uc, ATTR_FREQ,   sc->freq);
+		uc_put_u32(uc, ATTR_TYPE,   sc->type);
+		uc_put_u32(uc, ATTR_SIGNAL, sc->signal);
+		uc_put_ubin(uc, ATTR_BSSID, sc->bssid, sizeof(sc->bssid));
+		uc_put_ubin(uc, ATTR_SSID,  sc->ssid, sc->slen);
+		uc_end_nest(uc, nn);
+	}
+}
+
+static void cmd_status(int fd, struct ucmsg* msg)
+{
+	struct heap hp;
+	struct ucbuf uc;
+
+	prep_heap(&hp, estimate_status());
+
+	uc_buf_set(&uc, hp.brk, hp.end - hp.brk);
+	uc_put_hdr(&uc, CMD_STATUS);
+	put_status_links(&uc);
+	put_status_scans(&uc);
+	uc_put_end(&uc);
+
+	reply(fd, &uc);
+
+	free_heap(&hp);
+}
+
+static void parse_cmd(int fd, struct ucmsg* msg)
+{
+	switch(msg->cmd) {
+		case CMD_STATUS: return cmd_status(fd, msg);
+		default: return unknown_command(fd);
+	}
+}
+
+static void read_cmd(int fd)
+{
+	int rb;
+	char rbuf[64+4];
+	struct ucmsg* msg;
+
+	if((rb = sysread(fd, rbuf, sizeof(rbuf))) < 0)
+		return warn("recvmsg", NULL, rb);
+	if(rb > sizeof(rbuf)-4)
+		return warn("recvmsg", "message too long", 0);
+	if(!(msg = uc_msg(rbuf, rb)))
+		return warn("recvmsg", "message malformed", 0);
+	if(rb > msg->len)
+		return warn("recvmsg", "trailing bytes", 0);
+
+	parse_cmd(fd, msg);
 }
 
 static int check_user(int fd)
@@ -42,20 +163,6 @@ static int check_user(int fd)
 		return -1;
 
 	return 0;
-}
-
-static void read_cmd(int fd)
-{
-	int rb;
-	char cbuf[NAMELEN+10];
-
-	if((rb = sysread(fd, cbuf, NAMELEN+1)) < 0)
-		return warn("recvmsg", NULL, rb);
-	if(rb >= NAMELEN)
-		return warn("recvmsg", "message too long", 0);
-	cbuf[rb] = '\0';
-
-	parse_cmd(fd, cbuf);
 }
 
 void accept_ctrl(int sfd)
