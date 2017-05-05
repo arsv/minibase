@@ -12,7 +12,7 @@
 #include <fail.h>
 
 #include "wimon.h"
-#include "wimon_proc.h"
+#include "wimon_link.h"
 #include "wimon_slot.h"
 
 /* NETLINK_ROUTE connection is used to keep up-to-date list

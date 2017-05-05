@@ -10,7 +10,7 @@
 #include <fail.h>
 
 #include "wimon.h"
-#include "wimon_proc.h"
+#include "wimon_link.h"
 #include "wimon_slot.h"
 
 /* This part mostly deals with child processes spawned to bring up the link,
