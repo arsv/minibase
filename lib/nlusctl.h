@@ -57,4 +57,9 @@ uint32_t* uc_get_u32(struct ucmsg* msg, int key);
 uint16_t* uc_get_u16(struct ucmsg* msg, int key);
 char* uc_get_str(struct ucmsg* msg, int key);
 
+struct ucattr* uc_sub_k(struct ucattr* at, int key);
+char* uc_sub_bin(struct ucattr* at, int key, int len);
+uint32_t* uc_sub_u32(struct ucattr* at, int key);
+int32_t* uc_sub_i32(struct ucattr* at, int key);
+
 void uc_dump(struct ucmsg* msg);

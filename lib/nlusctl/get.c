@@ -54,8 +54,12 @@ static struct ucattr* uc_get_n_in(char* buf, int len, struct ucattr* at)
 		return NULL;
 	if(ptr > end)
 		return NULL;
+	if(!at->len)
+		return NULL;
 
-	ptr += at->len;
+	int aln = at->len;
+	aln += (4 - aln % 4) % 4;
+	ptr += aln;
 
 	if(ptr + sizeof(*at) > end)
 		return NULL;
@@ -93,6 +97,17 @@ struct ucattr* uc_get_k(struct ucmsg* msg, int key)
 	struct ucattr* at;
 
 	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
+		if(at->key == key)
+			return at;
+
+	return NULL;
+}
+
+struct ucattr* uc_sub_k(struct ucattr* bt, int key)
+{
+	struct ucattr* at;
+
+	for(at = uc_sub_0(bt); at; at = uc_sub_n(bt, at))
 		if(at->key == key)
 			return at;
 
@@ -141,4 +156,26 @@ char* uc_get_str(struct ucmsg* msg, int key)
 		return NULL;
 
 	return at->payload;
+}
+
+char* uc_sub_bin(struct ucattr* bt, int key, int len)
+{
+	struct ucattr* at;
+
+	if(!(at = uc_sub_k(bt, key)))
+		return NULL;
+	if(at->len - sizeof(*at) != len)
+		return NULL;
+
+	return at->payload;
+}
+
+int32_t* uc_sub_i32(struct ucattr* at, int key)
+{
+	return (int32_t*)uc_sub_bin(at, key, sizeof(int32_t));
+}
+
+uint32_t* uc_sub_u32(struct ucattr* at, int key)
+{
+	return (uint32_t*)uc_sub_bin(at, key, sizeof(uint32_t));
 }
