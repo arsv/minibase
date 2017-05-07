@@ -16,6 +16,8 @@ wimon: wimon.o wimon_rtnl.o wimon_genl.o wimon_proc.o wimon_slot.o \
 	wimon_genl_ap.o wimon_ctrl.o nlfam_grps.o wimon_link.o \
 	wimon_save.o
 
+wictl: wictl.o wictl_wire.o wictl_list.o
+
 wpa: wpa.o wpa_netlink.o wpa_eapol.o wpa_crypt.o nlfam_grps.o
 
 pbkdf: pbkdf.o pbkdf2_sha1.o
