@@ -19,7 +19,7 @@ Some tools are missing, and some still need work.
   
   * Early-stage boot utils (switchroot, kmod, mount, waitfor).
   * Small basic unix tools (cat, ls, du, df etc).
-  * Several small linux-specific tools (systime, fstrim, dmesg etc).
+  * Several small linux-specific tools (systime, sync, dmesg etc).
   - No FDE tooling yet.
   
   * Process supervisor suite (init, scv, scvmon, reboot), split stage
@@ -34,7 +34,7 @@ Some tools are missing, and some still need work.
   - No sntpd yet.
 
   * Wi-Fi scanner and connection manager (wimon), also capable of handling
-    wired interfaces [incomplete].
+    wired interfaces [incomplete,unmerged].
   * Minimalistic wpa supplicant (wpa), WPA2-PSK only, CCMP/CCMP or CCMP/TKIP
 
   - No package manager / download tool yet.
