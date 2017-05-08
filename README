@@ -29,14 +29,13 @@ Some tools are missing, and some still need work.
   - No unprivileged mount daemon yet.
   - No controlled privilege escalation daemon (sud/sudo) yet.
 
-  * DHCP client (dhcp) [unmerged]
+  * DHCP client (dhcp)
   * manual interface setup tools (ip4cfg, ip4info) [incomplete].
   - No sntpd yet.
 
   * Wi-Fi scanner and connection manager (wimon), also capable of handling
     wired interfaces [incomplete].
-  * Minimalistic wpa supplicant (wpa),
-    WPA2-PSK only, CCMP/CCMP or CCMP/TKIP [unmerged]
+  * Minimalistic wpa supplicant (wpa), WPA2-PSK only, CCMP/CCMP or CCMP/TKIP
 
   - No package manager / download tool yet.
 
