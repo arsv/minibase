@@ -4,21 +4,7 @@
 
 #include "wimon.h"
 
-#define WM_NOSCAN    (1<<0)
-#define WM_CONNECT   (1<<1)
-#define WM_APLOCK    (1<<2)
-#define WM_RETRY     (1<<3)
-#define WM_UNSAVED   (1<<4)
-
-struct wifi {
-	int mode;
-	int ifi;
-	short freq;
-	short prio;
-	short slen;
-	uint8_t ssid[SSIDLEN];
-	char psk[2*32+1];
-} wifi;
+struct wifi wifi;
 
 static int allbits(int val, int bits)
 {

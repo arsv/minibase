@@ -49,6 +49,13 @@
 #define IF_OPER_DOWN   2
 #define IF_OPER_UP     6
 
+/* wifi.mode */
+#define WM_NOSCAN    (1<<0)
+#define WM_CONNECT   (1<<1)
+#define WM_APLOCK    (1<<2)
+#define WM_RETRY     (1<<3)
+#define WM_UNSAVED   (1<<4)
+
 struct link {
 	int ifi;
 	int seq;
@@ -85,6 +92,16 @@ struct child {
 	int pid;
 };
 
+struct wifi {
+	int mode;
+	int ifi;
+	short freq;
+	short prio;
+	short slen;
+	uint8_t ssid[SSIDLEN];
+	char psk[2*32+1];
+};
+
 extern struct link links[];
 extern struct scan scans[];
 extern int nlinks;
@@ -92,6 +109,8 @@ extern int nscans;
 extern struct gate gateway;
 extern struct child children[];
 extern int nchildren;
+
+extern struct wifi wifi;
 
 struct netlink;
 struct nlmsg;
