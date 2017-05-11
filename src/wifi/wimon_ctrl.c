@@ -99,7 +99,7 @@ static void put_status_scans(struct ucbuf* uc)
 		nn = uc_put_nest(uc, ATTR_SCAN);
 		uc_put_u32(uc, ATTR_IFI,    sc->ifi);
 		uc_put_u32(uc, ATTR_FREQ,   sc->freq);
-		uc_put_u32(uc, ATTR_TYPE,   sc->type);
+		uc_put_u32(uc, ATTR_AUTH,   sc->type);
 		uc_put_u32(uc, ATTR_SIGNAL, sc->signal);
 		uc_put_ubin(uc, ATTR_BSSID, sc->bssid, sizeof(sc->bssid));
 		uc_put_ubin(uc, ATTR_SSID,  sc->ssid, sc->slen);
