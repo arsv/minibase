@@ -151,20 +151,6 @@ static void read_cmd(int fd)
 	parse_cmd(fd, msg);
 }
 
-static int check_user(int fd)
-{
-	struct ucred cred;
-	int credlen = sizeof(cred);
-
-	if(sysgetsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &credlen))
-		return -1;
-
-	if(cred.uid != sysgetuid())
-		return -1;
-
-	return 0;
-}
-
 void accept_ctrl(int sfd)
 {
 	int cfd;
@@ -173,19 +159,10 @@ void accept_ctrl(int sfd)
 	int addr_len = sizeof(addr);
 
 	while((cfd = sysaccept(sfd, &addr, &addr_len)) > 0) {
-		int nonroot = check_user(cfd);
-
-		if(nonroot) {
-			const char* denied = "Access denied\n";
-			syswrite(cfd, denied, strlen(denied));
-		} else {
-			gotcmd = 1;
-			sysalarm(TIMEOUT);
-			read_cmd(cfd);
-		}
-
+		gotcmd = 1;
+		sysalarm(TIMEOUT);
+		read_cmd(cfd);
 		sysclose(cfd);
-
 	} if(gotcmd) {
 		/* disable the timer in case it has been set */
 		sysalarm(0);
