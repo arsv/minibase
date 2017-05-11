@@ -23,6 +23,8 @@ static void send_command(struct top* ctx)
 	char* txbuf = ctx->tx.brk;
 	int txlen = ctx->tx.ptr - ctx->tx.brk;
 
+	uc_put_end(&ctx->tx);
+
 	if((wr = writeall(fd, txbuf, txlen)) < 0)
 		fail("write", NULL, wr);
 }
@@ -78,6 +80,14 @@ struct ucmsg* send_check(struct top* ctx)
 		fail(NULL, NULL, msg->cmd);
 
 	return msg;
+}
+
+void send_check_empty(struct top* ctx)
+{
+	struct ucmsg* msg = send_check(ctx);
+
+	if(msg->len > sizeof(msg))
+		fail("unexpected reply data", NULL, 0);
 }
 
 void top_init(struct top* ctx)

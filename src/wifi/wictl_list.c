@@ -77,13 +77,8 @@ static void dump_scan_line(struct ucattr* sc)
 			sbuf);
 }
 
-void cmd_status(struct top* ctx)
+void dump_status(struct top* ctx, struct ucmsg* msg)
 {
-	uc_put_hdr(&ctx->tx, CMD_STATUS);
-	uc_put_end(&ctx->tx);
-
-	struct ucmsg* msg = send_check(ctx);
-
 	struct ucattr** scan = prep_scan_list(ctx, msg);
 	struct ucattr** sc;
 
