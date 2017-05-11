@@ -1,6 +1,6 @@
 #include <string.h>
-#include <crypto/sha1.h>
-#include "pbkdf2_sha1.h"
+#include "sha1.h"
+#include "pbkdf2.h"
 
 /* From Wikipedia:
 

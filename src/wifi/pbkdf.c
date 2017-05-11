@@ -1,10 +1,11 @@
 #include <bits/ints.h>
 #include <sys/write.h>
 #include <sys/_exit.h>
+#include <crypto/pbkdf2.h>
+
 #include <format.h>
 #include <string.h>
 
-#include "pbkdf2_sha1.h"
 
 /* For development use only! Takes passphrase as argument,
    likely leaving it in shell history. */

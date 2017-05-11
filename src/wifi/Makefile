@@ -20,4 +20,4 @@ wictl: wictl.o wictl_wire.o wictl_list.o
 
 wpa: wpa.o wpa_netlink.o wpa_eapol.o wpa_crypt.o nlfam_grps.o
 
-pbkdf: pbkdf.o pbkdf2_sha1.o
+pbkdf: pbkdf.o
