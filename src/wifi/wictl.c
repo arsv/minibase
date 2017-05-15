@@ -1,6 +1,7 @@
 #include <bits/errno.h>
 
 #include <nlusctl.h>
+#include <format.h>
 #include <heap.h>
 #include <util.h>
 #include <fail.h>
@@ -105,7 +106,7 @@ int main(int argc, char** argv)
 
 	top_init(&ctx);
 
-	if(!mode)
+	if(!mode && i >= argc)
 		cmd_status(&ctx, opts, i, argc, argv);
 	else if(mode == OPT_w)
 		cmd_wless(&ctx, opts, i, argc, argv);
@@ -115,6 +116,8 @@ int main(int argc, char** argv)
 		cmd_stop(&ctx, opts, i, argc, argv);
 	else if(mode == OPT_q)
 		cmd_scan(&ctx, opts, i, argc, argv);
+	else if(i < argc)
+		cmd_wless(&ctx, opts, i, argc, argv);
 	else
 		fail("bad options", NULL, 0);
 

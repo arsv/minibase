@@ -27,6 +27,8 @@
 
 #define TIMEOUT 1
 
+struct latch latch;
+
 static void reply(int fd, struct ucbuf* uc)
 {
 	writeall(fd, uc->brk, uc->ptr - uc->brk);
@@ -125,10 +127,172 @@ static void cmd_status(int fd, struct ucmsg* msg)
 	free_heap(&hp);
 }
 
+/* Re-configuration is sequential task that has to wait for certain NL events.
+   It's tempting to make it into something sequential as well, but that would
+   require either implementing a mini-scheduler within wimon or spawning
+   a second process to use the OS scheduler. Either option looks like a huge
+   overkill for a task this simple.
+
+   The possible sets of actions to perform are very limited. It's always
+   [stop-wait]-[scan-wait]-[start-wait], with all three components optional.
+   The incomding user commands are used to pre-configure the sequence in
+   struct latch. Pieces of code strategically placed in respective event
+   handles are then conditionally perform the requested actions and remove
+   them from struct latch.
+
+   The whole latch_release thing is to make the requests synchronous; wictl
+   does not exit until the action has been performed. */
+
+void latch_release(int code)
+{
+	int cfd = latch.cfd;
+
+	latch.cfd = 0;
+	latch.ifstop = 0;
+	latch.ifscan = 0;
+	latch.ifconf = 0;
+
+	reply_simple(cfd, code);
+}
+
+void latch_proceed(void)
+{
+	struct link* ls;
+
+	if(!latch.ifstop)
+		goto scan;
+	else if(!(ls = find_link_slot(latch.ifstop)))
+		return latch_release(-ENODEV);
+	else if(!(ls->flags & S_TERMRQ))
+		return terminate_link(ls);
+	else return;
+scan:
+	if(!latch.ifscan)
+		goto conf;
+	else if(!(ls = find_link_slot(latch.ifscan)))
+		return latch_release(-ENODEV);
+	else if(!ls->scan)
+		return trigger_scan(ls, 0);
+	else return;
+conf:
+	if(!latch.ifconf)
+		goto done;
+	else if(!(ls = find_link_slot(latch.ifstop)))
+		return latch_release(-ENODEV);
+	else if(!(ls->flags & S_IPADDR))
+		return configure_link(ls);
+done:
+	return latch_release(0);
+}
+
+static int find_iface(int iflags)
+{
+	int ifi = 0;
+	struct link* ls;
+	int mask = S_WIRELESS;
+
+	for(ls = links; ls < links + nlinks; ls++) {
+		if(!ls->ifi)
+			continue;
+		if((ls->flags & mask) != iflags)
+			continue;
+		ifi = ifi ? -1 : ls->ifi;
+	}
+
+	if(ifi < 0)
+		return -ESRCH;
+	if(ifi == 0)
+		return -ENODEV;
+
+	return ifi;
+}
+
+static void cmd_wired(int fd, struct ucmsg* msg)
+{
+	int ifi;
+
+	if((ifi = find_iface(0)) < 0)
+		return reply_simple(fd, ifi);
+	if(latch.cfd)
+		return reply_simple(fd, -EBUSY);
+
+	latch.cfd = fd;
+	latch.ifconf = ifi;
+
+	if(latch.uplink)
+		latch.ifstop = latch.uplink;
+
+	latch_proceed();
+}
+
+static void cmd_wless(int fd, struct ucmsg* msg)
+{
+	int ifi;
+
+	if((ifi = find_iface(S_WIRELESS)) < 0)
+		return reply_simple(fd, ifi);
+	if(latch.cfd)
+		return reply_simple(fd, -EBUSY);
+
+	latch.cfd = fd;
+	latch.ifconf = ifi;
+	if(latch.uplink)
+		latch.ifstop = latch.uplink;
+	latch.uplink = ifi;
+
+	latch_proceed();
+}
+
+static void cmd_stop(int fd, struct ucmsg* msg)
+{
+	if(latch.cfd)
+		return reply_simple(fd, -EBUSY);
+	if(!latch.uplink)
+		return reply_simple(fd, -ECHILD);
+
+	latch.cfd = fd;
+	latch.ifstop = latch.uplink;
+	latch.uplink = 0;
+
+	reply_simple(fd, -EALREADY);
+}
+
+static void cmd_scan(int fd, struct ucmsg* msg)
+{
+	if(latch.cfd)
+		return reply_simple(fd, -EBUSY);
+
+	latch.cfd = fd;
+	latch.ifscan = -1;
+
+	scan_all_wifis();
+}
+
+static void cmd_reconn(int fd, struct ucmsg* msg)
+{
+	reply_simple(fd, -ENODEV);
+}
+
+static void cmd_cancel(int fd, struct ucmsg* msg)
+{
+	if(!latch.cfd) {
+		reply_simple(fd, -ECHILD);
+	} else {
+		latch_release(-EINTR);
+		reply_simple(fd, 0);
+	}
+}
+
 static void parse_cmd(int fd, struct ucmsg* msg)
 {
 	switch(msg->cmd) {
 		case CMD_STATUS: return cmd_status(fd, msg);
+		case CMD_WIRED: return cmd_wired(fd, msg);
+		case CMD_WLESS: return cmd_wless(fd, msg);
+		case CMD_STOP: return cmd_stop(fd, msg);
+		case CMD_SCAN: return cmd_scan(fd, msg);
+		case CMD_RECONN: return cmd_reconn(fd, msg);
+		case CMD_CANCEL: return cmd_cancel(fd, msg);
 		default: return unknown_command(fd);
 	}
 }
@@ -141,6 +305,8 @@ static void read_cmd(int fd)
 
 	if((rb = sysread(fd, rbuf, sizeof(rbuf))) < 0)
 		return warn("recvmsg", NULL, rb);
+	if(!rb)
+		return;
 	if(rb > sizeof(rbuf)-4)
 		return warn("recvmsg", "message too long", 0);
 	if(!(msg = uc_msg(rbuf, rb)))

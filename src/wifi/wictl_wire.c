@@ -25,6 +25,8 @@ static void send_command(struct top* ctx)
 
 	uc_put_end(&ctx->tx);
 
+	uc_dump((struct ucmsg*)txbuf);
+
 	if((wr = writeall(fd, txbuf, txlen)) < 0)
 		fail("write", NULL, wr);
 }
@@ -60,6 +62,8 @@ static struct ucmsg* recv_reply(struct top* ctx)
 
 	if(!msg)
 		fail("recv", "incomplete message", 0);
+
+	uc_dump(msg);
 
 	return msg;
 }

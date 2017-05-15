@@ -6,6 +6,7 @@
 #define CMD_STOP   4
 #define CMD_SCAN   5
 #define CMD_RECONN 6
+#define CMD_CANCEL 7
 
 #define ATTR_LINK    1
 #define ATTR_SCAN    2

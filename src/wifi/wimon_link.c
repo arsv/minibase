@@ -1,3 +1,5 @@
+#include <bits/errno.h>
+
 #include <null.h>
 #include <format.h>
 #include <string.h>
@@ -178,7 +180,7 @@ static int rescan_for_current_ap(void)
 	return 1;
 }
 
-static void scan_all_wifis(void)
+void scan_all_wifis(void)
 {
 	struct link* ls;
 
@@ -207,6 +209,37 @@ static void reassess_wifi_situation(void)
 
 	eprintf("next scan in 60sec\n");
 	schedule(scan_all_wifis, 60);
+}
+
+static void handle_failed_connection(void)
+{
+	/* WM_RETRY here means we tried to reconnect but failed */
+	if(wifi.mode & WM_RETRY)
+		wifi.mode &= ~(WM_RETRY | WM_CONNECT);
+	else if(wifi.mode & WM_CONNECT)
+		wifi.mode |= WM_RETRY;
+
+	if(wifi.mode & WM_RETRY)
+		if(rescan_for_current_ap())
+			return;
+
+	reassess_wifi_situation();
+}
+
+static void handle_successful_connection(void)
+{
+	if(wifi.mode & WM_UNSAVED) {
+		save_psk(wifi.ssid, wifi.slen, wifi.psk, strlen(wifi.psk));
+		wifi.mode &= ~WM_UNSAVED;
+	}
+
+	wifi.mode &= ~WM_RETRY;
+	wifi.mode |= WM_CONNECT;
+}
+
+void configure_link(struct link* ls)
+{
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
 }
 
 /* link_* are notification of link status changes from the NL code */
@@ -238,12 +271,20 @@ void link_scan_done(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(wifi.mode & WM_NOSCAN)
-		return;
+	if(ls->ifi == latch.ifscan)
+		;
 	if(any_ongoing_scans())
 		return;
 
 	check_new_aps(ls->ifi);
+
+	if(latch.ifscan == -1 || ls->ifi == latch.ifscan) {
+		latch.ifscan = 0;
+		latch_proceed();
+	}
+
+	if(wifi.mode & WM_NOSCAN)
+		return;
 	reassess_wifi_situation();
 }
 
@@ -263,36 +304,29 @@ void link_configured(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(wifi.ifi != ls->ifi)
-		return;
-
-	if(wifi.mode & WM_UNSAVED) {
-		save_psk(wifi.ssid, wifi.slen, wifi.psk, strlen(wifi.psk));
-		wifi.mode &= ~WM_UNSAVED;
+	if(ls->ifi == latch.ifconf) {
+		latch.ifconf = 0;
+		latch_proceed();
 	}
-
-	wifi.mode &= ~WM_RETRY;
-	wifi.mode |= WM_CONNECT;
+	if(wifi.ifi == ls->ifi)
+		handle_successful_connection();
 }
 
 void link_terminated(struct link* ls)
 {
-	eprintf("link_terminated %s\n", ls->name);
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(ls->ifi != wifi.ifi) {
-		eprintf("not our master wifi\n");
-		return;
+	if(ls->ifi == latch.ifstop) {
+		latch.ifstop = 0;
+		latch_proceed();
+	} else if(ls->ifi == latch.ifconf) {
+		latch.ifconf = 0;
+		latch_release(-EINTR);
+	} else if(ls->ifi == latch.ifscan) {
+		latch.ifscan = 0;
+		latch_release(-EINTR);
 	}
 
-	/* WM_RETRY here means we tried to reconnect but failed */
-	if(wifi.mode & WM_RETRY)
-		wifi.mode &= ~(WM_RETRY | WM_CONNECT);
-	else if(wifi.mode & WM_CONNECT)
-		wifi.mode |= WM_RETRY;
-
-	if(wifi.mode & WM_RETRY)
-		if(rescan_for_current_ap())
-			return;
-
-	reassess_wifi_situation();
+	if(ls->ifi == wifi.ifi)
+		handle_failed_connection();
 }

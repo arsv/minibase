@@ -56,6 +56,15 @@
 #define WM_RETRY     (1<<3)
 #define WM_UNSAVED   (1<<4)
 
+/* latch.mode */
+#define LA_NONE        0
+#define LA_DOWN        1
+#define LA_SCAN        2
+#define LA_CONF        3
+
+#define SUCCESS  0
+#define FAILURE -1
+
 struct link {
 	int ifi;
 	int seq;
@@ -92,6 +101,14 @@ struct child {
 	int pid;
 };
 
+struct latch {
+	int cfd;
+	int ifstop;
+	int ifscan;
+	int ifconf;
+	int uplink;
+};
+
 struct wifi {
 	int mode;
 	int ifi;
@@ -111,6 +128,7 @@ extern struct child children[];
 extern int nchildren;
 
 extern struct wifi wifi;
+extern struct latch latch;
 
 struct netlink;
 struct nlmsg;
@@ -138,6 +156,7 @@ void del_link_addresses(int ifi);
 void waitpids(void);
 void schedule(void (*call)(void), int secs);
 
+void scan_all_wifis(void);
 void trigger_scan(struct link* ls, int freq);
 void parse_scan_result(struct link* ls, struct nlgen* msg);
 
@@ -176,6 +195,7 @@ void link_deconfed(struct link* ls);
 void spawn_dhcp(struct link* ls, char* opts);
 void spawn_wpa(struct link* ls, struct scan* sc, char* mode, char* psk);
 
+void configure_link(struct link* ls);
 void terminate_link(struct link* ls);
 void drop_link_procs(struct link* ls);
 
@@ -188,3 +208,6 @@ int saved_psk_prio(uint8_t* ssid, int slen);
 
 int load_psk(uint8_t* ssid, int slen, char* psk, int plen);
 void save_psk(uint8_t* ssid, int slen, char* psk, int plen);
+
+void latch_proceed(void);
+void latch_release(int code);
