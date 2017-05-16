@@ -271,20 +271,21 @@ void link_scan_done(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(ls->ifi == latch.ifscan)
+	if(latch.evt == LA_SCAN && ls->ifi == latch.ifi)
 		;
-	if(any_ongoing_scans())
+	else if(wifi.mode & WM_NOSCAN)
+		return;
+	else if(any_ongoing_scans())
 		return;
 
 	check_new_aps(ls->ifi);
 
-	if(latch.ifscan == -1 || ls->ifi == latch.ifscan) {
-		latch.ifscan = 0;
-		latch_proceed();
-	}
+	if(ls->ifi == latch.ifi || latch.ifi <= 0)
+		latch_check(ls, LA_SCAN);
 
 	if(wifi.mode & WM_NOSCAN)
 		return;
+
 	reassess_wifi_situation();
 }
 
@@ -304,11 +305,9 @@ void link_configured(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(ls->ifi == latch.ifconf) {
-		latch.ifconf = 0;
-		latch_proceed();
-	}
-	if(wifi.ifi == ls->ifi)
+	if(ls->ifi == latch.ifi || !latch.ifi)
+		latch_check(ls, LA_CONF);
+	if(ls->ifi == wifi.ifi)
 		handle_successful_connection();
 }
 
@@ -316,17 +315,8 @@ void link_terminated(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(ls->ifi == latch.ifstop) {
-		latch.ifstop = 0;
-		latch_proceed();
-	} else if(ls->ifi == latch.ifconf) {
-		latch.ifconf = 0;
-		latch_release(-EINTR);
-	} else if(ls->ifi == latch.ifscan) {
-		latch.ifscan = 0;
-		latch_release(-EINTR);
-	}
-
+	if(ls->ifi == latch.ifi || !latch.ifi)
+		latch_check(ls, LA_DOWN);
 	if(ls->ifi == wifi.ifi)
 		handle_failed_connection();
 }

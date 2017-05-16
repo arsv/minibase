@@ -16,7 +16,6 @@
 
 #include <nlusctl.h>
 #include <string.h>
-#include <format.h>
 #include <heap.h>
 #include <fail.h>
 #include <util.h>
@@ -28,6 +27,7 @@
 #define TIMEOUT 1
 
 struct latch latch;
+int uplink;
 
 static void reply(int fd, struct ucbuf* uc)
 {
@@ -49,6 +49,13 @@ static void reply_simple(int fd, int err)
 static void unknown_command(int fd)
 {
 	reply_simple(fd, -ENOSYS);
+}
+
+static int estimate_scalist(void)
+{
+	int scansp = nscans*(sizeof(struct scan) + 10*sizeof(struct ucattr));
+
+	return scansp + 128;
 }
 
 static int estimate_status(void)
@@ -127,62 +134,74 @@ static void cmd_status(int fd, struct ucmsg* msg)
 	free_heap(&hp);
 }
 
+static void reply_scanlist(int fd, int ifi)
+{
+	struct heap hp;
+	struct ucbuf uc;
+
+	prep_heap(&hp, estimate_scalist());
+
+	uc_buf_set(&uc, hp.brk, hp.end - hp.brk);
+	uc_put_hdr(&uc, CMD_SCAN);
+	put_status_scans(&uc);
+	uc_put_end(&uc);
+
+	reply(fd, &uc);
+
+	free_heap(&hp);
+}
+
 /* Re-configuration is sequential task that has to wait for certain NL events.
    It's tempting to make it into something sequential as well, but that would
    require either implementing a mini-scheduler within wimon or spawning
    a second process to use the OS scheduler. Either option looks like a huge
    overkill for a task this simple.
 
-   The possible sets of actions to perform are very limited. It's always
-   [stop-wait]-[scan-wait]-[start-wait], with all three components optional.
-   The incomding user commands are used to pre-configure the sequence in
-   struct latch. Pieces of code strategically placed in respective event
-   handles are then conditionally perform the requested actions and remove
-   them from struct latch.
+   So instead, most of sequentiality is moved over to wictl which is sequential
+   anyway, and wimon only gets a single "latch" triggering on certain events. */
 
-   The whole latch_release thing is to make the requests synchronous; wictl
-   does not exit until the action has been performed. */
-
-void latch_release(int code)
+static void latch_reset(void)
 {
-	int cfd = latch.cfd;
+	if(latch.cfd)
+		sysclose(latch.cfd);
 
 	latch.cfd = 0;
-	latch.ifstop = 0;
-	latch.ifscan = 0;
-	latch.ifconf = 0;
-
-	reply_simple(cfd, code);
+	latch.evt = 0;
+	latch.ifi = 0;
 }
 
-void latch_proceed(void)
+static int latch_lock(int cfd, int evt, int ifi)
 {
-	struct link* ls;
+	if(latch.cfd)
+		return -EBUSY;
 
-	if(!latch.ifstop)
-		goto scan;
-	else if(!(ls = find_link_slot(latch.ifstop)))
-		return latch_release(-ENODEV);
-	else if(!(ls->flags & S_TERMRQ))
-		return terminate_link(ls);
-	else return;
-scan:
-	if(!latch.ifscan)
-		goto conf;
-	else if(!(ls = find_link_slot(latch.ifscan)))
-		return latch_release(-ENODEV);
-	else if(!ls->scan)
-		return trigger_scan(ls, 0);
-	else return;
-conf:
-	if(!latch.ifconf)
-		goto done;
-	else if(!(ls = find_link_slot(latch.ifstop)))
-		return latch_release(-ENODEV);
-	else if(!(ls->flags & S_IPADDR))
-		return configure_link(ls);
-done:
-	return latch_release(0);
+	latch.cfd = cfd;
+	latch.evt = evt;
+	latch.ifi = ifi;
+
+	return 0;
+}
+
+void latch_check(struct link* ls, int evt)
+{
+	int cfd = latch.cfd;
+	int exp = latch.evt;
+
+	if(latch.ifi && ls->ifi != latch.ifi)
+		return;
+	if(evt != exp && evt != LA_DOWN)
+		return;
+
+	if(evt == LA_DOWN && exp != LA_DOWN)
+		reply_simple(cfd, -ENODEV);
+	else if(evt == LA_CONF)
+		reply_simple(cfd, 0);
+	else if(evt == LA_DOWN)
+		reply_simple(cfd, 0);
+	else if(evt == LA_SCAN)
+		reply_scanlist(cfd, latch.ifi);
+
+	latch_reset();
 }
 
 static int find_iface(int iflags)
@@ -209,61 +228,49 @@ static int find_iface(int iflags)
 
 static void cmd_wired(int fd, struct ucmsg* msg)
 {
-	int ifi;
+	int ret, ifi;
 
 	if((ifi = find_iface(0)) < 0)
 		return reply_simple(fd, ifi);
-	if(latch.cfd)
-		return reply_simple(fd, -EBUSY);
+	if((ret = latch_lock(fd, LA_CONF, ifi)))
+		return reply_simple(fd, ret);
 
-	latch.cfd = fd;
-	latch.ifconf = ifi;
-
-	if(latch.uplink)
-		latch.ifstop = latch.uplink;
-
-	latch_proceed();
+	reply_simple(fd, -ENOSYS);
 }
 
 static void cmd_wless(int fd, struct ucmsg* msg)
 {
-	int ifi;
+	int ret, ifi;
 
 	if((ifi = find_iface(S_WIRELESS)) < 0)
 		return reply_simple(fd, ifi);
-	if(latch.cfd)
-		return reply_simple(fd, -EBUSY);
+	if((ret = latch_lock(fd, LA_CONF, ifi)))
+		return reply_simple(fd, ret);
 
-	latch.cfd = fd;
-	latch.ifconf = ifi;
-	if(latch.uplink)
-		latch.ifstop = latch.uplink;
-	latch.uplink = ifi;
-
-	latch_proceed();
+	reply_simple(fd, -ENOSYS);
 }
 
 static void cmd_stop(int fd, struct ucmsg* msg)
 {
-	if(latch.cfd)
-		return reply_simple(fd, -EBUSY);
-	if(!latch.uplink)
+	int ret, ifi = uplink;
+	struct link* ls;
+
+	if(!ifi)
 		return reply_simple(fd, -ECHILD);
+	if(!(ls = find_link_slot(ifi)))
+		return reply_simple(fd, -ENODEV);
+	if((ret = latch_lock(fd, LA_DOWN, ifi)))
+		return reply_simple(fd, ret);
 
-	latch.cfd = fd;
-	latch.ifstop = latch.uplink;
-	latch.uplink = 0;
-
-	reply_simple(fd, -EALREADY);
+	terminate_link(ls);
 }
 
 static void cmd_scan(int fd, struct ucmsg* msg)
 {
-	if(latch.cfd)
-		return reply_simple(fd, -EBUSY);
+	int ret;
 
-	latch.cfd = fd;
-	latch.ifscan = -1;
+	if((ret = latch_lock(fd, LA_SCAN, 0)))
+		return reply_simple(fd, ret);
 
 	scan_all_wifis();
 }
@@ -275,12 +282,12 @@ static void cmd_reconn(int fd, struct ucmsg* msg)
 
 static void cmd_cancel(int fd, struct ucmsg* msg)
 {
-	if(!latch.cfd) {
-		reply_simple(fd, -ECHILD);
-	} else {
-		latch_release(-EINTR);
-		reply_simple(fd, 0);
-	}
+	if(!latch.cfd)
+		return reply_simple(fd, -ECHILD);
+
+	latch_reset();
+
+	reply_simple(fd, 0);
 }
 
 static void parse_cmd(int fd, struct ucmsg* msg)
@@ -303,16 +310,14 @@ static void read_cmd(int fd)
 	char rbuf[64+4];
 	struct ucmsg* msg;
 
-	if((rb = sysread(fd, rbuf, sizeof(rbuf))) < 0)
-		return warn("recvmsg", NULL, rb);
-	if(!rb)
-		return;
+	/* XXX: multiple messages here? */
+	if((rb = sysread(fd, rbuf, sizeof(rbuf))) <= 0)
+		return warn("recvmsg", rb ? NULL : "empty message", rb);
+
 	if(rb > sizeof(rbuf)-4)
-		return warn("recvmsg", "message too long", 0);
+		return reply_simple(fd, -E2BIG);
 	if(!(msg = uc_msg(rbuf, rb)))
-		return warn("recvmsg", "message malformed", 0);
-	if(rb > msg->len)
-		return warn("recvmsg", "trailing bytes", 0);
+		return reply_simple(fd, -EBADMSG);
 
 	parse_cmd(fd, msg);
 }
@@ -328,7 +333,8 @@ void accept_ctrl(int sfd)
 		gotcmd = 1;
 		sysalarm(TIMEOUT);
 		read_cmd(cfd);
-		sysclose(cfd);
+		if(latch.cfd != cfd)
+			sysclose(cfd);
 	} if(gotcmd) {
 		/* disable the timer in case it has been set */
 		sysalarm(0);

@@ -86,3 +86,11 @@ void dump_status(struct top* ctx, struct ucmsg* msg)
 		dump_scan_line(*sc);
 }
 
+void dump_scanlist(struct top* ctx, struct ucmsg* msg)
+{
+	struct ucattr** scan = prep_scan_list(ctx, msg);
+	struct ucattr** sc;
+
+	for(sc = scan; *sc; sc++)
+		dump_scan_line(*sc);
+}

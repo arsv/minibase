@@ -88,7 +88,8 @@ static void cmd_scan(struct top* ctx, int opts, int i, int argc, char** argv)
 		fail("bad options", NULL, 0);
 
 	uc_put_hdr(&ctx->tx, CMD_SCAN);
-	send_check_empty(ctx);
+
+	dump_scanlist(ctx, send_check(ctx));
 }
 
 int main(int argc, char** argv)

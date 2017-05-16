@@ -53,7 +53,7 @@ static struct ucmsg* recv_reply(struct top* ctx)
 
 		ctx->hp.ptr += rd;
 
-		char* rxend = ctx->hp.ptr + rd;
+		char* rxend = ctx->hp.ptr;
 		int rxlen = rxend - rxbuf;
 
 		if((msg = uc_msg(rxbuf, rxlen)))

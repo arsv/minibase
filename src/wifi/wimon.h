@@ -56,8 +56,7 @@
 #define WM_RETRY     (1<<3)
 #define WM_UNSAVED   (1<<4)
 
-/* latch.mode */
-#define LA_NONE        0
+/* latch.evt */
 #define LA_DOWN        1
 #define LA_SCAN        2
 #define LA_CONF        3
@@ -102,11 +101,9 @@ struct child {
 };
 
 struct latch {
+	int evt;
+	int ifi;
 	int cfd;
-	int ifstop;
-	int ifscan;
-	int ifconf;
-	int uplink;
 };
 
 struct wifi {
@@ -129,6 +126,7 @@ extern int nchildren;
 
 extern struct wifi wifi;
 extern struct latch latch;
+extern int uplink;
 
 struct netlink;
 struct nlmsg;
@@ -209,5 +207,4 @@ int saved_psk_prio(uint8_t* ssid, int slen);
 int load_psk(uint8_t* ssid, int slen, char* psk, int plen);
 void save_psk(uint8_t* ssid, int slen, char* psk, int plen);
 
-void latch_proceed(void);
-void latch_release(int code);
+void latch_check(struct link* ls, int evt);
