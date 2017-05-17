@@ -239,6 +239,7 @@ struct cmdh {
 	{ NL80211_CMD_DISCONNECT,       msg_disconnect     },
 	{ NL80211_CMD_NEW_STATION,      NULL               },
 	{ NL80211_CMD_DEL_STATION,      NULL               },
+	{ NL80211_CMD_NOTIFY_CQM,       NULL               },
 	{ 0, NULL }
 };
 
