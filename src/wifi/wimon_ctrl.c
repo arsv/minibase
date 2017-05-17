@@ -14,6 +14,7 @@
 #include <sys/unlink.h>
 #include <sys/brk.h>
 
+#include <format.h>
 #include <nlusctl.h>
 #include <string.h>
 #include <heap.h>
@@ -279,7 +280,20 @@ static void cmd_scan(int fd, struct ucmsg* msg)
 
 static void cmd_reconn(int fd, struct ucmsg* msg)
 {
-	reply_simple(fd, -ENODEV);
+	int ret;
+	struct link* ls;
+
+	eprintf("wifi ifi=%i state=%i\n", wifi.ifi, wifi.state);
+	if(!wifi.ifi)
+		return reply_simple(fd, -ENOTCONN);
+	if(wifi.state != WS_CONNECTED)
+		return reply_simple(fd, -ENOTCONN);
+	if(!(ls = find_link_slot(wifi.ifi)))
+		return reply_simple(fd, -ENODEV);
+	if((ret = latch_lock(fd, LA_DOWN, wifi.ifi)))
+		return reply_simple(fd, ret);
+
+	trigger_disconnect(wifi.ifi);
 }
 
 static void cmd_cancel(int fd, struct ucmsg* msg)

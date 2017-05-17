@@ -341,7 +341,9 @@ void link_carrier(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(ls->mode & LM_MANUAL)
+	if(ls->flags & S_IPADDR)
+		link_configured(ls); /* wrong but should do for now */
+	else if(ls->mode & LM_MANUAL)
 		; /* XXX */
 	else if(ls->mode & LM_LOCAL)
 		spawn_dhcp(ls, "-g");
@@ -353,10 +355,10 @@ void link_configured(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(ls->ifi == latch.ifi || !latch.ifi)
-		latch_check(ls, LA_CONF);
 	if(ls->ifi == wifi.ifi)
 		handle_successful_connection();
+	if(ls->ifi == latch.ifi || !latch.ifi)
+		latch_check(ls, LA_CONF);
 }
 
 void link_terminated(struct link* ls)

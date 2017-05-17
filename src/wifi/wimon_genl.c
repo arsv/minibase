@@ -65,6 +65,15 @@ void trigger_scan(struct link* ls, int freq)
 	ls->scan = SC_REQUEST;
 }
 
+void trigger_disconnect(int ifi)
+{
+	nl_new_cmd(&genl, nl80211, NL80211_CMD_DISCONNECT, 0);
+	nl_put_u64(&genl, NL80211_ATTR_IFINDEX, ifi);
+
+	if(nl_send(&genl))
+		fail("send", "genl", genl.err);
+}
+
 static void request_results(struct link* ls)
 {
 	if(genl_dump_lock) {

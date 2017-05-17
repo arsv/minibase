@@ -163,6 +163,7 @@ void schedule(void (*call)(void), int secs);
 
 void scan_all_wifis(void);
 void trigger_scan(struct link* ls, int freq);
+void trigger_disconnect(int ifi);
 void parse_scan_result(struct link* ls, struct nlgen* msg);
 
 /* wimon_slot.c */
