@@ -332,20 +332,20 @@ int load_psk(uint8_t* ssid, int slen, char* psk, int plen)
 	prep_ssid(ssidstr, sizeof(ssidstr), ssid, slen);
 
 	if(load_config())
-		return 0;
+		return -ENOENT;
 	if(!findline(&ln, ck, 4, "psk", 3, ssidstr))
-		return 0;
+		return -ENOENT;
 
 	struct chunk* cpsk = &ck[1];
 	int clen = chunklen(cpsk);
 
 	if(plen < clen + 1)
-		return 0;
+		return -ENOENT;
 
 	memcpy(psk, cpsk->start, clen);
 	psk[clen] = '\0';
 
-	return 1;
+	return 0;
 }
 
 void save_psk(uint8_t* ssid, int slen, char* psk, int plen)

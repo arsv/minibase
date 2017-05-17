@@ -187,6 +187,8 @@ void latch_check(struct link* ls, int evt)
 	int cfd = latch.cfd;
 	int exp = latch.evt;
 
+	if(!latch.cfd)
+		return;
 	if(latch.ifi && ls->ifi != latch.ifi)
 		return;
 	if(evt != exp && evt != LA_DOWN)

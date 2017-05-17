@@ -229,22 +229,32 @@ static void prep_wpa_env(char** envp, char* pskvar, int envc)
 	memcpy(envp + 1, environ, (envc+1)*sizeof(char*));
 }
 
-void spawn_wpa(struct link* ls, struct scan* sc, char* mode, char* psk)
+/* Stuff lik ssid, bssid, freq and psk should have been parameters here,
+   but those always come from the same location (struct wifi) and make
+   the prototype really messy, so we take a shortcut here. Also helps
+   in that the caller does not need to care about struct wifi internals.
+
+   Both link and mode may be variable here. It would really make sense
+   to derive them here from parts of struct wifi, but that requires some
+   error handling *and* the caller has it all anyway. */
+
+void spawn_wpa(struct link* ls, char* mode)
 {
 	char bssid[6*3];
 	char freq[10];
 	char ssid[SSIDLEN+2];
+	char* dev = ls->name;
 
-	prep_wpa_ssid(ssid, sizeof(ssid), sc->ssid, sc->slen);
-	prep_wpa_bssid(bssid, sizeof(bssid), sc->bssid);
-	prep_wpa_freq(freq, sizeof(freq), sc->freq);
+	prep_wpa_ssid(ssid, sizeof(ssid), wifi.ssid, wifi.slen);
+	prep_wpa_bssid(bssid, sizeof(bssid), wifi.bssid);
+	prep_wpa_freq(freq, sizeof(freq), wifi.freq);
 
-	char* argv[] = { "wpa", ls->name, freq, bssid, ssid, mode, NULL };
+	char* argv[] = { "wpa", dev, freq, bssid, ssid, mode, NULL };
 
-	char pskvar[10+strlen(psk)];
+	char pskvar[10+strlen(wifi.psk)];
 	char* envp[envcount+2];
 
-	prep_wpa_psk(pskvar, sizeof(pskvar), psk);
+	prep_wpa_psk(pskvar, sizeof(pskvar), wifi.psk);
 	prep_wpa_env(envp, pskvar, envcount);
 
 	spawn(ls, argv, envp);

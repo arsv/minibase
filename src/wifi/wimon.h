@@ -43,26 +43,28 @@
 
 #define SF_SEEN        (1<<0)
 #define SF_GOOD        (1<<1)
-#define SF_TRIED       (1<<2)
 
 /* for set_link_operstate; from linux/if.h, ref. RFC 2863 */
 #define IF_OPER_DOWN   2
 #define IF_OPER_UP     6
 
 /* wifi.mode */
-#define WM_NOSCAN    (1<<0)
-#define WM_CONNECT   (1<<1)
-#define WM_APLOCK    (1<<2)
-#define WM_RETRY     (1<<3)
-#define WM_UNSAVED   (1<<4)
+#define WM_UNDECIDED   0
+#define WM_DISABLED    1
+#define WM_FREESCAN    2
+#define WM_FIXEDAP     3
+/* wifi.state */
+#define WS_NONE        0
+#define WS_TUNED       1
+#define WS_CONNECTED   2
+#define WS_RETRYING    3
+/* wifi.flags */
+#define WF_UNSAVED     (1<<0)
 
 /* latch.evt */
 #define LA_DOWN        1
 #define LA_SCAN        2
 #define LA_CONF        3
-
-#define SUCCESS  0
-#define FAILURE -1
 
 struct link {
 	int ifi;
@@ -84,6 +86,7 @@ struct scan {
 	short signal;
 	short type;
 	short prio;
+	short tries;
 	short flags;
 	uint8_t bssid[6];
 	short slen;
@@ -107,12 +110,16 @@ struct latch {
 };
 
 struct wifi {
-	int mode;
+	short mode;
+	short state;
+	short flags;
 	int ifi;
 	short freq;
 	short prio;
 	short slen;
+	short type;
 	uint8_t ssid[SSIDLEN];
+	uint8_t bssid[6];
 	char psk[2*32+1];
 };
 
@@ -191,7 +198,7 @@ void link_terminated(struct link* ls);
 void link_deconfed(struct link* ls);
 
 void spawn_dhcp(struct link* ls, char* opts);
-void spawn_wpa(struct link* ls, struct scan* sc, char* mode, char* psk);
+void spawn_wpa(struct link* ls, char* mode);
 
 void configure_link(struct link* ls);
 void terminate_link(struct link* ls);
