@@ -1,0 +1,143 @@
+Why connection manager
+~~~~~~~~~~~~~~~~~~~~~~
+There's a gazillion ways to configure the Linux networking stack
+(and the interfaces the kernel provides generally reflect that).
+
+For a vast majority of personal computing devices however, there
+are only few that matter: a fully autoconfed wifi connection, and
+a fully autoconfed ethernet connection, one at a time.
+
+The idea behind wimon is to provide the user with reasonably
+usable interface for the most common laptop-like configuration:
+a single wifi card, and a single ethernet port.
+
+
+Implementation
+~~~~~~~~~~~~~~
+The problem turns out to be much more hairy than it looks like,
+mostly because it's very unclear and open-ended. Below are some
+notes on the decisions made.
+
+* Support for GSM/CDMA/VPN/other kinds of networks.
+
+  It would be really nice to split wifi support out, and allow *other*
+  similar modules to be dropped in. The thing is, I have no idea how
+  a good generic connection manager should look like, or whether such
+  thing is possible at all.
+
+  Different kinds of networks usually have wildly different configuration
+  interfaces but usually must be orchestrated somehow to allow uplink
+  switching. Wifi+ethernet is a very popular set of hardware that warrants
+  dedicated support until a nice generic solution is found.
+
+  VPNs in particular probably should not be managed by any network mgr
+  at all. Like Tor but also like resolved and ntpd, it should probably
+  be started by init, commanded by "network-up" event. See shoutd.txt.
+
+* Why not strictly Wi-Fi monitor + another tool for Ethernet?
+
+  Mostly because there's nothing specific about ethernet.
+  Any sort of wifi tool should be able to configure ethernet
+  interfaces as well, just by skipping the wifi part.
+
+* More complex IP stack configuration?
+
+  Setups that need complex IP configuration *probably* do not need
+  user-configurable volatile connection monitors.
+
+* Why support (or care about) multiple wifi or ethernet devices?
+
+  It's very easy to get hardware configuration like that (just plug some
+  USB dongle in) which without proper handling would lead to some really
+  weird behavior.
+
+  Multiple wifi cards also have some applications:
+
+    - one card for 2.4GHz and one for 5GHz
+    - one card for uplink, one card to share connection.
+
+  Ethernet devices may not be ethernet at all. To wimon, any networking
+  device that's not wifi would look like ethernet. Multiple ethernet ports
+  also have proper applications, including uplink/downlink just like with
+  wifi cards.
+
+* Bluetooth support?
+
+  Bluetooth has nothing in common with regular netdevs and should
+  be managed with a separate tool. Which is planned by the way.
+
+  (only mentioned here because NetworkManager apparently supports it)
+
+Should be mentioned also that in Linux network devices aren't devices,
+and are not handled by udevd. This means that whatever monitors them
+has to do things like user access checks, *if* it's applicable.
+Same goes for bluetooth.
+
+
+How a proper split module setup might look like
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The common scheme (employed by e.g. NetworkManager) is to have connection
+manager in front of the individual modules, and a common ui:
+
+                              | -----> 3g-mod ------> device
+                              |
+       uitool ----> conn-mgr -| -----> wifi-mod ----> nl80211
+                              |
+                              | -----> vpn-mod -----> remote
+
+The key point here is that conn-mgr knows how to instantiate the backend
+modules. The UI part only needs to talk to conn-mgr, everything else is
+more or less hidden behind it.
+
+The big flaw in this design is that conn-mgr (and very like uitool) must
+support to some degree *all* possible backend modules. Generally it is
+impossible to add a new module without at least re-building conn-mgr.
+This would not be acceptable for minitools.
+
+A different idea is to reverse the scheme:
+                               
+       wifi-tool ----> wifi-mgr ------> nl80211
+                            |     
+       3g-tool ------> 3g-mgr --------> device
+                          | |     
+       vpn-tool------> vpn-mgr -------> remote
+                          |||
+                          vvv
+       conn-tool ..... conn-mgr
+
+Here the only task of conn-mgr is being a mutex, preventing unrelated managers
+from bringing their respective connections up concurrently. Each manager is
+started independently of conn-mgr by e.g. init.
+
+The key point here is that conn-mgr passively accepts uniform requests from
+individual modules, and most of the active communication bypasses it.
+
+This way adding a new module is trivial, however pretty much any cross-module
+actions become really difficult. In particular, {wifi,3g,vpn}-tool will likely
+also need to talk to conn-mgr in order to switch active connection to their
+respective mgr.
+
+# Side note, it is quite possible to merge the two schemes so that the whole
+# thing continues to work like scheme #2 but all the tools talk to the same
+# endpoint like in scheme #1. One option is to have conn-mgr multiplex the
+# traffic somehow, effectively becoming a message bus hub. Another is to use
+# a proper message bus hub, which is effectively what NetworkManager does
+# anyway.
+
+The role of conn-mgr in scheme #2 suggests that perhaps it should not even
+be a process. Some sort of file locking may be enough. On the other hand,
+if it is a process, it could do stuff like system re-configuration for the
+new network.
+
+
+The role of wimon
+~~~~~~~~~~~~~~~~~
+Does this whole thing deprecate wimon somehow?
+
+Well not really. As mentioned above, wimon alone covers lots of use cases.
+Devices which will never need to care about 3g, Wi-Max or anything that
+isn't Wi-Fi or plain Ethernet.
+
+And regardless of anything else, wimon will likely remain the lightest
+solution for those devices. Ethernet support in wimon barely adds anything.
+But extensive IPC in scheme #2 definitely does.
