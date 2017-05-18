@@ -92,7 +92,7 @@ struct ucattr* uc_sub_n(struct ucattr* ab, struct ucattr* at)
 	return uc_get_n_in(ab->payload, ab->len - sizeof(*ab), at);
 }
 
-struct ucattr* uc_get_k(struct ucmsg* msg, int key)
+struct ucattr* uc_get(struct ucmsg* msg, int key)
 {
 	struct ucattr* at;
 
@@ -118,7 +118,7 @@ char* uc_get_bin(struct ucmsg* msg, int key, int len)
 {
 	struct ucattr* at;
 
-	if(!(at = uc_get_k(msg, key)))
+	if(!(at = uc_get(msg, key)))
 		return NULL;
 	if(at->len - sizeof(*at) != len)
 		return NULL;
@@ -150,7 +150,7 @@ char* uc_get_str(struct ucmsg* msg, int key)
 {
 	struct ucattr* at;
 
-	if(!(at = uc_get_k(msg, key)))
+	if(!(at = uc_get(msg, key)))
 		return NULL;
 	if(!is_zstr(at->payload, at->len - sizeof(*at)))
 		return NULL;

@@ -51,7 +51,7 @@ struct ucattr* uc_get_n(struct ucmsg* msg, struct ucattr* at);
 struct ucattr* uc_sub_0(struct ucattr* ab);
 struct ucattr* uc_sub_n(struct ucattr* ab, struct ucattr* at);
 
-struct ucattr* uc_get_k(struct ucmsg* msg, int key);
+struct ucattr* uc_get(struct ucmsg* msg, int key);
 char* uc_get_bin(struct ucmsg* msg, int key, int len);
 uint32_t* uc_get_u32(struct ucmsg* msg, int key);
 uint16_t* uc_get_u16(struct ucmsg* msg, int key);
