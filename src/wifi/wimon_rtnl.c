@@ -139,8 +139,6 @@ void msg_del_link(struct ifinfomsg* msg)
 	if(!(ls = find_link_slot(msg->index)))
 		return;
 
-	eprintf("del-link %s %i\n", ls->ifi, ls->name);
-
 	link_del(ls);
 
 	free_link_slot(ls);
@@ -167,11 +165,6 @@ void msg_new_addr(struct ifaddrmsg* msg)
 	ls->mask = msg->prefixlen;
 	ls->flags |= S_IPADDR;
 
-	eprintf("new-addr %s %i.%i.%i.%i/%i\n",
-			ls->name,
-			ip[0], ip[1], ip[2], ip[3],
-			msg->prefixlen);
-
 	link_configured(ls);
 }
 
@@ -193,20 +186,14 @@ void msg_del_addr(struct ifaddrmsg* msg)
 	ls->mask = 0;
 	ls->flags &= ~S_IPADDR;
 
-	eprintf("del-addr %s %i.%i.%i.%i\n", ls->name,
-			ip[0], ip[1], ip[2], ip[3]);
-
 	link_deconfed(ls);
 }
 
 void msg_new_route(struct rtmsg* msg)
 {
-	struct link* ls;
 	uint32_t* oif;
 	uint8_t* gw;
 
-	if(gateway.ifi)
-		return;
 	if(msg->type != RTN_UNICAST)
 		return;
 	if(msg->dst_len)
@@ -215,19 +202,12 @@ void msg_new_route(struct rtmsg* msg)
 		return;
 	if(!(gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
 		return; /* not a gw route */
-	if(!(ls = find_link_slot(*oif)))
-		return;
 
-	memcpy(gateway.ip, gw, 4);
-	gateway.ifi = *oif;
-
-	eprintf("new-gw %s %i.%i.%i.%i\n",
-			ls->name, gw[0], gw[1], gw[2], gw[3]);
+	gate_open(*oif, gw);
 }
 
 void msg_del_route(struct rtmsg* msg)
 {
-	struct link* ls;
 	uint32_t* oif;
 	uint8_t* gw;
 
@@ -237,16 +217,8 @@ void msg_del_route(struct rtmsg* msg)
 		return;
 	if(!(gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
 		return;
-	if(!(ls = find_link_slot(*oif)))
-		return;
-	if(gateway.ifi != *oif)
-		return;
-	if(memcmp(gateway.ip, gw, 4))
-		return;
 
-	memzero(&gateway, sizeof(gateway));
-
-	eprintf("del-gw %s\n", ls->name);
+	gate_lost(*oif, gw);
 }
 
 /* At most one dump may be running at a time; requesting more results

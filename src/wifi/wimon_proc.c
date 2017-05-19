@@ -72,7 +72,12 @@ void link_deconfed(struct link* ls)
 {
 	if(!(ls->flags & S_TERMRQ))
 		return;
+
 	ls->flags &= ~S_TERMRQ;
+
+	if(!(ls->flags & S_WIRELESS))
+		set_link_operstate(ls->ifi, IF_OPER_DOWN);
+
 	link_terminated(ls);
 }
 
@@ -88,6 +93,7 @@ static void wait_for_children(struct link* ls)
 
 void terminate_link(struct link* ls)
 {
+	ls->flags &= ~S_ACTIVE;
 	ls->flags |= S_TERMRQ;
 	stop_link_procs(ls->ifi, 0);
 	wait_for_children(ls);

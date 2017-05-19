@@ -7,7 +7,6 @@ struct link links[NLINKS];
 struct scan scans[NSCANS];
 int nlinks;
 int nscans;
-struct gate gateway;
 struct child children[NCHILDREN];
 int nchildren;
 

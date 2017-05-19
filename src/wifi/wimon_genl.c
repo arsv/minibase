@@ -212,10 +212,8 @@ static void msg_connect(struct link* ls, struct nlgen* msg)
 				ls->name,
 				bssid[0], bssid[1], bssid[2],
 				bssid[3], bssid[4], bssid[5]);
-		memcpy(ls->bssid, bssid, 6);
 	} else {
 		eprintf("connect %s to ???\n", ls->name);
-		memset(ls->bssid, 0, 6);
 	}
 
 	ls->flags |= S_CONNECT;
@@ -225,9 +223,7 @@ static void msg_disconnect(struct link* ls, struct nlgen* msg)
 {
 	if(!(ls->flags & S_CONNECT))
 		return;
-
 	ls->flags &= ~S_CONNECT;
-	memset(ls->bssid, 0, 6);
 	eprintf("wifi %s disconnected\n", ls->name);
 }
 

@@ -6,6 +6,7 @@
 
 #include "wimon.h"
 
+struct uplink uplink;
 struct wifi wifi;
 
 static int allbits(int val, int bits)
@@ -69,7 +70,7 @@ static void check_new_aps(int ifi)
 
 static int check_ssid(struct scan* sc)
 {
-	if(wifi.mode == WM_FREESCAN)
+	if(wifi.mode == WM_ROAMING)
 		return 1; /* any ap will do */
 	if(wifi.mode != WM_FIXEDAP)
 		return 0; /* something's wrong */
@@ -113,7 +114,7 @@ static struct scan* get_best_ap(void)
 	return best;
 }
 
-static int any_ongoing_scans(void)
+int any_ongoing_scans(void)
 {
 	struct link* ls;
 
@@ -190,7 +191,7 @@ static int scannable(struct link* ls)
 	return 1;
 }
 
-static int any_active_wifis(void)
+int any_active_wifis(void)
 {
 	struct link* ls;
 
@@ -214,9 +215,12 @@ static void reassess_wifi_situation(void)
 {
 	eprintf("%s\n", __FUNCTION__);
 
-	if(!any_active_wifis())
-		return;
 	if(connect_to_something())
+		return;
+
+	unlatch(LA_WIFI_CONF, NULL, -ESRCH);
+
+	if(!any_active_wifis())
 		return;
 
 	eprintf("next scan in 60sec\n");
@@ -241,7 +245,7 @@ static struct scan* find_current_ap(void)
 	return NULL;
 }
 
-static void handle_failed_connection(void)
+static void wifi_failure(void)
 {
 	struct scan* sc;
 
@@ -268,11 +272,13 @@ reset:
 	reassess_wifi_situation();
 }
 
-static void handle_successful_connection(void)
+static void wifi_success(void)
 {
 	struct scan* sc;
 
 	eprintf("%s\n", __FUNCTION__);
+
+	unlatch(LA_WIFI_CONF, NULL, 0);
 
 	if((sc = find_current_ap()))
 		sc->tries = 0;
@@ -283,6 +289,15 @@ static void handle_successful_connection(void)
 	}
 
 	wifi.state = WS_CONNECTED;
+}
+
+static void uplink_down(void)
+{
+	if(uplink.mode != UL_DOWN)
+		return;
+
+	uplink.mode = 0;
+	uplink.ifi = 0;
 }
 
 /* link_* are notification of link status changes from the NL code */
@@ -301,8 +316,8 @@ void link_wifi(struct link* ls)
 	if(!scannable(ls))
 		return;
 	if(wifi.mode == WM_UNDECIDED)
-		wifi.mode = WM_FREESCAN;
-	if(wifi.mode == WM_FREESCAN)
+		wifi.mode = WM_ROAMING;
+	if(wifi.mode == WM_ROAMING)
 		trigger_scan(ls, 0);
 }
 
@@ -310,27 +325,28 @@ void link_enabled(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(!scannable(ls))
-		return;
-	if(wifi.mode == WM_FREESCAN)
-		trigger_scan(ls, 0);
+	if(ls->flags & S_WIRELESS) {
+		if(!scannable(ls))
+			return;
+		if(wifi.mode == WM_ROAMING)
+			trigger_scan(ls, 0);
+	} else {
+		/* The link came up but there's no carrier */
+		if(!(ls->flags & S_CARRIER))
+			unlatch(LA_LINK_CONF, ls, -ENETDOWN);
+	}
 }
 
 void link_scan_done(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	check_new_aps(ls->ifi);
-
-	if(latch.evt == LA_SCAN && (ls->ifi == latch.ifi || !latch.ifi))
-		latch_check(ls, LA_SCAN);
-
 	if(any_ongoing_scans())
 		return;
 
-	eprintf("wifi mode=%i state=%i\n", wifi.mode, wifi.state);
-	if(wifi.mode == WM_DISABLED)
-		return;
+	check_new_aps(ls->ifi);
+	unlatch(LA_WIFI_SCAN, NULL, 0);
+
 	if(wifi.state != WS_NONE)
 		return;
 
@@ -356,17 +372,51 @@ void link_configured(struct link* ls)
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
 	if(ls->ifi == wifi.ifi)
-		handle_successful_connection();
-	if(ls->ifi == latch.ifi || !latch.ifi)
-		latch_check(ls, LA_CONF);
+		wifi_success();
 }
 
 void link_terminated(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(ls->ifi == latch.ifi || !latch.ifi)
-		latch_check(ls, LA_DOWN);
+	unlatch(LA_LINK_DOWN, ls, 0);
+	unlatch(LA_LINK_CONF, ls, -ENODEV);
+
+	if(!any_ongoing_scans())
+		unlatch(LA_WIFI_SCAN, NULL, -ENODEV);
+	if(!any_active_wifis())
+		unlatch(LA_WIFI_CONF, NULL, -ENODEV);
+
 	if(ls->ifi == wifi.ifi)
-		handle_failed_connection();
+		wifi_failure();
+	if(ls->ifi == uplink.ifi)
+		uplink_down();
+}
+
+/* TODO: default routes may come without gateway */
+
+void gate_open(int ifi, uint8_t gw[4])
+{
+	eprintf("%s %i.%i.%i.%i via %i\n", __FUNCTION__,
+			gw[0], gw[1], gw[2], gw[3], ifi);
+
+	if(ifi != uplink.ifi)
+		return;
+
+	uplink.routed = 1;
+	memcpy(uplink.gw, gw, 4);
+}
+
+void gate_lost(int ifi, uint8_t gw[4])
+{
+	eprintf("%s %i.%i.%i.%i via %i\n", __FUNCTION__,
+			gw[0], gw[1], gw[2], gw[3], ifi);
+
+	if(ifi != uplink.ifi)
+		return;
+	if(memcmp(gw, uplink.gw, 4))
+		return;
+
+	uplink.routed = 0;
+	memset(uplink.gw, 0, 4);
 }

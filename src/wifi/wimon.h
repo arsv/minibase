@@ -51,7 +51,7 @@
 /* wifi.mode */
 #define WM_UNDECIDED   0
 #define WM_DISABLED    1
-#define WM_FREESCAN    2
+#define WM_ROAMING     2
 #define WM_FIXEDAP     3
 /* wifi.state */
 #define WS_NONE        0
@@ -62,9 +62,17 @@
 #define WF_UNSAVED     (1<<0)
 
 /* latch.evt */
-#define LA_DOWN        1
-#define LA_SCAN        2
-#define LA_CONF        3
+#define LA_NONE        0
+#define LA_WIFI_CONF   1
+#define LA_WIFI_SCAN   2
+#define LA_LINK_CONF   4
+#define LA_LINK_DOWN   5
+
+/* uplink.ifset */
+#define ANYWIFI       -1
+
+/* Netdev state tracking, and some low key per-device configuration.
+   One of these is kept for each non-loopback kernel device. */
 
 struct link {
 	int ifi;
@@ -72,13 +80,15 @@ struct link {
 	char name[NAMELEN+2];
 	short flags;
 
-	uint8_t bssid[6];
 	uint8_t ip[4];
 	uint8_t mask;
 
 	uint8_t scan;
 	uint8_t mode;
 };
+
+/* Persistent scan list entry. Wimon caches short-lived scan results
+   for later usage. */
 
 struct scan {
 	int ifi;
@@ -93,21 +103,30 @@ struct scan {
 	uint8_t ssid[SSIDLEN];
 };
 
-struct gate {
-	int ifi;
-	uint8_t ip[4];
-};
+/* Child process tracking. Each child is bound to a specific link. */
 
 struct child {
 	int ifi;
 	int pid;
 };
 
-struct latch {
-	int evt;
+/* Primary gateway control and tracking. This is mostly to tell whether
+   wimon should stop one interface before attempting to start another. */
+
+#define UL_NONE  0
+#define UL_DOWN -1
+#define UL_WIFI -2
+/* and anything positive means fixed uplink ifi */
+
+struct uplink {
+	int mode;
 	int ifi;
-	int cfd;
+	short routed;
+	uint8_t gw[4];
 };
+
+/* Wireless config automation. Singular and generally *not* bound
+   to a specific device. */
 
 struct wifi {
 	short mode;
@@ -123,6 +142,12 @@ struct wifi {
 	char psk[2*32+1];
 };
 
+struct latch {
+	int evt;
+	int ifi;
+	int cfd;
+};
+
 extern struct link links[];
 extern struct scan scans[];
 extern int nlinks;
@@ -131,9 +156,9 @@ extern struct gate gateway;
 extern struct child children[];
 extern int nchildren;
 
+extern struct uplink uplink;
 extern struct wifi wifi;
 extern struct latch latch;
-extern int uplink;
 
 struct netlink;
 struct nlmsg;
@@ -194,6 +219,9 @@ void link_scan_done(struct link* ls);
 void link_configured(struct link* ls);
 void link_terminated(struct link* ls);
 
+void gate_open(int ifi, uint8_t gw[4]);
+void gate_lost(int ifi, uint8_t gw[4]);
+
 /* wimon_proc.c */
 
 void link_deconfed(struct link* ls);
@@ -215,4 +243,7 @@ int saved_psk_prio(uint8_t* ssid, int slen);
 int load_psk(uint8_t* ssid, int slen, char* psk, int plen);
 void save_psk(uint8_t* ssid, int slen, char* psk, int plen);
 
-void latch_check(struct link* ls, int evt);
+int setlatch(int evt, struct link* ls, int cfd);
+void unlatch(int evt, struct link* ls, int err);
+int any_ongoing_scans(void);
+int any_active_wifis(void);

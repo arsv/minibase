@@ -27,8 +27,11 @@
 
 #define TIMEOUT 1
 
+#define NOERROR 0
+#define REPLIED 1
+#define LATCHED 2
+
 struct latch latch;
-int uplink;
 
 static void reply(int fd, struct ucbuf* uc)
 {
@@ -45,11 +48,6 @@ static void reply_simple(int fd, int err)
 	uc_put_end(&uc);
 
 	reply(fd, &uc);
-}
-
-static void unknown_command(int fd)
-{
-	reply_simple(fd, -ENOSYS);
 }
 
 static int estimate_scalist(void)
@@ -117,7 +115,7 @@ static void put_status_scans(struct ucbuf* uc)
 	}
 }
 
-static void cmd_status(int fd, struct ucmsg* msg)
+static int cmd_status(int fd, struct ucmsg* msg)
 {
 	struct heap hp;
 	struct ucbuf uc;
@@ -133,6 +131,8 @@ static void cmd_status(int fd, struct ucmsg* msg)
 	reply(fd, &uc);
 
 	free_heap(&hp);
+
+	return REPLIED;
 }
 
 static void reply_scanlist(int fd, int ifi)
@@ -163,161 +163,196 @@ static void reply_scanlist(int fd, int ifi)
 
 static void latch_reset(void)
 {
-	if(latch.cfd)
-		sysclose(latch.cfd);
+	sysclose(latch.cfd);
 
 	latch.cfd = 0;
 	latch.evt = 0;
 	latch.ifi = 0;
 }
 
-static int latch_lock(int cfd, int evt, int ifi)
+void unlatch(int evt, struct link* ls, int err)
 {
+	int cfd = latch.cfd;
+
+	if(!latch.cfd)
+		return;
+	if(latch.evt && evt != latch.evt)
+		return;
+	if(latch.ifi && ls->ifi != latch.ifi)
+		return;
+
+	sysalarm(TIMEOUT);
+
+	if(err)
+		reply_simple(cfd, err);
+	else if(evt == LA_WIFI_SCAN)
+		reply_scanlist(cfd, latch.ifi);
+	else
+		reply_simple(cfd, 0);
+
+	sysalarm(0);
+
+	latch_reset();
+}
+
+static int cmd_scan(int fd, struct ucmsg* msg)
+{
+	if(!any_active_wifis())
+		return -ENODEV;
+
+	scan_all_wifis();
+
+	return setlatch(LA_WIFI_SCAN, NULL, fd);
+}
+
+static int cmd_cancel(int fd, struct ucmsg* msg)
+{
+	if(latch.cfd)
+		return NOERROR;
+
+	reply_simple(latch.cfd, -EINTR);
+	latch_reset();
+
+	return NOERROR;
+}
+
+static int precheck(int evt, struct link* ls)
+{
+	switch(evt) {
+		case LA_LINK_CONF:
+		case LA_LINK_DOWN:
+			if(!ls) return 1;
+	}
+	switch(evt) {
+		case LA_LINK_CONF:
+			return (ls->flags & S_IPADDR);
+		case LA_LINK_DOWN:
+			return !(ls->flags & S_ACTIVE);
+		case LA_WIFI_CONF:
+			return wifi.state == WS_CONNECTED;
+		case LA_WIFI_SCAN:
+			return !any_ongoing_scans();
+		default:
+			return 1;
+	}
+}
+
+int setlatch(int evt, struct link* ls, int cfd)
+{
+	if(precheck(evt, ls))
+		return NOERROR;
 	if(latch.cfd)
 		return -EBUSY;
 
 	latch.cfd = cfd;
 	latch.evt = evt;
-	latch.ifi = ifi;
+	latch.ifi = ls ? ls->ifi : 0;
 
-	return 0;
+	return LATCHED;
 }
 
-void latch_check(struct link* ls, int evt)
+static int cmd_neutral(int fd, struct ucmsg* msg)
 {
-	int cfd = latch.cfd;
-	int exp = latch.evt;
-
-	if(!latch.cfd)
-		return;
-	if(latch.ifi && ls->ifi != latch.ifi)
-		return;
-	if(evt != exp && evt != LA_DOWN)
-		return;
-
-	if(evt == LA_DOWN && exp != LA_DOWN)
-		reply_simple(cfd, -ENODEV);
-	else if(evt == LA_CONF)
-		reply_simple(cfd, 0);
-	else if(evt == LA_DOWN)
-		reply_simple(cfd, 0);
-	else if(evt == LA_SCAN)
-		reply_scanlist(cfd, latch.ifi);
-
-	latch_reset();
-}
-
-static int find_iface(int iflags)
-{
-	int ifi = 0;
 	struct link* ls;
-	int mask = S_WIRELESS;
+
+	if(uplink.mode == UL_NONE)
+		return NOERROR;
+	if(uplink.mode == UL_DOWN)
+		return -EBUSY;
+
+	if(uplink.mode == UL_WIFI)
+		wifi.mode = 0;
+
+	if(!uplink.ifi) {
+		uplink.mode = UL_NONE;
+		return NOERROR;
+	} else if(!(ls = find_link_slot(uplink.ifi))) {
+		uplink.mode = UL_NONE;
+		uplink.ifi = 0;
+		return NOERROR;
+	}
+
+	uplink.mode = UL_DOWN;
+	terminate_link(ls);
+
+	return setlatch(LA_LINK_DOWN, ls, fd);
+}
+
+static int attr_ifi(struct ucmsg* msg)
+{
+	uint32_t* u32 = uc_get_u32(msg, ATTR_IFI);
+	return u32 ? *u32 : 0;
+}
+
+static struct link* find_wired_link(struct ucmsg* msg)
+{
+	struct link *ls, *lls = NULL;
+	int ifi;
+
+	if((ifi = attr_ifi(msg)))
+		return find_link_slot(ifi);
 
 	for(ls = links; ls < links + nlinks; ls++) {
 		if(!ls->ifi)
 			continue;
-		if((ls->flags & mask) != iflags)
+		if(ls->mode & LM_NOTOUCH)
 			continue;
-		ifi = ifi ? -1 : ls->ifi;
+		if(ls->flags & S_WIRELESS)
+			continue;
+		if(lls)
+			return NULL;
+		lls = ls;
 	}
 
-	if(ifi < 0)
-		return -ESRCH;
-	if(ifi == 0)
+	return lls;
+}
+
+static int cmd_wired(int fd, struct ucmsg* msg)
+{
+	struct link* ls;
+
+	if(!(ls = find_wired_link(msg)))
 		return -ENODEV;
+	if(uplink.mode && uplink.mode != ls->ifi)
+		return -EBUSY;
 
-	return ifi;
+	ls->mode &= ~(LM_LOCAL | LM_NOTOUCH);
+
+	if(!(ls->flags & S_ENABLED))
+		set_link_operstate(ls->ifi, IF_OPER_UP);
+	else if(ls->flags & S_CARRIER)
+		link_carrier(ls);
+	else
+		return -ENETDOWN;
+
+	uplink.mode = ls->ifi;
+	uplink.ifi = ls->ifi;
+
+	return setlatch(LA_LINK_CONF, ls, fd);
 }
 
-static void cmd_wired(int fd, struct ucmsg* msg)
+static const struct cmd {
+	int cmd;
+	int (*call)(int fd, struct ucmsg* msg);
+} commands[] = {
+	{ CMD_STATUS,  cmd_status  },
+	{ CMD_NEUTRAL, cmd_neutral },
+	{ CMD_WIRED,   cmd_wired   },
+	{ CMD_SCAN,    cmd_scan    },
+	{ CMD_CANCEL,  cmd_cancel  },
+	{ 0,           NULL        }
+};
+
+static int dispatch_cmd(int fd, struct ucmsg* msg)
 {
-	int ret, ifi;
+	const struct cmd* cd;
+	int cmd = msg->cmd;
 
-	if((ifi = find_iface(0)) < 0)
-		return reply_simple(fd, ifi);
-	if((ret = latch_lock(fd, LA_CONF, ifi)))
-		return reply_simple(fd, ret);
+	for(cd = commands; cd->cmd; cd++)
+		if(cd->cmd == cmd)
+			return cd->call(fd, msg);
 
-	reply_simple(fd, -ENOSYS);
-}
-
-static void cmd_wless(int fd, struct ucmsg* msg)
-{
-	int ret, ifi;
-
-	if((ifi = find_iface(S_WIRELESS)) < 0)
-		return reply_simple(fd, ifi);
-	if((ret = latch_lock(fd, LA_CONF, ifi)))
-		return reply_simple(fd, ret);
-
-	reply_simple(fd, -ENOSYS);
-}
-
-static void cmd_stop(int fd, struct ucmsg* msg)
-{
-	int ret, ifi = uplink;
-	struct link* ls;
-
-	if(!ifi)
-		return reply_simple(fd, -ECHILD);
-	if(!(ls = find_link_slot(ifi)))
-		return reply_simple(fd, -ENODEV);
-	if((ret = latch_lock(fd, LA_DOWN, ifi)))
-		return reply_simple(fd, ret);
-
-	terminate_link(ls);
-}
-
-static void cmd_scan(int fd, struct ucmsg* msg)
-{
-	int ret;
-
-	if((ret = latch_lock(fd, LA_SCAN, 0)))
-		return reply_simple(fd, ret);
-
-	scan_all_wifis();
-}
-
-static void cmd_reconn(int fd, struct ucmsg* msg)
-{
-	int ret;
-	struct link* ls;
-
-	eprintf("wifi ifi=%i state=%i\n", wifi.ifi, wifi.state);
-	if(!wifi.ifi)
-		return reply_simple(fd, -ENOTCONN);
-	if(wifi.state != WS_CONNECTED)
-		return reply_simple(fd, -ENOTCONN);
-	if(!(ls = find_link_slot(wifi.ifi)))
-		return reply_simple(fd, -ENODEV);
-	if((ret = latch_lock(fd, LA_DOWN, wifi.ifi)))
-		return reply_simple(fd, ret);
-
-	trigger_disconnect(wifi.ifi);
-}
-
-static void cmd_cancel(int fd, struct ucmsg* msg)
-{
-	if(!latch.cfd)
-		return reply_simple(fd, -ECHILD);
-
-	latch_reset();
-
-	reply_simple(fd, 0);
-}
-
-static void parse_cmd(int fd, struct ucmsg* msg)
-{
-	switch(msg->cmd) {
-		case CMD_STATUS: return cmd_status(fd, msg);
-		case CMD_WIRED: return cmd_wired(fd, msg);
-		case CMD_WLESS: return cmd_wless(fd, msg);
-		case CMD_STOP: return cmd_stop(fd, msg);
-		case CMD_SCAN: return cmd_scan(fd, msg);
-		case CMD_RECONN: return cmd_reconn(fd, msg);
-		case CMD_CANCEL: return cmd_cancel(fd, msg);
-		default: return unknown_command(fd);
-	}
+	return -ENOSYS;
 }
 
 static void read_cmd(int fd)
@@ -325,17 +360,25 @@ static void read_cmd(int fd)
 	int rb;
 	char rbuf[64+4];
 	struct ucmsg* msg;
+	int err;
 
 	/* XXX: multiple messages here? */
 	if((rb = sysread(fd, rbuf, sizeof(rbuf))) <= 0)
 		return warn("recvmsg", rb ? NULL : "empty message", rb);
 
 	if(rb > sizeof(rbuf)-4)
-		return reply_simple(fd, -E2BIG);
-	if(!(msg = uc_msg(rbuf, rb)))
-		return reply_simple(fd, -EBADMSG);
+		err = -E2BIG;
+	else if(!(msg = uc_msg(rbuf, rb)))
+		err = -EBADMSG;
+	else
+		err = dispatch_cmd(fd, msg);
 
-	parse_cmd(fd, msg);
+	if(err == LATCHED)
+		return;
+	if(err != REPLIED)
+		reply_simple(fd, err);
+
+	sysclose(fd);
 }
 
 void accept_ctrl(int sfd)
@@ -349,8 +392,6 @@ void accept_ctrl(int sfd)
 		gotcmd = 1;
 		sysalarm(TIMEOUT);
 		read_cmd(cfd);
-		if(latch.cfd != cfd)
-			sysclose(cfd);
 	} if(gotcmd) {
 		/* disable the timer in case it has been set */
 		sysalarm(0);
