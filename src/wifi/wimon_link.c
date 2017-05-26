@@ -68,7 +68,10 @@ void link_carrier(struct link* ls)
 
 	if(ls->mode & (LM_NOT | LM_OFF))
 		return;
-	else if(ls->mode & LM_STATIC)
+
+	ls->flags |= S_MANAGED;
+
+	if(ls->mode & LM_STATIC)
 		; /* XXX */
 	else if(ls->mode & LM_LOCAL)
 		spawn_dhcp(ls, "-g");
@@ -86,28 +89,54 @@ void link_ipaddr(struct link* ls)
 		wifi_connected(ls);
 }
 
+static int any_stopping_links(void)
+{
+	struct link* ls;
+
+	for(ls = links; ls < links + nlinks; ls++)
+		if(!ls->ifi || (ls->mode & LM_NOT))
+			continue;
+		else if(ls->flags & S_STOPPING) {
+			eprintf("waiting for %s\n", ls->name);
+			return 1;
+		}
+
+	return 0;
+}
+
 /* Whenever a link goes down, for any reason, all its remaining procs must
    be stopped and its ip configuration must be flushed. Not doing this means
    the link may be left in mid-way state, confusing the usespace. */
 
 static void wait_link_down(struct link* ls)
 {
-	if(ls->flags & S_CHILDREN)
-		return stop_link_procs(ls, 0);
-	if(ls->flags & S_IPADDR)
-		return del_link_addresses(ls->ifi);
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	ls->flags &= ~S_STOPPING;
+	if(ls->flags & S_CHILDREN) {
+		eprintf("  children\n");
+		return stop_link_procs(ls, 0);
+	} if(ls->flags & S_IPADDR) {
+		eprintf("  ipaddrs\n");
+		return del_link_addresses(ls->ifi);
+	}
+
+	eprintf("stopped %s\n", ls->name);
+
+	if(ls->flags & S_NL80211)
+		wifi_conn_fail(ls);
+
+	ls->flags &= ~(S_STOPPING | S_MANAGED);
 
 	unlatch(ls->ifi, DOWN, 0);
 	unlatch(ls->ifi, CONF, -ENETDOWN);
 
-	if(ls->flags & S_NL80211)
-		wifi_conn_fail(ls);
+	if(!any_stopping_links())
+		unlatch(NONE, DOWN, 0);
 }
 
 void terminate_link(struct link* ls)
 {
+	eprintf("terminating %s\n", ls->name);
 	ls->flags |= S_STOPPING;
 
 	wait_link_down(ls);
@@ -121,6 +150,8 @@ void link_ipgone(struct link* ls)
 {
 	if(ls->flags & S_STOPPING)
 		return wait_link_down(ls);
+	if(!(ls->flags & S_MANAGED))
+		return;
 	if(ls->flags & S_CARRIER)
 		link_carrier(ls);
 }
@@ -129,11 +160,14 @@ void link_down(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	terminate_link(ls);
+	if(!(ls->flags & S_STOPPING))
+		terminate_link(ls);
 }
 
 void link_child_exit(struct link* ls, int status)
 {
+	eprintf("%s %s %i\n", __FUNCTION__, ls->name, status);
+
 	if(ls->flags & S_STOPPING)
 		wait_link_down(ls);
 	else if(status)
@@ -155,39 +189,11 @@ void link_gone(struct link* ls)
 		wifi_gone(ls);
 }
 
-/* TODO: default routes may come without gateway */
-
-void gate_open(int ifi, uint8_t gw[4])
-{
-	eprintf("%s %i.%i.%i.%i via %i\n", __FUNCTION__,
-			gw[0], gw[1], gw[2], gw[3], ifi);
-
-	if(ifi != uplink.ifi)
-		return;
-
-	uplink.routed = 1;
-	memcpy(uplink.gw, gw, 4);
-}
-
-void gate_lost(int ifi, uint8_t gw[4])
-{
-	eprintf("%s %i.%i.%i.%i via %i\n", __FUNCTION__,
-			gw[0], gw[1], gw[2], gw[3], ifi);
-
-	if(ifi != uplink.ifi)
-		return;
-	if(memcmp(gw, uplink.gw, 4))
-		return;
-
-	uplink.routed = 0;
-	memset(uplink.gw, 0, 4);
-}
-
 /* When wimon exits, remove addresses from managed links.
    This is primarily meant for wireless links but makes some sense
    for ethernet ports as well. */
 
-void stop_proc_links(void)
+void finalize_links(void)
 {
 	struct link* ls;
 
@@ -196,6 +202,29 @@ void stop_proc_links(void)
 			continue;
 		if(ls->flags & S_IPADDR)
 			del_link_addresses(ls->ifi);
+		if(ls->flags & S_ENABLED)
+			set_link_operstate(ls->ifi, IF_OPER_DOWN);
 		/* del_link_routes */
 	}
+}
+
+int stop_all_links(void)
+{
+	struct link* ls;
+	int down = 0;
+
+	for(ls = links; ls < links + nlinks; ls++) {
+		if(!ls->ifi || (ls->mode & LM_NOT))
+			continue;
+
+		if(!(ls->flags & (S_CHILDREN | S_IPADDR)))
+			continue;
+
+		terminate_link(ls);
+
+		if(ls->flags & S_STOPPING)
+			down++;
+	}
+
+	return down;
 }

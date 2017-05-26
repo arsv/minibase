@@ -10,6 +10,8 @@ int nscans;
 struct child children[NCHILDREN];
 int nchildren;
 
+struct uplink uplink; /* single one for now */
+
 struct link* find_link_slot(int ifi)
 {
 	struct link* ls;

@@ -16,7 +16,9 @@
 ERRTAG = "wimon";
 ERRLIST = {
 	REPORT(ENOMEM), REPORT(EINVAL), REPORT(ENOBUFS), REPORT(EFAULT),
-	REPORT(EINTR), REPORT(ENOENT), REPORT(EBUSY), RESTASNUMBERS
+	REPORT(EINTR), REPORT(ENOENT), REPORT(EBUSY), REPORT(EADDRNOTAVAIL),
+	REPORT(ENETDOWN),
+	RESTASNUMBERS
 };
 
 char** environ;
@@ -236,7 +238,7 @@ static void stop_wait_procs(void)
 	eprintf("%s\n", __FUNCTION__);
 
 	stop_all_procs();
-	stop_proc_links();
+	finalize_links();
 
 	while(1) {
 		if(!any_pids_left())

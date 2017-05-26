@@ -39,6 +39,8 @@ void stop_link_procs(struct link* ls, int drop)
 	if(ls->flags & S_SIGSENT)
 		return;
 
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
+
 	ls->flags |= S_SIGSENT;
 
 	for(ch = children; ch < children + nchildren; ch++) {

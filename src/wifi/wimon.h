@@ -19,10 +19,12 @@
 #define S_CONNECT  (1<<3)
 #define S_CARRIER  (1<<4)
 #define S_IPADDR   (1<<5)
+#define S_UPLINK   (1<<6)
 
-#define S_CHILDREN (1<<6)
-#define S_SIGSENT  (1<<7)
+#define S_CHILDREN (1<<7)
 #define S_STOPPING (1<<8)
+#define S_SIGSENT  (1<<9)
+#define S_MANAGED  (1<<10)
 
 /* link.scan */
 #define SC_NONE        0
@@ -47,6 +49,7 @@ struct link {
 	int seq;
 	char name[NAMELEN+2];
 	short flags;
+	short defrt;
 
 	uint8_t ip[4];
 	uint8_t mask;
@@ -130,9 +133,8 @@ struct wifi {
 /* and anything positive means fixed uplink ifi */
 
 struct uplink {
-	int mode;
 	int ifi;
-	short routed;
+	int cnt;
 	uint8_t gw[4];
 };
 
@@ -208,12 +210,10 @@ void link_ipaddr(struct link* ls);
 void link_ipgone(struct link* ls);
 void link_child_exit(struct link* ls, int status);
 
-void gate_open(int ifi, uint8_t gw[4]);
-void gate_lost(int ifi, uint8_t gw[4]);
-
-void stop_proc_links(void);
 int any_pids_left(void);
 void terminate_link(struct link* ls);
+void finalize_links(void);
+int stop_all_links(void);
 
 /* wimon_wifi.c */
 
@@ -248,6 +248,7 @@ void save_psk(uint8_t* ssid, int slen, char* psk, int plen);
 /* wimon_ctrl.c */
 
 /* latch.ifi */
+#define NONE 0
 #define WIFI -1
 /* latch.evt */
 #define CONF 1

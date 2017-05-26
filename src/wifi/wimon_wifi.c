@@ -223,6 +223,9 @@ static void reassess_wifi_situation(void)
 {
 	eprintf("%s\n", __FUNCTION__);
 
+	if(wifi.mode == WM_DISABLED)
+		return;
+
 	if(connect_to_something())
 		return;
 
@@ -322,6 +325,8 @@ void wifi_conn_fail(struct link* ls)
 
 	if(ls->ifi != wifi.ifi)
 		return; /* stray wifi interface */
+	if(ls->flags & S_STOPPING)
+		goto reset; /* intentional stop */
 
 	if((sc = find_current_ap()))
 		sc->tries++;

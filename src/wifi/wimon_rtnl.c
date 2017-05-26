@@ -69,6 +69,8 @@ void del_link_addresses(int ifi)
 {
 	struct ifaddrmsg* req;
 
+	eprintf("%s %i\n", __FUNCTION__, ifi);
+
 	nl_header(&rtnl, req, RTM_DELADDR, 0,
 		.family = AF_INET,
 		.prefixlen = 0,
@@ -130,6 +132,8 @@ void msg_new_link(struct ifinfomsg* msg)
 			link_carrier(ls);
 		else if(bitgain(prev, curr, S_ENABLED))
 			link_enabled(ls);
+		else if(bitgain(curr, prev, S_ENABLED))
+			link_down(ls);
 	}
 }
 
@@ -190,10 +194,13 @@ void msg_del_addr(struct ifaddrmsg* msg)
 	link_ipgone(ls);
 }
 
+/* Low-key default route tracking */
+
 void msg_new_route(struct rtmsg* msg)
 {
 	uint32_t* oif;
 	uint8_t* gw;
+	struct link* ls;
 
 	if(msg->type != RTN_UNICAST)
 		return;
@@ -201,25 +208,50 @@ void msg_new_route(struct rtmsg* msg)
 		return;
 	if(!(oif = nl_u32(rtm_get(msg, RTA_OIF))))
 		return;
-	if(!(gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
-		return; /* not a gw route */
+	if(!(ls = find_link_slot(*oif)))
+		return;
 
-	gate_open(*oif, gw);
+	ls->defrt++;
+	ls->flags |= S_UPLINK;
+
+	if(uplink.ifi == *oif)
+		uplink.cnt++;
+	if(uplink.ifi)
+		return;
+
+	uplink.ifi = *oif;
+	uplink.cnt = 1;
+
+	if((gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
+		memcpy(uplink.gw, gw, 4);
+	else
+		memset(uplink.gw, 0, 4);
 }
 
 void msg_del_route(struct rtmsg* msg)
 {
 	uint32_t* oif;
 	uint8_t* gw;
+	struct link* ls;
 
 	if(msg->dst_len)
 		return;
 	if(!(oif = nl_u32(rtm_get(msg, RTA_OIF))))
 		return;
-	if(!(gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
+	if(!(ls = find_link_slot(*oif)))
 		return;
 
-	gate_lost(*oif, gw);
+	if(--ls->defrt <= 0)
+		ls->flags &= ~S_UPLINK;
+
+	if(uplink.ifi != *oif)
+		return;
+	if(--uplink.cnt <= 0)
+		uplink.ifi = 0;
+
+	if((gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
+		if(!memcmp(uplink.gw, gw, 4))
+			memset(uplink.gw, 0, 4);
 }
 
 /* At most one dump may be running at a time; requesting more results

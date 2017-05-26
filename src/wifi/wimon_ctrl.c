@@ -4,8 +4,6 @@
 #include <sys/alarm.h>
 #include <sys/bind.h>
 #include <sys/close.h>
-#include <sys/getsockopt.h>
-#include <sys/getuid.h>
 #include <sys/kill.h>
 #include <sys/listen.h>
 #include <sys/read.h>
@@ -36,6 +34,8 @@ struct {
 	int ifi;
 	int cfd;
 } latch;
+
+int uplock;
 
 static void reply(int fd, struct ucbuf* uc)
 {
@@ -235,32 +235,14 @@ static int cmd_cancel(int fd, struct ucmsg* msg)
 
 static int cmd_neutral(int fd, struct ucmsg* msg)
 {
-	struct link* ls;
-
 	eprintf("%s\n", __FUNCTION__);
-
-	if(uplink.mode == UL_NONE)
-		return NOERROR;
-	if(uplink.mode == UL_DOWN)
-		return -EBUSY;
 
 	wifi.mode = WM_DISABLED;
 
-	eprintf("%s uplink mode=%i ifi=%i\n", __FUNCTION__,
-			uplink.mode, uplink.ifi);
-	if(!uplink.ifi) {
-		uplink.mode = UL_NONE;
+	if(!stop_all_links())
 		return NOERROR;
-	} else if(!(ls = find_link_slot(uplink.ifi))) {
-		uplink.mode = UL_NONE;
-		uplink.ifi = 0;
-		return NOERROR;
-	}
 
-	uplink.mode = UL_DOWN;
-	terminate_link(ls);
-
-	return setlatch(ls->ifi, DOWN, fd);
+	return setlatch(NONE, DOWN, fd);
 }
 
 static int attr_ifi(struct ucmsg* msg)
@@ -300,12 +282,14 @@ static int cmd_wired(int fd, struct ucmsg* msg)
 
 	if(!(ls = find_wired_link(msg)))
 		return -ENODEV;
-	if(uplink.mode && uplink.mode != ls->ifi)
+	if(uplock == ls->ifi)
+		return NOERROR;
+	else if(uplock)
 		return -EBUSY;
 	if(latch.cfd)
 		return -EBUSY;
 
-	ls->mode &= ~(LM_LOCAL | LM_NOT);
+	ls->mode &= ~(LM_LOCAL | LM_NOT | LM_OFF);
 
 	if(!(ls->flags & S_ENABLED))
 		set_link_operstate(ls->ifi, IF_OPER_UP);
@@ -314,29 +298,28 @@ static int cmd_wired(int fd, struct ucmsg* msg)
 	else
 		return -ENETDOWN;
 
-	uplink.mode = ls->ifi;
-	uplink.ifi = ls->ifi;
+	uplock = ls->ifi;
 
 	return setlatch(ls->ifi, CONF, fd);
 }
 
 static int cmd_roaming(int fd, struct ucmsg* msg)
 {
+	int ret;
+
 	eprintf("%s\n", __FUNCTION__);
 
-	if(uplink.mode > 0)
+	if(uplock && uplock != WIFI)
 		return -EBUSY;
-	if(wifi.mode == WM_ROAMING)
-		return NOERROR;
 
+	uplock = WIFI;
 	wifi.mode = WM_ROAMING;
 
-	if(wifi.state == WS_CONNECTED)
-		return NOERROR;
+	if(wifi.state == WS_NONE)
+		if((ret = start_wifi_scan()) < 0)
+			return ret;
 
-	start_wifi_scan();
-
-	return setlatch(WIFI, CONF, fd);
+	return NOERROR;
 }
 
 static const struct cmd {
