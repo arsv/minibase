@@ -129,17 +129,17 @@ static struct link* grab_genl_link(struct nlgen* msg)
 
 static void msg_new_wifi(struct link* ls, struct nlgen* msg)
 {
-	if(ls->flags & S_WIRELESS)
+	if(ls->flags & S_NL80211)
 		return;
 
-	ls->flags |= S_WIRELESS;
+	ls->flags |= S_NL80211;
 
-	link_wifi(ls);
+	link_nl80211(ls);
 }
 
 static void msg_del_wifi(struct link* ls, struct nlgen* msg)
 {
-	ls->flags &= ~S_WIRELESS;
+	ls->flags &= ~S_NL80211;
 
 	drop_scan_slots(ls->ifi);
 }
@@ -156,7 +156,7 @@ static void msg_scan_abort(struct link* ls, struct nlgen* msg)
 
 	eprintf("scan-abort %s\n", ls->name);
 
-	link_scan_done(ls);
+	wifi_scan_done(ls);
 }
 
 static void mark_stale_scan_slots(int ifi, struct nlgen* msg)
@@ -283,7 +283,7 @@ static void notify_scan_done(void)
 
 	ls->scan = SC_NONE;
 	drop_stale_scan_slots(ls->ifi);
-	link_scan_done(ls);
+	wifi_scan_done(ls);
 
 	genl_scan_dump = 0;
 }

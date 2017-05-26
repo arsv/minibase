@@ -31,7 +31,11 @@
 #define REPLIED 1
 #define LATCHED 2
 
-struct latch latch;
+struct {
+	int evt;
+	int ifi;
+	int cfd;
+} latch;
 
 static void reply(int fd, struct ucbuf* uc)
 {
@@ -170,22 +174,22 @@ static void latch_reset(void)
 	latch.ifi = 0;
 }
 
-void unlatch(int evt, struct link* ls, int err)
+void unlatch(int ifi, int evt, int err)
 {
 	int cfd = latch.cfd;
 
 	if(!latch.cfd)
 		return;
-	if(latch.evt && evt != latch.evt)
+	if(ifi != latch.ifi)
 		return;
-	if(latch.ifi && ls->ifi != latch.ifi)
+	if(evt != latch.evt)
 		return;
 
 	sysalarm(TIMEOUT);
 
 	if(err)
 		reply_simple(cfd, err);
-	else if(evt == LA_WIFI_SCAN)
+	else if(evt == SCAN)
 		reply_scanlist(cfd, latch.ifi);
 	else
 		reply_simple(cfd, 0);
@@ -195,74 +199,55 @@ void unlatch(int evt, struct link* ls, int err)
 	latch_reset();
 }
 
-static int cmd_scan(int fd, struct ucmsg* msg)
+static int setlatch(int ifi, int evt, int cfd)
 {
-	if(!any_active_wifis())
-		return -ENODEV;
-
-	scan_all_wifis();
-
-	return setlatch(LA_WIFI_SCAN, NULL, fd);
-}
-
-static int cmd_cancel(int fd, struct ucmsg* msg)
-{
-	if(latch.cfd)
-		return NOERROR;
-
-	reply_simple(latch.cfd, -EINTR);
-	latch_reset();
-
-	return NOERROR;
-}
-
-static int precheck(int evt, struct link* ls)
-{
-	switch(evt) {
-		case LA_LINK_CONF:
-		case LA_LINK_DOWN:
-			if(!ls) return 1;
-	}
-	switch(evt) {
-		case LA_LINK_CONF:
-			return (ls->flags & S_IPADDR);
-		case LA_LINK_DOWN:
-			return !(ls->flags & S_ACTIVE);
-		case LA_WIFI_CONF:
-			return wifi.state == WS_CONNECTED;
-		case LA_WIFI_SCAN:
-			return !any_ongoing_scans();
-		default:
-			return 1;
-	}
-}
-
-int setlatch(int evt, struct link* ls, int cfd)
-{
-	if(precheck(evt, ls))
-		return NOERROR;
 	if(latch.cfd)
 		return -EBUSY;
 
 	latch.cfd = cfd;
 	latch.evt = evt;
-	latch.ifi = ls ? ls->ifi : 0;
+	latch.ifi = ifi;
 
 	return LATCHED;
+}
+
+static int cmd_scan(int fd, struct ucmsg* msg)
+{
+	int ret;
+
+	if((ret = start_wifi_scan()))
+		return ret;
+
+	return setlatch(WIFI, SCAN, fd);
+}
+
+static int cmd_cancel(int fd, struct ucmsg* msg)
+{
+	if(latch.cfd)
+		sysclose(latch.cfd);
+
+	latch.cfd = 0;
+	latch.evt = 0;
+	latch.ifi = 0;
+
+	return NOERROR;
 }
 
 static int cmd_neutral(int fd, struct ucmsg* msg)
 {
 	struct link* ls;
 
+	eprintf("%s\n", __FUNCTION__);
+
 	if(uplink.mode == UL_NONE)
 		return NOERROR;
 	if(uplink.mode == UL_DOWN)
 		return -EBUSY;
 
-	if(uplink.mode == UL_WIFI)
-		wifi.mode = 0;
+	wifi.mode = WM_DISABLED;
 
+	eprintf("%s uplink mode=%i ifi=%i\n", __FUNCTION__,
+			uplink.mode, uplink.ifi);
 	if(!uplink.ifi) {
 		uplink.mode = UL_NONE;
 		return NOERROR;
@@ -275,7 +260,7 @@ static int cmd_neutral(int fd, struct ucmsg* msg)
 	uplink.mode = UL_DOWN;
 	terminate_link(ls);
 
-	return setlatch(LA_LINK_DOWN, ls, fd);
+	return setlatch(ls->ifi, DOWN, fd);
 }
 
 static int attr_ifi(struct ucmsg* msg)
@@ -295,9 +280,9 @@ static struct link* find_wired_link(struct ucmsg* msg)
 	for(ls = links; ls < links + nlinks; ls++) {
 		if(!ls->ifi)
 			continue;
-		if(ls->mode & LM_NOTOUCH)
+		if(ls->mode & LM_NOT)
 			continue;
-		if(ls->flags & S_WIRELESS)
+		if(ls->flags & S_NL80211)
 			continue;
 		if(lls)
 			return NULL;
@@ -311,12 +296,16 @@ static int cmd_wired(int fd, struct ucmsg* msg)
 {
 	struct link* ls;
 
+	eprintf("%s\n", __FUNCTION__);
+
 	if(!(ls = find_wired_link(msg)))
 		return -ENODEV;
 	if(uplink.mode && uplink.mode != ls->ifi)
 		return -EBUSY;
+	if(latch.cfd)
+		return -EBUSY;
 
-	ls->mode &= ~(LM_LOCAL | LM_NOTOUCH);
+	ls->mode &= ~(LM_LOCAL | LM_NOT);
 
 	if(!(ls->flags & S_ENABLED))
 		set_link_operstate(ls->ifi, IF_OPER_UP);
@@ -328,7 +317,26 @@ static int cmd_wired(int fd, struct ucmsg* msg)
 	uplink.mode = ls->ifi;
 	uplink.ifi = ls->ifi;
 
-	return setlatch(LA_LINK_CONF, ls, fd);
+	return setlatch(ls->ifi, CONF, fd);
+}
+
+static int cmd_roaming(int fd, struct ucmsg* msg)
+{
+	eprintf("%s\n", __FUNCTION__);
+
+	if(uplink.mode > 0)
+		return -EBUSY;
+	if(wifi.mode == WM_ROAMING)
+		return NOERROR;
+
+	wifi.mode = WM_ROAMING;
+
+	if(wifi.state == WS_CONNECTED)
+		return NOERROR;
+
+	start_wifi_scan();
+
+	return setlatch(WIFI, CONF, fd);
 }
 
 static const struct cmd {
@@ -337,6 +345,7 @@ static const struct cmd {
 } commands[] = {
 	{ CMD_STATUS,  cmd_status  },
 	{ CMD_NEUTRAL, cmd_neutral },
+	{ CMD_ROAMING, cmd_roaming },
 	{ CMD_WIRED,   cmd_wired   },
 	{ CMD_SCAN,    cmd_scan    },
 	{ CMD_CANCEL,  cmd_cancel  },

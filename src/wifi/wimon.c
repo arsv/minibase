@@ -1,11 +1,13 @@
 #include <bits/errno.h>
 #include <sys/unlink.h>
 #include <sys/ppoll.h>
+#include <sys/pause.h>
 #include <sys/sigprocmask.h>
 #include <sys/sigaction.h>
 
 #include <netlink.h>
 #include <sigset.h>
+#include <format.h>
 #include <fail.h>
 
 #include "config.h"
@@ -203,7 +205,7 @@ static void check_polled_fds(void)
 	recv_netlink(pfds[1].revents, "genl", &genl, handle_genl);
 
 	if(pfds[2].revents & POLLIN)
-		accept_ctrl(ctrlfd);	
+		accept_ctrl(ctrlfd);
 }
 
 static void setup_env(char** envp)
@@ -215,6 +217,37 @@ static void setup_env(char** envp)
 
 	for(p = envp; *p; p++)
 		envcount++;
+}
+
+/* The children are assumed to die fast and reliably, so signals are only
+   sent once and this process waits indefinitely until all of the exit.
+   However, if something goes wrong, the user gets a chance to interrept
+   it with a second SIGTERM.
+
+   At this point, NL requests are sent unchecked, and replies (if any)
+   do not get read. Continuing with the main loop and waiting for the links
+   to change state is quite complicated and completely pointless. */
+
+static void stop_wait_procs(void)
+{
+	sigterm = 0;
+	struct timespec ts = { 1, 0 };
+
+	eprintf("%s\n", __FUNCTION__);
+
+	stop_all_procs();
+	stop_proc_links();
+
+	while(1) {
+		if(!any_pids_left())
+			break;
+		if(sysppoll(NULL, 0, &ts, &defsigset) < 0)
+			break;
+		if(sigchld)
+			waitpids();
+		if(sigterm)
+			break;
+	}
 }
 
 int main(int argc, char** argv, char** envp)
@@ -250,6 +283,7 @@ int main(int argc, char** argv, char** envp)
 		update_sched(&ts, tp);
 	}
 
+	stop_wait_procs();
 	unlink_ctrl();
 
 	return 0;

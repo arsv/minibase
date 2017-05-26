@@ -7,359 +7,68 @@
 #include "wimon.h"
 
 struct uplink uplink;
-struct wifi wifi;
-
-static int allbits(int val, int bits)
-{
-	return ((val & bits) == bits);
-}
-
-static int start_wifi(void)
-{
-	int type = wifi.type;
-	struct link* ls;
-
-	if(!wifi.ifi)
-		return -EINVAL;
-	if(!(ls = find_link_slot(wifi.ifi)))
-		return -EINVAL;
-
-	if(allbits(type, ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_CCMP))
-		spawn_wpa(ls, NULL);
-	else if(allbits(type, ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_TKIP))
-		spawn_wpa(ls, "ct");
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
-static int check_wpa(struct scan* sc)
-{
-	int type = sc->type;
-
-	if(!(type & ST_RSN_PSK))
-		return 0;
-	if(!(type & ST_RSN_P_CCMP))
-		return 0;
-	if(!(type & (ST_RSN_G_CCMP | ST_RSN_G_TKIP)))
-		return 0;
-
-	return 1;
-}
-
-static void check_new_aps(int ifi)
-{
-	struct scan* sc;
-
-	for(sc = scans; sc < scans + nscans; sc++) {
-		if(sc->ifi != ifi)
-			continue;
-		if(sc->flags & SF_SEEN)
-			continue;
-
-		sc->flags |= SF_SEEN;
-		sc->prio = saved_psk_prio(sc->ssid, sc->slen);
-
-		if(!check_wpa(sc))
-			continue;
-
-		sc->flags |= SF_GOOD;
-	}
-}
-
-static int check_ssid(struct scan* sc)
-{
-	if(wifi.mode == WM_ROAMING)
-		return 1; /* any ap will do */
-	if(wifi.mode != WM_FIXEDAP)
-		return 0; /* something's wrong */
-	if(sc->slen != wifi.slen)
-		return 0;
-	if(memcmp(sc->ssid, wifi.ssid, sc->slen))
-		return 0;
-	return 1;
-}
-
-static struct scan* get_best_ap(void)
-{
-	struct scan* sc;
-	struct scan* best = NULL;
-
-	for(sc = scans; sc < scans + nscans; sc++) {
-		if(sc->ifi <= 0)
-			continue;
-		if(sc->tries >= 3)
-			continue;
-		if(sc->prio <= 0)
-			continue;
-		if(!check_ssid(sc))
-			continue;
-		if(!(sc->flags & SF_GOOD))
-			continue;
-
-		if(!best)
-			goto set;
-
-		if(best->prio > sc->prio)
-			continue;
-		if(best->signal > sc->signal)
-			continue;
-		if(best->tries < sc->tries)
-			continue;
-
-		set: best = sc;
-	};
-
-	return best;
-}
-
-int any_ongoing_scans(void)
-{
-	struct link* ls;
-
-	for(ls = links; ls < links + nlinks; ls++)
-		if(ls->scan)
-			return 1;
-
-	return 0;
-}
-
-static int load_ap_psk(void)
-{
-	return load_psk(wifi.ssid, wifi.slen, wifi.psk, sizeof(wifi.psk));
-}
-
-static int load_ap(struct scan* sc)
-{
-	wifi.ifi = sc->ifi;
-	wifi.freq = sc->freq;
-	wifi.slen = sc->slen;
-	wifi.type = sc->type;
-	memcpy(wifi.bssid, sc->bssid, sizeof(sc->bssid));
-	memcpy(wifi.ssid, sc->ssid, sc->slen);
-
-	return load_ap_psk();
-}
-
-static void reset_ap_psk(void)
-{
-	memset(&wifi.psk, 0, sizeof(wifi.psk));
-}
-
-static void reset_wifi_struct(void)
-{
-	wifi.state = 0;
-	wifi.flags = 0;
-	wifi.ifi = 0;
-	wifi.freq = 0;
-	wifi.slen = 0;
-	wifi.type = 0;
-
-	memset(&wifi.ssid, 0, sizeof(wifi.ssid));
-	memset(&wifi.bssid, 0, sizeof(wifi.bssid));
-
-	reset_ap_psk();
-}
-
-static int connect_to_something(void)
-{
-	struct scan* sc;
-
-	while((sc = get_best_ap())) {
-		eprintf("best ap %s\n", sc->ssid);
-		if(load_ap(sc))
-			continue;
-		if(start_wifi())
-			continue;
-		return 1;
-	}
-
-	reset_ap_psk();
-
-	return 0;
-}
-
-static int scannable(struct link* ls)
-{
-	if(!ls->ifi)
-		return 0;
-	if(!(ls->flags & S_WIRELESS))
-		return 0;
-	if(ls->mode & (LM_NOTOUCH | LM_NOWIFI))
-		return 0;
-	return 1;
-}
-
-int any_active_wifis(void)
-{
-	struct link* ls;
-
-	for(ls = links; ls < links + nlinks; ls++)
-		if(scannable(ls))
-			return 1;
-
-	return 0;
-}
-
-void scan_all_wifis(void)
-{
-	struct link* ls;
-
-	for(ls = links; ls < links + nlinks; ls++)
-		if(scannable(ls))
-			trigger_scan(ls, 0);
-}
-
-static void reassess_wifi_situation(void)
-{
-	eprintf("%s\n", __FUNCTION__);
-
-	if(connect_to_something())
-		return;
-
-	unlatch(LA_WIFI_CONF, NULL, -ESRCH);
-
-	if(!any_active_wifis())
-		return;
-
-	eprintf("next scan in 60sec\n");
-	schedule(scan_all_wifis, 60);
-}
-
-static struct scan* find_current_ap(void)
-{
-	struct scan* sc;
-
-	for(sc = scans; sc < scans + nscans; sc++) {
-		if(!sc->ifi)
-			continue;
-		if(sc->ifi != wifi.ifi)
-			continue;
-		if(memcmp(sc->bssid, wifi.bssid, sizeof(wifi.bssid)))
-			continue;
-
-		return sc;
-	}
-
-	return NULL;
-}
-
-static void wifi_failure(void)
-{
-	struct scan* sc;
-
-	eprintf("%s\n", __FUNCTION__);
-
-	if((sc = find_current_ap()))
-		sc->tries++;
-
-	if(wifi.mode == WM_DISABLED)
-		wifi.state = WS_NONE;
-
-	if(wifi.state == WS_CONNECTED) {
-		wifi.state = WS_RETRYING;
-
-		if(load_ap_psk())
-			goto reset;
-		if(start_wifi())
-			goto reset;
-
-		return;
-	}
-reset:
-	reset_wifi_struct();
-	reassess_wifi_situation();
-}
-
-static void wifi_success(void)
-{
-	struct scan* sc;
-
-	eprintf("%s\n", __FUNCTION__);
-
-	unlatch(LA_WIFI_CONF, NULL, 0);
-
-	if((sc = find_current_ap()))
-		sc->tries = 0;
-
-	if(wifi.flags & WF_UNSAVED) {
-		save_psk(wifi.ssid, wifi.slen, wifi.psk, strlen(wifi.psk));
-		wifi.flags &= ~WF_UNSAVED;
-	}
-
-	wifi.state = WS_CONNECTED;
-}
-
-static void uplink_down(void)
-{
-	if(uplink.mode != UL_DOWN)
-		return;
-
-	uplink.mode = 0;
-	uplink.ifi = 0;
-}
-
-/* link_* are notification of link status changes from the NL code */
 
 void link_new(struct link* ls)
 {
+	int ifi = ls->ifi;
+
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
 	load_link(ls);
+
+	if(ls->mode & LM_NOT)
+		return;
+	if(ls->mode & LM_OFF) {
+		if(ls->flags & S_IPADDR)
+			del_link_addresses(ifi);
+		if(ls->flags & S_ENABLED)
+			set_link_operstate(ifi, IF_OPER_DOWN);
+	} else {
+		if(!(ls->flags & S_ENABLED))
+			set_link_operstate(ifi, IF_OPER_UP);
+		else
+			link_enabled(ls);
+	}
 }
 
-void link_wifi(struct link* ls)
-{
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
+/* Unlike other link_* calls that come from RTNL, this one gets triggered
+   by GENL code. The reason for handling it here is to make sure both RTNL
+   and GENL parts of the link are in place by the time wifi_* code sees
+   the link. Since those are distinct fds, GENL message may arrive before
+   the corresponding RTNL one.
 
-	if(!scannable(ls))
+   RTNL crucially carries the link name which is used to load link settings
+   including LM_NOT | LM_OFF. */
+
+void link_nl80211(struct link* ls)
+{
+	if(!(ls->flags & S_NETDEV))
 		return;
-	if(wifi.mode == WM_UNDECIDED)
-		wifi.mode = WM_ROAMING;
-	if(wifi.mode == WM_ROAMING)
-		trigger_scan(ls, 0);
+	if(ls->mode & (LM_NOT | LM_OFF))
+		return;
+	if(ls->flags & S_ENABLED)
+		wifi_ready(ls);
 }
 
 void link_enabled(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(ls->flags & S_WIRELESS) {
-		if(!scannable(ls))
-			return;
-		if(wifi.mode == WM_ROAMING)
-			trigger_scan(ls, 0);
-	} else {
-		/* The link came up but there's no carrier */
-		if(!(ls->flags & S_CARRIER))
-			unlatch(LA_LINK_CONF, ls, -ENETDOWN);
-	}
-}
-
-void link_scan_done(struct link* ls)
-{
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
-	if(any_ongoing_scans())
+	if(ls->mode & (LM_NOT | LM_OFF))
 		return;
-
-	check_new_aps(ls->ifi);
-	unlatch(LA_WIFI_SCAN, NULL, 0);
-
-	if(wifi.state != WS_NONE)
-		return;
-
-	reassess_wifi_situation();
+	if(ls->flags & S_NL80211)
+		wifi_ready(ls);
+	else /* The link came up but there's no carrier */
+		unlatch(ls->ifi, CONF, -ENETDOWN);
 }
 
 void link_carrier(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(ls->flags & S_IPADDR)
-		link_configured(ls); /* wrong but should do for now */
-	else if(ls->mode & LM_MANUAL)
+	if(ls->mode & (LM_NOT | LM_OFF))
+		return;
+	else if(ls->mode & LM_STATIC)
 		; /* XXX */
 	else if(ls->mode & LM_LOCAL)
 		spawn_dhcp(ls, "-g");
@@ -367,30 +76,83 @@ void link_carrier(struct link* ls)
 		spawn_dhcp(ls, NULL);
 }
 
-void link_configured(struct link* ls)
+void link_ipaddr(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(ls->ifi == wifi.ifi)
-		wifi_success();
+	unlatch(ls->ifi, CONF, 0);
+
+	if(ls->flags & S_NL80211)
+		wifi_connected(ls);
 }
 
-void link_terminated(struct link* ls)
+/* Whenever a link goes down, for any reason, all its remaining procs must
+   be stopped and its ip configuration must be flushed. Not doing this means
+   the link may be left in mid-way state, confusing the usespace. */
+
+static void wait_link_down(struct link* ls)
+{
+	if(ls->flags & S_CHILDREN)
+		return stop_link_procs(ls, 0);
+	if(ls->flags & S_IPADDR)
+		return del_link_addresses(ls->ifi);
+
+	ls->flags &= ~S_STOPPING;
+
+	unlatch(ls->ifi, DOWN, 0);
+	unlatch(ls->ifi, CONF, -ENETDOWN);
+
+	if(ls->flags & S_NL80211)
+		wifi_conn_fail(ls);
+}
+
+void terminate_link(struct link* ls)
+{
+	ls->flags |= S_STOPPING;
+
+	wait_link_down(ls);
+}
+
+/* Outside of link-stopping procedure, the only remotely sane case
+   for this to happen is expiration of DHCP-set address. If so, try
+   to re-run dhcp. And that's about it really. */
+
+void link_ipgone(struct link* ls)
+{
+	if(ls->flags & S_STOPPING)
+		return wait_link_down(ls);
+	if(ls->flags & S_CARRIER)
+		link_carrier(ls);
+}
+
+void link_down(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	unlatch(LA_LINK_DOWN, ls, 0);
-	unlatch(LA_LINK_CONF, ls, -ENODEV);
+	terminate_link(ls);
+}
 
-	if(!any_ongoing_scans())
-		unlatch(LA_WIFI_SCAN, NULL, -ENODEV);
-	if(!any_active_wifis())
-		unlatch(LA_WIFI_CONF, NULL, -ENODEV);
+void link_child_exit(struct link* ls, int status)
+{
+	if(ls->flags & S_STOPPING)
+		wait_link_down(ls);
+	else if(status)
+		terminate_link(ls);
+	/* else it's ok */
+}
 
-	if(ls->ifi == wifi.ifi)
-		wifi_failure();
-	if(ls->ifi == uplink.ifi)
-		uplink_down();
+void link_gone(struct link* ls)
+{
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
+
+	stop_link_procs(ls, 1);
+
+	unlatch(ls->ifi, DOWN, 0); /* or ENODEV? */
+	unlatch(ls->ifi, CONF, -ENODEV);
+	unlatch(ls->ifi, SCAN, -ENODEV);
+
+	if(ls->flags & S_NL80211)
+		wifi_gone(ls);
 }
 
 /* TODO: default routes may come without gateway */
@@ -419,4 +181,21 @@ void gate_lost(int ifi, uint8_t gw[4])
 
 	uplink.routed = 0;
 	memset(uplink.gw, 0, 4);
+}
+
+/* When wimon exits, remove addresses from managed links.
+   This is primarily meant for wireless links but makes some sense
+   for ethernet ports as well. */
+
+void stop_proc_links(void)
+{
+	struct link* ls;
+
+	for(ls = links; ls < links + nlinks; ls++) {
+		if(!ls->ifi || (ls->mode & LM_NOT))
+			continue;
+		if(ls->flags & S_IPADDR)
+			del_link_addresses(ls->ifi);
+		/* del_link_routes */
+	}
 }

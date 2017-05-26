@@ -1,3 +1,4 @@
+#include <bits/errno.h>
 #include <bits/socket/inet.h>
 
 #include <netlink.h>
@@ -87,7 +88,7 @@ static int iff_to_flags(int flags, int iff)
 	if(iff & IFF_RUNNING)
 		flags |= S_CARRIER;
 
-	return flags;
+	return flags | S_NETDEV;
 }
 
 static int bitgain(int prev, int curr, int bit)
@@ -124,7 +125,7 @@ void msg_new_link(struct ifinfomsg* msg)
 		ls->flags = curr;
 
 		if(bitgain(curr, prev, S_CARRIER))
-			link_carrier_lost(ls);
+			link_down(ls);
 		else if(bitgain(prev, curr, S_CARRIER))
 			link_carrier(ls);
 		else if(bitgain(prev, curr, S_ENABLED))
@@ -139,7 +140,7 @@ void msg_del_link(struct ifinfomsg* msg)
 	if(!(ls = find_link_slot(msg->index)))
 		return;
 
-	link_del(ls);
+	link_gone(ls);
 
 	free_link_slot(ls);
 }
@@ -165,7 +166,7 @@ void msg_new_addr(struct ifaddrmsg* msg)
 	ls->mask = msg->prefixlen;
 	ls->flags |= S_IPADDR;
 
-	link_configured(ls);
+	link_ipaddr(ls);
 }
 
 void msg_del_addr(struct ifaddrmsg* msg)
@@ -186,7 +187,7 @@ void msg_del_addr(struct ifaddrmsg* msg)
 	ls->mask = 0;
 	ls->flags &= ~S_IPADDR;
 
-	link_deconfed(ls);
+	link_ipgone(ls);
 }
 
 void msg_new_route(struct rtmsg* msg)
