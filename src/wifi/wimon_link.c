@@ -69,8 +69,6 @@ void link_carrier(struct link* ls)
 	if(ls->mode & (LM_NOT | LM_OFF))
 		return;
 
-	ls->flags |= S_MANAGED;
-
 	if(ls->mode & LM_STATIC)
 		; /* XXX */
 	else if(ls->mode & LM_LOCAL)
@@ -125,7 +123,7 @@ static void wait_link_down(struct link* ls)
 	if(ls->flags & S_NL80211)
 		wifi_conn_fail(ls);
 
-	ls->flags &= ~(S_STOPPING | S_MANAGED);
+	ls->flags &= ~S_STOPPING;
 
 	unlatch(ls->ifi, DOWN, 0);
 	unlatch(ls->ifi, CONF, -ENETDOWN);
@@ -150,7 +148,7 @@ void link_ipgone(struct link* ls)
 {
 	if(ls->flags & S_STOPPING)
 		return wait_link_down(ls);
-	if(!(ls->flags & S_MANAGED))
+	if(ls->mode & (LM_NOT | LM_OFF))
 		return;
 	if(ls->flags & S_CARRIER)
 		link_carrier(ls);

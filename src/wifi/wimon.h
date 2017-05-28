@@ -24,7 +24,6 @@
 #define S_CHILDREN (1<<7)
 #define S_STOPPING (1<<8)
 #define S_SIGSENT  (1<<9)
-#define S_MANAGED  (1<<10)
 
 /* link.scan */
 #define SC_NONE        0
