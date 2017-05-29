@@ -12,14 +12,11 @@
 #include "nlfam.h"
 #include "wimon.h"
 
-/* NETLINK_GENERIC connection is used to request and fetch scan results,
-   and also to track 802.11 stack state.
+/* NETLINK_GENERIC connection is used mostly request and fetch scan results,
+   but also to track 802.11 stack state (like which devices support it).
 
-   RTNL and GENL use the same ifindexes to refer to the same devices.
-   For wireless devices RTNL provides common state like IPs and routes
-   while GENL provides wireless status updates. The code must be ready
-   to see GENL packets before the same device appears in RTNL though,
-   it is unlikely but may happen.
+   RTNL and GENL are two different sockets. No ordering of packets between
+   them should be assumed. See comments around link_nl80211.
 
    In nl80211, there's a distinction between "phy" devices representing
    radios, and netdevs bound to phy-s. This part is not tracked here,
@@ -27,7 +24,13 @@
    be used to configure phy-net relations. Implementing ad-hoc or mesh
    networks may or may not require changes in this part. Likely anything
    that can be done with "iw dev" will be ok but "iw phy" will require
-   phy tracking. */
+   phy tracking.
+
+   There used to be a possibility to track scans from multiple devices here,
+   but it has been removed since. While not particularly difficult to implement,
+   it adds a lot of confusion (as in, what to do with sc->ifi) and the chances
+   of multiscans being actually useful are close to zero. Current implementation
+   only tracks the last scan requested, and silently ignores anything else. */
 
 struct netlink genl;
 
@@ -36,22 +39,24 @@ char genl_rx[4*4096];
 int nl80211;
 
 /* Can't request two dumps at the same time. See RTNL on this.
-   A bit different handling here, there's one possible dump per link
+   A bit different handling here, there's one possible scan dump
    and also wifi list dump which only ever gets run once. */
 
-int genl_scan_ready;
-int genl_dump_lock;
-int genl_scan_dump;
+#define DUMP_NONE 0
+#define DUMP_LINK 1
+#define DUMP_SCAN 2
 
-void trigger_scan(struct link* ls, int freq)
+int genl_scan_ifi;
+int genl_scan_seq;
+int genl_dump_state;
+int genl_scan_ready;
+
+void trigger_scan(int ifi, int freq)
 {
 	struct nlattr* at;
 
-	if(ls->scan)
-		return;
-
 	nl_new_cmd(&genl, nl80211, NL80211_CMD_TRIGGER_SCAN, 0);
-	nl_put_u64(&genl, NL80211_ATTR_IFINDEX, ls->ifi);
+	nl_put_u64(&genl, NL80211_ATTR_IFINDEX, ifi);
 
 	if(freq) {
 		at = nl_put_nest(&genl, NL80211_ATTR_SCAN_FREQUENCIES);
@@ -62,7 +67,8 @@ void trigger_scan(struct link* ls, int freq)
 	if(nl_send(&genl))
 		fail("send", "genl", genl.err);
 
-	ls->scan = SC_REQUEST;
+	genl_scan_seq = genl.seq;
+	genl_scan_ifi = ifi;
 }
 
 void trigger_disconnect(int ifi)
@@ -74,24 +80,22 @@ void trigger_disconnect(int ifi)
 		fail("send", "genl", genl.err);
 }
 
-static void request_results(struct link* ls)
+static void request_scan_results(void)
 {
-	if(genl_dump_lock) {
-		ls->scan = SC_RESULTS;
+	if(genl_dump_state) {
 		genl_scan_ready = 1;
 		return;
 	}
 
 	nl_new_cmd(&genl, nl80211, NL80211_CMD_GET_SCAN, 0);
-	nl_put_u64(&genl, NL80211_ATTR_IFINDEX, ls->ifi);
+	nl_put_u64(&genl, NL80211_ATTR_IFINDEX, genl_scan_ifi);
 
 	if(nl_send_dump(&genl))
 		fail("send", "genl", genl.err);
 
-	genl_dump_lock = 1;
-	genl_scan_dump = ls->ifi;
-
-	ls->scan = SC_DUMPING;
+	genl_scan_seq = genl.seq;
+	genl_scan_ready = 0;
+	genl_dump_state = DUMP_SCAN;
 }
 
 static void request_wifi_list(void)
@@ -104,7 +108,7 @@ static void request_wifi_list(void)
 	if(nl_send_dump(&genl))
 		fail("send", "genl", genl.err);
 
-	genl_dump_lock = 1;
+	genl_dump_state = DUMP_LINK;
 }
 
 static int get_genl_ifindex(struct nlgen* msg)
@@ -113,53 +117,51 @@ static int get_genl_ifindex(struct nlgen* msg)
 	return ifi ? *ifi : 0;
 }
 
-static struct link* find_genl_link(struct nlgen* msg)
-{
-	int ifi = get_genl_ifindex(msg);
-	return ifi ? find_link_slot(ifi) : NULL;
-}
-
-static struct link* grab_genl_link(struct nlgen* msg)
-{
-	int ifi = get_genl_ifindex(msg);
-	struct link* ls = ifi ? grab_link_slot(ifi) : NULL;
-	if(ls && !ls->ifi) ls->ifi = ifi;
-	return ls;
-}
-
 static void msg_new_wifi(struct link* ls, struct nlgen* msg)
 {
-	if(ls->flags & S_NL80211)
-		return;
-
 	ls->flags |= S_NL80211;
 
-	link_nl80211(ls);
+	wifi_ready(ls);
+}
+
+static void msg_new_wifi_early(int ifi, struct nlgen* msg)
+{
+	struct link* ls = grab_link_slot(ifi);
+
+	ls->ifi = ifi;
+	ls->flags |= S_NL80211;
+
+	/* and do nothing until RTNL code calls link_new */
 }
 
 static void msg_del_wifi(struct link* ls, struct nlgen* msg)
 {
 	ls->flags &= ~S_NL80211;
 
-	drop_scan_slots(ls->ifi);
+	if(ls->ifi != genl_scan_ifi)
+		return;
+
+	drop_scan_slots();
 }
 
 static void msg_scan_start(struct link* ls, struct nlgen* msg)
 {
-	ls->scan = SC_ONGOING;
+	if(ls->ifi != genl_scan_ifi)
+		return;
+
 	eprintf("scan-start %s\n", ls->name);
 }
 
 static void msg_scan_abort(struct link* ls, struct nlgen* msg)
 {
-	ls->scan = SC_NONE;
+	if(ls->ifi != genl_scan_ifi)
+		return;
 
 	eprintf("scan-abort %s\n", ls->name);
-
-	wifi_scan_done(ls);
+	wifi_scan_fail(-EINTR);
 }
 
-static void mark_stale_scan_slots(int ifi, struct nlgen* msg)
+static void mark_stale_scan_slots(struct nlgen* msg)
 {
 	struct nlattr* at;
 	struct nlattr* sb;
@@ -170,33 +172,33 @@ static void mark_stale_scan_slots(int ifi, struct nlgen* msg)
 		return;
 
 	for(sc = scans; sc < scans + nscans; sc++) {
-		if(sc->ifi != ifi || !sc->freq)
+		if(!sc->freq)
 			continue;
 		for(sb = nl_sub_0(at); sb; sb = nl_sub_n(at, sb))
 			if(!(fq = nl_u32(sb)))
 				continue;
 			else if(*fq == sc->freq)
 				break;
-		if(sb) sc->freq = 0;
+		if(sb) sc->flags |= SF_STALE;
 	}
 }
 
-static void drop_stale_scan_slots(int ifi)
+static void drop_stale_scan_slots(void)
 {
 	struct scan* sc;
 
 	for(sc = scans; sc < scans + nscans; sc++)
-		if(sc->ifi == ifi && !sc->freq)
+		if(sc->flags & SF_STALE)
 			free_scan_slot(sc);
 }
 
 static void msg_scan_res(struct link* ls, struct nlgen* msg)
 {
 	if(msg->nlm.flags & NLM_F_MULTI) {
-		parse_scan_result(ls, msg);
-	} else {
-		mark_stale_scan_slots(ls->ifi, msg);
-		request_results(ls);
+		parse_scan_result(msg);
+	} else if(ls->ifi == genl_scan_ifi) {
+		mark_stale_scan_slots(msg);
+		request_scan_results();
 	}
 }
 
@@ -223,6 +225,7 @@ static void msg_disconnect(struct link* ls, struct nlgen* msg)
 {
 	if(!(ls->flags & S_CONNECT))
 		return;
+
 	ls->flags &= ~S_CONNECT;
 	eprintf("wifi %s disconnected\n", ls->name);
 }
@@ -250,14 +253,18 @@ struct cmdh {
 
 static void handle_nl80211(struct nlgen* msg)
 {
-	struct link* ls;
 	struct cmdh* ch;
+	struct link* ls;
+	int ifi;
 
-	if(msg->cmd == NL80211_CMD_NEW_INTERFACE)
-		ls = grab_genl_link(msg);
+	if(!(ifi = get_genl_ifindex(msg)))
+		return;
+	if((ls = find_link_slot(ifi)))
+		; /* good, we know this link already */
+	else if(msg->cmd != NL80211_CMD_NEW_INTERFACE)
+		return; /* hm strange */
 	else
-		ls = find_genl_link(msg);
-	if(!ls) return;
+		return msg_new_wifi_early(ifi, msg);
 
 	for(ch = genlcmds; ch->cmd; ch++)
 		if(ch->cmd == msg->cmd)
@@ -271,41 +278,16 @@ static void handle_nl80211(struct nlgen* msg)
 		nl_dump_genl(&msg->nlm);
 }
 
-static void notify_scan_done(void)
-{
-	struct link* ls;
-
-	if(!genl_scan_dump)
-		return;
-
-	if(!(ls = find_link_slot(genl_scan_dump)))
-		return;
-
-	ls->scan = SC_NONE;
-	drop_stale_scan_slots(ls->ifi);
-	wifi_scan_done(ls);
-
-	genl_scan_dump = 0;
-}
-
 static void handle_genl_done(struct nlmsg* nlm)
 {
-	int i;
-
-	genl_dump_lock = 0;
-	notify_scan_done();
-
-	if(!genl_scan_ready)
-		return;
-
-	for(i = 0; i < nlinks; i++)
-		if(links[i].scan == SC_RESULTS)
-			break;
-
-	if(i < nlinks)
-		request_results(&links[i]);
+	if(genl_dump_state == DUMP_SCAN) {
+		drop_stale_scan_slots();
+		wifi_scan_done();
+	}
+	if(genl_scan_ready)
+		request_scan_results();
 	else
-		genl_scan_ready = 0;
+		genl_dump_state = DUMP_NONE;
 }
 
 static void handle_genl_error(struct nlmsg* nlm)
@@ -315,7 +297,10 @@ static void handle_genl_error(struct nlmsg* nlm)
 	if(!(msg = nl_err(nlm)))
 		return;
 
-	warn("genl", NULL, msg->errno);
+	if(msg->seq == genl_scan_seq)
+		wifi_scan_fail(msg->errno);
+	else
+		warn("genl", NULL, msg->errno);
 }
 
 void handle_genl(struct nlmsg* nlm)

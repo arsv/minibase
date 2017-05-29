@@ -90,7 +90,7 @@ static int iff_to_flags(int flags, int iff)
 	if(iff & IFF_RUNNING)
 		flags |= S_CARRIER;
 
-	return flags | S_NETDEV;
+	return flags;
 }
 
 static int bitgain(int prev, int curr, int bit)
@@ -320,8 +320,6 @@ static void request_rtnl_dump(int what)
 	if(!rtnl_dump_lock)
 		proceed_with_dump();
 }
-
-/* This RTNL so we only check packet header length. */
 
 typedef void (*rth)(struct nlmsg* msg);
 

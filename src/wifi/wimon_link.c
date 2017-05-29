@@ -21,33 +21,14 @@ void link_new(struct link* ls)
 	if(ls->mode & LM_OFF) {
 		if(ls->flags & S_IPADDR)
 			del_link_addresses(ifi);
-		if(ls->flags & S_ENABLED)
-			set_link_operstate(ifi, IF_OPER_DOWN);
+		//if(ls->flags & S_ENABLED)
+		//	set_link_operstate(ifi, IF_OPER_DOWN);
 	} else {
 		if(!(ls->flags & S_ENABLED))
-			set_link_operstate(ifi, IF_OPER_UP);
+			; //set_link_operstate(ifi, IF_OPER_UP);
 		else
 			link_enabled(ls);
 	}
-}
-
-/* Unlike other link_* calls that come from RTNL, this one gets triggered
-   by GENL code. The reason for handling it here is to make sure both RTNL
-   and GENL parts of the link are in place by the time wifi_* code sees
-   the link. Since those are distinct fds, GENL message may arrive before
-   the corresponding RTNL one.
-
-   RTNL crucially carries the link name which is used to load link settings
-   including LM_NOT | LM_OFF. */
-
-void link_nl80211(struct link* ls)
-{
-	if(!(ls->flags & S_NETDEV))
-		return;
-	if(ls->mode & (LM_NOT | LM_OFF))
-		return;
-	if(ls->flags & S_ENABLED)
-		wifi_ready(ls);
 }
 
 void link_enabled(struct link* ls)
@@ -87,21 +68,6 @@ void link_ipaddr(struct link* ls)
 		wifi_connected(ls);
 }
 
-static int any_stopping_links(void)
-{
-	struct link* ls;
-
-	for(ls = links; ls < links + nlinks; ls++)
-		if(!ls->ifi || (ls->mode & LM_NOT))
-			continue;
-		else if(ls->flags & S_STOPPING) {
-			eprintf("waiting for %s\n", ls->name);
-			return 1;
-		}
-
-	return 0;
-}
-
 /* Whenever a link goes down, for any reason, all its remaining procs must
    be stopped and its ip configuration must be flushed. Not doing this means
    the link may be left in mid-way state, confusing the usespace. */
@@ -127,9 +93,6 @@ static void wait_link_down(struct link* ls)
 
 	unlatch(ls->ifi, DOWN, 0);
 	unlatch(ls->ifi, CONF, -ENETDOWN);
-
-	if(!any_stopping_links())
-		unlatch(NONE, DOWN, 0);
 }
 
 void terminate_link(struct link* ls)

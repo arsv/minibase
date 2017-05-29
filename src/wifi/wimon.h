@@ -13,17 +13,16 @@
    One of these is kept for each non-loopback kernel device. */
 
 /* link.flags */
-#define S_NETDEV   (1<<0)
-#define S_NL80211  (1<<1)
-#define S_ENABLED  (1<<2)
-#define S_CONNECT  (1<<3)
-#define S_CARRIER  (1<<4)
-#define S_IPADDR   (1<<5)
-#define S_UPLINK   (1<<6)
+#define S_NL80211  (1<<0)
+#define S_ENABLED  (1<<1)
+#define S_CONNECT  (1<<2)
+#define S_CARRIER  (1<<3)
+#define S_IPADDR   (1<<4)
+#define S_UPLINK   (1<<5)
 
-#define S_CHILDREN (1<<7)
-#define S_STOPPING (1<<8)
-#define S_SIGSENT  (1<<9)
+#define S_CHILDREN (1<<6)
+#define S_STOPPING (1<<7)
+#define S_SIGSENT  (1<<8)
 
 /* link.scan */
 #define SC_NONE        0
@@ -53,7 +52,6 @@ struct link {
 	uint8_t ip[4];
 	uint8_t mask;
 
-	uint8_t scan;
 	uint8_t mode;
 };
 
@@ -72,9 +70,9 @@ struct link {
 
 #define SF_SEEN        (1<<0)
 #define SF_GOOD        (1<<1)
+#define SF_STALE       (1<<2)
 
 struct scan {
-	int ifi;
 	short freq;
 	short signal;
 	short type;
@@ -179,9 +177,9 @@ void handle_genl(struct nlmsg* msg);
 void set_link_operstate(int ifi, int operstate);
 void del_link_addresses(int ifi);
 
-void trigger_scan(struct link* ls, int freq);
+void trigger_scan(int ifi, int freq);
 void trigger_disconnect(int ifi);
-void parse_scan_result(struct link* ls, struct nlgen* msg);
+void parse_scan_result(struct nlgen* msg);
 
 /* wimon_slot.c */
 
@@ -190,7 +188,7 @@ struct link* grab_link_slot(int ifi);
 void free_link_slot(struct link* ls);
 
 struct scan* grab_scan_slot(uint8_t* bssid);
-void drop_scan_slots(int ifi);
+void drop_scan_slots(void);
 void free_scan_slot(struct scan* sc);
 
 struct child* grab_child_slot(void);
@@ -218,12 +216,12 @@ int stop_all_links(void);
 
 void wifi_ready(struct link* ls);
 void wifi_gone(struct link* ls);
-void wifi_scan_done(struct link* ls);
 void wifi_connected(struct link* ls);
 void wifi_conn_fail(struct link* ls);
 
-int any_active_wifis(void);
-int any_ongoing_scans(void);
+void wifi_scan_done(void);
+void wifi_scan_fail(int err);
+
 int start_wifi_scan(void);
 
 /* wimon_proc.c */

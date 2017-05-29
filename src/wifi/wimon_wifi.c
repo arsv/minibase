@@ -46,13 +46,11 @@ static int check_wpa(struct scan* sc)
 	return 1;
 }
 
-static void check_new_aps(int ifi)
+static void check_new_aps(void)
 {
 	struct scan* sc;
 
 	for(sc = scans; sc < scans + nscans; sc++) {
-		if(sc->ifi != ifi)
-			continue;
 		if(sc->flags & SF_SEEN)
 			continue;
 
@@ -85,7 +83,7 @@ static struct scan* get_best_ap(void)
 	struct scan* best = NULL;
 
 	for(sc = scans; sc < scans + nscans; sc++) {
-		if(sc->ifi <= 0)
+		if(!sc->freq)
 			continue;
 		if(sc->tries >= 3)
 			continue;
@@ -119,7 +117,6 @@ static int load_ap_psk(void)
 
 static int load_ap(struct scan* sc)
 {
-	wifi.ifi = sc->ifi;
 	wifi.freq = sc->freq;
 	wifi.slen = sc->slen;
 	wifi.type = sc->type;
@@ -167,56 +164,19 @@ static int connect_to_something(void)
 	return 0;
 }
 
-static int scannable(struct link* ls)
-{
-	if(!ls->ifi)
-		return 0;
-	if(!(ls->flags & S_NL80211))
-		return 0;
-	if(ls->mode & (LM_NOT | LM_OFF))
-		return 0;
-	return 1;
-}
-
-int any_active_wifis(void)
-{
-	struct link* ls;
-
-	for(ls = links; ls < links + nlinks; ls++)
-		if(scannable(ls))
-			return 1;
-
-	return 0;
-}
-
-int any_ongoing_scans(void)
-{
-	struct link* ls;
-
-	for(ls = links; ls < links + nlinks; ls++)
-		if(scannable(ls) && ls->scan)
-			return 1;
-
-	return 0;
-}
-
-void scan_all_wifis(void)
-{
-	struct link* ls;
-
-	for(ls = links; ls < links + nlinks; ls++)
-		if(scannable(ls))
-			trigger_scan(ls, 0);
-}
-
 int start_wifi_scan(void)
 {
-	if(!any_active_wifis())
+	if(!wifi.ifi)
 		return -ENODEV;
 
-	scan_all_wifis();
+	trigger_scan(wifi.ifi, 0);
 
 	return 0;
+}
+
+static void scan_all_wifis(void)
+{
+	start_wifi_scan();
 }
 
 static void reassess_wifi_situation(void)
@@ -231,7 +191,7 @@ static void reassess_wifi_situation(void)
 
 	unlatch(WIFI, CONF, -ESRCH);
 
-	if(!any_active_wifis())
+ if(!wifi.ifi)
 		return;
 
 	eprintf("next scan in 60sec\n");
@@ -243,9 +203,7 @@ static struct scan* find_current_ap(void)
 	struct scan* sc;
 
 	for(sc = scans; sc < scans + nscans; sc++) {
-		if(!sc->ifi)
-			continue;
-		if(sc->ifi != wifi.ifi)
+         if(!sc->freq)
 			continue;
 		if(memcmp(sc->bssid, wifi.bssid, sizeof(wifi.bssid)))
 			continue;
@@ -258,16 +216,16 @@ static struct scan* find_current_ap(void)
 
 void wifi_ready(struct link* ls)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
+	eprintf("%s\n", __FUNCTION__);
 
-	if(!scannable(ls))
+	if(ls->ifi != wifi.ifi)
 		return;
 	if(wifi.mode == WM_DISABLED)
 		return;
 	if(wifi.state != WS_NONE)
 		return;
 
-	trigger_scan(ls, 0);
+	trigger_scan(wifi.ifi, 0);
 }
 
 void wifi_gone(struct link* ls)
@@ -279,20 +237,22 @@ void wifi_gone(struct link* ls)
 	wifi.state = WS_NONE;
 }
 
-void wifi_scan_done(struct link* ls)
+void wifi_scan_done(void)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
+	eprintf("%s\n", __FUNCTION__);
 
-	if(any_ongoing_scans())
-		return;
-
-	check_new_aps(ls->ifi);
+	check_new_aps();
 	unlatch(WIFI, SCAN, 0);
 
 	if(wifi.state != WS_NONE)
 		return;
 
 	reassess_wifi_situation();
+}
+
+void wifi_scan_fail(int err)
+{
+	unlatch(WIFI, SCAN, err);
 }
 
 void wifi_connected(struct link* ls)

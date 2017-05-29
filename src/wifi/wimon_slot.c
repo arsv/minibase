@@ -50,7 +50,7 @@ struct scan* find_scan_slot(uint8_t* bssid)
 	struct scan* sc;
 
 	for(sc = scans; sc < scans + nscans; sc++)
-		if(!sc->ifi)
+         if(!sc->freq)
 			continue;
 		else if(!memcmp(sc->bssid, bssid, 6))
 			return sc;
@@ -66,7 +66,7 @@ struct scan* grab_scan_slot(uint8_t* bssid)
 		return sc;
 
 	for(sc = scans; sc < scans + nscans; sc++)
-		if(!sc->ifi)
+         if(!sc->freq)
 			break;
 	if(sc >= scans + NSCANS)
 		return NULL;
@@ -84,22 +84,9 @@ void free_scan_slot(struct scan* sc)
 		nscans--;
 }
 
-void drop_scan_slots(int ifi)
+void drop_scan_slots()
 {
-	struct scan* sc;
-
-	for(sc = scans; sc < scans + nscans; sc++)
-		if(sc->ifi == ifi)
-			free_scan_slot(sc);
-}
-
-void drop_scan_slots_for(int ifi)
-{
-	struct scan* sc;
-
-	for(sc = scans; sc < scans + nscans; sc++)
-		if(sc->ifi == ifi)
-			free_scan_slot(sc);
+	nscans = 0;
 }
 
 struct child* grab_child_slot(void)

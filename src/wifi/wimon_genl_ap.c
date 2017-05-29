@@ -167,7 +167,7 @@ static void dump_sta(struct scan* sc)
 			sc->freq, sc->signal/100, type, sc->ssid);
 }
 
-void parse_scan_result(struct link* ls, struct nlgen* msg)
+void parse_scan_result(struct nlgen* msg)
 {
 	struct scan* sc;
 	struct nlattr* bss;
@@ -181,7 +181,6 @@ void parse_scan_result(struct link* ls, struct nlgen* msg)
 	if(!(sc = grab_scan_slot(bssid)))
 		return; /* out of scan slots */
 
-	sc->ifi = ls->ifi;
 	memcpy(sc->bssid, bssid, 6);
 	sc->freq = get_i32_or_zero(bss, NL80211_BSS_FREQUENCY);
 	sc->signal = get_i32_or_zero(bss, NL80211_BSS_SIGNAL_MBM);
