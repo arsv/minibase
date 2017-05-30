@@ -23,6 +23,7 @@
 #define S_CHILDREN (1<<6)
 #define S_STOPPING (1<<7)
 #define S_SIGSENT  (1<<8)
+#define S_UPCOMING (1<<9)
 
 /* link.scan */
 #define SC_NONE        0
@@ -211,6 +212,7 @@ int any_pids_left(void);
 void terminate_link(struct link* ls);
 void finalize_links(void);
 int stop_all_links(void);
+int switch_uplink(int ifi);
 
 /* wimon_wifi.c */
 
@@ -222,7 +224,11 @@ void wifi_conn_fail(struct link* ls);
 void wifi_scan_done(void);
 void wifi_scan_fail(int err);
 
-int start_wifi_scan(void);
+int grab_wifi_device(int rifi);
+
+void wifi_mode_disabled(void);
+int wifi_mode_roaming(void);
+int wifi_mode_fixedap(uint8_t* ssid, int slen);
 
 /* wimon_proc.c */
 

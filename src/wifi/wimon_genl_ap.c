@@ -185,6 +185,7 @@ void parse_scan_result(struct nlgen* msg)
 	sc->freq = get_i32_or_zero(bss, NL80211_BSS_FREQUENCY);
 	sc->signal = get_i32_or_zero(bss, NL80211_BSS_SIGNAL_MBM);
 	sc->type = 0;
+	sc->flags &= ~SF_STALE;
 
 	if((ies = nl_sub(bss, NL80211_BSS_INFORMATION_ELEMENTS)))
 		parse_station_ies(sc, ies);

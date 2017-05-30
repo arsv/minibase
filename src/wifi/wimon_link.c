@@ -68,6 +68,17 @@ void link_ipaddr(struct link* ls)
 		wifi_connected(ls);
 }
 
+static int any_stopping_links(void)
+{
+	struct link* ls;
+
+	for(ls = links; ls < links + nlinks; ls++)
+		if(ls->ifi && (ls->flags & S_STOPPING))
+			return 1;
+
+	return 0;
+}
+
 /* Whenever a link goes down, for any reason, all its remaining procs must
    be stopped and its ip configuration must be flushed. Not doing this means
    the link may be left in mid-way state, confusing the usespace. */
@@ -93,11 +104,15 @@ static void wait_link_down(struct link* ls)
 
 	unlatch(ls->ifi, DOWN, 0);
 	unlatch(ls->ifi, CONF, -ENETDOWN);
+
+	if(!any_stopping_links())
+		unlatch(NONE, DOWN, 0);
 }
 
 void terminate_link(struct link* ls)
 {
 	eprintf("terminating %s\n", ls->name);
+	ls->flags &= ~S_UPCOMING;
 	ls->flags |= S_STOPPING;
 
 	wait_link_down(ls);
@@ -177,7 +192,6 @@ int stop_all_links(void)
 	for(ls = links; ls < links + nlinks; ls++) {
 		if(!ls->ifi || (ls->mode & LM_NOT))
 			continue;
-
 		if(!(ls->flags & (S_CHILDREN | S_IPADDR)))
 			continue;
 
@@ -188,4 +202,29 @@ int stop_all_links(void)
 	}
 
 	return down;
+}
+
+int switch_uplink(int ifi)
+{
+	struct link* ls;
+	struct link* rls = NULL;
+
+	for(ls = links; ls < links + nlinks; ls++)
+		if(!ls->ifi)
+			continue;
+		else if(ls->ifi == ifi)
+			rls = ls;
+		else if(ls->flags & (S_UPLINK | S_UPCOMING))
+			return -EBUSY;
+
+	if(!(ls = rls))
+		return -ENODEV;
+
+	if(ls->flags & (S_UPLINK | S_UPCOMING))
+		return 0;
+
+	ls->mode &= ~LM_OFF;
+	ls->flags |= S_UPCOMING;
+
+	return 0;
 }

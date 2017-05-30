@@ -1,4 +1,5 @@
 #include <string.h>
+#include <format.h>
 #include <null.h>
 
 #include "wimon.h"
@@ -50,7 +51,7 @@ struct scan* find_scan_slot(uint8_t* bssid)
 	struct scan* sc;
 
 	for(sc = scans; sc < scans + nscans; sc++)
-         if(!sc->freq)
+		if(!sc->freq)
 			continue;
 		else if(!memcmp(sc->bssid, bssid, 6))
 			return sc;
@@ -66,7 +67,7 @@ struct scan* grab_scan_slot(uint8_t* bssid)
 		return sc;
 
 	for(sc = scans; sc < scans + nscans; sc++)
-         if(!sc->freq)
+		if(!sc->freq)
 			break;
 	if(sc >= scans + NSCANS)
 		return NULL;
@@ -78,6 +79,8 @@ struct scan* grab_scan_slot(uint8_t* bssid)
 
 void free_scan_slot(struct scan* sc)
 {
+	eprintf("%s %s\n", __FUNCTION__, sc->ssid);
+
 	memset(sc, 0, sizeof(*sc));
 
 	if(sc == &scans[nscans-1])
@@ -86,6 +89,7 @@ void free_scan_slot(struct scan* sc)
 
 void drop_scan_slots()
 {
+	eprintf("%s\n", __FUNCTION__);
 	nscans = 0;
 }
 

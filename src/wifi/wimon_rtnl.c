@@ -213,6 +213,7 @@ void msg_new_route(struct rtmsg* msg)
 
 	ls->defrt++;
 	ls->flags |= S_UPLINK;
+	ls->flags &= ~S_UPCOMING;
 
 	if(uplink.ifi == *oif)
 		uplink.cnt++;

@@ -64,20 +64,18 @@ static void check_new_aps(void)
 	}
 }
 
-static int check_ssid(struct scan* sc)
+static int match_ssid(uint8_t* ssid, int slen, struct scan* sc)
 {
-	if(wifi.mode == WM_ROAMING)
-		return 1; /* any ap will do */
-	if(wifi.mode != WM_FIXEDAP)
-		return 0; /* something's wrong */
-	if(sc->slen != wifi.slen)
+	if(!ssid || !slen)
+		return 1;
+	if(sc->slen != slen)
 		return 0;
-	if(memcmp(sc->ssid, wifi.ssid, sc->slen))
+	if(memcmp(sc->ssid, ssid, slen))
 		return 0;
 	return 1;
 }
 
-static struct scan* get_best_ap(void)
+static struct scan* get_best_ap(uint8_t* ssid, int slen)
 {
 	struct scan* sc;
 	struct scan* best = NULL;
@@ -89,7 +87,7 @@ static struct scan* get_best_ap(void)
 			continue;
 		if(sc->prio <= 0)
 			continue;
-		if(!check_ssid(sc))
+		if(!match_ssid(ssid, slen, sc))
 			continue;
 		if(!(sc->flags & SF_GOOD))
 			continue;
@@ -108,6 +106,20 @@ static struct scan* get_best_ap(void)
 	};
 
 	return best;
+}
+
+static void reset_scan_counters(uint8_t* ssid, int slen)
+{
+	struct scan* sc;
+
+	for(sc = scans; sc < scans + nscans; sc++) {
+		if(!sc->freq)
+			continue;
+		if(!match_ssid(ssid, slen, sc))
+			continue;
+
+		sc->tries = 0;
+	}
 }
 
 static int load_ap_psk(void)
@@ -149,8 +161,18 @@ static void reset_wifi_struct(void)
 static int connect_to_something(void)
 {
 	struct scan* sc;
+	uint8_t* ssid;
+	int slen;
 
-	while((sc = get_best_ap())) {
+	if(wifi.mode == WM_FIXEDAP) {
+		ssid = wifi.ssid;
+		slen = wifi.slen;
+	} else {
+		ssid = NULL;
+		slen = 0;
+	}
+
+	while((sc = get_best_ap(ssid, slen))) {
 		eprintf("best ap %s\n", sc->ssid);
 		if(load_ap(sc))
 			continue;
@@ -164,19 +186,38 @@ static int connect_to_something(void)
 	return 0;
 }
 
-int start_wifi_scan(void)
+int grab_wifi_device(int rifi)
 {
-	if(!wifi.ifi)
+	struct link* ls;
+	int ifi = wifi.ifi;
+
+	if(ifi && (ls = find_link_slot(ifi)))
+		return ifi;
+
+	wifi.ifi = ifi = 0;
+
+	for(ls = links; ls < links + nlinks; ls++) {
+		if(!ls->ifi || (ls->mode & LM_NOT))
+			continue;
+		if(!(ls->flags & S_NL80211))
+			continue;
+
+		if(!ifi)
+			ifi = ls->ifi;
+		else
+			return -EMLINK;
+	} if(!ifi)
 		return -ENODEV;
 
-	trigger_scan(wifi.ifi, 0);
+	wifi.ifi = ifi;
 
-	return 0;
+	return ifi;
 }
 
-static void scan_all_wifis(void)
+static void start_wifi_scan(void)
 {
-	start_wifi_scan();
+	if(wifi.ifi)
+		trigger_scan(wifi.ifi, 0);
 }
 
 static void reassess_wifi_situation(void)
@@ -191,11 +232,11 @@ static void reassess_wifi_situation(void)
 
 	unlatch(WIFI, CONF, -ESRCH);
 
- if(!wifi.ifi)
+	if(!wifi.ifi)
 		return;
 
 	eprintf("next scan in 60sec\n");
-	schedule(scan_all_wifis, 60);
+	schedule(start_wifi_scan, 60);
 }
 
 static struct scan* find_current_ap(void)
@@ -203,7 +244,7 @@ static struct scan* find_current_ap(void)
 	struct scan* sc;
 
 	for(sc = scans; sc < scans + nscans; sc++) {
-         if(!sc->freq)
+		if(!sc->freq)
 			continue;
 		if(memcmp(sc->bssid, wifi.bssid, sizeof(wifi.bssid)))
 			continue;
@@ -304,4 +345,46 @@ void wifi_conn_fail(struct link* ls)
 reset:
 	reset_wifi_struct();
 	reassess_wifi_situation();
+}
+
+void wifi_mode_disabled(void)
+{
+	wifi.mode = WM_DISABLED;
+	reset_wifi_struct();
+}
+
+int wifi_mode_roaming(void)
+{
+	if(wifi.state)
+		return -EBUSY;
+
+	reset_scan_counters(NULL, 0);
+
+	wifi.mode = WM_ROAMING;
+
+	trigger_scan(wifi.ifi, 0);
+
+	return 0;
+}
+
+int wifi_mode_fixedap(uint8_t* ssid, int slen)
+{
+	struct scan* sc;
+	int ret;
+
+	if(wifi.state)
+		return -EBUSY;
+
+	reset_scan_counters(ssid, slen);
+
+	if(!(sc = get_best_ap(ssid, slen)))
+		return -ENOENT;
+	if((ret = load_ap(sc)))
+		return ret;
+	if((ret = start_wifi()))
+		return ret;
+
+	wifi.mode = WM_FIXEDAP;
+
+	return 0;
 }

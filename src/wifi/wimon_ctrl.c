@@ -209,16 +209,6 @@ static int setlatch(int ifi, int evt, int cfd)
 	return LATCHED;
 }
 
-static int cmd_scan(int fd, struct ucmsg* msg)
-{
-	int ret;
-
-	if((ret = start_wifi_scan()))
-		return ret;
-
-	return setlatch(WIFI, SCAN, fd);
-}
-
 static int cmd_cancel(int fd, struct ucmsg* msg)
 {
 	if(latch.cfd)
@@ -231,31 +221,96 @@ static int cmd_cancel(int fd, struct ucmsg* msg)
 	return NOERROR;
 }
 
-static int cmd_neutral(int fd, struct ucmsg* msg)
-{
-	eprintf("%s\n", __FUNCTION__);
-
-	wifi.mode = WM_DISABLED;
-
-	if(!stop_all_links())
-		return NOERROR;
-
-	return setlatch(NONE, DOWN, fd);
-}
-
-static int attr_ifi(struct ucmsg* msg)
+static int get_ifi(struct ucmsg* msg)
 {
 	uint32_t* u32 = uc_get_u32(msg, ATTR_IFI);
 	return u32 ? *u32 : 0;
 }
 
-static struct link* find_wired_link(struct ucmsg* msg)
+static int cmd_scan(int fd, struct ucmsg* msg)
 {
-	struct link *ls, *lls = NULL;
 	int ifi;
 
-	if((ifi = attr_ifi(msg)))
-		return find_link_slot(ifi);
+	if((ifi = grab_wifi_device(0)) < 0)
+		return ifi;
+	if(latch.cfd)
+		return -EAGAIN;
+
+	trigger_scan(ifi, 0);
+
+	return setlatch(WIFI, SCAN, fd);
+}
+
+static int cmd_roaming(int fd, struct ucmsg* msg)
+{
+	int ifi, ret;
+	int rifi = get_ifi(msg);
+
+	eprintf("%s\n", __FUNCTION__);
+
+	if((ifi = grab_wifi_device(rifi)) < 0)
+		return ifi;
+	if((ret = switch_uplink(ifi))) {
+		eprintf("%s switch_uplink %i\n", __FUNCTION__, ret);
+		return ret;
+	} if((ret = wifi_mode_roaming())) {
+		eprintf("%s wifi_mode_roaming %i\n", __FUNCTION__, ret);
+		return ret;
+	}
+
+	return NOERROR;
+}
+
+static int cmd_fixedap(int fd, struct ucmsg* msg)
+{
+	int ifi, ret;
+	struct ucattr* ap;
+	int rifi = get_ifi(msg);
+
+	eprintf("%s\n", __FUNCTION__);
+
+	if(!(ap = uc_get(msg, ATTR_SSID)))
+		return -EINVAL;
+	if(latch.cfd)
+		return -EAGAIN;
+
+	int slen = ap->len - sizeof(*ap);
+	uint8_t* ssid = (uint8_t*)ap->payload;
+
+	if((ifi = grab_wifi_device(rifi)) < 0)
+		return ifi;
+	if((ret = switch_uplink(ifi)))
+		return ret;
+	if((ret = wifi_mode_fixedap(ssid, slen)))
+		return ret;
+
+	return NOERROR;
+}
+
+static int cmd_neutral(int fd, struct ucmsg* msg)
+{
+	int ret;
+
+	eprintf("%s\n", __FUNCTION__);
+
+	if(latch.cfd)
+		return -EAGAIN;
+
+	wifi_mode_disabled();
+
+	if((ret = stop_all_links()) <= 0)
+		return ret;
+
+	return setlatch(NONE, DOWN, fd);
+}
+
+static int find_wired_link(int rifi)
+{
+	int ifi = 0;
+	struct link* ls;
+
+	if(rifi && (ls = find_link_slot(rifi)))
+		return rifi;
 
 	for(ls = links; ls < links + nlinks; ls++) {
 		if(!ls->ifi)
@@ -264,60 +319,39 @@ static struct link* find_wired_link(struct ucmsg* msg)
 			continue;
 		if(ls->flags & S_NL80211)
 			continue;
-		if(lls)
-			return NULL;
-		lls = ls;
+		if(ifi)
+			return -EMFILE;
+		ifi = ls->ifi;
 	}
 
-	return lls;
+	return ifi;
 }
 
 static int cmd_wired(int fd, struct ucmsg* msg)
 {
+	int ret, ifi;
+	int rifi = get_ifi(msg);
 	struct link* ls;
 
 	eprintf("%s\n", __FUNCTION__);
 
-	if(!(ls = find_wired_link(msg)))
-		return -ENODEV;
-	if(uplock == ls->ifi)
-		return NOERROR;
-	else if(uplock)
-		return -EBUSY;
+	if((ifi = find_wired_link(rifi)) < 0)
+		return ifi;
 	if(latch.cfd)
-		return -EBUSY;
+		return -EAGAIN;
+	if(!(ls = find_link_slot(ifi)))
+		return -ENODEV;
+	if((ret = switch_uplink(ifi)) < 0)
+		return ret;
 
-	ls->mode &= ~(LM_LOCAL | LM_NOT | LM_OFF);
-
-	if(!(ls->flags & S_ENABLED))
-		set_link_operstate(ls->ifi, IF_OPER_UP);
-	else if(ls->flags & S_CARRIER)
+	if(ls->flags & S_CARRIER)
 		link_carrier(ls);
 	else
 		return -ENETDOWN;
 
-	uplock = ls->ifi;
+	ls->flags |= S_UPCOMING;
 
-	return setlatch(ls->ifi, CONF, fd);
-}
-
-static int cmd_roaming(int fd, struct ucmsg* msg)
-{
-	int ret;
-
-	eprintf("%s\n", __FUNCTION__);
-
-	if(uplock && uplock != WIFI)
-		return -EBUSY;
-
-	uplock = WIFI;
-	wifi.mode = WM_ROAMING;
-
-	if(wifi.state == WS_NONE)
-		if((ret = start_wifi_scan()) < 0)
-			return ret;
-
-	return NOERROR;
+	return setlatch(ifi, CONF, fd);
 }
 
 static const struct cmd {
@@ -327,6 +361,7 @@ static const struct cmd {
 	{ CMD_STATUS,  cmd_status  },
 	{ CMD_NEUTRAL, cmd_neutral },
 	{ CMD_ROAMING, cmd_roaming },
+	{ CMD_FIXEDAP, cmd_fixedap },
 	{ CMD_WIRED,   cmd_wired   },
 	{ CMD_SCAN,    cmd_scan    },
 	{ CMD_CANCEL,  cmd_cancel  },
