@@ -119,7 +119,12 @@ static int get_genl_ifindex(struct nlgen* msg)
 
 static void msg_new_wifi(struct link* ls, struct nlgen* msg)
 {
+	uint32_t* u32;
+
 	ls->flags |= S_NL80211;
+
+	if((u32 = nl_get_u32(msg, NL80211_ATTR_WIPHY_FREQ)))
+		ls->flags |= S_APLOCK;
 
 	wifi_ready(ls);
 }
@@ -202,32 +207,18 @@ static void msg_scan_res(struct link* ls, struct nlgen* msg)
 	}
 }
 
-static void msg_connect(struct link* ls, struct nlgen* msg)
+static void msg_authenticate(struct link* ls, struct nlgen* msg)
 {
-	uint8_t* bssid;
-
-	if(ls->flags & S_CONNECT)
-		return;
-
-	if((bssid = nl_get_of_len(msg, NL80211_ATTR_MAC, 6))) {
-		eprintf("connect %s to %02X:%02X:%02X:%02X:%02X:%02X\n",
-				ls->name,
-				bssid[0], bssid[1], bssid[2],
-				bssid[3], bssid[4], bssid[5]);
-	} else {
-		eprintf("connect %s to ???\n", ls->name);
-	}
-
-	ls->flags |= S_CONNECT;
+	ls->flags |= S_APLOCK;
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
 }
 
-static void msg_disconnect(struct link* ls, struct nlgen* msg)
+static void msg_deauthenticate(struct link* ls, struct nlgen* msg)
 {
-	if(!(ls->flags & S_CONNECT))
-		return;
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	ls->flags &= ~S_CONNECT;
-	eprintf("wifi %s disconnected\n", ls->name);
+	ls->flags &= ~S_APLOCK;
+	wifi_deauthed(ls);
 }
 
 struct cmdh {
@@ -239,12 +230,12 @@ struct cmdh {
 	{ NL80211_CMD_TRIGGER_SCAN,     msg_scan_start     },
 	{ NL80211_CMD_SCAN_ABORTED,     msg_scan_abort     },
 	{ NL80211_CMD_NEW_SCAN_RESULTS, msg_scan_res       },
-	{ NL80211_CMD_AUTHENTICATE,     NULL               },
+	{ NL80211_CMD_AUTHENTICATE,     msg_authenticate   },
 	{ NL80211_CMD_ASSOCIATE,        NULL               },
-	{ NL80211_CMD_DEAUTHENTICATE,   NULL               },
+	{ NL80211_CMD_DEAUTHENTICATE,   msg_deauthenticate },
 	{ NL80211_CMD_DISASSOCIATE,     NULL               },
-	{ NL80211_CMD_CONNECT,          msg_connect        },
-	{ NL80211_CMD_DISCONNECT,       msg_disconnect     },
+	{ NL80211_CMD_CONNECT,          NULL               },
+	{ NL80211_CMD_DISCONNECT,       NULL               },
 	{ NL80211_CMD_NEW_STATION,      NULL               },
 	{ NL80211_CMD_DEL_STATION,      NULL               },
 	{ NL80211_CMD_NOTIFY_CQM,       NULL               },

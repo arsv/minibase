@@ -22,6 +22,13 @@ static int start_wifi(void)
 	if(!(ls = find_link_slot(wifi.ifi)))
 		return -EINVAL;
 
+	if(ls->flags & S_APLOCK) {
+		if(wifi.state == WS_DEVINIT)
+			return -EBUSY;
+		wifi.state = WS_DEVINIT;
+		trigger_disconnect(ls->ifi);
+	}
+
 	if(allbits(type, ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_CCMP))
 		spawn_wpa(ls, NULL);
 	else if(allbits(type, ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_TKIP))
@@ -344,6 +351,14 @@ void wifi_conn_fail(struct link* ls)
 reset:
 	reset_wifi_struct();
 	reassess_wifi_situation();
+}
+
+void wifi_deauthed(struct link* ls)
+{
+	if(ls->ifi != wifi.ifi)
+		return;
+	if(wifi.state == WS_DEVINIT)
+		start_wifi();
 }
 
 void wifi_mode_disabled(void)

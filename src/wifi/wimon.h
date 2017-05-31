@@ -15,7 +15,7 @@
 /* link.flags */
 #define S_NL80211  (1<<0)
 #define S_ENABLED  (1<<1)
-#define S_CONNECT  (1<<2)
+#define S_APLOCK   (1<<2)
 #define S_CARRIER  (1<<3)
 #define S_IPADDR   (1<<4)
 #define S_UPLINK   (1<<5)
@@ -96,9 +96,10 @@ struct child {
 #define WM_DISABLED    2
 /* wifi.state */
 #define WS_NONE        0
-#define WS_TUNED       1
-#define WS_CONNECTED   2
-#define WS_RETRYING    3
+#define WS_DEVINIT     1
+#define WS_TUNED       2
+#define WS_CONNECTED   3
+#define WS_RETRYING    4
 /* wifi.flags */
 #define WF_UNSAVED     (1<<0)
 
@@ -200,6 +201,7 @@ void link_enabled(struct link* ls);
 void link_carrier(struct link* ls);
 void link_ipaddr(struct link* ls);
 void link_ipgone(struct link* ls);
+void link_apgone(struct link* ls);
 void link_child_exit(struct link* ls, int status);
 
 int any_pids_left(void);
@@ -214,6 +216,7 @@ void wifi_ready(struct link* ls);
 void wifi_gone(struct link* ls);
 void wifi_connected(struct link* ls);
 void wifi_conn_fail(struct link* ls);
+void wifi_deauthed(struct link* ls);
 
 void wifi_scan_done(void);
 void wifi_scan_fail(int err);

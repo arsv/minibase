@@ -22,7 +22,9 @@ void link_new(struct link* ls)
 		if(ls->flags & S_IPADDR)
 			del_link_addresses(ifi);
 	} else {
-		if(ls->flags & S_ENABLED)
+		if(ls->flags & S_CARRIER)
+			link_carrier(ls);
+		else if(ls->flags & S_ENABLED)
 			link_enabled(ls);
 	}
 }
@@ -89,6 +91,9 @@ static void wait_link_down(struct link* ls)
 	} if(ls->flags & S_IPADDR) {
 		eprintf("  ipaddrs\n");
 		return del_link_addresses(ls->ifi);
+	} if(ls->flags & S_APLOCK) {
+		eprintf("  aplock\n");
+		return trigger_disconnect(ls->ifi);
 	}
 
 	eprintf("stopped %s\n", ls->name);
@@ -126,6 +131,14 @@ void link_ipgone(struct link* ls)
 		return;
 	if(ls->flags & S_CARRIER)
 		link_carrier(ls);
+}
+
+void link_apgone(struct link* ls)
+{
+	if(ls->flags & S_STOPPING)
+		return wait_link_down(ls);
+	else
+		wifi_deauthed(ls);
 }
 
 void link_down(struct link* ls)
