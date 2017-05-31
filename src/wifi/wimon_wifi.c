@@ -105,6 +105,9 @@ static struct scan* get_best_ap(uint8_t* ssid, int slen)
 		set: best = sc;
 	};
 
+	if(best)
+		best->tries++;
+
 	return best;
 }
 
@@ -320,14 +323,10 @@ void wifi_connected(struct link* ls)
 
 void wifi_conn_fail(struct link* ls)
 {
-	struct scan* sc;
-
 	eprintf("%s\n", __FUNCTION__);
 
 	if(ls->ifi != wifi.ifi)
 		return; /* stray wifi interface */
-	if((sc = find_current_ap()))
-		sc->tries++;
 
 	if(wifi.mode == WM_DISABLED)
 		wifi.state = WS_NONE;
