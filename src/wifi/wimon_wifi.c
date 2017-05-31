@@ -22,13 +22,6 @@ static int start_wifi(void)
 	if(!(ls = find_link_slot(wifi.ifi)))
 		return -EINVAL;
 
-	if(ls->flags & S_APLOCK) {
-		if(wifi.state == WS_DEVINIT)
-			return -EBUSY;
-		wifi.state = WS_DEVINIT;
-		trigger_disconnect(ls->ifi);
-	}
-
 	if(allbits(type, ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_CCMP))
 		spawn_wpa(ls, NULL);
 	else if(allbits(type, ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_TKIP))
@@ -265,6 +258,15 @@ static struct scan* find_current_ap(void)
 	return NULL;
 }
 
+/* This gets calls when there's a new 802.11 which _wifi.c may or may not
+   claim as its primary interface.
+
+   If we find the device in *connected* state during startup, and we want
+   to claim it, blindly send disconnect request and hope it will complete
+   before the scan does. It's bad but attempting to handle it properly
+   results in even worse code. During normal operations, lingering aplocks
+   are dealt with in terminate_link(). */
+
 void wifi_ready(struct link* ls)
 {
 	eprintf("%s\n", __FUNCTION__);
@@ -276,7 +278,10 @@ void wifi_ready(struct link* ls)
 	if(wifi.state != WS_NONE)
 		return;
 
-	trigger_scan(wifi.ifi, 0);
+	if(ls->flags & S_APLOCK)
+		trigger_disconnect(ls->ifi);
+
+	trigger_scan(ls->ifi, 0);
 }
 
 void wifi_gone(struct link* ls)
@@ -351,14 +356,6 @@ void wifi_conn_fail(struct link* ls)
 reset:
 	reset_wifi_struct();
 	reassess_wifi_situation();
-}
-
-void wifi_deauthed(struct link* ls)
-{
-	if(ls->ifi != wifi.ifi)
-		return;
-	if(wifi.state == WS_DEVINIT)
-		start_wifi();
 }
 
 void wifi_mode_disabled(void)

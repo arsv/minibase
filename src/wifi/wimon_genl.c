@@ -218,7 +218,6 @@ static void msg_deauthenticate(struct link* ls, struct nlgen* msg)
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
 	ls->flags &= ~S_APLOCK;
-	wifi_deauthed(ls);
 }
 
 struct cmdh {

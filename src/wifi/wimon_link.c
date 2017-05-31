@@ -137,8 +137,6 @@ void link_apgone(struct link* ls)
 {
 	if(ls->flags & S_STOPPING)
 		return wait_link_down(ls);
-	else
-		wifi_deauthed(ls);
 }
 
 void link_down(struct link* ls)

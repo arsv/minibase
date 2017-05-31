@@ -96,10 +96,9 @@ struct child {
 #define WM_DISABLED    2
 /* wifi.state */
 #define WS_NONE        0
-#define WS_DEVINIT     1
-#define WS_TUNED       2
-#define WS_CONNECTED   3
-#define WS_RETRYING    4
+#define WS_TUNED       1
+#define WS_CONNECTED   2
+#define WS_RETRYING    3
 /* wifi.flags */
 #define WF_UNSAVED     (1<<0)
 
@@ -216,7 +215,6 @@ void wifi_ready(struct link* ls);
 void wifi_gone(struct link* ls);
 void wifi_connected(struct link* ls);
 void wifi_conn_fail(struct link* ls);
-void wifi_deauthed(struct link* ls);
 
 void wifi_scan_done(void);
 void wifi_scan_fail(int err);
