@@ -160,10 +160,12 @@ void setup_signals(void)
 	sigaddset(&sa.mask, SIGINT);
 	sigaddset(&sa.mask, SIGTERM);
 	sigaddset(&sa.mask, SIGHUP);
+	sigaddset(&sa.mask, SIGALRM);
 
 	ret |= syssigaction(SIGINT,  &sa, NULL);
 	ret |= syssigaction(SIGTERM, &sa, NULL);
 	ret |= syssigaction(SIGHUP,  &sa, NULL);
+	ret |= syssigaction(SIGALRM, &sa, NULL);
 
 	sa.flags &= ~SA_RESTART;
 	ret |= syssigaction(SIGCHLD, &sa, NULL);
