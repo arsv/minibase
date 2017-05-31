@@ -54,17 +54,6 @@ static struct nlattr* rtm_get(struct rtmsg* msg, uint16_t key)
 	return nl_attr_k_in(NLPAYLOAD(msg), key);
 }
 
-void set_link_operstate(int ifi, int operstate)
-{
-	struct ifinfomsg* msg;
-
-	nl_header(&rtnl, msg, RTM_SETLINK, 0,
-			.index = ifi);
-	nl_put_u8(&rtnl, IFLA_OPERSTATE, operstate);
-
-	nl_send(&rtnl);
-}
-
 void del_link_addresses(int ifi)
 {
 	struct ifaddrmsg* req;

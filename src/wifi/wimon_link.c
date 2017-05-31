@@ -21,12 +21,8 @@ void link_new(struct link* ls)
 	if(ls->mode & LM_OFF) {
 		if(ls->flags & S_IPADDR)
 			del_link_addresses(ifi);
-		//if(ls->flags & S_ENABLED)
-		//	set_link_operstate(ifi, IF_OPER_DOWN);
 	} else {
-		if(!(ls->flags & S_ENABLED))
-			; //set_link_operstate(ifi, IF_OPER_UP);
-		else
+		if(ls->flags & S_ENABLED)
 			link_enabled(ls);
 	}
 }
@@ -178,8 +174,6 @@ void finalize_links(void)
 			continue;
 		if(ls->flags & S_IPADDR)
 			del_link_addresses(ls->ifi);
-		if(ls->flags & S_ENABLED)
-			set_link_operstate(ls->ifi, IF_OPER_DOWN);
 		/* del_link_routes */
 	}
 }

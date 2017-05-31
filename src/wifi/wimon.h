@@ -37,11 +37,6 @@
 #define LM_OFF        (1<<1)
 #define LM_STATIC     (1<<2)
 #define LM_LOCAL      (1<<3)
-#define LM_WIFI       (1<<4)
-
-/* for set_link_operstate; from linux/if.h, ref. RFC 2863 */
-#define IF_OPER_DOWN   2
-#define IF_OPER_UP     6
 
 struct link {
 	int ifi;
@@ -175,7 +170,6 @@ void accept_ctrl(int sfd);
 void unlink_ctrl(void);
 void handle_rtnl(struct nlmsg* msg);
 void handle_genl(struct nlmsg* msg);
-void set_link_operstate(int ifi, int operstate);
 void del_link_addresses(int ifi);
 
 void trigger_scan(int ifi, int freq);
