@@ -2,6 +2,7 @@
 
 #include <nlusctl.h>
 #include <format.h>
+#include <string.h>
 #include <heap.h>
 #include <util.h>
 #include <fail.h>
@@ -62,7 +63,26 @@ static void cmd_roaming(struct top* ctx, int opts, int i, int argc, char** argv)
 
 static void cmd_fixedap(struct top* ctx, int opts, int i, int argc, char** argv)
 {
-	fail("not implemented:", __FUNCTION__, 0);
+	char* ssid;
+
+	uc_put_hdr(&ctx->tx, CMD_FIXEDAP);
+
+	if(i < argc)
+		ssid = argv[i++];
+	else
+		fail("ssid required", NULL, 0);
+
+	uc_put_bin(&ctx->tx, ATTR_SSID, ssid, strlen(ssid));
+
+	if(i < argc)
+		put_psk_arg(ctx, ssid, argv[i++]);
+	else if(opts & OPT_p)
+		put_psk_input(ctx, ssid);
+
+	opts &= ~OPT_p;
+	no_other_options(opts, i, argc);
+
+	send_check_empty(ctx);
 }
 
 static void cmd_neutral(struct top* ctx, int opts, int i, int argc, char** argv)
@@ -95,9 +115,9 @@ int main(int argc, char** argv)
 		cmd_scan(&ctx, opts, i, argc, argv);
 	else if(mode == OPT_e)
 		cmd_wired(&ctx, opts, i, argc, argv);
-	else if(mode == OPT_w && i >= argc)
+	else if(mode == OPT_w)
 		cmd_roaming(&ctx, opts, i, argc, argv);
-	else if(mode == OPT_w || !mode)
+	else if(!mode)
 		cmd_fixedap(&ctx, opts, i, argc, argv);
 	else
 		fail("bad options", NULL, 0);

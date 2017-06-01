@@ -1,3 +1,6 @@
+#include <sys/write.h>
+#include <sys/read.h>
+
 #include <crypto/pbkdf2.h>
 #include <nlusctl.h>
 #include <string.h>
@@ -33,5 +36,21 @@ void put_psk_arg(struct top* ctx, char* ssid, char* pass)
 
 void put_psk_input(struct top* ctx, char* ssid)
 {
-	fail("not implemented", NULL, 0);
+	char buf[256];
+	int rd;
+	char* prompt = "Passphrase: ";
+
+	syswrite(STDOUT, prompt, strlen(prompt));
+	rd = sysread(STDIN, buf, sizeof(buf));
+
+	if(rd >= sizeof(buf))
+		fail("passphrase too long", NULL, 0);
+
+	if(rd > 0 && buf[rd-1] == '\n')
+		rd--;
+	if(!rd)
+		fail("empty passphrase rejected", NULL, 0);
+	buf[rd] = '\0';
+
+	put_psk(ctx, ssid, buf);
 }
