@@ -75,9 +75,9 @@ void pbkdf2_sha1(uint8_t* psk, int len,
 	for(i = 1; HS*i <= len; i++) {
 		uint8_t* T = psk + HS*(i-1);
 		F(T, P, Pn, S, Sn, c, i);
-	} if(i < len) {
+	} if(HS*(i-1) < len) {
 		uint8_t T[HS];
 		F(T, P, Pn, S, Sn, c, i);
-		memcpy(psk + HS*(i-1), T, len - i);
+		memcpy(psk + HS*(i-1), T, len - HS*(i-1));
 	}
 }
