@@ -25,102 +25,121 @@ ERRLIST = {
 #define OPT_p (1<<4)
 #define OPT_w (1<<5)
 
-static void no_other_options(int opts, int i, int argc)
+static void no_other_options(struct top* ctx)
 {
-	if(i < argc)
+	if(ctx->argi < ctx->argc)
 		fail("too many arguments", NULL, 0);
-	if(opts)
+	if(ctx->opts)
 		fail("bad options", NULL, 0);
 }
 
-static void cmd_status(struct top* ctx, int opts, int i, int argc, char** argv)
+static int got_any_args(struct top* ctx)
 {
-	no_other_options(opts, i, argc);
-	uc_put_hdr(&ctx->tx, CMD_STATUS);
+	return (ctx->argi < ctx->argc);
+}
+
+static int use_opt(struct top* ctx, int opt)
+{
+	int ret = ctx->opts & opt;
+	ctx->opts &= ~opt;
+	return ret;
+}
+
+static char* shift_opt(struct top* ctx)
+{
+	if(ctx->argi >= ctx->argc)
+		return NULL;
+	return ctx->argv[ctx->argi++];
+}
+
+static void cmd_status(struct top* ctx)
+{
+	no_other_options(ctx);
+	uc_put_hdr(UC, CMD_STATUS);
 	dump_status(ctx, send_check(ctx));
 }
 
-static void cmd_wired(struct top* ctx, int opts, int i, int argc, char** argv)
+static void cmd_wired(struct top* ctx)
 {
-	no_other_options(opts, i, argc);
-	uc_put_hdr(&ctx->tx, CMD_WIRED);
+	no_other_options(ctx);
+	uc_put_hdr(UC, CMD_WIRED);
 	send_check_empty(ctx);
 }
 
-static void cmd_scan(struct top* ctx, int opts, int i, int argc, char** argv)
+static void cmd_scan(struct top* ctx)
 {
-	no_other_options(opts, i, argc);
-	uc_put_hdr(&ctx->tx, CMD_SCAN);
+	no_other_options(ctx);
+	uc_put_hdr(UC, CMD_SCAN);
 	dump_scanlist(ctx, send_check(ctx));
 }
 
-static void cmd_roaming(struct top* ctx, int opts, int i, int argc, char** argv)
+static void cmd_roaming(struct top* ctx)
 {
-	no_other_options(opts, i, argc);
-	uc_put_hdr(&ctx->tx, CMD_ROAMING);
+	no_other_options(ctx);
+	uc_put_hdr(UC, CMD_ROAMING);
 	send_check_empty(ctx);
 }
 
-static void cmd_fixedap(struct top* ctx, int opts, int i, int argc, char** argv)
+static void cmd_fixedap(struct top* ctx)
 {
-	char* ssid;
+	char *ssid, *pass;
 
-	uc_put_hdr(&ctx->tx, CMD_FIXEDAP);
+	uc_put_hdr(UC, CMD_FIXEDAP);
 
-	if(i < argc)
-		ssid = argv[i++];
-	else
+	if(!(ssid = shift_opt(ctx)))
 		fail("ssid required", NULL, 0);
 
-	uc_put_bin(&ctx->tx, ATTR_SSID, ssid, strlen(ssid));
+	uc_put_bin(UC, ATTR_SSID, ssid, strlen(ssid));
 
-	if(i < argc)
-		put_psk_arg(ctx, ssid, argv[i++]);
-	else if(opts & OPT_p)
+	if((pass = shift_opt(ctx)))
+		put_psk_arg(ctx, ssid, pass);
+	else if(use_opt(ctx, OPT_p))
 		put_psk_input(ctx, ssid);
 
-	opts &= ~OPT_p;
-	no_other_options(opts, i, argc);
-
+	no_other_options(ctx);
 	send_check_empty(ctx);
 }
 
-static void cmd_neutral(struct top* ctx, int opts, int i, int argc, char** argv)
+static void cmd_neutral(struct top* ctx)
 {
-	no_other_options(opts, i, argc);
-	uc_put_hdr(&ctx->tx, CMD_NEUTRAL);
+	no_other_options(ctx);
+	uc_put_hdr(UC, CMD_NEUTRAL);
 	send_check_empty(ctx);
+}
+
+static void init_args(struct top* ctx, int argc, char** argv)
+{
+	int i = 1;
+
+	if(i < argc && argv[i][0] == '-')
+		ctx->opts = argbits(OPTS, argv[i++] + 1);
+	else
+		ctx->opts = 0;
+
+	ctx->argi = i;
+	ctx->argc = argc;
+	ctx->argv = argv;
 }
 
 int main(int argc, char** argv)
 {
-	int i = 1;
-	int opts = 0;
-	struct top ctx;
+	struct top context, *ctx = &context;
 
-	if(i < argc && argv[i][0] == '-')
-		opts = argbits(OPTS, argv[i++] + 1);
+	init_args(ctx, argc, argv);
+	init_heap_socket(ctx);
 
-	int mode = opts & (OPT_r | OPT_d | OPT_s | OPT_e | OPT_w);
-
-	opts &= ~mode;
-
-	top_init(&ctx);
-
-	if(!mode && i >= argc)
-		cmd_status(&ctx, opts, i, argc, argv);
-	else if(mode == OPT_d)
-		cmd_neutral(&ctx, opts, i, argc, argv);
-	else if(mode == OPT_s)
-		cmd_scan(&ctx, opts, i, argc, argv);
-	else if(mode == OPT_e)
-		cmd_wired(&ctx, opts, i, argc, argv);
-	else if(mode == OPT_w)
-		cmd_roaming(&ctx, opts, i, argc, argv);
-	else if(!mode)
-		cmd_fixedap(&ctx, opts, i, argc, argv);
+	if(use_opt(ctx, OPT_d))
+		cmd_neutral(ctx);
+	else if(use_opt(ctx, OPT_s))
+		cmd_scan(ctx);
+	else if(use_opt(ctx, OPT_w))
+		cmd_roaming(ctx);
+	else if(use_opt(ctx, OPT_e))
+		cmd_wired(ctx);
+	else if(got_any_args(ctx))
+		cmd_fixedap(ctx);
 	else
-		fail("bad options", NULL, 0);
+		cmd_status(ctx);
 
 	return 0;
 }

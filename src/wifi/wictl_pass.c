@@ -22,7 +22,7 @@ static void put_psk(struct top* ctx, char* ssid, char* pass)
 
 	pbkdf2_sha1(psk, sizeof(psk), pass, passlen, ssid, ssidlen, 4096);
 
-	uc_put_ubin(&ctx->tx, ATTR_PSK, psk, sizeof(psk));
+	uc_put_ubin(UC, ATTR_PSK, psk, sizeof(psk));
 }
 
 /* As written this only works with sane ssids and passphrases.

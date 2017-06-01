@@ -12,6 +12,39 @@
 #include "config.h"
 #include "wictl.h"
 
+/* Socket init is split in two parts: socket() call is performed early so
+   that it could be used to resolve netdev names into ifis, but connection
+   is delayed until send_command() to avoid waking up wimon and then dropping
+   the connection because of a local error. */
+
+void init_heap_socket(struct top* ctx)
+{
+	int fd;
+
+	hinit(&ctx->hp, PAGE);
+	uc_buf_set(&ctx->uc, ctx->cbuf, sizeof(ctx->cbuf));
+
+	if((fd = syssocket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+		fail("socket", "AF_UNIX", fd);
+
+	ctx->fd = fd;
+}
+
+static void connect_socket(struct top* ctx)
+{
+	int ret;
+
+	struct sockaddr_un addr = {
+		.family = AF_UNIX,
+		.path = WICTL
+	};
+
+	if((ret = sysconnect(ctx->fd, &addr, sizeof(addr))) < 0)
+		fail("connect", WICTL, ret);
+
+	ctx->connected = 1;
+}
+
 static int heap_left(struct top* ctx)
 {
 	return ctx->hp.end - ctx->hp.ptr;
@@ -20,12 +53,15 @@ static int heap_left(struct top* ctx)
 static void send_command(struct top* ctx)
 {
 	int wr, fd = ctx->fd;
-	char* txbuf = ctx->tx.brk;
-	int txlen = ctx->tx.ptr - ctx->tx.brk;
+	char* txbuf = ctx->uc.brk;
+	int txlen = ctx->uc.ptr - ctx->uc.brk;
 
-	uc_put_end(&ctx->tx);
+	uc_put_end(&ctx->uc);
 
 	uc_dump((struct ucmsg*)txbuf);
+
+	if(!ctx->connected)
+		connect_socket(ctx);
 
 	if((wr = writeall(fd, txbuf, txlen)) < 0)
 		fail("write", NULL, wr);
@@ -92,23 +128,4 @@ void send_check_empty(struct top* ctx)
 
 	if(msg->len > sizeof(msg))
 		fail("unexpected reply data", NULL, 0);
-}
-
-void top_init(struct top* ctx)
-{
-	int fd, ret;
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = WICTL
-	};
-
-	hinit(&ctx->hp, PAGE);
-	uc_buf_set(&ctx->tx, ctx->cbuf, sizeof(ctx->cbuf));
-
-	if((fd = syssocket(AF_UNIX, SOCK_STREAM, 0)) < 0)
-		fail("socket", "AF_UNIX", fd);
-	if((ret = sysconnect(fd, &addr, sizeof(addr))) < 0)
-		fail("connect", WICTL, ret);
-
-	ctx->fd = fd;
 }
