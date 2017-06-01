@@ -9,6 +9,7 @@
 #include <string.h>
 #include <format.h>
 #include <fail.h>
+#include <util.h>
 
 #include "nlfam.h"
 #include "wpa.h"
@@ -100,7 +101,7 @@ void setup_netlink(void)
 
 int resolve_ifname(char* name)
 {
-	return nl_ifindex(&nl, name);
+	return getifindex(nl.fd, name);
 }
 
 /* The whole thing is a mix of sync and async stuff. Commands like
