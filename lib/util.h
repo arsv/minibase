@@ -21,4 +21,6 @@ long writeall(int fd, char* buf, long len);
 
 long execvpe(char* file, char** argv, char** envp);
 
+int getifindex(int fd, char* ifname);
+
 #endif

@@ -55,7 +55,3 @@ struct nlgen* nl_recv_genl_multi(struct netlink* nl);
 long nl_recv_nowait(struct netlink* nl);
 struct nlmsg* nl_get_nowait(struct netlink* nl);
 void nl_shift_rxbuf(struct netlink* nl);
-
-/* WTF section */
-
-int nl_ifindex(struct netlink* nl, const char* ifname);
