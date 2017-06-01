@@ -293,6 +293,22 @@ void wifi_gone(struct link* ls)
 	wifi.state = WS_NONE;
 }
 
+static void retry_current_ap(void)
+{
+	wifi.state = WS_NONE;
+
+	eprintf("%s\n", __FUNCTION__);
+
+	if(load_ap_psk())
+		goto out;
+	if(start_wifi())
+		goto out;
+	return;
+out:
+	reset_wifi_struct();
+	reassess_wifi_situation();
+}
+
 void wifi_scan_done(void)
 {
 	eprintf("%s\n", __FUNCTION__);
@@ -300,10 +316,10 @@ void wifi_scan_done(void)
 	check_new_aps();
 	unlatch(WIFI, SCAN, 0);
 
-	if(wifi.state != WS_NONE)
-		return;
-
-	reassess_wifi_situation();
+	if(wifi.state == WS_RETRYING)
+		retry_current_ap();
+	else if(wifi.state == WS_NONE)
+		reassess_wifi_situation();
 }
 
 void wifi_scan_fail(int err)
@@ -345,15 +361,10 @@ void wifi_conn_fail(struct link* ls)
 
 	if(wifi.state == WS_CONNECTED) {
 		wifi.state = WS_RETRYING;
-
-		if(load_ap_psk())
-			goto reset;
-		if(start_wifi())
-			goto reset;
-
+		trigger_scan(wifi.ifi, wifi.freq);
 		return;
 	}
-reset:
+
 	reset_wifi_struct();
 	reassess_wifi_situation();
 }
