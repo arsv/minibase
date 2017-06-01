@@ -52,6 +52,19 @@ static char* shift_opt(struct top* ctx)
 	return ctx->argv[ctx->argi++];
 }
 
+static void maybe_put_ifi(struct top* ctx)
+{
+	char *ifname;
+	int ifi;
+
+	if(!(ifname = shift_opt(ctx)))
+		return;
+	if((ifi = getifindex(ctx->fd, ifname)) <= 0)
+		fail("bad ifname", ifname, ifi);
+
+	uc_put_u32(UC, ATTR_IFI, ifi);
+}
+
 static void cmd_status(struct top* ctx)
 {
 	no_other_options(ctx);
@@ -68,15 +81,17 @@ static void cmd_wired(struct top* ctx)
 
 static void cmd_scan(struct top* ctx)
 {
-	no_other_options(ctx);
 	uc_put_hdr(UC, CMD_SCAN);
+	maybe_put_ifi(ctx);
+	no_other_options(ctx);
 	dump_scanlist(ctx, send_check(ctx));
 }
 
 static void cmd_roaming(struct top* ctx)
 {
-	no_other_options(ctx);
 	uc_put_hdr(UC, CMD_ROAMING);
+	maybe_put_ifi(ctx);
+	no_other_options(ctx);
 	send_check_empty(ctx);
 }
 
@@ -102,8 +117,8 @@ static void cmd_fixedap(struct top* ctx)
 
 static void cmd_neutral(struct top* ctx)
 {
-	no_other_options(ctx);
 	uc_put_hdr(UC, CMD_NEUTRAL);
+	no_other_options(ctx);
 	send_check_empty(ctx);
 }
 
