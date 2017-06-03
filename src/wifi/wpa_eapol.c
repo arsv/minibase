@@ -105,10 +105,10 @@ static void store_gtk(uint8_t* buf)
 {
 	memcpy(GTK, buf, 16);
 
-	if(tkipgroup) {
-		memcpy(GTK + 16, buf + 24, 8);
-		memcpy(GTK + 24, buf + 16, 8);
-	}
+	if(!tkipgroup) return;
+
+	memcpy(GTK + 16, buf + 24, 8);
+	memcpy(GTK + 24, buf + 16, 8);
 }
 
 static void fetch_gtk(char* buf, int len)
@@ -240,7 +240,7 @@ void recv_packet_1(void)
    Reasons for that are not clear. The IEs are sent with ASSOCIATE
    command anyway, no point in repeating them, and IEs are not
    KDE-formatted, which is against what the standard says about
-   the payload. */
+   the payload. (Or are they?) */
 
 void send_packet_2(void)
 {
