@@ -187,6 +187,9 @@ void trigger_scan(int ifi, int freq);
 void trigger_disconnect(int ifi);
 void parse_scan_result(struct nlgen* msg);
 
+void enable_iface(int ifi);
+void disable_iface(int ifi);
+
 /* wimon_slot.c */
 
 struct link* find_link_slot(int ifi);

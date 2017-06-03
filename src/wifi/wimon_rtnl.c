@@ -54,6 +54,30 @@ static struct nlattr* rtm_get(struct rtmsg* msg, uint16_t key)
 	return nl_attr_k_in(NLPAYLOAD(msg), key);
 }
 
+static void set_iface_state(int ifi, int flags)
+{
+	struct ifinfomsg* msg;
+
+	eprintf("%s %i %s\n", __FUNCTION__, ifi, flags ? "up" : "down");
+
+	nl_header(&rtnl, msg, RTM_SETLINK, 0,
+			.index = ifi,
+			.flags = flags,
+			.change = IFF_UP);
+
+	nl_send(&rtnl);
+}
+
+void enable_iface(int ifi)
+{
+	set_iface_state(ifi, IFF_UP);
+}
+
+void disable_iface(int ifi)
+{
+	set_iface_state(ifi, 0);
+}
+
 void del_link_addresses(int ifi)
 {
 	struct ifaddrmsg* req;
