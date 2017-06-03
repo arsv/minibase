@@ -67,7 +67,7 @@ static struct ucattr* uc_put_(struct ucbuf* uc, int key, int len)
 	return at;
 }
 
-void uc_put_bin(struct ucbuf* uc, int key, char* buf, int len)
+void uc_put_bin(struct ucbuf* uc, int key, void* buf, int len)
 {
 	struct ucattr* at;
 
@@ -77,29 +77,14 @@ void uc_put_bin(struct ucbuf* uc, int key, char* buf, int len)
 	memcpy(at->payload, buf, len);
 }
 
-void uc_put_ubin(struct ucbuf* uc, int key, uint8_t* buf, int len)
-{
-	uc_put_bin(uc, key, (char*)buf, len);
-}
-
-void uc_put_u16(struct ucbuf* uc, int key, uint16_t v)
+void uc_put_int(struct ucbuf* uc, int key, int v)
 {
 	struct ucattr* at;
 
 	if(!(at = uc_put_(uc, key, sizeof(v))))
 		return;
 
-	*((uint16_t*) at->payload) = v;
-}
-
-void uc_put_u32(struct ucbuf* uc, int key, uint32_t v)
-{
-	struct ucattr* at;
-
-	if(!(at = uc_put_(uc, key, sizeof(v))))
-		return;
-
-	*((uint32_t*) at->payload) = v;
+	*((int*) at->payload) = v;
 }
 
 void uc_put_str(struct ucbuf* uc, int key, char* str)

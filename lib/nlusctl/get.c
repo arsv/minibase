@@ -11,7 +11,7 @@ static struct ucmsg* uc_msg_hdr(char* buf, int len)
 	return msg;
 }
 
-int uc_len(char* buf, int len)
+int uc_msglen(char* buf, int len)
 {
 	struct ucmsg* msg;
 
@@ -103,7 +103,7 @@ struct ucattr* uc_get(struct ucmsg* msg, int key)
 	return NULL;
 }
 
-struct ucattr* uc_sub_k(struct ucattr* bt, int key)
+struct ucattr* uc_sub(struct ucattr* bt, int key)
 {
 	struct ucattr* at;
 
@@ -114,7 +114,7 @@ struct ucattr* uc_sub_k(struct ucattr* bt, int key)
 	return NULL;
 }
 
-char* uc_get_bin(struct ucmsg* msg, int key, int len)
+void* uc_get_bin(struct ucmsg* msg, int key, int len)
 {
 	struct ucattr* at;
 
@@ -126,14 +126,9 @@ char* uc_get_bin(struct ucmsg* msg, int key, int len)
 	return at->payload;
 }
 
-uint32_t* uc_get_u32(struct ucmsg* msg, int key)
+int* uc_get_int(struct ucmsg* msg, int key)
 {
-	return (uint32_t*)uc_get_bin(msg, key, sizeof(uint32_t));
-}
-
-uint16_t* uc_get_u16(struct ucmsg* msg, int key)
-{
-	return (uint16_t*)uc_get_bin(msg, key, sizeof(uint16_t));
+	return (int*)uc_get_bin(msg, key, sizeof(int));
 }
 
 static int is_zstr(char* buf, int len)
@@ -158,11 +153,11 @@ char* uc_get_str(struct ucmsg* msg, int key)
 	return at->payload;
 }
 
-char* uc_sub_bin(struct ucattr* bt, int key, int len)
+void* uc_sub_bin(struct ucattr* bt, int key, int len)
 {
 	struct ucattr* at;
 
-	if(!(at = uc_sub_k(bt, key)))
+	if(!(at = uc_sub(bt, key)))
 		return NULL;
 	if(at->len - sizeof(*at) != len)
 		return NULL;
@@ -170,12 +165,29 @@ char* uc_sub_bin(struct ucattr* bt, int key, int len)
 	return at->payload;
 }
 
-int32_t* uc_sub_i32(struct ucattr* at, int key)
+int* uc_sub_int(struct ucattr* at, int key)
 {
-	return (int32_t*)uc_sub_bin(at, key, sizeof(int32_t));
+	return (int*)uc_sub_bin(at, key, sizeof(int));
 }
 
-uint32_t* uc_sub_u32(struct ucattr* at, int key)
+char* uc_sub_str(struct ucattr* at, int key)
 {
-	return (uint32_t*)uc_sub_bin(at, key, sizeof(uint32_t));
+	struct ucattr* sb;
+
+	if(!(sb = uc_sub(at, key)))
+		return NULL;
+	if(!is_zstr(sb->payload, sb->len - sizeof(*sb)))
+		return NULL;
+
+	return sb->payload;
+}
+
+void* uc_payload(struct ucattr* at)
+{
+	return (void*)(at->payload);
+}
+
+int uc_paylen(struct ucattr* at)
+{
+	return at->len - sizeof(*at);
 }
