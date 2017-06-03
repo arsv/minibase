@@ -6,7 +6,7 @@
 #include <sys/close.h>
 #include <sys/kill.h>
 #include <sys/listen.h>
-#include <sys/read.h>
+#include <sys/recv.h>
 #include <sys/socket.h>
 #include <sys/write.h>
 #include <sys/unlink.h>
@@ -29,20 +29,12 @@
 #define REPLIED 1
 #define LATCHED 2
 
-struct {
-	int evt;
-	int ifi;
-	int cfd;
-} latch;
-
-int uplock;
-
-static void reply(int fd, struct ucbuf* uc)
+static void reply_long(struct conn* cn, struct ucbuf* uc)
 {
-	writeall(fd, uc->brk, uc->ptr - uc->brk);
+	writeall(cn->fd, uc->brk, uc->ptr - uc->brk);
 }
 
-static void reply_simple(int fd, int err)
+static void reply(struct conn* cn, int err)
 {
 	char cbuf[16];
 	struct ucbuf uc;
@@ -51,7 +43,7 @@ static void reply_simple(int fd, int err)
 	uc_put_hdr(&uc, err);
 	uc_put_end(&uc);
 
-	reply(fd, &uc);
+	reply_long(cn, &uc);
 }
 
 static int estimate_scalist(void)
@@ -117,7 +109,7 @@ static void put_status_scans(struct ucbuf* uc)
 	}
 }
 
-static int cmd_status(int fd, struct ucmsg* msg)
+static int cmd_status(struct conn* cn, struct ucmsg* msg)
 {
 	struct heap hp;
 	struct ucbuf uc;
@@ -130,14 +122,14 @@ static int cmd_status(int fd, struct ucmsg* msg)
 	put_status_scans(&uc);
 	uc_put_end(&uc);
 
-	reply(fd, &uc);
+	reply_long(cn, &uc);
 
 	free_heap(&hp);
 
 	return REPLIED;
 }
 
-static void reply_scanlist(int fd, int ifi)
+static void reply_scanlist(struct conn* cn)
 {
 	struct heap hp;
 	struct ucbuf uc;
@@ -149,7 +141,7 @@ static void reply_scanlist(int fd, int ifi)
 	put_status_scans(&uc);
 	uc_put_end(&uc);
 
-	reply(fd, &uc);
+	reply_long(cn, &uc);
 
 	free_heap(&hp);
 }
@@ -161,64 +153,59 @@ static void reply_scanlist(int fd, int ifi)
    overkill for a task this simple.
 
    So instead, most of sequentiality is moved over to wictl which is sequential
-   anyway, and wimon only gets a single "latch" triggering on certain events. */
-
-static void latch_reset(void)
-{
-	sysclose(latch.cfd);
-
-	latch.cfd = 0;
-	latch.evt = 0;
-	latch.ifi = 0;
-}
+   anyway, and wimon only gets a single "latch" per connection triggering reply
+   on certain events. */
 
 void unlatch(int ifi, int evt, int err)
 {
-	int cfd = latch.cfd;
+	struct conn* cn;
 
-	if(!latch.cfd)
-		return;
-	if(ifi != latch.ifi)
-		return;
-	if(evt != latch.evt)
-		return;
+	for(cn = conns; cn < conns + nconns; cn++) {
+		if(!cn->fd)
+			continue;
+		if(ifi != cn->ifi)
+			return;
+		if(evt != cn->evt)
+			return;
 
-	sysalarm(TIMEOUT);
+		sysalarm(TIMEOUT);
 
-	if(err)
-		reply_simple(cfd, err);
-	else if(evt == SCAN)
-		reply_scanlist(cfd, latch.ifi);
-	else
-		reply_simple(cfd, 0);
+		if(err)
+			reply(cn, err);
+		else if(evt == SCAN)
+			reply_scanlist(cn);
+		else
+			reply(cn, 0);
 
-	sysalarm(0);
+		sysalarm(0);
 
-	latch_reset();
+		cn->evt = 0;
+		cn->ifi = 0;
+	}
 }
 
-static int setlatch(int ifi, int evt, int cfd)
+static int setlatch(struct conn* cn, int ifi, int evt)
 {
-	if(latch.cfd)
+	if(cn->evt)
 		return -EBUSY;
 
-	latch.cfd = cfd;
-	latch.evt = evt;
-	latch.ifi = ifi;
+	cn->evt = evt;
+	cn->ifi = ifi;
 
 	return LATCHED;
 }
 
-static int cmd_cancel(int fd, struct ucmsg* msg)
+static int latched(int ifi)
 {
-	if(latch.cfd)
-		sysclose(latch.cfd);
+	struct conn* cn;
 
-	latch.cfd = 0;
-	latch.evt = 0;
-	latch.ifi = 0;
+	for(cn = conns; cn < conns + nconns; cn++)
+		if(!cn->fd || !cn->evt)
+			continue;
+		else if(!ifi || ifi == cn->ifi)
+			return 1;
 
-	return NOERROR;
+	return 0;
 }
 
 static int get_ifi(struct ucmsg* msg)
@@ -227,21 +214,21 @@ static int get_ifi(struct ucmsg* msg)
 	return u32 ? *u32 : 0;
 }
 
-static int cmd_scan(int fd, struct ucmsg* msg)
+static int cmd_scan(struct conn* cn, struct ucmsg* msg)
 {
 	int ifi;
 
 	if((ifi = grab_wifi_device(0)) < 0)
 		return ifi;
-	if(latch.cfd)
+	if(latched(ifi))
 		return -EAGAIN;
 
 	trigger_scan(ifi, 0);
 
-	return setlatch(WIFI, SCAN, fd);
+	return setlatch(cn, WIFI, SCAN);
 }
 
-static int cmd_roaming(int fd, struct ucmsg* msg)
+static int cmd_roaming(struct conn* cn, struct ucmsg* msg)
 {
 	int ifi, ret;
 	int rifi = get_ifi(msg);
@@ -261,7 +248,7 @@ static int cmd_roaming(int fd, struct ucmsg* msg)
 	return NOERROR;
 }
 
-static int cmd_fixedap(int fd, struct ucmsg* msg)
+static int cmd_fixedap(struct conn* cn, struct ucmsg* msg)
 {
 	int ifi, ret;
 	struct ucattr* ap;
@@ -271,14 +258,14 @@ static int cmd_fixedap(int fd, struct ucmsg* msg)
 
 	if(!(ap = uc_get(msg, ATTR_SSID)))
 		return -EINVAL;
-	if(latch.cfd)
-		return -EAGAIN;
 
 	int slen = ap->len - sizeof(*ap);
 	uint8_t* ssid = (uint8_t*)ap->payload;
 
 	if((ifi = grab_wifi_device(rifi)) < 0)
 		return ifi;
+	if(latched(ifi))
+		return -EAGAIN;
 	if((ret = switch_uplink(ifi)))
 		return ret;
 	if((ret = wifi_mode_fixedap(ssid, slen)))
@@ -287,13 +274,13 @@ static int cmd_fixedap(int fd, struct ucmsg* msg)
 	return NOERROR;
 }
 
-static int cmd_neutral(int fd, struct ucmsg* msg)
+static int cmd_neutral(struct conn* cn, struct ucmsg* msg)
 {
 	int ret;
 
 	eprintf("%s\n", __FUNCTION__);
 
-	if(latch.cfd)
+	if(latched(0))
 		return -EAGAIN;
 
 	wifi_mode_disabled();
@@ -301,7 +288,7 @@ static int cmd_neutral(int fd, struct ucmsg* msg)
 	if((ret = stop_all_links()) <= 0)
 		return ret;
 
-	return setlatch(NONE, DOWN, fd);
+	return setlatch(cn, NONE, DOWN);
 }
 
 static int find_wired_link(int rifi)
@@ -327,7 +314,7 @@ static int find_wired_link(int rifi)
 	return ifi;
 }
 
-static int cmd_wired(int fd, struct ucmsg* msg)
+static int cmd_wired(struct conn* cn, struct ucmsg* msg)
 {
 	int ret, ifi;
 	int rifi = get_ifi(msg);
@@ -337,7 +324,7 @@ static int cmd_wired(int fd, struct ucmsg* msg)
 
 	if((ifi = find_wired_link(rifi)) < 0)
 		return ifi;
-	if(latch.cfd)
+	if(latched(ifi))
 		return -EAGAIN;
 	if(!(ls = find_link_slot(ifi)))
 		return -ENODEV;
@@ -351,12 +338,12 @@ static int cmd_wired(int fd, struct ucmsg* msg)
 
 	ls->flags |= S_UPCOMING;
 
-	return setlatch(ifi, CONF, fd);
+	return setlatch(cn, ifi, CONF);
 }
 
 static const struct cmd {
 	int cmd;
-	int (*call)(int fd, struct ucmsg* msg);
+	int (*call)(struct conn* cn, struct ucmsg* msg);
 } commands[] = {
 	{ CMD_STATUS,  cmd_status  },
 	{ CMD_NEUTRAL, cmd_neutral },
@@ -364,46 +351,80 @@ static const struct cmd {
 	{ CMD_FIXEDAP, cmd_fixedap },
 	{ CMD_WIRED,   cmd_wired   },
 	{ CMD_SCAN,    cmd_scan    },
-	{ CMD_CANCEL,  cmd_cancel  },
 	{ 0,           NULL        }
 };
 
-static int dispatch_cmd(int fd, struct ucmsg* msg)
+static void cancel_latch(struct conn* cn)
+{
+	if(!cn->evt)
+		return;
+
+	reply(cn, -EINTR);
+
+	cn->evt = 0;
+	cn->ifi = 0;
+}
+
+static void dispatch_cmd(struct conn* cn, struct ucmsg* msg)
 {
 	const struct cmd* cd;
 	int cmd = msg->cmd;
+	int ret;
+
+	cancel_latch(cn);
 
 	for(cd = commands; cd->cmd; cd++)
 		if(cd->cmd == cmd)
-			return cd->call(fd, msg);
-
-	return -ENOSYS;
+			break;
+	if(!cd->cmd)
+		reply(cn, -ENOSYS);
+	else if((ret = cd->call(cn, msg)) <= 0)
+		reply(cn, ret);
 }
 
-static void read_cmd(int fd)
+static void shutdown_conn(struct conn* cn)
 {
+	sysclose(cn->fd);
+	memzero(cn, sizeof(*cn));
+}
+
+void handle_conn(struct conn* cn)
+{
+	int fd = cn->fd;
+	char rbuf[1024];
+	char* buf = rbuf;
+	char* ptr = rbuf;
+	char* end = rbuf + sizeof(rbuf);
+	int flags = 0;
 	int rb;
-	char rbuf[64+4];
+
 	struct ucmsg* msg;
-	int err;
 
-	/* XXX: multiple messages here? */
-	if((rb = sysread(fd, rbuf, sizeof(rbuf))) <= 0)
-		return warn("recvmsg", rb ? NULL : "empty message", rb);
+	while((rb = sysrecv(fd, ptr, end - ptr, flags)) > 0) {
+		ptr += rb;
 
-	if(rb > sizeof(rbuf)-4)
-		err = -E2BIG;
-	else if(!(msg = uc_msg(rbuf, rb)))
-		err = -EBADMSG;
-	else
-		err = dispatch_cmd(fd, msg);
+		while((msg = uc_msg(buf, ptr - buf))) {
+			dispatch_cmd(cn, msg);
+			buf += msg->len;
+		}
 
-	if(err == LATCHED)
-		return;
-	if(err != REPLIED)
-		reply_simple(fd, err);
-
-	sysclose(fd);
+		if(buf >= ptr) {
+			buf = rbuf;
+			ptr = buf;
+			flags = MSG_DONTWAIT;
+		} else if(buf > rbuf) {
+			memmove(rbuf, buf, ptr - buf);
+			ptr = rbuf + (ptr - buf);
+			buf = rbuf;
+			flags = 0;
+		} if(ptr >= end) {
+			rb = -ENOBUFS;
+			reply(cn, rb);
+			break;
+		}
+	} if(rb < 0 && rb != -EAGAIN) {
+		shutdown_conn(cn);
+	}
 }
 
 void accept_ctrl(int sfd)
@@ -412,11 +433,20 @@ void accept_ctrl(int sfd)
 	int gotcmd = 0;
 	struct sockaddr addr;
 	int addr_len = sizeof(addr);
+	struct conn *cn, reserve;
 
 	while((cfd = sysaccept(sfd, &addr, &addr_len)) > 0) {
-		gotcmd = 1;
 		sysalarm(TIMEOUT);
-		read_cmd(cfd);
+		gotcmd = 1;
+
+		if(!(cn = grab_conn_slot()))
+			memzero(cn = &reserve, sizeof(reserve));
+
+		cn->fd = cfd;
+		handle_conn(cn);
+
+		if(cn == &reserve)
+			shutdown_conn(&reserve);
 	} if(gotcmd) {
 		/* disable the timer in case it has been set */
 		sysalarm(0);

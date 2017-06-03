@@ -7,7 +7,6 @@
 #define CMD_WIRED      5
 #define CMD_RESET      6
 #define CMD_SCAN       7
-#define CMD_CANCEL    10
 
 #define ATTR_LINK    1
 #define ATTR_SCAN    2

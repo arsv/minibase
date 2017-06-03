@@ -4,6 +4,7 @@
 #define NSCANS 64
 #define NCHILDREN 10
 #define NTASKS 4
+#define NCONNS 8
 
 #define NAMELEN 16
 #define SSIDLEN 32
@@ -131,10 +132,20 @@ struct uplink {
 	uint8_t gw[4];
 };
 
+/* client (wictl) connections */
+
+struct conn {
+	int fd;
+	int evt;
+	int ifi;
+};
+
 extern struct link links[];
 extern struct scan scans[];
+extern struct conn conns[];
 extern int nlinks;
 extern int nscans;
+extern int nconns;
 extern struct gate gateway;
 extern struct child children[];
 extern int nchildren;
@@ -190,6 +201,10 @@ struct child* grab_child_slot(void);
 struct child* find_child_slot(int pid);
 void free_child_slot(struct child* ch);
 
+struct conn* grab_conn_slot(void);
+struct conn* find_conn_slot(int fd);
+void free_conn_slot(struct conn* cn);
+
 /* wimon_link.c */
 
 void link_new(struct link* ls);
@@ -244,6 +259,7 @@ int load_psk(uint8_t* ssid, int slen, char* psk, int plen);
 void save_psk(uint8_t* ssid, int slen, char* psk, int plen);
 
 /* wimon_ctrl.c */
+void handle_conn(struct conn* cn);
 
 /* latch.ifi */
 #define NONE 0

@@ -2,6 +2,7 @@
 #include <sys/unlink.h>
 #include <sys/ppoll.h>
 #include <sys/pause.h>
+#include <sys/close.h>
 #include <sys/sigprocmask.h>
 #include <sys/sigaction.h>
 
@@ -24,14 +25,15 @@ ERRLIST = {
 char** environ;
 int envcount;
 
-#define NFDS 3
+#define NFDS (3 + NCONNS)
 
 int rtnlfd;
 int genlfd;
 int ctrlfd;
 
-struct pollfd pfds[NFDS];
 static sigset_t defsigset;
+struct pollfd pfds[NFDS];
+int npfds;
 
 int sigterm;
 int sigchld;
@@ -76,7 +78,7 @@ static void timesub(struct timespec* ta, struct timespec* tb)
 		ta->tv_nsec -= tb->tv_nsec;
 	} else {
 		carry = 1;
-		ta->tv_nsec = 1000000000 - tb->tv_nsec;
+		ta->tv_nsec = 1000*1000*1000 - tb->tv_nsec;
 	}
 
 	ta->tv_sec -= tb->tv_sec + carry;
@@ -173,6 +175,26 @@ void setup_signals(void)
 	if(ret) fail("signal init failed", NULL, 0);
 }
 
+void update_connfds(void)
+{
+	int i;
+
+	for(i = 0; i < nconns; i++) {
+		struct conn* cn = &conns[i];
+		struct pollfd* pf = &pfds[3+i];
+
+		if(cn->fd <= 0)
+			pf->fd = -1;
+		else
+			pf->fd = cn->fd;
+
+		pf->events = POLLIN;
+		pf->revents = 0;
+	}
+
+	npfds = 3 + nconns;
+}
+
 void setup_pollfds(void)
 {
 	pfds[0].fd = rtnl.fd > 0 ? rtnl.fd : -1;
@@ -183,6 +205,8 @@ void setup_pollfds(void)
 
 	pfds[2].fd = ctrlfd > 0 ? ctrlfd : -1;
 	pfds[2].events = POLLIN;
+
+	update_connfds();
 }
 
 static void recv_netlink(int revents, char* tag, struct netlink* nl,
@@ -203,13 +227,41 @@ static void recv_netlink(int revents, char* tag, struct netlink* nl,
 	}; nl_shift_rxbuf(nl);
 }
 
+static void recv_socket(int revents)
+{
+	if(!revents)
+		return;
+	if(revents & POLLIN)
+		accept_ctrl(ctrlfd);
+	if(revents & ~POLLIN)
+		fail("poll", "ctrl", 0);
+}
+
+static void recv_client(struct pollfd* pf, struct conn* cn)
+{
+	if(!(cn->fd)) /* should not happen */
+		return;
+
+	if(pf->revents & POLLIN) {
+		handle_conn(cn);
+	} if(pf->revents & ~POLLIN) {
+		sysclose(cn->fd);
+		free_conn_slot(cn);
+	}
+}
+
 static void check_polled_fds(void)
 {
+	int i;
+
 	recv_netlink(pfds[0].revents, "rtnl", &rtnl, handle_rtnl);
 	recv_netlink(pfds[1].revents, "genl", &genl, handle_genl);
+	recv_socket(pfds[2].revents);
 
-	if(pfds[2].revents & POLLIN)
-		accept_ctrl(ctrlfd);
+	for(i = 0; i < nconns; i++)
+		recv_client(&pfds[3+i], &conns[i]);
+
+	update_connfds();
 }
 
 static void setup_env(char** envp)
@@ -273,7 +325,7 @@ int main(int argc, char** argv, char** envp)
 
 		tp = poll_timeout(&ts, &te);
 
-		int r = sysppoll(pfds, NFDS, tp, &defsigset);
+		int r = sysppoll(pfds, npfds, tp, &defsigset);
 
 		if(sigchld)
 			waitpids();

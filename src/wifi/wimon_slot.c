@@ -6,8 +6,10 @@
 
 struct link links[NLINKS];
 struct scan scans[NSCANS];
+struct conn conns[NCONNS];
 int nlinks;
 int nscans;
+int nconns;
 struct child children[NCHILDREN];
 int nchildren;
 
@@ -124,4 +126,25 @@ void free_child_slot(struct child* ch)
 	memzero(ch, sizeof(*ch));
 	if(ch == children + nchildren - 1)
 		nchildren--;
+}
+
+struct conn* grab_conn_slot(void)
+{
+	struct conn* cn;
+
+	for(cn = conns; cn < conns + nconns; cn++)
+		if(!cn->fd)
+			break;
+	if(cn < conns + nconns)
+		return cn;
+	if(cn >= conns + NCONNS)
+		return NULL;
+
+	nconns++;
+	return cn;
+}
+
+void free_conn_slot(struct conn* cn)
+{
+	memzero(cn, sizeof(*cn));
 }
