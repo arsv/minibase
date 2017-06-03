@@ -85,9 +85,9 @@ static void put_status_links(struct ucbuf* uc)
 		if(!lk->ifi) continue;
 
 		nn = uc_put_nest(uc, ATTR_LINK);
-		uc_put_u32(uc, ATTR_IFI,    lk->ifi);
+		uc_put_int(uc, ATTR_IFI,    lk->ifi);
 		uc_put_str(uc, ATTR_NAME,   lk->name);
-		uc_put_u32(uc, ATTR_FLAGS,  lk->flags);
+		uc_put_int(uc, ATTR_FLAGS,  lk->flags);
 		uc_end_nest(uc, nn);
 	}
 }
@@ -100,11 +100,11 @@ static void put_status_scans(struct ucbuf* uc)
 	for(sc = scans; sc < scans + nscans; sc++) {
 		if(!sc->freq) continue;
 		nn = uc_put_nest(uc, ATTR_SCAN);
-		uc_put_u32(uc, ATTR_FREQ,   sc->freq);
-		uc_put_u32(uc, ATTR_AUTH,   sc->type);
-		uc_put_u32(uc, ATTR_SIGNAL, sc->signal);
-		uc_put_ubin(uc, ATTR_BSSID, sc->bssid, sizeof(sc->bssid));
-		uc_put_ubin(uc, ATTR_SSID,  sc->ssid, sc->slen);
+		uc_put_int(uc, ATTR_FREQ,   sc->freq);
+		uc_put_int(uc, ATTR_AUTH,   sc->type);
+		uc_put_int(uc, ATTR_SIGNAL, sc->signal);
+		uc_put_bin(uc, ATTR_BSSID, sc->bssid, sizeof(sc->bssid));
+		uc_put_bin(uc, ATTR_SSID,  sc->ssid, sc->slen);
 		uc_end_nest(uc, nn);
 	}
 }
@@ -210,8 +210,8 @@ static int latched(int ifi)
 
 static int get_ifi(struct ucmsg* msg)
 {
-	uint32_t* u32 = uc_get_u32(msg, ATTR_IFI);
-	return u32 ? *u32 : 0;
+	int* iv = uc_get_int(msg, ATTR_IFI);
+	return iv ? *iv : 0;
 }
 
 static int cmd_scan(struct conn* cn, struct ucmsg* msg)

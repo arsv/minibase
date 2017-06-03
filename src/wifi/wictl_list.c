@@ -9,8 +9,8 @@
 
 static int cmp_int(struct ucattr* at, struct ucattr* bt, int key)
 {
-	uint32_t* na = uc_sub_u32(at, key);
-	uint32_t* nb = uc_sub_u32(bt, key);
+	int* na = uc_sub_int(at, key);
+	int* nb = uc_sub_int(bt, key);
 
 	if(!na || !nb)
 		return 0;
@@ -59,10 +59,10 @@ static struct ucattr** prep_scan_list(struct top* ctx, struct ucmsg* msg)
 
 static void dump_scan_line(struct ucattr* sc)
 {
-	struct ucattr* ssid = uc_sub_k(sc, ATTR_SSID);
-	uint8_t* bssid = (uint8_t*)uc_sub_bin(sc, ATTR_BSSID, 6);
-	uint32_t* freq = uc_sub_u32(sc, ATTR_FREQ);
-	int32_t* signal = uc_sub_i32(sc, ATTR_SIGNAL);
+	struct ucattr* ssid = uc_sub(sc, ATTR_SSID);
+	uint8_t* bssid = uc_sub_bin(sc, ATTR_BSSID, 6);
+	int* freq = uc_sub_int(sc, ATTR_FREQ);
+	int* signal = uc_sub_int(sc, ATTR_SIGNAL);
 
 	int slen = ssid->len - sizeof(*ssid);
 	char sbuf[slen+1];

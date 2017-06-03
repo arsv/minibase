@@ -62,7 +62,7 @@ static void maybe_put_ifi(struct top* ctx)
 	if((ifi = getifindex(ctx->fd, ifname)) <= 0)
 		fail("bad ifname", ifname, ifi);
 
-	uc_put_u32(UC, ATTR_IFI, ifi);
+	uc_put_int(UC, ATTR_IFI, ifi);
 }
 
 static void cmd_status(struct top* ctx)
