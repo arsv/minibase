@@ -175,13 +175,19 @@ void setup_signals(void)
 	if(ret) fail("signal init failed", NULL, 0);
 }
 
+void update_killfd(void)
+{
+	pfds[3].fd = rfkillfd;
+	pfds[3].events = POLLIN;
+}
+
 void update_connfds(void)
 {
 	int i;
 
 	for(i = 0; i < nconns; i++) {
 		struct conn* cn = &conns[i];
-		struct pollfd* pf = &pfds[3+i];
+		struct pollfd* pf = &pfds[4+i];
 
 		if(cn->fd <= 0)
 			pf->fd = -1;
@@ -189,10 +195,9 @@ void update_connfds(void)
 			pf->fd = cn->fd;
 
 		pf->events = POLLIN;
-		pf->revents = 0;
 	}
 
-	npfds = 3 + nconns;
+	npfds = 4 + nconns;
 }
 
 void setup_pollfds(void)
@@ -207,6 +212,7 @@ void setup_pollfds(void)
 	pfds[2].events = POLLIN;
 
 	update_connfds();
+	update_killfd();
 }
 
 static void recv_netlink(int revents, char* tag, struct netlink* nl,
@@ -237,6 +243,17 @@ static void recv_socket(int revents)
 		fail("poll", "ctrl", 0);
 }
 
+static void recv_rfkill(struct pollfd* pf)
+{
+	if(pf->revents & POLLIN)
+		handle_rfkill();
+	if(pf->revents & ~POLLIN) {
+		sysclose(pf->fd);
+		pf->fd = -1;
+		reset_rfkill();
+	}
+}
+
 static void recv_client(struct pollfd* pf, struct conn* cn)
 {
 	if(!(cn->fd)) /* should not happen */
@@ -257,9 +274,10 @@ static void check_polled_fds(void)
 	recv_netlink(pfds[0].revents, "rtnl", &rtnl, handle_rtnl);
 	recv_netlink(pfds[1].revents, "genl", &genl, handle_genl);
 	recv_socket(pfds[2].revents);
+	recv_rfkill(&pfds[3]);
 
 	for(i = 0; i < nconns; i++)
-		recv_client(&pfds[3+i], &conns[i]);
+		recv_client(&pfds[4+i], &conns[i]);
 
 	update_connfds();
 }
@@ -315,6 +333,7 @@ int main(int argc, char** argv, char** envp)
 	setup_rtnl();
 	setup_genl();
 	setup_ctrl();
+	retry_rfkill();
 
 	setup_signals();
 	setup_pollfds();

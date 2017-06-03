@@ -50,6 +50,8 @@ struct link {
 	uint8_t mask;
 
 	uint8_t mode;
+
+	int rfk;
 };
 
 /* Persistent scan list entry. Wimon caches short-lived scan results
@@ -167,10 +169,12 @@ extern struct netlink genl;
 extern int nl80211;
 extern int ctrlfd;
 extern int sigchld;
+extern int rfkillfd;
 
 /* wimon.c */
 
 void schedule(void (*call)(void), int secs);
+void update_killfd(void);
 
 /* wimon_rtnl.c and wimon_genl.c */
 
@@ -189,6 +193,12 @@ void parse_scan_result(struct nlgen* msg);
 
 void enable_iface(int ifi);
 void disable_iface(int ifi);
+
+/* wimon_kill.c */
+
+void retry_rfkill(void);
+void reset_rfkill(void);
+void handle_rfkill(void);
 
 /* wimon_slot.c */
 
