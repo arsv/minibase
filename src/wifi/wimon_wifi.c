@@ -325,6 +325,9 @@ void wifi_scan_done(void)
 void wifi_scan_fail(int err)
 {
 	unlatch(WIFI, SCAN, err);
+
+	if(wifi.state == WS_RETRYING)
+		wifi.state = WS_NONE;
 }
 
 void wifi_connected(struct link* ls)
@@ -358,7 +361,8 @@ void wifi_conn_fail(struct link* ls)
 
 	if(wifi.mode == WM_DISABLED)
 		wifi.state = WS_NONE;
-
+	if(wifi.state == WS_RETRYING)
+		wifi.state = WS_NONE;
 	if(wifi.state == WS_CONNECTED) {
 		wifi.state = WS_RETRYING;
 		trigger_scan(wifi.ifi, wifi.freq);
