@@ -200,7 +200,7 @@ int grab_wifi_device(int rifi)
 	wifi.ifi = ifi = 0;
 
 	for(ls = links; ls < links + nlinks; ls++) {
-		if(!ls->ifi || (ls->mode & LM_NOT))
+		if(!ls->ifi || ls->mode == LM_NOT)
 			continue;
 		if(!(ls->flags & S_NL80211))
 			continue;

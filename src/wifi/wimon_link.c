@@ -16,9 +16,9 @@ void link_new(struct link* ls)
 
 	load_link(ls);
 
-	if(ls->mode & LM_NOT)
+	if(ls->mode == LM_NOT)
 		return;
-	if(ls->mode & LM_OFF) {
+	if(ls->mode == LM_OFF) {
 		if(ls->flags & S_IPADDR)
 			del_link_addresses(ifi);
 	} else {
@@ -33,7 +33,7 @@ void link_enabled(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(ls->mode & (LM_NOT | LM_OFF))
+	if(ls->mode == LM_NOT || ls->mode == LM_OFF)
 		return;
 	if(ls->flags & S_NL80211)
 		wifi_ready(ls);
@@ -45,14 +45,14 @@ void link_carrier(struct link* ls)
 {
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(ls->mode & (LM_NOT | LM_OFF))
+	if(ls->mode == LM_NOT || ls->mode == LM_OFF)
 		return;
 
-	if(ls->mode & LM_STATIC)
+	if(ls->mode == LM_STATIC)
 		; /* XXX */
-	else if(ls->mode & LM_LOCAL)
+	else if(ls->mode == LM_LOCAL)
 		spawn_dhcp(ls, "-g");
-	else
+	else if(ls->mode == LM_DHCP)
 		spawn_dhcp(ls, NULL);
 }
 
@@ -127,7 +127,7 @@ void link_ipgone(struct link* ls)
 {
 	if(ls->flags & S_STOPPING)
 		return wait_link_down(ls);
-	if(ls->mode & (LM_NOT | LM_OFF))
+	if(ls->mode == LM_NOT || ls->mode == LM_OFF)
 		return;
 	if(ls->flags & S_CARRIER)
 		link_carrier(ls);
@@ -181,7 +181,7 @@ void finalize_links(void)
 	struct link* ls;
 
 	for(ls = links; ls < links + nlinks; ls++) {
-		if(!ls->ifi || (ls->mode & LM_NOT))
+		if(!ls->ifi || ls->mode == LM_NOT)
 			continue;
 		if(ls->flags & S_IPADDR)
 			del_link_addresses(ls->ifi);
@@ -195,7 +195,7 @@ int stop_all_links(void)
 	int down = 0;
 
 	for(ls = links; ls < links + nlinks; ls++) {
-		if(!ls->ifi || (ls->mode & LM_NOT))
+		if(!ls->ifi || ls->mode == LM_NOT)
 			continue;
 		if(!(ls->flags & (S_CHILDREN | S_IPADDR)))
 			continue;
@@ -228,7 +228,7 @@ int switch_uplink(int ifi)
 	if(ls->flags & (S_UPLINK | S_UPCOMING))
 		return 0;
 
-	ls->mode &= ~LM_OFF;
+	ls->mode = LM_DHCP;
 	ls->flags |= S_UPCOMING;
 
 	return 0;
