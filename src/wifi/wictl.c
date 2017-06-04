@@ -65,6 +65,18 @@ static void maybe_put_ifi(struct top* ctx)
 	uc_put_int(UC, ATTR_IFI, ifi);
 }
 
+static void set_neutral(struct top* ctx)
+{
+	uc_put_hdr(UC, CMD_NEUTRAL);
+	send_check_empty(ctx);
+}
+
+static void cmd_neutral(struct top* ctx)
+{
+	no_other_options(ctx);
+	set_neutral(ctx);
+}
+
 static void cmd_status(struct top* ctx)
 {
 	no_other_options(ctx);
@@ -75,6 +87,7 @@ static void cmd_status(struct top* ctx)
 static void cmd_wired(struct top* ctx)
 {
 	no_other_options(ctx);
+	set_neutral(ctx);
 	uc_put_hdr(UC, CMD_WIRED);
 	send_check_empty(ctx);
 }
@@ -89,6 +102,8 @@ static void cmd_scan(struct top* ctx)
 
 static void cmd_roaming(struct top* ctx)
 {
+	set_neutral(ctx);
+
 	uc_put_hdr(UC, CMD_ROAMING);
 	maybe_put_ifi(ctx);
 	no_other_options(ctx);
@@ -111,13 +126,6 @@ static void cmd_fixedap(struct top* ctx)
 	else if(use_opt(ctx, OPT_p))
 		put_psk_input(ctx, ssid);
 
-	no_other_options(ctx);
-	send_check_empty(ctx);
-}
-
-static void cmd_neutral(struct top* ctx)
-{
-	uc_put_hdr(UC, CMD_NEUTRAL);
 	no_other_options(ctx);
 	send_check_empty(ctx);
 }
