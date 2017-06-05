@@ -1,4 +1,5 @@
 #include <bits/ints.h>
+#include <bits/rfkill.h>
 #include <sys/open.h>
 #include <sys/stat.h>
 #include <sys/read.h>
@@ -36,16 +37,6 @@
    connection if necessary. */
 
 int rfkillfd;
-
-#define RFKILL_TYPE_WLAN 1
-
-struct rfkill_event {
-	int32_t idx;
-	uint8_t type;
-	uint8_t op;
-	uint8_t soft;
-	uint8_t hard;
-} __attribute__((packed));
 
 static int match_rfkill_link(struct link* ls, int idx)
 {
