@@ -12,8 +12,3 @@ void* memcpy(void* dst, const void* src, unsigned long n)
 
 	return r;
 }
-
-/* This particular version of memcpy also works well as memmove */
-
-void* memmove(void* dst, const void* src, unsigned long n)
-	__attribute__((alias("memcpy")));
