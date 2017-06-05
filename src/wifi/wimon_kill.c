@@ -37,6 +37,8 @@
 
 int rfkillfd;
 
+#define RFKILL_TYPE_WLAN 1
+
 struct rfkill_event {
 	int32_t idx;
 	uint8_t type;
@@ -128,10 +130,12 @@ void handle_rfkill(void)
 	int rd;
 
 	while((rd = sysread(fd, buf, sizeof(buf))) > 0) {
+		re = (struct rfkill_event*) buf;
+
 		if(rd < sizeof(*re))
 			continue;
-
-		re = (struct rfkill_event*) buf;
+		if(re->type != RFKILL_TYPE_WLAN)
+			continue;
 
 		handle_event(re);
 	}
