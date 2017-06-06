@@ -190,7 +190,7 @@ void del_link_addresses(int ifi);
 
 void trigger_scan(int ifi, int freq);
 void trigger_disconnect(int ifi);
-void parse_scan_result(struct nlgen* msg);
+void parse_station_ies(struct scan* sc, char* buf, int len);
 
 void enable_iface(int ifi);
 void disable_iface(int ifi);

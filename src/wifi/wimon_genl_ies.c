@@ -1,6 +1,3 @@
-#include <netlink.h>
-#include <netlink/genl/nl80211.h>
-
 #include <format.h>
 #include <string.h>
 
@@ -111,12 +108,9 @@ static void set_station_ssid(struct scan* sc, int len, char* buf)
 	sc->slen = i;
 }
 
-void parse_station_ies(struct scan* sc, struct nlattr* at)
+void parse_station_ies(struct scan* sc, char* buf, int len)
 {
-	int len = nl_attr_len(at);
-	char* buf = at->payload;
 	char* end = buf + len;
-
 	char* ptr = buf;
 
 	while(ptr < end) {
@@ -134,61 +128,4 @@ void parse_station_ies(struct scan* sc, struct nlattr* at)
 
 		ptr += ielen;
 	}
-}
-
-int get_i32_or_zero(struct nlattr* bss, int key)
-{
-	int32_t* val = nl_sub_i32(bss, key);
-	return val ? *val : 0;
-}
-
-static void dump_sta(struct scan* sc)
-{
-	char* type;
-
-	if(!sc->type)
-		type = "---";
-	else if(sc->type & (ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_CCMP))
-		type = "CC ";
-	else if(sc->type & (ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_TKIP))
-		type = "CT ";
-	else if(sc->type & (ST_RSN_PSK | ST_RSN_P_TKIP | ST_RSN_G_TKIP))
-		type = "TT ";
-	else if(sc->type & (ST_RSN))
-		type = "RSN";
-	else if(sc->type & (ST_WPA))
-		type = "WPA";
-	else if(sc->type & (ST_WPS))
-		type = "WPS";
-	else
-		type = "???";
-
-	eprintf("station %i %i %3s \"%s\"\n",
-			sc->freq, sc->signal/100, type, sc->ssid);
-}
-
-void parse_scan_result(struct nlgen* msg)
-{
-	struct scan* sc;
-	struct nlattr* bss;
-	struct nlattr* ies;
-	uint8_t* bssid;
-
-	if(!(bss = nl_get_nest(msg, NL80211_ATTR_BSS)))
-		return;
-	if(!(bssid = nl_sub_of_len(bss, NL80211_BSS_BSSID, 6)))
-		return;
-	if(!(sc = grab_scan_slot(bssid)))
-		return; /* out of scan slots */
-
-	memcpy(sc->bssid, bssid, 6);
-	sc->freq = get_i32_or_zero(bss, NL80211_BSS_FREQUENCY);
-	sc->signal = get_i32_or_zero(bss, NL80211_BSS_SIGNAL_MBM);
-	sc->type = 0;
-	sc->flags &= ~SF_STALE;
-
-	if((ies = nl_sub(bss, NL80211_BSS_INFORMATION_ELEMENTS)))
-		parse_station_ies(sc, ies);
-
-	dump_sta(sc);
 }

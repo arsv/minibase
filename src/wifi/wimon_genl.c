@@ -197,6 +197,63 @@ static void drop_stale_scan_slots(void)
 			free_scan_slot(sc);
 }
 
+static int get_i32_or_zero(struct nlattr* bss, int key)
+{
+	int32_t* val = nl_sub_i32(bss, key);
+	return val ? *val : 0;
+}
+
+static void dump_sta(struct scan* sc)
+{
+	char* type;
+
+	if(!sc->type)
+		type = "---";
+	else if(sc->type & (ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_CCMP))
+		type = "CC ";
+	else if(sc->type & (ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_TKIP))
+		type = "CT ";
+	else if(sc->type & (ST_RSN_PSK | ST_RSN_P_TKIP | ST_RSN_G_TKIP))
+		type = "TT ";
+	else if(sc->type & (ST_RSN))
+		type = "RSN";
+	else if(sc->type & (ST_WPA))
+		type = "WPA";
+	else if(sc->type & (ST_WPS))
+		type = "WPS";
+	else
+		type = "???";
+
+	eprintf("station %i %i %3s \"%s\"\n",
+			sc->freq, sc->signal/100, type, sc->ssid);
+}
+
+static void parse_scan_result(struct nlgen* msg)
+{
+	struct scan* sc;
+	struct nlattr* bss;
+	struct nlattr* ies;
+	uint8_t* bssid;
+
+	if(!(bss = nl_get_nest(msg, NL80211_ATTR_BSS)))
+		return;
+	if(!(bssid = nl_sub_of_len(bss, NL80211_BSS_BSSID, 6)))
+		return;
+	if(!(sc = grab_scan_slot(bssid)))
+		return; /* out of scan slots */
+
+	memcpy(sc->bssid, bssid, 6);
+	sc->freq = get_i32_or_zero(bss, NL80211_BSS_FREQUENCY);
+	sc->signal = get_i32_or_zero(bss, NL80211_BSS_SIGNAL_MBM);
+	sc->type = 0;
+	sc->flags &= ~SF_STALE;
+
+	if((ies = nl_sub(bss, NL80211_BSS_INFORMATION_ELEMENTS)))
+		parse_station_ies(sc, ies->payload, nl_attr_len(ies));
+
+	dump_sta(sc);
+}
+
 static void msg_scan_res(struct link* ls, struct nlgen* msg)
 {
 	if(msg->nlm.flags & NLM_F_MULTI) {
