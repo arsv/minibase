@@ -34,9 +34,9 @@
 #define SC_DUMPING     4
 
 /* link.mode */
-#define LM_OFF         0
+#define LM_DHCP        0
 #define LM_NOT         1
-#define LM_DHCP        2
+#define LM_OFF         2
 #define LM_LOCAL       3
 #define LM_STATIC      4
 
