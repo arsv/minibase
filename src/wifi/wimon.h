@@ -143,6 +143,18 @@ struct conn {
 	int ifi;
 };
 
+/* config file parts */
+
+struct line {
+	char* start;
+	char* end;
+};
+
+struct chunk {
+	char* start;
+	char* end;
+};
+
 extern struct link links[];
 extern struct scan scans[];
 extern struct conn conns[];
@@ -262,15 +274,31 @@ void stop_link_procs(struct link* ls, int drop);
 void stop_all_procs(void);
 void waitpids(void);
 
-/* wimon_save.c */
+/* wimon_conf_file.c */
 
-int load_link(struct link* ls);
+int load_config(void);
+void save_config(void);
+void drop_config(void);
+
+int chunklen(struct chunk* ck);
+int chunkis(struct chunk* ck, const char* str);
+int find_line(struct line* ln, char* pref, int i, char* val);
+int split_line(struct line* ln, struct chunk* ck, int nc);
+void save_line(struct line* ls, char* buf, int len);
+void drop_line(struct line* ln);
+
+/* wimon_conf_data.c */
+
+void load_link(struct link* ls);
 void save_link(struct link* ls);
 
 int saved_psk_prio(uint8_t* ssid, int slen);
 
 int load_psk(uint8_t* ssid, int slen, char* psk, int plen);
 void save_psk(uint8_t* ssid, int slen, char* psk, int plen);
+
+void load_wifi(struct link* ls);
+void save_wifi(void);
 
 /* wimon_ctrl.c */
 void handle_conn(struct conn* cn);

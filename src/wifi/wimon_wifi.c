@@ -271,6 +271,8 @@ void wifi_ready(struct link* ls)
 {
 	eprintf("%s\n", __FUNCTION__);
 
+	if(!wifi.ifi)
+		load_wifi(ls);
 	if(ls->ifi != wifi.ifi)
 		return;
 	if(wifi.mode == WM_DISABLED)
@@ -375,8 +377,10 @@ void wifi_conn_fail(struct link* ls)
 
 void wifi_mode_disabled(void)
 {
+	eprintf("%s\n", __FUNCTION__);
 	wifi.mode = WM_DISABLED;
 	reset_wifi_struct();
+	save_wifi();
 }
 
 int wifi_mode_roaming(void)
@@ -389,6 +393,8 @@ int wifi_mode_roaming(void)
 	wifi.mode = WM_ROAMING;
 
 	trigger_scan(wifi.ifi, 0);
+
+	save_wifi();
 
 	return 0;
 }
@@ -411,6 +417,8 @@ int wifi_mode_fixedap(uint8_t* ssid, int slen)
 		return ret;
 
 	wifi.mode = WM_FIXEDAP;
+
+	save_wifi();
 
 	return 0;
 }

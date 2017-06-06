@@ -42,16 +42,6 @@ static int blocklen;
 static int datalen;
 static int modified;
 
-struct line {
-	char* start;
-	char* end;
-};
-
-struct chunk {
-	char* start;
-	char* end;
-};
-
 static int pagealign(long size)
 {
 	return size + (PAGE - size % PAGE) % PAGE;
@@ -76,7 +66,7 @@ void save_config(void)
 	modified = 0;
 }
 
-static void drop_config(void)
+void drop_config(void)
 {
 	if(!config)
 		return;
@@ -91,16 +81,16 @@ static void drop_config(void)
 	datalen = 0;
 }
 
-static int load_config(void)
+static int open_stat_config(int* size)
 {
-	int fd;
-	long ret;
+	int fd, ret;
 	struct stat st;
 
-	if(config)
-		return 0;
-	if((fd = sysopen(WICFG, O_RDONLY)) < 0)
+	if((fd = sysopen(WICFG, O_RDONLY)) < 0) {
+		*size = 0;
 		return fd;
+	}
+
 	if((ret = sysfstat(fd, &st)) < 0)
 		goto out;
 	if(st.st_size > MAX_CONFIG_SIZE) {
@@ -108,24 +98,70 @@ static int load_config(void)
 		goto out;
 	}
 
-	int size = pagealign(st.st_size + 1024);
+	*size = st.st_size;
+	return fd;
+out:
+	sysclose(fd);
+
+	if(ret && ret != -ENOENT)
+		warn(NULL, WICFG, ret);
+
+	return ret;
+}
+
+static int mmap_config_buf(int filesize)
+{
+	int size = pagealign(filesize + 1024);
 	int prot = PROT_READ | PROT_WRITE;
-	int flags = MAP_PRIVATE;
-	ret = sysmmap(NULL, size, prot, flags, fd, 0);
+	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+
+	long ret = sysmmap(NULL, size, prot, flags, -1, 0);
 
 	if(MMAPERROR(ret))
-		goto out;
+		return ret;
 
 	config = (char*)ret;
 	blocklen = size;
-	datalen = st.st_size;
+	datalen = 0;
 	modified = 0;
-	ret = 0;
 
+	return 0;
+}
+
+static int read_config_whole(int fd, int filesize)
+{
+	int ret;
+
+	if(filesize <= 0)
+		return 0;
+	if((ret = sysread(fd, config, filesize)) < filesize)
+		return ret;
+
+	return 0;
+}
+
+int load_config(void)
+{
+	int fd;
+	long ret;
+	int filesize;
+
+	if(config)
+		return 0;
+
+	if((fd = open_stat_config(&filesize)) < 0)
+		filesize = 0;
+	if((ret = mmap_config_buf(filesize)) < 0)
+		goto out;
+	if((ret = read_config_whole(fd, filesize)) < 0)
+		goto out;
+
+	datalen = filesize;
 	schedule(drop_config, 10);
-
-out:	sysclose(fd);
-
+	ret = 0;
+out:	
+	if(fd >= 0)
+		sysclose(fd);
 	if(ret && ret != -ENOENT)
 		warn(NULL, WICFG, ret);
 
@@ -169,19 +205,6 @@ static int nextline(struct line* ln)
 	return setline(ln, ln->end + 1);
 }
 
-static int prefixed(struct line* ln, char* pref, int len)
-{
-	if(!ln->start)
-		return 0;
-	if(ln->end - ln->start < len + 1)
-		return 0;
-	if(memcmp(ln->start, pref, len))
-		return 0;
-	if(!isspace(ln->start[len]))
-		return 0;
-	return 1;
-}
-
 static char* skiparg(char* p, char* e)
 {
 	for(; p < e && !isspace(*p); p++)
@@ -196,159 +219,124 @@ static char* skipsep(char* p, char* e)
 	return p;
 }
 
-static int splitline(struct line* ln, struct chunk* ck, int nc)
+int split_line(struct line* ln, struct chunk* ck, int nc)
 {
 	char* end = ln->end;
 	char* p = ln->start;
-	int i;
+	int i = 0;
 
 	p = skipsep(p, end);
 
 	while(p < end && i < nc) {
-		ck[i].start = p;
+		struct chunk* ci = &ck[i++];
+		ci->start = p;
 		p = skiparg(p, end);
-		ck[i].end = p;
-		i++;
+		ci->end = p;
 		p = skipsep(p, end);
 	}
 
 	return i;
 }
 
-static int chunklen(struct chunk* ck)
+int chunklen(struct chunk* ck)
 {
 	return ck->end - ck->start;
 }
 
-static int chunkeq(struct chunk* ck, char* str, int len)
+static int chunkeq(struct chunk* ck, const char* str, int len)
 {
 	if(chunklen(ck) != len)
 		return 0;
 	return !memcmp(ck->start, str, len);
 }
 
-static int findline(struct line* ln, struct chunk* ck, int n,
-		char* pref, int i, char* val)
+int chunkis(struct chunk* ck, const char* str)
 {
-	int ok;
+	return chunkeq(ck, str, strlen(str));
+}
+
+int find_line(struct line* ln, char* pref, int i, char* val)
+{
+	int lk;
+	int n = i + 1;
+	struct chunk ck[n];
 	int plen = strlen(pref);
-	int vlen = strlen(val);
+	int vlen = val ? strlen(val) : 0;
 
-	for(ok = firstline(ln); ok; ok = nextline(ln)) {
-		if(!prefixed(ln, pref, plen))
+	for(lk = firstline(ln); lk; lk = nextline(ln)) {
+		if(split_line(ln, ck, n) < n)
 			continue;
-		if(splitline(ln, ck, n) < n)
+		if(!chunkeq(&ck[0], pref, plen))
 			continue;
-		if(!chunkeq(&ck[i], val, vlen))
+		if(val && !chunkeq(&ck[i], val, vlen))
 			continue;
-		return 1;
+		return 0;
 	}
+
+	return -ENOENT;
+}
+
+static int extend_config(int len)
+{
+	modified = 1;
+
+	if(len <= 0)
+		return 0;
+
+	if(datalen + len > blocklen)
+		return -ENOMEM; /* XXX */
+
+	datalen += len;
 
 	return 0;
 }
 
-int load_link(struct link* ls)
+static void append_line(char* buf, int len)
 {
-	struct line ln;
-	struct chunk ck[3];
+	char* ptr = config + datalen;
 
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
-	if(load_config())
-		return 0;
-	if(!findline(&ln, ck, 3, "dev", 1, ls->name))
-		return 0;
-
-	eprintf("load %s\n", ls->name);
-
-	return 0; /* XXX */
-}
-
-void save_link(struct link* ls)
-{
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
-	if(!config) {
-		warn("no config to save to", NULL, 0);
+	if(extend_config(len + 1))
 		return;
-	}
+
+	memcpy(ptr, buf, len);
+	ptr[len] = '\n';
 }
 
-static void prep_ssid(char* buf, int len, uint8_t* ssid, int slen)
+static void change_line(struct line* ls, char* buf, int len)
 {
-	char* p = buf;
-	char* e = buf + len - 1;
-	int i;
+	int oldlen = ls->end - ls->start;
+	int newlen = len;
 
-	for(i = 0; i < slen; i++) {
-		if(ssid[i] == '\\') {
-			p = fmtchar(p, e, '\\');
-			p = fmtchar(p, e, '\\');
-		} else if(ssid[i] == ' ') {
-			p = fmtchar(p, e, '\\');
-			p = fmtchar(p, e, ' ');
-		} else if(ssid[i] <= 0x20) {
-			p = fmtchar(p, e, '\\');
-			p = fmtchar(p, e, 'x');
-			p = fmtbyte(p, e, ssid[i]);
-		} else {
-			p = fmtchar(p, e, ssid[i]);
-		}
-	}
+	int shift = newlen - oldlen;
+	int shlen = config + datalen - ls->end;
 
-	*p = '\0';
+	if(extend_config(shift))
+		return;
+
+	memmove(ls->end + shift, ls->end, shlen);
+	memcpy(ls->start, buf, len);
+
+	ls->start[len] = '\n';
 }
 
-int saved_psk_prio(uint8_t* ssid, int slen)
+void drop_line(struct line* ln)
 {
-	struct line ln;
-	struct chunk ck[4];
+	if(!ln->start)
+		return;
 
-	char ssidstr[3*32+4];
-	prep_ssid(ssidstr, sizeof(ssidstr), ssid, slen);
+	int shift = -(ln->end - ln->start + 1);
+	int shlen = config + datalen - ln->end - 1;
 
-	char* p;
-	int prio;
+	if(extend_config(shift))
+		return;
 
-	if(load_config())
-		return -1;
-	if(!findline(&ln, ck, 4, "psk", 3, ssidstr))
-		return -1;
-
-	if(!(p = parseint(ck[2].start, &prio)))
-		return -1;
-	if(p && !isspace(*p))
-		return -1;
-
-	return prio;
+	memmove(ln->start, ln->end + 1, shlen);
 }
 
-int load_psk(uint8_t* ssid, int slen, char* psk, int plen)
+void save_line(struct line* ls, char* buf, int len)
 {
-	struct line ln;
-	struct chunk ck[4];
-
-	char ssidstr[3*32+4];
-	prep_ssid(ssidstr, sizeof(ssidstr), ssid, slen);
-
-	if(load_config())
-		return -ENOENT;
-	if(!findline(&ln, ck, 4, "psk", 3, ssidstr))
-		return -ENOENT;
-
-	struct chunk* cpsk = &ck[1];
-	int clen = chunklen(cpsk);
-
-	if(plen < clen + 1)
-		return -ENOENT;
-
-	memcpy(psk, cpsk->start, clen);
-	psk[clen] = '\0';
-
-	return 0;
-}
-
-void save_psk(uint8_t* ssid, int slen, char* psk, int plen)
-{
-	eprintf("%s %s\n", __FUNCTION__, ssid);
+	if(!ls->start)
+		append_line(buf, len);
+	else
+		change_line(ls, buf, len);
 }
