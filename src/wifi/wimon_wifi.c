@@ -347,7 +347,7 @@ void wifi_connected(struct link* ls)
 		sc->tries = 0;
 
 	if(wifi.flags & WF_UNSAVED) {
-		save_psk(wifi.ssid, wifi.slen, wifi.psk, strlen(wifi.psk));
+		save_psk(wifi.ssid, wifi.slen, wifi.psk);
 		wifi.flags &= ~WF_UNSAVED;
 	}
 

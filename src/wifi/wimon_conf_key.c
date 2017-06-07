@@ -61,16 +61,12 @@ void load_link(struct link* ls)
 
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(load_config()) {
-		eprintf("no config\n");
+	if(load_config())
 		return;
-	} if(find_line(&ln, "link", 1, ls->name)) {
-		eprintf("no dev line\n");
+	if(find_line(&ln, "link", 1, ls->name))
 		return;
-	} if(split_line(&ln, ck, cn) < 3) {
-		eprintf("bad dev line\n");
+	if(split_line(&ln, ck, cn) < 3)
 		return;
-	}
 
 	ls->mode = lookup(linkmodes, &ck[2]);
 
@@ -188,7 +184,7 @@ int load_psk(uint8_t* ssid, int slen, char* psk, int plen)
 	return 0;
 }
 
-void save_psk(uint8_t* ssid, int slen, char* psk, int plen)
+void save_psk(uint8_t* ssid, int slen, char* psk)
 {
 	struct line ln;
 
@@ -203,7 +199,7 @@ void save_psk(uint8_t* ssid, int slen, char* psk, int plen)
 
 	p = fmtstr(p, e, "psk");
 	p = fmtstr(p, e, " ");
-	p = fmtraw(p, e, psk, plen); /* XXX */
+	p = fmtstr(p, e, psk); /* PSK is in hex */
 	p = fmtstr(p, e, " ");
 	p = fmtstr(p, e, ssidstr);
 
@@ -268,16 +264,12 @@ void load_wifi(struct link* ls)
 
 	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if(load_config()) {
-		eprintf("no config file\n");
+	if(load_config())
 		return;
-	} if(find_line(&ln, "wifi", 0, NULL)) {
-		eprintf("no wifi line\n");
+	if(find_line(&ln, "wifi", 0, NULL))
 		return;
-	} if((cn = split_line(&ln, ck, cn)) < 2) {
-		eprintf("bad wifi line\n");
+	if((cn = split_line(&ln, ck, cn)) < 2)
 		return;
-	}
 
 	if(!(chunkis(&ck[1], ls->name)))
 		return;
@@ -302,7 +294,6 @@ void save_wifi(void)
 	const char *mode, *name;
 
 	if(!(name = get_ifname(wifi.ifi))) {
-		eprintf("cannot get ifname for %i\n", wifi.ifi);
 		find_line(&ln, "wifi", 0, NULL);
 		drop_line(&ln);
 		return;

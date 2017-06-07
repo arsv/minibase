@@ -294,8 +294,8 @@ void save_link(struct link* ls);
 
 int saved_psk_prio(uint8_t* ssid, int slen);
 
-int load_psk(uint8_t* ssid, int slen, char* psk, int plen);
-void save_psk(uint8_t* ssid, int slen, char* psk, int plen);
+int load_psk(uint8_t* ssid, int slen, char* buf, int len);
+void save_psk(uint8_t* ssid, int slen, char* psk);
 
 void load_wifi(struct link* ls);
 void save_wifi(void);
