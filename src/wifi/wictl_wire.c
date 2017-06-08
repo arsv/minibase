@@ -58,8 +58,6 @@ static void send_command(struct top* ctx)
 
 	uc_put_end(&ctx->uc);
 
-	uc_dump((struct ucmsg*)txbuf);
-
 	if(!ctx->connected)
 		connect_socket(ctx);
 
@@ -98,8 +96,6 @@ static struct ucmsg* recv_reply(struct top* ctx)
 
 	if(!msg)
 		fail("recv", "incomplete message", 0);
-
-	uc_dump(msg);
 
 	return msg;
 }
