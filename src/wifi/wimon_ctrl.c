@@ -75,18 +75,47 @@ static void free_heap(struct heap* hp)
 	sysbrk(hp->brk);
 }
 
+static void put_status_wifi(struct ucbuf* uc)
+{
+	struct ucattr* nn;
+	struct link* ls;
+
+	if(!(ls = find_link_slot(wifi.ifi)))
+		return;
+
+	nn = uc_put_nest(uc, ATTR_WIFI);
+	uc_put_int(uc, ATTR_IFI, wifi.ifi);
+	uc_put_str(uc, ATTR_NAME, ls->name);
+	uc_put_int(uc, ATTR_MODE, wifi.mode);
+
+	if(wifi.slen)
+		uc_put_bin(uc, ATTR_SSID, wifi.ssid, wifi.slen);
+	if(nonzero(wifi.bssid, sizeof(wifi.bssid)))
+		uc_put_bin(uc, ATTR_BSSID, wifi.bssid, sizeof(wifi.bssid));
+	if(wifi.freq)
+		uc_put_int(uc, ATTR_FREQ, wifi.freq);
+
+	uc_end_nest(uc, nn);
+}
+
 static void put_status_links(struct ucbuf* uc)
 {
-	struct link* lk;
+	struct link* ls;
 	struct ucattr* nn;
 
-	for(lk = links; lk < links + nlinks; lk++) {
-		if(!lk->ifi) continue;
+	for(ls = links; ls < links + nlinks; ls++) {
+		if(!ls->ifi) continue;
 
 		nn = uc_put_nest(uc, ATTR_LINK);
-		uc_put_int(uc, ATTR_IFI,    lk->ifi);
-		uc_put_str(uc, ATTR_NAME,   lk->name);
-		uc_put_int(uc, ATTR_FLAGS,  lk->flags);
+		uc_put_int(uc, ATTR_IFI,    ls->ifi);
+		uc_put_str(uc, ATTR_NAME,   ls->name);
+		uc_put_int(uc, ATTR_FLAGS,  ls->flags);
+
+		if(ls->flags & S_IPADDR) {
+			uc_put_bin(uc, ATTR_IPADDR, ls->ip, sizeof(ls->ip));
+			uc_put_int(uc, ATTR_IPMASK, ls->mask);
+		}
+
 		uc_end_nest(uc, nn);
 	}
 }
@@ -118,6 +147,7 @@ static int cmd_status(struct conn* cn, struct ucmsg* msg)
 	uc_buf_set(&uc, hp.brk, hp.end - hp.brk);
 	uc_put_hdr(&uc, CMD_STATUS);
 	put_status_links(&uc);
+	put_status_wifi(&uc);
 	put_status_scans(&uc);
 	uc_put_end(&uc);
 
