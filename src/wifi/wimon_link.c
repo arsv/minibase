@@ -1,7 +1,4 @@
 #include <bits/errno.h>
-
-#include <null.h>
-#include <format.h>
 #include <string.h>
 
 #include "wimon.h"
@@ -11,8 +8,6 @@ struct uplink uplink;
 void link_new(struct link* ls)
 {
 	int ifi = ls->ifi;
-
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
 	load_link(ls);
 
@@ -31,8 +26,6 @@ void link_new(struct link* ls)
 
 void link_enabled(struct link* ls)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
 	if(ls->mode == LM_NOT || ls->mode == LM_OFF)
 		return;
 	if(ls->flags & S_NL80211)
@@ -43,8 +36,6 @@ void link_enabled(struct link* ls)
 
 void link_carrier(struct link* ls)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
 	if(ls->mode == LM_NOT || ls->mode == LM_OFF)
 		return;
 
@@ -58,8 +49,6 @@ void link_carrier(struct link* ls)
 
 void link_ipaddr(struct link* ls)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
 	unlatch(ls->ifi, CONF, 0);
 
 	if(ls->flags & S_NL80211)
@@ -71,10 +60,8 @@ static int any_links_flagged(int flags)
 	struct link* ls;
 
 	for(ls = links; ls < links + nlinks; ls++)
-		if(ls->ifi && (ls->flags & flags)) {
-			eprintf("link %s flagged %i\n", ls->name, flags);
+		if(ls->ifi && (ls->flags & flags))
 			return 1;
-		}
 
 	return 0;
 }
@@ -85,20 +72,12 @@ static int any_links_flagged(int flags)
 
 static void wait_link_down(struct link* ls)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
-	if(ls->flags & S_CHILDREN) {
-		eprintf("  children\n");
+	if(ls->flags & S_CHILDREN)
 		return stop_link_procs(ls, 0);
-	} if(ls->flags & S_IPADDR) {
-		eprintf("  ipaddrs\n");
+	if(ls->flags & S_IPADDR)
 		return del_link_addresses(ls->ifi);
-	} if(ls->flags & S_APLOCK) {
-		eprintf("  aplock\n");
+	if(ls->flags & S_APLOCK)
 		return trigger_disconnect(ls->ifi);
-	}
-
-	eprintf("stopped %s\n", ls->name);
 
 	if(ls->flags & S_NL80211)
 		wifi_conn_fail(ls);
@@ -114,7 +93,6 @@ static void wait_link_down(struct link* ls)
 
 void terminate_link(struct link* ls)
 {
-	eprintf("terminating %s\n", ls->name);
 	ls->flags &= ~S_UPCOMING;
 	ls->flags |= S_STOPPING;
 
@@ -143,16 +121,12 @@ void link_apgone(struct link* ls)
 
 void link_down(struct link* ls)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
 	if(!(ls->flags & S_STOPPING))
 		terminate_link(ls);
 }
 
 void link_child_exit(struct link* ls, int status)
 {
-	eprintf("%s %s %i\n", __FUNCTION__, ls->name, status);
-
 	if(ls->flags & S_STOPPING)
 		wait_link_down(ls);
 	else if(status)
@@ -162,8 +136,6 @@ void link_child_exit(struct link* ls, int status)
 
 void link_gone(struct link* ls)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
 	stop_link_procs(ls, 1);
 
 	unlatch(ls->ifi, DOWN, 0); /* or ENODEV? */

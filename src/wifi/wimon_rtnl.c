@@ -8,7 +8,6 @@
 #include <netlink/rtnl/route.h>
 #include <netlink/rtnl/mgrp.h>
 
-#include <format.h>
 #include <string.h>
 #include <fail.h>
 
@@ -58,8 +57,6 @@ static void set_iface_state(int ifi, int flags)
 {
 	struct ifinfomsg* msg;
 
-	eprintf("%s %i %s\n", __FUNCTION__, ifi, flags ? "up" : "down");
-
 	nl_header(&rtnl, msg, RTM_SETLINK, 0,
 			.index = ifi,
 			.flags = flags,
@@ -81,8 +78,6 @@ void disable_iface(int ifi)
 void del_link_addresses(int ifi)
 {
 	struct ifaddrmsg* req;
-
-	eprintf("%s %i\n", __FUNCTION__, ifi);
 
 	nl_header(&rtnl, req, RTM_DELADDR, 0,
 		.family = AF_INET,

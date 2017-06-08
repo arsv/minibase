@@ -12,7 +12,6 @@
 #include <sys/unlink.h>
 #include <sys/brk.h>
 
-#include <format.h>
 #include <nlusctl.h>
 #include <string.h>
 #include <heap.h>
@@ -218,17 +217,12 @@ static int cmd_roaming(struct conn* cn, struct ucmsg* msg)
 	int ifi, ret;
 	int rifi = get_ifi(msg);
 
-	eprintf("%s\n", __FUNCTION__);
-
 	if((ifi = grab_wifi_device(rifi)) < 0)
 		return ifi;
-	if((ret = switch_uplink(ifi))) {
-		eprintf("%s switch_uplink %i\n", __FUNCTION__, ret);
+	if((ret = switch_uplink(ifi)))
 		return ret;
-	} if((ret = wifi_mode_roaming())) {
-		eprintf("%s wifi_mode_roaming %i\n", __FUNCTION__, ret);
+	if((ret = wifi_mode_roaming()))
 		return ret;
-	}
 
 	return NOERROR;
 }
@@ -238,8 +232,6 @@ static int cmd_fixedap(struct conn* cn, struct ucmsg* msg)
 	int ifi, ret;
 	struct ucattr* ap;
 	int rifi = get_ifi(msg);
-
-	eprintf("%s\n", __FUNCTION__);
 
 	if(!(ap = uc_get(msg, ATTR_SSID)))
 		return -EINVAL;
@@ -259,8 +251,6 @@ static int cmd_fixedap(struct conn* cn, struct ucmsg* msg)
 
 static int cmd_neutral(struct conn* cn, struct ucmsg* msg)
 {
-	eprintf("%s\n", __FUNCTION__);
-
 	wifi_mode_disabled();
 	stop_uplinks_except(0);
 
@@ -293,8 +283,6 @@ static int cmd_wired(struct conn* cn, struct ucmsg* msg)
 	int ret, ifi;
 	int rifi = get_ifi(msg);
 	struct link* ls;
-
-	eprintf("%s\n", __FUNCTION__);
 
 	wifi_mode_disabled();
 

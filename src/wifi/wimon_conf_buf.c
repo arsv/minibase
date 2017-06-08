@@ -73,8 +73,6 @@ void drop_config(void)
 	if(modified)
 		save_config();
 
-	eprintf("%s\n", __FUNCTION__);
-
 	sysmunmap(config, blocklen);
 	config = NULL;
 	blocklen = 0;

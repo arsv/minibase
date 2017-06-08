@@ -81,8 +81,6 @@ struct scan* grab_scan_slot(uint8_t* bssid)
 
 void free_scan_slot(struct scan* sc)
 {
-	eprintf("%s %s\n", __FUNCTION__, sc->ssid);
-
 	memset(sc, 0, sizeof(*sc));
 
 	if(sc == &scans[nscans-1])
@@ -91,7 +89,6 @@ void free_scan_slot(struct scan* sc)
 
 void drop_scan_slots()
 {
-	eprintf("%s\n", __FUNCTION__);
 	nscans = 0;
 }
 

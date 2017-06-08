@@ -1,7 +1,5 @@
 #include <bits/errno.h>
-
 #include <string.h>
-#include <format.h>
 
 #include "wimon.h"
 
@@ -175,7 +173,6 @@ static int connect_to_something(void)
 	}
 
 	while((sc = get_best_ap(ssid, slen))) {
-		eprintf("best ap %s\n", sc->ssid);
 		if(load_ap(sc))
 			continue;
 		if(start_wifi())
@@ -224,8 +221,6 @@ static void start_wifi_scan(void)
 
 static void reassess_wifi_situation(void)
 {
-	eprintf("%s\n", __FUNCTION__);
-
 	if(wifi.mode == WM_DISABLED)
 		return;
 
@@ -237,7 +232,6 @@ static void reassess_wifi_situation(void)
 	if(!wifi.ifi)
 		return;
 
-	eprintf("next scan in 60sec\n");
 	schedule(start_wifi_scan, 60);
 }
 
@@ -268,8 +262,6 @@ static struct scan* find_current_ap(void)
 
 void wifi_ready(struct link* ls)
 {
-	eprintf("%s\n", __FUNCTION__);
-
 	if(!wifi.ifi)
 		load_wifi(ls);
 	if(ls->ifi != wifi.ifi)
@@ -298,8 +290,6 @@ static void retry_current_ap(void)
 {
 	wifi.state = WS_NONE;
 
-	eprintf("%s\n", __FUNCTION__);
-
 	if(load_ap_psk())
 		goto out;
 	if(start_wifi())
@@ -312,8 +302,6 @@ out:
 
 void wifi_scan_done(void)
 {
-	eprintf("%s\n", __FUNCTION__);
-
 	check_new_aps();
 	unlatch(WIFI, SCAN, 0);
 
@@ -335,8 +323,6 @@ void wifi_connected(struct link* ls)
 {
 	struct scan* sc;
 
-	eprintf("%s\n", __FUNCTION__);
-
 	if(ls->ifi != wifi.ifi)
 		return;
 
@@ -356,8 +342,6 @@ void wifi_connected(struct link* ls)
 
 void wifi_conn_fail(struct link* ls)
 {
-	eprintf("%s\n", __FUNCTION__);
-
 	if(ls->ifi != wifi.ifi)
 		return; /* stray wifi interface */
 
@@ -389,7 +373,6 @@ static void stop_wifi_link(void)
 
 void wifi_mode_disabled(void)
 {
-	eprintf("%s\n", __FUNCTION__);
 	reset_wifi_struct();
 	wifi.mode = WM_DISABLED;
 	save_wifi();

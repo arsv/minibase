@@ -59,8 +59,6 @@ void load_link(struct link* ls)
 	int cn = 10;
 	struct chunk ck[cn];
 
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
 	if(load_config())
 		return;
 	if(find_line(&ln, "link", 1, ls->name))
@@ -69,8 +67,6 @@ void load_link(struct link* ls)
 		return;
 
 	ls->mode = lookup(linkmodes, &ck[2]);
-
-	eprintf("load %s %i\n", ls->name, ls->mode);
 }
 
 static char* fmt_link_mode(char* p, char* e, struct link* ls)
@@ -92,8 +88,6 @@ void save_link(struct link* ls)
 	char buf[100];
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
-
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
 	p = fmtstr(p, e, "link");
 	p = fmtstr(p, e, " ");
@@ -192,8 +186,6 @@ void save_psk(uint8_t* ssid, int slen, char* psk)
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
 
-	eprintf("%s %s\n", __FUNCTION__, ssid);
-
 	char ssidstr[3*32+4];
 	prep_ssid(ssidstr, sizeof(ssidstr), ssid, slen);
 
@@ -234,8 +226,6 @@ static void read_ssid(struct chunk* ck)
 	char* ce = ck->end;
 	char* p;
 
-	eprintf("%s\n", __FUNCTION__);
-
 	while(cp < ce && sp < se)
 		if(*cp++ != '\\')
 			*sp++ = *cp++;
@@ -262,8 +252,6 @@ void load_wifi(struct link* ls)
 	int cn = 10;
 	struct chunk ck[cn];
 
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
 	if(load_config())
 		return;
 	if(find_line(&ln, "wifi", 0, NULL))
@@ -280,8 +268,6 @@ void load_wifi(struct link* ls)
 		wifi.mode = lookup(wifimodes, &ck[2]);
 	if(cn >= 4 && wifi.mode == WM_FIXEDAP)
 		read_ssid(&ck[3]);
-
-	eprintf("wifi mode=%i ifi=%i\n", wifi.mode, wifi.ifi);
 }
 
 void save_wifi(void)

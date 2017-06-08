@@ -6,7 +6,6 @@
 #include <netlink/genl/nl80211.h>
 
 #include <string.h>
-#include <format.h>
 #include <fail.h>
 
 #include "nlfam.h"
@@ -153,8 +152,6 @@ static void msg_scan_start(struct link* ls, struct nlgen* msg)
 {
 	if(ls->ifi != genl_scan_ifi)
 		return;
-
-	eprintf("scan-start %s\n", ls->name);
 }
 
 static void msg_scan_abort(struct link* ls, struct nlgen* msg)
@@ -162,7 +159,6 @@ static void msg_scan_abort(struct link* ls, struct nlgen* msg)
 	if(ls->ifi != genl_scan_ifi)
 		return;
 
-	eprintf("scan-abort %s\n", ls->name);
 	wifi_scan_fail(-EINTR);
 }
 
@@ -203,31 +199,6 @@ static int get_i32_or_zero(struct nlattr* bss, int key)
 	return val ? *val : 0;
 }
 
-static void dump_sta(struct scan* sc)
-{
-	char* type;
-
-	if(!sc->type)
-		type = "---";
-	else if(sc->type & (ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_CCMP))
-		type = "CC ";
-	else if(sc->type & (ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_TKIP))
-		type = "CT ";
-	else if(sc->type & (ST_RSN_PSK | ST_RSN_P_TKIP | ST_RSN_G_TKIP))
-		type = "TT ";
-	else if(sc->type & (ST_RSN))
-		type = "RSN";
-	else if(sc->type & (ST_WPA))
-		type = "WPA";
-	else if(sc->type & (ST_WPS))
-		type = "WPS";
-	else
-		type = "???";
-
-	eprintf("station %i %i %3s \"%s\"\n",
-			sc->freq, sc->signal/100, type, sc->ssid);
-}
-
 static void parse_scan_result(struct nlgen* msg)
 {
 	struct scan* sc;
@@ -250,8 +221,6 @@ static void parse_scan_result(struct nlgen* msg)
 
 	if((ies = nl_sub(bss, NL80211_BSS_INFORMATION_ELEMENTS)))
 		parse_station_ies(sc, ies->payload, nl_attr_len(ies));
-
-	dump_sta(sc);
 }
 
 static void msg_scan_res(struct link* ls, struct nlgen* msg)
@@ -267,13 +236,10 @@ static void msg_scan_res(struct link* ls, struct nlgen* msg)
 static void msg_authenticate(struct link* ls, struct nlgen* msg)
 {
 	ls->flags |= S_APLOCK;
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
 }
 
 static void msg_deauthenticate(struct link* ls, struct nlgen* msg)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
 	ls->flags &= ~S_APLOCK;
 }
 
