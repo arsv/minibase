@@ -14,7 +14,11 @@ struct top {
 	char cbuf[128];
 };
 
+#define CTX struct top* ctx
+#define MSG struct ucmsg* msg
 #define UC (&ctx->uc)
+
+typedef struct ucattr* attr;
 
 void top_init(struct top* ctx);
 struct ucmsg* send_recv(struct top* ctx);

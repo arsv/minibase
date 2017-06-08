@@ -3,11 +3,12 @@
 #include <util.h>
 #include <format.h>
 #include <string.h>
+#include <output.h>
 
 #include "common.h"
 #include "wictl.h"
 
-static int cmp_int(struct ucattr* at, struct ucattr* bt, int key)
+static int cmp_int(attr at, attr bt, int key)
 {
 	int* na = uc_sub_int(at, key);
 	int* nb = uc_sub_int(bt, key);
@@ -22,75 +23,302 @@ static int cmp_int(struct ucattr* at, struct ucattr* bt, int key)
 	return 0;
 }
 
+static int cmp_str(attr at, attr bt, int key)
+{
+	char* na = uc_sub_str(at, key);
+	char* nb = uc_sub_str(bt, key);
+
+	if(!na || !nb)
+		return 0;
+
+	return strcmp(na, nb);
+}
+
+static int cmp_flag(attr at, attr bt, int key, int flag)
+{
+	int* na = uc_sub_int(at, key);
+	int* nb = uc_sub_int(bt, key);
+
+	if(!na || !nb)
+		return 0;
+
+	int fa = *na & flag;
+	int fb = *nb & flag;
+
+	if(fa && fb)
+		return 0;
+	else if(fa)
+		return -1;
+	else if(fb)
+		return 1;
+	else
+		return 0;
+}
+
 static int scan_ord(const void* a, const void* b, long p)
 {
-	struct ucattr* at = *((struct ucattr**)a);
-	struct ucattr* bt = *((struct ucattr**)b);
+	attr at = *((attr*)a);
+	attr bt = *((attr*)b);
 	int ret;
 
 	if((ret = cmp_int(at, bt, ATTR_SIGNAL)))
-		return ret;
-	if((ret = cmp_int(at, bt, ATTR_FREQ)))
 		return -ret;
+	if((ret = cmp_int(at, bt, ATTR_FREQ)))
+		return ret;
 
 	return 0;
 }
 
-static struct ucattr** prep_scan_list(struct top* ctx, struct ucmsg* msg)
+static int link_ord(const void* a, const void* b, long p)
 {
-	int n = 0, i = 0;
-	struct ucattr* at;
+	attr at = *((attr*)a);
+	attr bt = *((attr*)b);
+	int ret;
 
-	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
-		if(at->key == ATTR_SCAN)
-			n++;
+	if((ret = cmp_flag(at, bt, ATTR_FLAGS, LINK_NL80211)))
+		return ret;
+	if((ret = cmp_str(at, bt, ATTR_NAME)))
+		return ret;
 
-	struct ucattr** refs = halloc(&ctx->hp, (n+1)*sizeof(void*));
-
-	for(at = uc_get_0(msg); at && i < n; at = uc_get_n(msg, at))
-		if(at->key == ATTR_SCAN)
-			refs[i++] = at;
-	refs[i] = NULL;
-
-	qsort(refs, i, sizeof(void*), scan_ord, 0);
-
-	return refs;
+	return 0;
 }
 
-static void dump_scan_line(struct ucattr* sc)
+static char* fmt_link_flags(char* p, char* e, attr at)
 {
+	int flags, *fp;
+
+	if(!(fp = uc_sub_int(at, ATTR_FLAGS)))
+		return p;
+	flags = *fp;
+
+	if(flags & LINK_CARRIER)
+		p = fmtstr(p, e, " up");
+	else if(flags & LINK_ENABLED)
+		p = fmtstr(p, e, " enabled");
+	else
+		p = fmtstr(p, e, " off");
+
+	return p;
+}
+
+static char* fmt_link_ip(char* p, char* e, attr at)
+{
+	uint8_t* ip = uc_sub_bin(at, ATTR_IPADDR, 4);
+	int* mask = uc_sub_int(at, ATTR_IPMASK);
+
+	if(!ip || !mask) return p;
+
+	p = fmtstr(p, e, " ");
+	p = fmtip(p, e, ip);
+	p = fmtstr(p, e, "/");
+	p = fmtint(p, e, *mask);
+
+	return p;
+}
+
+static void dump_link(attr at)
+{
+	char buf[200];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
+
+	char* name = uc_sub_str(at, ATTR_NAME);
+	int* ifi = uc_sub_int(at, ATTR_IFI);
+
+	if(!ifi || !name) return;
+
+	p = fmtstr(p, e, "Link ");
+	p = fmtstr(p, e, name);
+	p = fmtstr(p, e, " (");
+	p = fmtint(p, e, *ifi);
+	p = fmtstr(p, e, ")");
+	p = fmt_link_flags(p, e, at);
+	p = fmt_link_ip(p, e, at);
+	*p++ = '\n';
+
+	writeout(buf, p - buf);
+}
+
+static char* fmt_ssid(char* p, char* e, uint8_t* ssid, int slen)
+{
+	int i;
+
+	for(i = 0; i < slen; i++) {
+		if(ssid[i] >= 0x20) {
+			p = fmtchar(p, e, ssid[i]);
+		} else {
+			p = fmtstr(p, e, "\\x");
+			p = fmtbyte(p, e, ssid[i]);
+		}
+	}
+
+	return p;
+}
+
+static void dump_scan(struct ucattr* sc)
+{
+	char buf[200];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
+
 	struct ucattr* ssid = uc_sub(sc, ATTR_SSID);
 	uint8_t* bssid = uc_sub_bin(sc, ATTR_BSSID, 6);
 	int* freq = uc_sub_int(sc, ATTR_FREQ);
 	int* signal = uc_sub_int(sc, ATTR_SIGNAL);
 
-	int slen = ssid->len - sizeof(*ssid);
-	char sbuf[slen+1];
+	p = fmtstr(p, e, "AP ");
+	p = fmtint(p, e, (*signal)/100);
+	p = fmtstr(p, e, " ");
+	p = fmtint(p, e, *freq);
+	p = fmtstr(p, e, " ");
+	p = fmtmac(p, e, bssid);
+	p = fmtstr(p, e, " ");
+	p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
+	*p++ = '\n';
 
-	memcpy(sbuf, ssid->payload, slen);
-	sbuf[slen] = '\0';
-
-	eprintf("AP %i %i %02X:%02X:%02X:%02X:%02X:%02X %s\n",
-			(*signal)/100, *freq,
-			bssid[0], bssid[1], bssid[2],
-			bssid[3], bssid[4], bssid[5],
-			sbuf);
+	writeout(buf, p - buf);
 }
 
-void dump_status(struct top* ctx, struct ucmsg* msg)
+static char* fmt_wifi_mode(char* p, char* e, attr at)
 {
-	struct ucattr** scan = prep_scan_list(ctx, msg);
-	struct ucattr** sc;
+	int mode, *mp;
 
-	for(sc = scan; *sc; sc++)
-		dump_scan_line(*sc);
+	if(!(mp = uc_sub_int(at, ATTR_MODE)))
+		goto out;
+	mode = *mp;
+
+	p = fmtstr(p, e, " ");
+
+	if(mode == WIFI_MODE_DISABLED)
+		p = fmtstr(p, e, "disconnected");
+	else if(mode == WIFI_MODE_ROAMING)
+		p = fmtstr(p, e, "roaming");
+	else if(mode == WIFI_MODE_FIXEDAP)
+		p = fmtstr(p, e, "fixed");
+	else {
+		p = fmtstr(p, e, "mode");
+		p = fmtint(p, e, mode);
+	}
+out:
+	return p;
 }
 
-void dump_scanlist(struct top* ctx, struct ucmsg* msg)
+static char* fmt_wifi_iface(char* p, char* e, attr at)
 {
-	struct ucattr** scan = prep_scan_list(ctx, msg);
-	struct ucattr** sc;
+	char* name;
 
-	for(sc = scan; *sc; sc++)
-		dump_scan_line(*sc);
+	if(!(name = uc_sub_str(at, ATTR_NAME)))
+		goto out;
+
+	p = fmtstr(p, e, " on ");
+	p = fmtstr(p, e, name);
+out:
+	return p;
+}
+
+static char* fmt_wifi_freq(char* p, char* e, attr at)
+{
+	int* freq;
+
+	if(!(freq = uc_sub_int(at, ATTR_FREQ)))
+		goto out;
+
+	p = fmtstr(p, e, " @ ");
+	p = fmtint(p, e, *freq);
+out:
+	return p;
+}
+
+static char* fmt_wifi_ssid(char* p, char* e, attr at)
+{
+	attr ssid;
+
+	if(!(ssid = uc_sub(at, ATTR_SSID)))
+		goto out;
+
+	p = fmtstr(p, e, " AP ");
+	p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
+out:
+	return p;
+}
+
+static char* fmt_wifi_bssid(char* p, char* e, attr at)
+{
+	uint8_t* bssid;
+
+	if(!(bssid = uc_sub_bin(at, ATTR_BSSID, 6)))
+		goto out;
+
+	p = fmtstr(p, e, " ");
+	p = fmtmac(p, e, bssid);
+out:
+	return p;
+}
+
+static void dump_wifi(CTX, MSG)
+{
+	char buf[200];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
+	attr at;
+
+	if(!(at = uc_get(msg, ATTR_WIFI)))
+		return;
+
+	p = fmtstr(p, e, "WiFi");
+	p = fmt_wifi_iface(p, e, at);
+	p = fmt_wifi_mode(p, e, at);
+	p = fmt_wifi_ssid(p, e, at);
+	p = fmt_wifi_bssid(p, e, at);
+	p = fmt_wifi_freq(p, e, at);
+	*p++ = '\n';
+
+	writeout(buf, p - buf);
+}
+
+static attr* prep_list(CTX, MSG, int key, qcmp cmp)
+{
+	int n = 0, i = 0;
+	attr at;
+
+	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
+		if(at->key == key)
+			n++;
+
+	attr* refs = halloc(&ctx->hp, (n+1)*sizeof(void*));
+
+	for(at = uc_get_0(msg); at && i < n; at = uc_get_n(msg, at))
+		if(at->key == key)
+			refs[i++] = at;
+	refs[i] = NULL;
+
+	qsort(refs, i, sizeof(void*), cmp, 0);
+
+	return refs;
+}
+
+static void dump_list(CTX, MSG, int key, qcmp cmp, void (*dump)(attr))
+{
+	attr* list = prep_list(ctx, msg, key, cmp);
+
+	for(attr* ap = list; *ap; ap++)
+		dump(*ap);
+}
+
+static void empty_line(void)
+{
+	writeout("\n", 1);
+}
+
+void dump_scanlist(CTX, MSG)
+{
+	dump_list(ctx, msg, ATTR_SCAN, scan_ord, dump_scan);
+}
+
+void dump_status(CTX, MSG)
+{
+	dump_list(ctx, msg, ATTR_LINK, link_ord, dump_link);
+	dump_wifi(ctx, msg);
+	empty_line();
+	dump_scanlist(ctx, msg);
 }
