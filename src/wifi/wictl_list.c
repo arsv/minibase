@@ -127,11 +127,11 @@ static void dump_link(CTX, AT)
 
 	if(!ifi || !name) return;
 
-	p = fmtstr(p, e, "Link ");
-	p = fmtstr(p, e, name);
-	p = fmtstr(p, e, " (");
+	p = fmtstr(p, e, "Link");
+	p = fmtstr(p, e, " ");
 	p = fmtint(p, e, *ifi);
-	p = fmtstr(p, e, ")");
+	p = fmtstr(p, e, " ");
+	p = fmtstr(p, e, name);
 	p = fmt_link_flags(p, e, at);
 	p = fmt_link_ip(p, e, at);
 	*p++ = '\n';
@@ -210,7 +210,7 @@ static char* fmt_wifi_iface(char* p, char* e, attr at)
 	if(!(name = uc_sub_str(at, ATTR_NAME)))
 		goto out;
 
-	p = fmtstr(p, e, " on ");
+	p = fmtstr(p, e, " ");
 	p = fmtstr(p, e, name);
 out:
 	return p;
