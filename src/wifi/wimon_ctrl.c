@@ -195,19 +195,6 @@ static int setlatch(struct conn* cn, int ifi, int evt)
 	return LATCHED;
 }
 
-static int latched(int ifi)
-{
-	struct conn* cn;
-
-	for(cn = conns; cn < conns + nconns; cn++)
-		if(!cn->fd || !cn->evt)
-			continue;
-		else if(!ifi || ifi == cn->ifi)
-			return 1;
-
-	return 0;
-}
-
 static int get_ifi(struct ucmsg* msg)
 {
 	int* iv = uc_get_int(msg, ATTR_IFI);
@@ -220,8 +207,6 @@ static int cmd_scan(struct conn* cn, struct ucmsg* msg)
 
 	if((ifi = grab_wifi_device(0)) < 0)
 		return ifi;
-	if(latched(ifi))
-		return -EAGAIN;
 
 	trigger_scan(ifi, 0);
 
@@ -264,8 +249,6 @@ static int cmd_fixedap(struct conn* cn, struct ucmsg* msg)
 
 	if((ifi = grab_wifi_device(rifi)) < 0)
 		return ifi;
-	if(latched(ifi))
-		return -EAGAIN;
 	if((ret = switch_uplink(ifi)))
 		return ret;
 	if((ret = wifi_mode_fixedap(ssid, slen)))
@@ -276,17 +259,10 @@ static int cmd_fixedap(struct conn* cn, struct ucmsg* msg)
 
 static int cmd_neutral(struct conn* cn, struct ucmsg* msg)
 {
-	int ret;
-
 	eprintf("%s\n", __FUNCTION__);
 
-	if(latched(0))
-		return -EAGAIN;
-
 	wifi_mode_disabled();
-
-	if((ret = stop_all_links()) <= 0)
-		return ret;
+	stop_uplinks_except(0);
 
 	return setlatch(cn, NONE, DOWN);
 }
@@ -301,8 +277,6 @@ static int find_wired_link(int rifi)
 
 	for(ls = links; ls < links + nlinks; ls++) {
 		if(!ls->ifi)
-			continue;
-		if(ls->mode == LM_NOT)
 			continue;
 		if(ls->flags & S_NL80211)
 			continue;
@@ -322,10 +296,10 @@ static int cmd_wired(struct conn* cn, struct ucmsg* msg)
 
 	eprintf("%s\n", __FUNCTION__);
 
+	wifi_mode_disabled();
+
 	if((ifi = find_wired_link(rifi)) < 0)
 		return ifi;
-	if(latched(ifi))
-		return -EAGAIN;
 	if(!(ls = find_link_slot(ifi)))
 		return -ENODEV;
 	if((ret = switch_uplink(ifi)) < 0)
@@ -387,6 +361,12 @@ static void shutdown_conn(struct conn* cn)
 	sysclose(cn->fd);
 	memzero(cn, sizeof(*cn));
 }
+
+/* The code below allows for persistent connections, and can handle multiple
+   commands per connection. This feature was crucial at some point, but that's
+   no longer so. It is kept mostly as a sanity feature for foreign clients
+   (anything that's not wictl), and also because it relaxes timing requirements
+   for wictl connections. */
 
 void handle_conn(struct conn* cn)
 {
@@ -451,6 +431,8 @@ void accept_ctrl(int sfd)
 		/* disable the timer in case it has been set */
 		sysalarm(0);
 	}
+
+	save_config();
 }
 
 void unlink_ctrl(void)

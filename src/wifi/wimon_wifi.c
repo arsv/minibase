@@ -150,7 +150,6 @@ static void reset_wifi_struct(void)
 {
 	wifi.state = 0;
 	wifi.flags = 0;
-	wifi.ifi = 0;
 	wifi.freq = 0;
 	wifi.slen = 0;
 	wifi.type = 0;
@@ -348,6 +347,7 @@ void wifi_connected(struct link* ls)
 
 	if(wifi.flags & WF_UNSAVED) {
 		save_psk(wifi.ssid, wifi.slen, wifi.psk);
+		save_config();
 		wifi.flags &= ~WF_UNSAVED;
 	}
 
@@ -375,26 +375,34 @@ void wifi_conn_fail(struct link* ls)
 	reassess_wifi_situation();
 }
 
+static void stop_wifi_link(void)
+{
+	struct link* ls;
+
+	if(!wifi.state)
+		return;
+	if(!(ls = find_link_slot(wifi.ifi)))
+		return;
+
+	terminate_link(ls);
+}
+
 void wifi_mode_disabled(void)
 {
 	eprintf("%s\n", __FUNCTION__);
-	wifi.mode = WM_DISABLED;
 	reset_wifi_struct();
+	wifi.mode = WM_DISABLED;
 	save_wifi();
 }
 
 int wifi_mode_roaming(void)
 {
-	if(wifi.state)
-		return -EBUSY;
-
+	stop_wifi_link();
 	reset_scan_counters(NULL, 0);
-
 	wifi.mode = WM_ROAMING;
+	save_wifi();
 
 	trigger_scan(wifi.ifi, 0);
-
-	save_wifi();
 
 	return 0;
 }
@@ -404,9 +412,7 @@ int wifi_mode_fixedap(uint8_t* ssid, int slen)
 	struct scan* sc;
 	int ret;
 
-	if(wifi.state)
-		return -EBUSY;
-
+	stop_wifi_link();
 	reset_scan_counters(ssid, slen);
 
 	if(!(sc = get_best_ap(ssid, slen)))
@@ -417,7 +423,6 @@ int wifi_mode_fixedap(uint8_t* ssid, int slen)
 		return ret;
 
 	wifi.mode = WM_FIXEDAP;
-
 	save_wifi();
 
 	return 0;

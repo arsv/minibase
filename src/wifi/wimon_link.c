@@ -66,13 +66,15 @@ void link_ipaddr(struct link* ls)
 		wifi_connected(ls);
 }
 
-static int any_stopping_links(void)
+static int any_links_flagged(int flags)
 {
 	struct link* ls;
 
 	for(ls = links; ls < links + nlinks; ls++)
-		if(ls->ifi && (ls->flags & S_STOPPING))
+		if(ls->ifi && (ls->flags & flags)) {
+			eprintf("link %s flagged %i\n", ls->name, flags);
 			return 1;
+		}
 
 	return 0;
 }
@@ -106,7 +108,7 @@ static void wait_link_down(struct link* ls)
 	unlatch(ls->ifi, DOWN, 0);
 	unlatch(ls->ifi, CONF, -ENETDOWN);
 
-	if(!any_stopping_links())
+	if(!any_links_flagged(S_STOPPING))
 		unlatch(NONE, DOWN, 0);
 }
 
@@ -209,24 +211,30 @@ int stop_all_links(void)
 	return down;
 }
 
+void stop_uplinks_except(int ifi)
+{
+	struct link* ls;
+
+	for(ls = links; ls < links + nlinks; ls++)
+		if(ls->ifi == ifi)
+			continue;
+		else if(ls->mode != LM_DHCP)
+			continue;
+		else if(!(ls->flags & (S_UPLINK | S_UPCOMING)))
+			continue;
+		else if(ls->flags & S_STOPPING)
+			continue;
+		else terminate_link(ls);
+}
+
 int switch_uplink(int ifi)
 {
 	struct link* ls;
-	struct link* rls = NULL;
 
-	for(ls = links; ls < links + nlinks; ls++)
-		if(!ls->ifi)
-			continue;
-		else if(ls->ifi == ifi)
-			rls = ls;
-		else if(ls->flags & (S_UPLINK | S_UPCOMING))
-			return -EBUSY;
-
-	if(!(ls = rls))
+	if(!(ls = find_link_slot(ifi)))
 		return -ENODEV;
 
-	if(ls->flags & (S_UPLINK | S_UPCOMING))
-		return 0;
+	stop_uplinks_except(ifi);
 
 	ls->mode = LM_DHCP;
 	ls->flags |= S_UPCOMING;

@@ -293,6 +293,9 @@ void save_wifi(void)
 	char* e = buf + sizeof(buf) - 1;
 	const char *mode, *name;
 
+	if(load_config())
+		return;
+
 	if(!(name = get_ifname(wifi.ifi))) {
 		find_line(&ln, "wifi", 0, NULL);
 		drop_line(&ln);
@@ -316,8 +319,6 @@ void save_wifi(void)
 		p = fmtstr(p, e, " ");
 		p = fmtstr(p, e, ssidstr);
 	}
-
-	if(load_config()) return;
 
 	find_line(&ln, "wifi", 0, NULL);
 	save_line(&ln, buf, p - buf);

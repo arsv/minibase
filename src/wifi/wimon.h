@@ -95,9 +95,9 @@ struct child {
    to a specific device. */
 
 /* wifi.mode */
-#define WM_ROAMING     0
-#define WM_FIXEDAP     1
-#define WM_DISABLED    2
+#define WM_DISABLED    0
+#define WM_ROAMING     1
+#define WM_FIXEDAP     2
 /* wifi.state */
 #define WS_NONE        0
 #define WS_TUNED       1
@@ -247,7 +247,7 @@ void link_child_exit(struct link* ls, int status);
 int any_pids_left(void);
 void terminate_link(struct link* ls);
 void finalize_links(void);
-int stop_all_links(void);
+void stop_uplinks_except(int ifi);
 int switch_uplink(int ifi);
 
 /* wimon_wifi.c */
