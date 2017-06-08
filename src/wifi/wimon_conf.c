@@ -278,12 +278,7 @@ int find_line(struct line* ln, char* pref, int i, char* val)
 
 static int extend_config(int len)
 {
-	modified = 1;
-
-	if(len <= 0)
-		return 0;
-
-	if(datalen + len > blocklen)
+	if(len > 0 && datalen + len > blocklen)
 		return -ENOMEM; /* XXX */
 
 	datalen += len;
@@ -331,6 +326,8 @@ void drop_line(struct line* ln)
 		return;
 
 	memmove(ln->start, ln->end + 1, shlen);
+
+	modified = 1;
 }
 
 void save_line(struct line* ls, char* buf, int len)
@@ -339,4 +336,6 @@ void save_line(struct line* ls, char* buf, int len)
 		append_line(buf, len);
 	else
 		change_line(ls, buf, len);
+
+	modified = 1;
 }
