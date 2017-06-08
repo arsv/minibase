@@ -14,328 +14,312 @@
 #include "config.h"
 #include "wimon.h"
 
-/* Mini text editor for the config file. The config looks something like this:
+static const struct kwd {
+	char key[12];
+	int val;
+} linkmodes[] = {
+	{ "off",    LM_OFF    },
+	{ "not",    LM_NOT    },
+	{ "dhcp",   LM_DHCP   },
+	{ "local",  LM_LOCAL  },
+	{ "static", LM_STATIC },
+	{ "",       0         }
+}, wifimodes[] = {
+	{ "off",     WM_DISABLED },
+	{ "roaming", WM_ROAMING  },
+	{ "fixedap", WM_FIXEDAP  },
+	{ "",        0           }
+};
 
-	dev enp0s31f6 manual 192.168.1.3/24
-	psk 001122...EEFF 1 Blackhole
-	psk 91234A...47AC 0 publicnet
-	psk F419BE...01F5 0 someothernet
-
-   and wimon needs to search/parse on certain events and add/remove/modify
-   lines whenever device or AP settings change.
-
-   The data gets read into memory on demand, queried, modified in memory
-   if necessary, and synced back to disk.
-
-   The events that cause config loading are often independent but sometimes
-   have strong tendency to come in packs; think initial devices dump, or
-   scan followed by auto-connect. To make things easier on the caller side,
-   config is loaded on demand and unloading is schedule to happen several
-   seconds later. This should be enough to avoid excessive load-save-load
-   sequences. */
-
-#define PAGE 4096
-#define MAX_CONFIG_SIZE 64*1024
-
-static char* config;
-static int blocklen;
-static int datalen;
-static int modified;
-
-static int pagealign(long size)
+static int lookup(const struct kwd* dict, struct chunk* ck)
 {
-	return size + (PAGE - size % PAGE) % PAGE;
+	const struct kwd* kw;
+
+	for(kw = dict; kw->key[0]; kw++)
+		if(chunkis(ck, kw->key))
+			return kw->val;
+
+	return 0;
 }
 
-void save_config(void)
+static const char* nameof(const struct kwd* dict, int val)
 {
-	int fd;
+	const struct kwd* kw;
 
-	if(!config)
+	for(kw = dict; kw->key[0]; kw++)
+		if(kw->val == val)
+			return kw->key;
+
+	return NULL;
+}
+
+void load_link(struct link* ls)
+{
+	struct line ln;
+	int cn = 10;
+	struct chunk ck[cn];
+
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
+
+	if(load_config())
 		return;
-	if(!modified)
+	if(find_line(&ln, "link", 1, ls->name))
+		return;
+	if(split_line(&ln, ck, cn) < 3)
 		return;
 
-	if((fd = sysopen3(WICFG, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0) {
-		warn("cannot open", WICFG, fd);
-		return;
+	ls->mode = lookup(linkmodes, &ck[2]);
+
+	eprintf("load %s %i\n", ls->name, ls->mode);
+}
+
+static char* fmt_link_mode(char* p, char* e, struct link* ls)
+{
+	const char* mode;
+
+	if((mode = nameof(linkmodes, ls->mode)))
+		p = fmtstr(p, e, mode);
+	else
+		p = fmtint(p, e, ls->mode);
+
+	return p;
+}
+
+void save_link(struct link* ls)
+{
+	struct line ln;
+
+	char buf[100];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
+
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
+
+	p = fmtstr(p, e, "link");
+	p = fmtstr(p, e, " ");
+	p = fmtstr(p, e, ls->name);
+	p = fmtstr(p, e, " ");
+	p = fmt_link_mode(p, e, ls);
+
+	if(load_config()) return;
+
+	find_line(&ln, "link", 1, ls->name);
+	save_line(&ln, buf, p - buf);
+}
+
+static void prep_ssid(char* buf, int len, uint8_t* ssid, int slen)
+{
+	char* p = buf;
+	char* e = buf + len - 1;
+	int i;
+
+	for(i = 0; i < slen; i++) {
+		if(ssid[i] == '\\') {
+			p = fmtchar(p, e, '\\');
+			p = fmtchar(p, e, '\\');
+		} else if(ssid[i] == ' ') {
+			p = fmtchar(p, e, '\\');
+			p = fmtchar(p, e, ' ');
+		} else if(ssid[i] <= 0x20) {
+			p = fmtchar(p, e, '\\');
+			p = fmtchar(p, e, 'x');
+			p = fmtbyte(p, e, ssid[i]);
+		} else {
+			p = fmtchar(p, e, ssid[i]);
+		}
 	}
 
-	writeall(fd, config, datalen);
-	sysclose(fd);
-	modified = 0;
+	*p = '\0';
 }
 
-void drop_config(void)
+int saved_psk_prio(uint8_t* ssid, int slen)
 {
-	if(!config)
-		return;
-	if(modified)
-		save_config();
+	struct line ln;
+	struct chunk ck[4];
+
+	char ssidstr[3*32+4];
+	prep_ssid(ssidstr, sizeof(ssidstr), ssid, slen);
+
+	char* p;
+	int prio;
+
+	if(load_config())
+		return -1;
+	if(find_line(&ln, "psk", 3, ssidstr))
+		return -1;
+	if(split_line(&ln, ck, 4) < 4)
+		return -1;
+	if(!(p = parseint(ck[2].start, &prio)))
+		return -1;
+	if(p < ck[2].end)
+		return -1;
+
+	return prio;
+}
+
+int load_psk(uint8_t* ssid, int slen, char* psk, int plen)
+{
+	struct line ln;
+	struct chunk ck[4];
+
+	char ssidstr[3*32+4];
+	prep_ssid(ssidstr, sizeof(ssidstr), ssid, slen);
+
+	if(load_config())
+		return -ENOENT;
+	if(find_line(&ln, "psk", 3, ssidstr))
+		return -ENOENT;
+	if(split_line(&ln, ck, 4) < 4)
+		return -ENOENT;
+
+	struct chunk* cpsk = &ck[1];
+	int clen = chunklen(cpsk);
+
+	if(plen < clen + 1)
+		return -ENOENT;
+
+	memcpy(psk, cpsk->start, clen);
+	psk[clen] = '\0';
+
+	return 0;
+}
+
+void save_psk(uint8_t* ssid, int slen, char* psk)
+{
+	struct line ln;
+
+	char buf[100];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
+
+	eprintf("%s %s\n", __FUNCTION__, ssid);
+
+	char ssidstr[3*32+4];
+	prep_ssid(ssidstr, sizeof(ssidstr), ssid, slen);
+
+	p = fmtstr(p, e, "psk");
+	p = fmtstr(p, e, " ");
+	p = fmtstr(p, e, psk); /* PSK is in hex */
+	p = fmtstr(p, e, " ");
+	p = fmtstr(p, e, ssidstr);
+
+	if(load_config()) return;
+
+	find_line(&ln, "psk", 3, ssidstr);
+	save_line(&ln, buf, p - buf);
+}
+
+static char* get_ifname(int ifi)
+{
+	struct link* ls;
+
+	if(ifi <= 0)
+		return NULL;
+
+	for(ls = links; ls < links + nlinks; ls++)
+		if(ls->ifi == ifi)
+			return ls->name;
+
+	return NULL;
+}
+
+/* Undo prep_ssid escaping */
+
+static void read_ssid(struct chunk* ck)
+{
+	uint8_t* sp = wifi.ssid;
+	uint8_t* se = wifi.ssid + sizeof(wifi.ssid);
+
+	char* cp = ck->start;
+	char* ce = ck->end;
+	char* p;
 
 	eprintf("%s\n", __FUNCTION__);
 
-	sysmunmap(config, blocklen);
-	config = NULL;
-	blocklen = 0;
-	datalen = 0;
+	while(cp < ce && sp < se)
+		if(*cp++ != '\\')
+			*sp++ = *cp++;
+		else if(*cp == ' ')
+			*sp++ = *cp++;
+		else if(*cp != 'x')
+			*sp++ = *cp++;
+		else if(cp + 3 > ce)
+			goto err;
+		else if(!(p = parsebyte(cp + 1, sp)))
+			goto err;
+		else { cp = p; sp++; }
+
+	wifi.slen = sp - wifi.ssid;
+	return;
+err:
+	memzero(wifi.ssid, sizeof(wifi.ssid));
+	wifi.slen = 0;
 }
 
-static int open_stat_config(int* size)
+void load_wifi(struct link* ls)
 {
-	int fd, ret;
-	struct stat st;
+	struct line ln;
+	int cn = 10;
+	struct chunk ck[cn];
 
-	if((fd = sysopen(WICFG, O_RDONLY)) < 0) {
-		*size = 0;
-		return fd;
-	}
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
 
-	if((ret = sysfstat(fd, &st)) < 0)
-		goto out;
-	if(st.st_size > MAX_CONFIG_SIZE) {
-		ret = -E2BIG;
-		goto out;
-	}
-
-	*size = st.st_size;
-	return fd;
-out:
-	sysclose(fd);
-
-	if(ret && ret != -ENOENT)
-		warn(NULL, WICFG, ret);
-
-	return ret;
-}
-
-static int mmap_config_buf(int filesize)
-{
-	int size = pagealign(filesize + 1024);
-	int prot = PROT_READ | PROT_WRITE;
-	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
-
-	long ret = sysmmap(NULL, size, prot, flags, -1, 0);
-
-	if(MMAPERROR(ret))
-		return ret;
-
-	config = (char*)ret;
-	blocklen = size;
-	datalen = 0;
-	modified = 0;
-
-	return 0;
-}
-
-static int read_config_whole(int fd, int filesize)
-{
-	int ret;
-
-	if(filesize <= 0)
-		return 0;
-	if((ret = sysread(fd, config, filesize)) < filesize)
-		return ret;
-
-	return 0;
-}
-
-int load_config(void)
-{
-	int fd;
-	long ret;
-	int filesize;
-
-	if(config)
-		return 0;
-
-	if((fd = open_stat_config(&filesize)) < 0)
-		filesize = 0;
-	if((ret = mmap_config_buf(filesize)) < 0)
-		goto out;
-	if((ret = read_config_whole(fd, filesize)) < 0)
-		goto out;
-
-	datalen = filesize;
-	schedule(drop_config, 10);
-	ret = 0;
-out:	
-	if(fd >= 0)
-		sysclose(fd);
-	if(ret && ret != -ENOENT)
-		warn(NULL, WICFG, ret);
-
-	return ret;
-}
-
-static int isspace(int c)
-{
-	return (c == ' ' || c == '\t' || c == '\n');
-}
-
-static char* skipline(char* p, char* e)
-{
-	while(p < e && *p != '\n')
-		p++;
-	return p;
-}
-
-static int setline(struct line* ln, char* p)
-{
-	char* confend = config + datalen;
-
-	if(p >= confend)
-		p = NULL;
-	else if(p < config)
-		p = NULL;
-
-	ln->start = p ? p : NULL;
-	ln->end = p ? skipline(p, confend) : NULL;
-
-	return !!p;
-}
-
-static int firstline(struct line* ln)
-{
-	return setline(ln, config);
-}
-
-static int nextline(struct line* ln)
-{
-	return setline(ln, ln->end + 1);
-}
-
-static char* skiparg(char* p, char* e)
-{
-	for(; p < e && !isspace(*p); p++)
-		if(*p == '\\') p++;
-	return p;
-}
-
-static char* skipsep(char* p, char* e)
-{
-	while(p < e && isspace(*p))
-		p++;
-	return p;
-}
-
-int split_line(struct line* ln, struct chunk* ck, int nc)
-{
-	char* end = ln->end;
-	char* p = ln->start;
-	int i = 0;
-
-	p = skipsep(p, end);
-
-	while(p < end && i < nc) {
-		struct chunk* ci = &ck[i++];
-		ci->start = p;
-		p = skiparg(p, end);
-		ci->end = p;
-		p = skipsep(p, end);
-	}
-
-	return i;
-}
-
-int chunklen(struct chunk* ck)
-{
-	return ck->end - ck->start;
-}
-
-static int chunkeq(struct chunk* ck, const char* str, int len)
-{
-	if(chunklen(ck) != len)
-		return 0;
-	return !memcmp(ck->start, str, len);
-}
-
-int chunkis(struct chunk* ck, const char* str)
-{
-	return chunkeq(ck, str, strlen(str));
-}
-
-int find_line(struct line* ln, char* pref, int i, char* val)
-{
-	int lk;
-	int n = i + 1;
-	struct chunk ck[n];
-	int plen = strlen(pref);
-	int vlen = val ? strlen(val) : 0;
-
-	for(lk = firstline(ln); lk; lk = nextline(ln)) {
-		if(split_line(ln, ck, n) < n)
-			continue;
-		if(!chunkeq(&ck[0], pref, plen))
-			continue;
-		if(val && !chunkeq(&ck[i], val, vlen))
-			continue;
-		return 0;
-	}
-
-	return -ENOENT;
-}
-
-static int extend_config(int len)
-{
-	if(len > 0 && datalen + len > blocklen)
-		return -ENOMEM; /* XXX */
-
-	datalen += len;
-
-	return 0;
-}
-
-static void append_line(char* buf, int len)
-{
-	char* ptr = config + datalen;
-
-	if(extend_config(len + 1))
+	if(load_config())
+		return;
+	if(find_line(&ln, "wifi", 0, NULL))
+		return;
+	if((cn = split_line(&ln, ck, cn)) < 2)
 		return;
 
-	memcpy(ptr, buf, len);
-	ptr[len] = '\n';
-}
-
-static void change_line(struct line* ls, char* buf, int len)
-{
-	int oldlen = ls->end - ls->start;
-	int newlen = len;
-
-	int shift = newlen - oldlen;
-	int shlen = config + datalen - ls->end;
-
-	if(extend_config(shift))
+	if(!(chunkis(&ck[1], ls->name)))
 		return;
 
-	memmove(ls->end + shift, ls->end, shlen);
-	memcpy(ls->start, buf, len);
+	wifi.ifi = ls->ifi;
 
-	ls->start[len] = '\n';
+	if(cn >= 3)
+		wifi.mode = lookup(wifimodes, &ck[2]);
+	if(cn >= 4 && wifi.mode == WM_FIXEDAP)
+		read_ssid(&ck[3]);
+
+	eprintf("wifi mode=%i ifi=%i\n", wifi.mode, wifi.ifi);
 }
 
-void drop_line(struct line* ln)
+void save_wifi(void)
 {
-	if(!ln->start)
+	struct line ln;
+
+	char buf[200];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
+	const char *mode, *name;
+
+	if(load_config())
 		return;
 
-	int shift = -(ln->end - ln->start + 1);
-	int shlen = config + datalen - ln->end - 1;
-
-	if(extend_config(shift))
+	if(!(name = get_ifname(wifi.ifi))) {
+		find_line(&ln, "wifi", 0, NULL);
+		drop_line(&ln);
 		return;
+	}
 
-	memmove(ln->start, ln->end + 1, shlen);
+	p = fmtstr(p, e, "wifi");
+	p = fmtstr(p, e, " ");
 
-	modified = 1;
-}
+	p = fmtstr(p, e, name);
+	p = fmtstr(p, e, " ");
 
-void save_line(struct line* ls, char* buf, int len)
-{
-	if(!ls->start)
-		append_line(buf, len);
+	if((mode = nameof(wifimodes, wifi.mode)))
+		p = fmtstr(p, e, mode);
 	else
-		change_line(ls, buf, len);
+		p = fmtint(p, e, wifi.mode);
 
-	modified = 1;
+	if(wifi.mode == WM_FIXEDAP) {
+		char ssidstr[3*32+4];
+		prep_ssid(ssidstr, sizeof(ssidstr), wifi.ssid, wifi.slen);
+		p = fmtstr(p, e, " ");
+		p = fmtstr(p, e, ssidstr);
+	}
+
+	find_line(&ln, "wifi", 0, NULL);
+	save_line(&ln, buf, p - buf);
 }
