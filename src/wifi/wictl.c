@@ -3,7 +3,6 @@
 #include <nlusctl.h>
 #include <format.h>
 #include <string.h>
-#include <output.h>
 #include <heap.h>
 #include <util.h>
 #include <fail.h>
@@ -79,7 +78,6 @@ static void cmd_status(struct top* ctx)
 	no_other_options(ctx);
 	uc_put_hdr(UC, CMD_STATUS);
 	dump_status(ctx, send_check(ctx));
-	flushout();
 }
 
 static void cmd_wired(struct top* ctx)
@@ -95,7 +93,6 @@ static void cmd_scan(struct top* ctx)
 	maybe_put_ifi(ctx);
 	no_other_options(ctx);
 	dump_scanlist(ctx, send_check(ctx));
-	flushout();
 }
 
 static void cmd_roaming(struct top* ctx)

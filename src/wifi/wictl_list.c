@@ -116,7 +116,7 @@ static char* fmt_link_ip(char* p, char* e, attr at)
 	return p;
 }
 
-static void dump_link(attr at)
+static void dump_link(CTX, AT)
 {
 	char buf[200];
 	char* p = buf;
@@ -136,7 +136,7 @@ static void dump_link(attr at)
 	p = fmt_link_ip(p, e, at);
 	*p++ = '\n';
 
-	writeout(buf, p - buf);
+	output(ctx, buf, p - buf);
 }
 
 static char* fmt_ssid(char* p, char* e, uint8_t* ssid, int slen)
@@ -155,16 +155,16 @@ static char* fmt_ssid(char* p, char* e, uint8_t* ssid, int slen)
 	return p;
 }
 
-static void dump_scan(struct ucattr* sc)
+static void dump_scan(CTX, AT)
 {
 	char buf[200];
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
 
-	struct ucattr* ssid = uc_sub(sc, ATTR_SSID);
-	uint8_t* bssid = uc_sub_bin(sc, ATTR_BSSID, 6);
-	int* freq = uc_sub_int(sc, ATTR_FREQ);
-	int* signal = uc_sub_int(sc, ATTR_SIGNAL);
+	struct ucattr* ssid = uc_sub(at, ATTR_SSID);
+	uint8_t* bssid = uc_sub_bin(at, ATTR_BSSID, 6);
+	int* freq = uc_sub_int(at, ATTR_FREQ);
+	int* signal = uc_sub_int(at, ATTR_SIGNAL);
 
 	p = fmtstr(p, e, "AP ");
 	p = fmtint(p, e, (*signal)/100);
@@ -176,7 +176,7 @@ static void dump_scan(struct ucattr* sc)
 	p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
 	*p++ = '\n';
 
-	writeout(buf, p - buf);
+	output(ctx, buf, p - buf);
 }
 
 static char* fmt_wifi_mode(char* p, char* e, attr at)
@@ -273,7 +273,7 @@ static void dump_wifi(CTX, MSG)
 	p = fmt_wifi_freq(p, e, at);
 	*p++ = '\n';
 
-	writeout(buf, p - buf);
+	output(ctx, buf, p - buf);
 }
 
 static attr* prep_list(CTX, MSG, int key, qcmp cmp)
@@ -297,28 +297,39 @@ static attr* prep_list(CTX, MSG, int key, qcmp cmp)
 	return refs;
 }
 
-static void dump_list(CTX, MSG, int key, qcmp cmp, void (*dump)(attr))
+static void dump_list(CTX, attr* list, void (*dump)(CTX, AT))
 {
-	attr* list = prep_list(ctx, msg, key, cmp);
-
 	for(attr* ap = list; *ap; ap++)
-		dump(*ap);
+		dump(ctx, *ap);
 }
 
-static void empty_line(void)
+static void empty_line(CTX)
 {
-	writeout("\n", 1);
+	output(ctx, "\n", 1);
 }
 
 void dump_scanlist(CTX, MSG)
 {
-	dump_list(ctx, msg, ATTR_SCAN, scan_ord, dump_scan);
+	attr* scans = prep_list(ctx, msg, ATTR_SCAN, scan_ord);
+
+	init_output(ctx);
+	dump_list(ctx, scans, dump_scan);
+	fini_output(ctx);
 }
 
 void dump_status(CTX, MSG)
 {
-	dump_list(ctx, msg, ATTR_LINK, link_ord, dump_link);
+	attr* scans = prep_list(ctx, msg, ATTR_SCAN, scan_ord);
+	attr* links = prep_list(ctx, msg, ATTR_LINK, link_ord);
+
+	init_output(ctx);
+
+	dump_list(ctx, links, dump_link);
 	dump_wifi(ctx, msg);
-	empty_line();
-	dump_scanlist(ctx, msg);
+
+	if(*scans) empty_line(ctx);
+
+	dump_list(ctx, scans, dump_scan);
+
+	fini_output(ctx);
 }

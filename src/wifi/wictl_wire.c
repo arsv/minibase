@@ -125,3 +125,23 @@ void send_check_empty(struct top* ctx)
 	if(msg->len > sizeof(msg))
 		fail("unexpected reply data", NULL, 0);
 }
+
+void init_output(struct top* ctx)
+{
+	int len = 2048;
+
+	ctx->bo.fd = STDOUT;
+	ctx->bo.buf = halloc(&ctx->hp, len);
+	ctx->bo.len = len;
+	ctx->bo.ptr = 0;
+}
+
+void fini_output(struct top* ctx)
+{
+	bufoutflush(&ctx->bo);
+}
+
+void output(struct top* ctx, char* buf, int len)
+{
+	bufout(&ctx->bo, buf, len);
+}

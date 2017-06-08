@@ -1,3 +1,5 @@
+#include <output.h>
+
 struct heap;
 struct ucbuf;
 
@@ -12,10 +14,13 @@ struct top {
 	struct ucbuf uc;
 	int connected;
 	char cbuf[128];
+
+	struct bufout bo;
 };
 
 #define CTX struct top* ctx
 #define MSG struct ucmsg* msg
+#define AT struct ucattr* at
 #define UC (&ctx->uc)
 
 typedef struct ucattr* attr;
@@ -33,3 +38,7 @@ void put_psk_input(struct top* ctx, char* ssid);
 
 void init_heap_socket(struct top* ctx);
 void connect_to_wimon(struct top* ctx);
+
+void init_output(struct top* ctx);
+void fini_output(struct top* ctx);
+void output(struct top* ctx, char* buf, int len);
