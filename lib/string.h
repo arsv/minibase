@@ -7,6 +7,7 @@ int memcmp(const void* av, const void* bv, long len);
 int memxcmp(const void* av, const void* bv, long len);
 void memzero(void* a, unsigned long n);
 void* memmove(void* dst, const void* src, size_t n);
+int nonzero(void* a, unsigned long n);
 
 char* strcbrk(char* str, char c);
 int strcmp(const char* a, const char* b);
