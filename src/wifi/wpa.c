@@ -1,6 +1,6 @@
 #include <bits/errno.h>
 #include <sys/sigaction.h>
-#include <sys/alarm.h>
+#include <sys/setitimer.h>
 #include <sys/ppoll.h>
 #include <sys/_exit.h>
 
@@ -58,13 +58,23 @@ void quit(const char* msg, const char* arg, int err)
 		_exit(0xFF);
 }
 
+static void msalarm(int ms)
+{
+	struct itimerval it = {
+		.interval = { 0, 0 },
+		.value = { 0, 1000*ms }
+	};
+
+	syssetitimer(ITIMER_REAL, &it, NULL);
+}
+
 static void sighandler(int sig)
 {
 	if(signalled)
 		_exit(0xFF);
 
 	signalled = 1;
-	sysalarm(1);
+	msalarm(1000);
 
 	const char* msg;
 
@@ -198,18 +208,16 @@ int main(int argc, char** argv, char** envp)
 {
 	setup(argc, argv, envp);
 
-	sysalarm(1);
-
 	authenticate();
 	open_rawsock();
 	associate();
 
+	msalarm(300);
 	negotiate_keys();
 	upload_ptk();
 	upload_gtk();
 	cleanup_keys();
-
-	sysalarm(0);
+	msalarm(0);
 
 	poll_netlink_rawsock();
 
