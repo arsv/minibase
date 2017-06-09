@@ -42,4 +42,11 @@ struct timezone
 	int tz_dsttime;
 };
 
+/* getitimer, setitimer */
+
+struct itimerval {
+	struct timeval interval;
+	struct timeval value;
+};
+
 #endif
