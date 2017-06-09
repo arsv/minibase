@@ -12,6 +12,7 @@
 #include <sys/setitimer.h>
 #include <sys/brk.h>
 
+#include <format.h>
 #include <nlusctl.h>
 #include <string.h>
 #include <heap.h>
@@ -202,12 +203,12 @@ void unlatch(int ifi, int evt, int err)
 	struct conn* cn;
 
 	for(cn = conns; cn < conns + nconns; cn++) {
-		if(!cn->fd)
+		if(!cn->fd || !cn->evt)
 			continue;
 		if(ifi != cn->ifi)
-			return;
-		if(evt != cn->evt)
-			return;
+			continue;
+		if(evt != cn->evt && evt != ANY)
+			continue;
 
 		release_latch(cn, err);
 	}
@@ -254,7 +255,7 @@ static int cmd_roaming(struct conn* cn, struct ucmsg* msg)
 	if((ret = wifi_mode_roaming()))
 		return ret;
 
-	return NOERROR;
+	return setlatch(cn, WIFI, CONF);
 }
 
 static int cmd_fixedap(struct conn* cn, struct ucmsg* msg)
@@ -277,13 +278,16 @@ static int cmd_fixedap(struct conn* cn, struct ucmsg* msg)
 	if((ret = wifi_mode_fixedap(ssid, slen, psk)))
 		return ret;
 
-	return NOERROR;
+	return setlatch(cn, WIFI, CONF);
 }
 
 static int cmd_neutral(struct conn* cn, struct ucmsg* msg)
 {
 	wifi_mode_disabled();
 	stop_uplinks_except(0);
+
+	if(!any_links_flagged(S_STOPPING))
+		return 0;
 
 	return setlatch(cn, NONE, DOWN);
 }

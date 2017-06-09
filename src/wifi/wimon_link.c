@@ -56,7 +56,7 @@ void link_ipaddr(struct link* ls)
 		wifi_connected(ls);
 }
 
-static int any_links_flagged(int flags)
+int any_links_flagged(int flags)
 {
 	struct link* ls;
 
@@ -73,6 +73,8 @@ static int any_links_flagged(int flags)
 
 static void wait_link_down(struct link* ls)
 {
+	eprintf("%s %s\n", __FUNCTION__, ls->name);
+
 	if(ls->flags & S_CHILDREN)
 		return stop_link_procs(ls, 0);
 	if(ls->flags & S_IPADDR)
@@ -80,13 +82,15 @@ static void wait_link_down(struct link* ls)
 	if(ls->flags & S_APLOCK)
 		return trigger_disconnect(ls->ifi);
 
+	unlatch(ls->ifi, DOWN, 0);
+	unlatch(ls->ifi, CONF, -ENETRESET);
+
 	if(ls->flags & S_NL80211)
 		wifi_conn_fail(ls);
 
-	ls->flags &= ~S_STOPPING;
+	eprintf("%s %s here\n", __FUNCTION__, ls->name);
 
-	unlatch(ls->ifi, DOWN, 0);
-	unlatch(ls->ifi, CONF, -ENETDOWN);
+	ls->flags &= ~S_STOPPING;
 
 	if(!any_links_flagged(S_STOPPING))
 		unlatch(NONE, DOWN, 0);
@@ -141,9 +145,7 @@ void link_gone(struct link* ls)
 {
 	stop_link_procs(ls, 1);
 
-	unlatch(ls->ifi, DOWN, 0); /* or ENODEV? */
-	unlatch(ls->ifi, CONF, -ENODEV);
-	unlatch(ls->ifi, SCAN, -ENODEV);
+	unlatch(ls->ifi, ANY, -ENODEV);
 
 	if(ls->flags & S_NL80211)
 		wifi_gone(ls);

@@ -204,6 +204,18 @@ void save_psk(uint8_t* ssid, int slen, char* psk)
 	save_line(&ln, buf, p - buf);
 }
 
+void drop_psk(uint8_t* ssid, int slen)
+{
+	struct line ln;
+	char ssidstr[3*32+4];
+	prep_ssid(ssidstr, sizeof(ssidstr), ssid, slen);
+
+	if(load_config()) return;
+
+	find_line(&ln, "psk", 3, ssidstr);
+	drop_line(&ln);
+}
+
 static char* get_ifname(int ifi)
 {
 	struct link* ls;

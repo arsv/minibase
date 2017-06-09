@@ -105,6 +105,7 @@ struct child {
 #define WS_RETRYING    3
 /* wifi.flags */
 #define WF_UNSAVED     (1<<0)
+#define WF_SAVEPSK     (1<<1)
 
 struct wifi {
 	short mode;
@@ -243,6 +244,7 @@ void link_ipaddr(struct link* ls);
 void link_ipgone(struct link* ls);
 void link_apgone(struct link* ls);
 void link_child_exit(struct link* ls, int status);
+int any_links_flagged(int flags);
 
 int any_pids_left(void);
 void terminate_link(struct link* ls);
@@ -296,6 +298,7 @@ int saved_psk_prio(uint8_t* ssid, int slen);
 
 int load_psk(uint8_t* ssid, int slen, char* buf, int len);
 void save_psk(uint8_t* ssid, int slen, char* psk);
+void drop_psk(uint8_t* ssid, int slen);
 
 void load_wifi(struct link* ls);
 void save_wifi(void);
@@ -307,6 +310,7 @@ void handle_conn(struct conn* cn);
 #define NONE 0
 #define WIFI -1
 /* latch.evt */
+#define ANY  0
 #define CONF 1
 #define DOWN 2
 #define SCAN 3
