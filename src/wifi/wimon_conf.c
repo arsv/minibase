@@ -227,18 +227,23 @@ static void read_ssid(struct chunk* ck)
 	char* ce = ck->end;
 	char* p;
 
-	while(cp < ce && sp < se)
-		if(*cp++ != '\\')
+	while(cp < ce && sp < se) {
+		if(*cp != '\\') { /* non-escaped character */
 			*sp++ = *cp++;
-		else if(*cp == ' ')
-			*sp++ = *cp++;
-		else if(*cp != 'x')
-			*sp++ = *cp++;
-		else if(cp + 3 > ce)
-			goto err;
-		else if(!(p = parsebyte(cp + 1, sp)))
-			goto err;
-		else { cp = p; sp++; }
+		} else {
+			cp++; /* skip backslash */
+
+			if(*cp == 'x') { /* \xAB style escape */
+				if(cp + 3 > ce)
+					goto err;
+				if(!(p = parsebyte(cp + 1, sp)))
+					goto err;
+				cp = p; sp++;
+			} else { /* single-character escape */
+				*sp++ = *cp++;
+			}
+		}
+	}
 
 	wifi.slen = sp - wifi.ssid;
 	return;
