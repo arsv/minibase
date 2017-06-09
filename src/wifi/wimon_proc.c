@@ -2,7 +2,6 @@
 #include <sys/execve.h>
 #include <sys/fork.h>
 #include <sys/kill.h>
-#include <sys/alarm.h>
 #include <sys/pause.h>
 #include <sys/_exit.h>
 #include <format.h>

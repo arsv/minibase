@@ -1,7 +1,6 @@
 #include <bits/socket.h>
 #include <bits/socket/unix.h>
 #include <sys/accept.h>
-#include <sys/alarm.h>
 #include <sys/bind.h>
 #include <sys/close.h>
 #include <sys/kill.h>
@@ -10,6 +9,7 @@
 #include <sys/socket.h>
 #include <sys/write.h>
 #include <sys/unlink.h>
+#include <sys/setitimer.h>
 #include <sys/brk.h>
 
 #include <nlusctl.h>
@@ -175,15 +175,27 @@ static void reply_scanlist(struct conn* cn)
 	free_heap(&hp);
 }
 
-/* Re-configuration is sequential task that has to wait for certain NL events.
-   It's tempting to make it into something sequential as well, but that would
-   require either implementing a mini-scheduler within wimon or spawning
-   a second process to use the OS scheduler. Either option looks like a huge
-   overkill for a task this simple.
+static void release_latch(struct conn* cn, int err)
+{
+	struct itimerval old, new = {
+		.interval = { 0, 0 },
+		.value = { TIMEOUT, 0 }
+	};
 
-   So instead, most of sequentiality is moved over to wictl which is sequential
-   anyway, and wimon only gets a single "latch" per connection triggering reply
-   on certain events. */
+	syssetitimer(0, &new, &old);
+
+	if(err)
+		reply(cn, err);
+	else if(cn->evt == SCAN)
+		reply_scanlist(cn);
+	else
+		reply(cn, 0);
+
+	syssetitimer(0, &old, NULL);
+
+	cn->evt = 0;
+	cn->ifi = 0;
+}
 
 void unlatch(int ifi, int evt, int err)
 {
@@ -197,19 +209,7 @@ void unlatch(int ifi, int evt, int err)
 		if(evt != cn->evt)
 			return;
 
-		sysalarm(TIMEOUT);
-
-		if(err)
-			reply(cn, err);
-		else if(evt == SCAN)
-			reply_scanlist(cn);
-		else
-			reply(cn, 0);
-
-		sysalarm(0);
-
-		cn->evt = 0;
-		cn->ifi = 0;
+		release_latch(cn, err);
 	}
 }
 
@@ -433,9 +433,13 @@ void accept_ctrl(int sfd)
 	struct sockaddr addr;
 	int addr_len = sizeof(addr);
 	struct conn *cn, reserve;
+	struct itimerval itv = {
+		.interval = { 0, 0 },
+		.value = { TIMEOUT, 0 }
+	};
 
 	while((cfd = sysaccept(sfd, &addr, &addr_len)) > 0) {
-		sysalarm(TIMEOUT);
+		syssetitimer(0, &itv, NULL);
 		gotcmd = 1;
 
 		if(!(cn = grab_conn_slot()))
@@ -448,7 +452,8 @@ void accept_ctrl(int sfd)
 			shutdown_conn(&reserve);
 	} if(gotcmd) {
 		/* disable the timer in case it has been set */
-		sysalarm(0);
+		memzero(&itv, sizeof(itv));
+		syssetitimer(0, &itv, NULL);
 	}
 
 	save_config();
