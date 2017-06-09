@@ -42,6 +42,8 @@
 #define LINK_CARRIER     (1<<3)
 #define LINK_IPADDR      (1<<4)
 #define LINK_UPLINK      (1<<5)
+#define LINK_STOPPING    (1<<7)
+#define LINK_UPCOMING    (1<<9)
 
 #define WIFI_MODE_DISABLED    0
 #define WIFI_MODE_ROAMING     1

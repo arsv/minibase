@@ -98,6 +98,13 @@ static char* fmt_link_flags(char* p, char* e, attr at)
 	else
 		p = fmtstr(p, e, " off");
 
+	if(flags & LINK_STOPPING)
+		p = fmtstr(p, e, " stopping");
+	if(flags & LINK_UPLINK)
+		p = fmtstr(p, e, " uplink");
+	else if(flags & LINK_UPCOMING)
+		p = fmtstr(p, e, " starting");
+
 	return p;
 }
 
