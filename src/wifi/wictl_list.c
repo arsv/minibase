@@ -92,7 +92,7 @@ static char* fmt_link_flags(char* p, char* e, attr at)
 	flags = *fp;
 
 	if(flags & LINK_CARRIER)
-		p = fmtstr(p, e, " up");
+		p = fmtstr(p, e, " carrier");
 	else if(flags & LINK_ENABLED)
 		p = fmtstr(p, e, " enabled");
 	else
@@ -197,7 +197,7 @@ static char* fmt_wifi_mode(char* p, char* e, attr at)
 	p = fmtstr(p, e, " ");
 
 	if(mode == WIFI_MODE_DISABLED)
-		p = fmtstr(p, e, "disconnected");
+		p = fmtstr(p, e, "no-conf");
 	else if(mode == WIFI_MODE_ROAMING)
 		p = fmtstr(p, e, "roaming");
 	else if(mode == WIFI_MODE_FIXEDAP)
