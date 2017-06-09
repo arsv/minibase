@@ -50,6 +50,18 @@ int genl_scan_seq;
 int genl_dump_state;
 int genl_scan_ready;
 
+static void genl_send(void)
+{
+	if(nl_send(&genl))
+		fail("send", "genl", genl.err);
+}
+
+static void genl_send_dump(void)
+{
+	if(nl_send_dump(&genl))
+		fail("send", "genl", genl.err);
+}
+
 void trigger_scan(int ifi, int freq)
 {
 	struct nlattr* at;
@@ -63,8 +75,7 @@ void trigger_scan(int ifi, int freq)
 		nl_end_nest(&genl, at);
 	}
 
-	if(nl_send(&genl))
-		fail("send", "genl", genl.err);
+	genl_send();
 
 	genl_scan_seq = genl.seq;
 	genl_scan_ifi = ifi;
@@ -74,9 +85,7 @@ void trigger_disconnect(int ifi)
 {
 	nl_new_cmd(&genl, nl80211, NL80211_CMD_DISCONNECT, 0);
 	nl_put_u64(&genl, NL80211_ATTR_IFINDEX, ifi);
-
-	if(nl_send(&genl))
-		fail("send", "genl", genl.err);
+	genl_send();
 }
 
 static void request_scan_results(void)
@@ -88,9 +97,7 @@ static void request_scan_results(void)
 
 	nl_new_cmd(&genl, nl80211, NL80211_CMD_GET_SCAN, 0);
 	nl_put_u64(&genl, NL80211_ATTR_IFINDEX, genl_scan_ifi);
-
-	if(nl_send_dump(&genl))
-		fail("send", "genl", genl.err);
+	genl_send_dump();
 
 	genl_scan_seq = genl.seq;
 	genl_scan_ready = 0;
@@ -103,9 +110,7 @@ static void request_wifi_list(void)
 	   request issued during initialization. */
 
 	nl_new_cmd(&genl, nl80211, NL80211_CMD_GET_INTERFACE, 0);
-
-	if(nl_send_dump(&genl))
-		fail("send", "genl", genl.err);
+	genl_send_dump();
 
 	genl_dump_state = DUMP_LINK;
 }
@@ -233,14 +238,17 @@ static void msg_scan_res(struct link* ls, struct nlgen* msg)
 	}
 }
 
-static void msg_authenticate(struct link* ls, struct nlgen* msg)
+static void msg_connect(struct link* ls, struct nlgen* msg)
 {
 	ls->flags |= S_APLOCK;
 }
 
-static void msg_deauthenticate(struct link* ls, struct nlgen* msg)
+static void msg_disconnect(struct link* ls, struct nlgen* msg)
 {
 	ls->flags &= ~S_APLOCK;
+
+	if(ls->flags & S_STOPPING)
+		link_apgone(ls);
 }
 
 struct cmdh {
@@ -252,12 +260,12 @@ struct cmdh {
 	{ NL80211_CMD_TRIGGER_SCAN,     msg_scan_start     },
 	{ NL80211_CMD_SCAN_ABORTED,     msg_scan_abort     },
 	{ NL80211_CMD_NEW_SCAN_RESULTS, msg_scan_res       },
-	{ NL80211_CMD_AUTHENTICATE,     msg_authenticate   },
+	{ NL80211_CMD_AUTHENTICATE,     NULL               },
 	{ NL80211_CMD_ASSOCIATE,        NULL               },
-	{ NL80211_CMD_DEAUTHENTICATE,   msg_deauthenticate },
+	{ NL80211_CMD_DEAUTHENTICATE,   NULL               },
 	{ NL80211_CMD_DISASSOCIATE,     NULL               },
-	{ NL80211_CMD_CONNECT,          NULL               },
-	{ NL80211_CMD_DISCONNECT,       NULL               },
+	{ NL80211_CMD_CONNECT,          msg_connect        },
+	{ NL80211_CMD_DISCONNECT,       msg_disconnect     },
 	{ NL80211_CMD_NEW_STATION,      NULL               },
 	{ NL80211_CMD_DEL_STATION,      NULL               },
 	{ NL80211_CMD_NOTIFY_CQM,       NULL               },
