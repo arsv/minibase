@@ -73,7 +73,7 @@ static int match_ssid(uint8_t* ssid, int slen, struct scan* sc)
 	return 1;
 }
 
-static struct scan* get_best_ap(uint8_t* ssid, int slen)
+static struct scan* get_best_ap(uint8_t* ssid, int slen, int gotkey)
 {
 	struct scan* sc;
 	struct scan* best = NULL;
@@ -83,7 +83,7 @@ static struct scan* get_best_ap(uint8_t* ssid, int slen)
 			continue;
 		if(sc->tries >= 3)
 			continue;
-		if(sc->prio <= 0)
+		if(sc->prio <= 0 && !gotkey)
 			continue;
 		if(!match_ssid(ssid, slen, sc))
 			continue;
@@ -123,22 +123,6 @@ static void reset_scan_counters(uint8_t* ssid, int slen)
 	}
 }
 
-static int load_ap_psk(void)
-{
-	return load_psk(wifi.ssid, wifi.slen, wifi.psk, sizeof(wifi.psk));
-}
-
-static int load_ap(struct scan* sc)
-{
-	wifi.freq = sc->freq;
-	wifi.slen = sc->slen;
-	wifi.type = sc->type;
-	memcpy(wifi.bssid, sc->bssid, sizeof(sc->bssid));
-	memcpy(wifi.ssid, sc->ssid, sc->slen);
-
-	return load_ap_psk();
-}
-
 static void reset_ap_psk(void)
 {
 	memset(&wifi.psk, 0, sizeof(wifi.psk));
@@ -158,6 +142,43 @@ static void reset_wifi_struct(void)
 	reset_ap_psk();
 }
 
+static int load_given_psk(char* psk)
+{
+	int len = strlen(psk);
+
+	if(len > sizeof(wifi.psk) - 1)
+		return -EINVAL;
+
+	memcpy(wifi.psk, psk, len + 1);
+
+	return 0;
+}
+
+static int load_saved_psk(void)
+{
+	return load_psk(wifi.ssid, wifi.slen, wifi.psk, sizeof(wifi.psk));
+}
+
+static int load_ap(struct scan* sc, char* psk)
+{
+	int ret;
+
+	wifi.freq = sc->freq;
+	wifi.slen = sc->slen;
+	wifi.type = sc->type;
+	memcpy(wifi.bssid, sc->bssid, sizeof(sc->bssid));
+	memcpy(wifi.ssid, sc->ssid, sc->slen);
+
+	if(psk)
+		ret = load_given_psk(psk);
+	else
+		ret = load_saved_psk();
+	if(ret)
+		reset_wifi_struct();
+
+	return ret;
+}
+
 static int connect_to_something(void)
 {
 	struct scan* sc;
@@ -172,8 +193,8 @@ static int connect_to_something(void)
 		slen = 0;
 	}
 
-	while((sc = get_best_ap(ssid, slen))) {
-		if(load_ap(sc))
+	while((sc = get_best_ap(ssid, slen, 0))) {
+		if(load_ap(sc, NULL))
 			continue;
 		if(start_wifi())
 			continue;
@@ -290,7 +311,7 @@ static void retry_current_ap(void)
 {
 	wifi.state = WS_NONE;
 
-	if(load_ap_psk())
+	if(load_saved_psk())
 		goto out;
 	if(start_wifi())
 		goto out;
@@ -390,7 +411,7 @@ int wifi_mode_roaming(void)
 	return 0;
 }
 
-int wifi_mode_fixedap(uint8_t* ssid, int slen)
+int wifi_mode_fixedap(uint8_t* ssid, int slen, char* psk)
 {
 	struct scan* sc;
 	int ret;
@@ -398,9 +419,9 @@ int wifi_mode_fixedap(uint8_t* ssid, int slen)
 	stop_wifi_link();
 	reset_scan_counters(ssid, slen);
 
-	if(!(sc = get_best_ap(ssid, slen)))
+	if(!(sc = get_best_ap(ssid, slen, 1)))
 		return -ENOENT;
-	if((ret = load_ap(sc)))
+	if((ret = load_ap(sc, psk)))
 		return ret;
 	if((ret = start_wifi()))
 		return ret;

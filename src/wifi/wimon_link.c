@@ -1,4 +1,5 @@
 #include <bits/errno.h>
+#include <format.h>
 #include <string.h>
 
 #include "wimon.h"
@@ -127,6 +128,8 @@ void link_down(struct link* ls)
 
 void link_child_exit(struct link* ls, int status)
 {
+	eprintf("%s %i\n", __FUNCTION__, status);
+
 	if(ls->flags & S_STOPPING)
 		wait_link_down(ls);
 	else if(status)

@@ -264,7 +264,7 @@ int grab_wifi_device(int rifi);
 
 void wifi_mode_disabled(void);
 int wifi_mode_roaming(void);
-int wifi_mode_fixedap(uint8_t* ssid, int slen);
+int wifi_mode_fixedap(uint8_t* ssid, int slen, char* psk);
 
 /* wimon_proc.c */
 

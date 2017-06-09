@@ -268,12 +268,13 @@ static int cmd_fixedap(struct conn* cn, struct ucmsg* msg)
 
 	int slen = ap->len - sizeof(*ap);
 	uint8_t* ssid = (uint8_t*)ap->payload;
+	char* psk = uc_get_str(msg, ATTR_PSK);
 
 	if((ifi = grab_wifi_device(rifi)) < 0)
 		return ifi;
 	if((ret = switch_uplink(ifi)))
 		return ret;
-	if((ret = wifi_mode_fixedap(ssid, slen)))
+	if((ret = wifi_mode_fixedap(ssid, slen, psk)))
 		return ret;
 
 	return NOERROR;
