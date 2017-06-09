@@ -1,0 +1,78 @@
+DHCP-ing WPA links
+~~~~~~~~~~~~~~~~~~
+During WPA initialization, the link goes "up" right _before_ EAPOL exchange.
+And while the kernel announces lots of unimportant link state changes, there
+is *no* notification of any kind that the encryption keys have been installed.
+If dhcp is run conventionally, on link-up event, it gets a chance to send its
+packets over unencrypted link, losing them at best and opening itself up to
+a packet forgery attack at worst.
+
+Synchronizing EAPOL and DHCP exchange properly requires either a combined tool,
+or some sort of tight integration between wpa dhcp and wimon, both of which
+are undesirable.
+
+Surprisingly, otherwise tightly-intergrated wpa_supplicant leaves the issue
+open, requiring a third-party DHCP implementation and allowing it to start
+before the keys have been set. It's important to note however that any dhcp
+implementation following RFC 951 closely will silently mask the problem because
+of mandated retransmits and long timeouts. The split between wpa_supplicant and
+whatever process handles link initialization (like systemd-networkd etc) does
+not help either, so chances are the whole issue just went unnoticed.
+Fast dhcp client and wimon listening to both rtnl and genl make it apparent.
+
+
+Running dhcp under wpa
+~~~~~~~~~~~~~~~~~~~~~~
+One possible solution is to let wpa spawn dhcp right after the keys have
+been uploaded. It would provide a perfect synchronization, and wpa would
+become much easier to use as a stand-alone tool.
+
+Downside 1: this would limit interface configurability a lot, realistically
+down to the assumption that any WPA interface is always dhcp-ed uplink.
+Which may not be a problem by the way.
+
+Downside 2: renewing DHCP leases. Unless dhcp is a long-running process
+itself (not desirable), something has to watch lft and restart it.
+Something better resembling wimon, not wpa. It's possible to make
+wimon re-new leases only if it's already there, but it's tricky and again
+harms configurability.
+
+Downside 3: large disparity between wired and wireless links.
+
+
+Signalling link readiness
+~~~~~~~~~~~~~~~~~~~~~~~~~
+Basically some sort of startup notification. Once the keys are ready, wpa
+signals wimon that the links should be dhcp-ed. Tricky, unreliable, and
+enforces tight integration between wimon and wpa.
+
+
+Phasing out DHCP
+~~~~~~~~~~~~~~~~
+The very idea of using DHCP to configure WPA links makes little to no sense
+considering the features of both protocols. DHCP was designed for vaguely
+defined *ether* networks, with no gatekeepers and no central authority, where
+broadcasting address request and waiting for someone to reply was realistically
+the only feasible way to implement auto-configuration. WPA in contrast is
+heavily centralized and access-controlled. There's Authenticator which knows
+exactly how many active nodes are connected at any given time with sub-second
+precision, and has authority to allow or not allow another node in.
+
+For WPA networks, there's strong incentive to merge address allocation into
+hostapd, and let it distribute the addresses to clients in e.g. 3rd EAPOL
+packet along with the other stuff that goes there. This would resolve
+synchronization issues, and probably speed up link init as well. This way
+hostapd would become the only source of authority within the network.
+
+As a non-standard extension, this would go well with ECDH and other possible
+protocol improvements, but would require backward-compatible tricks for legacy
+wireless clients, and for wired clients on mixed-media APs. This problem is
+easy to solve however, either by making a shared lease db for hostapd and dhcpd
+or alternatively letting hostapd handle DHCP requests on par with EAPOL ones.
+
+This approach also aligns well with protocols like PPP that already implement
+address assignment without DHCP.
+
+A possible downside here is either dropping DHCP options, or having to
+re-implement them within hostapd. How much of an issue this happens to be
+is not clear atm, the use of DHCP options is a dubious idea on its own.
