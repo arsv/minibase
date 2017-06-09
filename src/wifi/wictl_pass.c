@@ -4,6 +4,7 @@
 #include <crypto/pbkdf2.h>
 #include <nlusctl.h>
 #include <string.h>
+#include <format.h>
 #include <heap.h>
 #include <util.h>
 #include <fail.h>
@@ -11,9 +12,22 @@
 #include "common.h"
 #include "wictl.h"
 
+static void hexencode(char* dst, int dlen, uint8_t* psk, int plen)
+{
+	char* p = dst;
+	char* e = dst + dlen - 1;
+	int i;
+
+	for(i = 0; i < plen; i++)
+		p = fmtbyte(p, e, psk[i]);
+
+	*p++ = '\0';
+}
+
 static void put_psk(struct top* ctx, char* ssid, char* pass)
 {
 	uint8_t psk[32];
+	char strpsk[64+4];
 
 	memset(psk, 0, sizeof(psk));
 
@@ -22,7 +36,9 @@ static void put_psk(struct top* ctx, char* ssid, char* pass)
 
 	pbkdf2_sha1(psk, sizeof(psk), pass, passlen, ssid, ssidlen, 4096);
 
-	uc_put_bin(UC, ATTR_PSK, psk, sizeof(psk));
+	hexencode(strpsk, sizeof(strpsk), psk, sizeof(psk));
+
+	uc_put_str(UC, ATTR_PSK, strpsk);
 }
 
 /* As written this only works with sane ssids and passphrases.
