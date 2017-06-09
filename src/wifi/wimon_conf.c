@@ -155,22 +155,23 @@ int load_psk(uint8_t* ssid, int slen, char* psk, int plen)
 {
 	struct line ln;
 	struct chunk ck[4];
+	int ret = -ENOKEY;
 
 	char ssidstr[3*32+4];
 	prep_ssid(ssidstr, sizeof(ssidstr), ssid, slen);
 
 	if(load_config())
-		return -ENOENT;
+		return ret;
 	if(find_line(&ln, "psk", 3, ssidstr))
-		return -ENOENT;
+		return ret;
 	if(split_line(&ln, ck, 4) < 4)
-		return -ENOENT;
+		return ret;
 
 	struct chunk* cpsk = &ck[1];
 	int clen = chunklen(cpsk);
 
 	if(plen < clen + 1)
-		return -ENOENT;
+		return ret;
 
 	memcpy(psk, cpsk->start, clen);
 	psk[clen] = '\0';
