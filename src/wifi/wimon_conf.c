@@ -194,6 +194,8 @@ void save_psk(uint8_t* ssid, int slen, char* psk)
 	p = fmtstr(p, e, " ");
 	p = fmtstr(p, e, psk); /* PSK is in hex */
 	p = fmtstr(p, e, " ");
+	p = fmtint(p, e, 1);   /* default priority */
+	p = fmtstr(p, e, " ");
 	p = fmtstr(p, e, ssidstr);
 
 	if(load_config()) return;
