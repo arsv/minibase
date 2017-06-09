@@ -1,6 +1,7 @@
 #include <sys/bind.h>
 #include <sys/close.h>
 #include <sys/setsockopt.h>
+#include <sys/_exit.h>
 
 #include <netlink.h>
 #include <netlink/genl/ctrl.h>
@@ -160,7 +161,7 @@ static void track_state(struct nlgen* msg)
 			devstate = NONE;
 	} else if(devstate == CONNECTED) {
 		if(cmd == NL80211_CMD_DISCONNECT)
-			quit(NULL, NULL, 0);
+			_exit(0xFF);
 	}
 }
 
