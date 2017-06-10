@@ -53,6 +53,12 @@ static struct nlattr* rtm_get(struct rtmsg* msg, uint16_t key)
 	return nl_attr_k_in(NLPAYLOAD(msg), key);
 }
 
+static void rtnl_send(void)
+{
+	if(nl_send(&rtnl))
+		fail("send", "rtnl", rtnl.err);
+}
+
 static void set_iface_state(int ifi, int flags)
 {
 	struct ifinfomsg* msg;
@@ -62,7 +68,7 @@ static void set_iface_state(int ifi, int flags)
 			.flags = flags,
 			.change = IFF_UP);
 
-	nl_send(&rtnl);
+	rtnl_send();
 }
 
 void enable_iface(int ifi)
@@ -86,7 +92,7 @@ void del_link_addresses(int ifi)
 		.scope = 0,
 		.index = ifi);
 
-	nl_send(&rtnl);
+	rtnl_send();
 }
 
 static int iff_to_flags(int flags, int iff)
@@ -286,8 +292,7 @@ static void send_dump_req(int cmd, int hdrsize)
 			.pid = 0
 		};
 
-	if(nl_send(&rtnl))
-		fail("send", "rtnl", rtnl.err);
+	rtnl_send();
 }
 
 static void proceed_with_dump(void)
