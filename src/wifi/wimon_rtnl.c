@@ -59,26 +59,26 @@ static void rtnl_send(void)
 		fail("send", "rtnl", rtnl.err);
 }
 
-static void set_iface_state(int ifi, int flags)
+static void set_iface_state(int ifi, int mask, int bits)
 {
 	struct ifinfomsg* msg;
 
 	nl_header(&rtnl, msg, RTM_SETLINK, 0,
 			.index = ifi,
-			.flags = flags,
-			.change = IFF_UP);
+			.flags = bits,
+			.change = mask);
 
 	rtnl_send();
 }
 
 void enable_iface(int ifi)
 {
-	set_iface_state(ifi, IFF_UP);
+	set_iface_state(ifi, IFF_UP, IFF_UP);
 }
 
 void disable_iface(int ifi)
 {
-	set_iface_state(ifi, 0);
+	set_iface_state(ifi, IFF_UP, 0);
 }
 
 void del_link_addresses(int ifi)
