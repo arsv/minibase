@@ -13,6 +13,10 @@ static int cmp_int(attr at, attr bt, int key)
 	int* na = uc_sub_int(at, key);
 	int* nb = uc_sub_int(bt, key);
 
+	if(!na && nb)
+		return -1;
+	if(na && !nb)
+		return  1;
 	if(!na || !nb)
 		return 0;
 	if(*na < *nb)
@@ -61,6 +65,8 @@ static int scan_ord(const void* a, const void* b, long p)
 	attr bt = *((attr*)b);
 	int ret;
 
+	if((ret = cmp_int(at, bt, ATTR_PRIO)))
+		return -ret;
 	if((ret = cmp_int(at, bt, ATTR_SIGNAL)))
 		return -ret;
 	if((ret = cmp_int(at, bt, ATTR_FREQ)))
@@ -162,6 +168,16 @@ static char* fmt_ssid(char* p, char* e, uint8_t* ssid, int slen)
 	return p;
 }
 
+static char* fmt_prio(char* p, char* e, int* prio)
+{
+	if(!prio || *prio < 0)
+		return fmtstr(p, e, " ");
+	if(*prio == 0)
+		return fmtstr(p, e, "*");
+	else
+		return fmtint(p, e, *prio);
+}
+
 static void dump_scan(CTX, AT)
 {
 	char buf[200];
@@ -172,6 +188,7 @@ static void dump_scan(CTX, AT)
 	uint8_t* bssid = uc_sub_bin(at, ATTR_BSSID, 6);
 	int* freq = uc_sub_int(at, ATTR_FREQ);
 	int* signal = uc_sub_int(at, ATTR_SIGNAL);
+	int* prio = uc_sub_int(at, ATTR_PRIO);
 
 	p = fmtstr(p, e, "AP ");
 	p = fmtint(p, e, (*signal)/100);
@@ -179,6 +196,8 @@ static void dump_scan(CTX, AT)
 	p = fmtint(p, e, *freq);
 	p = fmtstr(p, e, " ");
 	p = fmtmac(p, e, bssid);
+	p = fmtstr(p, e, " ");
+	p = fmt_prio(p, e, prio);
 	p = fmtstr(p, e, " ");
 	p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
 	*p++ = '\n';

@@ -21,9 +21,10 @@
 #define ATTR_SIGNAL 16
 #define ATTR_SSID   17
 #define ATTR_AUTH   18
-#define ATTR_PSK    19
-#define ATTR_IPADDR 20
-#define ATTR_IPMASK 21
+#define ATTR_PRIO   19
+#define ATTR_PSK    20
+#define ATTR_IPADDR 21
+#define ATTR_IPMASK 22
 
 /* ATTR_TYPE; same as ST_* since the values are exported as is */
 #define TYPE_WPS         (1<<0)
