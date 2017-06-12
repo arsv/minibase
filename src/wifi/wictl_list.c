@@ -38,27 +38,6 @@ static int cmp_str(attr at, attr bt, int key)
 	return strcmp(na, nb);
 }
 
-static int cmp_flag(attr at, attr bt, int key, int flag)
-{
-	int* na = uc_sub_int(at, key);
-	int* nb = uc_sub_int(bt, key);
-
-	if(!na || !nb)
-		return 0;
-
-	int fa = *na & flag;
-	int fb = *nb & flag;
-
-	if(fa && fb)
-		return 0;
-	else if(fa)
-		return -1;
-	else if(fb)
-		return 1;
-	else
-		return 0;
-}
-
 static int scan_ord(const void* a, const void* b, long p)
 {
 	attr at = *((attr*)a);
@@ -81,40 +60,55 @@ static int link_ord(const void* a, const void* b, long p)
 	attr bt = *((attr*)b);
 	int ret;
 
-	if((ret = cmp_flag(at, bt, ATTR_FLAGS, LINK_NL80211)))
-		return ret;
+	if((ret = cmp_int(at, bt, ATTR_TYPE)))
+		return -ret;
 	if((ret = cmp_str(at, bt, ATTR_NAME)))
 		return ret;
 
 	return 0;
 }
 
-static char* fmt_link_flags(char* p, char* e, attr at)
+#define DICTEND -1
+
+static struct dict {
+	int val;
+	char name[16];
+} linkstates[] = {
+	{ LINK_OFF,      "off"        },
+	{ LINK_ENABLED,  "enabled"    },
+	{ LINK_CARRIER,  "carrier"    },
+	{ LINK_STARTING, "starting"   },
+	{ LINK_STOPPING, "stopping"   },
+	{ DICTEND,       ""           }
+}, wifimodes[] = {
+	{ WIFI_DISABLED, "no-conf"    },
+	{ WIFI_ROAMING,  "roaming"    },
+	{ WIFI_FIXEDAP,  "fixedap"    },
+	{ DICTEND,       ""           }
+};
+
+static char* fmt_kv(char* p, char* e, attr at, int key, struct dict* dc)
 {
-	int flags, *fp;
+	int* val;
+	struct dict* kv;
 
-	if(!(fp = uc_sub_int(at, ATTR_FLAGS)))
+	if(!(val = uc_sub_int(at, key)))
 		return p;
-	flags = *fp;
 
-	if(flags & LINK_CARRIER)
-		p = fmtstr(p, e, " carrier");
-	else if(flags & LINK_ENABLED)
-		p = fmtstr(p, e, " enabled");
-	else
-		p = fmtstr(p, e, " off");
+	for(kv = dc; kv->val != DICTEND; kv++)
+		if(kv->val == *val)
+			break;
 
-	if(flags & LINK_STOPPING)
-		p = fmtstr(p, e, " stopping");
-	if(flags & LINK_UPLINK)
-		p = fmtstr(p, e, " uplink");
-	else if(flags & LINK_UPCOMING)
-		p = fmtstr(p, e, " starting");
+	if(kv->val == DICTEND)
+		return p;
+
+	p = fmtstr(p, e, " ");
+	p = fmtstr(p, e, kv->name);
 
 	return p;
 }
 
-static char* fmt_link_ip(char* p, char* e, attr at)
+static char* fmt_ip(char* p, char* e, attr at)
 {
 	uint8_t* ip = uc_sub_bin(at, ATTR_IPADDR, 4);
 	int* mask = uc_sub_int(at, ATTR_IPMASK);
@@ -145,8 +139,8 @@ static void dump_link(CTX, AT)
 	p = fmtint(p, e, *ifi);
 	p = fmtstr(p, e, " ");
 	p = fmtstr(p, e, name);
-	p = fmt_link_flags(p, e, at);
-	p = fmt_link_ip(p, e, at);
+	p = fmt_kv(p, e, at, ATTR_STATE, linkstates);
+	p = fmt_ip(p, e, at);
 	*p++ = '\n';
 
 	output(ctx, buf, p - buf);
@@ -168,16 +162,6 @@ static char* fmt_ssid(char* p, char* e, uint8_t* ssid, int slen)
 	return p;
 }
 
-static char* fmt_prio(char* p, char* e, int* prio)
-{
-	if(!prio || *prio < 0)
-		return fmtstr(p, e, " ");
-	if(*prio == 0)
-		return fmtstr(p, e, "*");
-	else
-		return fmtint(p, e, *prio);
-}
-
 static void dump_scan(CTX, AT)
 {
 	char buf[200];
@@ -188,7 +172,6 @@ static void dump_scan(CTX, AT)
 	uint8_t* bssid = uc_sub_bin(at, ATTR_BSSID, 6);
 	int* freq = uc_sub_int(at, ATTR_FREQ);
 	int* signal = uc_sub_int(at, ATTR_SIGNAL);
-	int* prio = uc_sub_int(at, ATTR_PRIO);
 
 	p = fmtstr(p, e, "AP ");
 	p = fmtint(p, e, (*signal)/100);
@@ -196,37 +179,11 @@ static void dump_scan(CTX, AT)
 	p = fmtint(p, e, *freq);
 	p = fmtstr(p, e, " ");
 	p = fmtmac(p, e, bssid);
-	p = fmtstr(p, e, " ");
-	p = fmt_prio(p, e, prio);
-	p = fmtstr(p, e, " ");
+	p = fmtstr(p, e, "  ");
 	p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
 	*p++ = '\n';
 
 	output(ctx, buf, p - buf);
-}
-
-static char* fmt_wifi_mode(char* p, char* e, attr at)
-{
-	int mode, *mp;
-
-	if(!(mp = uc_sub_int(at, ATTR_MODE)))
-		goto out;
-	mode = *mp;
-
-	p = fmtstr(p, e, " ");
-
-	if(mode == WIFI_MODE_DISABLED)
-		p = fmtstr(p, e, "no-conf");
-	else if(mode == WIFI_MODE_ROAMING)
-		p = fmtstr(p, e, "roaming");
-	else if(mode == WIFI_MODE_FIXEDAP)
-		p = fmtstr(p, e, "fixed");
-	else {
-		p = fmtstr(p, e, "mode");
-		p = fmtint(p, e, mode);
-	}
-out:
-	return p;
 }
 
 static char* fmt_wifi_iface(char* p, char* e, attr at)
@@ -293,7 +250,7 @@ static void dump_wifi(CTX, MSG)
 
 	p = fmtstr(p, e, "WiFi");
 	p = fmt_wifi_iface(p, e, at);
-	p = fmt_wifi_mode(p, e, at);
+	p = fmt_kv(p, e, at, ATTR_MODE, wifimodes);
 	p = fmt_wifi_ssid(p, e, at);
 	p = fmt_wifi_bssid(p, e, at);
 	p = fmt_wifi_freq(p, e, at);

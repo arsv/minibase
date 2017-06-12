@@ -99,6 +99,33 @@ static void put_status_wifi(struct ucbuf* uc)
 	uc_end_nest(uc, nn);
 }
 
+static int common_link_type(struct link* ls)
+{
+	if(ls->flags & S_NL80211)
+		return LINK_NL80211;
+	else
+		return LINK_GENERIC;
+}
+
+static int common_link_state(struct link* ls)
+{
+	int state = ls->state;
+	int flags = ls->flags;
+
+	if(state == LS_ACTIVE)
+		return LINK_ACTIVE;
+	if(state == LS_STARTING)
+		return LINK_STARTING;
+	if(state == LS_STOPPING)
+		return LINK_STOPPING;
+	if(flags & S_CARRIER)
+		return LINK_CARRIER;
+	if(flags & S_ENABLED)
+		return LINK_ENABLED;
+
+	return LINK_OFF;
+}
+
 static void put_status_links(struct ucbuf* uc)
 {
 	struct link* ls;
@@ -108,9 +135,10 @@ static void put_status_links(struct ucbuf* uc)
 		if(!ls->ifi) continue;
 
 		nn = uc_put_nest(uc, ATTR_LINK);
-		uc_put_int(uc, ATTR_IFI,    ls->ifi);
-		uc_put_str(uc, ATTR_NAME,   ls->name);
-		uc_put_int(uc, ATTR_FLAGS,  ls->flags);
+		uc_put_int(uc, ATTR_IFI,   ls->ifi);
+		uc_put_str(uc, ATTR_NAME,  ls->name);
+		uc_put_int(uc, ATTR_STATE, common_link_state(ls));
+		uc_put_int(uc, ATTR_TYPE,  common_link_type(ls));
 
 		if(ls->flags & S_IPADDR) {
 			uc_put_bin(uc, ATTR_IPADDR, ls->ip, sizeof(ls->ip));
@@ -130,7 +158,7 @@ static void put_status_scans(struct ucbuf* uc)
 		if(!sc->freq) continue;
 		nn = uc_put_nest(uc, ATTR_SCAN);
 		uc_put_int(uc, ATTR_FREQ,   sc->freq);
-		uc_put_int(uc, ATTR_AUTH,   sc->type);
+		uc_put_int(uc, ATTR_TYPE,   sc->type);
 		uc_put_int(uc, ATTR_SIGNAL, sc->signal);
 		uc_put_int(uc, ATTR_PRIO,   sc->prio);
 		uc_put_bin(uc, ATTR_BSSID, sc->bssid, sizeof(sc->bssid));
