@@ -50,6 +50,8 @@ void link_carrier(struct link* ls)
 
 void link_ipaddr(struct link* ls)
 {
+	ls->state = LS_ACTIVE;
+
 	unlatch(ls->ifi, CONF, 0);
 
 	if(ls->flags & S_NL80211)
@@ -67,6 +69,22 @@ int any_links_flagged(int flags)
 	return 0;
 }
 
+void link_terminated(struct link* ls)
+{
+	eprintf("%s\n", __FUNCTION__);
+}
+
+void recheck_alldown_latches(void)
+{
+	struct link* ls;
+
+	for(ls = links; ls < links + nlinks; ls++)
+		if(ls->state == LS_STOPPING)
+			return;
+
+	unlatch(NONE, DOWN, 0);
+}
+
 /* Whenever a link goes down, for any reason, all its remaining procs must
    be stopped and its ip configuration must be flushed. Not doing this means
    the link may be left in mid-way state, confusing the usespace. */
@@ -79,27 +97,27 @@ static void wait_link_down(struct link* ls)
 		return stop_link_procs(ls, 0);
 	if(ls->flags & S_IPADDR)
 		return del_link_addresses(ls->ifi);
-	if(ls->flags & S_APLOCK)
-		return trigger_disconnect(ls->ifi);
+
+	ls->state = LS_DOWN;
 
 	unlatch(ls->ifi, DOWN, 0);
-	unlatch(ls->ifi, CONF, -ENETRESET);
+	recheck_alldown_latches();
 
 	if(ls->flags & S_NL80211)
 		wifi_conn_fail(ls);
 
-	eprintf("%s %s here\n", __FUNCTION__, ls->name);
-
-	ls->flags &= ~S_STOPPING;
-
-	if(!any_links_flagged(S_STOPPING))
-		unlatch(NONE, DOWN, 0);
+	link_terminated(ls);
 }
 
 void terminate_link(struct link* ls)
 {
-	ls->flags &= ~S_UPCOMING;
-	ls->flags |= S_STOPPING;
+	if(ls->state == LS_DOWN)
+		return;
+	if(ls->state == LS_STOPPING)
+		return;
+
+	ls->state = LS_STOPPING;
+	unlatch(ls->ifi, CONF, -EINTR);
 
 	wait_link_down(ls);
 }
@@ -110,23 +128,15 @@ void terminate_link(struct link* ls)
 
 void link_ipgone(struct link* ls)
 {
-	if(ls->flags & S_STOPPING)
-		return wait_link_down(ls);
-	if(ls->mode == LM_NOT || ls->mode == LM_OFF)
-		return;
-	if(ls->flags & S_CARRIER)
-		link_carrier(ls);
-}
-
-void link_apgone(struct link* ls)
-{
-	if(ls->flags & S_STOPPING)
+	if(ls->state == LS_STOPPING)
 		return wait_link_down(ls);
 }
 
 void link_down(struct link* ls)
 {
-	if(!(ls->flags & S_STOPPING))
+	if(ls->state == LS_STOPPING)
+		wait_link_down(ls);
+	else
 		terminate_link(ls);
 }
 
@@ -134,7 +144,7 @@ void link_child_exit(struct link* ls, int status)
 {
 	eprintf("%s %i\n", __FUNCTION__, status);
 
-	if(ls->flags & S_STOPPING)
+	if(ls->state == LS_STOPPING)
 		wait_link_down(ls);
 	else if(status)
 		terminate_link(ls);
@@ -146,6 +156,7 @@ void link_gone(struct link* ls)
 	stop_link_procs(ls, 1);
 
 	unlatch(ls->ifi, ANY, -ENODEV);
+	recheck_alldown_latches();
 
 	if(ls->flags & S_NL80211)
 		wifi_gone(ls);
@@ -188,33 +199,52 @@ int stop_all_links(void)
 	return down;
 }
 
-void stop_uplinks_except(int ifi)
+void stop_links_except(int ifi)
 {
 	struct link* ls;
 
 	for(ls = links; ls < links + nlinks; ls++)
 		if(ls->ifi == ifi)
 			continue;
-		else if(ls->mode != LM_DHCP)
+		else if(ls->state == LS_DOWN)
 			continue;
-		else if(!(ls->flags & (S_UPLINK | S_UPCOMING)))
-			continue;
-		else if(ls->flags & S_STOPPING)
+		else if(ls->state == LS_STOPPING)
 			continue;
 		else terminate_link(ls);
 }
 
-int switch_uplink(int ifi)
+void stop_link(struct link* ls)
 {
-	struct link* ls;
+	ls->mode = LM_OFF;
 
-	if(!(ls = find_link_slot(ifi)))
-		return -ENODEV;
+	if(ls->state)
+		terminate_link(ls);
+	else
+		link_terminated(ls);
+}
 
-	stop_uplinks_except(ifi);
+int start_wired_link(struct link* ls)
+{
+	if(!(ls->mode))
+		return -EINVAL;
 
-	ls->mode = LM_DHCP;
-	ls->flags |= S_UPCOMING;
+	if(ls->state == LS_ACTIVE)
+		return 0;
+	if(ls->state == LS_STARTING)
+		terminate_link(ls);
+	if(ls->state == LS_STOPPING)
+		return -EAGAIN;
 
-	return 0;
+	ls->state = LS_STARTING;
+
+	if(!(ls->flags & S_ENABLED)) {
+		enable_iface(ls->ifi);
+		return 0;
+	} else if(!(ls->flags & S_CARRIER)) {
+		stop_link(ls);
+		return -ENETDOWN;
+	} else {
+		link_carrier(ls);
+		return 0;
+	}
 }

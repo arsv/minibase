@@ -123,12 +123,7 @@ static int get_genl_ifindex(struct nlgen* msg)
 
 static void msg_new_wifi(struct link* ls, struct nlgen* msg)
 {
-	uint32_t* u32;
-
 	ls->flags |= S_NL80211;
-
-	if((u32 = nl_get_u32(msg, NL80211_ATTR_WIPHY_FREQ)))
-		ls->flags |= S_APLOCK;
 
 	wifi_ready(ls);
 }
@@ -238,19 +233,6 @@ static void msg_scan_res(struct link* ls, struct nlgen* msg)
 	}
 }
 
-static void msg_connect(struct link* ls, struct nlgen* msg)
-{
-	ls->flags |= S_APLOCK;
-}
-
-static void msg_disconnect(struct link* ls, struct nlgen* msg)
-{
-	ls->flags &= ~S_APLOCK;
-
-	if(ls->flags & S_STOPPING)
-		link_apgone(ls);
-}
-
 struct cmdh {
 	int cmd;
 	void (*func)(struct link* ls, struct nlgen* msg);
@@ -264,8 +246,8 @@ struct cmdh {
 	{ NL80211_CMD_ASSOCIATE,        NULL               },
 	{ NL80211_CMD_DEAUTHENTICATE,   NULL               },
 	{ NL80211_CMD_DISASSOCIATE,     NULL               },
-	{ NL80211_CMD_CONNECT,          msg_connect        },
-	{ NL80211_CMD_DISCONNECT,       msg_disconnect     },
+	{ NL80211_CMD_CONNECT,          NULL               },
+	{ NL80211_CMD_DISCONNECT,       NULL               },
 	{ NL80211_CMD_NEW_STATION,      NULL               },
 	{ NL80211_CMD_DEL_STATION,      NULL               },
 	{ NL80211_CMD_NOTIFY_CQM,       NULL               },

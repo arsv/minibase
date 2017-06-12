@@ -40,6 +40,12 @@
 #define LM_LOCAL       3
 #define LM_STATIC      4
 
+/* link.state */
+#define LS_DOWN        0
+#define LS_STARTING    1
+#define LS_ACTIVE      2
+#define LS_STOPPING    3
+
 struct link {
 	int ifi;
 	int seq;
@@ -50,9 +56,9 @@ struct link {
 	uint8_t ip[4];
 	uint8_t mask;
 
-	uint8_t mode;
-
-	int rfk;
+	short mode;
+	short state;
+	short rfk;
 };
 
 /* Persistent scan list entry. Wimon caches short-lived scan results
@@ -242,15 +248,16 @@ void link_enabled(struct link* ls);
 void link_carrier(struct link* ls);
 void link_ipaddr(struct link* ls);
 void link_ipgone(struct link* ls);
-void link_apgone(struct link* ls);
 void link_child_exit(struct link* ls, int status);
-int any_links_flagged(int flags);
+void recheck_alldown_latches(void);
 
 int any_pids_left(void);
 void terminate_link(struct link* ls);
 void finalize_links(void);
-void stop_uplinks_except(int ifi);
+void stop_links_except(int ifi);
 int switch_uplink(int ifi);
+void stop_link(struct link* ls);
+int start_wired_link(struct link* ls);
 
 /* wimon_wifi.c */
 

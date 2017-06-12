@@ -232,65 +232,16 @@ static int get_ifi(struct ucmsg* msg)
 	return iv ? *iv : 0;
 }
 
-static int cmd_scan(struct conn* cn, struct ucmsg* msg)
+static int switch_to_wifi(int rifi)
 {
 	int ifi;
 
-	if((ifi = grab_wifi_device(0)) < 0)
-		return ifi;
-
-	trigger_scan(ifi, 0);
-
-	return setlatch(cn, WIFI, SCAN);
-}
-
-static int cmd_roaming(struct conn* cn, struct ucmsg* msg)
-{
-	int ifi, ret;
-	int rifi = get_ifi(msg);
-
 	if((ifi = grab_wifi_device(rifi)) < 0)
 		return ifi;
-	if((ret = switch_uplink(ifi)))
-		return ret;
-	if((ret = wifi_mode_roaming()))
-		return ret;
 
-	return setlatch(cn, WIFI, CONF);
-}
+	stop_links_except(ifi);
 
-static int cmd_fixedap(struct conn* cn, struct ucmsg* msg)
-{
-	int ifi, ret;
-	struct ucattr* ap;
-	int rifi = get_ifi(msg);
-
-	if(!(ap = uc_get(msg, ATTR_SSID)))
-		return -EINVAL;
-
-	int slen = ap->len - sizeof(*ap);
-	uint8_t* ssid = (uint8_t*)ap->payload;
-	char* psk = uc_get_str(msg, ATTR_PSK);
-
-	if((ifi = grab_wifi_device(rifi)) < 0)
-		return ifi;
-	if((ret = switch_uplink(ifi)))
-		return ret;
-	if((ret = wifi_mode_fixedap(ssid, slen, psk)))
-		return ret;
-
-	return setlatch(cn, WIFI, CONF);
-}
-
-static int cmd_neutral(struct conn* cn, struct ucmsg* msg)
-{
-	wifi_mode_disabled();
-	stop_uplinks_except(0);
-
-	if(!any_links_flagged(S_STOPPING))
-		return 0;
-
-	return setlatch(cn, NONE, DOWN);
+	return 0;
 }
 
 static int find_wired_link(int rifi)
@@ -314,9 +265,61 @@ static int find_wired_link(int rifi)
 	return ifi;
 }
 
+static int cmd_scan(struct conn* cn, struct ucmsg* msg)
+{
+	int ifi;
+
+	if((ifi = grab_wifi_device(0)) < 0)
+		return ifi;
+
+	trigger_scan(ifi, 0);
+
+	return setlatch(cn, WIFI, SCAN);
+}
+
+static int cmd_roaming(struct conn* cn, struct ucmsg* msg)
+{
+	int ret, rifi = get_ifi(msg);
+
+	if((ret = switch_to_wifi(rifi)) < 0)
+		return ret;
+	if((ret = wifi_mode_roaming()))
+		return ret;
+
+	return setlatch(cn, WIFI, CONF);
+}
+
+static int cmd_fixedap(struct conn* cn, struct ucmsg* msg)
+{
+	int ret, rifi = get_ifi(msg);
+	struct ucattr* ap;
+
+	if(!(ap = uc_get(msg, ATTR_SSID)))
+		return -EINVAL;
+
+	uint8_t* ssid = uc_payload(ap);
+	int slen = uc_paylen(ap);
+	char* psk = uc_get_str(msg, ATTR_PSK);
+
+	if((ret = switch_to_wifi(rifi)) < 0)
+		return ret;
+	if((ret = wifi_mode_fixedap(ssid, slen, psk)))
+		return ret;
+
+	return setlatch(cn, WIFI, CONF);
+}
+
+static int cmd_neutral(struct conn* cn, struct ucmsg* msg)
+{
+	wifi_mode_disabled();
+	stop_links_except(0);
+
+	return setlatch(cn, NONE, DOWN);
+}
+
 static int cmd_wired(struct conn* cn, struct ucmsg* msg)
 {
-	int ret, ifi;
+	int ifi, ret;
 	int rifi = get_ifi(msg);
 	struct link* ls;
 
@@ -326,15 +329,10 @@ static int cmd_wired(struct conn* cn, struct ucmsg* msg)
 		return ifi;
 	if(!(ls = find_link_slot(ifi)))
 		return -ENODEV;
-	if((ret = switch_uplink(ifi)) < 0)
+	if((ret = start_wired_link(ls)) < 0)
 		return ret;
 
-	if(ls->flags & S_CARRIER)
-		link_carrier(ls);
-	else
-		return -ENETDOWN;
-
-	ls->flags |= S_UPCOMING;
+	stop_links_except(ls->ifi);
 
 	return setlatch(cn, ifi, CONF);
 }
