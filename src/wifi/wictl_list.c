@@ -80,10 +80,12 @@ static struct dict {
 	{ LINK_STARTING, "starting"   },
 	{ LINK_STOPPING, "stopping"   },
 	{ DICTEND,       ""           }
-}, wifimodes[] = {
-	{ WIFI_DISABLED, "no-conf"    },
-	{ WIFI_ROAMING,  "roaming"    },
-	{ WIFI_FIXEDAP,  "fixedap"    },
+}, wifistates[] = {
+	{ WIFI_NONE,     "no-conf"    },
+	{ WIFI_IDLE,     "idle"       },
+	{ WIFI_SCANNING, "scanning"   },
+	/* WIFI_CONNECTED is assumed */
+	{ WIFI_RETRYING, "retrying"   },
 	{ DICTEND,       ""           }
 };
 
@@ -250,10 +252,10 @@ static void dump_wifi(CTX, MSG)
 
 	p = fmtstr(p, e, "WiFi");
 	p = fmt_wifi_iface(p, e, at);
-	p = fmt_kv(p, e, at, ATTR_MODE, wifimodes);
 	p = fmt_wifi_ssid(p, e, at);
 	p = fmt_wifi_bssid(p, e, at);
 	p = fmt_wifi_freq(p, e, at);
+	p = fmt_kv(p, e, at, ATTR_STATE, wifistates);
 	*p++ = '\n';
 
 	output(ctx, buf, p - buf);

@@ -106,9 +106,11 @@ struct child {
 #define WM_FIXEDAP     2
 /* wifi.state */
 #define WS_NONE        0
-#define WS_TUNED       1
-#define WS_CONNECTED   2
+#define WS_IDLE        1
+#define WS_SCANNING    2
 #define WS_RETRYING    3
+#define WS_STARTING    4
+#define WS_CONNECTED   5
 /* wifi.flags */
 #define WF_UNSAVED     (1<<0)
 #define WF_SAVEPSK     (1<<1)
@@ -270,6 +272,7 @@ void wifi_scan_done(void);
 void wifi_scan_fail(int err);
 
 int grab_wifi_device(int rifi);
+void start_wifi_scan(void);
 
 void wifi_mode_disabled(void);
 int wifi_mode_roaming(void);

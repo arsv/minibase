@@ -48,7 +48,10 @@
 #define TYPE_RSN_G_TKIP  (1<<7)
 #define TYPE_RSN_G_CCMP  (1<<8)
 
-/* ATTR_WIFI > ATTR_MODE */
-#define WIFI_DISABLED    0
-#define WIFI_ROAMING     1
-#define WIFI_FIXEDAP     2
+/* ATTR_WIFI > ATTR_STATE; same as WS_* constants */
+#define WIFI_NONE        0
+#define WIFI_IDLE        1
+#define WIFI_SCANNING    2
+#define WIFI_RETRYING    3
+#define WIFI_STARTING    4
+#define WIFI_CONNECTED   5

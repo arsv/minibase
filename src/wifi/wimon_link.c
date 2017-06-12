@@ -72,6 +72,9 @@ int any_links_flagged(int flags)
 void link_terminated(struct link* ls)
 {
 	eprintf("%s\n", __FUNCTION__);
+
+	if(ls->flags & S_NL80211)
+		wifi_conn_fail(ls);
 }
 
 void recheck_alldown_latches(void)
@@ -98,13 +101,13 @@ static void wait_link_down(struct link* ls)
 	if(ls->flags & S_IPADDR)
 		return del_link_addresses(ls->ifi);
 
+	if(ls->flags & S_ENABLED && ls->mode == LM_OFF)
+		disable_iface(ls->ifi);
+
 	ls->state = LS_DOWN;
 
 	unlatch(ls->ifi, DOWN, 0);
 	recheck_alldown_latches();
-
-	if(ls->flags & S_NL80211)
-		wifi_conn_fail(ls);
 
 	link_terminated(ls);
 }

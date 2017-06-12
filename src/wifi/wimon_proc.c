@@ -118,6 +118,8 @@ static void spawn(struct link* ls, char** args, char** envp)
 
 	dump_spawn(ls, args);
 
+	ls->state = LS_STARTING;
+
 	if(!(ch = grab_child_slot()))
 		goto fail;
 	if((pid = sysfork()) < 0)

@@ -123,14 +123,8 @@ static void reset_scan_counters(uint8_t* ssid, int slen)
 	}
 }
 
-static void reset_ap_psk(void)
+static void clear_ap(void)
 {
-	memset(&wifi.psk, 0, sizeof(wifi.psk));
-}
-
-static void reset_wifi_struct(void)
-{
-	wifi.state = 0;
 	wifi.freq = 0;
 	wifi.type = 0;
 
@@ -140,8 +134,7 @@ static void reset_wifi_struct(void)
 	}
 
 	memset(&wifi.bssid, 0, sizeof(wifi.bssid));
-
-	reset_ap_psk();
+	memset(&wifi.psk, 0, sizeof(wifi.psk));
 }
 
 static int load_given_psk(char* psk)
@@ -177,7 +170,7 @@ static int load_ap(struct scan* sc, char* psk)
 	else
 		ret = load_saved_psk();
 	if(ret)
-		reset_wifi_struct();
+		clear_ap();
 
 	return ret;
 }
@@ -204,7 +197,7 @@ static int connect_to_something(void)
 		return 1;
 	}
 
-	reset_ap_psk();
+	clear_ap();
 
 	return 0;
 }
@@ -239,9 +232,13 @@ int grab_wifi_device(int rifi)
 	return ifi;
 }
 
-static void start_wifi_scan(void)
+void start_wifi_scan(void)
 {
-	if(!wifi.ifi) return;
+	if(!wifi.ifi)
+		return;
+
+	if(wifi.state == WS_NONE || wifi.state == WS_IDLE)
+		wifi.state = WS_SCANNING;
 
 	trigger_scan(wifi.ifi, 0);
 }
@@ -250,8 +247,10 @@ static void reassess_wifi_situation(void)
 {
 	if(wifi.mode == WM_DISABLED)
 		return;
-	if(wifi.state != WS_NONE)
+	if(wifi.state == WS_CONNECTED)
 		return;
+
+	wifi.state = WS_STARTING;
 
 	if(connect_to_something())
 		return;
@@ -259,13 +258,14 @@ static void reassess_wifi_situation(void)
 	unlatch(WIFI, CONF, -ENOTCONN);
 
 	if(wifi.flags & WF_UNSAVED) {
+		wifi.state = WS_NONE;
 		wifi.mode = WM_DISABLED;
 		wifi.flags &= ~WF_UNSAVED;
-		reset_wifi_struct();
 		return;
+	} else {
+		wifi.state = WS_IDLE;
+		schedule(start_wifi_scan, 60);
 	}
-
-	schedule(start_wifi_scan, 60);
 }
 
 static struct scan* find_current_ap(void)
@@ -304,10 +304,7 @@ void wifi_ready(struct link* ls)
 	if(wifi.state != WS_NONE)
 		return;
 
-	if(ls->flags & S_APLOCK)
-		trigger_disconnect(ls->ifi);
-
-	trigger_scan(ls->ifi, 0);
+	start_wifi_scan();
 }
 
 void wifi_gone(struct link* ls)
@@ -323,7 +320,7 @@ void wifi_gone(struct link* ls)
 
 static void retry_current_ap(void)
 {
-	wifi.state = WS_NONE;
+	wifi.state = WS_RETRYING;
 
 	if(load_saved_psk())
 		goto out;
@@ -331,7 +328,7 @@ static void retry_current_ap(void)
 		goto out;
 	return;
 out:
-	reset_wifi_struct();
+	clear_ap();
 	reassess_wifi_situation();
 }
 
@@ -340,6 +337,8 @@ void wifi_scan_done(void)
 	check_new_aps();
 	unlatch(WIFI, SCAN, 0);
 
+	if(wifi.state == WS_SCANNING)
+		wifi.state = WS_NONE;
 	if(wifi.state == WS_RETRYING)
 		retry_current_ap();
 	else if(wifi.state == WS_NONE)
@@ -350,6 +349,8 @@ void wifi_scan_fail(int err)
 {
 	unlatch(WIFI, SCAN, err);
 
+	if(wifi.state == WS_SCANNING)
+		wifi.state = WS_NONE;
 	if(wifi.state == WS_RETRYING)
 		wifi.state = WS_NONE;
 }
@@ -391,7 +392,7 @@ void wifi_conn_fail(struct link* ls)
 		wifi.state = WS_RETRYING;
 		trigger_scan(wifi.ifi, wifi.freq);
 	} else {
-		reset_wifi_struct();
+		clear_ap();
 		reassess_wifi_situation();
 	}
 }
@@ -400,17 +401,19 @@ static void stop_wifi_link(void)
 {
 	struct link* ls;
 
-	if(!wifi.state)
+	if(wifi.state < WS_RETRYING)
 		return;
 	if(!(ls = find_link_slot(wifi.ifi)))
 		return;
 
 	terminate_link(ls);
+
+	wifi.state = WS_NONE;
 }
 
 void wifi_mode_disabled(void)
 {
-	reset_wifi_struct();
+	clear_ap();
 	wifi.mode = WM_DISABLED;
 	save_wifi();
 }
@@ -421,8 +424,7 @@ int wifi_mode_roaming(void)
 	reset_scan_counters(NULL, 0);
 	wifi.mode = WM_ROAMING;
 	wifi.flags |= WF_UNSAVED;
-
-	trigger_scan(wifi.ifi, 0);
+	start_wifi_scan();
 
 	return 0;
 }

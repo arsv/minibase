@@ -87,7 +87,7 @@ static void put_status_wifi(struct ucbuf* uc)
 	nn = uc_put_nest(uc, ATTR_WIFI);
 	uc_put_int(uc, ATTR_IFI, wifi.ifi);
 	uc_put_str(uc, ATTR_NAME, ls->name);
-	uc_put_int(uc, ATTR_MODE, wifi.mode);
+	uc_put_int(uc, ATTR_STATE, wifi.state);
 
 	if(wifi.slen)
 		uc_put_bin(uc, ATTR_SSID, wifi.ssid, wifi.slen);
@@ -295,12 +295,12 @@ static int find_wired_link(int rifi)
 
 static int cmd_scan(struct conn* cn, struct ucmsg* msg)
 {
-	int ifi;
+	int ifi, rifi = get_ifi(msg);
 
-	if((ifi = grab_wifi_device(0)) < 0)
+	if((ifi = grab_wifi_device(rifi)) < 0)
 		return ifi;
 
-	trigger_scan(ifi, 0);
+	start_wifi_scan();
 
 	return setlatch(cn, WIFI, SCAN);
 }
