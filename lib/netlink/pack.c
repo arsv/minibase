@@ -41,15 +41,20 @@ void nl_new_cmd(struct netlink* nl, uint16_t fam, uint8_t cmd, uint8_t ver)
 void nl_put(struct netlink* nl, uint16_t type, const void* buf, int len)
 {
 	int full = sizeof(struct nlattr) + len;
-	struct nlattr* at = nl_alloc(nl, full);
+	struct nlmsg* msg;
+	struct nlattr* at;
 	
-	if(!at) return;
+	if(!(at = nl_alloc(nl, full)))
+		return;
 
 	at->type = type;
 	at->len = full;
 	memcpy(at->payload, buf, len);
 
-	((struct nlmsg*)(nl->txbuf))->len = nl->txend;
+	if(!(msg = nl_tx_msg(nl)))
+		return;
+
+	msg->len = nl->txend;
 }
 
 void nl_put_empty(struct netlink* nl, uint16_t type)

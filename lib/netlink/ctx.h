@@ -29,6 +29,10 @@ void nl_set_rxbuf(struct netlink* nl, void* buf, int len);
 long nl_connect(struct netlink* nl, int protocol, int grps);
 long nl_subscribe(struct netlink* nl, int id);
 
+/* Outbound msg access */
+
+struct nlmsg* nl_tx_msg(struct netlink* nl);
+
 /* Synchronous (request-reply) queries */
 
 struct nlmsg* nl_recv(struct netlink* nl);
