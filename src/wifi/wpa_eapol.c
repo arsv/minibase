@@ -15,7 +15,6 @@
 
 #include <string.h>
 #include <endian.h>
-#include <fail.h>
 
 #include "wpa.h"
 #include "wpa_crypt.h"
@@ -160,7 +159,7 @@ static struct eapolkey* recv_eapol(uint8_t mac[6])
 	int eksize = sizeof(*ek);
 
 	if(rd < 0)
-		fail("recv", "PF_PACKET", rd);
+		quit("recv", "PF_PACKET", rd);
 	if(rd < eksize)
 		return NULL; /* packet too short */
 	if(ntohs(ek->paclen) + 4 != rd)
@@ -197,7 +196,7 @@ static void send_packet(char* buf, int len)
 	memcpy(dest.addr, amac, 6);
 
 	if((wr = syssendto(fd, buf, len, 0, &dest, sizeof(dest))) < 0)
-		fail("send", "PF_PACKET", wr);
+		quit("send", "PF_PACKET", wr);
 }
 
 /* The standard says (roughly) that we should silently drop any
@@ -214,19 +213,19 @@ void recv_packet_1(void)
 	/* wpa_supplicant does not check ek->version */
 
 	if(ek->pactype != EAPOL_KEY)
-		fail("packet 1/4 not a key", NULL, 0);
+		quit("packet 1/4 not a key", NULL, 0);
 	if(ek->type != EAPOL_KEY_RSN)
-		fail("packet 1/4 wrong type", NULL, 0);
+		quit("packet 1/4 wrong type", NULL, 0);
 
 	int keyinfo = ntohs(ek->keyinfo);
 	int keytype = keyinfo & KI_TYPEMASK;
 
 	if(keytype != KI_SHA)
-		fail("packet 1/4 wrong keytype", NULL, 0);
+		quit("packet 1/4 wrong keytype", NULL, 0);
 	if(!(keyinfo & KI_PAIRWISE))
-		fail("packet 1/4 no PAIRWISE bit", NULL, 0);
+		quit("packet 1/4 no PAIRWISE bit", NULL, 0);
 	if(!(keyinfo & KI_ACK))
-		fail("packet 1/4 no ACK bit", NULL, 0);
+		quit("packet 1/4 no ACK bit", NULL, 0);
 
 	memcpy(anonce, ek->nonce, sizeof(anonce));
 	memcpy(replay, ek->replay, sizeof(replay));
@@ -277,26 +276,26 @@ void recv_packet_3(void)
 	int paclen = 4 + ntohs(ek->paclen);
 
 	if(memcmp(amac, mac, 6))
-		fail("packet 3/4 from another host", NULL, 0);
+		quit("packet 3/4 from another host", NULL, 0);
 	if(memcmp(anonce, ek->nonce, sizeof(anonce)))
-		fail("packet 3/4 nonce changed", NULL, 0);
+		quit("packet 3/4 nonce changed", NULL, 0);
 	if(memcmp(replay, ek->replay, sizeof(replay)) >= 0)
-		fail("packet 3/4 replay fail", NULL, 0);
+		quit("packet 3/4 replay fail", NULL, 0);
 	if(check_mic(ek->mic, KCK, pacbuf, paclen))
-		fail("packet 3/4 bad MIC", NULL, 0);
+		quit("packet 3/4 bad MIC", NULL, 0);
 
 	int keyinfo = ntohs(ek->keyinfo);
 
 	if(!(keyinfo & KI_INSTALL))
-		fail("packet 3/4 no INSTALL bit", NULL, 0);
+		quit("packet 3/4 no INSTALL bit", NULL, 0);
 	if(!(keyinfo & KI_ENCRYPTED))
-		fail("packet 3/4 not encrypted", NULL, 0);
+		quit("packet 3/4 not encrypted", NULL, 0);
 
 	char* payload = ek->payload;
 	int paylen = ntohs(ek->paylen);
 
 	if(unwrap_key(KEK, payload, paylen))
-		fail("packet 3/4 cannot unwrap GTK", NULL, 0);
+		quit("packet 3/4 cannot unwrap GTK", NULL, 0);
 
 	fetch_gtk(payload + 8, paylen - 8);
 
@@ -352,10 +351,10 @@ static void fill_smac(void)
 	memcpy(ifr.name, ifname, IFNAMESIZ);
 
 	if((ret = sysioctl(fd, SIOCGIFHWADDR, &ifr)) < 0)
-		fail("ioctl SIOCGIFHWADDR", ifname, ret);
+		quit("ioctl SIOCGIFHWADDR", ifname, ret);
 
 	if(ifr.addr.sa_family != ARPHRD_ETHER)
-		fail("unexpected hwaddr family on", ifname, 0);
+		quit("unexpected hwaddr family on", ifname, 0);
 
 	memcpy(smac, ifr.addr.sa_data, 6);
 }
@@ -369,12 +368,12 @@ static void fill_rand(void)
 	char* urandom = "/dev/urandom";
 
 	if((fd = sysopen(urandom, O_RDONLY)) < 0)
-		fail("open", urandom, fd);
+		quit("open", urandom, fd);
 
 	if((rd = sysread(fd, rand, rlen)) < 0)
-		fail("read", urandom, rd);
+		quit("read", urandom, rd);
 	if(rd < rlen)
-		fail("read", urandom, 0);
+		quit("read", urandom, 0);
 
 	sysclose(fd);
 
@@ -398,12 +397,12 @@ void open_rawsock()
 	};
 
 	if((ret = syssocket(PF_PACKET, SOCK_DGRAM, ethtype)) < 0)
-		fail("socket", "PF_PACKET", ret);
+		quit("socket", "PF_PACKET", ret);
 
 	rawsock = ret;
 
 	if((ret = sysbind(ret, &addr, sizeof(addr))) < 0)
-		fail("bind", "AF_PACKET", ret);
+		quit("bind", "AF_PACKET", ret);
 }
 
 void negotiate_keys(void)
