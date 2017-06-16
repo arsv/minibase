@@ -58,12 +58,12 @@ void link_ipaddr(struct link* ls)
 		wifi_connected(ls);
 }
 
-int any_links_flagged(int flags)
+int any_stopping_links(void)
 {
 	struct link* ls;
 
 	for(ls = links; ls < links + nlinks; ls++)
-		if(ls->ifi && (ls->flags & flags))
+		if(ls->state == LS_STOPPING)
 			return 1;
 
 	return 0;

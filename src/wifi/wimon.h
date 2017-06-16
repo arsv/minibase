@@ -254,6 +254,7 @@ void link_child_exit(struct link* ls, int status);
 void recheck_alldown_latches(void);
 
 int any_pids_left(void);
+int any_stopping_links(void);
 void terminate_link(struct link* ls);
 void finalize_links(void);
 void stop_links_except(int ifi);

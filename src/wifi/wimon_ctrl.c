@@ -342,6 +342,9 @@ static int cmd_neutral(struct conn* cn, struct ucmsg* msg)
 	wifi_mode_disabled();
 	stop_links_except(0);
 
+	if(!any_stopping_links())
+		return 0;
+
 	return setlatch(cn, NONE, DOWN);
 }
 
@@ -378,24 +381,14 @@ static const struct cmd {
 	{ 0,           NULL        }
 };
 
-static void cancel_latch(struct conn* cn)
-{
-	if(!cn->evt)
-		return;
-
-	reply(cn, -EINTR);
-
-	cn->evt = 0;
-	cn->ifi = 0;
-}
-
 static void dispatch_cmd(struct conn* cn, struct ucmsg* msg)
 {
 	const struct cmd* cd;
 	int cmd = msg->cmd;
 	int ret;
 
-	cancel_latch(cn);
+	if(cn->evt)
+		release_latch(cn, -EINTR);
 
 	for(cd = commands; cd->cmd; cd++)
 		if(cd->cmd == cmd)
