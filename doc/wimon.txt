@@ -2,10 +2,9 @@ Why connection manager
 ~~~~~~~~~~~~~~~~~~~~~~
 There's a gazillion ways to configure the Linux networking stack
 (and the interfaces the kernel provides generally reflect that).
-
 For a vast majority of personal computing devices however, there
-are only few that matter: a fully autoconfed wifi connection, and
-a fully autoconfed ethernet connection, one at a time.
+are only a couple that matter: a fully autoconfed wifi connection,
+and a fully autoconfed ethernet connection, usually one at a time.
 
 The idea behind wimon is to provide the user with reasonably
 usable interface for the most common laptop-like configuration:
@@ -25,14 +24,12 @@ notes on the decisions made.
   a good generic connection manager should look like, or whether such
   thing is possible at all.
 
-  Different kinds of networks usually have wildly different configuration
-  interfaces but usually must be orchestrated somehow to allow uplink
-  switching. Wifi+ethernet is a very popular set of hardware that warrants
-  dedicated support until a nice generic solution is found.
+  Different kinds of networks tend to have wildly different configuration
+  interfaces but must be orchestrated somehow to allow uplink switching.
 
   VPNs in particular probably should not be managed by any network mgr
   at all. Like Tor but also like resolved and ntpd, it should probably
-  be started by init, commanded by "network-up" event. See shoutd.txt.
+  be started by init, commanded by some sort of "network-up" event.
 
 * Why not strictly Wi-Fi monitor + another tool for Ethernet?
 
@@ -50,11 +47,6 @@ notes on the decisions made.
   It's very easy to get hardware configuration like that (just plug some
   USB dongle in) which without proper handling would lead to some really
   weird behavior.
-
-  Multiple wifi cards also have some applications:
-
-    - one card for 2.4GHz and one for 5GHz
-    - one card for uplink, one card to share connection.
 
   Ethernet devices may not be ethernet at all. To wimon, any networking
   device that's not wifi would look like ethernet. Multiple ethernet ports
@@ -121,8 +113,7 @@ respective mgr.
 # thing continues to work like scheme #2 but all the tools talk to the same
 # endpoint like in scheme #1. One option is to have conn-mgr multiplex the
 # traffic somehow, effectively becoming a message bus hub. Another is to use
-# a proper message bus hub, which is effectively what NetworkManager does
-# anyway.
+# a proper message bus hub, which is effectively what NetworkManager does.
 
 The role of conn-mgr in scheme #2 suggests that perhaps it should not even
 be a process. Some sort of file locking may be enough. On the other hand,
@@ -130,14 +121,48 @@ if it is a process, it could do stuff like system re-configuration for the
 new network.
 
 
+Clean uplink/wifi/whatever separation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Currently the separation between wimon and wpa depends heavily on wimon's
+ability to listen on RTNL events and make guesses on wpa state based on that.
+
+Strictly speaking, this approach is wrong. 80211 pushes hard towards merging
+the scanner and the authentication parts into a single unit like it's done in
+wpa_supplicant. That would allow implementing choose-AP-try-connect loop
+without a single process without relying on RTNL messages. Probably this
+is the way to go at some point.
+
+However, I'm not willing to give up wpa yet. It's important as a debugging
+tool, and also as a documentation. It's the smallest wpa supplicant possibly.
+Properly merged single-unit supplicant/scanner would be about the size of wimon,
+with config handling and user control and other stuff.
+
+There are also two major issues with single-unit supplicant implementations:
+
+	* all supported AKMs must be compiled in
+	* it still needs two-way comms with uplink manager
+
+These issues effectively mirror current wimon issues:
+
+       +-------------+       +--------------+       +-----------+
+       | uplink mgmr |<----->| wifi scanner |<----->| wifi auth |
+       +-------------+       +--------------+       +-----------+
+
+It's tempting to make both links on this diagram as loose as possible,
+but in reality it's nearly impossible without giving up either simplicity
+or reliability. Or both. Wimon fuses the left link, and accepts some loss
+of correctness to make the right link loose. Networkd/wpa-supplicant pair
+fuses the right link and makes a huge mess of the left one.
+
+The bottom line so far is that neither approach yields undeniably good
+results. In fact, they are about equally bad. Which also leads to...
+
+
 The role of wimon
 ~~~~~~~~~~~~~~~~~
 Does this whole thing deprecate wimon somehow?
 
-Well not really. As mentioned above, wimon alone covers lots of use cases.
-Devices which will never need to care about 3g, Wi-Max or anything that
-isn't Wi-Fi or plain Ethernet.
-
-And regardless of anything else, wimon will likely remain the lightest
-solution for those devices. Ethernet support in wimon barely adds anything.
-But extensive IPC in scheme #2 definitely does.
+Well not really. Wi-Fi/Ethernet and nothing else is a *very* common use case.
+Overwhelmingly common. Wimon can be viewed as a specialized tool for this 
+particular case, And within that role, wimon will likely remain the lightest
+possible solution. Which alone should be enought to justify its existance.
