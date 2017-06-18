@@ -29,10 +29,13 @@ void link_enabled(struct link* ls)
 {
 	if(ls->mode == LM_NOT || ls->mode == LM_OFF)
 		return;
-	if(ls->flags & S_NL80211)
+
+	if(ls->flags & S_NL80211) {
 		wifi_ready(ls);
-	else /* The link came up but there's no carrier */
+	} else { /* The link came up but there's no carrier */
+		ls->state = LS_DOWN;
 		unlatch(ls->ifi, CONF, -ENETDOWN);
+	}
 }
 
 void link_carrier(struct link* ls)
@@ -228,9 +231,6 @@ void stop_link(struct link* ls)
 
 int start_wired_link(struct link* ls)
 {
-	if(!(ls->mode))
-		return -EINVAL;
-
 	if(ls->state == LS_ACTIVE)
 		return 0;
 	if(ls->state == LS_STARTING)

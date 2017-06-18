@@ -354,8 +354,6 @@ static int cmd_wired(struct conn* cn, struct ucmsg* msg)
 	int rifi = get_ifi(msg);
 	struct link* ls;
 
-	wifi_mode_disabled();
-
 	if((ifi = find_wired_link(rifi)) < 0)
 		return ifi;
 	if(!(ls = find_link_slot(ifi)))
@@ -363,6 +361,7 @@ static int cmd_wired(struct conn* cn, struct ucmsg* msg)
 	if((ret = start_wired_link(ls)) < 0)
 		return ret;
 
+	wifi_mode_disabled();
 	stop_links_except(ls->ifi);
 
 	return setlatch(cn, ifi, CONF);
