@@ -54,4 +54,5 @@
 #define WIFI_SCANNING    2
 #define WIFI_RETRYING    3
 #define WIFI_STARTING    4
-#define WIFI_CONNECTED   5
+#define WIFI_CHANGING    5
+#define WIFI_CONNECTED   6

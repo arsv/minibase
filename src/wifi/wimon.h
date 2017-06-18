@@ -110,16 +110,18 @@ struct child {
 #define WS_SCANNING    2
 #define WS_RETRYING    3
 #define WS_STARTING    4
-#define WS_CONNECTED   5
+#define WS_CHANGING    5
+#define WS_CONNECTED   6
 /* wifi.flags */
-#define WF_UNSAVED     (1<<0)
-#define WF_SAVEPSK     (1<<1)
+#define WF_UNSAVED    (1<<0)
+#define WF_NEWPSK     (1<<1)
 
 struct wifi {
+	int ifi;
 	short mode;
 	short state;
 	short flags;
-	int ifi;
+	/* current AP */
 	short freq;
 	short prio;
 	short slen;

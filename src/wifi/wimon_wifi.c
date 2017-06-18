@@ -1,5 +1,6 @@
 #include <bits/errno.h>
 #include <string.h>
+#include <format.h>
 
 #include "wimon.h"
 
@@ -18,6 +19,9 @@ static int start_wifi(void)
 	if(!wifi.ifi)
 		return -EINVAL;
 	if(!(ls = find_link_slot(wifi.ifi)))
+		return -EINVAL;
+
+	if(!(wifi.psk[0]))
 		return -EINVAL;
 
 	if(allbits(type, ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_CCMP))
@@ -62,18 +66,29 @@ static void check_new_aps(void)
 	}
 }
 
-static int match_ssid(uint8_t* ssid, int slen, struct scan* sc)
+static int match_ssid(struct scan* sc)
 {
-	if(!ssid || !slen)
+	if(wifi.mode != WM_FIXEDAP)
 		return 1;
-	if(sc->slen != slen)
+	if(sc->slen != wifi.slen)
 		return 0;
-	if(memcmp(sc->ssid, ssid, slen))
+	if(memcmp(sc->ssid, wifi.ssid, wifi.slen))
 		return 0;
 	return 1;
 }
 
-static struct scan* get_best_ap(uint8_t* ssid, int slen, int gotkey)
+static int connectable(struct scan* sc)
+{
+	if(!(sc->flags & SF_GOOD))
+		return 0; /* bad crypto */
+	if(wifi.mode == WM_FIXEDAP)
+		return 1;
+	if(sc->prio <= 0)
+		return 0; /* no PSK */
+	return 1;
+}
+
+static struct scan* get_best_ap()
 {
 	struct scan* sc;
 	struct scan* best = NULL;
@@ -83,16 +98,12 @@ static struct scan* get_best_ap(uint8_t* ssid, int slen, int gotkey)
 			continue;
 		if(sc->tries >= 3)
 			continue;
-		if(sc->prio <= 0 && !gotkey)
+		if(!connectable(sc))
 			continue;
-		if(!match_ssid(ssid, slen, sc))
+		if(!match_ssid(sc))
 			continue;
-		if(!(sc->flags & SF_GOOD))
-			continue;
-
 		if(!best)
 			goto set;
-
 		if(best->prio > sc->prio)
 			continue;
 		if(best->signal > sc->signal)
@@ -101,7 +112,7 @@ static struct scan* get_best_ap(uint8_t* ssid, int slen, int gotkey)
 			continue;
 
 		set: best = sc;
-	};
+	}
 
 	if(best)
 		best->tries++;
@@ -109,14 +120,14 @@ static struct scan* get_best_ap(uint8_t* ssid, int slen, int gotkey)
 	return best;
 }
 
-static void reset_scan_counters(uint8_t* ssid, int slen)
+static void reset_scan_counters()
 {
 	struct scan* sc;
 
 	for(sc = scans; sc < scans + nscans; sc++) {
 		if(!sc->freq)
 			continue;
-		if(!match_ssid(ssid, slen, sc))
+		if(!match_ssid(sc))
 			continue;
 
 		sc->tries = 0;
@@ -131,10 +142,10 @@ static void clear_ap(void)
 	if(wifi.mode != WM_FIXEDAP) {
 		wifi.slen = 0;
 		memset(&wifi.ssid, 0, sizeof(wifi.ssid));
+		memset(&wifi.psk, 0, sizeof(wifi.psk));
 	}
 
 	memset(&wifi.bssid, 0, sizeof(wifi.bssid));
-	memset(&wifi.psk, 0, sizeof(wifi.psk));
 }
 
 static int load_given_psk(char* psk)
@@ -145,7 +156,7 @@ static int load_given_psk(char* psk)
 		return -EINVAL;
 
 	memcpy(wifi.psk, psk, len + 1);
-	wifi.flags |= WF_SAVEPSK;
+	wifi.flags |= WF_NEWPSK;
 
 	return 0;
 }
@@ -155,21 +166,23 @@ static int load_saved_psk(void)
 	return load_psk(wifi.ssid, wifi.slen, wifi.psk, sizeof(wifi.psk));
 }
 
-static int load_ap(struct scan* sc, char* psk)
+static int load_ap(struct scan* sc)
 {
 	int ret;
 
 	wifi.freq = sc->freq;
-	wifi.slen = sc->slen;
 	wifi.type = sc->type;
 	memcpy(wifi.bssid, sc->bssid, sizeof(sc->bssid));
-	memcpy(wifi.ssid, sc->ssid, sc->slen);
 
-	if(psk)
-		ret = load_given_psk(psk);
-	else
-		ret = load_saved_psk();
-	if(ret)
+	if(wifi.mode != WM_FIXEDAP) {
+		wifi.slen = sc->slen;
+		memcpy(wifi.ssid, sc->ssid, sc->slen);
+	};
+
+	if(wifi.mode == WM_FIXEDAP && wifi.psk[0])
+		return 0; /* no need to reload PSK for the same AP */
+
+	if((ret = load_saved_psk()))
 		clear_ap();
 
 	return ret;
@@ -178,26 +191,14 @@ static int load_ap(struct scan* sc, char* psk)
 static int connect_to_something(void)
 {
 	struct scan* sc;
-	uint8_t* ssid;
-	int slen;
 
-	if(wifi.mode == WM_FIXEDAP) {
-		ssid = wifi.ssid;
-		slen = wifi.slen;
-	} else {
-		ssid = NULL;
-		slen = 0;
-	}
-
-	while((sc = get_best_ap(ssid, slen, 0))) {
-		if(load_ap(sc, NULL))
+	while((sc = get_best_ap())) {
+		if(load_ap(sc))
 			continue;
 		if(start_wifi())
 			continue;
 		return 1;
 	}
-
-	clear_ap();
 
 	return 0;
 }
@@ -243,6 +244,19 @@ void start_wifi_scan(void)
 	trigger_scan(wifi.ifi, 0);
 }
 
+static void idle_then_rescan(void)
+{
+	clear_ap();
+	wifi.state = WS_IDLE;
+	schedule(start_wifi_scan, 60);
+}
+
+static void snap_to_disabled(void)
+{
+	clear_ap();
+	wifi.mode = WM_DISABLED;
+}
+
 static void reassess_wifi_situation(void)
 {
 	if(wifi.mode == WM_DISABLED)
@@ -257,15 +271,10 @@ static void reassess_wifi_situation(void)
 
 	unlatch(WIFI, CONF, -ENOTCONN);
 
-	if(wifi.flags & WF_UNSAVED) {
-		wifi.state = WS_NONE;
-		wifi.mode = WM_DISABLED;
-		wifi.flags &= ~WF_UNSAVED;
-		return;
-	} else {
-		wifi.state = WS_IDLE;
-		schedule(start_wifi_scan, 60);
-	}
+	if(wifi.flags & WF_UNSAVED)
+		snap_to_disabled();
+	else
+		idle_then_rescan();
 }
 
 static struct scan* find_current_ap(void)
@@ -322,8 +331,6 @@ static void retry_current_ap(void)
 {
 	wifi.state = WS_RETRYING;
 
-	if(load_saved_psk())
-		goto out;
 	if(start_wifi())
 		goto out;
 	return;
@@ -339,9 +346,11 @@ void wifi_scan_done(void)
 
 	if(wifi.state == WS_SCANNING)
 		wifi.state = WS_NONE;
+	if(wifi.state == WS_CONNECTED)
+		return;
 	if(wifi.state == WS_RETRYING)
 		retry_current_ap();
-	else if(wifi.state == WS_NONE)
+	else
 		reassess_wifi_situation();
 }
 
@@ -355,6 +364,18 @@ void wifi_scan_fail(int err)
 		wifi.state = WS_NONE;
 }
 
+static void maybe_save_wifi_state(void)
+{
+	if(wifi.flags & WF_NEWPSK)
+		save_psk(wifi.ssid, wifi.slen, wifi.psk);
+	if(wifi.flags & WF_UNSAVED)
+		save_wifi();
+	if(wifi.flags & (WF_UNSAVED | WF_NEWPSK))
+		save_config();
+
+	wifi.flags &= ~(WF_UNSAVED | WF_NEWPSK);
+}
+
 void wifi_connected(struct link* ls)
 {
 	struct scan* sc;
@@ -365,16 +386,9 @@ void wifi_connected(struct link* ls)
 	if((sc = find_current_ap()))
 		sc->tries = 0;
 
-	if(wifi.flags & WF_SAVEPSK)
-		save_psk(wifi.ssid, wifi.slen, wifi.psk);
-	if(wifi.flags & WF_UNSAVED)
-		save_wifi();
-	if(wifi.flags & (WF_UNSAVED | WF_SAVEPSK))
-		save_config();
-
-	wifi.flags &= ~(WF_UNSAVED | WF_SAVEPSK);
 	wifi.state = WS_CONNECTED;
 
+	maybe_save_wifi_state();
 	unlatch(WIFI, CONF, 0);
 }
 
@@ -383,12 +397,17 @@ void wifi_conn_fail(struct link* ls)
 	if(ls->ifi != wifi.ifi)
 		return; /* stray wifi interface */
 
-	if(wifi.mode == WM_DISABLED)
+	if(wifi.mode == WM_DISABLED) {
 		wifi.state = WS_NONE;
+		return;
+	}
+
 	if(wifi.state == WS_RETRYING)
 		wifi.state = WS_NONE;
 
-	if(wifi.state == WS_CONNECTED) {
+	if(wifi.state == WS_CHANGING) {
+		reassess_wifi_situation();
+	} else if(wifi.state == WS_CONNECTED) {
 		wifi.state = WS_RETRYING;
 		trigger_scan(wifi.ifi, wifi.freq);
 	} else {
@@ -397,56 +416,69 @@ void wifi_conn_fail(struct link* ls)
 	}
 }
 
-static void stop_wifi_link(void)
+static int restart_wifi(void)
 {
 	struct link* ls;
+	int ws = wifi.state;
 
-	if(wifi.state < WS_RETRYING)
-		return;
 	if(!(ls = find_link_slot(wifi.ifi)))
-		return;
+		return -ENODEV;
+	if(ls->state == LS_STOPPING)
+		return 0;
 
+	if(ws == WS_SCANNING)
+		return 0;
+	if(ws == WS_NONE || ws == WS_IDLE) {
+		start_wifi_scan();
+		return 0;
+	}
+
+	wifi.state = WS_CHANGING;
 	terminate_link(ls);
+	reset_scan_counters();
 
-	wifi.state = WS_NONE;
+	return 0;
 }
 
 void wifi_mode_disabled(void)
 {
-	clear_ap();
-	wifi.mode = WM_DISABLED;
+	snap_to_disabled();
 	save_wifi();
+
+	/* the link gets stopped in _ctrl, no need to stop it here */
 }
 
 int wifi_mode_roaming(void)
 {
-	stop_wifi_link();
-	reset_scan_counters(NULL, 0);
 	wifi.mode = WM_ROAMING;
 	wifi.flags |= WF_UNSAVED;
-	start_wifi_scan();
 
-	return 0;
+	return restart_wifi();
 }
 
 int wifi_mode_fixedap(uint8_t* ssid, int slen, char* psk)
 {
-	struct scan* sc;
 	int ret;
 
-	stop_wifi_link();
-	reset_scan_counters(ssid, slen);
-	drop_psk(ssid, slen);
+	if(slen > sizeof(wifi.ssid))
+		return -EINVAL;
+	if(!psk && saved_psk_prio(ssid, slen) < 0)
+		return -ENOKEY;
 
-	if(!(sc = get_best_ap(ssid, slen, 1)))
-		return -ENOENT;
-	if((ret = load_ap(sc, psk)))
-		return ret;
-	if((ret = start_wifi()))
-		return ret;
+	memcpy(wifi.ssid, ssid, slen);
+	wifi.slen = slen;
 
-	wifi.mode = WM_FIXEDAP;
-	wifi.flags |= WF_UNSAVED;
+	if(psk)
+		ret = load_given_psk(psk);
+	else
+		ret = load_saved_psk();
 
-	return 0;
+	if(ret < 0) {
+		snap_to_disabled();
+	} else {
+		wifi.mode = WM_FIXEDAP;
+		wifi.flags |= WF_UNSAVED;
+	}
+
+	return restart_wifi();
 }
