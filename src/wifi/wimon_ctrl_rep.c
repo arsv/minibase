@@ -163,7 +163,7 @@ void rep_status(struct conn* cn)
 	prep_heap(&hp, estimate_status());
 
 	uc_buf_set(&uc, hp.brk, hp.end - hp.brk);
-	uc_put_hdr(&uc, CMD_STATUS);
+	uc_put_hdr(&uc, 0);
 	put_status_links(&uc);
 	put_status_wifi(&uc);
 	put_status_scans(&uc);
@@ -182,7 +182,7 @@ void rep_scanlist(struct conn* cn)
 	prep_heap(&hp, estimate_scalist());
 
 	uc_buf_set(&uc, hp.brk, hp.end - hp.brk);
-	uc_put_hdr(&uc, CMD_SCAN);
+	uc_put_hdr(&uc, 0);
 	put_status_scans(&uc);
 	uc_put_end(&uc);
 

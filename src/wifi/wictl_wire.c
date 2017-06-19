@@ -114,6 +114,8 @@ struct ucmsg* send_check(struct top* ctx)
 
 	if(msg->cmd < 0)
 		fail(NULL, NULL, msg->cmd);
+	if(msg->cmd > 0)
+		fail("unexpected notification", NULL, 0);
 
 	return msg;
 }
