@@ -1,5 +1,4 @@
 #include <bits/errno.h>
-#include <format.h>
 #include <string.h>
 
 #include "wimon.h"
@@ -15,14 +14,26 @@ void link_new(struct link* ls)
 	if(ls->mode == LM_NOT)
 		return;
 	if(ls->mode == LM_OFF) {
-		if(ls->flags & S_IPADDR)
-			del_link_addresses(ifi);
+		if(ls->flags & S_ENABLED)
+			disable_iface(ifi);
 	} else {
 		if(ls->flags & S_CARRIER)
 			link_carrier(ls);
 		else if(ls->flags & S_ENABLED)
 			link_enabled(ls);
+		else
+			enable_iface(ifi);
 	}
+}
+
+static void wired_link_fail(struct link* ls)
+{
+	unlatch(ls->ifi, CONF, -ENETDOWN);
+
+	if(ls->state == LS_STARTING)
+		disable_iface(ls->ifi);
+
+	ls->state = LS_DOWN;
 }
 
 void link_enabled(struct link* ls)
@@ -30,12 +41,10 @@ void link_enabled(struct link* ls)
 	if(ls->mode == LM_NOT || ls->mode == LM_OFF)
 		return;
 
-	if(ls->flags & S_NL80211) {
+	if(ls->flags & S_NL80211)
 		wifi_ready(ls);
-	} else { /* The link came up but there's no carrier */
-		ls->state = LS_DOWN;
-		unlatch(ls->ifi, CONF, -ENETDOWN);
-	}
+	else /* The link came up but there's no carrier */
+		wired_link_fail(ls);
 }
 
 void link_carrier(struct link* ls)
@@ -74,8 +83,6 @@ int any_stopping_links(void)
 
 void link_terminated(struct link* ls)
 {
-	eprintf("%s\n", __FUNCTION__);
-
 	if(ls->flags & S_NL80211)
 		wifi_conn_fail(ls);
 }
@@ -146,8 +153,6 @@ void link_down(struct link* ls)
 
 void link_child_exit(struct link* ls, int status)
 {
-	eprintf("%s %i\n", __FUNCTION__, status);
-
 	if(ls->state == LS_STOPPING)
 		wait_link_down(ls);
 	else if(status)

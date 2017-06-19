@@ -189,11 +189,13 @@ static int cmd_wired(struct conn* cn, struct ucmsg* msg)
 		return ifi;
 	if(!(ls = find_link_slot(ifi)))
 		return -ENODEV;
-	if((ret = start_wired_link(ls)) < 0)
-		return ret;
 
 	wifi_mode_disabled();
 	stop_links_except(ls->ifi);
+	ls->mode = LM_DHCP;
+
+	if((ret = start_wired_link(ls)) < 0)
+		return ret;
 
 	return setlatch(cn, ifi, CONF);
 }
