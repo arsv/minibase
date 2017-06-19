@@ -320,6 +320,7 @@ void save_wifi(void);
 /* wimon_ctrl.c, wimon_ctrl_rep.c */
 void handle_conn(struct conn* cn);
 void rep_status(struct conn* cn);
+void rep_linkconf(struct conn* cn);
 void rep_scanlist(struct conn* cn);
 void reply(struct conn* cn, int err);
 

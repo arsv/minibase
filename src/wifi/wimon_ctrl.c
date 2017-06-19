@@ -45,6 +45,8 @@ static void release_latch(struct conn* cn, int err)
 
 	if(err)
 		reply(cn, err);
+	else if(cn->evt == CONF)
+		rep_linkconf(cn);
 	else if(cn->evt == SCAN)
 		rep_scanlist(cn);
 	else

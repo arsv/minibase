@@ -190,3 +190,53 @@ void rep_scanlist(struct conn* cn)
 
 	free_heap(&hp);
 }
+
+static struct link* get_latched_link(struct conn* cn)
+{
+	int ifi;
+
+	if(cn->ifi == WIFI)
+		ifi = wifi.ifi;
+	else
+		ifi = cn->ifi;
+
+	return find_link_slot(ifi);
+}
+
+static void put_link_conf(struct ucbuf* uc, struct link* ls)
+{
+	if(!(ls->flags & S_IPADDR))
+		return;
+
+	uc_put_bin(uc, ATTR_IPADDR, ls->ip, sizeof(ls->ip));
+	uc_put_int(uc, ATTR_IPMASK, ls->mask);
+}
+
+static void put_wifi_conf(struct ucbuf* uc)
+{
+	if(wifi.state != WS_CONNECTED)
+		return;
+
+	uc_put_int(uc, ATTR_FREQ, wifi.freq);
+	uc_put_bin(uc, ATTR_SSID, wifi.ssid, wifi.slen);
+	uc_put_bin(uc, ATTR_BSSID, wifi.bssid, sizeof(wifi.bssid));
+}
+
+void rep_linkconf(struct conn* cn)
+{
+	char buf[200];
+	struct ucbuf uc;
+	struct link* ls;
+
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, 0);
+
+	if((ls = get_latched_link(cn)))
+		put_link_conf(&uc, ls);
+	if(cn->ifi == WIFI)
+		put_wifi_conf(&uc);
+
+	uc_put_end(&uc);
+
+	send_reply(cn, &uc);
+}
