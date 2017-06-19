@@ -316,8 +316,11 @@ void drop_psk(uint8_t* ssid, int slen);
 void load_wifi(struct link* ls);
 void save_wifi(void);
 
-/* wimon_ctrl.c */
+/* wimon_ctrl.c, wimon_ctrl_rep.c */
 void handle_conn(struct conn* cn);
+void rep_status(struct conn* cn);
+void rep_scanlist(struct conn* cn);
+void reply(struct conn* cn, int err);
 
 /* latch.ifi */
 #define NONE 0
