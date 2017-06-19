@@ -269,7 +269,7 @@ static void scan_single_freq()
    so if this happens, we run a short one-frequency scan ourselves.
 
    There's also a chance that the card retains some AP association,
-   in which case we see EALREADY. This gets handled with a DISCONNECT
+   in which case we get EALREADY. This gets handled with a DISCONNECT
    request. */
 
 void authenticate(void)
@@ -408,7 +408,6 @@ void quit(const char* msg, const char* arg, int err)
 		connected = 0;
 		disconnect();
 	}
-
 	if(msg || arg)
 		fail(msg, arg, err);
 	else
