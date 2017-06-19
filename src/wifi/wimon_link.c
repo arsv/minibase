@@ -97,8 +97,6 @@ void recheck_alldown_latches(void)
 
 static void wait_link_down(struct link* ls)
 {
-	eprintf("%s %s\n", __FUNCTION__, ls->name);
-
 	if(ls->flags & S_CHILDREN)
 		return stop_link_procs(ls, 0);
 	if(ls->flags & S_IPADDR)
