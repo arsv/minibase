@@ -85,7 +85,7 @@ static void cmd_wired(struct top* ctx)
 {
 	no_other_options(ctx);
 	uc_put_hdr(UC, CMD_WIRED);
-	send_check_empty(ctx);
+	dump_linkconf(ctx, send_check(ctx));
 }
 
 static void cmd_scan(struct top* ctx)
@@ -101,7 +101,7 @@ static void cmd_roaming(struct top* ctx)
 	uc_put_hdr(UC, CMD_ROAMING);
 	maybe_put_ifi(ctx);
 	no_other_options(ctx);
-	send_check_empty(ctx);
+	dump_linkconf(ctx, send_check(ctx));
 }
 
 static void cmd_fixedap(struct top* ctx)
@@ -121,7 +121,7 @@ static void cmd_fixedap(struct top* ctx)
 		put_psk_input(ctx, ssid);
 
 	no_other_options(ctx);
-	send_check_empty(ctx);
+	dump_linkconf(ctx, send_check(ctx));
 }
 
 static void init_args(struct top* ctx, int argc, char** argv)
