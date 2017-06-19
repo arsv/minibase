@@ -152,6 +152,7 @@ struct conn {
 	int fd;
 	int evt;
 	int ifi;
+	int hup;
 };
 
 /* config file parts */

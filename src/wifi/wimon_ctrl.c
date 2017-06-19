@@ -252,10 +252,16 @@ void handle_conn(struct conn* cn)
 	char* buf = rbuf;
 	char* ptr = rbuf;
 	char* end = rbuf + sizeof(rbuf);
-	int flags = 0;
+	int flags = MSG_DONTWAIT;
 	int rb;
+	struct itimerval old, itv = {
+		.interval = { 0, 0 },
+		.value = { TIMEOUT, 0 }
+	};
 
 	struct ucmsg* msg;
+
+	syssetitimer(0, &itv, &old);
 
 	while((rb = sysrecv(fd, ptr, end - ptr, flags)) > 0) {
 		ptr += rb;
@@ -265,56 +271,40 @@ void handle_conn(struct conn* cn)
 			buf += msg->len;
 		}
 
-		if(buf >= ptr) {
+		if(buf >= ptr) { /* no unparsed bytes left */
 			buf = rbuf;
 			ptr = buf;
 			flags = MSG_DONTWAIT;
-		} else if(buf > rbuf) {
+		} else if(buf > rbuf) { /* incomplete msg */
 			memmove(rbuf, buf, ptr - buf);
 			ptr = rbuf + (ptr - buf);
 			buf = rbuf;
 			flags = 0;
-		} if(ptr >= end) {
+		} if(ptr >= end) { /* incomplete msg and no more space */
 			rb = -ENOBUFS;
 			reply(cn, rb);
 			break;
 		}
-	} if(rb < 0 && rb != -EAGAIN) {
+	} if((rb < 0 && rb != -EAGAIN) || cn->hup) {
 		shutdown_conn(cn);
 	}
+
+	syssetitimer(0, &old, NULL);
+	save_config();
 }
 
 void accept_ctrl(int sfd)
 {
 	int cfd;
-	int gotcmd = 0;
 	struct sockaddr addr;
 	int addr_len = sizeof(addr);
-	struct conn *cn, reserve;
-	struct itimerval itv = {
-		.interval = { 0, 0 },
-		.value = { TIMEOUT, 0 }
-	};
+	struct conn *cn;
 
-	while((cfd = sysaccept(sfd, &addr, &addr_len)) > 0) {
-		syssetitimer(0, &itv, NULL);
-		gotcmd = 1;
-
-		if(!(cn = grab_conn_slot()))
-			memzero(cn = &reserve, sizeof(reserve));
-
-		cn->fd = cfd;
-		handle_conn(cn);
-
-		if(cn == &reserve)
-			shutdown_conn(&reserve);
-	} if(gotcmd) {
-		/* disable the timer in case it has been set */
-		memzero(&itv, sizeof(itv));
-		syssetitimer(0, &itv, NULL);
-	}
-
-	save_config();
+	while((cfd = sysaccept(sfd, &addr, &addr_len)) > 0)
+		if((cn = grab_conn_slot()))
+			cn->fd = cfd;
+		else
+			sysclose(cfd);
 }
 
 void unlink_ctrl(void)

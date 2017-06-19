@@ -258,13 +258,10 @@ static void recv_client(struct pollfd* pf, struct conn* cn)
 {
 	if(!(cn->fd)) /* should not happen */
 		return;
-
-	if(pf->revents & POLLIN) {
+	if(pf->revents & POLLHUP)
+		cn->hup = 1;
+	if(pf->revents & (POLLIN | POLLHUP))
 		handle_conn(cn);
-	} if(pf->revents & ~POLLIN) {
-		sysclose(cn->fd);
-		free_conn_slot(cn);
-	}
 }
 
 static void check_polled_fds(void)
