@@ -19,13 +19,14 @@ ERRLIST = {
 	RESTASNUMBERS
 };
 
-#define OPTS "drsepw"
+#define OPTS "drsepwz"
 #define OPT_d (1<<0)
 #define OPT_r (1<<1)
 #define OPT_s (1<<2)
 #define OPT_e (1<<3)
 #define OPT_p (1<<4)
 #define OPT_w (1<<5)
+#define OPT_z (1<<6)
 
 static void no_other_options(struct top* ctx)
 {
@@ -124,6 +125,21 @@ static void cmd_fixedap(struct top* ctx)
 	dump_linkconf(ctx, send_check(ctx));
 }
 
+static void cmd_forget(struct top* ctx)
+{
+	char* ssid;
+
+	uc_put_hdr(UC, CMD_SETPRIO);
+
+	if(!(ssid = shift_opt(ctx)))
+		fail("ssid required", NULL, 0);
+
+	uc_put_bin(UC, ATTR_SSID, ssid, strlen(ssid));
+
+	no_other_options(ctx);
+	send_check_empty(ctx);
+}
+
 static void init_args(struct top* ctx, int argc, char** argv)
 {
 	int i = 1;
@@ -147,6 +163,8 @@ int main(int argc, char** argv)
 
 	if(use_opt(ctx, OPT_d))
 		cmd_neutral(ctx);
+	else if(use_opt(ctx, OPT_z))
+		cmd_forget(ctx);
 	else if(use_opt(ctx, OPT_s))
 		cmd_scan(ctx);
 	else if(use_opt(ctx, OPT_w))

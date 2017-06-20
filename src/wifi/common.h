@@ -2,11 +2,11 @@
 
 #define CMD_STATUS       1
 #define CMD_NEUTRAL      2
-#define CMD_ROAMING      3
-#define CMD_FIXEDAP      4
-#define CMD_WIRED        5
-#define CMD_RESET        6
-#define CMD_SCAN         7
+#define CMD_WIRED        3
+#define CMD_SCAN         4
+#define CMD_ROAMING      5
+#define CMD_FIXEDAP      6
+#define CMD_SETPRIO      7
 
 #define ATTR_LINK        1
 #define ATTR_WIFI        2
