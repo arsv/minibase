@@ -8,7 +8,6 @@
 
 #include <netlink.h>
 #include <sigset.h>
-#include <format.h>
 #include <fail.h>
 
 #include "config.h"
@@ -37,6 +36,15 @@ int npfds;
 
 int sigterm;
 int sigchld;
+
+/* Wimon is almost completely event-driven, with the events normally coming
+   from RTNL/GENL sockets and rfkill device. There's control socket and client
+   connections, SIGCHLD from dhcp and wpa processes, and some scheduled scans.
+   It all gets handled in a single ppoll loop.
+
+   Note wimon neither buffers nor polls any outputs. Writes to NL sockets are
+   assumed to always go through fast, and writes to client connections are
+   guarded with alarms. */
 
 struct task {
 	struct timespec tv;
@@ -175,6 +183,14 @@ void setup_signals(void)
 	if(ret) fail("signal init failed", NULL, 0);
 }
 
+/* GENL, RTNL sockets and the listening control socket remain open
+   for as long as wimon runs, but wimon must be ready to re-open rfkill
+   device fd (see wimon_kill.c) and client connections are expected to
+   come and go quite often.
+
+   To simplify handling, conns[0:nconns] are mapped to pfds[4:nconns+4]
+   regardless of any gaps in conns[] which just get pfds[4+i].fd = -1. */
+
 void update_killfd(void)
 {
 	pfds[3].fd = rfkillfd;
@@ -292,8 +308,8 @@ static void setup_env(char** envp)
 
 /* The children are assumed to die fast and reliably, so signals are only
    sent once and this process waits indefinitely until all of the exit.
-   However, if something goes wrong, the user gets a chance to interrept
-   it with a second SIGTERM.
+   However, if something goes wrong, the user gets a chance to interrupt
+   the wait with a second SIGTERM.
 
    At this point, NL requests are sent unchecked, and replies (if any)
    do not get read. Continuing with the main loop and waiting for the links
@@ -303,8 +319,6 @@ static void stop_wait_procs(void)
 {
 	sigterm = 0;
 	struct timespec ts = { 1, 0 };
-
-	eprintf("%s\n", __FUNCTION__);
 
 	stop_all_procs();
 	finalize_links();
