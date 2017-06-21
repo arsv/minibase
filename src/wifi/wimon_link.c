@@ -26,16 +26,6 @@ void link_new(struct link* ls)
 	}
 }
 
-static void wired_link_fail(struct link* ls)
-{
-	unlatch(ls->ifi, CONF, -ENETDOWN);
-
-	if(ls->state == LS_STARTING)
-		disable_iface(ls->ifi);
-
-	ls->state = LS_DOWN;
-}
-
 void link_enabled(struct link* ls)
 {
 	if(ls->mode == LM_NOT || ls->mode == LM_OFF)
@@ -43,8 +33,6 @@ void link_enabled(struct link* ls)
 
 	if(ls->flags & S_NL80211)
 		wifi_ready(ls);
-	else /* The link came up but there's no carrier */
-		wired_link_fail(ls);
 }
 
 void link_carrier(struct link* ls)
@@ -128,6 +116,7 @@ void terminate_link(struct link* ls)
 		return;
 
 	ls->state = LS_STOPPING;
+	cancel_scheduled(ls->ifi);
 	unlatch(ls->ifi, CONF, -EINTR);
 
 	wait_link_down(ls);
@@ -164,6 +153,7 @@ void link_gone(struct link* ls)
 {
 	stop_link_procs(ls, 1);
 
+	cancel_scheduled(ls->ifi);
 	unlatch(ls->ifi, ANY, -ENODEV);
 	recheck_alldown_latches();
 
@@ -232,6 +222,22 @@ void stop_link(struct link* ls)
 		link_terminated(ls);
 }
 
+static void check_wired_link(int ifi)
+{
+	struct link* ls;
+
+	if(!(ls = find_link_slot(ifi)))
+		return;
+
+	if(ls->state != LS_STARTING)
+		return;
+
+	unlatch(ls->ifi, CONF, -ENETDOWN);
+	disable_iface(ls->ifi);
+
+	ls->state = LS_DOWN;
+}
+
 int start_wired_link(struct link* ls)
 {
 	if(ls->state == LS_ACTIVE)
@@ -245,6 +251,7 @@ int start_wired_link(struct link* ls)
 
 	if(!(ls->flags & S_ENABLED)) {
 		enable_iface(ls->ifi);
+		schedule(3, check_wired_link, ls->ifi);
 		return 0;
 	} else if(!(ls->flags & S_CARRIER)) {
 		stop_link(ls);
