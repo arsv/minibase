@@ -198,7 +198,8 @@ extern int rfkillfd;
 
 /* wimon.c */
 
-void schedule(void (*call)(void), int secs);
+void schedule(int secs, void (*call)(int), int ifi);
+void cancel_scheduled(int ifi);
 void update_killfd(void);
 
 /* wimon_rtnl.c and wimon_genl.c */
@@ -294,7 +295,6 @@ void waitpids(void);
 
 int load_config(void);
 void save_config(void);
-void drop_config(void);
 
 int chunklen(struct chunk* ck);
 int chunkis(struct chunk* ck, const char* str);

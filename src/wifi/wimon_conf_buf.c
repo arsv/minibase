@@ -66,7 +66,7 @@ void save_config(void)
 	modified = 0;
 }
 
-void drop_config(void)
+void drop_config(int _)
 {
 	if(!config)
 		return;
@@ -155,7 +155,7 @@ int load_config(void)
 		goto out;
 
 	datalen = filesize;
-	schedule(drop_config, 10);
+	schedule(10, drop_config, 0);
 	ret = 0;
 out:	
 	if(fd >= 0)

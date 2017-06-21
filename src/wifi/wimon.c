@@ -8,6 +8,7 @@
 
 #include <netlink.h>
 #include <sigset.h>
+#include <string.h>
 #include <fail.h>
 
 #include "config.h"
@@ -48,16 +49,17 @@ int sigchld;
 
 struct task {
 	struct timespec tv;
-	void (*call)(void);
+	void (*call)(int);
+	int ifi;
 } tasks[NTASKS];
 
-void schedule(void (*call)(void), int secs)
+void schedule(int secs, void (*call)(int), int ifi)
 {
 	struct task* tk;
 	int up;
 
 	for(tk = tasks; tk < tasks + NTASKS; tk++)
-		if(tk->call == call)
+		if(tk->call == call && tk->ifi == ifi)
 			goto got;
 	for(tk = tasks; tk < tasks + NTASKS; tk++)
 		if(!tk->call)
@@ -75,6 +77,16 @@ got:
 	tk->tv.tv_sec = secs;
 	tk->tv.tv_nsec = 0;
 	tk->call = call;
+	tk->ifi = ifi;
+}
+
+void cancel_scheduled(int ifi)
+{
+	struct task* tk;
+
+	for(tk = tasks; tk < tasks + NTASKS; tk++)
+		if(tk->ifi == ifi)
+			memzero(tk, sizeof(*tk));
 }
 
 static void timesub(struct timespec* ta, struct timespec* tb)
@@ -139,7 +151,7 @@ static void update_sched(struct timespec* ts, struct timespec* te)
 		if(tk->tv.tv_nsec > 0)
 			continue;
 
-		(tk->call)();
+		(tk->call)(tk->ifi);
 		tk->call = NULL;
 	};
 }

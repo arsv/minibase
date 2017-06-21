@@ -244,11 +244,16 @@ void start_wifi_scan(void)
 	trigger_scan(wifi.ifi, 0);
 }
 
+static void timed_wifi_scan(int _)
+{
+	start_wifi_scan();
+}
+
 static void idle_then_rescan(void)
 {
 	clear_ap();
 	wifi.state = WS_IDLE;
-	schedule(start_wifi_scan, 60);
+	schedule(60, timed_wifi_scan, WIFI);
 }
 
 static void snap_to_disabled(void)
@@ -435,6 +440,7 @@ static int restart_wifi(void)
 
 	wifi.state = WS_CHANGING;
 	terminate_link(ls);
+	cancel_scheduled(WIFI);
 	reset_scan_counters();
 
 	return 0;
@@ -442,6 +448,7 @@ static int restart_wifi(void)
 
 void wifi_mode_disabled(void)
 {
+	cancel_scheduled(WIFI);
 	snap_to_disabled();
 	save_wifi();
 
