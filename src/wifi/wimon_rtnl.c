@@ -122,7 +122,7 @@ void msg_new_link(struct ifinfomsg* msg)
 		return;
 	if((nlen = strlen(name)) > sizeof(ls->name)-1)
 		return;
-	if(msg->flags & IFF_LOOPBACK)
+	if(msg->flags & (IFF_LOOPBACK | IFF_POINTOPOINT))
 		return;
 	if(!(ls = grab_link_slot(msg->index)))
 		return;
