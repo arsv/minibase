@@ -295,21 +295,25 @@ static void append_line(char* buf, int len)
 	ptr[len] = '\n';
 }
 
-static void change_line(struct line* ls, char* buf, int len)
+static void change_part(char* start, char* end, char* buf, int len)
 {
-	int oldlen = ls->end - ls->start;
+	int oldlen = end - start;
 	int newlen = len;
 
 	int shift = newlen - oldlen;
-	int shlen = config + datalen - ls->end;
+	int shlen = config + datalen - end;
 
 	if(extend_config(shift))
 		return;
 
-	memmove(ls->end + shift, ls->end, shlen);
-	memcpy(ls->start, buf, len);
+	memmove(end + shift, end, shlen);
+	memcpy(start, buf, len);
+}
 
-	ls->start[len] = '\n';
+void change_chunk(struct chunk* ck, char* str)
+{
+	change_part(ck->start, ck->end, str, strlen(str));
+	modified = 1;
 }
 
 void drop_line(struct line* ln)
@@ -333,7 +337,7 @@ void save_line(struct line* ls, char* buf, int len)
 	if(!ls->start)
 		append_line(buf, len);
 	else
-		change_line(ls, buf, len);
+		change_part(ls->start, ls->end, buf, len);
 
 	modified = 1;
 }

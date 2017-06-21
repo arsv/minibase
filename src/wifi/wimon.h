@@ -302,6 +302,7 @@ int find_line(struct line* ln, char* pref, int i, char* val);
 int split_line(struct line* ln, struct chunk* ck, int nc);
 void save_line(struct line* ls, char* buf, int len);
 void drop_line(struct line* ln);
+void change_chunk(struct chunk* ck, char* str);
 
 /* wimon_conf_data.c */
 
@@ -312,7 +313,8 @@ int saved_psk_prio(uint8_t* ssid, int slen);
 
 int load_psk(uint8_t* ssid, int slen, char* buf, int len);
 void save_psk(uint8_t* ssid, int slen, char* psk);
-void drop_psk(uint8_t* ssid, int slen);
+int drop_psk(uint8_t* ssid, int slen);
+int set_psk_prio(uint8_t* ssid, int slen, int prio);
 
 void load_wifi(struct link* ls);
 void save_wifi(void);

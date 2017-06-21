@@ -200,6 +200,39 @@ static int cmd_wired(struct conn* cn, struct ucmsg* msg)
 	return setlatch(cn, ifi, CONF);
 }
 
+static int cmd_setprio(struct conn* cn, struct ucmsg* msg)
+{
+	int prio, *pptr;
+	struct ucattr* at;
+	int ret;
+
+	if(!(at = uc_get(msg, ATTR_SSID)))
+		return -EINVAL;
+
+	uint8_t* ssid = uc_payload(at);
+	int slen = uc_paylen(at);
+
+	if((pptr = uc_get_int(msg, ATTR_PRIO))) {
+		prio = *pptr;
+
+		if(prio > 9)
+			prio = 9;
+	} else {
+		prio = saved_psk_prio(ssid, slen);
+
+		if(prio < 2)
+			prio = 2;
+		else if(prio < 9)
+			prio++;
+	}
+
+	if((ret = set_psk_prio(ssid, slen, prio)) < 0)
+		return ret;
+
+	save_config();
+	return 0;
+}
+
 static int cmd_status(struct conn* cn, struct ucmsg* msg)
 {
 	rep_status(cn);
@@ -214,6 +247,7 @@ static const struct cmd {
 	{ CMD_NEUTRAL, cmd_neutral },
 	{ CMD_ROAMING, cmd_roaming },
 	{ CMD_FIXEDAP, cmd_fixedap },
+	{ CMD_SETPRIO, cmd_setprio },
 	{ CMD_WIRED,   cmd_wired   },
 	{ CMD_SCAN,    cmd_scan    },
 	{ 0,           NULL        }

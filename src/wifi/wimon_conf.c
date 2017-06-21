@@ -204,16 +204,30 @@ void save_psk(uint8_t* ssid, int slen, char* psk)
 	save_line(&ln, buf, p - buf);
 }
 
-void drop_psk(uint8_t* ssid, int slen)
+int set_psk_prio(uint8_t* ssid, int slen, int prio)
 {
 	struct line ln;
 	char ssidstr[3*32+4];
 	prep_ssid(ssidstr, sizeof(ssidstr), ssid, slen);
+	struct chunk ck[4];
 
-	if(load_config()) return;
+	if(load_config())
+		return -ENOENT;
+	if(find_line(&ln, "psk", 3, ssidstr))
+		return -ENOENT;
 
-	find_line(&ln, "psk", 3, ssidstr);
-	drop_line(&ln);
+	if(prio >= 10)
+		return -EINVAL;
+	if(prio < 0)
+		drop_line(&ln);
+	else if(split_line(&ln, ck, 3) < 3)
+		return -EBADSLT;
+	else {
+		char buf[2] = { '0' + prio, '\0' };
+		change_chunk(&ck[2], buf);
+	}
+
+	return 0;
 }
 
 static char* get_ifname(int ifi)

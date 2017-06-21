@@ -19,14 +19,17 @@ ERRLIST = {
 	RESTASNUMBERS
 };
 
-#define OPTS "drsepwz"
-#define OPT_d (1<<0)
-#define OPT_r (1<<1)
-#define OPT_s (1<<2)
-#define OPT_e (1<<3)
-#define OPT_p (1<<4)
-#define OPT_w (1<<5)
-#define OPT_z (1<<6)
+#define OPTS "abcdeprswz"
+#define OPT_a (1<<0)
+#define OPT_b (1<<1)
+#define OPT_c (1<<2)
+#define OPT_d (1<<3)
+#define OPT_e (1<<4)
+#define OPT_p (1<<5)
+#define OPT_r (1<<6)
+#define OPT_s (1<<7)
+#define OPT_w (1<<8)
+#define OPT_z (1<<9)
 
 static void no_other_options(struct top* ctx)
 {
@@ -125,7 +128,7 @@ static void cmd_fixedap(struct top* ctx)
 	dump_linkconf(ctx, send_check(ctx));
 }
 
-static void cmd_forget(struct top* ctx)
+static void cmd_setprio(struct top* ctx, int prio)
 {
 	char* ssid;
 
@@ -135,6 +138,9 @@ static void cmd_forget(struct top* ctx)
 		fail("ssid required", NULL, 0);
 
 	uc_put_bin(UC, ATTR_SSID, ssid, strlen(ssid));
+
+	if(prio < 10)
+		uc_put_int(UC, ATTR_PRIO, prio);
 
 	no_other_options(ctx);
 	send_check_empty(ctx);
@@ -164,7 +170,13 @@ int main(int argc, char** argv)
 	if(use_opt(ctx, OPT_d))
 		cmd_neutral(ctx);
 	else if(use_opt(ctx, OPT_z))
-		cmd_forget(ctx);
+		cmd_setprio(ctx, -1);
+	else if(use_opt(ctx, OPT_a))
+		cmd_setprio(ctx, 2);
+	else if(use_opt(ctx, OPT_b))
+		cmd_setprio(ctx, 1);
+	else if(use_opt(ctx, OPT_c))
+		cmd_setprio(ctx, 0);
 	else if(use_opt(ctx, OPT_s))
 		cmd_scan(ctx);
 	else if(use_opt(ctx, OPT_w))
