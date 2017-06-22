@@ -112,12 +112,27 @@ static int bitgain(int prev, int curr, int bit)
 	return (!(prev & bit) && (curr & bit));
 }
 
+/* Avoid tracking netdevs that lack MAC address.
+   This should exclude ppp ifaces among other things. */
+
+static int looks_like_netcard(struct ifinfomsg* msg)
+{
+	struct nlattr* at;
+
+	if(!(at = ifi_get(msg, IFLA_ADDRESS)))
+		return 0;
+	if(at->len - sizeof(*at) != 6)
+		return 0;
+
+	return 1;
+}
+
 void msg_new_link(struct ifinfomsg* msg)
 {
 	struct link* ls;
 	char* name;
 	int nlen;
-	
+
 	if(!(name = nl_str(ifi_get(msg, IFLA_IFNAME))))
 		return;
 	if((nlen = strlen(name)) > sizeof(ls->name)-1)
@@ -132,6 +147,8 @@ void msg_new_link(struct ifinfomsg* msg)
 
 	if(!ls->ifi) {
 		/* new link notification */
+		if(!looks_like_netcard(msg))
+			return;
 		ls->ifi = msg->index;
 		ls->flags = curr;
 		memcpy(ls->name, name, nlen);
