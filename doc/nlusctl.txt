@@ -40,11 +40,11 @@ a sequence of attributes just like the message payload.
 
 
 Communication is assumed to be synchronous (request-reply). The service
-replies with command == 0 on success, command = (-errno) < 0 on failure.
+replies with .command == 0 on success, .command = (-errno) < 0 on failure.
 There is exactly one reply for each request. It is assumed that the client
 knows what kind of reply to expect for each request issued.
 
-(Provisional: replies with command > 0 are notifications not caused by client
+(Provisional: replies with .command > 0 are notifications not caused by client
 requests. Pulling notifications out of the stream should leave a proper request
 reply sequence. It is up to the service to decide whether to use them, and how.
 Clients that do not expect notifications should treat them as protocol errors.)
@@ -65,17 +65,17 @@ transmission.
 Differences between nlusctl and GENL
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 nlusctl only runs over point-to-point connections. Netlink (RTNL and GENL)
-were apparently planned to have some support for ethernet-like point-to-net
-communication, and thus need .pid field in the request.
+apparently have some support for ethernet-like point-to-net communication,
+which would explain .pid field in the request.
 
-nlusctl does not support asynchronous communication modes.
-Thus no .seq and no ACK or REQUEST flags.
+nlusctl does not support asynchronous communication modes. So no .seq and
+no ACK or REQUEST flags.
 
 There are no multi-part replies in nlusctl. The client is always expected to
 be able to receive the whole message in a reasonable amount of time, and the
 service may drop the connection if it takes too long.
-In GENL, multipart messages apparently relax this assumption, allowing a sort
-of iterator within the kernel to be queried one item at a time.
+In GENL, multipart messages relax this assumption, allowing a sort of iterator
+within the kernel to be queried one item at a time.
 
 In GENL, DUMP flags affect the meaning of the .cmd field.
 In nlusctl, distinct values of the .command field are used for this purpose.
@@ -108,4 +108,4 @@ the key defines the attribute payload, because the enumeration keys they use
 may happen to match (and often do match) unrelated ATTR_* constants.
 
 Otherwise the format of the attributes is the same in GENL, RTNL and nlusct.
-This was done intentionally, to share most of the attribute-parsing code.
+This was done intentionally to share as much parsing code as possible.
