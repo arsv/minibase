@@ -25,11 +25,7 @@ void set_link_mode(struct link* ls, int mode)
 		return;
 
 	ls->mode = mode;
-
-	if(ignored(ls, 1))
-		save_link(ls);
-	else
-		ls->flags |= S_UNSAVED;
+	save_link(ls);
 }
 
 void link_new(struct link* ls)
@@ -88,10 +84,6 @@ void link_ipaddr(struct link* ls)
 
 	unlatch(ls->ifi, CONF, 0);
 
-	if(ls->flags & S_UNSAVED) {
-		save_link(ls);
-		ls->flags &= ~S_UNSAVED;
-	}
 	if(ls->flags & S_NL80211)
 		wifi_connected(ls);
 }

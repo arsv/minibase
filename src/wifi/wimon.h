@@ -16,15 +16,11 @@
 /* link.flags */
 #define S_NL80211  (1<<0)
 #define S_ENABLED  (1<<1)
-#define S_APLOCK   (1<<2)
-#define S_CARRIER  (1<<3)
-#define S_IPADDR   (1<<4)
-#define S_UPLINK   (1<<5)
-
-#define S_CHILDREN (1<<6)
-#define S_SIGSENT  (1<<7)
-#define S_UPCOMING (1<<8)
-#define S_UNSAVED  (1<<9)
+#define S_CARRIER  (1<<2)
+#define S_IPADDR   (1<<3)
+#define S_UPLINK   (1<<4)
+#define S_CHILDREN (1<<5)
+#define S_SIGSENT  (1<<6)
 
 /* link.scan */
 #define SC_NONE        0
