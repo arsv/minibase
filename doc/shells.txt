@@ -1,0 +1,97 @@
+The three kinds of shells the system needs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+There's no POSIX shell in minibase, or anything resembling one, and no plans
+to implement it. This is because conventional POSIX shell is a wrong tool for
+most cases it gets used in.
+
+One of the most prominent issues with POSIX shell is easy to illustrate:
+
+	foo="some text here"
+	bar=`echo "$foo" | tr a-z A-Z`
+
+There is no point in spawning a process (or two) just to do a simple string
+substitution. Definitely not when we take shell size in account; pdksh is about
+as large as lua, and bash is an order of magnitude larger. Somehow the shell
+strives to be a proper language and at the same time fails badly at it.
+
+Another issue is that traditionally the shell was meant to be used both as
+an interactive application and as a scripting language. Interactivity costs
+a lot in terms of code, dependencies, and design trade-offs. This is widely
+realized, and several prominent distros now use something simpler than
+a full-blown interactive shell to run their scripts.
+
+So what should replace POSIX shell in minibase? I would argue that there
+should be three separate applications (or three classes of applications)
+handling the tasks traditionally relegated to the shell:
+
+  1. dumb batch command runner
+  2. proper scripting language
+  3. interactive shell
+
+The following is an attempt to justify this split, and chart the roadmap
+for future implementation.
+
+
+The dumb batch command runner
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Lots of shell scripts (and shell use cases in general) do not involve any
+flow control. No loops, often no conditions, just a list of commands to run.
+A "language" that's just enough to run them can be made *really* small.
+
+The batch runner should be able to parse argv[]s from a file and exec them.
+Its primary goal is to lessen the pressure on the scripting language, making
+it less likely to be used for trivial cases when things like startup time
+become noticeable. Careful choice of built-ins can also extend its capability
+pretty far, perhaps completely covering system startup for instance.
+
+This thing is already in minibase, it's called msh.
+
+
+The scripting language
+~~~~~~~~~~~~~~~~~~~~~~
+This language should take over any non-trivial shell scripts. That is, anything
+with loops, conditions, or error recovery.
+
+Since msh already took over the trivial scripts, this one won't be called for
+no reason, so it does not need to be particularly small or particularly simple. 
+It should be able to run external commands with ease, but it can be so with
+something like system(), it does not need to look like shell.
+
+One possible description for such a language could be: a much simpler Perl.
+That's how Perl originated anyway. If so, it could probably take over sed,
+awk, grep and most of minor tools like kill. Also any uses of ls, find, ps
+for scripting. Anything dealing text files or pipes in traditional Unix way
+could then be done completely within this language, and likely within a single
+process.
+
+# Note "much simplified" Perl means no CPAN and NO F*#$%&% MODULES.
+
+Another option could be Lua, with built-ins necessary to make it into
+a system scripting language. Stuff like process control, non-portable file
+ops, easy access to common /etc formats.
+
+
+The interactive shell
+~~~~~~~~~~~~~~~~~~~~~
+This is the only one of them that needs to deal with keyboard input and
+human-readable output on regular basis. The key point: it does not need
+to look like anything resembling bash or POSIX shell at all!
+
+Instead it should look more like a cross between mc and vi.
+
+There's no need for it to have anything resembling a programming language
+at all, there are two of them already. It may provide some sort of editor
+to edit and debug scripts into languages (aka command line) but it should
+also be able to highlight files matching a pattern and run a command on them
+the same way vi(m) runs interactive search&replace.
+
+It should definitely spare the user from typing ls all the time, or using
+find for that matter. Between this and the scripting language, find and ls
+should disappear as standalone commands.
+
+The interactive shell should also handle background jobs somehow.
+Not the bash way probably, because it makes no sense. More likely that it
+should be able to switch between running commands like screen or tmux or
+dtach. It is not yet clear how exactly it should work. TTY multiplexer is
+a things on its own, so most likely it's got to be at least two processes
+interacting to achieve switching.
