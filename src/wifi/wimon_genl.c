@@ -125,7 +125,7 @@ static void msg_new_wifi(struct link* ls, struct nlgen* msg)
 {
 	ls->flags |= S_NL80211;
 
-	wifi_ready(ls);
+	link_wifi(ls);
 }
 
 static void msg_new_wifi_early(int ifi, struct nlgen* msg)

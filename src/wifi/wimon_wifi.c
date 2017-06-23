@@ -216,11 +216,12 @@ int grab_wifi_device(int rifi)
 	wifi.ifi = ifi = 0;
 
 	for(ls = links; ls < links + nlinks; ls++) {
-		if(!ls->ifi || ls->mode == LM_NOT)
+		if(!ls->ifi)
 			continue;
 		if(!(ls->flags & S_NL80211))
 			continue;
-
+		if(ls->mode == LM_NOT)
+			continue;
 		if(!ifi)
 			ifi = ls->ifi;
 		else
@@ -431,6 +432,13 @@ static int restart_wifi(void)
 	if(ls->state == LS_STOPPING)
 		return 0;
 
+	set_link_mode(ls, LM_DHCP);
+
+	if(!(ls->flags & S_ENABLED))
+		enable_iface(ls->ifi);
+	else if(ls->flags & S_CARRIER)
+		terminate_link(ls);
+
 	if(ws == WS_SCANNING)
 		return 0;
 	if(ws == WS_NONE || ws == WS_IDLE) {
@@ -439,7 +447,6 @@ static int restart_wifi(void)
 	}
 
 	wifi.state = WS_CHANGING;
-	terminate_link(ls);
 	cancel_scheduled(WIFI);
 	reset_scan_counters();
 

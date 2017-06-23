@@ -89,16 +89,21 @@ void save_link(struct link* ls)
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
 
-	p = fmtstr(p, e, "link");
-	p = fmtstr(p, e, " ");
-	p = fmtstr(p, e, ls->name);
-	p = fmtstr(p, e, " ");
-	p = fmt_link_mode(p, e, ls);
-
-	if(load_config()) return;
+	if(load_config())
+		return;
 
 	find_line(&ln, "link", 1, ls->name);
-	save_line(&ln, buf, p - buf);
+
+	if(ls->mode == LM_FREE) {
+		drop_line(&ln);
+	} else {
+		p = fmtstr(p, e, "link");
+		p = fmtstr(p, e, " ");
+		p = fmtstr(p, e, ls->name);
+		p = fmtstr(p, e, " ");
+		p = fmt_link_mode(p, e, ls);
+		save_line(&ln, buf, p - buf);
+	}
 }
 
 static void prep_ssid(char* buf, int len, uint8_t* ssid, int slen)

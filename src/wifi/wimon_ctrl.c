@@ -192,7 +192,7 @@ static int cmd_wired(struct conn* cn, struct ucmsg* msg)
 
 	wifi_mode_disabled();
 	stop_links_except(ls->ifi);
-	ls->mode = LM_DHCP;
+	set_link_mode(ls, LM_DHCP);
 
 	if((ret = start_wired_link(ls)) < 0)
 		return ret;

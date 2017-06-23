@@ -1,9 +1,36 @@
 #include <bits/errno.h>
 #include <string.h>
+#include <format.h>
 
 #include "wimon.h"
 
 struct uplink uplink;
+
+static int ignored(struct link* ls, int off)
+{
+	switch(ls->mode) {
+		case LM_FREE:
+		case LM_NOT:
+			return 1;
+		case LM_OFF:
+			return off;
+		default:
+			return 0;
+	}
+}
+
+void set_link_mode(struct link* ls, int mode)
+{
+	if(ls->mode == mode)
+		return;
+
+	ls->mode = mode;
+
+	if(ignored(ls, 1))
+		save_link(ls);
+	else
+		ls->flags |= S_UNSAVED;
+}
 
 void link_new(struct link* ls)
 {
@@ -11,8 +38,9 @@ void link_new(struct link* ls)
 
 	load_link(ls);
 
-	if(ls->mode == LM_NOT)
+	if(ignored(ls, 0))
 		return;
+
 	if(ls->mode == LM_OFF) {
 		if(ls->flags & S_ENABLED)
 			disable_iface(ifi);
@@ -26,20 +54,26 @@ void link_new(struct link* ls)
 	}
 }
 
+void link_wifi(struct link* ls)
+{
+	if(ignored(ls, 1))
+		return;
+	if(ls->flags & S_ENABLED)
+		wifi_ready(ls);
+}
+
 void link_enabled(struct link* ls)
 {
-	if(ls->mode == LM_NOT || ls->mode == LM_OFF)
+	if(ignored(ls, 1))
 		return;
-
 	if(ls->flags & S_NL80211)
 		wifi_ready(ls);
 }
 
 void link_carrier(struct link* ls)
 {
-	if(ls->mode == LM_NOT || ls->mode == LM_OFF)
+	if(ignored(ls, 1))
 		return;
-
 	if(ls->mode == LM_STATIC)
 		; /* XXX */
 	else if(ls->mode == LM_LOCAL)
@@ -54,6 +88,10 @@ void link_ipaddr(struct link* ls)
 
 	unlatch(ls->ifi, CONF, 0);
 
+	if(ls->flags & S_UNSAVED) {
+		save_link(ls);
+		ls->flags &= ~S_UNSAVED;
+	}
 	if(ls->flags & S_NL80211)
 		wifi_connected(ls);
 }
@@ -184,14 +222,16 @@ int stop_all_links(void)
 	int down = 0;
 
 	for(ls = links; ls < links + nlinks; ls++) {
-		if(!ls->ifi || ls->mode == LM_NOT)
+		if(!ls->ifi)
+			continue;
+		if(ignored(ls, 1))
 			continue;
 		if(!(ls->flags & (S_CHILDREN | S_IPADDR)))
 			continue;
 
 		terminate_link(ls);
 
-		if(ls->flags & S_STOPPING)
+		if(ls->state == LS_STOPPING)
 			down++;
 	}
 
@@ -202,24 +242,19 @@ void stop_links_except(int ifi)
 {
 	struct link* ls;
 
-	for(ls = links; ls < links + nlinks; ls++)
+	for(ls = links; ls < links + nlinks; ls++) {
 		if(ls->ifi == ifi)
+			continue;
+		else if(ignored(ls, 1))
 			continue;
 		else if(ls->state == LS_DOWN)
 			continue;
 		else if(ls->state == LS_STOPPING)
 			continue;
-		else terminate_link(ls);
-}
 
-void stop_link(struct link* ls)
-{
-	ls->mode = LM_OFF;
-
-	if(ls->state)
 		terminate_link(ls);
-	else
-		link_terminated(ls);
+		set_link_mode(ls, LM_OFF);
+	}
 }
 
 static void check_wired_link(int ifi)
@@ -254,7 +289,7 @@ int start_wired_link(struct link* ls)
 		schedule(3, check_wired_link, ls->ifi);
 		return 0;
 	} else if(!(ls->flags & S_CARRIER)) {
-		stop_link(ls);
+		set_link_mode(ls, LM_OFF);
 		return -ENETDOWN;
 	} else {
 		link_carrier(ls);

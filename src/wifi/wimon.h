@@ -22,9 +22,9 @@
 #define S_UPLINK   (1<<5)
 
 #define S_CHILDREN (1<<6)
-#define S_STOPPING (1<<7)
-#define S_SIGSENT  (1<<8)
-#define S_UPCOMING (1<<9)
+#define S_SIGSENT  (1<<7)
+#define S_UPCOMING (1<<8)
+#define S_UNSAVED  (1<<9)
 
 /* link.scan */
 #define SC_NONE        0
@@ -34,11 +34,12 @@
 #define SC_DUMPING     4
 
 /* link.mode */
-#define LM_DHCP        0
-#define LM_NOT         1
-#define LM_OFF         2
-#define LM_LOCAL       3
-#define LM_STATIC      4
+#define LM_FREE        0   /* no idea what this device is, leave it be */
+#define LM_NOT         1   /* do not touch this device                 */
+#define LM_OFF         2   /* keep this device disabled                */
+#define LM_DHCP        3   /* run dhcp on this device when appropriate */
+#define LM_LOCAL       4   /* run dhcp in local mode on this device    */
+#define LM_STATIC      5   /* set pre-defined ip for this device       */
 
 /* link.state */
 #define LS_DOWN        0
@@ -249,6 +250,7 @@ void free_conn_slot(struct conn* cn);
 void link_new(struct link* ls);
 void link_gone(struct link* ls);
 void link_down(struct link* ls);
+void link_wifi(struct link* ls);
 void link_nl80211(struct link* ls);
 void link_enabled(struct link* ls);
 void link_carrier(struct link* ls);
@@ -265,6 +267,7 @@ void stop_links_except(int ifi);
 int switch_uplink(int ifi);
 void stop_link(struct link* ls);
 int start_wired_link(struct link* ls);
+void set_link_mode(struct link* ls, int mode);
 
 /* wimon_wifi.c */
 
