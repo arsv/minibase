@@ -109,22 +109,33 @@ static void timesub(struct timespec* ta, struct timespec* tb)
 		ta->tv_sec = 0;
 }
 
+static int timecmp(struct timespec* a, struct timespec* b)
+{
+	if(a->tv_sec > b->tv_sec)
+		return 1;
+	if(a->tv_sec < b->tv_sec)
+		return -1;
+	if(a->tv_nsec > b->tv_nsec)
+		return 1;
+	if(a->tv_nsec < b->tv_nsec)
+		return -1;
+	return 0;
+}
+
 static struct timespec* poll_timeout(struct timespec* ts, struct timespec* te)
 {
 	struct task* tk;
 	struct timespec *pt = NULL;
 
-	for(tk = tasks; tk < tasks + NTASKS; tk++) {
+	for(tk = tasks; tk < tasks + NTASKS; tk++)
 		if(!tk->call)
 			continue;
-		if(!pt)
+		else if(!pt)
 			*(pt = te) = tk->tv;
-		else if(pt->tv_sec > tk->tv.tv_sec)
+		else if(timecmp(&tk->tv, pt) > 0)
 			continue;
-		else if(pt->tv_nsec > tk->tv.tv_nsec)
-			continue;
-		else *pt = tk->tv;
-	}
+		else
+			*pt = tk->tv;
 
 	if(pt) *ts = *pt;
 
