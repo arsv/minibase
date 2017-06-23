@@ -21,6 +21,7 @@
 #define S_UPLINK   (1<<4)
 #define S_CHILDREN (1<<5)
 #define S_SIGSENT  (1<<6)
+#define S_PROBE    (1<<7)
 
 /* link.scan */
 #define SC_NONE        0
@@ -256,14 +257,14 @@ void link_child_exit(struct link* ls, int status);
 void recheck_alldown_latches(void);
 
 int any_pids_left(void);
-int any_stopping_links(void);
 void terminate_link(struct link* ls);
 void finalize_links(void);
-void stop_links_except(int ifi);
+int stop_links_except(int ifi);
 int switch_uplink(int ifi);
 void stop_link(struct link* ls);
 int start_wired_link(struct link* ls);
 void set_link_mode(struct link* ls, int mode);
+void mark_starting(struct link* ls, int secs);
 
 /* wimon_wifi.c */
 

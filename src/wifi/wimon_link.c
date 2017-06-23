@@ -28,6 +28,46 @@ void set_link_mode(struct link* ls, int mode)
 	save_link(ls);
 }
 
+/* Timed link startup. In some cases the link may fail to change
+   state, and wimon must be ready to handle it. */
+
+static void check_starting_link(int ifi)
+{
+	struct link* ls;
+
+	if(!(ls = find_link_slot(ifi)))
+		return;
+	if(ls->state != LS_STARTING)
+		return;
+
+	unlatch(ls->ifi, CONF, -ETIMEDOUT);
+	terminate_link(ls);
+}
+
+void mark_starting(struct link* ls, int secs)
+{
+	ls->state = LS_STARTING;
+	schedule(secs, check_starting_link, ls->ifi);
+}
+
+/* Degenerate equivalents of wifi_conn* for wired links. */
+
+static void wired_connected(struct link* ls)
+{
+	ls->flags &= ~S_PROBE;
+}
+
+static void wired_conn_fail(struct link* ls)
+{
+	if(!(ls->flags & S_PROBE))
+		return;
+
+	ls->flags &= ~S_PROBE;
+	set_link_mode(ls, LM_OFF);
+}
+
+/* All link_* functions below are link state change event handlers */
+
 void link_new(struct link* ls)
 {
 	int ifi = ls->ifi;
@@ -86,23 +126,19 @@ void link_ipaddr(struct link* ls)
 
 	if(ls->flags & S_NL80211)
 		wifi_connected(ls);
-}
-
-int any_stopping_links(void)
-{
-	struct link* ls;
-
-	for(ls = links; ls < links + nlinks; ls++)
-		if(ls->state == LS_STOPPING)
-			return 1;
-
-	return 0;
+	else if(ls->flags & S_PROBE)
+		wired_connected(ls);
 }
 
 void link_terminated(struct link* ls)
 {
 	if(ls->flags & S_NL80211)
 		wifi_conn_fail(ls);
+	else
+		wired_conn_fail(ls);
+
+	if(ls->mode == LM_OFF && (ls->flags & S_ENABLED))
+		disable_iface(ls->ifi);
 }
 
 void recheck_alldown_latches(void)
@@ -126,9 +162,6 @@ static void wait_link_down(struct link* ls)
 		return stop_link_procs(ls, 0);
 	if(ls->flags & S_IPADDR)
 		return del_link_addresses(ls->ifi);
-
-	if(ls->flags & S_ENABLED && ls->mode == LM_OFF)
-		disable_iface(ls->ifi);
 
 	ls->state = LS_DOWN;
 
@@ -191,78 +224,45 @@ void link_gone(struct link* ls)
 		wifi_gone(ls);
 }
 
-/* When wimon exits, remove addresses from managed links.
-   This is primarily meant for wireless links but makes some sense
-   for ethernet ports as well. */
+/* When wimon exits, remove addresses from managed links. This is primarily
+   meant for wireless links but makes some sense for ethernet ports as well. */
 
 void finalize_links(void)
 {
 	struct link* ls;
 
 	for(ls = links; ls < links + nlinks; ls++) {
-		if(!ls->ifi || ls->mode == LM_NOT)
-			continue;
-		if(ls->flags & S_IPADDR)
-			del_link_addresses(ls->ifi);
-		/* del_link_routes */
-	}
-}
-
-int stop_all_links(void)
-{
-	struct link* ls;
-	int down = 0;
-
-	for(ls = links; ls < links + nlinks; ls++) {
 		if(!ls->ifi)
 			continue;
 		if(ignored(ls, 1))
 			continue;
-		if(!(ls->flags & (S_CHILDREN | S_IPADDR)))
+		if(!(ls->flags & S_IPADDR))
 			continue;
 
-		terminate_link(ls);
-
-		if(ls->state == LS_STOPPING)
-			down++;
+		del_link_addresses(ls->ifi);
+		/* del_link_routes -- not needed apparently */
 	}
-
-	return down;
 }
 
-void stop_links_except(int ifi)
+int stop_links_except(int ifi)
 {
 	struct link* ls;
+	int stopping = 0;
 
 	for(ls = links; ls < links + nlinks; ls++) {
 		if(ls->ifi == ifi)
 			continue;
 		else if(ignored(ls, 1))
 			continue;
-		else if(ls->state == LS_DOWN)
-			continue;
-		else if(ls->state == LS_STOPPING)
-			continue;
 
 		terminate_link(ls);
 		set_link_mode(ls, LM_OFF);
+
+		if(ls->state == LS_STOPPING)
+			stopping++;
 	}
-}
 
-static void check_wired_link(int ifi)
-{
-	struct link* ls;
-
-	if(!(ls = find_link_slot(ifi)))
-		return;
-
-	if(ls->state != LS_STARTING)
-		return;
-
-	unlatch(ls->ifi, CONF, -ENETDOWN);
-	disable_iface(ls->ifi);
-
-	ls->state = LS_DOWN;
+	return stopping;
 }
 
 int start_wired_link(struct link* ls)
@@ -274,17 +274,20 @@ int start_wired_link(struct link* ls)
 	if(ls->state == LS_STOPPING)
 		return -EAGAIN;
 
-	ls->state = LS_STARTING;
+	eprintf("%s\n", __FUNCTION__);
+	ls->flags |= S_PROBE;
 
-	if(!(ls->flags & S_ENABLED)) {
-		enable_iface(ls->ifi);
-		schedule(3, check_wired_link, ls->ifi);
-		return 0;
-	} else if(!(ls->flags & S_CARRIER)) {
-		set_link_mode(ls, LM_OFF);
+	if(ls->flags & S_CARRIER) {
+		mark_starting(ls, 2);
+		link_carrier(ls);
+	} else if(ls->flags & S_ENABLED) {
+		wired_conn_fail(ls);
 		return -ENETDOWN;
 	} else {
-		link_carrier(ls);
-		return 0;
+		ls->flags |= S_PROBE;
+		mark_starting(ls, 5);
+		enable_iface(ls->ifi);
 	}
+
+	return 0;
 }

@@ -171,9 +171,8 @@ static int cmd_fixedap(struct conn* cn, struct ucmsg* msg)
 static int cmd_neutral(struct conn* cn, struct ucmsg* msg)
 {
 	wifi_mode_disabled();
-	stop_links_except(0);
 
-	if(!any_stopping_links())
+	if(!stop_links_except(0))
 		return 0;
 
 	return setlatch(cn, NONE, DOWN);

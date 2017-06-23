@@ -18,11 +18,12 @@ static int start_wifi(void)
 
 	if(!wifi.ifi)
 		return -EINVAL;
+	if(!(wifi.psk[0]))
+		return -EINVAL;
 	if(!(ls = find_link_slot(wifi.ifi)))
 		return -EINVAL;
 
-	if(!(wifi.psk[0]))
-		return -EINVAL;
+	mark_starting(ls, 2);
 
 	if(allbits(type, ST_RSN_PSK | ST_RSN_P_CCMP | ST_RSN_G_CCMP))
 		spawn_wpa(ls, NULL);
