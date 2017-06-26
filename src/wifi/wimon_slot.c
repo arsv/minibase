@@ -9,13 +9,14 @@
 struct link links[NLINKS];
 struct scan scans[NSCANS];
 struct conn conns[NCONNS];
+struct addr addrs[NADDRS];
 int nlinks;
 int nscans;
 int nconns;
+int naddrs;
+
 struct child children[NCHILDREN];
 int nchildren;
-
-struct uplink uplink; /* single one for now */
 
 /* Some time ago this was done in a more human manner similar to find_*
    functions below, but the code is effectively the same for all kinds
@@ -144,4 +145,61 @@ struct conn* grab_conn_slot(void)
 void free_conn_slot(struct conn* cn)
 {
 	free_slot(conns, &nconns, sizeof(*cn), cn);
+}
+
+struct addr* get_addr(int ifi, int type, struct addr* prev)
+{
+	struct addr* ad;
+
+	if(!prev)
+		ad = addrs;
+	else if(prev < addrs)
+		return NULL;
+	else
+		ad = prev + 1;
+
+	for(; ad < addrs + naddrs; ad++)
+		if(ad->ifi == ifi && ad->type == type)
+			return ad;
+
+	return NULL;
+}
+
+static struct addr* find_addr(int ifi, int type, uint8_t* ip, int mask)
+{
+	struct addr* ad;
+
+	for(ad = get_addr(ifi, type, NULL); ad; ad = get_addr(ifi, type, ad))
+		if(memcmp(ad->ip, ip, 4))
+			continue;
+		else if(ad->mask != mask)
+			continue;
+		else return ad;
+
+	return NULL;
+}
+
+void add_addr(int ifi, int type, uint8_t* ip, int mask)
+{
+	struct addr* ad;
+
+	if((ad = find_addr(ifi, type, ip, mask)))
+		return;
+	if(!(ad = grab_slot(addrs, &naddrs, NADDRS, sizeof(*ad))))
+		return;
+
+	ad->ifi = ifi;
+	ad->type = type;
+	memcpy(ad->ip, ip, 4);
+	ad->mask = mask;
+}
+
+void del_addr(int ifi, int type, uint8_t* ip, int mask)
+{
+	struct addr* ad;
+
+	if(!(ad = find_addr(ifi, type, ip, mask)))
+		return;
+
+	memzero(ad, sizeof(*ad));
 }

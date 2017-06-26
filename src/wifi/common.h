@@ -23,8 +23,7 @@
 #define ATTR_TYPE       18
 #define ATTR_PRIO       19
 #define ATTR_PSK        20
-#define ATTR_IPADDR     21
-#define ATTR_IPMASK     22
+#define ATTR_IPMASK     21
 
 /* ATTR_LINK > ATTR_STATE */
 #define LINK_OFF         1

@@ -5,6 +5,7 @@
 #define NCHILDREN 10
 #define NTASKS 4
 #define NCONNS 8
+#define NADDRS 16
 
 #define NAMELEN 16
 #define SSIDLEN 32
@@ -49,11 +50,6 @@ struct link {
 	int seq;
 	char name[NAMELEN+2];
 	short flags;
-	short defrt;
-
-	uint8_t ip[4];
-	uint8_t mask;
-
 	short mode;
 	short state;
 	short rfk;
@@ -129,19 +125,16 @@ struct wifi {
 	char psk[2*32+1];
 };
 
-/* Primary gateway control and tracking. This is mostly to tell whether
-   wimon should stop one interface before attempting to start another. */
+/* Tracked ip addresses */
 
-#define UL_NONE      0
-#define UL_DOWN     -1
-#define UL_WIFI     -2
-#define UL_EXTERNAL -3
-/* and anything positive means fixed uplink ifi */
+#define ADDR_IFACE  1
+#define ADDR_UPLINK 2
 
-struct uplink {
+struct addr {
 	int ifi;
-	int cnt;
-	uint8_t gw[4];
+	uint8_t ip[4];
+	uint8_t mask;
+	uint8_t type;
 };
 
 /* client (wictl) connections */
@@ -241,6 +234,10 @@ void free_child_slot(struct child* ch);
 struct conn* grab_conn_slot(void);
 struct conn* find_conn_slot(int fd);
 void free_conn_slot(struct conn* cn);
+
+void add_addr(int ifi, int type, uint8_t* ip, int mask);
+void del_addr(int ifi, int type, uint8_t* ip, int mask);
+struct addr* get_addr(int ifi, int type, struct addr* prev);
 
 /* wimon_link.c */
 

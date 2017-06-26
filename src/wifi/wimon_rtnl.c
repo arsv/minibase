@@ -197,10 +197,12 @@ void msg_new_addr(struct ifaddrmsg* msg)
 	if(ls->flags & S_IPADDR)
 		return;
 
-	memcpy(ls->ip, ip, 4);
-	ls->mask = msg->prefixlen;
-	ls->flags |= S_IPADDR;
+	add_addr(ls->ifi, ADDR_IFACE, ip, msg->prefixlen);
 
+	if(ls->flags & S_IPADDR)
+		return;
+
+	ls->flags |= S_IPADDR;
 	link_ipaddr(ls);
 }
 
@@ -215,13 +217,13 @@ void msg_del_addr(struct ifaddrmsg* msg)
 		return;
 	if(!(ls->flags & S_IPADDR))
 		return;
-	if(memcmp(ls->ip, ip, 4))
+
+	del_addr(ls->ifi, ADDR_IFACE, ip, msg->prefixlen);
+
+	if(get_addr(ls->ifi, ADDR_IFACE, NULL))
 		return;
 
-	memzero(ls->ip, 4);
-	ls->mask = 0;
 	ls->flags &= ~S_IPADDR;
-
 	link_ipgone(ls);
 }
 
@@ -230,7 +232,7 @@ void msg_del_addr(struct ifaddrmsg* msg)
 void msg_new_route(struct rtmsg* msg)
 {
 	uint32_t* oif;
-	uint8_t* gw;
+	uint8_t *gw, none[4] = { 0, 0, 0, 0 };
 	struct link* ls;
 
 	if(msg->type != RTN_UNICAST)
@@ -242,27 +244,16 @@ void msg_new_route(struct rtmsg* msg)
 	if(!(ls = find_link_slot(*oif)))
 		return;
 
-	ls->defrt++;
-	ls->flags |= S_UPLINK;
+	if(!(gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
+		gw = none;
 
-	if(uplink.ifi == *oif)
-		uplink.cnt++;
-	if(uplink.ifi)
-		return;
-
-	uplink.ifi = *oif;
-	uplink.cnt = 1;
-
-	if((gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
-		memcpy(uplink.gw, gw, 4);
-	else
-		memset(uplink.gw, 0, 4);
+	add_addr(ls->ifi, ADDR_UPLINK, gw, 0);
 }
 
 void msg_del_route(struct rtmsg* msg)
 {
 	uint32_t* oif;
-	uint8_t* gw;
+	uint8_t *gw, none[4] = { 0, 0, 0, 0 };
 	struct link* ls;
 
 	if(msg->dst_len)
@@ -272,17 +263,10 @@ void msg_del_route(struct rtmsg* msg)
 	if(!(ls = find_link_slot(*oif)))
 		return;
 
-	if(--ls->defrt <= 0)
-		ls->flags &= ~S_UPLINK;
+	if(!(gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
+		gw = none;
 
-	if(uplink.ifi != *oif)
-		return;
-	if(--uplink.cnt <= 0)
-		uplink.ifi = 0;
-
-	if((gw = nl_bin(rtm_get(msg, RTA_GATEWAY), 4)))
-		if(!memcmp(uplink.gw, gw, 4))
-			memset(uplink.gw, 0, 4);
+	del_addr(ls->ifi, ADDR_UPLINK, gw, 0);
 }
 
 /* At most one dump may be running at a time; requesting more results

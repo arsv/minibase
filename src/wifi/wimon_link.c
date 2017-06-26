@@ -4,8 +4,6 @@
 
 #include "wimon.h"
 
-struct uplink uplink;
-
 static int ignored(struct link* ls, int off)
 {
 	switch(ls->mode) {

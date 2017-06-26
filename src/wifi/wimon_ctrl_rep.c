@@ -114,6 +114,20 @@ static int common_link_state(struct link* ls)
 	return LINK_OFF;
 }
 
+static void put_link_addrs(struct ucbuf* uc, struct link* ls)
+{
+	struct addr* ad = NULL;
+
+	while((ad = get_addr(ls->ifi, ADDR_IFACE, ad))) {
+		uint8_t buf[8];
+
+		memcpy(buf, ad->ip, 4);
+		buf[4] = ad->mask;
+
+		uc_put_bin(uc, ATTR_IPMASK, buf, 5);
+	}
+}
+
 static void put_status_links(struct ucbuf* uc)
 {
 	struct link* ls;
@@ -123,15 +137,12 @@ static void put_status_links(struct ucbuf* uc)
 		if(!ls->ifi) continue;
 
 		nn = uc_put_nest(uc, ATTR_LINK);
+
 		uc_put_int(uc, ATTR_IFI,   ls->ifi);
 		uc_put_str(uc, ATTR_NAME,  ls->name);
 		uc_put_int(uc, ATTR_STATE, common_link_state(ls));
 		uc_put_int(uc, ATTR_TYPE,  common_link_type(ls));
-
-		if(ls->flags & S_IPADDR) {
-			uc_put_bin(uc, ATTR_IPADDR, ls->ip, sizeof(ls->ip));
-			uc_put_int(uc, ATTR_IPMASK, ls->mask);
-		}
+		put_link_addrs(uc, ls);
 
 		uc_end_nest(uc, nn);
 	}
@@ -203,15 +214,6 @@ static struct link* get_latched_link(struct conn* cn)
 	return find_link_slot(ifi);
 }
 
-static void put_link_conf(struct ucbuf* uc, struct link* ls)
-{
-	if(!(ls->flags & S_IPADDR))
-		return;
-
-	uc_put_bin(uc, ATTR_IPADDR, ls->ip, sizeof(ls->ip));
-	uc_put_int(uc, ATTR_IPMASK, ls->mask);
-}
-
 static void put_wifi_conf(struct ucbuf* uc)
 {
 	if(wifi.state != WS_CONNECTED)
@@ -232,7 +234,7 @@ void rep_linkconf(struct conn* cn)
 	uc_put_hdr(&uc, 0);
 
 	if((ls = get_latched_link(cn)))
-		put_link_conf(&uc, ls);
+		put_link_addrs(&uc, ls);
 	if(cn->ifi == WIFI)
 		put_wifi_conf(&uc);
 

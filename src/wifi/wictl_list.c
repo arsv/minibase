@@ -110,14 +110,14 @@ static char* fmt_kv(char* p, char* e, attr at, int key, struct dict* dc)
 	return p;
 }
 
-static char* fmt_ip(char* p, char* e, uint8_t* ip, int* mask)
+static char* fmt_ip(char* p, char* e, uint8_t* ip)
 {
-	if(!ip || !mask) return p;
+	if(!ip) return p;
 
 	p = fmtstr(p, e, " ");
 	p = fmtip(p, e, ip);
 	p = fmtstr(p, e, "/");
-	p = fmtint(p, e, *mask);
+	p = fmtint(p, e, ip[4]);
 
 	return p;
 }
@@ -130,8 +130,7 @@ static void dump_link(CTX, AT)
 
 	char* name = uc_sub_str(at, ATTR_NAME);
 	int* ifi = uc_sub_int(at, ATTR_IFI);
-	uint8_t* ip = uc_sub_bin(at, ATTR_IPADDR, 4);
-	int* mask = uc_sub_int(at, ATTR_IPMASK);
+	uint8_t* ip = uc_sub_bin(at, ATTR_IPMASK, 5);
 
 	if(!ifi || !name) return;
 
@@ -141,7 +140,7 @@ static void dump_link(CTX, AT)
 	p = fmtstr(p, e, " ");
 	p = fmtstr(p, e, name);
 	p = fmt_kv(p, e, at, ATTR_STATE, linkstates);
-	p = fmt_ip(p, e, ip, mask);
+	p = fmt_ip(p, e, ip);
 	*p++ = '\n';
 
 	output(ctx, buf, p - buf);
@@ -284,11 +283,10 @@ static void dump_linkattrs(CTX, MSG)
 	char* p = buf;
 	char* e = buf + sizeof(buf);
 
-	uint8_t* ip = uc_get_bin(msg, ATTR_IPADDR, 4);
-	int* mask = uc_get_int(msg, ATTR_IPMASK);
+	uint8_t* ip = uc_get_bin(msg, ATTR_IPMASK, 5);
 
 	p = fmtstr(p, e, "Connected");
-	p = fmt_ip(p, e, ip, mask);
+	p = fmt_ip(p, e, ip);
 
 	output(ctx, buf, p - buf);
 }
