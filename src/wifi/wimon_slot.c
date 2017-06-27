@@ -147,6 +147,12 @@ void free_conn_slot(struct conn* cn)
 	free_slot(conns, &nconns, sizeof(*cn), cn);
 }
 
+/* Address tacking is almost entirely for reporting, wimon itself
+   does not need to know these. Why it is still done: through requests
+   (i.e. wimon doing a sync request to RTNL in ctrl handler) would cause
+   lots of troubles in otherwise async RTNL code, and having wictl query
+   RTNL independently just does not feel right. */
+
 struct addr* get_addr(int ifi, int type, struct addr* prev)
 {
 	struct addr* ad;
