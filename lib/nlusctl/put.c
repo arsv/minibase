@@ -92,6 +92,11 @@ void uc_put_str(struct ucbuf* uc, int key, char* str)
 	return uc_put_bin(uc, key, str, strlen(str) + 1);
 }
 
+void uc_put_flag(struct ucbuf* uc, int key)
+{
+	uc_put_(uc, key, 0);
+}
+
 struct ucattr* uc_put_nest(struct ucbuf* uc, int key)
 {
 	return uc_put_(uc, key, 0);

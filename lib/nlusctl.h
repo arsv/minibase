@@ -34,6 +34,7 @@ void uc_put_end(struct ucbuf* uc);
 void uc_put_bin(struct ucbuf* uc, int key, void* buf, int len);
 void uc_put_int(struct ucbuf* uc, int key, int v);
 void uc_put_str(struct ucbuf* uc, int key, char* str);
+void uc_put_flag(struct ucbuf* uc, int key);
 
 struct ucattr* uc_put_nest(struct ucbuf* uc, int key);
 void uc_end_nest(struct ucbuf* uc, struct ucattr* nest);
