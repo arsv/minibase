@@ -126,6 +126,13 @@ static void put_link_addrs(struct ucbuf* uc, struct link* ls)
 
 		uc_put_bin(uc, ATTR_IPMASK, buf, 5);
 	}
+
+	while((ad = get_addr(ls->ifi, ADDR_UPLINK, ad))) {
+		if(nonzero(ad->ip, 4))
+			uc_put_bin(uc, ATTR_UPLINK, ad->ip, 4);
+		else
+			uc_put_flag(uc, ATTR_UPLINK);
+	}
 }
 
 static void put_status_links(struct ucbuf* uc)

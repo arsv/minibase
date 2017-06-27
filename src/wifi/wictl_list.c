@@ -110,14 +110,37 @@ static char* fmt_kv(char* p, char* e, attr at, int key, struct dict* dc)
 	return p;
 }
 
-static char* fmt_ip(char* p, char* e, uint8_t* ip)
+static char* fmt_ip(char* p, char* e, attr at)
 {
-	if(!ip) return p;
+	if(!at || uc_paylen(at) != 5)
+		return p;
+
+	uint8_t* ip = uc_payload(at);
 
 	p = fmtstr(p, e, " ");
 	p = fmtip(p, e, ip);
 	p = fmtstr(p, e, "/");
 	p = fmtint(p, e, ip[4]);
+
+	return p;
+}
+
+static char* fmt_ul(char* p, char* e, attr at)
+{
+	if(!at) {
+		;
+	} else if(uc_paylen(at) == 4) {
+		p = fmtstr(p, e, " ");
+		p = fmtstr(p, e, "gw");
+		p = fmtstr(p, e, " ");
+		p = fmtip(p, e, uc_payload(at));
+	} else if(uc_paylen(at) == 0) {
+		p = fmtstr(p, e, " ");
+		p = fmtstr(p, e, "uplink");
+	} else {
+		p = fmtstr(p, e, " ");
+		p = fmtstr(p, e, "bogus");
+	}
 
 	return p;
 }
@@ -130,7 +153,6 @@ static void dump_link(CTX, AT)
 
 	char* name = uc_sub_str(at, ATTR_NAME);
 	int* ifi = uc_sub_int(at, ATTR_IFI);
-	uint8_t* ip = uc_sub_bin(at, ATTR_IPMASK, 5);
 
 	if(!ifi || !name) return;
 
@@ -140,15 +162,19 @@ static void dump_link(CTX, AT)
 	p = fmtstr(p, e, " ");
 	p = fmtstr(p, e, name);
 	p = fmt_kv(p, e, at, ATTR_STATE, linkstates);
-	p = fmt_ip(p, e, ip);
+	p = fmt_ip(p, e, uc_sub(at, ATTR_IPMASK));
+	p = fmt_ul(p, e, uc_sub(at, ATTR_UPLINK));
 	*p++ = '\n';
 
 	output(ctx, buf, p - buf);
 }
 
-static char* fmt_ssid(char* p, char* e, uint8_t* ssid, int slen)
+static char* fmt_ssid(char* p, char* e, attr at)
 {
 	int i;
+
+	uint8_t* ssid = uc_payload(at);
+	int slen = uc_paylen(at);
 
 	for(i = 0; i < slen; i++) {
 		if(ssid[i] >= 0x20) {
@@ -180,7 +206,7 @@ static void dump_scan(CTX, AT)
 	p = fmtstr(p, e, " ");
 	p = fmtmac(p, e, bssid);
 	p = fmtstr(p, e, "  ");
-	p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
+	p = fmt_ssid(p, e, ssid);
 	*p++ = '\n';
 
 	output(ctx, buf, p - buf);
@@ -209,23 +235,27 @@ out:
 	return p;
 }
 
-static char* fmt_wifi_ssid(char* p, char* e, attr ssid)
+static char* fmt_wifi_ssid(char* p, char* e, attr ssid, int sep)
 {
-	if(!ssid) goto out;
+	if(!ssid)
+		goto out;
+	if(sep)
+		p = fmtstr(p, e, " ");
 
-	p = fmtstr(p, e, " AP ");
-	p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
+	p = fmtstr(p, e, "AP ");
+	p = fmt_ssid(p, e, ssid);
 out:
 	return p;
 }
 
-static char* fmt_wifi_bssid(char* p, char* e, uint8_t* bssid)
+static char* fmt_wifi_bssid(char* p, char* e, attr at)
 {
-	if(!bssid) goto out;
+	if(!at || uc_paylen(at) != 6)
+		return p;
 
 	p = fmtstr(p, e, " ");
-	p = fmtmac(p, e, bssid);
-out:
+	p = fmtmac(p, e, uc_payload(at));
+
 	return p;
 }
 
@@ -241,8 +271,8 @@ static void dump_wifi(CTX, MSG)
 
 	p = fmtstr(p, e, "WiFi");
 	p = fmt_wifi_iface(p, e, at);
-	p = fmt_wifi_ssid(p, e, uc_sub(at, ATTR_SSID));
-	p = fmt_wifi_bssid(p, e, uc_sub_bin(at, ATTR_BSSID, 6));
+	p = fmt_wifi_ssid(p, e, uc_sub(at, ATTR_SSID), 1);
+	p = fmt_wifi_bssid(p, e, uc_sub(at, ATTR_BSSID));
 	p = fmt_wifi_freq(p, e, uc_sub_int(at, ATTR_FREQ));
 	p = fmt_kv(p, e, at, ATTR_STATE, wifistates);
 	*p++ = '\n';
@@ -277,18 +307,23 @@ static void dump_list(CTX, attr* list, void (*dump)(CTX, AT))
 		dump(ctx, *ap);
 }
 
+static void newline(CTX)
+{
+	output(ctx, "\n", 1);
+}
+
 static void dump_linkattrs(CTX, MSG)
 {
 	char buf[50];
 	char* p = buf;
 	char* e = buf + sizeof(buf);
 
-	uint8_t* ip = uc_get_bin(msg, ATTR_IPMASK, 5);
-
 	p = fmtstr(p, e, "Connected");
-	p = fmt_ip(p, e, ip);
+	p = fmt_ip(p, e, uc_get(msg, ATTR_IPMASK));
+	p = fmt_ul(p, e, uc_get(msg, ATTR_UPLINK));
 
 	output(ctx, buf, p - buf);
+	newline(ctx);
 }
 
 static void dump_wifiattrs(CTX, MSG)
@@ -296,17 +331,17 @@ static void dump_wifiattrs(CTX, MSG)
 	char buf[50];
 	char* p = buf;
 	char* e = buf + sizeof(buf);
+	attr bssid;
 
-	p = fmt_wifi_ssid(p, e, uc_get(msg, ATTR_SSID));
-	p = fmt_wifi_bssid(p, e, uc_get_bin(msg, ATTR_BSSID, 6));
+	if(!(bssid = uc_get(msg, ATTR_BSSID)))
+		return;
+
+	p = fmt_wifi_ssid(p, e, uc_get(msg, ATTR_SSID), 0);
+	p = fmt_wifi_bssid(p, e, bssid);
 	p = fmt_wifi_freq(p, e, uc_get_int(msg, ATTR_FREQ));
 
 	output(ctx, buf, p - buf);
-}
-
-static void newline(CTX)
-{
-	output(ctx, "\n", 1);
+	newline(ctx);
 }
 
 void dump_scanlist(CTX, MSG)
@@ -341,7 +376,6 @@ void dump_linkconf(CTX, MSG)
 
 	dump_linkattrs(ctx, msg);
 	dump_wifiattrs(ctx, msg);
-	newline(ctx);
 
 	fini_output(ctx);
 }

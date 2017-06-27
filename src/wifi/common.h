@@ -24,6 +24,7 @@
 #define ATTR_PRIO       19
 #define ATTR_PSK        20
 #define ATTR_IPMASK     21
+#define ATTR_UPLINK     22
 
 /* ATTR_LINK > ATTR_STATE */
 #define LINK_OFF         1
