@@ -259,6 +259,17 @@ static char* fmt_wifi_bssid(char* p, char* e, attr at)
 	return p;
 }
 
+static char* fmt_name(char* p, char* e, char* name)
+{
+	if(!name)
+		return p;
+
+	p = fmtstr(p, e, " ");
+	p = fmtstr(p, e, name);
+
+	return p;
+}
+
 static void dump_wifi(CTX, MSG)
 {
 	char buf[200];
@@ -319,6 +330,7 @@ static void dump_linkattrs(CTX, MSG)
 	char* e = buf + sizeof(buf);
 
 	p = fmtstr(p, e, "Connected");
+	p = fmt_name(p, e, uc_get_str(msg, ATTR_NAME));
 	p = fmt_ip(p, e, uc_get(msg, ATTR_IPMASK));
 	p = fmt_ul(p, e, uc_get(msg, ATTR_UPLINK));
 

@@ -118,6 +118,9 @@ static void put_link_addrs(struct ucbuf* uc, struct link* ls)
 {
 	struct addr* ad = NULL;
 
+	uc_put_int(uc, ATTR_IFI, ls->ifi);
+	uc_put_str(uc, ATTR_NAME, ls->name);
+
 	while((ad = get_addr(ls->ifi, ADDR_IFACE, ad))) {
 		uint8_t buf[8];
 
