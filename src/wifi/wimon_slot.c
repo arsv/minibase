@@ -194,12 +194,23 @@ void add_addr(int ifi, int type, uint8_t* ip, int mask)
 	ad->mask = mask;
 }
 
+static void free_addr_slot(struct addr* ad)
+{
+	free_slot(addrs, &naddrs, sizeof(*ad), ad);
+}
+
 void del_addr(int ifi, int type, uint8_t* ip, int mask)
 {
 	struct addr* ad;
 
-	if(!(ad = find_addr(ifi, type, ip, mask)))
-		return;
+	if((ad = find_addr(ifi, type, ip, mask)))
+		free_addr_slot(ad);
+}
 
-	memzero(ad, sizeof(*ad));
+void del_all_addrs(int ifi, int type)
+{
+	struct addr* ad = NULL;
+
+	while((ad = get_addr(ifi, type, ad)))
+		free_addr_slot(ad);
 }

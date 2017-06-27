@@ -238,6 +238,7 @@ void free_conn_slot(struct conn* cn);
 void add_addr(int ifi, int type, uint8_t* ip, int mask);
 void del_addr(int ifi, int type, uint8_t* ip, int mask);
 struct addr* get_addr(int ifi, int type, struct addr* prev);
+void del_all_addrs(int ifi, int type);
 
 /* wimon_link.c */
 

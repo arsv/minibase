@@ -223,6 +223,9 @@ void msg_del_addr(struct ifaddrmsg* msg)
 	if(get_addr(ls->ifi, ADDR_IFACE, NULL))
 		return;
 
+	/* msg_del_route does not arrive when link addr gets deleted */
+	del_all_addrs(ls->ifi, ADDR_UPLINK);
+
 	ls->flags &= ~S_IPADDR;
 	link_ipgone(ls);
 }

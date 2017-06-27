@@ -129,6 +129,11 @@ static void put_link_addrs(struct ucbuf* uc, struct link* ls)
 
 		uc_put_bin(uc, ATTR_IPMASK, buf, 5);
 	}
+}
+
+static void put_link_routes(struct ucbuf* uc, struct link* ls)
+{
+	struct addr* ad = NULL;
 
 	while((ad = get_addr(ls->ifi, ADDR_UPLINK, ad))) {
 		if(nonzero(ad->ip, 4))
@@ -153,6 +158,7 @@ static void put_status_links(struct ucbuf* uc)
 		uc_put_int(uc, ATTR_STATE, common_link_state(ls));
 		uc_put_int(uc, ATTR_TYPE,  common_link_type(ls));
 		put_link_addrs(uc, ls);
+		put_link_routes(uc, ls);
 
 		uc_end_nest(uc, nn);
 	}
