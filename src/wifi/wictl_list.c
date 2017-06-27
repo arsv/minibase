@@ -332,7 +332,6 @@ static void dump_linkattrs(CTX, MSG)
 	p = fmtstr(p, e, "Connected");
 	p = fmt_name(p, e, uc_get_str(msg, ATTR_NAME));
 	p = fmt_ip(p, e, uc_get(msg, ATTR_IPMASK));
-	p = fmt_ul(p, e, uc_get(msg, ATTR_UPLINK));
 
 	output(ctx, buf, p - buf);
 	newline(ctx);
