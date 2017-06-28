@@ -95,6 +95,21 @@ void del_link_addresses(int ifi)
 	rtnl_send();
 }
 
+void add_link_address(int ifi, uint8_t* ip, int mask)
+{
+	struct ifaddrmsg* req;
+
+	nl_header(&rtnl, req, RTM_NEWADDR, NLM_F_REPLACE,
+		.family = AF_INET,
+		.prefixlen = mask,
+		.flags = 0,
+		.scope = 0,
+		.index = ifi);
+	nl_put(&rtnl, IFA_LOCAL, ip, 4);
+
+	rtnl_send();
+}
+
 static int iff_to_flags(int flags, int iff)
 {
 	flags &= ~(S_ENABLED | S_CARRIER);

@@ -129,6 +129,7 @@ struct wifi {
 
 #define ADDR_IFACE  1
 #define ADDR_UPLINK 2
+#define ADDR_STATIC 3
 
 struct addr {
 	int ifi;
@@ -203,6 +204,7 @@ void unlink_ctrl(void);
 void handle_rtnl(struct nlmsg* msg);
 void handle_genl(struct nlmsg* msg);
 void del_link_addresses(int ifi);
+void add_link_address(int ifi, uint8_t* ip, int mask);
 
 void trigger_scan(int ifi, int freq);
 void trigger_disconnect(int ifi);

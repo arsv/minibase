@@ -64,6 +64,15 @@ static void wired_conn_fail(struct link* ls)
 	set_link_mode(ls, LM_OFF);
 }
 
+static void set_static_addrs(struct link* ls)
+{
+	struct addr* ad = NULL;
+	int ifi = ls->ifi;
+
+	while((ad = get_addr(ifi, ADDR_STATIC, ad)))
+		add_link_address(ifi, ad->ip, ad->mask);
+}
+
 /* All link_* functions below are link state change event handlers */
 
 void link_new(struct link* ls)
@@ -109,7 +118,7 @@ void link_carrier(struct link* ls)
 	if(ignored(ls, 1))
 		return;
 	if(ls->mode == LM_STATIC)
-		; /* XXX */
+		set_static_addrs(ls);
 	else if(ls->mode == LM_LOCAL)
 		spawn_dhcp(ls, "-g");
 	else if(ls->mode == LM_DHCP)
