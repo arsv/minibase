@@ -21,6 +21,8 @@ void set_link_mode(struct link* ls, int mode)
 {
 	if(ls->mode == mode)
 		return;
+	if(mode != LM_STATIC)
+		del_all_addrs(ls->ifi, ADDR_STATIC);
 
 	ls->mode = mode;
 	save_link(ls);

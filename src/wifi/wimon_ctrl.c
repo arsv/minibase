@@ -178,6 +178,30 @@ static int cmd_neutral(struct conn* cn, struct ucmsg* msg)
 	return setlatch(cn, NONE, DOWN);
 }
 
+static int decide_link_mode(struct link* ls, struct ucmsg* msg)
+{
+	int mode = LM_DHCP;
+	int ipcount = 0;
+	struct ucattr* at;
+	int ifi = ls->ifi;
+	uint8_t* ip;
+
+	del_all_addrs(ifi, ADDR_STATIC);
+
+	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at)) {
+		if(!(ip = uc_is_bin(at, ATTR_IPMASK, 5)))
+			continue;
+		if(ipcount++ > 4)
+			return -EINVAL;
+
+		mode = LM_STATIC;
+		add_addr(ifi, ADDR_STATIC, ip, ip[4]);
+	}
+
+	set_link_mode(ls, mode);
+	return 0;
+}
+
 static int cmd_wired(struct conn* cn, struct ucmsg* msg)
 {
 	int ifi, ret;
@@ -191,8 +215,9 @@ static int cmd_wired(struct conn* cn, struct ucmsg* msg)
 
 	wifi_mode_disabled();
 	stop_links_except(ls->ifi);
-	set_link_mode(ls, LM_DHCP);
 
+	if((ret = decide_link_mode(ls, msg)) < 0)
+		return ret;
 	if((ret = start_wired_link(ls)) < 0)
 		return ret;
 
