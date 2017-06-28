@@ -53,6 +53,26 @@ static const char* nameof(const struct kwd* dict, int val)
 	return NULL;
 }
 
+static void parse_link_extra(struct link* ls, struct chunk* ck, int cn)
+{
+	int i;
+	char* p;
+	uint8_t ip[5];
+
+	for(i = 0; i < cn; i++) {
+		/* parseip wants a string not a chunk */
+		int len = ck->end - ck->start;
+		char str[len+2];
+		memcpy(str, ck->start, len);
+		str[len] = '\0';
+
+		if((p = parseipmask(str, ip, ip+4)) && !*p)
+			add_addr(ls->ifi, ADDR_STATIC, ip, ip[4]);
+		else
+			warn("unknows link keyword", str, 0);
+	}
+}
+
 void load_link(struct link* ls)
 {
 	struct line ln;
@@ -63,10 +83,12 @@ void load_link(struct link* ls)
 		return;
 	if(find_line(&ln, "link", 1, ls->name))
 		return;
-	if(split_line(&ln, ck, cn) < 3)
+	if((cn = split_line(&ln, ck, cn)) < 3)
 		return;
 
 	ls->mode = lookup(linkmodes, &ck[2]);
+
+	parse_link_extra(ls, &ck[3], cn - 3);
 }
 
 static char* fmt_link_mode(char* p, char* e, struct link* ls)
@@ -81,11 +103,26 @@ static char* fmt_link_mode(char* p, char* e, struct link* ls)
 	return p;
 }
 
+static char* put_link_addrs(char* p, char* e, struct link* ls)
+{
+	struct addr* ad = NULL;
+	int ifi = ls->ifi;
+
+	while((ad = get_addr(ifi, ADDR_STATIC, ad))) {
+		p = fmtstr(p, e, " ");
+		p = fmtip(p, e, ad->ip);
+		p = fmtstr(p, e, "/");
+		p = fmtint(p, e, ad->mask);
+	}
+
+	return p;
+}
+
 void save_link(struct link* ls)
 {
 	struct line ln;
 
-	char buf[100];
+	char buf[150];
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
 
@@ -96,14 +133,19 @@ void save_link(struct link* ls)
 
 	if(ls->mode == LM_FREE) {
 		drop_line(&ln);
-	} else {
-		p = fmtstr(p, e, "link");
-		p = fmtstr(p, e, " ");
-		p = fmtstr(p, e, ls->name);
-		p = fmtstr(p, e, " ");
-		p = fmt_link_mode(p, e, ls);
-		save_line(&ln, buf, p - buf);
+		return;
 	}
+
+	p = fmtstr(p, e, "link");
+	p = fmtstr(p, e, " ");
+	p = fmtstr(p, e, ls->name);
+	p = fmtstr(p, e, " ");
+	p = fmt_link_mode(p, e, ls);
+
+	if(ls->mode == LM_STATIC)
+		p = put_link_addrs(p, e, ls);
+
+	save_line(&ln, buf, p - buf);
 }
 
 static void prep_ssid(char* buf, int len, uint8_t* ssid, int slen)
