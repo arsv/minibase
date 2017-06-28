@@ -81,20 +81,6 @@ void disable_iface(int ifi)
 	set_iface_state(ifi, IFF_UP, 0);
 }
 
-void del_link_addresses(int ifi)
-{
-	struct ifaddrmsg* req;
-
-	nl_header(&rtnl, req, RTM_DELADDR, 0,
-		.family = AF_INET,
-		.prefixlen = 0,
-		.flags = 0,
-		.scope = 0,
-		.index = ifi);
-
-	rtnl_send();
-}
-
 void add_link_address(int ifi, uint8_t* ip, int mask)
 {
 	struct ifaddrmsg* req;
@@ -108,6 +94,29 @@ void add_link_address(int ifi, uint8_t* ip, int mask)
 	nl_put(&rtnl, IFA_LOCAL, ip, 4);
 
 	rtnl_send();
+}
+
+static void del_link_address(int ifi, uint8_t* ip, int mask)
+{
+	struct ifaddrmsg* req;
+
+	nl_header(&rtnl, req, RTM_DELADDR, 0,
+		.family = AF_INET,
+		.prefixlen = mask,
+		.flags = 0,
+		.scope = 0,
+		.index = ifi);
+	nl_put(&rtnl, IFA_LOCAL, ip, 4);
+
+	rtnl_send();
+}
+
+void del_link_addresses(int ifi)
+{
+	struct addr* ad = NULL;
+
+	while((ad = get_addr(ifi, ADDR_IFACE, ad)))
+		del_link_address(ifi, ad->ip, ad->mask);
 }
 
 static int iff_to_flags(int flags, int iff)

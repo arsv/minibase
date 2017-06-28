@@ -35,11 +35,6 @@ void stop_link_procs(struct link* ls, int drop)
 	struct child* ch;
 	int ifi = ls->ifi;
 
-	if(ls->flags & S_SIGSENT)
-		return;
-
-	ls->flags |= S_SIGSENT;
-
 	for(ch = children; ch < children + nchildren; ch++) {
 		if(ch->ifi != ifi)
 			continue;

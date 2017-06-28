@@ -22,7 +22,8 @@
 #define S_UPLINK   (1<<4)
 #define S_CHILDREN (1<<5)
 #define S_SIGSENT  (1<<6)
-#define S_PROBE    (1<<7)
+#define S_DELSENT  (1<<7)
+#define S_PROBE    (1<<8)
 
 /* link.scan */
 #define SC_NONE        0
@@ -203,8 +204,8 @@ void accept_ctrl(int sfd);
 void unlink_ctrl(void);
 void handle_rtnl(struct nlmsg* msg);
 void handle_genl(struct nlmsg* msg);
-void del_link_addresses(int ifi);
 void add_link_address(int ifi, uint8_t* ip, int mask);
+void del_link_addresses(int ifi);
 
 void trigger_scan(int ifi, int freq);
 void trigger_disconnect(int ifi);

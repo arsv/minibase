@@ -167,11 +167,19 @@ void recheck_alldown_latches(void)
 
 static void wait_link_down(struct link* ls)
 {
-	if(ls->flags & S_CHILDREN)
-		return stop_link_procs(ls, 0);
-	if(ls->flags & S_IPADDR)
-		return del_link_addresses(ls->ifi);
+	if(ls->flags & S_CHILDREN) {
+		if(!(ls->flags & S_SIGSENT)) {
+			stop_link_procs(ls, 0);
+			ls->flags |= S_SIGSENT;
+		}; return;
+	} if(ls->flags & S_IPADDR) {
+		if(!(ls->flags & S_DELSENT)) {
+			del_link_addresses(ls->ifi);
+			ls->flags |= S_DELSENT;
+		}; return;
+	}
 
+	ls->flags &= ~(S_SIGSENT | S_DELSENT);
 	ls->state = LS_DOWN;
 
 	unlatch(ls->ifi, DOWN, 0);
