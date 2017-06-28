@@ -71,24 +71,44 @@ static void maybe_put_ifi(struct top* ctx)
 	uc_put_int(UC, ATTR_IFI, ifi);
 }
 
+static void maybe_put_ip(struct top* ctx)
+{
+	char *arg, *p;
+	uint8_t ip[5];
+
+	if(!(arg = shift_opt(ctx)))
+		return;
+
+	if(!(p = parseipmask(arg, ip, ip + 4)) || *p)
+		fail("bad ip", arg, 0);
+
+	uc_put_bin(UC, ATTR_IPMASK, ip, 5);
+}
+
 static void cmd_neutral(struct top* ctx)
 {
-	no_other_options(ctx);
 	uc_put_hdr(UC, CMD_NEUTRAL);
+	no_other_options(ctx);
 	send_check_empty(ctx);
 }
 
 static void cmd_status(struct top* ctx)
 {
-	no_other_options(ctx);
 	uc_put_hdr(UC, CMD_STATUS);
+	no_other_options(ctx);
 	dump_status(ctx, send_check(ctx));
 }
 
 static void cmd_wired(struct top* ctx)
 {
-	no_other_options(ctx);
 	uc_put_hdr(UC, CMD_WIRED);
+
+	if(!use_opt(ctx, OPT_a))
+		maybe_put_ifi(ctx);
+
+	maybe_put_ip(ctx);
+	no_other_options(ctx);
+
 	dump_linkconf(ctx, send_check(ctx));
 }
 
@@ -169,6 +189,8 @@ int main(int argc, char** argv)
 
 	if(use_opt(ctx, OPT_d))
 		cmd_neutral(ctx);
+	else if(use_opt(ctx, OPT_e))
+		cmd_wired(ctx);
 	else if(use_opt(ctx, OPT_z))
 		cmd_setprio(ctx, -1);
 	else if(use_opt(ctx, OPT_a))
@@ -181,8 +203,6 @@ int main(int argc, char** argv)
 		cmd_scan(ctx);
 	else if(use_opt(ctx, OPT_w))
 		cmd_roaming(ctx);
-	else if(use_opt(ctx, OPT_e))
-		cmd_wired(ctx);
 	else if(got_any_args(ctx))
 		cmd_fixedap(ctx);
 	else
