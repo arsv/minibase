@@ -27,44 +27,6 @@ ERRLIST = {
 char txbuf[1024];
 char rxbuf[3*1024];
 
-char* parseip(char* p, uint8_t ip[4])
-{
-	int i, n;
-
-	for(i = 0; i < 4; i++) {
-		if(i && *p != '.')
-			return NULL;
-		if(i) p++;
-
-		if(!(p = parseint(p, &n)))
-			return NULL;
-		if(n < 0 || n > 255)
-			return NULL;
-
-		ip[i] = n;
-	}
-
-	return p;
-}
-
-char* parseipmask(char* p, uint8_t ip[5])
-{
-	int n;
-
-	if(!(p = parseip(p, ip)))
-		return p;
-
-	if(*p == '/') {
-		p = parseint(p+1, &n);
-		if(n < 0 || n > 32) return NULL;
-		ip[4] = n;
-	} else {
-		ip[4] = 32;
-	};
-
-	return p;
-}
-
 static int gotall(char* p)
 {
 	return (p && !*p);
@@ -72,7 +34,7 @@ static int gotall(char* p)
 
 static void check_parse_ipmask(uint8_t ip[5], char* arg)
 {
-	if(!gotall(parseipmask(arg, ip)))
+	if(!gotall(parseipmask(arg, ip, ip + 4)))
 		fail("invalid address", arg, 0);
 }
 
@@ -200,7 +162,7 @@ static void setup(struct netlink* nl, int* ifi, char* name)
 	xchk(nl_connect(nl, NETLINK_ROUTE, 0),
 			"netlink connect", NULL);
 
-	if((*ifi = nl_ifindex(nl, name)) <= 0)
+	if((*ifi = getifindex(nl->fd, name)) <= 0)
 		fail("unknown interface", name, 0);
 }
 
