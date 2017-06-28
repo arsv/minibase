@@ -38,6 +38,8 @@ char* parsebyte(char* p, uint8_t* v);
 char* parsebytes(char* p, uint8_t* dst, int len);
 
 char* parsemac(char* p, uint8_t* mac);
+char* parseip(char* p, uint8_t* ip);
+char* parseipmask(char* p, uint8_t* ip, uint8_t* mask);
 
 int printf(const char* fmt, ...);
 int eprintf(const char* fmt, ...);
