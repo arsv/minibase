@@ -19,18 +19,17 @@ ERRLIST = {
 	RESTASNUMBERS
 };
 
-#define OPTS "abcdeprswxz"
+#define OPTS "abcdepswxz"
 #define OPT_a (1<<0)
 #define OPT_b (1<<1)
 #define OPT_c (1<<2)
 #define OPT_d (1<<3)
 #define OPT_e (1<<4)
 #define OPT_p (1<<5)
-#define OPT_r (1<<6)
-#define OPT_s (1<<7)
-#define OPT_w (1<<8)
-#define OPT_x (1<<9)
-#define OPT_z (1<<10)
+#define OPT_s (1<<6)
+#define OPT_w (1<<7)
+#define OPT_x (1<<8)
+#define OPT_z (1<<9)
 
 static void no_other_options(struct top* ctx)
 {
@@ -52,11 +51,40 @@ static int use_opt(struct top* ctx, int opt)
 	return ret;
 }
 
-static char* shift_opt(struct top* ctx)
+static char* peek_arg(struct top* ctx)
 {
-	if(ctx->argi >= ctx->argc)
+	if(ctx->argi < ctx->argc)
+		return ctx->argv[ctx->argi];
+	else
 		return NULL;
-	return ctx->argv[ctx->argi++];
+}
+
+static void shift_arg(struct top* ctx)
+{
+	ctx->argi++;
+}
+
+static char* pop_arg(struct top* ctx)
+{
+	char* arg;
+
+	if((arg = peek_arg(ctx)))
+		shift_arg(ctx);
+
+	return arg;
+}
+
+static int peek_ip(struct top* ctx)
+{
+	char *arg, *p;
+	uint8_t ip[5];
+
+	if(!(arg = peek_arg(ctx)))
+		return 0;
+	if(!(p = parseipmask(arg, ip, ip+4)) || *p)
+		return 0;
+
+	return 1;
 }
 
 static int maybe_put_ifi(struct top* ctx)
@@ -64,7 +92,7 @@ static int maybe_put_ifi(struct top* ctx)
 	char *ifname;
 	int ifi;
 
-	if(!(ifname = shift_opt(ctx)))
+	if(!(ifname = pop_arg(ctx)))
 		return 0;
 	if((ifi = getifindex(ctx->fd, ifname)) <= 0)
 		fail("bad ifname", ifname, ifi);
@@ -84,7 +112,7 @@ static void maybe_put_ip(struct top* ctx)
 	char *arg, *p;
 	uint8_t ip[5];
 
-	if(!(arg = shift_opt(ctx)))
+	if(!(arg = pop_arg(ctx)))
 		return;
 
 	if(!(p = parseipmask(arg, ip, ip + 4)) || *p)
@@ -118,13 +146,10 @@ static void cmd_notouch(struct top* ctx)
 static void cmd_wired(struct top* ctx)
 {
 	uc_put_hdr(UC, CMD_WIRED);
-
-	if(!use_opt(ctx, OPT_a))
+	if(!peek_ip(ctx))
 		maybe_put_ifi(ctx);
-
 	maybe_put_ip(ctx);
 	no_other_options(ctx);
-
 	dump_linkconf(ctx, send_check(ctx));
 }
 
@@ -150,12 +175,12 @@ static void cmd_fixedap(struct top* ctx)
 
 	uc_put_hdr(UC, CMD_FIXEDAP);
 
-	if(!(ssid = shift_opt(ctx)))
+	if(!(ssid = pop_arg(ctx)))
 		fail("ssid required", NULL, 0);
 
 	uc_put_bin(UC, ATTR_SSID, ssid, strlen(ssid));
 
-	if((pass = shift_opt(ctx)))
+	if((pass = pop_arg(ctx)))
 		put_psk_arg(ctx, ssid, pass);
 	else if(use_opt(ctx, OPT_p))
 		put_psk_input(ctx, ssid);
@@ -170,7 +195,7 @@ static void cmd_setprio(struct top* ctx, int prio)
 
 	uc_put_hdr(UC, CMD_SETPRIO);
 
-	if(!(ssid = shift_opt(ctx)))
+	if(!(ssid = pop_arg(ctx)))
 		fail("ssid required", NULL, 0);
 
 	uc_put_bin(UC, ATTR_SSID, ssid, strlen(ssid));
