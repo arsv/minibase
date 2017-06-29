@@ -114,6 +114,8 @@ static int find_wired_link(int rifi)
 	for(ls = links; ls < links + nlinks; ls++) {
 		if(!ls->ifi)
 			continue;
+		if(ls->mode == LM_NOT)
+			continue;
 		if(ls->flags & S_NL80211)
 			continue;
 		if(ifi)
