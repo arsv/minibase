@@ -67,6 +67,17 @@ static void check_new_aps(void)
 	}
 }
 
+static int connectable(struct scan* sc)
+{
+	if(!(sc->flags & SF_GOOD))
+		return 0; /* bad crypto */
+	if(wifi.mode == WM_FIXEDAP)
+		return 1;
+	if(sc->prio <= 0)
+		return 0; /* no PSK */
+	return 1;
+}
+
 static int match_ssid(struct scan* sc)
 {
 	if(wifi.mode != WM_FIXEDAP)
@@ -78,15 +89,38 @@ static int match_ssid(struct scan* sc)
 	return 1;
 }
 
-static int connectable(struct scan* sc)
+/* Impose slight preference for the 5GHz band. Only matters if there are
+   several connectable APs (which is rare in itself) in different bands.
+
+   Signal limit is to avoid picking weak 5GHz APs over strong 2GHz ones.
+   The number is arbitrary and shouldn't matter much as long as it's high
+   enough to not interfere with nearby APs.
+
+   Hard-coded; making it controllable takes way more code than it's worth. */
+
+static int band_score(struct scan* sc)
 {
-	if(!(sc->flags & SF_GOOD))
-		return 0; /* bad crypto */
-	if(wifi.mode == WM_FIXEDAP)
+	if(sc->signal < -7500) /* -75dBm */
+		return 0;
+	if(sc->freq / 1000 == 5) /* 5GHz */
 		return 1;
-	if(sc->prio <= 0)
-		return 0; /* no PSK */
-	return 1;
+	return 0;
+}
+
+static int better(struct scan* sc, struct scan* best)
+{
+       if(!best)
+               return 1;
+       if(sc->prio > best->prio)
+               return 1;
+       if(band_score(sc) > band_score(best))
+               return 1;
+       if(sc->signal > best->signal)
+               return 1;
+       if(sc->tries < best->tries)
+               return 1;
+
+       return 0;
 }
 
 static struct scan* get_best_ap()
@@ -103,16 +137,9 @@ static struct scan* get_best_ap()
 			continue;
 		if(!match_ssid(sc))
 			continue;
-		if(!best)
-			goto set;
-		if(best->prio > sc->prio)
+		if(!better(sc, best))
 			continue;
-		if(best->signal > sc->signal)
-			continue;
-		if(best->tries < sc->tries)
-			continue;
-
-		set: best = sc;
+		best = sc;
 	}
 
 	if(best)
