@@ -19,7 +19,7 @@ ERRLIST = {
 	RESTASNUMBERS
 };
 
-#define OPTS "abcdeprswz"
+#define OPTS "abcdeprswxz"
 #define OPT_a (1<<0)
 #define OPT_b (1<<1)
 #define OPT_c (1<<2)
@@ -29,7 +29,8 @@ ERRLIST = {
 #define OPT_r (1<<6)
 #define OPT_s (1<<7)
 #define OPT_w (1<<8)
-#define OPT_z (1<<9)
+#define OPT_x (1<<9)
+#define OPT_z (1<<10)
 
 static void no_other_options(struct top* ctx)
 {
@@ -58,17 +59,24 @@ static char* shift_opt(struct top* ctx)
 	return ctx->argv[ctx->argi++];
 }
 
-static void maybe_put_ifi(struct top* ctx)
+static int maybe_put_ifi(struct top* ctx)
 {
 	char *ifname;
 	int ifi;
 
 	if(!(ifname = shift_opt(ctx)))
-		return;
+		return 0;
 	if((ifi = getifindex(ctx->fd, ifname)) <= 0)
 		fail("bad ifname", ifname, ifi);
 
 	uc_put_int(UC, ATTR_IFI, ifi);
+	return 1;
+}
+
+static void require_put_ifi(struct top* ctx)
+{
+	if(!maybe_put_ifi(ctx))
+		fail("ifname required", NULL, 0);
 }
 
 static void maybe_put_ip(struct top* ctx)
@@ -97,6 +105,14 @@ static void cmd_status(struct top* ctx)
 	uc_put_hdr(UC, CMD_STATUS);
 	no_other_options(ctx);
 	dump_status(ctx, send_check(ctx));
+}
+
+static void cmd_notouch(struct top* ctx)
+{
+	uc_put_hdr(UC, CMD_NOTOUCH);
+	require_put_ifi(ctx);
+	no_other_options(ctx);
+	send_check_empty(ctx);
 }
 
 static void cmd_wired(struct top* ctx)
@@ -191,6 +207,8 @@ int main(int argc, char** argv)
 		cmd_neutral(ctx);
 	else if(use_opt(ctx, OPT_e))
 		cmd_wired(ctx);
+	else if(use_opt(ctx, OPT_x))
+		cmd_notouch(ctx);
 	else if(use_opt(ctx, OPT_z))
 		cmd_setprio(ctx, -1);
 	else if(use_opt(ctx, OPT_a))
