@@ -257,6 +257,23 @@ static int cmd_setprio(struct conn* cn, struct ucmsg* msg)
 	return 0;
 }
 
+static int cmd_notouch(struct conn* cn, struct ucmsg* msg)
+{
+	int* pifi;
+	struct link* ls;
+
+	if(!(pifi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(*pifi)))
+		return -ENODEV;
+
+	ls->mode = LM_NOT;
+	terminate_link(ls);
+	save_link(ls);
+
+	return 0;
+}
+
 static int cmd_status(struct conn* cn, struct ucmsg* msg)
 {
 	rep_status(cn);
@@ -268,6 +285,7 @@ static const struct cmd {
 	int (*call)(struct conn* cn, struct ucmsg* msg);
 } commands[] = {
 	{ CMD_STATUS,  cmd_status  },
+	{ CMD_NOTOUCH, cmd_notouch },
 	{ CMD_NEUTRAL, cmd_neutral },
 	{ CMD_ROAMING, cmd_roaming },
 	{ CMD_FIXEDAP, cmd_fixedap },

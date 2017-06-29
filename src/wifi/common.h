@@ -7,6 +7,7 @@
 #define CMD_ROAMING      5
 #define CMD_FIXEDAP      6
 #define CMD_SETPRIO      7
+#define CMD_NOTOUCH      8
 
 #define ATTR_LINK        1
 #define ATTR_WIFI        2
