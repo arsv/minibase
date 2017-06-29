@@ -3,14 +3,20 @@
 
 static void* uc_alloc(struct ucbuf* uc, int len)
 {
+	int pad = (4 - len % 4) % 4;
 	void* ret = uc->ptr;
+	void* ptr = ret + len + pad;
+	void* end = uc->end;
 
-	uc->ptr += len + (4 - len % 4) % 4;
-
-	if(uc->ptr > uc->end) {
+	if(ptr > end)
 		uc->over = 1;
+	if(uc->over)
 		return NULL;
-	}
+
+	/* stop valgrind from complaining about uninitialized padding */
+	memzero(ret + len, pad);
+
+	uc->ptr = ptr;
 
 	return ret;
 }
