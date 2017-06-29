@@ -15,8 +15,8 @@ ERRTAG = "wictl";
 ERRLIST = {
 	REPORT(ENOENT), REPORT(EINVAL), REPORT(ENOSYS), REPORT(ENOENT),
 	REPORT(EACCES), REPORT(EPERM), REPORT(EBUSY), REPORT(EALREADY),
-	REPORT(ENETDOWN), REPORT(ENOKEY), REPORT(ENOTCONN),
-	RESTASNUMBERS
+	REPORT(ENETDOWN), REPORT(ENOKEY), REPORT(ENOTCONN), REPORT(ENODEV),
+	REPORT(ETIMEDOUT), RESTASNUMBERS
 };
 
 #define OPTS "abcdepswxz"
@@ -95,7 +95,7 @@ static int maybe_put_ifi(struct top* ctx)
 	if(!(ifname = pop_arg(ctx)))
 		return 0;
 	if((ifi = getifindex(ctx->fd, ifname)) <= 0)
-		fail("bad ifname", ifname, ifi);
+		fail(NULL, ifname, ifi);
 
 	uc_put_int(UC, ATTR_IFI, ifi);
 	return 1;
@@ -104,7 +104,7 @@ static int maybe_put_ifi(struct top* ctx)
 static void require_put_ifi(struct top* ctx)
 {
 	if(!maybe_put_ifi(ctx))
-		fail("ifname required", NULL, 0);
+		fail("interface name required", NULL, 0);
 }
 
 static void maybe_put_ip(struct top* ctx)
