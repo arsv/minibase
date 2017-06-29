@@ -69,6 +69,8 @@ static void put_status_wifi(struct ucbuf* uc)
 	struct ucattr* nn;
 	struct link* ls;
 
+	if(!wifi.mode && !wifi.state)
+		return;
 	if(!(ls = find_link_slot(wifi.ifi)))
 		return;
 
