@@ -94,12 +94,8 @@ static attr find_by_ssid(attr* scans, char* name)
 	attr *sp, sc = NULL;
 
 	for(sp = scans; *sp; sp++)
-		if(!match_name(*sp, name, nlen))
-			continue;
-		else if(!sc)
-			sc = *sp;
-		else
-			fail("ambiguous SSID prefix", NULL, 0);
+		if(match_name(*sp, name, nlen))
+			return *sp;
 	if(!sc)
 		fail("no APs with matching SSID in range", NULL, 0);
 
