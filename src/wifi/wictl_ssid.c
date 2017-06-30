@@ -63,7 +63,7 @@ static attr find_by_bssid(attr* scans, uint8_t* bssid, int bslen)
 	return sc;
 }
 
-static int dotcmp(char* a, char* b, int len)
+static int dotcmp(char* a, char* b, long len)
 {
 	for(; len-- > 0; a++, b++)
 		if(*a == '.')
@@ -74,7 +74,21 @@ static int dotcmp(char* a, char* b, int len)
 	return 0;
 }
 
-static int match_name(attr sc, char* name, int nlen)
+static int match_strict(attr sc, char* name, int nlen)
+{
+	attr at;
+
+	if(!(at = uc_sub(sc, ATTR_SSID)))
+		return 0;
+	if(uc_paylen(at) != nlen)
+		return 0;
+	if(memcmp(name, at->payload, nlen))
+		return 0;
+
+	return 1;
+}
+
+static int match_loose(attr sc, char* name, int nlen)
 {
 	attr at;
 
@@ -91,15 +105,16 @@ static int match_name(attr sc, char* name, int nlen)
 static attr find_by_ssid(attr* scans, char* name)
 {
 	int nlen = strlen(name);
-	attr *sp, sc = NULL;
+	attr *sp;
 
 	for(sp = scans; *sp; sp++)
-		if(match_name(*sp, name, nlen))
+		if(match_strict(*sp, name, nlen))
 			return *sp;
-	if(!sc)
-		fail("no APs with matching SSID in range", NULL, 0);
+	for(sp = scans; *sp; sp++)
+		if(match_loose(*sp, name, nlen))
+			return *sp;
 
-	return sc;
+	fail("no APs with matching SSID in range", NULL, 0);
 }
 
 void find_ssid(attr* scans, char* key, void* ssid, int* slen, int* saved)
