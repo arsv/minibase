@@ -107,20 +107,32 @@ static int band_score(struct scan* sc)
 	return 0;
 }
 
-static int better(struct scan* sc, struct scan* best)
+static int cmp(int a, int b)
 {
-       if(!best)
-               return 1;
-       if(sc->prio > best->prio)
-               return 1;
-       if(band_score(sc) > band_score(best))
-               return 1;
-       if(sc->signal > best->signal)
-               return 1;
-       if(sc->tries < best->tries)
-               return 1;
+	if(a > b)
+		return 1;
+	if(a < b)
+		return -1;
+	return 0;
+}
 
-       return 0;
+static int compare(struct scan* sc, struct scan* best)
+{
+	int r;
+
+	if(!best)
+		return 1;
+
+	if((r = cmp(sc->prio, best->prio)))
+		return r;
+	if((r = cmp(band_score(sc), band_score(best))))
+		return r;
+	if((r = cmp(sc->signal, best->signal)))
+		return r;
+	if((r = cmp(sc->tries, best->tries)))
+		return -r;
+
+	return 0;
 }
 
 static struct scan* get_best_ap()
@@ -137,7 +149,7 @@ static struct scan* get_best_ap()
 			continue;
 		if(!match_ssid(sc))
 			continue;
-		if(!better(sc, best))
+		if(compare(sc, best) <= 0)
 			continue;
 		best = sc;
 	}
