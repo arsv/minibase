@@ -504,8 +504,6 @@ int wifi_mode_fixedap(uint8_t* ssid, int slen, char* psk)
 
 	if(slen > sizeof(wifi.ssid))
 		return -EINVAL;
-	if(!psk && saved_psk_prio(ssid, slen) < 0)
-		return -ENOKEY;
 
 	memcpy(wifi.ssid, ssid, slen);
 	wifi.slen = slen;
@@ -514,13 +512,13 @@ int wifi_mode_fixedap(uint8_t* ssid, int slen, char* psk)
 		ret = load_given_psk(psk);
 	else
 		ret = load_saved_psk();
-
 	if(ret < 0) {
 		snap_to_disabled();
-	} else {
-		wifi.mode = WM_FIXEDAP;
-		wifi.flags |= WF_UNSAVED;
+		return ret;
 	}
+
+	wifi.mode = WM_FIXEDAP;
+	wifi.flags |= WF_UNSAVED;
 
 	return restart_wifi();
 }
