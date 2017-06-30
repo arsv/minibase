@@ -1,6 +1,5 @@
 #include <bits/errno.h>
 #include <string.h>
-#include <format.h>
 
 #include "wimon.h"
 
@@ -304,7 +303,6 @@ int start_wired_link(struct link* ls)
 	if(ls->state == LS_STOPPING)
 		return -EAGAIN;
 
-	eprintf("%s\n", __FUNCTION__);
 	ls->flags |= S_PROBE;
 
 	if(ls->flags & S_CARRIER) {

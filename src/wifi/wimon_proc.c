@@ -20,16 +20,6 @@
    at least at this level; the link gets terminated, and it's up to the
    management code to re-try if necessary. */
 
-static void dump_spawn(struct link* ls, char** args)
-{
-	char** p;
-
-	eprintf("spawn %s :", ls->name);
-	for(p = args; *p; p++)
-		eprintf(" %s", *p);
-	eprintf("\n");
-}
-
 void stop_link_procs(struct link* ls, int drop)
 {
 	struct child* ch;
@@ -110,8 +100,6 @@ static void spawn(struct link* ls, char** args, char** envp)
 	struct child* ch;
 	int pid;
 	int ret;
-
-	dump_spawn(ls, args);
 
 	if(!(ch = grab_child_slot()))
 		goto fail;
