@@ -469,11 +469,8 @@ static int restart_wifi(void)
 
 	if(!(ls = find_link_slot(wifi.ifi)))
 		return -ENODEV;
-	if(ls->state == LS_STOPPING)
-		return 0;
 
 	set_link_mode(ls, LM_DHCP);
-
 	cancel_scheduled(WIFI);
 	reset_scan_counters();
 
