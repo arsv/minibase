@@ -390,3 +390,8 @@ void dump_linkconf(CTX, MSG)
 
 	fini_output(ctx);
 }
+
+attr* make_scanlist(CTX, MSG)
+{
+	return prep_list(ctx, msg, ATTR_SCAN, scan_ord);
+}

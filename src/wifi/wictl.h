@@ -33,9 +33,9 @@ void send_check_empty(struct top* ctx);
 void dump_status(struct top* ctx, struct ucmsg* msg);
 void dump_scanlist(struct top* ctx, struct ucmsg* msg);
 void dump_linkconf(struct top* ctx, struct ucmsg* msg);
+struct ucattr** make_scanlist(struct top* ctx, struct ucmsg* msg);
 
-void put_psk_arg(struct top* ctx, char* ssid, char* pass);
-void put_psk_input(struct top* ctx, char* ssid);
+void put_psk_input(struct top* ctx, void* ssid, int slen);
 
 void init_heap_socket(struct top* ctx);
 void connect_to_wimon(struct top* ctx);
@@ -43,3 +43,5 @@ void connect_to_wimon(struct top* ctx);
 void init_output(struct top* ctx);
 void fini_output(struct top* ctx);
 void output(struct top* ctx, char* buf, int len);
+
+void find_ssid(attr* scans, char* key, void* ssid, int* slen, int* saved);
