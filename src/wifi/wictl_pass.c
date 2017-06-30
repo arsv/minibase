@@ -12,8 +12,6 @@
 #include "common.h"
 #include "wictl.h"
 
-#define CTX struct top* ctx
-
 static void hexencode(char* dst, int dlen, uint8_t* psk, int plen)
 {
 	char* p = dst;
