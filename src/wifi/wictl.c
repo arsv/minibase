@@ -31,7 +31,7 @@ ERRLIST = {
 #define OPT_x (1<<8)
 #define OPT_z (1<<9)
 
-static void no_other_options(struct top* ctx)
+static void no_other_options(CTX)
 {
 	if(ctx->argi < ctx->argc)
 		fail("too many arguments", NULL, 0);
@@ -39,19 +39,19 @@ static void no_other_options(struct top* ctx)
 		fail("bad options", NULL, 0);
 }
 
-static int got_any_args(struct top* ctx)
+static int got_any_args(CTX)
 {
 	return (ctx->argi < ctx->argc);
 }
 
-static int use_opt(struct top* ctx, int opt)
+static int use_opt(CTX, int opt)
 {
 	int ret = ctx->opts & opt;
 	ctx->opts &= ~opt;
 	return ret;
 }
 
-static char* peek_arg(struct top* ctx)
+static char* peek_arg(CTX)
 {
 	if(ctx->argi < ctx->argc)
 		return ctx->argv[ctx->argi];
@@ -59,12 +59,12 @@ static char* peek_arg(struct top* ctx)
 		return NULL;
 }
 
-static void shift_arg(struct top* ctx)
+static void shift_arg(CTX)
 {
 	ctx->argi++;
 }
 
-static char* pop_arg(struct top* ctx)
+static char* pop_arg(CTX)
 {
 	char* arg;
 
@@ -74,7 +74,7 @@ static char* pop_arg(struct top* ctx)
 	return arg;
 }
 
-static int peek_ip(struct top* ctx)
+static int peek_ip(CTX)
 {
 	char *arg, *p;
 	uint8_t ip[5];
@@ -87,7 +87,7 @@ static int peek_ip(struct top* ctx)
 	return 1;
 }
 
-static int maybe_put_ifi(struct top* ctx)
+static int maybe_put_ifi(CTX)
 {
 	char *ifname;
 	int ifi;
@@ -101,13 +101,13 @@ static int maybe_put_ifi(struct top* ctx)
 	return 1;
 }
 
-static void require_put_ifi(struct top* ctx)
+static void require_put_ifi(CTX)
 {
 	if(!maybe_put_ifi(ctx))
 		fail("interface name required", NULL, 0);
 }
 
-static void maybe_put_ip(struct top* ctx)
+static void maybe_put_ip(CTX)
 {
 	char *arg, *p;
 	uint8_t ip[5];
@@ -121,21 +121,21 @@ static void maybe_put_ip(struct top* ctx)
 	uc_put_bin(UC, ATTR_IPMASK, ip, 5);
 }
 
-static void cmd_neutral(struct top* ctx)
+static void cmd_neutral(CTX)
 {
 	uc_put_hdr(UC, CMD_NEUTRAL);
 	no_other_options(ctx);
 	send_check_empty(ctx);
 }
 
-static void cmd_status(struct top* ctx)
+static void cmd_status(CTX)
 {
 	uc_put_hdr(UC, CMD_STATUS);
 	no_other_options(ctx);
 	dump_status(ctx, send_check(ctx));
 }
 
-static void cmd_notouch(struct top* ctx)
+static void cmd_notouch(CTX)
 {
 	uc_put_hdr(UC, CMD_NOTOUCH);
 	require_put_ifi(ctx);
@@ -143,7 +143,7 @@ static void cmd_notouch(struct top* ctx)
 	send_check_empty(ctx);
 }
 
-static void cmd_wired(struct top* ctx)
+static void cmd_wired(CTX)
 {
 	uc_put_hdr(UC, CMD_WIRED);
 	if(!peek_ip(ctx))
@@ -153,7 +153,7 @@ static void cmd_wired(struct top* ctx)
 	dump_linkconf(ctx, send_check(ctx));
 }
 
-static void cmd_scan(struct top* ctx)
+static void cmd_scan(CTX)
 {
 	uc_put_hdr(UC, CMD_SCAN);
 	maybe_put_ifi(ctx);
@@ -161,7 +161,7 @@ static void cmd_scan(struct top* ctx)
 	dump_scanlist(ctx, send_check(ctx));
 }
 
-static void cmd_roaming(struct top* ctx)
+static void cmd_roaming(CTX)
 {
 	uc_put_hdr(UC, CMD_ROAMING);
 	maybe_put_ifi(ctx);
@@ -169,7 +169,7 @@ static void cmd_roaming(struct top* ctx)
 	dump_linkconf(ctx, send_check(ctx));
 }
 
-void query_ssid(struct top* ctx, char* key, void* ssid, int* slen, int* saved)
+void query_ssid(CTX, char* key, void* ssid, int* slen, int* saved)
 {
 	struct ucattr** scans;
 
@@ -179,7 +179,7 @@ void query_ssid(struct top* ctx, char* key, void* ssid, int* slen, int* saved)
 	find_ssid(scans, key, ssid, slen, saved);
 }
 
-static void cmd_fixedap(struct top* ctx)
+static void cmd_fixedap(CTX)
 {
 	char *aptag;
 	uint8_t ssid[32];
@@ -203,7 +203,7 @@ static void cmd_fixedap(struct top* ctx)
 	dump_linkconf(ctx, send_check(ctx));
 }
 
-static void cmd_setprio(struct top* ctx, int prio)
+static void cmd_setprio(CTX, int prio)
 {
 	char* ssid;
 
@@ -221,7 +221,7 @@ static void cmd_setprio(struct top* ctx, int prio)
 	send_check_empty(ctx);
 }
 
-static void init_args(struct top* ctx, int argc, char** argv)
+static void init_args(CTX, int argc, char** argv)
 {
 	int i = 1;
 

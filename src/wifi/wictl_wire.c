@@ -17,7 +17,7 @@
    is delayed until send_command() to avoid waking up wimon and then dropping
    the connection because of a local error. */
 
-void init_heap_socket(struct top* ctx)
+void init_heap_socket(CTX)
 {
 	int fd;
 
@@ -30,7 +30,7 @@ void init_heap_socket(struct top* ctx)
 	ctx->fd = fd;
 }
 
-static void connect_socket(struct top* ctx)
+static void connect_socket(CTX)
 {
 	int ret;
 
@@ -45,12 +45,12 @@ static void connect_socket(struct top* ctx)
 	ctx->connected = 1;
 }
 
-static int heap_left(struct top* ctx)
+static int heap_left(CTX)
 {
 	return ctx->hp.end - ctx->hp.ptr;
 }
 
-static void send_command(struct top* ctx)
+static void send_command(CTX)
 {
 	int wr, fd = ctx->fd;
 	char* txbuf = ctx->uc.brk;
@@ -65,7 +65,7 @@ static void send_command(struct top* ctx)
 		fail("write", NULL, wr);
 }
 
-static struct ucmsg* recv_reply(struct top* ctx)
+static struct ucmsg* recv_reply(CTX)
 {
 	int rd, fd = ctx->fd;
 	char* rxbuf = ctx->hp.ptr;
@@ -100,13 +100,13 @@ static struct ucmsg* recv_reply(struct top* ctx)
 	return msg;
 }
 
-struct ucmsg* send_recv(struct top* ctx)
+struct ucmsg* send_recv(CTX)
 {
 	send_command(ctx);
 	return recv_reply(ctx);
 }
 
-struct ucmsg* send_check(struct top* ctx)
+struct ucmsg* send_check(CTX)
 {
 	struct ucmsg* msg;
 
@@ -120,7 +120,7 @@ struct ucmsg* send_check(struct top* ctx)
 	return msg;
 }
 
-void send_check_empty(struct top* ctx)
+void send_check_empty(CTX)
 {
 	struct ucmsg* msg = send_check(ctx);
 
@@ -128,7 +128,7 @@ void send_check_empty(struct top* ctx)
 		fail("unexpected reply data", NULL, 0);
 }
 
-void init_output(struct top* ctx)
+void init_output(CTX)
 {
 	int len = 2048;
 
@@ -138,12 +138,12 @@ void init_output(struct top* ctx)
 	ctx->bo.ptr = 0;
 }
 
-void fini_output(struct top* ctx)
+void fini_output(CTX)
 {
 	bufoutflush(&ctx->bo);
 }
 
-void output(struct top* ctx, char* buf, int len)
+void output(CTX, char* buf, int len)
 {
 	bufout(&ctx->bo, buf, len);
 }

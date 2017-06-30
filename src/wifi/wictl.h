@@ -25,23 +25,23 @@ struct top {
 
 typedef struct ucattr* attr;
 
-void top_init(struct top* ctx);
-struct ucmsg* send_recv(struct top* ctx);
-struct ucmsg* send_check(struct top* ctx);
-void send_check_empty(struct top* ctx);
+void top_init(CTX);
+struct ucmsg* send_recv(CTX);
+struct ucmsg* send_check(CTX);
+void send_check_empty(CTX);
 
-void dump_status(struct top* ctx, struct ucmsg* msg);
-void dump_scanlist(struct top* ctx, struct ucmsg* msg);
-void dump_linkconf(struct top* ctx, struct ucmsg* msg);
-struct ucattr** make_scanlist(struct top* ctx, struct ucmsg* msg);
+void dump_status(CTX, MSG);
+void dump_scanlist(CTX, MSG);
+void dump_linkconf(CTX, MSG);
+struct ucattr** make_scanlist(CTX, MSG);
 
-void put_psk_input(struct top* ctx, void* ssid, int slen);
+void put_psk_input(CTX, void* ssid, int slen);
 
-void init_heap_socket(struct top* ctx);
-void connect_to_wimon(struct top* ctx);
+void init_heap_socket(CTX);
+void connect_to_wimon(CTX);
 
-void init_output(struct top* ctx);
-void fini_output(struct top* ctx);
-void output(struct top* ctx, char* buf, int len);
+void init_output(CTX);
+void fini_output(CTX);
+void output(CTX, char* buf, int len);
 
 void find_ssid(attr* scans, char* key, void* ssid, int* slen, int* saved);
