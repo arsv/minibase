@@ -15,7 +15,7 @@
 
    This should be in ../../lib/crypto/ but so far WPA2 code is the only
    place it gets used.
- 
+
    Ref. RFC 2898 PKCS #5: Password-Based Cryptography Specification v.2 */
 
 #define HS 20 /* SHA-1 output size, bytes */
@@ -62,12 +62,12 @@ static void F(uint8_t* T, uint8_t* P, int Pn, uint8_t* S, int Sn, int c, int i)
 	}
 }
 
-void pbkdf2_sha1(uint8_t* psk, int len,
-		char* pass, int passlen,
-		char* salt, int saltlen, int iters)
+void pbkdf2_sha1(void* psk, int len,
+                 void* pass, int passlen,
+                 void* salt, int saltlen, int iters)
 {
-	uint8_t* P = (uint8_t*) pass;  int Pn = passlen;
-	uint8_t* S = (uint8_t*) salt;  int Sn = saltlen;
+	uint8_t* P = pass; int Pn = passlen;
+	uint8_t* S = salt; int Sn = saltlen;
 
 	int c = iters;
 	int i;
