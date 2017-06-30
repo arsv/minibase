@@ -2,6 +2,6 @@
 
 include $/config.mk
 
-bin = wiscan pbkdf
+bin = wiscan pbkdf ptk
 
 include $/common.mk
