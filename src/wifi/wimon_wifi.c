@@ -295,6 +295,11 @@ void start_wifi_scan(void)
 
 static void timed_wifi_scan(int _)
 {
+	if(wifi.mode == WM_DISABLED)
+		return;
+	if(wifi.state != WS_IDLE)
+		return;
+
 	start_wifi_scan();
 }
 
@@ -404,10 +409,16 @@ static void disable_wifi_iface(void)
 	disable_iface(wifi.ifi);
 }
 
+static void expire_scan_list(int _)
+{
+	drop_scan_slots();
+}
+
 void wifi_scan_done(void)
 {
 	check_new_aps();
 	unlatch(WIFI, SCAN, 0);
+	schedule(5*60, expire_scan_list, WIFI);
 
 	if(wifi.state == WS_SCANNING)
 		wifi.state = WS_NONE;
@@ -495,7 +506,6 @@ static int restart_wifi(void)
 		return -ENODEV;
 
 	set_link_mode(ls, LM_DHCP);
-	cancel_scheduled(WIFI);
 	reset_scan_counters();
 
 	switch(wifi.state) {
@@ -521,7 +531,6 @@ static int restart_wifi(void)
 
 void wifi_mode_disabled(void)
 {
-	cancel_scheduled(WIFI);
 	snap_to_disabled();
 	save_wifi();
 
