@@ -1,5 +1,6 @@
 #include <bits/errno.h>
 #include <string.h>
+#include <format.h>
 
 #include "wimon.h"
 
@@ -58,11 +59,14 @@ static void wired_connected(struct link* ls)
 
 static void wired_conn_fail(struct link* ls)
 {
-	if(!(ls->flags & S_PROBE))
-		return;
+	if(ls->flags & S_PROBE) {
+		ls->flags &= ~S_PROBE;
+		set_link_mode(ls, LM_OFF);
+	}
 
-	ls->flags &= ~S_PROBE;
-	set_link_mode(ls, LM_OFF);
+	if(ls->mode == LM_OFF)
+		if(ls->flags & S_ENABLED)
+			disable_iface(ls->ifi);
 }
 
 static void set_static_addrs(struct link* ls)
@@ -108,7 +112,7 @@ void link_wifi(struct link* ls)
 
 void link_enabled(struct link* ls)
 {
-	if(ignored(ls, 1))
+	if(ignored(ls, 0)) /* LM_OFF may be scanning */
 		return;
 	if(ls->flags & S_NL80211)
 		wifi_ready(ls);
@@ -159,9 +163,6 @@ void link_terminated(struct link* ls)
 		wifi_conn_fail(ls);
 	else
 		wired_conn_fail(ls);
-
-	if(ls->mode == LM_OFF && (ls->flags & S_ENABLED))
-		disable_iface(ls->ifi);
 }
 
 void recheck_alldown_latches(void)

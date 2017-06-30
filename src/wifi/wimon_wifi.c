@@ -276,13 +276,21 @@ int grab_wifi_device(int rifi)
 
 void start_wifi_scan(void)
 {
-	if(!wifi.ifi)
+	struct link* ls;
+	int ifi = wifi.ifi;
+
+	if(!ifi)
+		return;
+	if(!(ls = find_link_slot(ifi)))
 		return;
 
 	if(wifi.state == WS_NONE || wifi.state == WS_IDLE)
 		wifi.state = WS_SCANNING;
 
-	trigger_scan(wifi.ifi, 0);
+	if(!(ls->flags & S_ENABLED))
+		enable_iface(ifi);
+	else
+		trigger_scan(ifi, 0);
 }
 
 static void timed_wifi_scan(int _)
@@ -354,9 +362,12 @@ void wifi_ready(struct link* ls)
 		load_wifi(ls);
 	if(ls->ifi != wifi.ifi)
 		return;
-	if(wifi.mode == WM_DISABLED)
+
+	if(wifi.state == WS_SCANNING)
+		;
+	else if(wifi.mode == WM_DISABLED)
 		return;
-	if(wifi.state != WS_NONE)
+	else if(wifi.state != WS_NONE)
 		return;
 
 	start_wifi_scan();
@@ -385,6 +396,14 @@ out:
 	reassess_wifi_situation();
 }
 
+static void disable_wifi_iface(void)
+{
+	if(!wifi.ifi)
+		return;
+
+	disable_iface(wifi.ifi);
+}
+
 void wifi_scan_done(void)
 {
 	check_new_aps();
@@ -396,6 +415,8 @@ void wifi_scan_done(void)
 		return;
 	if(wifi.state == WS_RETRYING)
 		retry_current_ap();
+	else if(wifi.mode == WM_DISABLED)
+		disable_wifi_iface();
 	else
 		reassess_wifi_situation();
 }
@@ -408,6 +429,8 @@ void wifi_scan_fail(int err)
 		wifi.state = WS_NONE;
 	if(wifi.state == WS_RETRYING)
 		wifi.state = WS_NONE;
+	if(wifi.mode == WM_DISABLED)
+		disable_wifi_iface();
 }
 
 static void maybe_save_wifi_state(void)
@@ -445,6 +468,7 @@ void wifi_conn_fail(struct link* ls)
 
 	if(wifi.mode == WM_DISABLED) {
 		wifi.state = WS_NONE;
+		disable_wifi_iface();
 		return;
 	}
 
