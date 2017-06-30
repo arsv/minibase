@@ -127,6 +127,11 @@ void link_carrier(struct link* ls)
 		spawn_dhcp(ls, NULL);
 }
 
+/* Link is considered successfully connected once it gets an IP addr.
+   We cannot rely things like dhcp exit because depending on implementation
+   dhcp may not exit at all, be we certainly aren't interested in links
+   that do not get any address at all. */
+
 void link_ipaddr(struct link* ls)
 {
 	ls->state = LS_ACTIVE;
