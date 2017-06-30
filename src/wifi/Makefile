@@ -6,7 +6,7 @@ ifdef devel
 CFLAGS += -DDEVEL
 endif
 
-bin = wiscan wimon wpa pbkdf wictl
+bin = wimon wpa wictl
 
 man1 =
 
