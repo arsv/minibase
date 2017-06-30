@@ -87,7 +87,7 @@ static void handle_event(struct rfkill_event* re)
 	if(!(ls = find_rfkill_link(re->idx)))
 		return;
 
-	enable_iface(ls->ifi);
+	link_rfback(ls);
 }
 
 void retry_rfkill(void)

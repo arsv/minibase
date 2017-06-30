@@ -255,6 +255,7 @@ void link_carrier(struct link* ls);
 void link_ipaddr(struct link* ls);
 void link_ipgone(struct link* ls);
 void link_child_exit(struct link* ls, int status);
+void link_rfback(struct link* ls);
 void recheck_alldown_latches(void);
 
 int any_pids_left(void);

@@ -139,6 +139,16 @@ void link_ipaddr(struct link* ls)
 		wired_connected(ls);
 }
 
+/* RF-kill got released. Only happens on wireless links. */
+
+void link_rfback(struct link* ls)
+{
+	if(ignored(ls, 1))
+		return;
+
+	enable_iface(ls->ifi);
+}
+
 void link_terminated(struct link* ls)
 {
 	if(ls->flags & S_NL80211)
