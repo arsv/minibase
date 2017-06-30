@@ -188,6 +188,16 @@ static char* fmt_ssid(char* p, char* e, attr at)
 	return p;
 }
 
+static char* fmt_prio(char* p, char* e, int* prio)
+{
+	if(*prio == 0)
+		return fmtstr(p, e, " +");
+	else if(*prio > 0)
+		return fmtstr(p, e, " *");
+
+	return p;
+}
+
 static void dump_scan(CTX, AT)
 {
 	char buf[200];
@@ -196,8 +206,9 @@ static void dump_scan(CTX, AT)
 
 	struct ucattr* ssid = uc_sub(at, ATTR_SSID);
 	uint8_t* bssid = uc_sub_bin(at, ATTR_BSSID, 6);
-	int* freq = uc_sub_int(at, ATTR_FREQ);
 	int* signal = uc_sub_int(at, ATTR_SIGNAL);
+	int* freq = uc_sub_int(at, ATTR_FREQ);
+	int* prio = uc_sub_int(at, ATTR_PRIO);
 
 	p = fmtstr(p, e, "AP ");
 	p = fmtint(p, e, (*signal)/100);
@@ -207,6 +218,7 @@ static void dump_scan(CTX, AT)
 	p = fmtmac(p, e, bssid);
 	p = fmtstr(p, e, "  ");
 	p = fmt_ssid(p, e, ssid);
+	p = fmt_prio(p, e, prio);
 	*p++ = '\n';
 
 	output(ctx, buf, p - buf);
