@@ -2,6 +2,6 @@
 
 include $/config.mk
 
-bin = auxvec dumpenv
+bin = auxvec dumpenv sigact
 
 include $/common.mk
