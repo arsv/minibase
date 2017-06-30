@@ -190,8 +190,6 @@ static void wait_link_down(struct link* ls)
 
 void terminate_link(struct link* ls)
 {
-	if(ls->state == LS_DOWN)
-		return;
 	if(ls->state == LS_STOPPING)
 		return;
 
