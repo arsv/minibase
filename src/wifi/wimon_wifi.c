@@ -363,7 +363,7 @@ void wifi_gone(struct link* ls)
 
 static void retry_current_ap(void)
 {
-	wifi.state = WS_RETRYING;
+	wifi.state = WS_STARTING;
 
 	if(start_wifi())
 		goto out;
@@ -440,6 +440,7 @@ void wifi_conn_fail(struct link* ls)
 		wifi.state = WS_NONE;
 
 	if(wifi.state == WS_CHANGING) {
+		wifi.state = WS_NONE;
 		reassess_wifi_situation();
 	} else if(wifi.state == WS_CONNECTED) {
 		wifi.state = WS_RETRYING;
@@ -453,7 +454,6 @@ void wifi_conn_fail(struct link* ls)
 static int restart_wifi(void)
 {
 	struct link* ls;
-	int ws = wifi.state;
 
 	if(!(ls = find_link_slot(wifi.ifi)))
 		return -ENODEV;
@@ -462,21 +462,26 @@ static int restart_wifi(void)
 
 	set_link_mode(ls, LM_DHCP);
 
-	if(!(ls->flags & S_ENABLED))
-		enable_iface(ls->ifi);
-	else if(ls->flags & S_CARRIER)
-		terminate_link(ls);
-
-	if(ws == WS_SCANNING)
-		return 0;
-	if(ws == WS_NONE || ws == WS_IDLE) {
-		start_wifi_scan();
-		return 0;
-	}
-
-	wifi.state = WS_CHANGING;
 	cancel_scheduled(WIFI);
 	reset_scan_counters();
+
+	switch(wifi.state) {
+		case WS_NONE:
+		case WS_IDLE:
+			if(!(ls->flags & S_ENABLED))
+				enable_iface(ls->ifi);
+			else
+				start_wifi_scan();
+			break;
+		case WS_SCANNING:
+		case WS_CHANGING:
+		case WS_RETRYING:
+			break;
+		case WS_STARTING:
+		case WS_CONNECTED:
+			wifi.state = WS_CHANGING;
+			terminate_link(ls);
+	}
 
 	return 0;
 }
