@@ -4,6 +4,7 @@
 #include <sys/close.h>
 #include <sys/fstat.h>
 #include <sys/mmap.h>
+#include <sys/mremap.h>
 #include <sys/munmap.h>
 
 #include <format.h>
@@ -276,19 +277,45 @@ int find_line(struct line* ln, char* pref, int i, char* val)
 	return -ENOENT;
 }
 
+static int remap_config(int len)
+{
+	int lenaligned = len + (PAGE - len % PAGE) % PAGE;
+	int newblocklen = blocklen + lenaligned;
+	long ret;
+
+	ret = sysmremap(config, blocklen, newblocklen, MREMAP_MAYMOVE);
+
+	if(MMAPERROR(ret))
+		return ret;
+
+	config = (char*)ret;
+	blocklen = len;
+
+	return 0;
+}
+
 static int extend_config(int len)
 {
-	if(len > 0 && datalen + len > blocklen)
-		return -ENOMEM; /* XXX */
+	int ret, newdl = datalen + len;
 
-	datalen += len;
+	if(newdl < 0)
+		return -EINVAL;
+
+	if(newdl > blocklen)
+		if((ret = remap_config(newdl)) < 0)
+			return ret;
+
+	datalen = newdl;
 
 	return 0;
 }
 
 static void change_part(char* start, char* end, char* buf, int len)
 {
-	int oldlen = end - start;
+	long offs = start - config;
+	long offe = end - config;
+
+	int oldlen = offe - offs;
 	int newlen = len;
 
 	int shift = newlen - oldlen;
@@ -297,8 +324,11 @@ static void change_part(char* start, char* end, char* buf, int len)
 	if(extend_config(shift))
 		return;
 
-	memmove(end + shift, end, shlen);
-	memcpy(start, buf, len);
+	char* head = config + offs;
+	char* tail = config + offe;
+
+	memmove(tail + shift, tail, shlen);
+	memcpy(head, buf, len);
 }
 
 static char* find_line_spot(char* buf, int len)
@@ -335,6 +365,10 @@ static void insert_line(char* buf, int len)
 void change_chunk(struct chunk* ck, char* str)
 {
 	change_part(ck->start, ck->end, str, strlen(str));
+
+	ck->start = NULL;
+	ck->end = NULL;
+
 	modified = 1;
 }
 
@@ -351,15 +385,21 @@ void drop_line(struct line* ln)
 
 	memmove(ln->start, ln->end + 1, shlen);
 
+	ln->start = NULL;
+	ln->end = NULL;
+
 	modified = 1;
 }
 
-void save_line(struct line* ls, char* buf, int len)
+void save_line(struct line* ln, char* buf, int len)
 {
-	if(ls->start)
-		change_part(ls->start, ls->end, buf, len);
+	if(ln->start)
+		change_part(ln->start, ln->end, buf, len);
 	else
 		insert_line(buf, len);
+
+	ln->start = NULL;
+	ln->end = NULL;
 
 	modified = 1;
 }
