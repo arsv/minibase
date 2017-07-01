@@ -16,7 +16,9 @@
 
 /* Mini text editor for the config file. The config looks something like this:
 
-	dev enp0s31f6 manual 192.168.1.3/24
+	link enp0s31f6 static 192.168.1.3/24
+	link wlp1s0 dhcp
+	wifi wlp1s0 roaming
 	psk 001122...EEFF 1 Blackhole
 	psk 91234A...47AC 0 publicnet
 	psk F419BE...01F5 0 someothernet
