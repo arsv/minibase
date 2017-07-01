@@ -46,7 +46,7 @@ static int input_passphrase(char* buf, int len)
 	syswrite(STDOUT, prompt, strlen(prompt));
 	rd = sysread(STDIN, buf, len);
 
-	if(rd >= sizeof(buf))
+	if(rd >= len)
 		fail("passphrase too long", NULL, 0);
 
 	if(rd > 0 && buf[rd-1] == '\n')
