@@ -15,7 +15,7 @@ The project is highly experimental and (at this point) incomplete.
 Some tools are missing, and some still need work.
 
   * Simple non-interactive shell (msh) for scripting the boot
-    process and service startup.
+    process and service startup. [incomplete]
   
   * Early-stage boot utils (switchroot, kmod, mount, waitfor).
   * Small basic unix tools (cat, ls, du, df etc).
@@ -23,7 +23,7 @@ Some tools are missing, and some still need work.
   - No FDE tooling yet.
   
   * Process supervisor suite (init, scv, scvmon, reboot), split stage
-    implementation similar to daemontools or runit.
+    implementation similar to daemontools or runit. [incomplete]
   
   - No udevd yet.
   - No unprivileged mount daemon yet.
@@ -34,13 +34,13 @@ Some tools are missing, and some still need work.
   - No sntpd yet.
 
   * Wi-Fi scanner and connection manager (wimon), also capable of handling
-    wired interfaces [incomplete,unmerged].
+    wired interfaces
   * Minimalistic wpa supplicant (wpa), WPA2-PSK only, CCMP/CCMP or CCMP/TKIP
 
   - No package manager / download tool yet.
 
   * VT/DRM/input multiplexer (vtmux) aka that part of systemd-logind
-    everyone keeps asking about [needs testing].
+    everyone keeps asking about [incomplete].
 
   - No vtmux-compatible getty.
   - No greeters yet.
