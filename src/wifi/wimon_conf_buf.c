@@ -284,17 +284,6 @@ static int extend_config(int len)
 	return 0;
 }
 
-static void append_line(char* buf, int len)
-{
-	char* ptr = config + datalen;
-
-	if(extend_config(len + 1))
-		return;
-
-	memcpy(ptr, buf, len);
-	ptr[len] = '\n';
-}
-
 static void change_part(char* start, char* end, char* buf, int len)
 {
 	int oldlen = end - start;
@@ -308,6 +297,37 @@ static void change_part(char* start, char* end, char* buf, int len)
 
 	memmove(end + shift, end, shlen);
 	memcpy(start, buf, len);
+}
+
+static char* find_line_spot(char* buf, int len)
+{
+	struct line ln;
+	int lk;
+
+	for(lk = firstline(&ln); lk; lk = nextline(&ln)) {
+		int cklen = ln.end - ln.start;
+		int cmplen = len > cklen ? cklen : len;
+
+		if(strncmp(ln.start, buf, cmplen) > 0)
+			return ln.start;
+	}
+
+	return config + datalen;
+}
+
+static void insert_line(char* buf, int len)
+{
+	char* at = find_line_spot(buf, len);
+
+	int shift = len + 1;
+	int shlen = config + datalen - at;
+
+	if(extend_config(shift))
+		return;
+
+	memmove(at + shift, at, shlen);
+	memcpy(at, buf, len);
+	at[len] = '\n';
 }
 
 void change_chunk(struct chunk* ck, char* str)
@@ -334,10 +354,10 @@ void drop_line(struct line* ln)
 
 void save_line(struct line* ls, char* buf, int len)
 {
-	if(!ls->start)
-		append_line(buf, len);
-	else
+	if(ls->start)
 		change_part(ls->start, ls->end, buf, len);
+	else
+		insert_line(buf, len);
 
 	modified = 1;
 }
