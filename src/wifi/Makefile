@@ -8,7 +8,8 @@ endif
 
 bin = wimon wpa wictl
 
-man1 =
+man1 = wictl.1
+man8 = wimon.8 wpa.8
 
 include $/common.mk
 
