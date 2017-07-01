@@ -169,35 +169,21 @@ static void cmd_roaming(CTX)
 	dump_linkconf(ctx, send_check(ctx));
 }
 
-void query_ssid(CTX, char* key, void* ssid, int* slen, int* saved)
-{
-	struct ucattr** scans;
-
-	uc_put_hdr(UC, CMD_STATUS);
-	scans = make_scanlist(ctx, send_check(ctx));
-
-	find_ssid(scans, key, ssid, slen, saved);
-}
-
 static void cmd_fixedap(CTX)
 {
-	char *aptag;
-	uint8_t ssid[32];
-	int slen = sizeof(ssid);
-	int saved;
+	char *ssid;
+	int slen;
 
-	if(!(aptag = pop_arg(ctx)))
-		fail("ssid or bssid required", NULL, 0);
+	if(!(ssid = pop_arg(ctx)))
+		fail("SSID required", NULL, 0);
 
-	query_ssid(ctx, aptag, ssid, &slen, &saved);
+	slen = strlen(ssid);
 
 	uc_put_hdr(UC, CMD_FIXEDAP);
 	uc_put_bin(UC, ATTR_SSID, ssid, slen);
 
 	if(use_opt(ctx, OPT_p))
 		put_psk_input(ctx, ssid, slen);
-	else if(!saved)
-		fail("no saved key for this ssid", NULL, 0);
 
 	no_other_options(ctx);
 	dump_linkconf(ctx, send_check(ctx));
