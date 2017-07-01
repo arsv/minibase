@@ -551,6 +551,8 @@ int wifi_mode_fixedap(uint8_t* ssid, int slen, char* psk)
 
 	if(slen > sizeof(wifi.ssid))
 		return -EINVAL;
+	if(!psk && saved_psk_prio(ssid, slen) < 0)
+		return -ENOKEY;
 
 	memcpy(wifi.ssid, ssid, slen);
 	wifi.slen = slen;
