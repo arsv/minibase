@@ -1,14 +1,19 @@
 #include <bits/ioctl/socket.h>
-#include <bits/errno.h>
 #include <sys/ioctl.h>
 
 #include <string.h>
-#include "ctx.h"
+#include <format.h>
+#include <util.h>
 
-int nl_ifindex(struct netlink* nl, const char* ifname)
+int getifindex(int fd, char* ifname)
 {
 	struct ifreq ifreq;
 	int len = strlen(ifname);
+	int ifi;
+	char* p;
+
+	if((p = parseint(ifname, &ifi)) && !*p)
+		return ifi;
 
 	if(len > sizeof(ifreq.name) - 1)
 		return -ENAMETOOLONG;
@@ -16,7 +21,7 @@ int nl_ifindex(struct netlink* nl, const char* ifname)
 	memset(&ifreq, 0, sizeof(ifreq));
 	memcpy(ifreq.name, ifname, len);
 	
-	long ret = sysioctl(nl->fd, SIOCGIFINDEX, &ifreq);
+	long ret = sysioctl(fd, SIOCGIFINDEX, &ifreq);
 
 	if(ret < 0)
 		return ret;

@@ -416,7 +416,7 @@ static uint8_t* get_server_addr(void)
 void send_discover_recv_offer(void)
 {
 	uint8_t* srv;
-	int ret, tries = 3;
+	int ret, tries = 4;
 again:  
 	put_header(DHCPDISCOVER);
 	send_packet();
@@ -443,7 +443,7 @@ again:
 
 void send_request_recv_acknak(void)
 {
-	int ret, tries = 3;
+	int ret, tries = 2;
 again:
 	put_header(DHCPREQUEST);
 	put_ip(DHCP_REQUESTED_IP, offer.yourip);

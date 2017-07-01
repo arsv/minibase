@@ -1,0 +1,111 @@
+Netlink-based userspace control protocol
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The common protocol several long-running services in minibase use for their
+control sockets is a simplified version of generic netlink (GENL) protocol.
+
+The parties exchange messages over a stream connection.
+Each message consists of a header optionally followed by attributes:
+
+    +-----------+
+    |  length   |   <-- header         Attributes:
+    |  command  |                                      +-----+-----+
+    +-----+-----+                     +-----+-----+    | len | key |
+    | len | key |   <-- attribute     | len | key |    +-----+-----+
+    +-----+-----+                     +-----+-----+    | some _nul |
+    | value.... |                     | 3322 1100 |    | l_te rmin |
+    | ......    |                     +-----+-----+    | ated stri |
+    +-----+-----+                       0x00112233     | ng\0      | <--+
+    | len | key |   <-- attribute                      +-----------+    |
+    +-----+-----+                     +-----+-----+                     |
+    | value..   |                     | len | key |    +-----+-----+    |
+    +-----+-----+                     +-----+-----+    | len | key |    |
+    | len | key |   <-- attribute     | 7766 5544 |    +-----+-----+    |
+    +-----+-----+                     | 3322 1100 |    | 0F45 A8B3 |    |
+    | value.... |                     +-----+-----+    | 1379      | <--+
+    | ......... |                       0x0011..77     +-----+-----+    |
+    +-----+-----+                                         raw MAC       |
+                                                                        |
+    <- 4 bytes ->                                       padded to 4 bytes
+
+
+All integers are host-endian. Lengths are in bytes and include respective
+headers. All attributes start at 4 byte boundary within the message.
+
+Attribute length is the (unpadded) length of the payload. For strings,
+length includes terminating \0. Message length is always a multiple of 4
+and includes trailing padding if necessary.
+
+Attributes may be nested -- the payload of the enclosing attribute is then
+a sequence of attributes just like the message payload.
+
+
+Communication is assumed to be synchronous (request-reply). The service
+replies with .command == 0 on success, .command = (-errno) < 0 on failure.
+There is exactly one reply for each request. It is assumed that the client
+knows what kind of reply to expect for each request issued.
+
+(Provisional: replies with .command > 0 are notifications not caused by client
+requests. Pulling notifications out of the stream should leave a proper request
+reply sequence. It is up to the service to decide whether to use them, and how.
+Clients that do not expect notifications should treat them as protocol errors.)
+
+Commands are service-specific. Negative values are expected to be system-wide
+errno(3) codes. Error messages may include attributes.
+
+Attribute keys are service-specific. The service defines which keys should be
+used for each command. Current implementation silently ignores unexpected keys.
+The same key may be used several times within the same payload if both parties
+are known to expect this. If multiple uses of the key are not expected,
+the first attribute with the key is used and the rest get silently ignored.
+
+Integer payloads shorter than 4 bytes should be extended to 4 bytes for
+transmission.
+
+
+Differences between nlusctl and GENL
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+nlusctl only runs over point-to-point connections. Netlink (RTNL and GENL)
+apparently have some support for ethernet-like point-to-net communication,
+which would explain .pid field in the request.
+
+nlusctl does not support asynchronous communication modes. So no .seq and
+no ACK or REQUEST flags.
+
+There are no multi-part replies in nlusctl. The client is always expected to
+be able to receive the whole message in a reasonable amount of time, and the
+service may drop the connection if it takes too long.
+In GENL, multipart messages relax this assumption, allowing a sort of iterator
+within the kernel to be queried one item at a time.
+
+In GENL, DUMP flags affect the meaning of the .cmd field.
+In nlusctl, distinct values of the .command field are used for this purpose.
+
+GENL commands have .version field, nlusctl is expected to use distinct .cmd
+values -- if it is going to be needed at all.
+
+Combining all that, nlusctl drops most of the fields found in GENL headers,
+and removes distinction between struct nlmsg/nlgen/nlerr. This was one of the
+biggest reasons to choose a custom protocol over GENL.
+
+
+GENL and nlusctl use different encoding for lists of similar items within
+the same payload. GENL, because of the very weird way they parse the messages
+within the kernel, must use a nested attribute with 0, 1, 2, ... keys:
+
+	[ ATTR_SOMETHING,
+		[ 0, value ],
+		[ 1, value ],
+		[ 2, value ] ]
+
+In contrast, nlusctl uses top-level multi-keys for this purpose:
+
+	[ ATTR_SOMETHING, value ],
+	[ ATTR_SOMETHING, value ],
+	[ ATTR_SOMETHING, value ]
+
+The trick GENL uses, aside of an extra header, breaks the assumption that
+the key defines the attribute payload, because the enumeration keys they use
+may happen to match (and often do match) unrelated ATTR_* constants.
+
+Otherwise the format of the attributes is the same in GENL, RTNL and nlusct.
+This was done intentionally to share as much parsing code as possible.

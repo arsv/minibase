@@ -22,11 +22,11 @@ void associate(void);
 void upload_ptk(void);
 void upload_gtk(void);
 void pull_netlink(void);
-void disconnect(void);
+void terminate(void);
 
 void open_rawsock(void);
 void negotiate_keys(void);
 int group_rekey(void);
 void cleanup_keys(void);
 
-void quit(const char* msg, const char* arg, int err);
+void quit(const char* msg, const char* arg, int err) __attribute__((noreturn));

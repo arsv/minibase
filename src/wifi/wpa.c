@@ -1,6 +1,6 @@
 #include <bits/errno.h>
 #include <sys/sigaction.h>
-#include <sys/alarm.h>
+#include <sys/setitimer.h>
 #include <sys/ppoll.h>
 #include <sys/_exit.h>
 
@@ -19,8 +19,6 @@ uint8_t bssid[6];
 char* ssid;
 
 int signalled;
-int quitting;
-
 int tkipgroup;
 
 ERRTAG = "wpa";
@@ -32,30 +30,14 @@ ERRLIST = {
 	REPORT(ERANGE), RESTASNUMBERS
 };
 
-/* Signals and netlink code do not mix well. Success of disconnect() relies
-   heavily on atomicity of whatever NL call might have been interrupted.
-   Still, this is the best we can do. If disconnect fails, well it's a bad
-   day then.
-
-   This should happen very fast, unconditionally. Alarm is only set for
-   signalled exits, and even then only for extra reliability. Note TERM,
-   INT and HUP are blocked within sighandler, so after the first one it
-   can only be ALRM.
-
-   This whole thing is *only* to make sure the connection goes down with
-   the process. Just exiting would leave the iface running. */
-
-void quit(const char* msg, const char* arg, int err)
+static void malarm(int ms)
 {
-	if(!quitting) {
-		quitting = 1;
-		disconnect();
-	}
+	struct itimerval it = {
+		.interval = { 0, 0 },
+		.value = { 0, 1000*ms }
+	};
 
-	if(msg || arg)
-		fail(msg, arg, err);
-	else
-		_exit(0xFF);
+	syssetitimer(ITIMER_REAL, &it, NULL);
 }
 
 static void sighandler(int sig)
@@ -64,7 +46,7 @@ static void sighandler(int sig)
 		_exit(0xFF);
 
 	signalled = 1;
-	sysalarm(1);
+	malarm(1000);
 
 	const char* msg;
 
@@ -198,18 +180,17 @@ int main(int argc, char** argv, char** envp)
 {
 	setup(argc, argv, envp);
 
-	sysalarm(1);
-
+	malarm(900);
 	authenticate();
 	open_rawsock();
 	associate();
 
+	malarm(300);
 	negotiate_keys();
 	upload_ptk();
 	upload_gtk();
 	cleanup_keys();
-
-	sysalarm(0);
+	malarm(0);
 
 	poll_netlink_rawsock();
 

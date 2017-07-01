@@ -29,15 +29,17 @@ char* fmtstrl(char* dst, char* end, const char* src, int len);
 char* fmttm(char* buf, char* end, struct tm* tm);
 char* fmtulp(char* buf, char* end, unsigned long num, int pad);
 char* fmtip(char* p, char* e, uint8_t ip[4]);
+char* fmtmac(char* p, char* e, uint8_t mac[6]);
 
 char* parseint(char* buf, int* np);
 char* parselong(char* buf, long* np);
 char* parseulong(char* buf, unsigned long* np);
-char* parseu64(char* buf, uint64_t* np);
-char* parseoct(char* buf, int* np);
-char* parsebyte(char* p, uint8_t* np);
+char* parsebyte(char* p, uint8_t* v);
 char* parsebytes(char* p, uint8_t* dst, int len);
+
 char* parsemac(char* p, uint8_t* mac);
+char* parseip(char* p, uint8_t* ip);
+char* parseipmask(char* p, uint8_t* ip, uint8_t* mask);
 
 int printf(const char* fmt, ...);
 int eprintf(const char* fmt, ...);

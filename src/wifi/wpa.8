@@ -41,14 +41,14 @@ Human-readable AP name ("\fTBlackhole\fR").
 Determines cipher suite to use: \fBcc\fR for CCMP pairwise CCMP group or
 \fBct\fR CCMP pairwise TKIP group. Defaults to \fBcc\fR if not specified.
 .P
-The tools expects 32-byte pre-shared key (PSK) in hex notation.
+The tool expects 32-byte pre-shared key (PSK) in hex notation.
 For passphrase-based configuration, the key must be derived from
 the passphrase first.
 '''
 .SH NOTES
 Attempts to connect with a wrong key, or using wrong ciphers, are silently
 ignored by the AP. Since normal key exchange is very fast, \fBwpa\fR sets a
-1 second timeout and declares a failure if the time runs out.
+short timeout and declares a failure if the time runs out.
 The lack of error reporting is a feature of the underlying authentication
 protocol (EAPOL).
 .P

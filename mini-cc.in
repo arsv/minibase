@@ -1,0 +1,38 @@
+#!/bin/sh
+
+cc=cc
+arch=unknown
+
+case "$0" in
+	*/*) base=${0%/*} ;;
+	*) echo "$0 may not be called from PATH" >&2; exit 1 ;;
+esac
+
+unset compile output
+for _ in "$@"; do
+	case "$_" in
+		-c|-E|-S) compile=yes ;;
+		-o) output=yes ;;
+	esac
+done
+
+lib="$base/lib/all.a"
+
+if [ -z "$compile" -a ! -f "$lib" ]; then
+	echo "$0: missing $lib" >&2
+	exit 1
+fi
+
+if [ -n "$compile" ]; then
+	exec "$cc" \
+		-nostdinc -I"$base/lib/arch/$arch" -I"$base/lib" \
+		-fno-strict-aliasing -fno-asynchronous-unwind-tables \
+		"$@" -nostdlib
+elif [ -n "$output" ]; then
+	exec "$cc" \
+		-nostdinc -I"$base/lib/arch/$arch" -I"$base/lib" \
+		-fno-strict-aliasing -fno-asynchronous-unwind-tables \
+		"$@" -nostdlib "$lib" -lgcc
+else
+	exec "$cc" -nostdinc -nostdlib "$@"
+fi

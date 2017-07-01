@@ -19,19 +19,26 @@ void hinit(struct heap* hp, long size)
 		fail("cannot initialize heap", NULL, 0);
 }
 
-void* halloc(struct heap* hp, long size)
+void hextend(struct heap* hp, long size)
 {
 	void* ptr = hp->ptr;
 	void* end = ptr + size;
 
 	if(end <= hp->end)
-		goto out;
+		return;
 
 	hp->end = (void*)sysbrk(hp->end + align(end - hp->end));
 
 	if(end > hp->end)
 		fail("cannot allocate memory", NULL, 0);
-out:
+}
+
+void* halloc(struct heap* hp, long size)
+{
+	void* ptr = hp->ptr;
+
+	hextend(hp, size);
+
 	hp->ptr += size;
 
 	return ptr;

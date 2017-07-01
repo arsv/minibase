@@ -1,14 +1,15 @@
 #include <sys/bind.h>
 #include <sys/close.h>
 #include <sys/setsockopt.h>
+#include <sys/_exit.h>
 
 #include <netlink.h>
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/nl80211.h>
 
 #include <string.h>
-#include <format.h>
 #include <fail.h>
+#include <util.h>
 
 #include "nlfam.h"
 #include "wpa.h"
@@ -33,11 +34,7 @@ const char* lastcmd; /* for reporting only */
    weren't even scanning. And also to avoid disconnecting a link
    which we did not connect. See track_state() below. */
 
-#define NONE         0
-#define SCANNING     1
-#define CONNECTED    2
-
-int devstate = NONE;
+int connected;
 
 /* Ref. IEEE 802.11-2012 8.4.2.27 RSNE */
 
@@ -100,159 +97,122 @@ void setup_netlink(void)
 
 int resolve_ifname(char* name)
 {
-	return nl_ifindex(&nl, name);
+	return getifindex(nl.fd, name);
 }
 
-/* The whole thing is a mix of sync and async stuff. Commands like
-   AUTHENTICATE and ASSOCIATE tend to have immediate (sync) errors
-   but their success is reported via notifications, and their ACKs
-   are meaningless. NEW_KEY is fully synchronous. We may also get
-   DISCONNECT notification pretty much at any point.
+/* Most of the commands here have delayed effects: the command gets ACKed
+   immediately, but the requested change happens later and is announced via
+   notification. E.g. send AUTHENTICATE, recv ACK, time passes, AUTHENTICATE
+   notification arrives.
 
-   To make the whole thing somewhat tractable, all commands are treated
-   as async, and all non-mainline responses (ERRs and unexpected state
-   changes) are handled very early in check_msg. The actual code then
-   looks like this:
+   Spontaneous notification may arrive in-between a synchronous command and
+   its ACK, and we must be ready to deal with it.
 
-       send(ASSOCIATE)
-       wait(ASSOCIATED)
+   For most commands, the effect notifications always arrive after the ACK,
+   so wait_for() is used. The notification for DISCONNECT however arrives
+   *before* the ACK, so it's pointless to wait for it and it gets handled
+   as a spontaneous notification. */
 
-   but that's only the happy path, anything else gets branched to
-   in wait() which in turn requires some state tracking. */
-
-#define CONTINUE 1
-#define EXPECTED 0
-
-static int check_err(struct nlerr* msg)
+static int match_ifi(struct nlgen* msg)
 {
-	if(msg->nlm.seq == nl.seq)
-		return msg->errno <= 0 ? msg->errno : -EBADMSG;
+	uint32_t* ifi;
 
-	return CONTINUE; /* ignore unexpected errors */
-}
-
-static int check_gen(struct nlgen* msg)
-{
-	uint32_t* u32;
-
-	if(!(u32 = nl_get_u32(msg, NL80211_ATTR_IFINDEX)))
+	if(!(ifi = nl_get_u32(msg, NL80211_ATTR_IFINDEX)))
 		return 0;
-	if(*u32 != ifindex)
+	if(*ifi != ifindex)
 		return 0;
 
 	return 1;
 }
 
-static void track_state(struct nlgen* msg)
+static void check_notification(struct nlgen* msg)
 {
-	int cmd = msg->cmd;
+	if(!connected)
+		return;
+	if(msg->cmd != NL80211_CMD_DISCONNECT)
+		return;
+	if(!match_ifi(msg))
+		return;
 
-	if(devstate == NONE) {
-		if(cmd == NL80211_CMD_TRIGGER_SCAN)
-			devstate = SCANNING;
-		else if(cmd == NL80211_CMD_CONNECT)
-			devstate = CONNECTED;
-	} else if(devstate == SCANNING) {
-		if(cmd == NL80211_CMD_SCAN_ABORTED)
-			quit("scan aborted", NULL, 0);
-		else if(cmd == NL80211_CMD_NEW_SCAN_RESULTS)
-			devstate = NONE;
-	} else if(devstate == CONNECTED) {
-		if(cmd == NL80211_CMD_DISCONNECT)
-			quit(NULL, NULL, 0);
-	}
+	quit(NULL, NULL, 0);
 }
 
-static int check_msg(struct nlmsg* msg, int expected)
+static int send_ack(const char* tag)
 {
+	struct nlmsg* msg;
 	struct nlerr* err;
 	struct nlgen* gen;
 
-	if((err = nl_err(msg)))
-		return check_err(err);
-	if(!(gen = nl_gen(msg)))
-		return CONTINUE; /* non-genl message, wtf? */
-	if(!check_gen(gen))
-		return CONTINUE;
+	if((msg = nl_tx_msg(&nl)))
+		msg->flags |= NLM_F_ACK;
 
-	track_state(gen);
+	if(nl_send(&nl))
+		quit("send", NULL, nl.err);
 
-	if(gen->cmd != expected)
-		return CONTINUE;
+	while((msg = nl_recv(&nl)))
+		if((err = nl_err(msg)) && (msg->seq == nl.seq))
+			return err->errno;
+		else if((gen = nl_gen(msg)))
+			check_notification(gen);
 
-	return EXPECTED;
+	quit("recv", NULL, nl.err);
 }
 
-static int recv_genl(int expected)
-{
-	int ret;
-	struct nlmsg* nlm;
-
-	do if(!(nlm = nl_recv(&nl)))
-		return nl.err < 0 ? nl.err : -EBADMSG;
-	while((ret = check_msg(nlm, expected)) > 0);
-
-	return ret;
-}
-
-/* For commands like AUTHENTICATE, CONNECT we send the request and keep
-   receiving incoming packets until we get the right state change notification.
-   *Wrong* state changes are handled in check_msg.
-
-   Because of the way recv_genl works, cmd 0 here means waiting for ACK or ERR
-   packet of the last command sent. */
-
-#define CMDACK 0
-
-static int wait_for(int cmd)
+static void send_check(const char* tag)
 {
 	int ret;
 
-	if((ret = recv_genl(cmd)) < 0)
-		quit(lastcmd, NULL, ret);
-
-	return ret;
+	if((ret = send_ack(tag)) < 0)
+		quit(tag, NULL, ret);
 }
 
-static void send_genl(const char* cmdtag)
+static int wait_for(int cmd1, int cmd2)
 {
-	int ret;
+	struct nlmsg* msg;
+	struct nlgen* gen;
 
-	if((ret = nl_send(&nl)) < 0)
-		quit("nl-send", cmdtag, ret);
+	while((msg = nl_recv(&nl)))
+		if(!(gen = nl_gen(msg)))
+			continue;
+		else if(!match_ifi(gen))
+			continue;
+		else if(gen->cmd == cmd1)
+			return cmd1;
+		else if(gen->cmd == cmd2 && cmd2)
+			return cmd2;
+		else
+			check_notification(gen);
 
-	lastcmd = cmdtag;
-}
-
-static void send_sync(const char* cmdtag)
-{
-	struct nlmsg* msg = (struct nlmsg*)(nl.txbuf);
-
-	msg->flags |= NLM_F_ACK;
-
-	send_genl(cmdtag);
-
-	wait_for(CMDACK);
+	fail("recv", NULL, nl.err);
 }
 
 /* After uploading the keys, we keep monitoring nl.fd for possible
    spontaneous disconnects. No other messages are expected by that
-   point, and DISCONNECT gets handled in check_msg(), so we call it
-   but ignore any returns. */
+   point. */
 
 void pull_netlink(void)
 {
 	long ret;
 	struct nlmsg* msg;
+	struct nlgen* gen;
 
 	if((ret = nl_recv_nowait(&nl)) < 0)
 		quit("nl-recv", NULL, ret);
 
 	while((msg = nl_get_nowait(&nl)))
-		check_msg(msg, 0);
+		if((gen = nl_gen(msg)))
+			check_notification(gen);
 }
 
-static void send_auth_request(void)
+void disconnect(void)
+{
+	nl_new_cmd(&nl, nl80211, NL80211_CMD_DISCONNECT, 0);
+	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
+
+	send_check("DISCONNECT");
+}
+
+static int send_auth_request(void)
 {
 	int authtype = 0;
 
@@ -263,7 +223,7 @@ static void send_auth_request(void)
 	nl_put(&nl, NL80211_ATTR_SSID, ssid, strlen(ssid));
 	nl_put_u32(&nl, NL80211_ATTR_AUTH_TYPE, authtype);
 
-	send_genl("AUTHENTICATE");
+	return send_ack("AUTHENTICATE");
 }
 
 static void scan_group_op(int opt)
@@ -289,12 +249,15 @@ static void scan_single_freq()
 	nl_end_nest(&nl, at);
 
 	if((ret = nl_subscribe(&nl, scangrp)) < 0)
-		fail("nl-subscribe nl80211", "scan", ret);
+		fail("subscribe", "nl80211.scan", ret);
 
 	scan_group_op(NETLINK_ADD_MEMBERSHIP);
 
-	send_genl("TRIGGER_SCAN");
-	wait_for(NL80211_CMD_NEW_SCAN_RESULTS);
+	send_check("TRIGGER_SCAN");
+	ret = wait_for(NL80211_CMD_NEW_SCAN_RESULTS, NL80211_CMD_SCAN_ABORTED);
+
+	if(ret == NL80211_CMD_SCAN_ABORTED)
+		fail("scan aborted", NULL, 0);
 
 	scan_group_op(NETLINK_DROP_MEMBERSHIP);
 }
@@ -302,32 +265,45 @@ static void scan_single_freq()
 /* For AUTHENTICATE command to succeed, the AP must be in the card's
    (or kernel's? probably card's) internal cache, which means the
    command must come mere seconds after a scan. Otherwise it fails
-   with ENOENT.
+   with ENOENT. We cannot expect to be run right after a fresh scan,
+   so if this happens, we run a short one-frequency scan ourselves.
 
-   We cannot expect to be run right after a fresh scan, so if we
-   see ENOENT here, we run a short one-frequency scan ourselves,
-   to find the station we're looking for and refresh its cache entry.
-
-   However, a scan is still a scan, it takes some time, and it may
-   not be necessary if there may be fresh results in the cache.
-   So we probe that first with an optimistic AUTHENTICATE request. */
+   There's also a chance that the card retains some AP association,
+   in which case we get EALREADY. This gets handled with a DISCONNECT
+   request. */
 
 void authenticate(void)
 {
 	int ret;
-	int cmd = NL80211_CMD_AUTHENTICATE;
 
-	send_auth_request();
+	if((ret = send_auth_request()) >= 0)
+		goto wait;
+	else if(ret == -ENOENT)
+		goto scan;
+	else if(ret == -EALREADY)
+		goto conn;
+	else
+		goto fail;
+conn:
+	disconnect();
 
-	if(!(ret = recv_genl(cmd)))
-		return; /* we're done */
-	if(ret != -ENOENT)
-		fail(lastcmd, NULL, ret);
-
+	if((ret = send_auth_request()) >= 0)
+		goto wait;
+	else if(ret == -ENOENT)
+		goto scan;
+	else
+		goto fail;
+scan:
 	scan_single_freq();
 
-	send_auth_request();
-	wait_for(cmd);
+	if((ret = send_auth_request()) < 0)
+		goto fail;
+wait:
+	wait_for(NL80211_CMD_AUTHENTICATE, 0);
+	connected = 1;
+	return;
+fail:
+	fail("AUTHENTICATE", NULL, ret);
 }
 
 /* The right IEs here prompt the AP to initiate EAPOL exchange. */
@@ -355,8 +331,8 @@ void associate(void)
 	else
 		nl_put(&nl, NL80211_ATTR_IE, ies_ccmp, sizeof(ies_ccmp));
 
-	send_genl("ASSOCIATE");
-	wait_for(NL80211_CMD_CONNECT);
+	send_check("ASSOCIATE");
+	wait_for(NL80211_CMD_CONNECT, 0);
 }
 
 /* Packet encryption happens in the card's FW (or HW) but the keys
@@ -385,7 +361,7 @@ void upload_ptk(void)
 	nl_put_empty(&nl, NL80211_KEY_DEFAULT_TYPE_UNICAST);
 	nl_end_nest(&nl, at);
 
-	send_sync("NEW_KEY PTK");
+	send_check("NEW_KEY PTK");
 }
 
 void upload_gtk(void)
@@ -412,18 +388,28 @@ void upload_gtk(void)
 	nl_put_empty(&nl, NL80211_KEY_DEFAULT_TYPE_MULTICAST);
 	nl_end_nest(&nl, at);
 
-	send_sync("NEW_KEY GTK");
+	send_check("NEW_KEY GTK");
 }
 
-void disconnect(void)
+/* Just fail()ing if something goes wrong is not a good idea in wpa since
+   the interface will likely be left in a partially-connected state.
+   Especially if the failure happens somewhere in EAPOL code, which means
+   the netlink part is fully connected at the time.
+
+   So instead this little wrapper is used to issue DISCONNECT before exiting.
+
+   Since disconnect() itself uses common routines which may in turn quit()
+   themselves, and quit() may be called from sighandler, the code should be
+   guarded against double invocation. */
+
+void quit(const char* msg, const char* arg, int err)
 {
-	if(devstate != CONNECTED)
-		return;
-
-	devstate = NONE; /* disable DISCONNECT handling */
-
-	nl_new_cmd(&nl, nl80211, NL80211_CMD_DISCONNECT, 0);
-	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
-
-	send_sync("DISCONNECT");
+	if(connected) {
+		connected = 0;
+		disconnect();
+	}
+	if(msg || arg)
+		fail(msg, arg, err);
+	else
+		_exit(0xFF);
 }

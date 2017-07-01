@@ -1,3 +1,7 @@
+rm
+rmdir
+pwd
+dirname
 basename
 chvt
 dirname

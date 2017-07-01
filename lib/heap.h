@@ -9,4 +9,5 @@ struct heap {
 };
 
 void hinit(struct heap* hp, long size);
+void hextend(struct heap* hp, long size);
 void* halloc(struct heap* hp, long size);

@@ -1,0 +1,468 @@
+#!/usr/bin/perl
+
+# GENL only! RTNL packets are usually much shorter so there's
+# little need for dedicated scripts there.
+# 
+# Anything other than ctrl is assumed to be nl80211.
+# Handling dynamic family ids is beyond the scope of this
+# little script.
+
+%cmds_nl80211 = ( 
+	 '1' => 'GET_WIPHY',
+	 '2' => 'SET_WIPHY',
+	 '3' => 'NEW_WIPHY',
+	 '4' => 'DEL_WIPHY',
+	 '5' => 'GET_INTERFACE',
+	 '6' => 'SET_INTERFACE',
+	 '7' => 'NEW_INTERFACE',
+	 '8' => 'DEL_INTERFACE',
+	 '9' => 'GET_KEY',
+	'10' => 'SET_KEY',
+	'11' => 'NEW_KEY',
+	'12' => 'DEL_KEY',
+	'13' => 'GET_BEACON',
+	'14' => 'SET_BEACON',
+	'15' => 'NEW_BEACON',
+	'16' => 'DEL_BEACON',
+	'17' => 'GET_STATION',
+	'18' => 'SET_STATION',
+	'19' => 'NEW_STATION',
+	'20' => 'DEL_STATION',
+	'21' => 'GET_MPATH',
+	'22' => 'SET_MPATH',
+	'23' => 'NEW_MPATH',
+	'24' => 'DEL_MPATH',
+	'25' => 'SET_BSS',
+	'26' => 'SET_REG',
+	'27' => 'REQ_SET_REG',
+	'28' => 'GET_MESH_CONFIG',
+	'29' => 'SET_MESH_CONFIG',
+	'30' => 'SET_MGMT_EXTRA_IE',
+	'31' => 'GET_REG',
+	'32' => 'GET_SCAN',
+	'33' => 'TRIGGER_SCAN',
+	'34' => 'NEW_SCAN_RESULTS',
+	'35' => 'SCAN_ABORTED',
+	'36' => 'REG_CHANGE',
+	'37' => 'AUTHENTICATE',
+	'38' => 'ASSOCIATE',
+	'39' => 'DEAUTHENTICATE',
+	'40' => 'DISASSOCIATE',
+	'41' => 'MICHAEL_MIC_FAILURE',
+	'42' => 'REG_BEACON_HINT',
+	'43' => 'JOIN_IBSS',
+	'44' => 'LEAVE_IBSS',
+	'45' => 'TESTMODE',
+	'46' => 'CONNECT',
+	'47' => 'ROAM',
+	'48' => 'DISCONNECT',
+	'49' => 'SET_WIPHY_NETNS',
+	'50' => 'GET_SURVEY',
+	'51' => 'NEW_SURVEY_RESULTS',
+	'52' => 'SET_PMKSA',
+	'53' => 'DEL_PMKSA',
+	'54' => 'FLUSH_PMKSA',
+	'55' => 'REMAIN_ON_CHANNEL',
+	'56' => 'CANCEL_REMAIN_ON_CHANNEL',
+	'57' => 'SET_TX_BITRATE_MASK',
+	'58' => 'REGISTER_FRAME',
+	'59' => 'FRAME',
+	'60' => 'FRAME_TX_STATUS',
+	'61' => 'SET_POWER_SAVE',
+	'62' => 'GET_POWER_SAVE',
+	'63' => 'SET_CQM',
+	'64' => 'NOTIFY_CQM',
+	'65' => 'SET_CHANNEL',
+	'66' => 'SET_WDS_PEER',
+	'67' => 'FRAME_WAIT_CANCEL',
+	'68' => 'JOIN_MESH',
+	'69' => 'LEAVE_MESH',
+	'70' => 'UNPROT_DEAUTHENTICATE',
+	'71' => 'UNPROT_DISASSOCIATE',
+	'72' => 'NEW_PEER_CANDIDATE',
+	'73' => 'GET_WOWLAN',
+	'74' => 'SET_WOWLAN',
+	'75' => 'START_SCHED_SCAN',
+	'76' => 'STOP_SCHED_SCAN',
+	'77' => 'SCHED_SCAN_RESULTS',
+	'78' => 'SCHED_SCAN_STOPPED',
+	'79' => 'SET_REKEY_OFFLOAD',
+	'80' => 'PMKSA_CANDIDATE',
+	'81' => 'TDLS_OPER',
+	'82' => 'TDLS_MGMT',
+	'83' => 'UNEXPECTED_FRAME',
+	'84' => 'PROBE_CLIENT',
+	'85' => 'REGISTER_BEACONS',
+	'86' => 'UNEXPECTED_4ADDR_FRAME',
+	'87' => 'SET_NOACK_MAP',
+	'88' => 'CH_SWITCH_NOTIFY',
+	'89' => 'START_P2P_DEVICE',
+	'90' => 'STOP_P2P_DEVICE',
+	'91' => 'CONN_FAILED',
+	'92' => 'SET_MCAST_RATE',
+	'93' => 'SET_MAC_ACL',
+	'94' => 'RADAR_DETECT',
+	'95' => 'GET_PROTOCOL_FEATURES',
+	'96' => 'UPDATE_FT_IES',
+	'97' => 'FT_EVENT',
+	'98' => 'CRIT_PROTOCOL_START',
+	'99' => 'CRIT_PROTOCOL_STOP',
+	'100' => 'GET_COALESCE',
+	'101' => 'SET_COALESCE',
+	'102' => 'CHANNEL_SWITCH',
+	'103' => 'VENDOR',
+	'104' => 'SET_QOS_MAP',
+	'105' => 'ADD_TX_TS',
+	'106' => 'DEL_TX_TS',
+	'107' => 'GET_MPP',
+	'108' => 'JOIN_OCB',
+	'109' => 'LEAVE_OCB',
+	'110' => 'CH_SWITCH_STARTED_NOTIFY',
+	'111' => 'TDLS_CHANNEL_SWITCH',
+	'112' => 'TDLS_CANCEL_CHANNEL_SWITCH',
+	'113' => 'WIPHY_REG_CHANGE',
+	'114' => 'ABORT_SCAN');
+%atts_nl80211 = (
+	  '1' => 'WIPHY',
+	  '2' => 'WIPHY_NAME',
+	  '3' => 'IFINDEX',
+	  '4' => 'IFNAME',
+	  '5' => 'IFTYPE',
+	  '6' => 'MAC',
+	  '7' => 'KEY_DATA',
+	  '8' => 'KEY_IDX',
+	  '9' => 'KEY_CIPHER',
+	 '10' => 'KEY_SEQ',
+	 '11' => 'KEY_DEFAULT',
+	 '12' => 'BEACON_INTERVAL',
+	 '13' => 'DTIM_PERIOD',
+	 '14' => 'BEACON_HEAD',
+	 '15' => 'BEACON_TAIL',
+	 '16' => 'STA_AID',
+	 '17' => 'STA_FLAGS',
+	 '18' => 'STA_LISTEN_INTERVAL',
+	 '19' => 'STA_SUPPORTED_RATES',
+	 '20' => 'STA_VLAN',
+	 '21' => 'STA_INFO',
+	 '22' => 'WIPHY_BANDS',
+	 '23' => 'MNTR_FLAGS',
+	 '24' => 'MESH_ID',
+	 '25' => 'STA_PLINK_ACTION',
+	 '26' => 'MPATH_NEXT_HOP',
+	 '27' => 'MPATH_INFO',
+	 '28' => 'BSS_CTS_PROT',
+	 '29' => 'BSS_SHORT_PREAMBLE',
+	 '30' => 'BSS_SHORT_SLOT_TIME',
+	 '31' => 'HT_CAPABILITY',
+	 '32' => 'SUPPORTED_IFTYPES',
+	 '33' => 'REG_ALPHA2',
+	 '34' => 'REG_RULES',
+	 '35' => 'MESH_CONFIG',
+	 '36' => 'BSS_BASIC_RATES',
+	 '37' => 'WIPHY_TXQ_PARAMS',
+	 '38' => 'WIPHY_FREQ',
+	 '39' => 'WIPHY_CHANNEL_TYPE',
+	 '40' => 'KEY_DEFAULT_MGMT',
+	 '41' => 'MGMT_SUBTYPE',
+	 '42' => 'IE',
+	 '43' => 'MAX_NUM_SCAN_SSIDS',
+	 '44' => 'SCAN_FREQUENCIES',
+	 '45' => 'SCAN_SSIDS',
+	 '46' => 'GENERATION',
+	 '47' => 'BSS',
+	 '48' => 'REG_INITIATOR',
+	 '49' => 'REG_TYPE',
+	 '50' => 'SUPPORTED_COMMANDS',
+	 '51' => 'FRAME',
+	 '52' => 'SSID',
+	 '53' => 'AUTH_TYPE',
+	 '54' => 'REASON_CODE',
+	 '55' => 'KEY_TYPE',
+	 '56' => 'MAX_SCAN_IE_LEN',
+	 '57' => 'CIPHER_SUITES',
+	 '58' => 'FREQ_BEFORE',
+	 '59' => 'FREQ_AFTER',
+	 '60' => 'FREQ_FIXED',
+	 '61' => 'WIPHY_RETRY_SHORT',
+	 '62' => 'WIPHY_RETRY_LONG',
+	 '63' => 'WIPHY_FRAG_THRESHOLD',
+	 '64' => 'WIPHY_RTS_THRESHOLD',
+	 '65' => 'TIMED_OUT',
+	 '66' => 'USE_MFP',
+	 '67' => 'STA_FLAGS2',
+	 '68' => 'CONTROL_PORT',
+	 '69' => 'TESTDATA',
+	 '70' => 'PRIVACY',
+	 '71' => 'DISCONNECTED_BY_AP',
+	 '72' => 'STATUS_CODE',
+	 '73' => 'CIPHER_SUITES_PAIRWISE',
+	 '74' => 'CIPHER_SUITE_GROUP',
+	 '75' => 'WPA_VERSIONS',
+	 '76' => 'AKM_SUITES',
+	 '77' => 'REQ_IE',
+	 '78' => 'RESP_IE',
+	 '79' => 'PREV_BSSID',
+	 '80' => 'KEY',
+	 '81' => 'KEYS',
+	 '82' => 'PID',
+	 '83' => '4ADDR',
+	 '84' => 'SURVEY_INFO',
+	 '85' => 'PMKID',
+	 '86' => 'MAX_NUM_PMKIDS',
+	 '87' => 'DURATION',
+	 '88' => 'COOKIE',
+	 '89' => 'WIPHY_COVERAGE_CLASS',
+	 '90' => 'TX_RATES',
+	 '91' => 'FRAME_MATCH',
+	 '92' => 'ACK',
+	 '93' => 'PS_STATE',
+	 '94' => 'CQM',
+	 '95' => 'LOCAL_STATE_CHANGE',
+	 '96' => 'AP_ISOLATE',
+	 '97' => 'WIPHY_TX_POWER_SETTING',
+	 '98' => 'WIPHY_TX_POWER_LEVEL',
+	 '99' => 'TX_FRAME_TYPES',
+	'100' => 'RX_FRAME_TYPES',
+	'101' => 'FRAME_TYPE',
+	'102' => 'CONTROL_PORT_ETHERTYPE',
+	'103' => 'CONTROL_PORT_NO_ENCRYPT',
+	'104' => 'SUPPORT_IBSS_RSN',
+	'105' => 'WIPHY_ANTENNA_TX',
+	'106' => 'WIPHY_ANTENNA_RX',
+	'107' => 'MCAST_RATE',
+	'108' => 'OFFCHANNEL_TX_OK',
+	'109' => 'BSS_HT_OPMODE',
+	'110' => 'KEY_DEFAULT_TYPES',
+	'111' => 'MAX_REMAIN_ON_CHANNEL_DURATION',
+	'112' => 'MESH_SETUP',
+	'113' => 'WIPHY_ANTENNA_AVAIL_TX',
+	'114' => 'WIPHY_ANTENNA_AVAIL_RX',
+	'115' => 'SUPPORT_MESH_AUTH',
+	'116' => 'STA_PLINK_STATE',
+	'117' => 'WOWLAN_TRIGGERS',
+	'118' => 'WOWLAN_TRIGGERS_SUPPORTED',
+	'119' => 'SCHED_SCAN_INTERVAL',
+	'120' => 'INTERFACE_COMBINATIONS',
+	'121' => 'SOFTWARE_IFTYPES',
+	'122' => 'REKEY_DATA',
+	'123' => 'MAX_NUM_SCHED_SCAN_SSIDS',
+	'124' => 'MAX_SCHED_SCAN_IE_LEN',
+	'125' => 'SCAN_SUPP_RATES',
+	'126' => 'HIDDEN_SSID',
+	'127' => 'IE_PROBE_RESP',
+	'128' => 'IE_ASSOC_RESP',
+	'129' => 'STA_WME',
+	'130' => 'SUPPORT_AP_UAPSD',
+	'131' => 'ROAM_SUPPORT',
+	'132' => 'SCHED_SCAN_MATCH',
+	'133' => 'MAX_MATCH_SETS',
+	'134' => 'PMKSA_CANDIDATE',
+	'135' => 'TX_NO_CCK_RATE',
+	'136' => 'TDLS_ACTION',
+	'137' => 'TDLS_DIALOG_TOKEN',
+	'138' => 'TDLS_OPERATION',
+	'139' => 'TDLS_SUPPORT',
+	'140' => 'TDLS_EXTERNAL_SETUP',
+	'141' => 'DEVICE_AP_SME',
+	'142' => 'DONT_WAIT_FOR_ACK',
+	'143' => 'FEATURE_FLAGS',
+	'144' => 'PROBE_RESP_OFFLOAD',
+	'145' => 'PROBE_RESP',
+	'146' => 'DFS_REGION',
+	'147' => 'DISABLE_HT',
+	'148' => 'HT_CAPABILITY_MASK',
+	'149' => 'NOACK_MAP',
+	'150' => 'INACTIVITY_TIMEOUT',
+	'151' => 'RX_SIGNAL_DBM',
+	'152' => 'BG_SCAN_PERIOD',
+	'153' => 'WDEV',
+	'154' => 'USER_REG_HINT_TYPE',
+	'155' => 'CONN_FAILED_REASON',
+	'156' => 'SAE_DATA',
+	'157' => 'VHT_CAPABILITY',
+	'158' => 'SCAN_FLAGS',
+	'159' => 'CHANNEL_WIDTH',
+	'160' => 'CENTER_FREQ1',
+	'161' => 'CENTER_FREQ2',
+	'162' => 'P2P_CTWINDOW',
+	'163' => 'P2P_OPPPS',
+	'164' => 'LOCAL_MESH_POWER_MODE',
+	'165' => 'ACL_POLICY',
+	'166' => 'MAC_ADDRS',
+	'167' => 'MAC_ACL_MAX',
+	'168' => 'RADAR_EVENT',
+	'169' => 'EXT_CAPA',
+	'170' => 'EXT_CAPA_MASK',
+	'171' => 'STA_CAPABILITY',
+	'172' => 'STA_EXT_CAPABILITY',
+	'173' => 'PROTOCOL_FEATURES',
+	'174' => 'SPLIT_WIPHY_DUMP',
+	'175' => 'DISABLE_VHT',
+	'176' => 'VHT_CAPABILITY_MASK',
+	'177' => 'MDID',
+	'178' => 'IE_RIC',
+	'179' => 'CRIT_PROT_ID',
+	'180' => 'MAX_CRIT_PROT_DURATION',
+	'181' => 'PEER_AID',
+	'182' => 'COALESCE_RULE',
+	'183' => 'CH_SWITCH_COUNT',
+	'184' => 'CH_SWITCH_BLOCK_TX',
+	'185' => 'CSA_IES',
+	'186' => 'CSA_C_OFF_BEACON',
+	'187' => 'CSA_C_OFF_PRESP',
+	'188' => 'RXMGMT_FLAGS',
+	'189' => 'STA_SUPPORTED_CHANNELS',
+	'190' => 'STA_SUPPORTED_OPER_CLASSES',
+	'191' => 'HANDLE_DFS',
+	'192' => 'SUPPORT_5_MHZ',
+	'193' => 'SUPPORT_10_MHZ',
+	'194' => 'OPMODE_NOTIF',
+	'195' => 'VENDOR_ID',
+	'196' => 'VENDOR_SUBCMD',
+	'197' => 'VENDOR_DATA',
+	'198' => 'VENDOR_EVENTS',
+	'199' => 'QOS_MAP',
+	'200' => 'MAC_HINT',
+	'201' => 'WIPHY_FREQ_HINT',
+	'202' => 'MAX_AP_ASSOC_STA',
+	'203' => 'TDLS_PEER_CAPABILITY',
+	'204' => 'SOCKET_OWNER',
+	'205' => 'CSA_C_OFFSETS_TX',
+	'206' => 'MAX_CSA_COUNTERS',
+	'207' => 'TDLS_INITIATOR',
+	'208' => 'USE_RRM',
+	'209' => 'WIPHY_DYN_ACK',
+	'210' => 'TSID',
+	'211' => 'USER_PRIO',
+	'212' => 'ADMITTED_TIME',
+	'213' => 'SMPS_MODE',
+	'214' => 'OPER_CLASS',
+	'215' => 'MAC_MASK',
+	'216' => 'WIPHY_SELF_MANAGED_REG',
+	'217' => 'EXT_FEATURES',
+	'218' => 'SURVEY_RADIO_STATS',
+	'219' => 'NETNS_FD',
+	'220' => 'SCHED_SCAN_DELAY',
+	'221' => 'REG_INDOOR',
+	'222' => 'MAX_NUM_SCHED_SCAN_PLANS',
+	'223' => 'MAX_SCAN_PLAN_INTERVAL',
+	'224' => 'MAX_SCAN_PLAN_ITERATIONS',
+	'225' => 'SCHED_SCAN_PLANS',
+	'226' => 'PBSS',
+	'227' => 'BSS_SELECT',
+	'228' => 'STA_SUPPORT_P2P_PS',
+	'229' => 'PAD',
+	'230' => 'IFTYPE_EXT_CAPA',
+	'231' => 'MU_MIMO_GROUP_DATA',
+	'232' => 'MU_MIMO_FOLLOW_MAC_ADDR',
+	'233' => 'SCAN_START_TIME_TSF',
+	'234' => 'SCAN_START_TIME_TSF_BSSID',
+	'235' => 'MEASUREMENT_DURATION',
+	'236' => 'MEASUREMENT_DURATION_MANDATORY',
+	'237' => 'MESH_PEER_AID');
+%cmds_ctrl = ( 
+	'1' => 'NEWFAMILY',
+	'2' => 'DELFAMILY',
+	'3' => 'GETFAMILY',
+	'4' => 'NEWOPS',
+	'5' => 'DELOPS',
+	'6' => 'GETOPS',
+	'7' => 'NEWMCAST_GRP',
+	'8' => 'DELMCAST_GRP',
+	'9' => 'GETMCAST_GRP');
+%atts_ctrl = (
+	'1' => 'FAMILY_ID',
+	'2' => 'FAMILY_NAME',
+	'3' => 'VERSION',
+	'4' => 'HDRSIZE',
+	'5' => 'MAXATTR',
+	'6' => 'OPS',
+	'7' => 'MCAST_GROUPS');
+
+our $netlink = 0;
+our $cmdict = undef;
+our $atdict = undef;
+
+while(<>) {
+	if(m!^MSG.*!) {
+		$_ = fix_msg($_);
+	} elsif(m!^\s*GENL!) {
+		$_ = fix_genl($_);
+	} elsif(m!^[ |]+ATTR!) {
+		$_ = fix_attr($_);
+	}
+	print;
+}
+
+sub fix_msg
+{
+	my $line = shift;
+
+	if($line =~ m!(.*)type=(\d+)!) {
+		$atype = atype($2);
+		return "$1type=$2 $atype\n";
+	} else {
+		$atype = '???';
+		return $line;
+	}
+}
+
+sub fix_genl
+{
+	my $line = shift;
+
+	return unless defined $line;
+
+	if($line =~ m!(^\s*GENL )cmd=(\d+)(.*)!) {
+		if($cmdict and defined $cmdict->{$2}) {
+			my $c = $cmdict->{$2};
+			return "$1cmd=$2 $c$3\n";
+		}
+	}
+
+	return $line;
+}
+
+sub fix_attr
+{
+	my $line = shift;
+
+	if($line =~ m!(^[| ]*)ATTR (\d+):(.*)!) {
+		if($atdict and defined $atdict->{$2}) {
+			my $a = $atdict->{$2};
+			return "$1ATTR $2:$3  # $a\n";
+		}
+	} elsif($line =~ m!(^[| ]*)ATTR (\d+) empty!) {
+		if($atdict and defined $atdict->{$2}) {
+			my $a = $atdict->{$2};
+			return "$1ATTR $2 empty  # $a\n";
+		}
+	}
+
+	return $line;
+}
+
+sub atype
+{
+	my $t = shift;
+
+	if($t eq '16') {
+		$cmdict = \%cmds_ctrl;
+		$atdict = \%atts_ctrl;
+		return "ctrl";
+	} else {
+		$cmdict = \%cmds_nl80211;
+		$atdict = \%atts_nl80211;
+		return 'nl80211';
+	}
+
+	$cmdict = undef;
+	$atdict = undef;
+	return $t;
+}
+
+sub quote
+{
+	my $l = shift;
+	print ">  $l";
+}

@@ -1,10 +1,5 @@
 Common tool and their equivalents
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# run handles exec environment changes
-chroot dir cmd ...			/sbin/run -Rdir cmd ...
-nice -n PRIO cmd ...			/sbin/run -rPRIO cmd ...
-/usr/bin/env python			/sbin/run python
-
 # systime writes system clock, date only reads
 date					date
 date -s	time				systime -s time
