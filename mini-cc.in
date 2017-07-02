@@ -8,31 +8,20 @@ case "$0" in
 	*) echo "$0 may not be called from PATH" >&2; exit 1 ;;
 esac
 
-unset compile output
+needslib=yes
 for _ in "$@"; do
 	case "$_" in
-		-c|-E|-S) compile=yes ;;
-		-o) output=yes ;;
+		-c|-E|-S) unset needslib ;;
 	esac
 done
 
 lib="$base/lib/all.a"
 
-if [ -z "$compile" -a ! -f "$lib" ]; then
+if [ -n "$needslib" -a ! -f "$lib" ]; then
 	echo "$0: missing $lib" >&2
 	exit 1
 fi
 
-if [ -n "$compile" ]; then
-	exec "$cc" \
-		-nostdinc -I"$base/lib/arch/$arch" -I"$base/lib" \
-		-fno-strict-aliasing -fno-asynchronous-unwind-tables \
-		"$@" -nostdlib
-elif [ -n "$output" ]; then
-	exec "$cc" \
-		-nostdinc -I"$base/lib/arch/$arch" -I"$base/lib" \
-		-fno-strict-aliasing -fno-asynchronous-unwind-tables \
-		"$@" -nostdlib "$lib" -lgcc
-else
-	exec "$cc" -nostdinc -nostdlib "$@"
-fi
+exec "$cc" -fno-strict-aliasing -fno-asynchronous-unwind-tables \
+	-nostdinc -I"$base/lib/arch/$arch" -I"$base/lib" \
+	"$@" -nostdlib ${needslib:+"$lib" -lgcc}
