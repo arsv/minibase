@@ -59,7 +59,7 @@ static int check_managed_dev(int fd, int* dev, int tty)
 		return ret;
 
 	int maj = major(st.st_rdev);
-	int fmt = st.st_mode && S_IFMT;
+	int fmt = st.st_mode & S_IFMT;
 
 	if(fmt != S_IFCHR)
 		return -EACCES;
