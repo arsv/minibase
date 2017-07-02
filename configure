@@ -22,15 +22,20 @@ for arg in "$@"; do
 		cc=*) eval "$arg" ;;
 		ar=*) eval "$arg" ;;
 		strip=*) eval "$arg" ;;
-		devel) cflags="-Wall -g -DDEBUG" ;;
+		clang) clang=yes ;;
+		devel) cflags="-Wall -g -DDEVEL" ;;
 		*) die "Unexpected argument $arg" ;;
 	esac
 done
 
-tp=${cross:+$cross-}
-test -z "$cc" && cc="${tp}gcc"
-test -z "$ar" && ar="${tp}ar"
-test -z "$strip" && strip="${tp}strip"
+test -z "$ar" && ar="${cross:+$cross-}ar"
+test -z "$strip" && strip="${cross:+$cross-}strip"
+
+if [ -n "$clang" -a -z "$cc" ]; then
+	cc="clang${cross:+--target=$cross}"
+elif [ -z "$cc" ]; then
+	cc="${cross:+$cross-}gcc"
+fi
 
 if [ -z "$arch" ]; then
 	mach=`$cc -dumpmachine`
@@ -54,6 +59,39 @@ man1dir = $man1dir
 man8dir = $man8dir
 END
 
-sed -e "s!CC!$cc!" -e "s!CFLAGS!$cflags!" -e "s!ARCH!$arch!" \
-	mini-cc.in > mini-cc
+cat > mini-cc <<END
+#!/bin/sh
+
+case "\$0" in
+	*/*) base=\${0%/*} ;;
+	*) echo "\$0 may not be called from PATH" >&2; exit 1 ;;
+esac
+
+needslib=yes
+
+for _ in "\$@"; do
+	case "\$_" in
+		-c|-E|-S) unset needslib ;;
+	esac
+done
+
+END
+
+if [ -n "$clang" ]; then
+cat >> mini-cc <<END
+exec $cc -fno-strict-aliasing -fno-asynchronous-unwind-tables \\
+	-Wno-unused-command-line-argument -Wno-gnu \\
+	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib \\
+	$cflags "\$@" \\
+	-nostdlib \${needslib:+\$base/lib/all.a}
+END
+else
+cat >> mini-cc <<END
+exec $cc -fno-strict-aliasing -fno-asynchronous-unwind-tables \\
+	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib \\
+	$cflags "\$@" \\
+	-nostdlib \${needslib:+\$base/lib/all.a -lgcc}
+END
+fi
+
 chmod a+x mini-cc
