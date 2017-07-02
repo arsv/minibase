@@ -373,7 +373,7 @@ void upload_gtk(void)
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_NEW_KEY, 0);
 	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
 
-	nl_put_u8(&nl, NL80211_ATTR_KEY_IDX, 1);
+	nl_put_u8(&nl, NL80211_ATTR_KEY_IDX, gtkindex);
 	nl_put(&nl, NL80211_ATTR_KEY_SEQ, RSC, 6);
 
 	if(tkipgroup) {

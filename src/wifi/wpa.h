@@ -13,6 +13,7 @@ extern uint8_t PSK[32];
 extern uint8_t PTK[16];
 extern uint8_t GTK[32];
 extern uint8_t RSC[6];
+extern int gtkindex;
 extern int tkipgroup;
 
 void setup_netlink(void);

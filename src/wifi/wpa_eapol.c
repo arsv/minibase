@@ -51,6 +51,7 @@ uint8_t KEK[16]; /* key encryption key, for AES unwrapping */
 uint8_t PTK[16]; /* pairwise key (just TK in 802.11 terms) */
 uint8_t GTK[32]; /* group temporary key */
 uint8_t RSC[6];  /* ATTR_KEY_SEQ for GTK */
+int gtkindex;
 
 static void pmk_to_ptk()
 {
@@ -135,8 +136,10 @@ static void fetch_gtk(char* buf, int len)
 			continue;
 
 		/* Flags in kd->data[0] of GTK KDEs;
-		   Ref. IEEE 802.11-2012 Fig. 11-31 */
-		if((kd->data[0] & 0x3) != 0x01)
+		   Ref. IEEE 802.11-2012 Fig. 11-31
+		   The lowest three bits are key index.
+		   For GTK, it may be 1, 2 or 3 but not 0. */
+		if(!(gtkindex = kd->data[0] & 0x3))
 			quit("bad GTK index", NULL, 0);
 
 		store_gtk(kd->data + 2);
