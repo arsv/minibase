@@ -277,7 +277,7 @@ static const char* chooseformat(const char* format, int opts)
 		return "Y-M-D h:m";
 	if(mode == OPT_u)
 		return "u";
-	if(!mode == 0)
+	if(mode)
 		fail("incorrect use of -dtuqf", NULL, 0);
 
 	return "w Y-M-D h:m:s z";
