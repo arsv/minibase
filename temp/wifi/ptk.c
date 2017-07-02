@@ -96,8 +96,8 @@ void pmk_to_ptk()
 		nonce2 = snonce;
 	}
 
-	dump("Mac1", mac1, 6);
-	dump("Mac2", mac2, 6);
+	dump("A1", mac1, 6);
+	dump("A2", mac2, 6);
 
 	dump("Nnc1", nonce1, 32);
 	dump("Nnc2", nonce2, 32);
