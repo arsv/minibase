@@ -110,15 +110,15 @@ static void wrheader()
 
 static char* fmtstatfs(char* p, char* e, struct statfs* st, int opts)
 {
-	long bs = st->f_bsize;
-	long blocksused = st->f_blocks - st->f_bavail;
-	long blockstotal = st->f_blocks;
+	long bs = st->bsize;
+	long blocksused = st->blocks - st->bavail;
+	long blockstotal = st->blocks;
 
-	p = fmtmem(p, e, st->f_blocks, bs);
+	p = fmtmem(p, e, st->blocks, bs);
 	p = fmtstr(p, e, " ");
-	p = fmtmem(p, e, st->f_blocks - st->f_bavail, bs);
+	p = fmtmem(p, e, st->blocks - st->bavail, bs);
 	p = fmtstr(p, e, " ");
-	p = fmtmem(p, e, st->f_bavail, bs);
+	p = fmtmem(p, e, st->bavail, bs);
 	p = fmtstr(p, e, "   ");
 
 	if(blockstotal) {
@@ -148,7 +148,7 @@ static void reportfs(char* statfile, char* mountpoint, int opts)
 
 	xchk(sysstatfs(tag, &st), "statfs", tag);
 
-	if(!st.f_blocks && !(opts & SET_x))
+	if(!st.blocks && !(opts & SET_x))
 		return;
 
 	char buf[100];

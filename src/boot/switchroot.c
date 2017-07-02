@@ -210,7 +210,7 @@ static int checkramfs(void)
 
 	if(sysstatfs("/", &st) < 0)
 		return -1;
-	if(st.f_type != RAMFS_MAGIC && st.f_type != TMPFS_MAGIC)
+	if(st.type != RAMFS_MAGIC && st.type != TMPFS_MAGIC)
 		return -1;
 
 	return 0;
