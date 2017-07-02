@@ -1,0 +1,10 @@
+Wi-Fi monitor / wpa supplicant / connection manager.
+The purpose of this tool is to allow connecting the newly booted system
+to a wifi (or maybe wired) network, preferably with as little configuration
+as possible.
+
+These tools, wimon especially, may or may not face a major rewrite soon.
+Regardless, it should be reasonably usabe with its current design.
+
+See ../../doc/wimon.txt and ../../doc/wpadhcp.txt for some unresolved
+issues with wimon design.
