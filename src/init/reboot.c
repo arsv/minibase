@@ -118,7 +118,7 @@ static int scan_mountpoints(struct heap* hp)
 static char** index_scanned(struct heap* hp, int count)
 {
 	char** mps = halloc(hp, (count+1)*sizeof(char*));
-	int i;
+	int i = 0;
 
 	char* brk = hp->brk;
 	char* end = hp->ptr;
