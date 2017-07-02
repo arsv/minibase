@@ -85,17 +85,17 @@ int load_dir_ents(void)
 		while(ptr < end) {
 			struct dirent64* de = (struct dirent64*) ptr;
 
-			if(!de->d_reclen)
+			if(!de->reclen)
 				break;
 
-			ptr += de->d_reclen;
+			ptr += de->reclen;
 
-			if(dotddot(de->d_name))
+			if(dotddot(de->name))
 				continue;
-			if(de->d_type != DT_UNKNOWN && de->d_type != DT_REG)
+			if(de->type != DT_UNKNOWN && de->type != DT_REG)
 				continue;
 
-			tryfile(dir, de->d_name);
+			tryfile(dir, de->name);
 		}
 	} if(rd < 0) {
 		report("getdents", dir, rd);

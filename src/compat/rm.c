@@ -89,12 +89,12 @@ static void removedir(const char* dirname, long rootdev, int opts)
 		{
 			struct dirent64* dep = (struct dirent64*) ptr;
 
-			if(!dotddot(dep->d_name))
+			if(!dotddot(dep->name))
 				removedep(dirname, dep, rootdev, opts);
-			if(!dep->d_reclen)
+			if(!dep->reclen)
 				break;
 
-			ptr += dep->d_reclen;
+			ptr += dep->reclen;
 		}
 	};
 out:
@@ -105,7 +105,7 @@ static void removedep(const char* dirname, struct dirent64* dep,
 		long rootdev, int opts)
 {
 	int dirnlen = strlen(dirname);
-	int depnlen = strlen(dep->d_name);
+	int depnlen = strlen(dep->name);
 	char fullname[dirnlen + depnlen + 2];
 
 	char* p = fullname;
@@ -113,10 +113,10 @@ static void removedep(const char* dirname, struct dirent64* dep,
 
 	p = fmtstr(p, e, dirname);
 	p = fmtchar(p, e, '/');
-	p = fmtstr(p, e, dep->d_name);
+	p = fmtstr(p, e, dep->name);
 	*p++ = '\0';
 
-	removeany(fullname, dep->d_type, rootdev, opts);
+	removeany(fullname, dep->type, rootdev, opts);
 }
 
 /* This gets called for any node within the tree, including directories.

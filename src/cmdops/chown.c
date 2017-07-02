@@ -91,12 +91,12 @@ static void recurse(const char* dirname, struct chown* ch)
 		{
 			struct dirent64* dep = (struct dirent64*) ptr;
 
-			if(!dotddot(dep->d_name))
+			if(!dotddot(dep->name))
 				recdent(dirname, ch, dep);
-			if(!dep->d_reclen)
+			if(!dep->reclen)
 				break;
 
-			ptr += dep->d_reclen;
+			ptr += dep->reclen;
 		}
 	};
 
@@ -106,7 +106,7 @@ static void recurse(const char* dirname, struct chown* ch)
 static void recdent(const char* dirname, struct chown* ch, struct dirent64* de)
 {
 	int dirnlen = strlen(dirname);
-	int depnlen = strlen(de->d_name);
+	int depnlen = strlen(de->name);
 	char fullname[dirnlen + depnlen + 2];
 
 	char* p = fullname;
@@ -114,7 +114,7 @@ static void recdent(const char* dirname, struct chown* ch, struct dirent64* de)
 
 	p = fmtstr(p, e, dirname);
 	p = fmtchar(p, e, '/');
-	p = fmtstr(p, e, de->d_name);
+	p = fmtstr(p, e, de->name);
 	*p++ = '\0';
 
 	struct stat st;

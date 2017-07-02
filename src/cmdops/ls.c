@@ -138,14 +138,14 @@ static int reindex(struct dataseg* ds, void* dents, void* deend)
 	void* p;
 	int nument = 0;
 
-	for(p = dents; p < deend; nument++, p += de->d_reclen)
+	for(p = dents; p < deend; nument++, p += de->reclen)
 		de = (struct dirent64*) p;
 
 	int len = nument * sizeof(struct idxent);
 	struct idxent* idx = (struct idxent*) alloc(ds, len);
 	struct idxent* end = idx + len;
 
-	for(p = dents; p < deend && idx < end; idx++, p += de->d_reclen) {
+	for(p = dents; p < deend && idx < end; idx++, p += de->reclen) {
 		de = (struct dirent64*) p;
 		idx->de = de;
 	}
@@ -164,11 +164,11 @@ static void statidx(struct idxent* idx, int nument, int fd, int opts)
 		return;
 
 	for(p = idx; p < idx + nument; p++) {
-		int type = p->de->d_type;
+		int type = p->de->type;
 
 		if(type != DT_UNKNOWN)
 			;
-		else if(sysfstatat(fd, p->de->d_name, &st, flags1) < 0)
+		else if(sysfstatat(fd, p->de->name, &st, flags1) < 0)
 			continue;
 		else if(S_ISDIR(st.st_mode))
 			type = DT_DIR;
@@ -177,17 +177,17 @@ static void statidx(struct idxent* idx, int nument, int fd, int opts)
 		else
 			type = DT_REG; /* neither DIR nor LNK nor UNKNOWN */
 
-		p->de->d_type = type;
+		p->de->type = type;
 
 		if(type != DT_LNK)
 			continue;
 		if(opts & OPT_y)
 			continue;
 
-		if(sysfstatat(fd, p->de->d_name, &st, flags2) < 0)
+		if(sysfstatat(fd, p->de->name, &st, flags2) < 0)
 			continue;
 		if(S_ISLNK(st.st_mode))
-			p->de->d_type = DT_LNK_DIR;
+			p->de->type = DT_LNK_DIR;
 	}
 }
 
@@ -199,15 +199,15 @@ static int isdirtype(int t)
 static int cmpidx(struct idxent* a, struct idxent* b, int opts)
 {
 	if(!(opts & OPT_u)) {
-		int dira = isdirtype(a->de->d_type);
-		int dirb = isdirtype(b->de->d_type);
+		int dira = isdirtype(a->de->type);
+		int dirb = isdirtype(b->de->type);
 
 		if(dira && !dirb)
 			return -1;
 		if(dirb && !dira)
 			return  1;
 	}
-	return strcmp(a->de->d_name, b->de->d_name);
+	return strcmp(a->de->name, b->de->name);
 }
 
 static void sortidx(struct idxent* idx, int nument, int opts)
@@ -244,8 +244,8 @@ static void recurse(struct topctx* tc, struct dirctx* dc,
 static void dumpentry(struct topctx* tc, struct dirctx* dc, struct dirent64* de)
 {
 	struct bufout* bo = &(tc->bo);
-	char* name = de->d_name;
-	char type = de->d_type;
+	char* name = de->name;
+	char type = de->type;
 
 	if(dc->len)
 		bufout(bo, dc->dir, dc->len);
@@ -267,8 +267,8 @@ static void dumplist(struct topctx* tc, struct dirctx* dc,
 	int opts = tc->opts;
 
 	for(p = idx; p < idx + nument; p++) {
-		char* name = p->de->d_name;
-		char type = p->de->d_type;
+		char* name = p->de->name;
+		char type = p->de->type;
 
 		if(*name == '.' && !(opts & OPT_a))
 			continue;

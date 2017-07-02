@@ -180,8 +180,8 @@ static void checkstat(struct dirctx* dc, char* name)
 
 static void checkdent(struct dirctx* dc, struct dirent64* de)
 {
-	int type = de->d_type;
-	char* name = de->d_name;
+	int type = de->type;
+	char* name = de->name;
 
 	if(type == DT_DIR)
 		enqueue(dc, name, MDIR);
@@ -216,11 +216,11 @@ static void readscan(struct dirctx* dc, int fd)
 		while(ptr < end) {
 			struct dirent64* de = (struct dirent64*) ptr;
 
-			if(!dotddot(de->d_name))
+			if(!dotddot(de->name))
 				checkdent(dc, de);
-			if(de->d_reclen <= 0)
+			if(de->reclen <= 0)
 				break;
-			ptr += de->d_reclen;
+			ptr += de->reclen;
 		}
 	} if(ret < 0)
 		fail("cannot read entries from", dir, ret);

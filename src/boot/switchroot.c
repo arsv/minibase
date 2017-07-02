@@ -74,11 +74,11 @@ static void delete_rec(struct root* ctx, int dirfd, char* dir)
 		while(ptr < end)
 		{
 			struct dirent64* de = (struct dirent64*) ptr;
-			ptr += de->d_reclen;
+			ptr += de->reclen;
 
-			if(!de->d_reclen)
+			if(!de->reclen)
 				break;
-			if(dotddot(de->d_name))
+			if(dotddot(de->name))
 				continue;
 
 			delete_ent(ctx, dir, dirfd, de);
@@ -132,12 +132,12 @@ static void delete_ent(struct root* ctx, char* dir, int dirfd, struct dirent64* 
 {
 	int fd, ret;
 	struct stat st;
-	char* name = de->d_name;
+	char* name = de->name;
 	char path[strlen(dir) + strlen(name) + 5];
 
 	makepath(path, sizeof(path), dir, name);
 
-	if(de->d_type == DT_DIR)
+	if(de->type == DT_DIR)
 		goto dir;
 	if((ret = sysunlinkat(dirfd, name, 0)) >= 0)
 		return;

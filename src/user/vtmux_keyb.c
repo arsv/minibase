@@ -154,16 +154,16 @@ void setup_keyboards(void)
 		char* end = debuf + rd;
 		while(ptr < end) {
 			struct dirent64* de = (struct dirent64*) ptr;
-			ptr += de->d_reclen;
+			ptr += de->reclen;
 
-			if(dotddot(de->d_name))
+			if(dotddot(de->name))
 				continue;
-			if(!de->d_reclen)
+			if(!de->reclen)
 				break;
-			if(de->d_type != DT_UNKNOWN && de->d_type != DT_CHR)
+			if(de->type != DT_UNKNOWN && de->type != DT_CHR)
 				continue;
 
-			check_dir_ent(dir, de->d_name);
+			check_dir_ent(dir, de->name);
 		}
 	}
 
