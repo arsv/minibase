@@ -191,13 +191,16 @@ static void statidx(struct idxent* idx, int nument, int fd, int opts)
 	}
 }
 
+static int isdirtype(int t)
+{
+	return (t == DT_DIR || t == DT_LNK_DIR);
+}
+
 static int cmpidx(struct idxent* a, struct idxent* b, int opts)
 {
-	int dirtype(int t) { return (t == DT_DIR || t == DT_LNK_DIR); };
-
 	if(!(opts & OPT_u)) {
-		int dira = dirtype(a->de->d_type);
-		int dirb = dirtype(b->de->d_type);
+		int dira = isdirtype(a->de->d_type);
+		int dirb = isdirtype(b->de->d_type);
 
 		if(dira && !dirb)
 			return -1;
