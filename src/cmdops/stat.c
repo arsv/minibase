@@ -280,7 +280,7 @@ static char* sumblkdevino(char* p, char* e, struct stat* st, int opts)
 static char* sumtime(char* p, char* e, char* tag, long* ts)
 {
 	struct tm tm;
-	struct timeval tv = { .tv_sec = *ts, .tv_usec = 0 };
+	struct timeval tv = { .sec = *ts, .usec = 0 };
 	tv2tm(&tv, &tm);
 
 	p = fmtstr(p, e, tag);
@@ -316,7 +316,7 @@ static char* formtime(char* p, char* e, long ts, int opts)
 		return fmtlong(p, e, ts);
 
 	struct tm tm;
-	struct timeval tv = { .tv_sec = ts, .tv_usec = 0 };
+	struct timeval tv = { .sec = ts, .usec = 0 };
 	tv2tm(&tv, &tm);
 
 	return fmttm(p, e, &tm);

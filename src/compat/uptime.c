@@ -16,7 +16,7 @@ static long gettime(int clkid)
 {
 	struct timespec ts;
 	xchk(sysclock_gettime(clkid, &ts), "cannot get system time", NULL);
-	return ts.tv_sec;
+	return ts.sec;
 }
 
 static void writeline(char* buf, char* end)
@@ -71,7 +71,7 @@ static void showsince(struct timeval* tv, struct tm* tm)
 	char* end = buf + sizeof(buf) - 1;
 	char* p = buf;
 
-	p = fmtulong(p, end, tv->tv_sec);
+	p = fmtulong(p, end, tv->sec);
 	p = fmtchar(p, end, ' ');
 	p = fmttm(p, end, tm);
 
@@ -85,7 +85,7 @@ static void upsince(void)
 	struct tm tm;
 
 	xchk(sysgettimeofday(&tv, NULL), "cannot get system time", NULL);
-	tv.tv_sec -= uptime;
+	tv.sec -= uptime;
 
 	tv2tm(&tv, &tm);
 	showsince(&tv, &tm);

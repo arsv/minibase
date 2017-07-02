@@ -67,15 +67,15 @@ void schedule(int secs, void (*call)(int), int ifi)
 
 	return fail("too many scheduled tasks", NULL, 0);
 got:
-	up = tk->tv.tv_nsec > 0 ? 1 : 0;
+	up = tk->tv.nsec > 0 ? 1 : 0;
 
-	if(tk->tv.tv_sec <= 0 && tk->tv.tv_nsec <= 0)
+	if(tk->tv.sec <= 0 && tk->tv.nsec <= 0)
 		;
-	else if(tk->tv.tv_sec + up <= secs)
+	else if(tk->tv.sec + up <= secs)
 		return;
 
-	tk->tv.tv_sec = secs;
-	tk->tv.tv_nsec = 0;
+	tk->tv.sec = secs;
+	tk->tv.nsec = 0;
 	tk->call = call;
 	tk->ifi = ifi;
 }
@@ -93,31 +93,31 @@ static void timesub(struct timespec* ta, struct timespec* tb)
 {
 	int carry;
 
-	if(ta->tv_nsec >= tb->tv_nsec) {
+	if(ta->nsec >= tb->nsec) {
 		carry = 0;
-		ta->tv_nsec -= tb->tv_nsec;
+		ta->nsec -= tb->nsec;
 	} else {
 		carry = 1;
-		ta->tv_nsec = 1000*1000*1000 - tb->tv_nsec;
+		ta->nsec = 1000*1000*1000 - tb->nsec;
 	}
 
-	ta->tv_sec -= tb->tv_sec + carry;
+	ta->sec -= tb->sec + carry;
 
-	if(ta->tv_nsec < 0)
-		ta->tv_nsec = 0;
-	if(ta->tv_sec < 0)
-		ta->tv_sec = 0;
+	if(ta->nsec < 0)
+		ta->nsec = 0;
+	if(ta->sec < 0)
+		ta->sec = 0;
 }
 
 static int timecmp(struct timespec* a, struct timespec* b)
 {
-	if(a->tv_sec > b->tv_sec)
+	if(a->sec > b->sec)
 		return 1;
-	if(a->tv_sec < b->tv_sec)
+	if(a->sec < b->sec)
 		return -1;
-	if(a->tv_nsec > b->tv_nsec)
+	if(a->nsec > b->nsec)
 		return 1;
-	if(a->tv_nsec < b->tv_nsec)
+	if(a->nsec < b->nsec)
 		return -1;
 	return 0;
 }
@@ -157,9 +157,9 @@ static void update_sched(struct timespec* ts, struct timespec* te)
 
 		timesub(&tk->tv, &td);
 
-		if(tk->tv.tv_sec > 0)
+		if(tk->tv.sec > 0)
 			continue;
-		if(tk->tv.tv_nsec > 0)
+		if(tk->tv.nsec > 0)
 			continue;
 
 		(tk->call)(tk->ifi);

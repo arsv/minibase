@@ -108,8 +108,8 @@ static void decode_stamp(struct timedesc* zt, char* arg)
 	if(!(p = parselong(arg, &ts)) || *p)
 		fail("cannot parse timestamp:", arg, 0);
 
-	zt->tv.tv_sec = ts;
-	zt->tv.tv_usec = 0;
+	zt->tv.sec = ts;
+	zt->tv.usec = 0;
 	zt->type = TIME_TV;
 
 	tv2tm(&zt->tv, &zt->tm);
@@ -127,9 +127,9 @@ static void decode_ymd(struct timedesc* zt, const char* arg)
 	if(!(p = parseint(p, &d))) goto bad;
 	if(*p) goto bad;
 
-	zt->tm.tm_year = y - 1900;
-	zt->tm.tm_mon = m;
-	zt->tm.tm_mday = d;
+	zt->tm.year = y - 1900;
+	zt->tm.mon = m;
+	zt->tm.mday = d;
 
 	return;
 bad:
@@ -154,9 +154,9 @@ static void decode_hms(struct timedesc* zt, const char* arg)
 	if(*p)
 		goto bad;
 
-	zt->tm.tm_hour = h;
-	zt->tm.tm_min = m;
-	zt->tm.tm_sec = s;
+	zt->tm.hour = h;
+	zt->tm.min = m;
+	zt->tm.sec = s;
 
 	return;
 bad:
@@ -172,8 +172,8 @@ static void decode_time(struct timedesc* zt, int argc, char** argv)
 	if(argc == 1 && lookslikestamp(argv[0]))
 		return decode_stamp(zt, argv[0]);
 
-	zt->tv.tv_sec = 0;
-	zt->tv.tv_usec = 0;
+	zt->tv.sec = 0;
+	zt->tv.usec = 0;
 
 	if(argc > 1 && lookslikezone(argv[argc-1]))
 		zt->zone = argv[--argc];
@@ -242,14 +242,14 @@ static void show_time(struct timedesc* zt, const char* format)
 	struct tm* tm = &zt->tm;
 
 	for(c = format; *c; c++) switch(*c) {
-		case 'Y': p = fmtint0(p, end, 1900 + tm->tm_year, 4); break;
-		case 'M': p = fmtint0(p, end, tm->tm_mon+1, 2); break;
-		case 'D': p = fmtint0(p, end, tm->tm_mday, 2); break;
-		case 'h': p = fmtint0(p, end, tm->tm_hour, 2); break;
-		case 'm': p = fmtint0(p, end, tm->tm_min, 2); break;
-		case 's': p = fmtint0(p, end, tm->tm_sec, 2); break;
-		case 'w': p = fmtwday(p, end, tm->tm_wday); break;
-		case 'u': p = fmtlong(p, end, zt->tv.tv_sec); break;
+		case 'Y': p = fmtint0(p, end, 1900 + tm->year, 4); break;
+		case 'M': p = fmtint0(p, end, tm->mon+1, 2); break;
+		case 'D': p = fmtint0(p, end, tm->mday, 2); break;
+		case 'h': p = fmtint0(p, end, tm->hour, 2); break;
+		case 'm': p = fmtint0(p, end, tm->min, 2); break;
+		case 's': p = fmtint0(p, end, tm->sec, 2); break;
+		case 'w': p = fmtwday(p, end, tm->wday); break;
+		case 'u': p = fmtlong(p, end, zt->tv.sec); break;
 		case 'z': p = fmtzone(p, end, zt->offset); break;
 		default: p = fmtchar(p, end, *c);
 	}

@@ -24,16 +24,16 @@ static void spawn(char** argv, char** envp)
 
 static void tvdiff(struct timeval* tv, struct timeval* t1, struct timeval* t0)
 {
-	time_t ds = t1->tv_sec - t0->tv_sec;
-	long dus = t1->tv_usec - t0->tv_usec;
+	time_t ds = t1->sec - t0->sec;
+	long dus = t1->usec - t0->usec;
 
 	if(dus < 0) {
 		dus += 1000000;
 		ds -= 1;
 	}
 
-	tv->tv_sec = ds;
-	tv->tv_usec = dus;
+	tv->sec = ds;
+	tv->usec = dus;
 }
 
 static char* fmtint0(char* p, char* end, int n, int w)
@@ -43,15 +43,15 @@ static char* fmtint0(char* p, char* end, int n, int w)
 
 static char* fmttv(char* p, char* e, struct timeval* tv)
 {
-	time_t ts = tv->tv_sec;
+	time_t ts = tv->sec;
 
-	int cs = tv->tv_usec / 10000; /* centiseconds */
+	int cs = tv->usec / 10000; /* centiseconds */
 	int sec = ts % 60; ts /= 60;
 	int min = ts % 60; ts /= 60;
 	int hor = ts % 24; ts /= 24;
 	int days = ts;
 
-	ts = tv->tv_sec;
+	ts = tv->sec;
 
 	if(ts >= 24*60*60) {
 		p = fmtint(p, e, days);

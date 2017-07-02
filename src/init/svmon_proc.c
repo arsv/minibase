@@ -23,7 +23,7 @@ static void setpasstime(void)
 	if((ret = sysclock_gettime(CLOCK_MONOTONIC, &tp))) {
 		report("clock_gettime", "CLOCK_MONOTONIC", ret);
 	} else {
-		passtime = BOOTCLOCKOFFSET + tp.tv_sec;
+		passtime = BOOTCLOCKOFFSET + tp.sec;
 	}
 }
 

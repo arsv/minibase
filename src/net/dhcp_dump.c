@@ -44,7 +44,7 @@ static char* fmt_time(char* p, char* e, uint8_t* ptr, int len)
 	if(len != 4) return p;
 
 	uint32_t val = ntohl(*((uint32_t*)ptr));
-	time_t ts = reftv.tv_sec + val;
+	time_t ts = reftv.sec + val;
 
 	p = fmti64(p, e, ts);
 

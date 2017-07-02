@@ -76,13 +76,13 @@ int setsignals(void)
 
 void wakeupin(int seconds)
 {
-	time_t ttw = timetowait.tv_sec;
+	time_t ttw = timetowait.sec;
 
 	if(ttw >= 0 && ttw < seconds)
 		return;
 
-	timetowait.tv_sec = seconds;
-	timetowait.tv_nsec = 0;
+	timetowait.sec = seconds;
+	timetowait.nsec = 0;
 }
 
 static void setfd(int fi, int fd)
@@ -198,7 +198,7 @@ void waitpoll(void)
 	int nfds = gg.nr + 1;
 	struct timespec* ts;
 
-	if(timetowait.tv_sec > 0 || timetowait.tv_nsec > 0)
+	if(timetowait.sec > 0 || timetowait.nsec > 0)
 		ts = &timetowait;
 	else
 		ts = NULL;
@@ -213,8 +213,8 @@ void waitpoll(void)
 	} else if(r > 0) {
 		checkfds(nfds);
 	} else { /* timeout has been reached */
-		timetowait.tv_sec = 0;
-		timetowait.tv_nsec = 0;
+		timetowait.sec = 0;
+		timetowait.nsec = 0;
 		gg.state |= S_PASSREQ;
 	}
 }

@@ -266,9 +266,9 @@ static void transback_tm_all_to_tv(struct timedesc* zt, struct zonefile* zf)
 
 	tm2tv(&zt->tm, &zt->tv);
 
-	zone_shift_rev(zf, zt->tv.tv_sec, &zx);
+	zone_shift_rev(zf, zt->tv.sec, &zx);
 
-	zt->tv.tv_sec -= zx.leapoff + zx.leapsec + zx.zoneoff;
+	zt->tv.sec -= zx.leapoff + zx.leapsec + zx.zoneoff;
 }
 
 /* HMS only transback is tricky. 15:00 PDT (UTC-7) issued at
@@ -281,45 +281,45 @@ static void transback_tm_all_to_tv(struct timedesc* zt, struct zonefile* zf)
 
 static void transback_tm_hms_to_tv(struct timedesc* zt, struct zonefile* zf)
 {
-	time_t ts = zt->tv.tv_sec; /* current system time */
+	time_t ts = zt->tv.sec; /* current system time */
 
 	struct zoneshift zsh;
 	zone_shift_fwd(zf, ts, &zsh);
 
 	struct timeval tv = {
-		.tv_sec = ts + zsh.leapoff + zsh.zoneoff,
-		.tv_usec = 0
+		.sec = ts + zsh.leapoff + zsh.zoneoff,
+		.usec = 0
 	};
 	struct tm tm;
 
-	int hour = zt->tm.tm_hour;
-	int min = zt->tm.tm_min;
-	int sec = zt->tm.tm_sec;
+	int hour = zt->tm.hour;
+	int min = zt->tm.min;
+	int sec = zt->tm.sec;
 
 	tv2tm(&tv, &tm);
 	memcpy(&zt->tm, &tm, sizeof(tm));
-	zt->tm.tm_hour = hour;
-	zt->tm.tm_min = min;
-	zt->tm.tm_sec = sec;
+	zt->tm.hour = hour;
+	zt->tm.min = min;
+	zt->tm.sec = sec;
 
 	transback_tm_all_to_tv(zt, zf);
 }
 
 static void translate_tv_to_local_tm(struct timedesc* zt, struct zonefile* tgt)
 {
-	time_t ts = zt->tv.tv_sec;
+	time_t ts = zt->tv.sec;
 	struct zoneshift zsh;
 
 	zone_shift_fwd(tgt, ts, &zsh);
 
 	struct timeval local = {
-		.tv_sec = ts + zsh.zoneoff + zsh.leapoff,
-		.tv_usec = zt->tv.tv_usec
+		.sec = ts + zsh.zoneoff + zsh.leapoff,
+		.usec = zt->tv.usec
 	};
 
 	tv2tm(&local, &zt->tm);
 
-	zt->tm.tm_sec += zsh.leapsec;
+	zt->tm.sec += zsh.leapsec;
 
 	zt->zone = NULL;
 	zt->offset = zsh.zoneoff;

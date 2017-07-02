@@ -63,8 +63,8 @@ int main(int argc, char** argv)
 
 	if(opts & (OPT_a | OPT_m)) {
 		pt = times;
-		times[0].tv_nsec = (opts & OPT_a) ? UTIME_NOW : UTIME_OMIT;
-		times[1].tv_nsec = (opts & OPT_m) ? UTIME_NOW : UTIME_OMIT;
+		times[0].nsec = (opts & OPT_a) ? UTIME_NOW : UTIME_OMIT;
+		times[1].nsec = (opts & OPT_m) ? UTIME_NOW : UTIME_OMIT;
 	}
 
 	for(; i < argc; i++)

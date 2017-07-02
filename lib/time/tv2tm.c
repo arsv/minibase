@@ -17,7 +17,7 @@
 
 void tv2tm(struct timeval* tv, struct tm* tm)
 {
-	time_t ts = tv->tv_sec;	
+	time_t ts = tv->sec;	
 	static const char mdays[] = {31,30,31,30,31,31,30,31,30,31,31,29};
 
 	ts -= LEAPOCH;
@@ -53,19 +53,19 @@ void tv2tm(struct timeval* tv, struct tm* tm)
 	for(; mon < 12 && mdays[mon] <= days; mon++)
 		days -= mdays[mon];
 
-	tm->tm_year = year + 100;
-	tm->tm_mon = mon + 2;
-	if (tm->tm_mon >= 12) {
-		tm->tm_mon -=12;
-		tm->tm_year++;
+	tm->year = year + 100;
+	tm->mon = mon + 2;
+	if (tm->mon >= 12) {
+		tm->mon -=12;
+		tm->year++;
 	}
-	tm->tm_mday = days + 1;
-	tm->tm_wday = wday;
-	tm->tm_yday = yday;
+	tm->mday = days + 1;
+	tm->wday = wday;
+	tm->yday = yday;
 
-	tm->tm_sec = secs % 60; secs /= 60;
-	tm->tm_min = secs % 60; secs /= 60;
-	tm->tm_hour = secs % 24;
+	tm->sec = secs % 60; secs /= 60;
+	tm->min = secs % 60; secs /= 60;
+	tm->hour = secs % 24;
 
-	tm->tm_isdst = 0;
+	tm->isdst = 0;
 }

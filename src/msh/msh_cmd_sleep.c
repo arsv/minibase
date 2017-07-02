@@ -29,8 +29,8 @@ static int parsetime(struct sh* ctx, struct timespec* sp, char* str)
 	for(nmul = NANOFRAC; p < q; p++)
 		nmul /= 10;
 out:
-	sp->tv_sec = sec;
-	sp->tv_nsec = nsec*nmul;
+	sp->sec = sec;
+	sp->nsec = nsec*nmul;
 
 	return 0;
 inval:

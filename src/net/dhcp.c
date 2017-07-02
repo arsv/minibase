@@ -327,8 +327,8 @@ static int check_dhcp_header(void)
 static int timedrecv(int fd, char* buf, int len)
 {
 	struct timespec ts = {
-		.tv_sec = 0,
-		.tv_nsec = 150*1000*1000 /* 150ms */
+		.sec = 0,
+		.nsec = 150*1000*1000 /* 150ms */
 	};
 	struct pollfd pfd = {
 		.fd = fd,

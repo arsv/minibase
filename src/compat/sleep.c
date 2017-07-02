@@ -75,8 +75,8 @@ static void parsetime(struct timespec* sp, const char* str)
 		}
 	};
 
-	sp->tv_sec = sec;
-	sp->tv_nsec = nsec*nmul;
+	sp->sec = sec;
+	sp->nsec = nsec*nmul;
 }
 
 /* Several arguments are summed up:
@@ -91,9 +91,9 @@ static void addtime(struct timespec* sp, const char* str)
 
 	parsetime(&ts, str);
 
-	sp->tv_nsec += ts.tv_nsec;
-	long rem = (sp->tv_nsec > NANOFRAC-1) ? sp->tv_nsec / NANOFRAC : 0;
-	sp->tv_sec += ts.tv_sec + rem;
+	sp->nsec += ts.nsec;
+	long rem = (sp->nsec > NANOFRAC-1) ? sp->nsec / NANOFRAC : 0;
+	sp->sec += ts.sec + rem;
 }
 
 int main(int argc, char** argv)

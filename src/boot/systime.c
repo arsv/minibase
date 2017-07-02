@@ -47,7 +47,7 @@ static void getrtctime(struct timeval* tv, struct tm* tm, int rtcfd, const char*
 
 static void setrtctime(struct tm* tm, int rtcfd, const char* rtcname)
 {
-	tm->tm_isdst = 0;
+	tm->isdst = 0;
 	xchk( sysioctl(rtcfd, RTC_SET_TIME, tm),
 		"cannot set RTC time on", rtcname );
 }
@@ -56,20 +56,20 @@ static char* parseymd(struct tm* tm, char* a)
 {
 	char* p = a; /* Expected format: 2015-12-14 */
 	
-	if(!(p = parseint(p, &tm->tm_year)) || *p != '-')
+	if(!(p = parseint(p, &tm->year)) || *p != '-')
 		return NULL;
-	if(!(p = parseint(p, &tm->tm_mon)) || *p != '-')
+	if(!(p = parseint(p, &tm->mon)) || *p != '-')
 		return NULL;
-	if(!(p = parseint(p, &tm->tm_mday)) || *p)
+	if(!(p = parseint(p, &tm->mday)) || *p)
 		return NULL;
 
-	if(tm->tm_mon > 12)
+	if(tm->mon > 12)
 		return NULL;
-	if(tm->tm_mday > 31)
+	if(tm->mday > 31)
 		return NULL;
 	
-	tm->tm_mon--;
-	tm->tm_year -= 1900;
+	tm->mon--;
+	tm->year -= 1900;
 
 	return p;
 }
@@ -78,18 +78,18 @@ static char* parsehms(struct tm* tm, char* a)
 {
 	char* p = a; /* Expected format: 20:40:17 */
 
-	if(!(p = parseint(p, &tm->tm_hour)) || *p != ':')
+	if(!(p = parseint(p, &tm->hour)) || *p != ':')
 		return NULL;
-	if(!(p = parseint(p, &tm->tm_min)) || *p != ':')
+	if(!(p = parseint(p, &tm->min)) || *p != ':')
 		return NULL;
-	if(!(p = parseint(p, &tm->tm_sec)))
+	if(!(p = parseint(p, &tm->sec)))
 		return NULL;
 
-	if(tm->tm_hour >= 24)
+	if(tm->hour >= 24)
 		return NULL;
-	if(tm->tm_min >= 60)
+	if(tm->min >= 60)
 		return NULL;
-	if(tm->tm_sec >= 60)
+	if(tm->sec >= 60)
 		return NULL;
 
 	return p;
@@ -102,7 +102,7 @@ static void parsetime(struct timeval* tv, struct tm* tm, int argc, char** argv)
 	if(argc > 2)
 		fail("bad time specification", NULL, 0);
 	if(argc == 1) {
-		if(!(p = parselong(argv[0], &(tv->tv_sec))) || *p)
+		if(!(p = parselong(argv[0], &(tv->sec))) || *p)
 			fail("not a timestamp:", argv[0], 0);
 		tv2tm(tv, tm);
 	} else {
@@ -123,7 +123,7 @@ static void showtime(struct timeval* tv, struct tm* tm)
 	char* end = buf + sizeof(buf) - 1;
 	char* p = buf;
 
-	p = fmtulong(p, end, tv->tv_sec);
+	p = fmtulong(p, end, tv->sec);
 	p = fmtchar(p, end, ' ');
 	p = fmttm(p, end, tm);
 	*p++ = '\n';
