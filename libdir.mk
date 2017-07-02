@@ -3,10 +3,10 @@
 include $/config.mk
 
 %.o: %.s
-	$(CC) $(CFLAGS) -o $@ -c $<
+	$(CC)$(if $(cflags), $(cflags)) -o $@ -c $<
 
 %.o: %.c
-	$(CC) $(CFLAGS) -o $@ -c $<
+	$(CC)$(if $(cflags), $(cflags)) -o $@ -c $<
 
 %: %.o
 	$(LD) -o $@ $(filter %.o,$^) $(LIBS)

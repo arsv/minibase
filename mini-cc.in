@@ -1,27 +1,19 @@
 #!/bin/sh
 
-cc=cc
-arch=unknown
-
 case "$0" in
 	*/*) base=${0%/*} ;;
 	*) echo "$0 may not be called from PATH" >&2; exit 1 ;;
 esac
 
 needslib=yes
+
 for _ in "$@"; do
 	case "$_" in
 		-c|-E|-S) unset needslib ;;
 	esac
 done
 
-lib="$base/lib/all.a"
-
-if [ -n "$needslib" -a ! -f "$lib" ]; then
-	echo "$0: missing $lib" >&2
-	exit 1
-fi
-
-exec "$cc" -fno-strict-aliasing -fno-asynchronous-unwind-tables \
-	-nostdinc -I"$base/lib/arch/$arch" -I"$base/lib" \
-	"$@" -nostdlib ${needslib:+"$lib" -lgcc}
+exec "CC" -fno-strict-aliasing -fno-asynchronous-unwind-tables \
+	-nostdinc -I"$base/lib/arch/ARCH" -I"$base/lib" \
+	CFLAGS "$@" \
+	-nostdlib ${needslib:+"$base/lib/all.a" -lgcc}

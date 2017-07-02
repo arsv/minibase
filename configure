@@ -22,7 +22,7 @@ for arg in "$@"; do
 		cc=*) eval "$arg" ;;
 		ar=*) eval "$arg" ;;
 		strip=*) eval "$arg" ;;
-		devel) cflags="-Wall -g"; devel=yes ;;
+		devel) cflags="-Wall -g -DDEBUG" ;;
 		*) die "Unexpected argument $arg" ;;
 	esac
 done
@@ -46,17 +46,14 @@ CC = \$/mini-cc
 AR = $ar
 LD = \$(CC)
 AS = \$(CC)
-CFLAGS = $cflags
-ASFLAGS = -g -c
 STRIP = $strip
 
 bindir = $bindir
 sbindir = $sbindir
 man1dir = $man1dir
 man8dir = $man8dir
-
-devel = $devel
 END
 
-sed -e "s!^cc=.*!cc=$cc!" -e "s!^arch=.*!arch=$arch!" mini-cc.in > mini-cc
+sed -e "s!CC!$cc!" -e "s!CFLAGS!$cflags!" -e "s!ARCH!$arch!" \
+	mini-cc.in > mini-cc
 chmod a+x mini-cc

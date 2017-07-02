@@ -3,7 +3,7 @@
 .SECONDARY:
 
 %.o: %.c
-	$(CC) $(CFLAGS) -o $@ -c $<
+	$(CC)$(if $(CFLAGS), $(CFLAGS)) -o $@ -c $<
 
 %: %.o
 	$(LD) -o $@ $(filter %.o,$^) $(LIBS)
