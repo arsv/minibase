@@ -190,6 +190,7 @@ static void send_packet(char* buf, int len)
 	struct sockaddr_ll dest;
 	long wr;
 
+	memzero(&dest, sizeof(dest));
 	dest.family = AF_PACKET;
 	dest.protocol = htons(ETH_P_PAE);
 	dest.ifindex = ifindex;
