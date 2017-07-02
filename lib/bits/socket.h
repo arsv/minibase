@@ -22,8 +22,8 @@
 #define PF_UNSPEC      0
 
 struct sockaddr {
-	uint16_t sa_family;
-	char sa_data[14];
+	uint16_t family;
+	char data[14];
 };
 
 struct ucred {

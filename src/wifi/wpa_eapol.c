@@ -361,10 +361,10 @@ static void fill_smac(void)
 	if((ret = sysioctl(fd, SIOCGIFHWADDR, &ifr)) < 0)
 		quit("ioctl SIOCGIFHWADDR", ifname, ret);
 
-	if(ifr.addr.sa_family != ARPHRD_ETHER)
+	if(ifr.addr.family != ARPHRD_ETHER)
 		quit("unexpected hwaddr family on", ifname, 0);
 
-	memcpy(smac, ifr.addr.sa_data, 6);
+	memcpy(smac, ifr.addr.data, 6);
 }
 
 static void fill_rand(void)

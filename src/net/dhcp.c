@@ -153,10 +153,10 @@ static void get_ifhwaddr(void)
 
 	ifreq_ioctl(SIOCGIFHWADDR, "SIOCGIFHWADDR");
 
-	if(ifreq.addr.sa_family != ARPHRD_ETHER)
+	if(ifreq.addr.family != ARPHRD_ETHER)
 		fail("unexpected hwaddr family on", iface.name, 0);
 
-	memcpy(iface.mac, ifreq.addr.sa_data, 6);
+	memcpy(iface.mac, ifreq.addr.data, 6);
 }
 
 void setup_socket(char* name)
