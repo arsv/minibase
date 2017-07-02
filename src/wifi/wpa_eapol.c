@@ -237,13 +237,14 @@ void recv_packet_1(void)
 	pmk_to_ptk();
 }
 
-/* Packet 2 is sent without any payload. This seems to work well.
-
-   wpa_supplicant sends ies[] as the payload for this packet.
+/* wpa_supplicant sends IEs as the payload for this packet.
    Reasons for that are not clear. The IEs are sent with ASSOCIATE
-   command anyway, no point in repeating them, and IEs are not
-   KDE-formatted, which is against what the standard says about
-   the payload. (Or are they?) */
+   command anyway, so no point in repeating them. However, there
+   are APs (like Android hotspot) that *do* check them and bail out
+   if IEs are not there.
+
+   The fact they match exactly the ASSOCIATE payload may be accidental.
+   Really needs a reference here. But they do seem to match in practice. */
 
 void send_packet_2(void)
 {
@@ -261,10 +262,13 @@ void send_packet_2(void)
 	memzero(ek->mic, sizeof(ek->mic));
 	memzero(ek->_reserved, sizeof(ek->_reserved));
 
-	int paclen = sizeof(*ek);
+	const char* payload = ies;
+	int paylen = iesize;
+	int paclen = sizeof(*ek) + paylen;
 
-	ek->paylen = htons(0); /* IEs could have been here */
+	ek->paylen = htons(paylen);
 	ek->paclen = htons(paclen - 4);
+	memcpy(ek->payload, payload, paylen);
 
 	make_mic(ek->mic, KCK, packet, paclen);
 

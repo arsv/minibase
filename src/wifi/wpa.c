@@ -30,6 +30,33 @@ ERRLIST = {
 	REPORT(ERANGE), RESTASNUMBERS
 };
 
+/* Ref. IEEE 802.11-2012 8.4.2.27 RSNE */
+
+const char ies_ccmp[] = {
+	0x30, 0x14, /* ies { type = 48, len = 20 } */
+	    0x01, 0x00, /* version 1 */
+	    0x00, 0x0F, 0xAC, 0x04, /* CCMP group data chipher */
+	    0x01, 0x00, /* pairwise chipher suite count */
+	    0x00, 0x0F, 0xAC, 0x04, /* CCMP pairwise chipher */
+	    0x01, 0x00, /* authentication and key management */
+	    0x00, 0x0F, 0xAC, 0x02, /* PSK and RSNA key mgmt */
+	    0x00, 0x00, /* preauth capabilities */
+};
+
+const char ies_tkip[] = {
+	0x30, 0x14,      /* everything's the same, except for: */
+	    0x01, 0x00,
+	    0x00, 0x0F, 0xAC, 0x02, /* TKIP group data chipher */
+	    0x01, 0x00,
+	    0x00, 0x0F, 0xAC, 0x04,
+	    0x01, 0x00,
+	    0x00, 0x0F, 0xAC, 0x02,
+	    0x00, 0x00,
+};
+
+const char* ies; /* points to either of above */
+int iesize;
+
 static void malarm(int ms)
 {
 	struct itimerval it = {
@@ -106,6 +133,19 @@ static void setup_psk(char** envp)
 	memset(arg, 'x', len); /* PSK=xxxxxx...xxxx */
 }
 
+static void mode_ccmp_ccmp(void)
+{
+	ies = ies_ccmp;
+	iesize = sizeof(ies_ccmp);
+}
+
+static void mode_ccmp_tkip(void)
+{
+	ies = ies_tkip;
+	iesize = sizeof(ies_tkip);
+	tkipgroup = 1;
+}
+
 /* envp: PSK=001122...EEFF
    argv: wpa wlp1s0 5180 00:11:22:33:44:55 "Blackhole" [ct]
 
@@ -132,9 +172,9 @@ static void setup(int argc, char** argv, char** envp)
 		fail("invalid frequency:", arg_freq, 0);
 
 	if(!arg_mode || !strcmp(arg_mode, "cc"))
-		;
+		mode_ccmp_ccmp();
 	else if(!strcmp(arg_mode, "ct"))
-		tkipgroup = 1;
+		mode_ccmp_tkip();
 	else
 		fail("invalid mode", arg_mode, 0);
 

@@ -36,30 +36,6 @@ const char* lastcmd; /* for reporting only */
 
 int connected;
 
-/* Ref. IEEE 802.11-2012 8.4.2.27 RSNE */
-
-const char ies_ccmp[] = {
-	0x30, 0x14, /* ies { type = 48, len = 20 } */
-	    0x01, 0x00, /* version 1 */
-	    0x00, 0x0F, 0xAC, 0x04, /* CCMP group data chipher */
-	    0x01, 0x00, /* pairwise chipher suite count */
-	    0x00, 0x0F, 0xAC, 0x04, /* CCMP pairwise chipher */
-	    0x01, 0x00, /* authentication and key management */
-	    0x00, 0x0F, 0xAC, 0x02, /* PSK and RSNA key mgmt */
-	    0x00, 0x00, /* preauth capabilities */
-};
-
-const char ies_tkip[] = {
-	0x30, 0x14,      /* everything's the same, except for: */
-	    0x01, 0x00,
-	    0x00, 0x0F, 0xAC, 0x02, /* TKIP group data chipher */
-	    0x01, 0x00,
-	    0x00, 0x0F, 0xAC, 0x04,
-	    0x01, 0x00,
-	    0x00, 0x0F, 0xAC, 0x02,
-	    0x00, 0x00,
-};
-
 /* MLME group (AUTHENTICATE, CONNECT, DISCONNECT notifications) is subscribed
    to right away, but scan (NEW_SCAN_RESULTS, SCAN_ABORTED) subscription is
    delayed until we actually need it, and may not even happen. */
@@ -315,6 +291,7 @@ void associate(void)
 	nl_put(&nl, NL80211_ATTR_MAC, bssid, sizeof(bssid));
 	nl_put_u32(&nl, NL80211_ATTR_WIPHY_FREQ, frequency);
 	nl_put(&nl, NL80211_ATTR_SSID, ssid, strlen(ssid));
+	nl_put(&nl, NL80211_ATTR_IE, ies, iesize);
 
 	/* wpa_supplicant also adds
 
@@ -325,11 +302,6 @@ void associate(void)
 
 	   Those are only needed for wext compatibility code
 	   within the kernel, so we skip them. */
-
-	if(tkipgroup)
-		nl_put(&nl, NL80211_ATTR_IE, ies_tkip, sizeof(ies_tkip));
-	else
-		nl_put(&nl, NL80211_ATTR_IE, ies_ccmp, sizeof(ies_ccmp));
 
 	send_check("ASSOCIATE");
 	wait_for(NL80211_CMD_CONNECT, 0);

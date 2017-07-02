@@ -15,6 +15,8 @@ extern uint8_t GTK[32];
 extern uint8_t RSC[6];
 extern int gtkindex;
 extern int tkipgroup;
+extern const char* ies;
+extern int iesize;
 
 void setup_netlink(void);
 int resolve_ifname(char* name);
