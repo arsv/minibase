@@ -1,7 +1,7 @@
 #include <bits/ints.h>
 #include <string.h>
 
-int memcmp(const void* av, const void* bv, long len)
+int memcmp(const void* av, const void* bv, size_t len)
 {
 	const uint8_t* a = (const uint8_t*) av;
 	const uint8_t* b = (const uint8_t*) bv;

@@ -3,7 +3,7 @@
 
 /* Constant-time memcmp, for crypto stuff */
 
-int memxcmp(const void* av, const void* bv, long len)
+int memxcmp(const void* av, const void* bv, size_t len)
 {
 	const uint8_t* a = (const uint8_t*) av;
 	const uint8_t* b = (const uint8_t*) bv;

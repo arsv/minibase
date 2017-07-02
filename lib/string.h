@@ -3,17 +3,17 @@
 
 void* memcpy(void* dst, const void* src, size_t n);
 void* memset(void* s, int c, size_t n);
-int memcmp(const void* av, const void* bv, long len);
-int memxcmp(const void* av, const void* bv, long len);
-void memzero(void* a, unsigned long n);
+int memcmp(const void* av, const void* bv, size_t len);
+int memxcmp(const void* av, const void* bv, size_t len);
+void memzero(void* a, size_t n);
 void* memmove(void* dst, const void* src, size_t n);
-int nonzero(void* a, unsigned long n);
+int nonzero(void* a, size_t n);
 
 char* strcbrk(char* str, char c);
 int strcmp(const char* a, const char* b);
 char* strecbrk(char* p, char* e, char k);
-unsigned long strlen(const char* a);
-int strncmp(const char* a, const char* b, unsigned long n);
+size_t strlen(const char* a);
+int strncmp(const char* a, const char* b, size_t n);
 char* strqbrk(char* s, const char *accept);
 char* strstr(const char* str, const char* sub);
 char* strchr(const char* str, int c);
