@@ -12,6 +12,7 @@ static int parsetime(struct sh* ctx, struct timespec* sp, char* str)
 {
 	unsigned long sec = 0;
 	unsigned long nsec = 0;
+	unsigned long nmul = 0;
 	char *p, *q;
 
 	if(!*str)
@@ -25,8 +26,8 @@ static int parsetime(struct sh* ctx, struct timespec* sp, char* str)
 	if(!(q = parseulong(p, &nsec)) || *q)
 		goto inval;
 
-	unsigned long nmul = NANOFRAC;
-	for(; p < q; p++) nmul /= 10;
+	for(nmul = NANOFRAC; p < q; p++)
+		nmul /= 10;
 out:
 	sp->tv_sec = sec;
 	sp->tv_nsec = nsec*nmul;
