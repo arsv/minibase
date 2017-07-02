@@ -13,7 +13,7 @@
 static const struct cmd {
 	char name[12];
 	int (*func)(struct sh* ctx);
-} builtin[] = {
+} builtins[] = {
 #define CMD(name) \
 	{ #name, cmd_##name },
 #include "msh_cmd.h"
@@ -45,7 +45,7 @@ static int describe(struct sh* ctx, int status)
 	return error(ctx, msg, buf, 0);
 }
 
-static int spawn(struct sh* ctx)
+static int spawn(struct sh* ctx, int dash)
 {
 	long pid = sysfork();
 	char* cmd = *ctx->argv;
@@ -59,214 +59,40 @@ static int spawn(struct sh* ctx)
 	if((pid = syswaitpid(pid, &status, 0)) < 0)
 		fail("wait", cmd, pid);
 
-	if(!status || ctx->dash)
+	if(!status || dash)
 		return 0;
 
 	return describe(ctx, status);
 }
 
-static int command(struct sh* ctx)
+static const struct cmd* builtin(const char* name)
 {
 	const struct cmd* cc;
+	int maxlen = sizeof(cc->name);
 
-	for(cc = builtin; cc->func; cc++)
-		if(!strncmp(cc->name, *ctx->argv, sizeof(cc->name)))
-			break;
+	for(cc = builtins; cc->func; cc++)
+		if(!strncmp(cc->name, name, maxlen))
+			return cc;
 
-	if(cc->func)
-		return cc->func(ctx);
-	else
-		return spawn(ctx);
+	return NULL;
 }
 
-/* Flow control commands.
-   
-   The whole thing with condition should probably look different,
-   but how exactly is not clear atm. It's tempting to do some sort
-   of && and || and return code checks for arbitrary commands, but
-   actual usage is going to be limited to a single check per if
-   and just a couple of predicates apparently (def, set, nexist).
-
-   Either way it seems like a bad idea to treat conditions as
-   generic commands unless explicitly told to, i.e. allow
-   "if grep ..." and similar.
-
-   Oh and the body will be one-liner in lots of cases.
-   Maybe the syntax should reflect that. Maybe not. */
-
-static int cond_def(struct sh* ctx)
+void command(struct sh* ctx)
 {
-	return valueof(ctx, shift(ctx)) != 0;
-}
+	const struct cmd* cc;
+	int ret, dash;
 
-static int cond_set(struct sh* ctx)
-{
-	char* val = valueof(ctx, shift(ctx));
-
-	return val && *val;
-}
-
-static int cond_exists(struct sh* ctx)
-{
-	struct stat st;
-
-	return sysstat(shift(ctx), &st) >= 0;
-}
-
-static int cond_nexist(struct sh* ctx)
-{
-	return !cond_exists(ctx);
-}
-
-static const struct cond {
-	char name[8];
-	int (*func)(struct sh* ctx);
-	int nargs;
-} conds[] = {
-	{ "def",     cond_def,     1 },
-	{ "set",     cond_set,     1 },
-	{ "exists",  cond_exists,  1 },
-	{ "nexist",  cond_nexist,  1 },
-	{ "",        NULL,         0 }
-};
-
-static int condition(struct sh* ctx)
-{
-	const struct cond* cd;
-	char* key = shift(ctx);
-
-	if(!key)
-		fatal(ctx, "missing condition", NULL);
-
-	for(cd = conds; cd->func; cd++)
-		if(!strncmp(cd->name, key, sizeof(cd->name)))
-			break;
-	if(!cd->func)
-		fatal(ctx, "unknown condition", key);
-	if(numleft(ctx) != cd->nargs)
-		fatal(ctx, "invalid condition", NULL);
-
-	return cd->func(ctx);
-}
-
-static void cmd_if(struct sh* ctx)
-{
-	int cond = ctx->cond;
-	int prev = cond;
-
-	cond = (cond << CSHIFT) | CHADIF;
-
-	if(prev & CGUARD)
-		fatal(ctx, "too many nested conditionals", NULL);
-	if(prev & CSKIP)
-		cond |= CSKIP;
-	else if(condition(ctx))
-		cond |= CHADTRUE;
-	else
-		cond |= CSKIP;
-
-	ctx->cond = cond;
-}
-
-static void cmd_elif(struct sh* ctx)
-{
-	int cond = ctx->cond;
-
-	if(!(cond & CHADIF))
-		fatal(ctx, "misplaced elif", NULL);
-	if((cond >> CSHIFT) & CSKIP)
-		cond |= CSKIP;
-	else if(cond & CHADTRUE)
-		cond |= CSKIP;
-	else if(condition(ctx))
-		cond |= CHADTRUE;
-	else
-		cond |= CSKIP;
-
-	ctx->cond = cond;
-}
-
-static void cmd_else(struct sh* ctx)
-{
-	int cond = ctx->cond;
-
-	if(ctx->argc > 1)
-		fatal(ctx, "no arguments allowed", NULL);
-	if(!(cond & CHADIF) || (cond & CHADELSE))
-		fatal(ctx, "misplaced else", NULL);
-	if((cond >> CSHIFT) & CSKIP)
-		cond |= CSKIP;
-	else if(cond & CHADTRUE)
-		cond |= CSKIP;
-	else
-		cond |= CHADELSE;
-
-	ctx->cond = cond;
-}
-
-static void cmd_fi(struct sh* ctx)
-{
-	int cond = ctx->cond;
-
-	if(ctx->argc > 1)
-		fatal(ctx, "no arguments allowed", NULL);
-	if(!(cond & CHADIF))
-		fatal(ctx, "misplaced fi", NULL);
-
-	ctx->cond = (cond >> CSHIFT);
-}
-
-static const struct flc {
-	char name[8];
-	void (*func)(struct sh* ctx);
-} flowctls[] = {
-	{ "if",       cmd_if   },
-	{ "else",     cmd_else },
-	{ "elif",     cmd_elif },
-	{ "fi",       cmd_fi   },
-	{ "",         NULL     }
-};
-
-static int flowcontrol(struct sh* ctx)
-{
-	const struct flc* fc;
-
-	for(fc = flowctls; fc->func; fc++)
-		if(!strncmp(fc->name, *ctx->argv, sizeof(fc->name)))
-			break;
-	if(!fc->func)
-		return 0;
-
-	fc->func(ctx);
-
-	return 1;
-}
-
-static int prepcmd(struct sh* ctx)
-{
 	if(!ctx->argc)
-		return -1;
+		return;
 
-	if(ctx->argv[0][0] == '-') {
+	if((dash = (ctx->argv[0][0] == '-')))
 		ctx->argv[0]++;
-		ctx->dash = 1;
-	} else {
-		ctx->dash = 0;
-	}
 
-	return 0;
-}
+	if((cc = builtin(ctx->argv[0])))
+		ret = cc->func(ctx);
+	else
+		ret = spawn(ctx, dash);
 
-void statement(struct sh* ctx)
-{
-	if(prepcmd(ctx))
-		return;
-	if(flowcontrol(ctx))
-		return;
-	if(ctx->cond & CSKIP)
-		return;
-	if(!command(ctx))
-		return;
-	if(!ctx->dash)
+	if(ret && !ctx->dash)
 		_exit(0xFF);
 }

@@ -12,15 +12,6 @@
 #define ENVSTR 2
 #define ENVLOC 3
 
-/* sh.cond */
-#define CSKIP    (1<<0)
-#define CHADIF   (1<<1)
-#define CHADELSE (1<<2)
-#define CHADTRUE (1<<3)
-
-#define CSHIFT 4
-#define CGUARD (CHADIF << 7*CSHIFT)
-
 /* Heap layout, at the point when end_cmd() calls exec():
 
    heap                csep                           hend
@@ -60,7 +51,6 @@ struct sh {
 	char* hend;
 	char* var;       /* heap ptr to $var being substituted */
 
-	int cond;        /* if/else/fi state and stack */
 	int dash;        /* leading - to suppress abort-on-failure */
 
 	char pid[20];
@@ -98,7 +88,7 @@ void define(struct sh* ctx, char* var, char* val);
 void undef(struct sh* ctx, char* var);
 int export(struct sh* ctx, char* var);
 
-void statement(struct sh* ctx);
+void command(struct sh* ctx);
 
 #define NR __attribute__((noreturn))
 void fail(const char* err, char* arg, long ret) NR;

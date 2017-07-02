@@ -42,12 +42,6 @@ static void start_var(struct sh* ctx)
 
 static void end_var(struct sh* ctx)
 {
-	if(ctx->cond & CSKIP) {
-		/* leave $VAR as is */
-		ctx->var = NULL;
-		return;
-	}
-
 	/* terminate and substitute $VAR */
 	*(ctx->hptr) = '\0';	
 	ctx->hptr = ctx->var;
@@ -69,23 +63,9 @@ static void add_char(struct sh* ctx, char c)
 	*spc = c;
 }
 
-static int unskip(struct sh* ctx, char* cmd)
-{
-	if((ctx->cond >> CSHIFT) & CSKIP)
-		return 0;
-	if(!strcmp(cmd, "else"))
-		return 1;
-	if(!strcmp(cmd, "elif"))
-		return 1;
-	return 0;
-}
-
 static void end_arg(struct sh* ctx)
 {
 	add_char(ctx, 0);
-
-	if(!ctx->argc && unskip(ctx, ctx->csep))
-		ctx->cond &= ~CSKIP;
 
 	ctx->argc++;
 }
@@ -121,8 +101,6 @@ static void end_val(struct sh* ctx)
 {
 	ctx->argc++;
 
-	if(ctx->cond & CSKIP)
-		goto out;
 	if(ctx->argc != 2)
 		goto out;
 	
@@ -142,7 +120,7 @@ static void end_cmd(struct sh* ctx)
 	ctx->argv = put_argv(ctx);
 	ctx->argp = 1;
 
-	statement(ctx); /* may damage heap, argv, csep! */
+	command(ctx); /* may damage heap, argv, csep! */
 
 	hrev(ctx, CSEP);
 
