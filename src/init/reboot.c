@@ -21,7 +21,7 @@
    There's no other way to do umount -a in minitools, in particular
    mount -u cannot do that. This is because shutdown is the only situation
    when umount -a makes sense, and handling -a requires lots of code
-   not used in any other umount mode (reading mountinfo etc.) */
+   not used in any other umount modes (reading mountinfo etc.) */
 
 #define OPTS "phr"
 #define OPT_p (1<<0)	/* poweroff */
