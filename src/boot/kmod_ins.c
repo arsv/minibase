@@ -1,4 +1,4 @@
-#include <sys/initmodule.h>
+#include <sys/module.h>
 
 #include <string.h>
 #include <util.h>
@@ -39,7 +39,7 @@ void insmod(char* path, char* pars, char** envp)
 	else
 		fail("not a module:", path, 0);
 
-	long ret = sysinitmodule(mb.buf, mb.len, pars);
+	long ret = sys_init_module(mb.buf, mb.len, pars);
 
 	if(ret && ret != -EEXIST)
 		fail("init_module", name, ret);

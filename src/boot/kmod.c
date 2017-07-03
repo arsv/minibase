@@ -1,4 +1,4 @@
-#include <sys/deletemodule.h>
+#include <sys/module.h>
 
 #include <alloca.h>
 #include <format.h>
@@ -32,7 +32,7 @@ static int looks_like_path(char* name)
 
 static void rmmod(char* name)
 {
-	xchk(sysdeletemodule(name, 0), name, NULL);
+	xchk(sys_delete_module(name, 0), name, NULL);
 }
 
 static void decidepars(char* module, int argn, char** args, char** envp)
