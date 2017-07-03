@@ -3,8 +3,7 @@
 
 /* See also: <linux/rtc.h> */
 
-struct rtc_time
-{
+struct rtc_time {
 	int sec;
 	int min;
 	int hour;

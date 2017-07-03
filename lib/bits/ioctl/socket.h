@@ -1,4 +1,4 @@
-#include <bits/socket.h>
+#include <bits/socket/unspec.h>
 
 #define SIOCGIFNAME	0x8910
 #define SIOCGIFHWADDR	0x8927

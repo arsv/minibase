@@ -1,6 +1,8 @@
 #ifndef __BITS_MMAN_H__
 #define __BITS_MMAN_H__
 
+/* Some of these are arch-dependent */
+
 #define PROT_READ       (1<<0)
 #define PROT_WRITE      (1<<1)
 #define PROT_EXEC       (1<<2)
@@ -12,7 +14,5 @@
 
 #define MREMAP_MAYMOVE  (1<<0)
 #define MREMAP_FIXED    (1<<1)
-
-#define MMAPERROR(ret) ( ((ret) < 0) && ((ret) > -2048) )
 
 #endif

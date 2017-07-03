@@ -1,8 +1,9 @@
 #include <bits/ints.h>
+#include <bits/caps.h>
 #include <syscall.h>
 
 #define LINUX_CAPABILITY_VERSION 0x20080522
-#define LINUX_CAPABILITY_U32S    2
+#define LINUX_CAPABILITY_U32S   2
 
 struct cap_header {
 	uint32_t version;
