@@ -29,6 +29,7 @@
 #define DHCP_ROUTER_IP      3
 #define DHCP_REQUESTED_IP  50
 #define DHCP_LEASE_TIME    51
+#define DHCP_RENEW_TIME    58
 #define DHCP_MESSAGE_TYPE  53
 #define DHCP_SERVER_ID     54
 #define DHCP_CLIENT_ID     61

@@ -26,7 +26,7 @@ static void init_netlink(void)
 		fail("connect", "NETLINK_ROUTE", ret);
 }
 
-static void set_iface_address(int ifi, uint8_t ip[4], int mask, int leasetime)
+static void set_iface_address(int ifi, uint8_t ip[4], int mask, int lt, int rt)
 {
 	struct ifaddrmsg* req;
 
@@ -38,10 +38,14 @@ static void set_iface_address(int ifi, uint8_t ip[4], int mask, int leasetime)
 		.index = ifi);
 	nl_put(&nl, IFA_LOCAL, ip, 4);
 
-	if(leasetime) {
+	if(rt > lt) /* renew time must be less than lease time */
+		rt = 0;
+	if(!rt)
+		rt = lt/2;
+	if(lt) {
 		struct ifa_cacheinfo ci = {
-			.valid = leasetime,
-			.prefered = leasetime / 2,
+			.valid = lt,
+			.prefered = rt,
 			.created = 0,
 			.updated = 0
 		};
@@ -99,21 +103,21 @@ static int maskbits(void)
 	return (32 - mask);
 }
 
-static uint8_t* gateway(void)
+static uint8_t* get_opt_ip(int key)
 {
 	struct dhcpopt* opt;
 
-	if(!(opt = get_option(DHCP_ROUTER_IP, 4)))
+	if(!(opt = get_option(key, 4)))
 		return NULL;
 
 	return opt->payload;
 }
 
-static int leasetime(void)
+static int get_opt_int(int key)
 {
 	struct dhcpopt* opt;
 
-	if(!(opt = get_option(DHCP_LEASE_TIME, 4)))
+	if(!(opt = get_option(key, 4)))
 		return 0;
 
 	return ntohl(*((uint32_t*)opt->payload));
@@ -122,12 +126,13 @@ static int leasetime(void)
 void conf_netdev(int ifi, uint8_t* ip, int skipgw)
 {
 	int mask = maskbits();
-	uint8_t* gw = gateway();
-	int lt = leasetime();
+	uint8_t* gw = get_opt_ip(DHCP_ROUTER_IP);
+	int lt = get_opt_int(DHCP_LEASE_TIME);
+	int rt = get_opt_int(DHCP_RENEW_TIME);
 
 	init_netlink();
 
-	set_iface_address(ifi, ip, mask, lt);
+	set_iface_address(ifi, ip, mask, lt, rt);
 
 	if(!gw || skipgw) return;
 
