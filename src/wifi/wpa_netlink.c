@@ -29,11 +29,6 @@ int netlink;
 
 const char* lastcmd; /* for reporting only */
 
-/* Device state is tracked to avoid aborts on stray notifications,
-   like disconnect before connect was issued, or scan abort when we
-   weren't even scanning. And also to avoid disconnecting a link
-   which we did not connect. See track_state() below. */
-
 int connected;
 
 /* MLME group (AUTHENTICATE, CONNECT, DISCONNECT notifications) is subscribed
@@ -80,9 +75,6 @@ int resolve_ifname(char* name)
    immediately, but the requested change happens later and is announced via
    notification. E.g. send AUTHENTICATE, recv ACK, time passes, AUTHENTICATE
    notification arrives.
-
-   Spontaneous notification may arrive in-between a synchronous command and
-   its ACK, and we must be ready to deal with it.
 
    For most commands, the effect notifications always arrive after the ACK,
    so wait_for() is used. The notification for DISCONNECT however arrives
@@ -163,8 +155,7 @@ static int wait_for(int cmd1, int cmd2)
 }
 
 /* After uploading the keys, we keep monitoring nl.fd for possible
-   spontaneous disconnects. No other messages are expected by that
-   point. */
+   spontaneous disconnects. No other messages are expected by that point. */
 
 void pull_netlink(void)
 {
@@ -291,6 +282,7 @@ void associate(void)
 	nl_put(&nl, NL80211_ATTR_MAC, bssid, sizeof(bssid));
 	nl_put_u32(&nl, NL80211_ATTR_WIPHY_FREQ, frequency);
 	nl_put(&nl, NL80211_ATTR_SSID, ssid, strlen(ssid));
+
 	nl_put(&nl, NL80211_ATTR_IE, ies, iesize);
 
 	/* wpa_supplicant also adds
