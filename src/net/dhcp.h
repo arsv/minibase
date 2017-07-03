@@ -61,6 +61,9 @@ struct dhcpopt {
 	uint8_t payload[];
 } __attribute__((packed));
 
+struct dhcpopt* first_opt(void);
+struct dhcpopt* next_opt(struct dhcpopt* curr);
 struct dhcpopt* get_option(int code, int len);
+
 void show_config(uint8_t* ip);
 void conf_netdev(int ifi, uint8_t* ip, int skipgw);

@@ -379,24 +379,54 @@ int recv_packet(void)
 	return totlen;
 }
 
+struct dhcpopt* opt_at(int off)
+{
+	struct dhcpopt* opt;
+	int hdrlen = sizeof(*opt);
+
+	if(off < 0)
+		return NULL;
+	if(off > optptr - hdrlen)
+		return NULL;
+
+	opt = (struct dhcpopt*)(packet.options + off);
+
+	if(off > optptr - hdrlen - opt->len)
+		return NULL; /* truncated opt */
+
+	return opt;
+}
+
+struct dhcpopt* first_opt(void)
+{
+	return opt_at(0);
+}
+
+struct dhcpopt* next_opt(struct dhcpopt* curr)
+{
+	char* cptr = (char*)curr;
+
+	if(cptr < packet.options)
+		return NULL;
+	if(cptr > packet.options + optptr)
+		return NULL;
+
+	int pos = (cptr - packet.options);
+
+	return opt_at(pos + sizeof(*curr) + curr->len);
+}
+
 struct dhcpopt* get_option(int code, int len)
 {
-	int p = 0;
 	struct dhcpopt* opt;
 
-	while(p < optptr - sizeof(*opt)) {
-		opt = (struct dhcpopt*)(packet.options + p);
-		p += sizeof(*opt) + opt->len;
-
-		if(p > optptr)
-			continue; /* truncated option */
+	for(opt = first_opt(); opt; opt = next_opt(opt))
 		if(opt->code != code)
 			continue;
-		if(!len || opt->len == len)
+		else if(!len || opt->len == len)
 			return opt;
 		else
 			break; /* right code but wrong size */
-	}
 
 	return NULL;
 }
@@ -417,7 +447,7 @@ void send_discover_recv_offer(void)
 {
 	uint8_t* srv;
 	int ret, tries = 4;
-again:  
+again:
 	put_header(DHCPDISCOVER);
 	send_packet();
 
@@ -450,7 +480,7 @@ again:
 	put_ip(DHCP_SERVER_ID, offer.serverip);
 	put_mac(DHCP_CLIENT_ID, iface.mac);
 	send_packet();
-	
+
 	while(1) {
 		if((ret = recv_packet()) >= 0)
 			;
