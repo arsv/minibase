@@ -39,9 +39,9 @@ int sigterm;
 int sigchld;
 
 /* Wimon is almost completely event-driven, with the events normally coming
-   from RTNL/GENL sockets and rfkill device. There's control socket and client
-   connections, SIGCHLD from dhcp and wpa processes, and some scheduled scans.
-   It all gets handled in a single ppoll loop.
+   from RTNL/GENL sockets and rfkill device. There's also the control socket
+   and client connections, SIGCHLDs from dhcp and wpa processes, and some
+   scheduled scans. It all gets handled in a single ppoll loop.
 
    Note wimon neither buffers nor polls any outputs. Writes to NL sockets are
    assumed to always go through fast, and writes to client connections are
