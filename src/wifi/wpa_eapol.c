@@ -342,7 +342,7 @@ void send_packet_4(void)
 	int paclen = sizeof(*ek);
 
 	ek->paylen = htons(0);
-	ek->paclen = htons(paclen);
+	ek->paclen = htons(paclen - 4);
 
 	make_mic(ek->mic, KCK, packet, paclen);
 
