@@ -333,7 +333,7 @@ void send_packet_4(void)
 	ek->keyinfo = htons(KI_SHA | KI_PAIRWISE | KI_MIC | KI_SECURE);
 	ek->keylen = 0;
 	//ek->replay is reused
-	memcpy(ek->nonce, snonce, sizeof(snonce));
+	memzero(ek->nonce, sizeof(ek->nonce));
 	memzero(ek->iv, sizeof(ek->iv));
 	memzero(ek->rsc, sizeof(ek->rsc));
 	memzero(ek->mic, sizeof(ek->mic));
