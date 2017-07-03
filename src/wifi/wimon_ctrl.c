@@ -8,7 +8,7 @@
 #include <sys/recv.h>
 #include <sys/socket.h>
 #include <sys/unlink.h>
-#include <sys/setitimer.h>
+#include <sys/itimer.h>
 
 #include <nlusctl.h>
 #include <string.h>
@@ -41,7 +41,7 @@ static void release_latch(struct conn* cn, int err)
 		.value = { TIMEOUT, 0 }
 	};
 
-	syssetitimer(0, &new, &old);
+	sys_setitimer(0, &new, &old);
 
 	if(err)
 		reply(cn, err);
@@ -52,7 +52,7 @@ static void release_latch(struct conn* cn, int err)
 	else
 		reply(cn, 0);
 
-	syssetitimer(0, &old, NULL);
+	sys_setitimer(0, &old, NULL);
 
 	cn->evt = 0;
 	cn->ifi = 0;
@@ -343,7 +343,7 @@ void handle_conn(struct conn* cn)
 
 	struct ucmsg* msg;
 
-	syssetitimer(0, &itv, &old);
+	sys_setitimer(0, &itv, &old);
 
 	while((rb = sysrecv(fd, ptr, end - ptr, flags)) > 0) {
 		ptr += rb;
@@ -371,7 +371,7 @@ void handle_conn(struct conn* cn)
 		shutdown_conn(cn);
 	}
 
-	syssetitimer(0, &old, NULL);
+	sys_setitimer(0, &old, NULL);
 	save_config();
 }
 

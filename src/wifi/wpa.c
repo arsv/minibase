@@ -1,6 +1,6 @@
 #include <bits/errno.h>
 #include <sys/sigaction.h>
-#include <sys/setitimer.h>
+#include <sys/itimer.h>
 #include <sys/ppoll.h>
 #include <sys/_exit.h>
 
@@ -64,7 +64,7 @@ static void malarm(int ms)
 		.value = { 0, 1000*ms }
 	};
 
-	syssetitimer(ITIMER_REAL, &it, NULL);
+	sys_setitimer(ITIMER_REAL, &it, NULL);
 }
 
 static void sighandler(int sig)
