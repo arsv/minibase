@@ -5,7 +5,7 @@
 #include <sys/close.h>
 #include <sys/dup2.h>
 #include <sys/waitpid.h>
-#include <sys/clock_gettime.h>
+#include <sys/clock.h>
 #include <sys/_exit.h>
 
 #include <format.h>
@@ -20,7 +20,7 @@ static void setpasstime(void)
 	struct timespec tp = { 0, 0 };
 	long ret;
 
-	if((ret = sysclock_gettime(CLOCK_MONOTONIC, &tp))) {
+	if((ret = sys_clock_gettime(CLOCK_MONOTONIC, &tp))) {
 		report("clock_gettime", "CLOCK_MONOTONIC", ret);
 	} else {
 		passtime = BOOTCLOCKOFFSET + tp.sec;

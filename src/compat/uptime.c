@@ -1,4 +1,4 @@
-#include <sys/clock_gettime.h>
+#include <sys/clock.h>
 #include <sys/gettimeofday.h>
 
 #include <format.h>
@@ -15,7 +15,7 @@ ERRLIST = {
 static long gettime(int clkid)
 {
 	struct timespec ts;
-	xchk(sysclock_gettime(clkid, &ts), "cannot get system time", NULL);
+	xchk(sys_clock_gettime(clkid, &ts), "cannot get system time", NULL);
 	return ts.sec;
 }
 

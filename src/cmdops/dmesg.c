@@ -1,6 +1,5 @@
 #include <sys/klogctl.h>
 #include <sys/mmap.h>
-#include <sys/clock_gettime.h>
 
 #include <alloca.h>
 #include <string.h>
