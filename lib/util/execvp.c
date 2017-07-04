@@ -1,4 +1,4 @@
-#include <sys/execve.h>
+#include <sys/exec.h>
 #include <string.h>
 #include <util.h>
 
@@ -14,7 +14,7 @@ static long execvpe_at(char* file, char** argv, char** envp,
 	memcpy(p, file, flen); p += flen;
 	*p++ = '\0';
 
-	return sysexecve(path, argv, envp);
+	return sys_execve(path, argv, envp);
 }
 
 static int lookslikepath(const char* file)
@@ -32,7 +32,7 @@ long execvpe(char* file, char** argv, char** envp)
 {
 	/* short-circuit to execve when something resembling path is supplied */
 	if(lookslikepath(file))
-		return sysexecve(file, argv, envp);
+		return sys_execve(file, argv, envp);
 
 	char* p = getenv(envp, "PATH");
 	char* e;

@@ -1,9 +1,6 @@
 #include <bits/socket.h>
-#include <sys/getpid.h>
+#include <sys/pid.h>
 #include <sys/socket.h>
-#include <sys/bind.h>
-#include <sys/recv.h>
-#include <sys/sendto.h>
 
 #include <string.h>
 
@@ -33,17 +30,17 @@ long nl_connect(struct netlink* nl, int protocol, int groups)
 	int type = SOCK_RAW;
 	struct sockaddr_nl nls = {
 		.family = AF_NETLINK,
-		.pid = sysgetpid(),
+		.pid = sys_getpid(),
 		.groups = groups
 	};
 	long ret;
 
-	if((ret = syssocket(domain, type, protocol)) < 0)
+	if((ret = sys_socket(domain, type, protocol)) < 0)
 		return ret;
 
 	nl->fd = ret;
 
-	if((ret = sysbind(nl->fd, (struct sockaddr*)&nls, sizeof(nls))) < 0)
+	if((ret = sys_bind(nl->fd, (struct sockaddr*)&nls, sizeof(nls))) < 0)
 		return ret;
 
 	return 0;
@@ -61,7 +58,7 @@ static long nl_recv_chunk(struct netlink* nl, int flags)
 	if(len <= 0)
 		return -ENOBUFS;
 
-	if((rd = sysrecv(fd, buf, len, flags)) > 0) {
+	if((rd = sys_recv(fd, buf, len, flags)) > 0) {
 		nl->rxend += rd;
 		nl->err = 0;
 	} else {
@@ -79,7 +76,7 @@ long nl_send_txbuf(struct netlink* nl)
 		.groups = 0
 	};
 
-	long rd = syssendto(nl->fd, nl->txbuf, nl->txend, 0, &nls, sizeof(nls));
+	long rd = sys_sendto(nl->fd, nl->txbuf, nl->txend, 0, &nls, sizeof(nls));
 
 	nl->err = (rd < 0 ? rd : 0);
 

@@ -11,8 +11,8 @@ static long align(long size)
 
 void hinit(struct heap* hp, long size)
 {
-	hp->brk = (void*)sysbrk(NULL);
-	hp->end = (void*)sysbrk(hp->brk + align(size));
+	hp->brk = (void*)sys_brk(NULL);
+	hp->end = (void*)sys_brk(hp->brk + align(size));
 	hp->ptr = hp->brk;
 
 	if(hp->end <= hp->brk)
@@ -27,7 +27,7 @@ void hextend(struct heap* hp, long size)
 	if(end <= hp->end)
 		return;
 
-	hp->end = (void*)sysbrk(hp->end + align(end - hp->end));
+	hp->end = (void*)sys_brk(hp->end + align(end - hp->end));
 
 	if(end > hp->end)
 		fail("cannot allocate memory", NULL, 0);

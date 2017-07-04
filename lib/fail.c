@@ -1,5 +1,4 @@
-#include <sys/write.h>
-
+#include <sys/file.h>
 #include <format.h>
 #include <fail.h>
 
@@ -49,7 +48,7 @@ void warn(const char* msg, const char* obj, int err)
 	}
 
 	*p++ = '\n';
-	syswrite(2, b, p - b);
+	sys_write(2, b, p - b);
 }
 
 void fail(const char* msg, const char* obj, int err)
