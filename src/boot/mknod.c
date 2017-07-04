@@ -3,7 +3,7 @@
 #include <format.h>
 #include <fail.h>
 
-#define makedev(x,y) ( \
+#define make_dev(x,y) ( \
         (((x)&0xfffff000ULL) << 32) | \
 	(((x)&0x00000fffULL) << 8) | \
         (((y)&0xffffff00ULL) << 12) | \
@@ -17,7 +17,7 @@ ERRLIST = {
 	RESTASNUMBERS
 };
 
-static int parsemode(const char* mode)
+static int parse_mode(const char* mode)
 {
 	const char* p;
 	int d, m = 0;
@@ -34,7 +34,7 @@ static int parsemode(const char* mode)
 	return m;
 }
 
-static int parsetype(const char* type)
+static int parse_type(const char* type)
 {
 	if(!type[0] || type[1])
 		goto bad;
@@ -77,9 +77,9 @@ int main(int argc, char** argv)
 	if(i < argc)
 		name = argv[i++];
 	if(i < argc && argv[i][0] >= '0' && argv[i][0] <= '9')
-		mode = parsemode(argv[i++]);
+		mode = parse_mode(argv[i++]);
 	if(i < argc)
-		type = parsetype(argv[i++]);
+		type = parse_type(argv[i++]);
 
 	int isdev = (type == S_IFCHR || type == S_IFBLK);
 
@@ -93,7 +93,7 @@ int main(int argc, char** argv)
 		minor = xparseint(argv[i++]);
 	}
 
-	long dev = makedev(major, minor);
+	long dev = make_dev(major, minor);
 	long ret = sys_mknod(name, mode | type, dev);
 
 	if(ret < 0)
