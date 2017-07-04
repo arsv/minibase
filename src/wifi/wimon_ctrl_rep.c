@@ -1,4 +1,4 @@
-#include <sys/write.h>
+#include <sys/file.h>
 #include <sys/brk.h>
 
 #include <format.h>
@@ -51,17 +51,17 @@ static int estimate_status(void)
 
 static void prep_heap(struct heap* hp, int size)
 {
-	hp->brk = (void*)sysbrk(NULL);
+	hp->brk = (void*)sys_brk(NULL);
 
 	size += (PAGE - size % PAGE) % PAGE;
 
 	hp->ptr = hp->brk;
-	hp->end = (void*)sysbrk(hp->brk + size);
+	hp->end = (void*)sys_brk(hp->brk + size);
 }
 
 static void free_heap(struct heap* hp)
 {
-	sysbrk(hp->brk);
+	sys_brk(hp->brk);
 }
 
 static void put_status_wifi(struct ucbuf* uc)

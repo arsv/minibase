@@ -1,10 +1,6 @@
-#include <sys/open.h>
-#include <sys/read.h>
-#include <sys/write.h>
-#include <sys/close.h>
-#include <sys/fstat.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/mmap.h>
-#include <sys/munmap.h>
 
 #include <format.h>
 #include <string.h>

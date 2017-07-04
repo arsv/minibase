@@ -1,14 +1,13 @@
-#include <sys/waitpid.h>
-#include <sys/execve.h>
+#include <sys/wait.h>
+#include <sys/exec.h>
 #include <sys/fork.h>
 #include <sys/kill.h>
-#include <sys/pause.h>
-#include <sys/_exit.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
 #include <null.h>
 #include <fail.h>
+#include <exit.h>
 
 #include "wimon.h"
 
@@ -31,7 +30,7 @@ void stop_link_procs(struct link* ls, int drop)
 		if(ch->pid <= 0)
 			continue;
 
-		syskill(ch->pid, SIGTERM);
+		sys_kill(ch->pid, SIGTERM);
 
 		if(!drop) continue;
 
@@ -56,7 +55,7 @@ void stop_all_procs(void)
 
 	for(ch = children; ch < children + nchildren; ch++)
 		if(ch->pid > 0)
-			syskill(ch->pid, SIGTERM);
+			sys_kill(ch->pid, SIGTERM);
 }
 
 static int any_link_procs(int ifi)
@@ -78,7 +77,7 @@ void waitpids(void)
 	int status;
 	int ifi;
 
-	while((pid = syswaitpid(-1, &status, WNOHANG)) > 0) {
+	while((pid = sys_waitpid(-1, &status, WNOHANG)) > 0) {
 		if(!(ch = find_child_slot(pid)))
 			continue;
 		if((ifi = ch->ifi) < 0)
@@ -103,7 +102,7 @@ static void spawn(struct link* ls, char** args, char** envp)
 
 	if(!(ch = grab_child_slot()))
 		goto fail;
-	if((pid = sysfork()) < 0)
+	if((pid = sys_fork()) < 0)
 		goto fail;
 
 	if(pid == 0) {

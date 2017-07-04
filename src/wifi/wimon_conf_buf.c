@@ -1,11 +1,6 @@
-#include <sys/open.h>
-#include <sys/read.h>
-#include <sys/write.h>
-#include <sys/close.h>
-#include <sys/fstat.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/mmap.h>
-#include <sys/mremap.h>
-#include <sys/munmap.h>
 
 #include <format.h>
 #include <string.h>
@@ -59,13 +54,13 @@ void save_config(void)
 	if(!modified)
 		return;
 
-	if((fd = sysopen3(WICFG, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0) {
+	if((fd = sys_open3(WICFG, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0) {
 		warn("cannot open", WICFG, fd);
 		return;
 	}
 
 	writeall(fd, config, datalen);
-	sysclose(fd);
+	sys_close(fd);
 	modified = 0;
 }
 
@@ -76,7 +71,7 @@ void drop_config(int _)
 	if(modified)
 		save_config();
 
-	sysmunmap(config, blocklen);
+	sys_munmap(config, blocklen);
 	config = NULL;
 	blocklen = 0;
 	datalen = 0;
@@ -87,12 +82,12 @@ static int open_stat_config(int* size)
 	int fd, ret;
 	struct stat st;
 
-	if((fd = sysopen(WICFG, O_RDONLY)) < 0) {
+	if((fd = sys_open(WICFG, O_RDONLY)) < 0) {
 		*size = 0;
 		return fd;
 	}
 
-	if((ret = sysfstat(fd, &st)) < 0)
+	if((ret = sys_fstat(fd, &st)) < 0)
 		goto out;
 	if(st.st_size > MAX_CONFIG_SIZE) {
 		ret = -E2BIG;
@@ -102,7 +97,7 @@ static int open_stat_config(int* size)
 	*size = st.st_size;
 	return fd;
 out:
-	sysclose(fd);
+	sys_close(fd);
 
 	if(ret && ret != -ENOENT)
 		warn(NULL, WICFG, ret);
@@ -116,9 +111,9 @@ static int mmap_config_buf(int filesize)
 	int prot = PROT_READ | PROT_WRITE;
 	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
 
-	long ret = sysmmap(NULL, size, prot, flags, -1, 0);
+	long ret = sys_mmap(NULL, size, prot, flags, -1, 0);
 
-	if(MMAPERROR(ret))
+	if(mmap_error(ret))
 		return ret;
 
 	config = (char*)ret;
@@ -135,7 +130,7 @@ static int read_config_whole(int fd, int filesize)
 
 	if(filesize <= 0)
 		return 0;
-	if((ret = sysread(fd, config, filesize)) < filesize)
+	if((ret = sys_read(fd, config, filesize)) < filesize)
 		return ret;
 
 	return 0;
@@ -162,7 +157,7 @@ int load_config(void)
 	ret = 0;
 out:	
 	if(fd >= 0)
-		sysclose(fd);
+		sys_close(fd);
 	if(ret && ret != -ENOENT)
 		warn(NULL, WICFG, ret);
 
@@ -283,9 +278,9 @@ static int remap_config(int len)
 	int newblocklen = blocklen + lenaligned;
 	long ret;
 
-	ret = sysmremap(config, blocklen, newblocklen, MREMAP_MAYMOVE);
+	ret = sys_mremap(config, blocklen, newblocklen, MREMAP_MAYMOVE);
 
-	if(MMAPERROR(ret))
+	if(mmap_error(ret))
 		return ret;
 
 	config = (char*)ret;

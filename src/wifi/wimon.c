@@ -1,10 +1,8 @@
 #include <bits/errno.h>
-#include <sys/unlink.h>
-#include <sys/ppoll.h>
-#include <sys/pause.h>
-#include <sys/close.h>
-#include <sys/sigprocmask.h>
-#include <sys/sigaction.h>
+#include <sys/fsnod.h>
+#include <sys/file.h>
+#include <sys/poll.h>
+#include <sys/signal.h>
 
 #include <netlink.h>
 #include <sigset.h>
@@ -188,20 +186,20 @@ void setup_signals(void)
 
 	sigemptyset(&sa.mask);
 	sigaddset(&sa.mask, SIGCHLD);
-	ret |= syssigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
+	ret |= sys_sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
 
 	sigaddset(&sa.mask, SIGINT);
 	sigaddset(&sa.mask, SIGTERM);
 	sigaddset(&sa.mask, SIGHUP);
 	sigaddset(&sa.mask, SIGALRM);
 
-	ret |= syssigaction(SIGINT,  &sa, NULL);
-	ret |= syssigaction(SIGTERM, &sa, NULL);
-	ret |= syssigaction(SIGHUP,  &sa, NULL);
-	ret |= syssigaction(SIGALRM, &sa, NULL);
+	ret |= sys_sigaction(SIGINT,  &sa, NULL);
+	ret |= sys_sigaction(SIGTERM, &sa, NULL);
+	ret |= sys_sigaction(SIGHUP,  &sa, NULL);
+	ret |= sys_sigaction(SIGALRM, &sa, NULL);
 
 	sa.flags &= ~SA_RESTART;
-	ret |= syssigaction(SIGCHLD, &sa, NULL);
+	ret |= sys_sigaction(SIGCHLD, &sa, NULL);
 
 	if(ret) fail("signal init failed", NULL, 0);
 }
@@ -287,7 +285,7 @@ static void recv_rfkill(struct pollfd* pf)
 	if(pf->revents & POLLIN)
 		handle_rfkill();
 	if(pf->revents & ~POLLIN) {
-		sysclose(pf->fd);
+		sys_close(pf->fd);
 		pf->fd = -1;
 		reset_rfkill();
 	}
@@ -349,7 +347,7 @@ static void stop_wait_procs(void)
 	while(1) {
 		if(!any_pids_left())
 			break;
-		if(sysppoll(NULL, 0, &ts, &defsigset) < 0)
+		if(sys_ppoll(NULL, 0, &ts, &defsigset) < 0)
 			break;
 		if(sigchld)
 			waitpids();
@@ -378,7 +376,7 @@ int main(int argc, char** argv, char** envp)
 
 		tp = poll_timeout(&ts, &te);
 
-		int r = sysppoll(pfds, npfds, tp, &defsigset);
+		int r = sys_ppoll(pfds, npfds, tp, &defsigset);
 
 		if(sigchld)
 			waitpids();

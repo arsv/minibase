@@ -1,13 +1,8 @@
 #include <bits/socket.h>
 #include <bits/socket/unix.h>
-
-#include <sys/accept.h>
-#include <sys/bind.h>
-#include <sys/close.h>
-#include <sys/listen.h>
-#include <sys/recv.h>
+#include <sys/file.h>
 #include <sys/socket.h>
-#include <sys/unlink.h>
+#include <sys/fsnod.h>
 #include <sys/itimer.h>
 
 #include <nlusctl.h>
@@ -317,7 +312,7 @@ static void dispatch_cmd(struct conn* cn, struct ucmsg* msg)
 
 static void shutdown_conn(struct conn* cn)
 {
-	sysclose(cn->fd);
+	sys_close(cn->fd);
 	memzero(cn, sizeof(*cn));
 }
 
@@ -345,7 +340,7 @@ void handle_conn(struct conn* cn)
 
 	sys_setitimer(0, &itv, &old);
 
-	while((rb = sysrecv(fd, ptr, end - ptr, flags)) > 0) {
+	while((rb = sys_recv(fd, ptr, end - ptr, flags)) > 0) {
 		ptr += rb;
 
 		while((msg = uc_msg(buf, ptr - buf))) {
@@ -382,16 +377,16 @@ void accept_ctrl(int sfd)
 	int addr_len = sizeof(addr);
 	struct conn *cn;
 
-	while((cfd = sysaccept(sfd, &addr, &addr_len)) > 0)
+	while((cfd = sys_accept(sfd, &addr, &addr_len)) > 0)
 		if((cn = grab_conn_slot()))
 			cn->fd = cfd;
 		else
-			sysclose(cfd);
+			sys_close(cfd);
 }
 
 void unlink_ctrl(void)
 {
-	sysunlink(WICTL);
+	sys_unlink(WICTL);
 }
 
 void setup_ctrl(void)
@@ -403,7 +398,7 @@ void setup_ctrl(void)
 	};
 
 	const int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
-	if((fd = syssocket(AF_UNIX, flags, 0)) < 0)
+	if((fd = sys_socket(AF_UNIX, flags, 0)) < 0)
 		fail("socket", "AF_UNIX", fd);
 
 	long ret;
@@ -411,9 +406,9 @@ void setup_ctrl(void)
 
 	ctrlfd = fd;
 
-	if((ret = sysbind(fd, &addr, sizeof(addr))) < 0)
+	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
 		fail("bind", name, ret);
-	else if((ret = syslisten(fd, 1)))
+	else if((ret = sys_listen(fd, 1)))
 		fail("listen", name, ret);
 	else
 		return;

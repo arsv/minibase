@@ -1,8 +1,7 @@
 #include <bits/ints.h>
 #include <bits/rfkill.h>
-#include <sys/open.h>
+#include <sys/file.h>
 #include <sys/stat.h>
-#include <sys/read.h>
 
 #include <null.h>
 #include <format.h>
@@ -51,7 +50,7 @@ static int match_rfkill_link(struct link* ls, int idx)
 
 	struct stat st;
 
-	return (sysstat(path, &st) >= 0);
+	return (sys_stat(path, &st) >= 0);
 }
 
 static struct link* find_rfkill_link(int idx)
@@ -95,7 +94,7 @@ void retry_rfkill(void)
 	if(rfkillfd > 0)
 		return;
 
-	rfkillfd = sysopen("/dev/rfkill", O_RDONLY | O_NONBLOCK);
+	rfkillfd = sys_open("/dev/rfkill", O_RDONLY | O_NONBLOCK);
 
 	update_killfd();
 }
@@ -119,7 +118,7 @@ void handle_rfkill(void)
 	int fd = rfkillfd;
 	int rd;
 
-	while((rd = sysread(fd, buf, sizeof(buf))) > 0) {
+	while((rd = sys_read(fd, buf, sizeof(buf))) > 0) {
 		re = (struct rfkill_event*) buf;
 
 		if(rd < sizeof(*re))
