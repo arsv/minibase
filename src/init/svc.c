@@ -1,12 +1,7 @@
 #include <bits/socket.h>
 #include <bits/socket/unix.h>
-
-#include <sys/read.h>
-#include <sys/write.h>
-#include <sys/close.h>
+#include <sys/file.h>
 #include <sys/socket.h>
-#include <sys/connect.h>
-#include <sys/shutdown.h>
 
 #include <string.h>
 #include <format.h>
@@ -109,10 +104,10 @@ static int opensocket(void)
 	if(addr.path[0] == '@')
 		addr.path[0] = '\0';
 
-	int fd = xchk(syssocket(AF_UNIX, SOCK_STREAM, 0),
+	int fd = xchk(sys_socket(AF_UNIX, SOCK_STREAM, 0),
 			"socket", "AF_UNIX SOCK_STREAM");
 
-	xchk(sysconnect(fd, &addr, sizeof(addr)),
+	xchk(sys_connect(fd, &addr, sizeof(addr)),
 			"connect", SVCTL);
 
 	return fd;
@@ -120,7 +115,7 @@ static int opensocket(void)
 
 static void sendcmd(int fd, const char* cmd, int len)
 {
-	xchk(syswrite(fd, cmd, len), "write", SVCTL);
+	xchk(sys_write(fd, cmd, len), "write", SVCTL);
 }
 
 /* The tricky part here is demuxing init output, which can be error
@@ -143,7 +138,7 @@ static int recvreply(int fd)
 	int ret = 0;
 	int off = 0;
 
-	while((rr = sysread(fd, buf, sizeof(buf))) > 0) {
+	while((rr = sys_read(fd, buf, sizeof(buf))) > 0) {
 		if(!out) {
 			if(buf[0] == '#') {
 				off = 1;
@@ -154,7 +149,7 @@ static int recvreply(int fd)
 			}
 		} else if(off) off = 0;
 
-		syswrite(out, buf + off, rr - off);
+		sys_write(out, buf + off, rr - off);
 	}
 
 	return ret;
@@ -167,9 +162,9 @@ static int runcmd(const char* cmd, int len)
 
 	fd = opensocket();
 	sendcmd(fd, cmd, len);
-	sysshutdown(fd, SHUT_WR);
+	sys_shutdown(fd, SHUT_WR);
 	r = recvreply(fd);
-	sysclose(fd);
+	sys_close(fd);
 
 	return r;
 };

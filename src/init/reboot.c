@@ -1,8 +1,6 @@
-#include <sys/open.h>
+#include <sys/file.h>
 #include <sys/sync.h>
-#include <sys/read.h>
 #include <sys/mount.h>
-#include <sys/umount.h>
 #include <sys/reboot.h>
 
 #include <string.h>
@@ -86,14 +84,14 @@ static void add_mountpoint(struct heap* hp, char* mp)
 static int scan_mountpoints(struct heap* hp)
 {
 	const char* mountinfo = "/proc/self/mountinfo";
-	long fd = xchk(sysopen(mountinfo, O_RDONLY), "cannot open", mountinfo);
+	long fd = xchk(sys_open(mountinfo, O_RDONLY), "cannot open", mountinfo);
 
 	long rd;
 	long of = 0;
 	char* mp[MP];
 	int count = 0;
 
-	while((rd = sysread(fd, minbuf + of, sizeof(minbuf) - of)) > 0) {
+	while((rd = sys_read(fd, minbuf + of, sizeof(minbuf) - of)) > 0) {
 		char* p = minbuf;
 		char* e = minbuf + rd;
 		char* q;
@@ -146,7 +144,7 @@ static char** index_scanned(struct heap* hp, int count)
 
 static int umount1(char* mp)
 {
-	long ret = sysumount(mp, 0);
+	long ret = sys_umount(mp, 0);
 
 	if(!ret) return 1;
 
@@ -162,13 +160,13 @@ static void umount2(char* mp)
 	int flags = MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOEXEC;
 	long ret;
 
-	ret = sysumount(mp, MNT_FORCE);
+	ret = sys_umount(mp, MNT_FORCE);
 
 	if(!ret) return;
 
 	warn("umount", mp, ret);
 
-	ret = sysmount(NULL, mp, NULL, flags, NULL);
+	ret = sys_mount(NULL, mp, NULL, flags, NULL);
 
 	if(!ret) return;
 
@@ -212,11 +210,11 @@ int main(int argc, char** argv)
 	else
 		fail("cannot use -phr together", NULL, 0);
 
-	xchk(syssync(), "sync", NULL);
+	xchk(sys_sync(), "sync", NULL);
 
 	umountall();
 
-	xchk(sysreboot(mode), "reboot", NULL);
+	xchk(sys_reboot(mode), "reboot", NULL);
 
 	return 0;
 }

@@ -1,19 +1,15 @@
 #include <bits/fcntl.h>
-#include <sys/open.h>
-#include <sys/execve.h>
-#include <sys/write.h>
-#include <sys/fstat.h>
+#include <sys/file.h>
+#include <sys/exec.h>
+#include <sys/stat.h>
 #include <sys/fork.h>
-#include <sys/read.h>
-#include <sys/waitpid.h>
+#include <sys/wait.h>
 #include <sys/fcntl.h>
-#include <sys/dup2.h>
 #include <sys/brk.h>
-#include <sys/close.h>
-#include <sys/_exit.h>
 
 #include <string.h>
 #include <alloca.h>
+#include <exit.h>
 #include <fail.h>
 
 #define PAGE 4096
@@ -30,12 +26,12 @@ static void set_std_fds(void)
 {
 	int fd;
 
-	if(sysfcntl(2, F_GETFD) >= 0)
+	if(sys_fcntl(2, F_GETFD) >= 0)
 		return; /* if 2 is ok, then 0 and 1 must be valid as well */
 
-	if((fd = sysopen("/dev/null", O_RDWR)) >= 0)
+	if((fd = sys_open("/dev/null", O_RDWR)) >= 0)
 		goto gotfd;
-	if((fd = sysopen("/", O_RDONLY)) >= 0)
+	if((fd = sys_open("/", O_RDONLY)) >= 0)
 		goto gotfd;
 
 	/* Not being able to open / read-only is weird enough to panic */
@@ -44,11 +40,11 @@ static void set_std_fds(void)
 
 gotfd:
 	if(fd < 1)
-		sysdup2(fd, 1);
+		sys_dup2(fd, 1);
 	if(fd < 2)
-		sysdup2(fd, 2);
+		sys_dup2(fd, 2);
 	if(fd > 2)
-		sysclose(fd);
+		sys_close(fd);
 }
 
 static int count_env(char** envp)
@@ -78,7 +74,7 @@ static void set_new_env(char** newenv, int newcnt, char** envp)
 
 static int open_stat(const char* name, int* len)
 {
-	long fd = sysopen(name, O_RDONLY);
+	long fd = sys_open(name, O_RDONLY);
 
 	if(fd < 0 && fd != -ENOENT)
 		warn("open", name, fd);
@@ -88,7 +84,7 @@ static int open_stat(const char* name, int* len)
 	struct stat st;
 	long ret;
 
-	if((ret = sysfstat(fd, &st)) < 0) {
+	if((ret = sys_fstat(fd, &st)) < 0) {
 		warn("stat", name, ret);
 		return -1;
 	}
@@ -108,7 +104,7 @@ static int read_whole(int fd, const char* name, char* buf, int len)
 	char* ptr = buf;
 
 	while(len > 0) {
-		rd = sysread(fd, ptr, len);
+		rd = sys_read(fd, ptr, len);
 
 		if(rd < 0) {
 			warn("read", name, rd);
@@ -149,7 +145,7 @@ static int extend(char* brk, int curr, int len)
 	if(len <= curr)
 		return curr;
 
-	char* end = (char*)sysbrk(brk + alloc);
+	char* end = (char*)sys_brk(brk + alloc);
 
 	if(end < brk + alloc) {
 		warn("out of memory", NULL, 0);
@@ -189,7 +185,7 @@ static char** load_env_file(const char* name)
 	if((fd = open_stat(name, &len)) < 0)
 		return NULL;
 
-	char* brk = (char*)sysbrk(NULL);
+	char* brk = (char*)sys_brk(NULL);
 
 	/* rough guess on avg envline size */
 	if((alloc = extend(brk, 0, len + sizeof(char*)*len/10)) < 0)
@@ -212,7 +208,7 @@ static char** load_env_file(const char* name)
 static int exec_one(char* cmd, char** envp)
 {
 	char* args[] = { cmd, NULL };
-	return sysexecve(cmd, args, envp);
+	return sys_execve(cmd, args, envp);
 }
 
 static void exec_into(char* cmd, char** envp)
@@ -223,7 +219,7 @@ static void exec_into(char* cmd, char** envp)
 
 static void spawn_if_exists(char* cmd, char** envp)
 {
-	int pid = sysfork();
+	int pid = sys_fork();
 
 	if(pid < 0)
 		warn("fork", NULL, pid);
@@ -235,7 +231,7 @@ static void spawn_if_exists(char* cmd, char** envp)
 		_exit(0x0);
 	} else {
 		int status;
-		syswaitpid(pid, &status, 0);
+		sys_waitpid(pid, &status, 0);
 	}
 }
 
