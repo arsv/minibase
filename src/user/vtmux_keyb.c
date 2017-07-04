@@ -1,18 +1,16 @@
 #include <bits/input.h>
 #include <bits/major.h>
 
-#include <sys/open.h>
-#include <sys/read.h>
-#include <sys/close.h>
-#include <sys/fstat.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <sys/_exit.h>
-#include <sys/getdents.h>
+#include <sys/dents.h>
 #include <sys/inotify.h>
 
 #include <string.h>
 #include <format.h>
 #include <fail.h>
+#include <exit.h>
 
 #include "vtmux.h"
 
@@ -50,7 +48,7 @@ static int check_event_dev(int fd, int* dev)
 {
 	struct stat st;
 
-	if(sysfstat(fd, &st) < 0)
+	if(sys_fstat(fd, &st) < 0)
 		return 0;
 	if((st.st_mode & S_IFMT) != S_IFCHR)
 		return 0;
@@ -98,7 +96,7 @@ static void check_dir_ent(char* dir, char* name)
 	p = fmtstr(p, e, name);
 	*p++ = '\0';
 
-	if((fd = sysopen(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)) < 0)
+	if((fd = sys_open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)) < 0)
 		return;
 
 	if(!check_event_dev(fd, &dev))
@@ -111,7 +109,7 @@ static void check_dir_ent(char* dir, char* name)
 	kb->mod = 0;
 	return;
 close:
-	sysclose(fd);
+	sys_close(fd);
 }
 
 static int dotddot(char* p)
@@ -144,16 +142,16 @@ void setup_keyboards(void)
 	char* dir = (char*)devinput;
 	long fd, rd;
 
-	if((fd = sysopen(dir, O_RDONLY | O_DIRECTORY)) < 0)
+	if((fd = sys_open(dir, O_RDONLY | O_DIRECTORY)) < 0)
 		fail("cannot open", dir, fd);
 
 	setwatch(dir);
 
-	while((rd = sysgetdents64(fd, debuf, sizeof(debuf))) > 0) {
+	while((rd = sys_getdents(fd, debuf, sizeof(debuf))) > 0) {
 		char* ptr = debuf;
 		char* end = debuf + rd;
 		while(ptr < end) {
-			struct dirent64* de = (struct dirent64*) ptr;
+			struct dirent* de = (struct dirent*) ptr;
 			ptr += de->reclen;
 
 			if(dotddot(de->name))
@@ -167,7 +165,7 @@ void setup_keyboards(void)
 		}
 	}
 
-	sysclose(fd);
+	sys_close(fd);
 	pollready = 0;
 }
 
@@ -178,7 +176,7 @@ void handleino(int fd)
 	char* dir = (char*)devinput;
 	long rd;
 
-	while((rd = sysread(fd, buf, len)) > 0) {
+	while((rd = sys_read(fd, buf, len)) > 0) {
 		char* end = buf + rd;
 		char* ptr = buf;
 

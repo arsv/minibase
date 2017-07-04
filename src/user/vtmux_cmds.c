@@ -3,14 +3,9 @@
 #include <bits/errno.h>
 #include <bits/fcntl.h>
 #include <bits/major.h>
-#include <sys/recv.h>
 #include <sys/socket.h>
-#include <sys/listen.h>
-#include <sys/bind.h>
-#include <sys/open.h>
-#include <sys/fstat.h>
-#include <sys/write.h>
-#include <sys/close.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 
 #include <format.h>
 #include <string.h>
@@ -32,7 +27,7 @@ static void reply(int fd, int errno, char* msg)
 	if(msg)
 		p = fmtstr(p, e, msg);
 
-	syswrite(fd, repbuf, p - repbuf);
+	sys_write(fd, repbuf, p - repbuf);
 }
 
 static struct vtd* grab_dev_slot(void)
@@ -55,7 +50,7 @@ static int check_managed_dev(int fd, int* dev, int tty)
 	struct stat st;
 	long ret;
 
-	if((ret = sysfstat(fd, &st)) < 0)
+	if((ret = sys_fstat(fd, &st)) < 0)
 		return ret;
 
 	int maj = major(st.st_rdev);
@@ -117,7 +112,7 @@ static void cmd_open(int rfd, char* arg, int tty)
 	if(!(vd = grab_dev_slot()))
 		return reply(rfd, -EMFILE, NULL);
 
-	if((dfd = sysopen(arg, O_RDWR | O_NOCTTY | O_CLOEXEC)) < 0)
+	if((dfd = sys_open(arg, O_RDWR | O_NOCTTY | O_CLOEXEC)) < 0)
 		return reply(rfd, dfd, NULL);
 
 	if((ret = check_managed_dev(dfd, &vd->dev, tty)) < 0)
@@ -134,7 +129,7 @@ static void cmd_open(int rfd, char* arg, int tty)
 	return reply(rfd, 0, NULL);
 close:
 	vd->dev = 0;
-	sysclose(dfd);
+	sys_close(dfd);
 	return reply(rfd, ret, NULL);
 }
 
@@ -240,7 +235,7 @@ void handlectl(struct vtx* cvt, int fd)
 	int cmdsize = sizeof(cmdbuf) - 1;
 	int rd;
 
-	while((rd = sysrecv(fd, cmdbuf, cmdsize, MSG_DONTWAIT)) > 0) {
+	while((rd = sys_recv(fd, cmdbuf, cmdsize, MSG_DONTWAIT)) > 0) {
 		cmdbuf[rd] = '\0';
 		handlecmd(cvt, fd, cmdbuf);
 	} if(rd < 0 && rd != -EAGAIN) {

@@ -3,9 +3,9 @@
 #include <bits/ioctl/tty.h>
 #include <bits/major.h>
 
+#include <sys/file.h>
 #include <sys/kill.h>
 #include <sys/ioctl.h>
-#include <sys/close.h>
 
 #include <string.h>
 #include <null.h>
@@ -17,7 +17,7 @@ static long ioctl(int fd, int req, long arg, char* name)
 {
 	long ret;
 
-	if((ret = sysioctli(fd, req, arg)) < 0)
+	if((ret = sys_ioctli(fd, req, arg)) < 0)
 		warn("ioctl", name, ret);
 
 	return ret;
@@ -77,7 +77,7 @@ void disable(struct vtd* md, int drop)
 	if(!drop && maj != INPUT_MAJOR)
 		return;
 
-	sysclose(md->fd);
+	sys_close(md->fd);
 
 	md->fd = 0;
 	md->dev = 0;
@@ -100,7 +100,7 @@ void closevt(struct vtx* cvt, int keepvt)
 			disable(&vtdevices[i], PERMANENTLY);
 
 	if(cvt->ctlfd > 0) {
-		sysclose(cvt->ctlfd);
+		sys_close(cvt->ctlfd);
 		cvt->ctlfd = 0;
 	}
 
@@ -110,7 +110,7 @@ void closevt(struct vtx* cvt, int keepvt)
 		if(!cvt->pin)
 			memset(cvt->cmd, 0, sizeof(cvt->cmd));
 		if(!cvt->pin && cvt->tty != initialtty) {
-			sysclose(cvt->ttyfd);
+			sys_close(cvt->ttyfd);
 			cvt->ttyfd = -1;
 			cvt->tty = 0;
 			IOCTL(0, VT_DISALLOCATE, cvt->tty);

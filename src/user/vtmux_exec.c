@@ -2,18 +2,17 @@
 #include <bits/socket/unix.h>
 #include <bits/fcntl.h>
 
-#include <sys/open.h>
+#include <sys/file.h>
 #include <sys/kill.h>
-#include <sys/close.h>
 #include <sys/fork.h>
-#include <sys/dup2.h>
+#include <sys/fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/execve.h>
-#include <sys/_exit.h>
-#include <sys/socketpair.h>
+#include <sys/exec.h>
+#include <sys/socket.h>
 
 #include <string.h>
 #include <format.h>
+#include <exit.h>
 #include <fail.h>
 
 #include "vtmux.h"
@@ -43,7 +42,7 @@ int open_tty_device(int tty)
 	p = fmtint(p, e, tty);
 	*p++ = '\0';
 
-	int fd = sysopen(namebuf, O_RDWR | O_CLOEXEC);
+	int fd = sys_open(namebuf, O_RDWR | O_CLOEXEC);
 
 	if(fd < 0)
 		warn("open", namebuf, fd);
@@ -56,7 +55,7 @@ int query_empty_tty(void)
 	int tty;
 	long ret;
 
-	if((ret = sysioctl(0, VT_OPENQRY, &tty)) < 0)
+	if((ret = sys_ioctl(0, VT_OPENQRY, &tty)) < 0)
 		warn("ioctl", "VT_OPENQRY", ret);
 
 	return tty;
@@ -118,7 +117,7 @@ void free_console_slot(struct vtx* cvt)
 	if(cvt->tty == initialtty)
 		return;
 
-	sysclose(cvt->ttyfd);
+	sys_close(cvt->ttyfd);
 	cvt->ttyfd = -1;
 	cvt->tty = 0;
 }
@@ -140,12 +139,12 @@ static int child_proc(int ttyfd, int ctlfd, char* cmd)
 
 	char* argv[] = { path, NULL };
 
-	sysdup2(ttyfd, 0);
-	sysdup2(ttyfd, 1);
-	sysdup2(ttyfd, 2);
-	sysdup2(ctlfd, 3);
+	sys_dup2(ttyfd, 0);
+	sys_dup2(ttyfd, 1);
+	sys_dup2(ttyfd, 2);
+	sys_dup2(ctlfd, 3);
 
-	xchk(sysexecve(*argv, argv, environ), "exec", cmd);
+	xchk(sys_execve(*argv, argv, environ), "exec", cmd);
 
 	return 0;
 }
@@ -159,16 +158,16 @@ static int start_cmd_on(struct vtx* cvt)
 	int type = SOCK_DGRAM | SOCK_CLOEXEC;
 	int proto = 0;
 
-	if((ret = syssocketpair(domain, type, proto, sk)) < 0)
+	if((ret = sys_socketpair(domain, type, proto, sk)) < 0)
 		return ret;
 
-	if((pid = sysfork()) < 0)
+	if((pid = sys_fork()) < 0)
 		return pid;
 
 	if(pid == 0)
 		_exit(child_proc(cvt->ttyfd, sk[1], cvt->cmd));
 
-	sysclose(sk[1]);
+	sys_close(sk[1]);
 	cvt->ctlfd = sk[0];
 	cvt->pid = pid;
 
@@ -219,7 +218,7 @@ int invoke(struct vtx* cvt)
 		return ret;
 
 	if(cvt->pid > 0)
-		return syskill(cvt->pid, SIGCONT);
+		return sys_kill(cvt->pid, SIGCONT);
 	else if(cvt->pin)
 		return start_cmd_on(cvt);
 

@@ -1,6 +1,5 @@
 #include <bits/ioctl/tty.h>
 #include <sys/ioctl.h>
-
 #include <fail.h>
 
 ERRTAG = "unlock";
@@ -11,6 +10,6 @@ ERRLIST = {
 
 int main(void)
 {
-	xchk(sysioctli(0, VT_UNLOCKSWITCH, 0), "ioctl", "VT_UNLOCKSWITCH");
+	xchk(sys_ioctli(0, VT_UNLOCKSWITCH, 0), "ioctl", "VT_UNLOCKSWITCH");
 	return 0;
 }

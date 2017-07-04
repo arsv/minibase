@@ -1,7 +1,6 @@
-#include <sys/ppoll.h>
-#include <sys/sigprocmask.h>
-#include <sys/sigaction.h>
-#include <sys/close.h>
+#include <sys/file.h>
+#include <sys/poll.h>
+#include <sys/signal.h>
 
 #include <format.h>
 #include <sigset.h>
@@ -38,20 +37,20 @@ void setup_signals(void)
 
 	sigemptyset(&sa.mask);
 	sigaddset(&sa.mask, SIGCHLD);
-	ret |= syssigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
+	ret |= sys_sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
 
 	sigaddset(&sa.mask, SIGINT);
 	sigaddset(&sa.mask, SIGTERM);
 	sigaddset(&sa.mask, SIGHUP);
 
-	ret |= syssigaction(SIGINT,  &sa, NULL);
-	ret |= syssigaction(SIGTERM, &sa, NULL);
-	ret |= syssigaction(SIGHUP,  &sa, NULL);
+	ret |= sys_sigaction(SIGINT,  &sa, NULL);
+	ret |= sys_sigaction(SIGTERM, &sa, NULL);
+	ret |= sys_sigaction(SIGHUP,  &sa, NULL);
 
 	/* SIGCHLD is only allowed to arrive in ppoll,
 	   so SA_RESTART just does not make sense. */
 	sa.flags &= ~SA_RESTART;
-	ret |= syssigaction(SIGCHLD, &sa, NULL);
+	ret |= sys_sigaction(SIGCHLD, &sa, NULL);
 
 	if(ret) fail("signal init failed", NULL, 0);
 }
@@ -102,14 +101,14 @@ void update_poll_fds(void)
 static void closectl(struct vtx* cvt)
 {
 	if(cvt->ctlfd > 0) {
-		sysclose(cvt->ctlfd);
+		sys_close(cvt->ctlfd);
 		cvt->ctlfd = -1;
 	}
 }
 
 static void closekbd(struct kbd* kb)
 {
-	sysclose(kb->fd);
+	sys_close(kb->fd);
 	kb->fd = 0;
 	kb->dev = 0;
 	kb->mod = 0;
@@ -162,7 +161,7 @@ void mainloop(void)
 		if(!pollready)
 			update_poll_fds();
 
-		int r = sysppoll(pfds, nfds, NULL, &defsigset);
+		int r = sys_ppoll(pfds, nfds, NULL, &defsigset);
 
 		if(sigchld)
 			waitpids();

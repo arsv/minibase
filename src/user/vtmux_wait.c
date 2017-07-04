@@ -1,8 +1,7 @@
-#include <sys/kill.h>
 #include <sys/alarm.h>
-#include <sys/write.h>
-#include <sys/waitpid.h>
-#include <sys/close.h>
+#include <sys/kill.h>
+#include <sys/file.h>
+#include <sys/wait.h>
 
 #include <format.h>
 #include <null.h>
@@ -56,7 +55,7 @@ static void report_cause(int fd, int status)
 	}
 
 	*p++ = '\n';
-	syswrite(fd, msg, p - msg);
+	sys_write(fd, msg, p - msg);
 }
 
 void waitpids(void)
@@ -65,7 +64,7 @@ void waitpids(void)
 	int pid;
 	struct vtx* active = NULL;
 
-	while((pid = syswaitpid(-1, &status, WNOHANG)) > 0)
+	while((pid = sys_waitpid(-1, &status, WNOHANG)) > 0)
 	{
 		struct vtx* cvt = find_pid_rec(pid);
 
@@ -116,7 +115,7 @@ static void killall(void)
 
 	for(i = 0; i < nconsoles; i++)
 		if(consoles[i].pid > 0)
-			syskill(consoles[i].pid, SIGTERM);
+			sys_kill(consoles[i].pid, SIGTERM);
 }
 
 void shutdown(void)
@@ -124,11 +123,11 @@ void shutdown(void)
 	int status;
 	int pid;
 
-	sysalarm(5);
+	sys_alarm(5);
 	killall();
 
 	while(countrunning() > 0)
-		if((pid = syswaitpid(-1, &status, 0)) > 0)
+		if((pid = sys_waitpid(-1, &status, 0)) > 0)
 			markdead(pid);
 		else break;
 

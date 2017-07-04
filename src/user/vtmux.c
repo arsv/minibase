@@ -1,11 +1,11 @@
 #include <bits/ioctl/tty.h>
-#include <sys/open.h>
-#include <sys/ppoll.h>
+#include <sys/file.h>
+#include <sys/poll.h>
 #include <sys/ioctl.h>
-#include <sys/_exit.h>
 
 #include <util.h>
 #include <fail.h>
+#include <exit.h>
 
 #include "vtmux.h"
 

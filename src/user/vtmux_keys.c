@@ -1,16 +1,14 @@
 #include <bits/input.h>
 #include <bits/major.h>
 
-#include <sys/open.h>
-#include <sys/read.h>
-#include <sys/close.h>
-#include <sys/fstat.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <sys/_exit.h>
-#include <sys/getdents.h>
+#include <sys/dents.h>
 
 #include <string.h>
 #include <format.h>
+#include <exit.h>
 #include <fail.h>
 
 #include "vtmux.h"
@@ -73,7 +71,7 @@ void handlekbd(struct kbd* kb, int fd)
 	char* ptr;
 	int rd;
 
-	while((rd = sysread(fd, buf, sizeof(buf))) > 0)
+	while((rd = sys_read(fd, buf, sizeof(buf))) > 0)
 		for(ptr = buf; ptr < buf + rd; ptr += sizeof(struct event))
 		{
 			struct event* ev = (struct event*) ptr;
@@ -123,7 +121,7 @@ static int check_event_bits(int fd)
 
 	memset(bits, 0, bitsize);
 
-	if(sysioctl(fd, EVIOCGBIT(EV_KEY, bitsize), bits) < 0)
+	if(sys_ioctl(fd, EVIOCGBIT(EV_KEY, bitsize), bits) < 0)
 		return 0;
 
 	int alt = hascode(bits, bitsize, KEY_LALT);
@@ -155,12 +153,12 @@ static void set_event_mask(int fd)
 	for(i = 0; i < 10; i++)
 		setcode(bits, bitsize, KEY_F1 + i);
 
-	sysioctl(fd, EVIOCSMASK, &mask);
+	sys_ioctl(fd, EVIOCSMASK, &mask);
 
 	memset(bits, 0, bitsize);
 	mask.type = EV_MSC;
 
-	sysioctl(fd, EVIOCSMASK, &mask);
+	sys_ioctl(fd, EVIOCSMASK, &mask);
 
 	/* EV_SYN cannot be masked */
 }
