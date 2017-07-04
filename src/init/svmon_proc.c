@@ -1,15 +1,15 @@
 #include <sys/fork.h>
-#include <sys/execve.h>
+#include <sys/exec.h>
 #include <sys/kill.h>
-#include <sys/pipe2.h>
-#include <sys/close.h>
-#include <sys/dup2.h>
-#include <sys/waitpid.h>
+#include <sys/pipe.h>
+#include <sys/fcntl.h>
+#include <sys/file.h>
+#include <sys/wait.h>
 #include <sys/clock.h>
-#include <sys/_exit.h>
 
 #include <format.h>
 #include <string.h>
+#include <exit.h>
 
 #include "svmon.h"
 
@@ -59,7 +59,7 @@ static int child(struct svcrec* rc)
 
 	char* argv[] = { path, NULL };
 
-	sysexecve(*argv, argv, gg.env);
+	sys_execve(*argv, argv, gg.env);
 
 	return -1;
 }
@@ -75,24 +75,24 @@ static void spawn(struct svcrec* rc)
 	int pipe[2];
 	int pid, ret;
 
-	if((ret = syspipe2(pipe, O_NONBLOCK))) {
+	if((ret = sys_pipe2(pipe, O_NONBLOCK))) {
 		report("pipe", NULL, ret);
 		return;
 	}
 
-	if((pid = sysfork()) < 0) {
+	if((pid = sys_fork()) < 0) {
 		report("fork", NULL, ret);
 		return;
 	}
 
 	if(pid == 0) {
-		sysclose(pipe[0]);
-		sysdup2(pipe[1], 1);
-		sysdup2(pipe[1], 2);
+		sys_close(pipe[0]);
+		sys_dup2(pipe[1], 1);
+		sys_dup2(pipe[1], 2);
 		_exit(child(rc));
 	} else {
 		rc->pid = pid;
-		sysclose(pipe[1]);
+		sys_close(pipe[1]);
 		setpollfd(rc, pipe[0]);
 	}
 }
@@ -112,21 +112,21 @@ static void stop(struct svcrec* rc)
 		if(waitneeded(&rc->lastsig, TIME_TO_SIGKILL))
 			return;
 		reprec(rc, "refuses to exit, sending SIGKILL");
-		syskill(rc->pid, SIGKILL);
+		sys_kill(rc->pid, SIGKILL);
 		rc->flags |= P_SIGKILL;
 	} else {
 		/* Regular stop() invocation, gently ask the process to leave
 		   the kernel process table */
 
 		rc->lastsig = passtime;
-		syskill(rc->pid, SIGTERM);
+		sys_kill(rc->pid, SIGTERM);
 		rc->flags |= P_SIGTERM;
 
 		/* Attempt to wake the process up to recieve SIGTERM. */
 		/* This must be done *after* sending the killing signal
 		   to ensure SIGCONT does not arrive first. */
 		if(rc->flags & P_SIGSTOP)
-			syskill(rc->pid, SIGCONT);
+			sys_kill(rc->pid, SIGCONT);
 
 		/* make sure we'll get initpass to send SIGKILL if necessary */
 		waitneeded(&rc->lastsig, TIME_TO_SIGKILL);
@@ -152,7 +152,7 @@ void waitpids(void)
 	struct svcrec *rc;
 	const int flags = WNOHANG | WUNTRACED | WCONTINUED;
 
-	while((pid = syswaitpid(-1, &status, flags)) > 0) {
+	while((pid = sys_waitpid(-1, &status, flags)) > 0) {
 		if(!(rc = findpid(pid)))
 			continue; /* Some stray child died. Like we care. */
 		if(WIFSTOPPED(status))

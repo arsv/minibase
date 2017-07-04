@@ -1,17 +1,14 @@
 #include <bits/time.h>
-#include <sys/ppoll.h>
-#include <sys/sigaction.h>
-#include <sys/sigprocmask.h>
-#include <sys/_exit.h>
-#include <sys/close.h>
+#include <sys/signal.h>
+#include <sys/sleep.h>
+#include <sys/poll.h>
+#include <sys/file.h>
 #include <sys/mmap.h>
-#include <sys/munmap.h>
-#include <sys/read.h>
-#include <sys/nanosleep.h>
 
 #include <sigset.h>
 #include <format.h>
 #include <null.h>
+#include <exit.h>
 
 #include "svmon.h"
 
@@ -54,22 +51,22 @@ int setsignals(void)
 
 	sigemptyset(&sa.mask);
 	sigaddset(&sa.mask, SIGCHLD);
-	ret |= syssigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
+	ret |= sys_sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
 
 	sigaddset(&sa.mask, SIGINT);
 	sigaddset(&sa.mask, SIGPWR);
 	sigaddset(&sa.mask, SIGTERM);
 	sigaddset(&sa.mask, SIGHUP);
 
-	ret |= syssigaction(SIGINT,  &sa, NULL);
-	ret |= syssigaction(SIGPWR,  &sa, NULL);
-	ret |= syssigaction(SIGTERM, &sa, NULL);
-	ret |= syssigaction(SIGHUP,  &sa, NULL);
+	ret |= sys_sigaction(SIGINT,  &sa, NULL);
+	ret |= sys_sigaction(SIGPWR,  &sa, NULL);
+	ret |= sys_sigaction(SIGTERM, &sa, NULL);
+	ret |= sys_sigaction(SIGHUP,  &sa, NULL);
 
 	/* SIGCHLD is only allowed to arrive in ppoll,
 	   so SA_RESTART just does not make sense. */
 	sa.flags &= ~SA_RESTART;
-	ret |= syssigaction(SIGCHLD, &sa, NULL);
+	ret |= sys_sigaction(SIGCHLD, &sa, NULL);
 
 	return ret;
 }
@@ -88,7 +85,7 @@ void wakeupin(int seconds)
 static void setfd(int fi, int fd)
 {
 	if(pfds[fi].fd > 0)
-		sysclose(pfds[fi].fd);
+		sys_close(pfds[fi].fd);
 
 	pfds[fi].fd = fd;
 	pfds[fi].events = POLLIN;
@@ -118,7 +115,7 @@ void flushring(struct svcrec* rc)
 
 	if(!rg) return;
 
-	sysmunmap(rg->buf, RINGSIZE);
+	sys_munmap(rg->buf, RINGSIZE);
 
 	rg->buf = NULL;
 	rg->ptr = 0;
@@ -128,9 +125,9 @@ static int mmapring(struct ringbuf* rg)
 {
 	int prot = PROT_READ | PROT_WRITE;
 	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
-	long ret = sysmmap(NULL, RINGSIZE, prot, flags, -1, 0);
+	long ret = sys_mmap(NULL, RINGSIZE, prot, flags, -1, 0);
 
-	if(MMAPERROR(ret)) {
+	if(mmap_error(ret)) {
 		return 0;
 	} else {
 		rg->buf = (char*)ret;
@@ -146,7 +143,7 @@ static void readring(struct ringbuf* rg, int fd)
 	char* start = rg->buf + off;
 	int avail = RINGSIZE - off;
 
-	int rd = sysread(fd, start, avail);
+	int rd = sys_read(fd, start, avail);
 
 	if(rd <= 0) return;
 
@@ -190,7 +187,7 @@ static void checkfds(int nr)
 static void msleep(int ms)
 {
 	struct timespec sp = { ms/1000, (ms%1000) * 1000000 };
-	sysnanosleep(&sp, NULL);
+	sys_nanosleep(&sp, NULL);
 }
 
 void waitpoll(void)
@@ -203,7 +200,7 @@ void waitpoll(void)
 	else
 		ts = NULL;
 
-	int r = sysppoll(pfds, nfds, ts, &defsigset);
+	int r = sys_ppoll(pfds, nfds, ts, &defsigset);
 
 	if(r == -EINTR) {
 		/* we're ok here, sighandlers did their job */

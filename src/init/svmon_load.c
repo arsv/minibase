@@ -1,7 +1,6 @@
-#include <sys/open.h>
-#include <sys/close.h>
+#include <sys/file.h>
 #include <sys/stat.h>
-#include <sys/getdents.h>
+#include <sys/dents.h>
 
 #include <string.h>
 #include <format.h>
@@ -51,7 +50,7 @@ static void tryfile(char* dir, char* base)
 
 	struct stat st;
 
-	if(sysstat(path, &st))
+	if(sys_stat(path, &st))
 		return;
 	if((st.st_mode & S_IFMT) != S_IFREG)
 		return;
@@ -73,17 +72,17 @@ int load_dir_ents(void)
 	char* dir = gg.dir;
 	long fd, rd;
 
-	if((fd = sysopen(dir, O_RDONLY | O_DIRECTORY)) < 0) {
+	if((fd = sys_open(dir, O_RDONLY | O_DIRECTORY)) < 0) {
 		report("open", dir, fd);
 		afree();
 		return fd;
 	}
 
-	while((rd = sysgetdents64(fd, debuf, delen)) > 0) {
+	while((rd = sys_getdents(fd, debuf, delen)) > 0) {
 		char* ptr = debuf;
 		char* end = debuf + rd;
 		while(ptr < end) {
-			struct dirent64* de = (struct dirent64*) ptr;
+			struct dirent* de = (struct dirent*) ptr;
 
 			if(!de->reclen)
 				break;
@@ -102,7 +101,7 @@ int load_dir_ents(void)
 	}
 
 	afree();
-	sysclose(fd);
+	sys_close(fd);
 	return rd;
 }
 

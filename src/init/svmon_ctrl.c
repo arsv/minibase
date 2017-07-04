@@ -1,16 +1,11 @@
 #include <bits/socket.h>
+#include <bits/socket/unspec.h>
 #include <bits/socket/unix.h>
-#include <sys/accept.h>
-#include <sys/alarm.h>
-#include <sys/bind.h>
-#include <sys/close.h>
-#include <sys/getsockopt.h>
-#include <sys/getuid.h>
-#include <sys/kill.h>
-#include <sys/listen.h>
-#include <sys/read.h>
 #include <sys/socket.h>
-#include <sys/write.h>
+#include <sys/file.h>
+#include <sys/alarm.h>
+#include <sys/creds.h>
+#include <sys/kill.h>
 
 #include <string.h>
 #include <format.h>
@@ -27,7 +22,7 @@ static void killrec(struct svcrec* rc, int group, int sig)
 
 	if(group) pid = -pid;
 
-	syskill(pid, sig);
+	sys_kill(pid, sig);
 }
 
 static void dumpstate(void)
@@ -95,7 +90,7 @@ static void dumpidof(struct svcrec* rc)
 	p = fmtint(p, e, rc->pid);
 	*p++ = '\n';
 
-	syswrite(gg.outfd, buf, p - buf);
+	sys_write(gg.outfd, buf, p - buf);
 }
 
 static void disable(struct svcrec* rc)
@@ -121,7 +116,7 @@ static void reboot(char code)
 static void restart(struct svcrec* rc)
 {
 	if(rc->pid > 0)
-		syskill(rc->pid, SIGTERM);
+		sys_kill(rc->pid, SIGTERM);
 
 	if(rc->flags & P_DISABLED) {
 		rc->flags &= ~P_DISABLED;
@@ -194,7 +189,7 @@ static int checkuser(int fd)
 	struct ucred cred;
 	int credlen = sizeof(cred);
 
-	if(sysgetsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &credlen))
+	if(sys_getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &credlen))
 		return -1;
 
 	if(cred.uid != gg.uid)
@@ -208,7 +203,7 @@ static void readcmd(int fd)
 	int rb;
 	char cbuf[NAMELEN+10];
 
-	if((rb = sysread(fd, cbuf, NAMELEN+1)) < 0)
+	if((rb = sys_read(fd, cbuf, NAMELEN+1)) < 0)
 		return report("recvmsg", NULL, rb);
 	if(rb >= NAMELEN)
 		return report("recvmsg", "message too long", 0);
@@ -235,7 +230,7 @@ void setctl(void)
 	/* we're not going to block for connections, just accept whatever
 	   is already there; so it's SOCK_NONBLOCK */
 	const int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
-	if((fd = syssocket(AF_UNIX, flags, 0)) < 0)
+	if((fd = sys_socket(AF_UNIX, flags, 0)) < 0)
 		return report("socket", "AF_UNIX", fd);
 
 	long ret;
@@ -243,9 +238,9 @@ void setctl(void)
 
 	setctrlfd(fd);
 
-	if((ret = sysbind(fd, &addr, sizeof(addr))) < 0)
+	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
 		report("bind", name, ret);
-	else if((ret = syslisten(fd, 1)))
+	else if((ret = sys_listen(fd, 1)))
 		report("listen", name, ret);
 	else
 		return;
@@ -260,22 +255,22 @@ void acceptctl(int sfd)
 	struct sockaddr addr;
 	int addr_len = sizeof(addr);
 
-	while((cfd = sysaccept(sfd, &addr, &addr_len)) > 0) {
+	while((cfd = sys_accept(sfd, &addr, &addr_len)) > 0) {
 		int nonroot = checkuser(cfd);
 
 		if(nonroot) {
 			const char* denied = "Access denied\n";
-			syswrite(cfd, denied, strlen(denied));
+			sys_write(cfd, denied, strlen(denied));
 		} else {
 			gotcmd = 1;
-			sysalarm(SVCTL_TIMEOUT);
+			sys_alarm(SVCTL_TIMEOUT);
 			readcmd(cfd);
 		}
 
-		sysclose(cfd);
+		sys_close(cfd);
 
 	} if(gotcmd) {
 		/* disable the timer in case it has been set */
-		sysalarm(0);
+		sys_alarm(0);
 	}
 }

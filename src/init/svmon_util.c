@@ -1,5 +1,5 @@
 #include <bits/socket.h>
-#include <sys/write.h>
+#include <sys/file.h>
 #include <sys/brk.h>
 
 #include <null.h>
@@ -103,7 +103,7 @@ static char* end;
 
 void setbrk(void)
 {
-	brk = (char*)sysbrk(NULL);
+	brk = (char*)sys_brk(NULL);
 	ptr = end = brk;
 }
 
@@ -115,7 +115,7 @@ char* alloc(int len)
 	if(req <= end)
 		goto done;
 
-	end = (char*)sysbrk(req);
+	end = (char*)sys_brk(req);
 
 	if(req > end) {
 		report("out of memory", NULL, 0);
@@ -128,7 +128,7 @@ done:
 
 void afree(void)
 {
-	end = ptr = (char*)sysbrk(brk);
+	end = ptr = (char*)sys_brk(brk);
 }
 
 /* Error output */

@@ -1,10 +1,10 @@
-#include <sys/unlink.h>
-#include <sys/getpid.h>
-#include <sys/getuid.h>
-#include <sys/close.h>
+#include <sys/fsnod.h>
+#include <sys/pid.h>
+#include <sys/creds.h>
+#include <sys/file.h>
 #include <sys/fork.h>
-#include <sys/waitpid.h>
-#include <sys/execve.h>
+#include <sys/wait.h>
+#include <sys/exec.h>
 
 #include <format.h>
 #include <util.h>
@@ -17,7 +17,7 @@ static int setup(char** envp)
 {
 	gg.dir = SVDIR;
 	gg.env = envp;
-	gg.uid = sysgetuid();
+	gg.uid = sys_getuid();
 	gg.outfd = STDERR;
 
 	setbrk();
@@ -28,15 +28,15 @@ static int setup(char** envp)
 
 static int forkreboot(void)
 {
-	int pid = sysfork();
+	int pid = sys_fork();
 
 	if(pid == 0) {
 		char arg[] = { '-', gg.rbcode, '\0' };
 		char* argv[] = { "/sbin/reboot", arg, NULL };
-		sysexecve(*argv, argv, gg.env);
+		sys_execve(*argv, argv, gg.env);
 	} else if(pid > 0) {
 		int status;
-		syswaitpid(pid, &status, 0);
+		sys_waitpid(pid, &status, 0);
 	}
 
 	return -1;
@@ -67,8 +67,8 @@ int main(int argc, char** argv, char** envp)
 	}
 
 reboot:
-	if(sysgetpid() != 1) {
-		sysunlink(SVCTL);
+	if(sys_getpid() != 1) {
+		sys_unlink(SVCTL);
 		return 0;
 	} else {
 		return forkreboot();
