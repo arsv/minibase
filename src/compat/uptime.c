@@ -1,5 +1,5 @@
 #include <sys/clock.h>
-#include <sys/gettimeofday.h>
+#include <sys/time.h>
 
 #include <format.h>
 #include <util.h>
@@ -84,7 +84,7 @@ static void upsince(void)
 	struct timeval tv;
 	struct tm tm;
 
-	xchk(sysgettimeofday(&tv, NULL), "cannot get system time", NULL);
+	xchk(sys_gettimeofday(&tv, NULL), "cannot get system time", NULL);
 	tv.sec -= uptime;
 
 	tv2tm(&tv, &tm);

@@ -1,5 +1,4 @@
-#include <sys/mkdir.h>
-
+#include <sys/fsnod.h>
 #include <string.h>
 #include <fail.h>
 
@@ -48,7 +47,7 @@ static int parsemode(const char* mode)
 
 static void makedir(char* name, int mode)
 {
-	long ret = sysmkdir(name, mode);
+	long ret = sys_mkdir(name, mode);
 
 	if(ret >= 0 || ret == -EEXIST)
 		return;

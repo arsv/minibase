@@ -1,9 +1,8 @@
-#include <sys/read.h>
-#include <sys/fork.h>
-#include <sys/open.h>
-#include <sys/execve.h>
 #include <sys/access.h>
-#include <sys/waitpid.h>
+#include <sys/file.h>
+#include <sys/fork.h>
+#include <sys/exec.h>
+#include <sys/wait.h>
 
 #include <string.h>
 #include <util.h>
@@ -40,17 +39,17 @@ struct exec {
 
 static int xopen(const char* fname)
 {
-	return xchk(sysopen(fname, O_RDONLY), "cannot open", fname);
+	return xchk(sys_open(fname, O_RDONLY), "cannot open", fname);
 }
 
 static void spawn(struct exec* ctx)
 {
-	long pid = sysfork();
+	long pid = sys_fork();
 
 	if(pid < 0) {
 		fail("fork", NULL, pid);
 	} else if(pid == 0) {
-		long ret = sysexecve(ctx->exe, ctx->argv, ctx->envp);
+		long ret = sys_execve(ctx->exe, ctx->argv, ctx->envp);
 
 		if(ret < 0)
 			fail("exec", ctx->exe, ret);
@@ -59,7 +58,7 @@ static void spawn(struct exec* ctx)
 	} else {
 		int status;
 
-		xchk(syswaitpid(pid, &status, 0), "waitpid", NULL);
+		xchk(sys_waitpid(pid, &status, 0), "waitpid", NULL);
 
 		if(status)
 			fail("command failed, aborting", NULL, 0);
@@ -152,7 +151,7 @@ static void readinput(struct exec* ctx, int fd)
 	int ptr = 0;  /* filled with data up to ptr */
 	int stp = 0;  /* start processing next chunk from here */
 
-	while((rd = sysread(fd, buf + ptr, len - ptr)) > 0) {
+	while((rd = sys_read(fd, buf + ptr, len - ptr)) > 0) {
 		ptr += rd;
 
 		int used = useblock(ctx, buf + stp, ptr - stp, REGULAR);
@@ -205,7 +204,7 @@ static int isexecutable(char* dir, int dirlen, char* cmd, int cmdlen)
 {
 	char name[dirlen + cmdlen + 2];
 	makefullname(name, dir, dirlen, cmd, cmdlen);
-	return (sysaccess(name, X_OK) >= 0);
+	return (sys_access(name, X_OK) >= 0);
 }
 
 char* whichexe(char* path, char* cmd)

@@ -1,4 +1,4 @@
-#include <sys/rmdir.h>
+#include <sys/fsnod.h>
 #include <fail.h>
 
 /* This tool is pointless, rm -d should be used instead */
@@ -18,7 +18,7 @@ int main(int argc, char** argv)
 	if(argc < 2)
 		fail("no directories to delete", NULL, 0);
 	else for(i = 1; i < argc; i++)
-		if((ret = sysrmdir(argv[i])) < 0)
+		if((ret = sys_rmdir(argv[i])) < 0)
 			fail(NULL, argv[i], ret);
 
 	return 0;

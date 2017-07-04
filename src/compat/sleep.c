@@ -1,9 +1,8 @@
-#include <sys/nanosleep.h>
-#include <sys/write.h>
-#include <sys/_exit.h>
+#include <sys/file.h>
+#include <sys/sleep.h>
 
 #include <string.h>
-#include <null.h>
+#include <exit.h>
 
 #define NANOFRAC 1000000000 /* nanoseconds in a second */
 
@@ -23,7 +22,7 @@ static void fail2(const char* msg, const char* obj)
 	memcpy(p, obj, objlen); p += objlen;
 
 nl:	*p++ = '\n';
-	syswrite(2, buf, p - buf);
+	sys_write(2, buf, p - buf);
 	_exit(255);
 }
 
@@ -106,7 +105,7 @@ int main(int argc, char** argv)
 	else for(; i < argc; i++)
 		addtime(&sp, argv[i]);
 
-	long ret = sysnanosleep(&sp, NULL);
+	long ret = sys_nanosleep(&sp, NULL);
 
 	return (ret < 0 ? -1 : 0);
 }

@@ -1,5 +1,4 @@
-#include <sys/write.h>
-
+#include <sys/file.h>
 #include <alloca.h>
 #include <util.h>
 
@@ -36,7 +35,7 @@ int main(int argc, char** argv)
 		len = sizeof(yes) - 1;
 	}
 
-	while(syswrite(1, msg, len) > 0)
+	while(sys_write(1, msg, len) > 0)
 		;
 
 	return -1;

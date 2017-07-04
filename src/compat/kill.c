@@ -64,7 +64,7 @@ static int killpid(int sig, char* pstr)
 	if(!(p = parseint(p, &pid)) || *p)
 		fail("not a number:", pstr, 0);
 
-	long ret = syskill(neg ? -pid : pid, sig);
+	long ret = sys_kill(neg ? -pid : pid, sig);
 
 	if(ret < 0) {
 		warn("cannot kill", pstr, ret);

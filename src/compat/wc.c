@@ -1,9 +1,6 @@
-#include <sys/read.h>
+#include <sys/file.h>
 #include <sys/mmap.h>
-#include <sys/open.h>
-#include <sys/fstat.h>
-#include <sys/close.h>
-#include <sys/munmap.h>
+#include <sys/stat.h>
 
 #include <string.h>
 #include <format.h>
@@ -144,23 +141,23 @@ static void countstdin(struct wc* cnts)
 	const int prot = PROT_READ | PROT_WRITE;
 	const int flags = MAP_PRIVATE;
 
-	long ret = sysmmap(NULL, len, prot, flags, -1, 0);
+	long ret = sys_mmap(NULL, len, prot, flags, -1, 0);
 
-	if(MMAPERROR(ret))
+	if(mmap_error(ret))
 		fail("mmap", NULL, ret);
 
 	char* buf = (char*)ret;
 
 	unsigned long rd;
-	while((rd = sysread(STDIN, buf, len)) > 0)
+	while((rd = sys_read(STDIN, buf, len)) > 0)
 		count(cnts, buf, rd);
 }
 
 static void countfile(struct wc* cnts, const char* fname, int last)
 {
 	struct stat st;
-	long fd = xchk(sysopen(fname, O_RDONLY), "open", fname);
-	xchk(sysfstat(fd, &st), "stat", fname);
+	long fd = xchk(sys_open(fname, O_RDONLY), "open", fname);
+	xchk(sys_fstat(fd, &st), "stat", fname);
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
@@ -173,9 +170,9 @@ static void countfile(struct wc* cnts, const char* fname, int last)
 	while(off < st.st_size) {
 		map = rem > MAPSIZE ? MAPSIZE : rem;
 
-		long ret = sysmmap(buf, map, prot, flags, fd, off);
+		long ret = sys_mmap(buf, map, prot, flags, fd, off);
 
-		if(MMAPERROR(ret))
+		if(mmap_error(ret))
 			fail("mmap", fname, ret);
 
 		buf = (char*)ret;
@@ -187,8 +184,8 @@ static void countfile(struct wc* cnts, const char* fname, int last)
 
 	if(last) return;
 
-	xchk(sysmunmap(buf, off > MAPSIZE ? MAPSIZE : map), "munmap", fname);
-	xchk(sysclose(fd), "close", fname);
+	xchk(sys_munmap(buf, off > MAPSIZE ? MAPSIZE : map), "munmap", fname);
+	xchk(sys_close(fd), "close", fname);
 }
 
 static int countbits(long val, int bits)

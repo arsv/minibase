@@ -1,4 +1,4 @@
-#include <sys/write.h>
+#include <sys/file.h>
 #include <string.h>
 
 /* XXX: should we support suffix-stripping and \0 termination? */
@@ -23,7 +23,7 @@ void dumpbname(char* path)
 
 	*p++ = '\n';
 
-	syswrite(1, q, p - q);
+	sys_write(1, q, p - q);
 }
 
 int main(int argc, char** argv)

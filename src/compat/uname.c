@@ -1,5 +1,5 @@
-#include <sys/write.h>
-#include <sys/uname.h>
+#include <sys/file.h>
+#include <sys/info.h>
 
 #include <format.h>
 #include <util.h>
@@ -50,7 +50,7 @@ static void uname(struct utsname* un, int opts)
 	if(p > buf) p--;
 	*p++ = '\n';
 
-	xchk(syswrite(1, buf, p - buf), "write", NULL);
+	xchk(sys_write(1, buf, p - buf), "write", NULL);
 }
 
 int main(int argc, char** argv)
@@ -67,7 +67,7 @@ int main(int argc, char** argv)
 		opts |= (OPT_s | OPT_n | OPT_r | OPT_v | OPT_m);
 
 	struct utsname un;
-	xchk(sysuname(&un), "uname", NULL);
+	xchk(sys_uname(&un), "uname", NULL);
 	uname(&un, opts);
 
 	return 0;

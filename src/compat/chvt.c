@@ -1,6 +1,5 @@
+#include <sys/file.h>
 #include <sys/ioctl.h>
-#include <sys/open.h>
-#include <sys/close.h>
 
 #include <string.h>
 #include <format.h>
@@ -30,13 +29,13 @@ static long openconsole(const char* name)
 	long fd;
 	char arg = 0;
 
-	if((fd = sysopen(name, O_RDWR)) < 0)
+	if((fd = sys_open(name, O_RDWR)) < 0)
 		return fd;
 
-	if((io = sysioctl(fd, KDGKBTYPE, &arg)) >= 0)
+	if((io = sys_ioctl(fd, KDGKBTYPE, &arg)) >= 0)
 		return fd;
 
-	sysclose(fd);
+	sys_close(fd);
 	return io;
 }
 
@@ -55,15 +54,15 @@ static long consolefd(void)
 
 static void chvt(long cfd, int vt, char* vtname)
 {
-	xchk(sysioctli(cfd, VT_ACTIVATE, vt),
+	xchk(sys_ioctli(cfd, VT_ACTIVATE, vt),
 		"ioctl VT_ACTIVATE", vtname);
-	xchk(sysioctli(cfd, VT_WAITACTIVE, vt),
+	xchk(sys_ioctli(cfd, VT_WAITACTIVE, vt),
 		"ioctl VT_WAITACTIVE", vtname);
 }
 
 static void rmvt(long cfd, int vt, char* vtname)
 {
-	xchk(sysioctli(cfd, VT_DISALLOCATE, vt),
+	xchk(sys_ioctli(cfd, VT_DISALLOCATE, vt),
 		"ioctl VT_DISALLOCATE", vtname);
 }
 

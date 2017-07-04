@@ -1,4 +1,4 @@
-#include <sys/write.h>
+#include <sys/file.h>
 #include <string.h>
 
 void dumpdname(char* path)
@@ -27,7 +27,7 @@ void dumpdname(char* path)
 		wr = len + 1;
 	}
 
-	syswrite(1, path, wr);
+	sys_write(1, path, wr);
 }
 
 int main(int argc, char** argv)

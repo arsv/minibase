@@ -1,6 +1,4 @@
-#include <sys/open.h>
-#include <sys/read.h>
-#include <sys/write.h>
+#include <sys/file.h>
 #include <fail.h>
 
 /* XXX: GNU coreutils allow writing to several files at once.
@@ -21,16 +19,16 @@ static void tee(int fd, const char* file)
 	int rd;
 	long ret;
 
-	while((rd = sysread(0, buf, sizeof(buf))) > 0) {
+	while((rd = sys_read(0, buf, sizeof(buf))) > 0) {
 		if(fd <= 1)
 			goto wr1;
 
-		if((ret = syswrite(fd, buf, rd)) < 0) {
+		if((ret = sys_write(fd, buf, rd)) < 0) {
 			warn("writing to", file, ret);
 			fd = -1;
 		}
 	wr1:
-		if((ret = syswrite(1, buf, rd)) < 0)
+		if((ret = sys_write(1, buf, rd)) < 0)
 			fail("writing to stdout", NULL, ret);
 	};
 }
@@ -61,7 +59,7 @@ int main(int argc, char** argv)
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
-	long fd = xchk(sysopen3(file, flags, 0666), "cannot open", file);
+	long fd = xchk(sys_open3(file, flags, 0666), "cannot open", file);
 
 	tee(fd, file);
 

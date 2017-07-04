@@ -1,6 +1,5 @@
-#include <sys/open.h>
-#include <sys/close.h>
-#include <sys/utimensat.h>
+#include <sys/file.h>
+#include <sys/access.h>
 
 #include <util.h>
 #include <fail.h>
@@ -30,7 +29,7 @@ ERRLIST = {
 
 static void touch(char* path, struct timespec* times)
 {
-	long ret = sysutimensat(AT_FDCWD, path, times, AT_SYMLINK_NOFOLLOW);
+	long ret = sys_utimensat(AT_FDCWD, path, times, AT_SYMLINK_NOFOLLOW);
 
 	if(ret >= 0)
 		return;
@@ -40,12 +39,12 @@ static void touch(char* path, struct timespec* times)
 	/* The file does not exist, let's try to creat it */
 
 	const int flags = O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW;
-	long fd = sysopen3(path, flags, 0666);
+	long fd = sys_open3(path, flags, 0666);
 
 	if(fd < 0)
 		fail("cannot create", path, fd);
 	else
-		sysclose(fd);
+		sys_close(fd);
 }
 
 int main(int argc, char** argv)
