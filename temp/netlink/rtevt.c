@@ -1,5 +1,5 @@
-#include <sys/fstat.h>
-#include <sys/open.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/mmap.h>
 
 #include <netlink.h>

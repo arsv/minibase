@@ -1,8 +1,7 @@
-#include <sys/fstat.h>
-#include <sys/open.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/mmap.h>
 #include <sys/brk.h>
-#include <sys/read.h>
 
 #include <null.h>
 #include <fail.h>
@@ -24,17 +23,17 @@ void* mmapwhole(const char* name, long* len)
 	long ret;
 	struct stat st;
 
-	if((fd = sysopen(name, O_RDONLY)) < 0)
+	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail("cannot open", name, fd);
 
-	if((ret = sysfstat(fd, &st)) < 0)
+	if((ret = sys_fstat(fd, &st)) < 0)
 		fail("cannot stat", name, ret);
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
-	ret = sysmmap(NULL, st.st_size, prot, flags, fd, 0);
+	ret = sys_mmap(NULL, st.st_size, prot, flags, fd, 0);
 
-	if(MMAPERROR(ret))
+	if(mmap_error(ret))
 		fail("cannot mmap", name, ret);
 
 	if(st.st_size > MAX_FILE_SIZE)
@@ -46,8 +45,8 @@ void* mmapwhole(const char* name, long* len)
 
 void* readwhole(int fd, long* len)
 {
-	char* brk = (char*)sysbrk(NULL);
-	char* end = (char*)sysbrk(brk + PAGE);
+	char* brk = (char*)sys_brk(NULL);
+	char* end = (char*)sys_brk(brk + PAGE);
 	char* ptr = brk;
 
 	if(end < ptr + PAGE)
@@ -55,11 +54,11 @@ void* readwhole(int fd, long* len)
 
 	long rd;
 
-	while((rd = sysread(fd, ptr, end - ptr)) > 0) {
+	while((rd = sys_read(fd, ptr, end - ptr)) > 0) {
 		ptr += rd;
 
 		if(end - ptr < 100)
-			end = (char*)sysbrk(end + PAGE);
+			end = (char*)sys_brk(end + PAGE);
 		if(end - ptr < 100)
 			fail("out of memory", NULL, 0);
 	}
