@@ -1,5 +1,5 @@
-#include <sys/write.h>
-#include <sys/sysinfo.h>
+#include <sys/file.h>
+#include <sys/info.h>
 
 #include <format.h>
 #include <util.h>
@@ -145,7 +145,7 @@ static void showall(struct sysinfo* si)
 	p = fmtline3(p, end, si);
 	p = fmtline4(p, end, si);
 
-	syswrite(1, buf, p - buf);
+	sys_write(1, buf, p - buf);
 }
 
 int main(int argc, char** argv)
@@ -153,7 +153,7 @@ int main(int argc, char** argv)
 	int i = 1;
 	struct sysinfo si;
 
-	xchk(syssysinfo(&si), "sysinfo", NULL);
+	xchk(sys_info(&si), "sysinfo", NULL);
 
 	if(i < argc)
 		fail("too many arguments", NULL, 0);

@@ -1,4 +1,4 @@
-#include <sys/klogctl.h>
+#include <sys/klog.h>
 #include <sys/mmap.h>
 
 #include <alloca.h>
@@ -51,9 +51,9 @@ static char* mmapbuf(long len)
 {
 	const int prot = PROT_READ | PROT_WRITE;
 	const int flags = MAP_PRIVATE | MAP_ANONYMOUS;
-	long ptr = sysmmap(NULL, len, prot, flags, -1, 0);
+	long ptr = sys_mmap(NULL, len, prot, flags, -1, 0);
 
-	if(MMAPERROR(ptr))
+	if(mmap_error(ptr))
 		fail("mmap", NULL, ptr);
 	else
 		return (char*)ptr;
@@ -314,7 +314,7 @@ static void prettyprint(char* logbuf, int loglen, int opts)
 
 static void showklogbuf(int opts)
 {
-	long len = xchk(sysklogctl(SYSLOG_ACTION_SIZE_BUFFER, NULL, 0),
+	long len = xchk(sys_klogctl(SYSLOG_ACTION_SIZE_BUFFER, NULL, 0),
 			"cannot get klog buffer size", NULL);
 
 	if(len < MINLOGBUF)
@@ -327,7 +327,7 @@ static void showklogbuf(int opts)
 	int act = (opts & OPT_c) ? SYSLOG_ACTION_READ_CLEAR
 	                         : SYSLOG_ACTION_READ_ALL;
 	
-	len = xchk(sysklogctl(act, logbuf, len),
+	len = xchk(sys_klogctl(act, logbuf, len),
 		"cannot read klog buffer", NULL);
 
 	if(len > 0 && logbuf[len-1] != '\n')
@@ -341,7 +341,7 @@ static void showklogbuf(int opts)
 
 static void setkloglevel(int lvl)
 {
-	xchk(sysklogctl(SYSLOG_ACTION_CONSOLE_LEVEL, NULL, lvl),
+	xchk(sys_klogctl(SYSLOG_ACTION_CONSOLE_LEVEL, NULL, lvl),
 		"cannot set loglevel", NULL);
 }
 

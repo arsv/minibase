@@ -1,8 +1,7 @@
-#include <sys/lstat.h>
-#include <sys/getdents.h>
-#include <sys/open.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/dents.h>
 #include <sys/brk.h>
-#include <sys/close.h>
 
 #include <string.h>
 #include <format.h>
@@ -118,7 +117,7 @@ static void scan_dent(char* path, char* name, void* arg, int opts)
 
 	struct stat st;
 
-	long ret = syslstat(fullname, &st);
+	long ret = sys_lstat(fullname, &st);
 	if(ret < 0)
 		return;
 
@@ -134,18 +133,18 @@ static void for_each_in(char* path, scanner sc, void* scptr, int scarg)
 {
 	char debuf[PAGE];
 
-	long fd = sysopen(path, O_RDONLY | O_DIRECTORY);
+	long fd = sys_open(path, O_RDONLY | O_DIRECTORY);
 
 	if(fd < 0)
 		fail("cannot open", path, fd);
 
 	long rd;
 
-	while((rd = sysgetdents64(fd, debuf, sizeof(debuf))) > 0) {
+	while((rd = sys_getdents(fd, debuf, sizeof(debuf))) > 0) {
 		char* ptr = debuf;
 		char* end = debuf + rd;
 		while(ptr < end) {
-			struct dirent64* de = (struct dirent64*) ptr;
+			struct dirent* de = (struct dirent*) ptr;
 			ptr += de->reclen;
 
 			if(!de->reclen)
@@ -157,14 +156,14 @@ static void for_each_in(char* path, scanner sc, void* scptr, int scarg)
 		}
 	}
 
-	sysclose(fd);
+	sys_close(fd);
 }
 
 static int scan_path(uint64_t* size, char* path, int opts)
 {
 	struct stat st;
 
-	xchk(syslstat(path, &st), "cannot stat", path);
+	xchk(sys_lstat(path, &st), "cannot stat", path);
 
 	int isdir = ((st.st_mode & S_IFMT) == S_IFDIR);
 
@@ -221,8 +220,8 @@ static void scan_each(uint64_t* total, int argc, char** argv, int opts)
 
 void init_heap(struct heap* ctx, int size)
 {
-	ctx->brk = (char*)sysbrk(0);
-	ctx->end = (char*)sysbrk(ctx->brk + size);
+	ctx->brk = (char*)sys_brk(0);
+	ctx->end = (char*)sys_brk(ctx->brk + size);
 	ctx->ptr = ctx->brk;
 
 	if(ctx->end <= ctx->brk)
@@ -241,7 +240,7 @@ void* alloc(struct heap* ctx, int len)
 		long need = len - avail;
 		need += (PAGE - need % PAGE) % PAGE;
 		char* req = ctx->end + need;
-		char* new = (char*)sysbrk(req);
+		char* new = (char*)sys_brk(req);
 
 		if(new < req)
 			fail("cannot allocate memory", NULL, 0);

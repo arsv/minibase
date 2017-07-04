@@ -1,9 +1,6 @@
-#include <sys/getcwd.h>
-#include <sys/chdir.h>
-#include <sys/fchdir.h>
-#include <sys/write.h>
-#include <sys/open.h>
-#include <sys/readlink.h>
+#include <sys/cwd.h>
+#include <sys/file.h>
+#include <sys/symlink.h>
 
 #include <string.h>
 #include <util.h>
@@ -69,7 +66,7 @@ static void printparts(char* name, int len, int opts)
 		*end++ = '\n';
 	}
 
-	syswrite(STDOUT, ptr, end - ptr);
+	sys_write(STDOUT, ptr, end - ptr);
 }
 
 /* Get rid of multiple slashes and . entries.
@@ -116,7 +113,7 @@ static void printatcwd(char* orig, char* name, int namelen, int opts)
 	if(*name == '/')
 		return printparts(name, namelen, opts);
 
-	long cwdlen = xchk(sysgetcwd(cwdbuf, sizeof(cwdbuf)), "getcwd", NULL);
+	long cwdlen = xchk(sys_getcwd(cwdbuf, sizeof(cwdbuf)), "getcwd", NULL);
 
 	cwdlen--; /* unlike readlink, getcwd *does* count trailing \0 */
 
@@ -141,7 +138,7 @@ static void abstail(char* orig, char* dir, int dlen, char* tail, int tlen, int o
 	memcpy(buf, dir, dlen);
 	buf[dlen] = '\0';
 
-	if(syschdir(buf) < 0)
+	if(sys_chdir(buf) < 0)
 		fail(NULL, orig, ENOTDIR);
 
 	return printatcwd(orig, tail, tlen, opts);
@@ -181,14 +178,14 @@ static void chdirtodirname(char* orig, char* name, int namelen)
 	long ret;
 
 	if(de == name) {
-		ret = syschdir("/");
+		ret = sys_chdir("/");
 	} else {
 		int dl = de - name;
 		char dir[dl+1];
 		memcpy(dir, name, dl);
 		dir[dl] = '\0';
 
-		ret = syschdir(dir);
+		ret = sys_chdir(dir);
 	}
 
 	if(ret < 0)
@@ -197,7 +194,7 @@ static void chdirtodirname(char* orig, char* name, int namelen)
 
 static void canonlink(char* orig, char* name, int namelen, int opts, int depth)
 {
-	long ret = sysreadlink(name, cwdbuf, sizeof(cwdbuf));
+	long ret = sys_readlink(name, cwdbuf, sizeof(cwdbuf));
 
 	if(ret >= 0) {
 		/* it's a link, got to follow it */
@@ -223,7 +220,7 @@ static void canonlink(char* orig, char* name, int namelen, int opts, int depth)
 
 static void canonicalize(char* orig, char* name, int namelen, int opts)
 {
-	if(syschdir(name) >= 0)
+	if(sys_chdir(name) >= 0)
 		return printatcwd(orig, "", 0, opts);
 
 	char* end = name + namelen;
@@ -239,7 +236,7 @@ static void dereference(char* orig, char* name, int namelen, int opts)
 {
 	long ret;
 
-	if((ret = sysreadlink(name, cwdbuf, sizeof(cwdbuf))) < 0)
+	if((ret = sys_readlink(name, cwdbuf, sizeof(cwdbuf))) < 0)
 		fail("readlink", orig, ret);
 
 	if(!(opts & (OPT_a | OPT_c)))
@@ -262,11 +259,11 @@ static void dereference(char* orig, char* name, int namelen, int opts)
 
 static void printfiles(int argc, char** argv, int opts)
 {
-	long cwdfd = xchk(sysopen(".", O_PATH | O_RDONLY), "open", ".");
+	long cwdfd = xchk(sys_open(".", O_PATH | O_RDONLY), "open", ".");
 	int i;
 
 	for(i = 0; i < argc; i++) {
-		if(i) xchk(sysfchdir(cwdfd), "chdir", ".");
+		if(i) xchk(sys_fchdir(cwdfd), "chdir", ".");
 
 		char* arg = argv[i];
 		int arglen = strlen(arg);

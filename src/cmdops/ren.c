@@ -1,4 +1,4 @@
-#include <sys/renameat2.h>
+#include <sys/fsnod.h>
 
 #include <string.h>
 #include <util.h>
@@ -21,7 +21,7 @@ ERRLIST = {
 
 static void rename(char* src, char* dst, int flags)
 {
-	xchk(sysrenameat2(AT_FDCWD, src, AT_FDCWD, dst, flags),
+	xchk(sys_renameat2(AT_FDCWD, src, AT_FDCWD, dst, flags),
 		"cannot rename", src);
 }
 

@@ -1,16 +1,11 @@
-#include <sys/unlinkat.h>
-#include <sys/fstat.h>
-#include <sys/open.h>
-#include <sys/close.h>
-#include <sys/getdents.h>
-#include <sys/fstatat.h>
-#include <sys/unlink.h>
-#include <sys/rmdir.h>
-#include <sys/lstat.h>
-#include <sys/_exit.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/fsnod.h>
+#include <sys/dents.h>
 
 #include <string.h>
 #include <format.h>
+#include <exit.h>
 #include <util.h>
 #include <fail.h>
 
@@ -52,7 +47,7 @@ static int samefs(const char* dirname, int dirfd, long rootdev)
 {
 	struct stat st;
 
-	long ret = sysfstat(dirfd, &st);
+	long ret = sys_fstat(dirfd, &st);
 
 	if(ret < 0)
 		warn("cannot stat", dirname, ret);
@@ -62,7 +57,7 @@ static int samefs(const char* dirname, int dirfd, long rootdev)
 }
 
 static void removeany(const char* name, int type, long rootdev, int opts);
-static void removedep(const char* dirname, struct dirent64* dep,
+static void removedep(const char* dirname, struct dirent* dep,
 		long rootdev, int opts);
 
 static void removedir(const char* dirname, long rootdev, int opts)
@@ -71,20 +66,20 @@ static void removedir(const char* dirname, long rootdev, int opts)
 	const int delen = sizeof(debuf);
 	long dirfd, rd;
 
-	if((dirfd = sysopen(dirname, O_DIRECTORY)) < 0)
+	if((dirfd = sys_open(dirname, O_DIRECTORY)) < 0)
 		return mfail(opts, "cannot open", dirname, dirfd);
 
 	if((opts & OPT_x) && !samefs(dirname, dirfd, rootdev))
 		goto out;
 
-	while((rd = sysgetdents64(dirfd, (struct dirent64*)debuf, delen)) > 0)
+	while((rd = sys_getdents(dirfd, (struct dirent*)debuf, delen)) > 0)
 	{
 		char* ptr = debuf;
 		char* end = debuf + rd;
 
 		while(ptr < end)
 		{
-			struct dirent64* dep = (struct dirent64*) ptr;
+			struct dirent* dep = (struct dirent*) ptr;
 
 			if(!dotddot(dep->name))
 				removedep(dirname, dep, rootdev, opts);
@@ -95,10 +90,10 @@ static void removedir(const char* dirname, long rootdev, int opts)
 		}
 	};
 out:
-	sysclose(dirfd);
+	sys_close(dirfd);
 };
 
-static void removedep(const char* dirname, struct dirent64* dep,
+static void removedep(const char* dirname, struct dirent* dep,
 		long rootdev, int opts)
 {
 	int dirnlen = strlen(dirname);
@@ -132,7 +127,7 @@ static void removeany(const char* name, int type, long rootdev, int opts)
 	if(type == DT_DIR)
 		goto dir;
 
-	ret = sysunlink(name);
+	ret = sys_unlink(name);
 
 	if(ret >= 0)
 		return;
@@ -141,7 +136,7 @@ static void removeany(const char* name, int type, long rootdev, int opts)
 dir:
 	removedir(name, rootdev, opts);
 
-	ret = sysrmdir(name);
+	ret = sys_rmdir(name);
 
 	if(ret >= 0)
 		return;
@@ -167,7 +162,7 @@ static void remove(const char* name, int opts, struct stat* rst)
 		/* make extra sure we're doing the right thing with -r */
 		struct stat st;
 
-		if((ret = syslstat(name, &st)) < 0)
+		if((ret = sys_lstat(name, &st)) < 0)
 			return mfail(opts, "cannot stat", name, ret);
 
 		if(!(opts & OPT_Z) && samefile(&st, rst))
@@ -192,7 +187,7 @@ int main(int argc, char** argv)
 		opts = argbits(OPTS, argv[i++] + 1);
 
 	if((opts & (OPT_r | OPT_Z)) == OPT_r)
-		xchk(syslstat("/", &st), "cannot stat", "/");
+		xchk(sys_lstat("/", &st), "cannot stat", "/");
 
 	if(i >= argc)
 		fail("need file names to remove", NULL, 0);

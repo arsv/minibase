@@ -1,9 +1,9 @@
+#include <sys/file.h>
 #include <sys/access.h>
-#include <sys/write.h>
-#include <sys/_exit.h>
 
 #include <string.h>
 #include <format.h>
+#include <exit.h>
 #include <null.h>
 
 #define TAG "which"
@@ -24,7 +24,7 @@ no:
 	p = fmtstr(p, end, msg);
 	p = fmtstr(p, end, "\n");
 
-	syswrite(2, buf, p - buf);
+	sys_write(2, buf, p - buf);
 }
 
 static char* xgetenv(char** envp, char* var)
@@ -50,11 +50,11 @@ static int execheck(const char* dir, int dirlen, const char* cmd, int cmdlen)
 	memcpy(p, cmd, cmdlen); p += cmdlen;
 	*p = '\0';
 
-	if(sysaccess(path, X_OK) < 0)
+	if(sys_access(path, X_OK) < 0)
 		return 0;
 	
 	*p++ = '\n';
-	syswrite(1, path, p - path);
+	sys_write(1, path, p - path);
 
 	return -1;
 }

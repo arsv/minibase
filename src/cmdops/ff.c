@@ -1,9 +1,7 @@
-#include <sys/getdents.h>
+#include <sys/file.h>
 #include <sys/mmap.h>
+#include <sys/dents.h>
 #include <sys/brk.h>
-#include <sys/open.h>
-#include <sys/write.h>
-#include <sys/close.h>
 
 #include <string.h>
 #include <format.h>
@@ -88,7 +86,7 @@ static char dirbuf[2*PAGE];
 
 static void* setbrk(void* old, int incr)
 {
-	long addr = sysbrk(old + incr);
+	long addr = sys_brk(old + incr);
 
 	if(addr < 0 && addr >= -2048)
 		fail("brk", NULL, addr);
@@ -178,7 +176,7 @@ static void checkstat(struct dirctx* dc, char* name)
 	fail("not implemented", NULL, 0);
 }
 
-static void checkdent(struct dirctx* dc, struct dirent64* de)
+static void checkdent(struct dirctx* dc, struct dirent* de)
 {
 	int type = de->type;
 	char* name = de->name;
@@ -210,11 +208,11 @@ static void readscan(struct dirctx* dc, int fd)
 
 	dc->ents = (struct shortent*) dc->tc->ptr;
 
-	while((ret = sysgetdents64(fd, debuf, len)) > 0) {
+	while((ret = sys_getdents(fd, debuf, len)) > 0) {
 		void* ptr = (void*) debuf;
 		void* end = ptr + ret;
 		while(ptr < end) {
-			struct dirent64* de = (struct dirent64*) ptr;
+			struct dirent* de = (struct dirent*) ptr;
 
 			if(!dotddot(de->name))
 				checkdent(dc, de);
@@ -279,7 +277,7 @@ static void searchdir(struct topctx* tc, char* dir)
 	void* saved = tc->ptr;
 	char* dirname = dir ? dir : ".";
 
-	long fd = sysopen(dirname, O_DIRECTORY);
+	long fd = sys_open(dirname, O_DIRECTORY);
 
 	if(fd < 0) return;
 
@@ -292,7 +290,7 @@ static void searchdir(struct topctx* tc, char* dir)
 	};
 
 	readscan(&dc, fd);
-	sysclose(fd);
+	sys_close(fd);
 
 	idxfound(&dc);
 	printrec(&dc);

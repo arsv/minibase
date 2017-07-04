@@ -1,6 +1,4 @@
-#include <sys/open.h>
-#include <sys/read.h>
-#include <sys/write.h>
+#include <sys/file.h>
 
 #include <string.h>
 #include <format.h>
@@ -20,7 +18,7 @@ static void writeall(int fd, char* buf, long size)
 {
 	long wr = 0;
 
-	while(size > 0 && (wr = syswrite(fd, buf, size)) > 0) {
+	while(size > 0 && (wr = sys_write(fd, buf, size)) > 0) {
 		buf += wr;
 		size -= wr;
 	} if(wr < 0) {
@@ -108,7 +106,7 @@ static char* makeline(char* p, char* end, unsigned long addr, char* data, int si
 }
 
 /* Several output lines (each 16 input bytes long) are merged
-   into a single output block, to avoid excessive syswrite()s.
+   into a single output block, to avoid excessive sys_write()s.
    There may be more than one output block per each dumpbuf()
    call however */
 
@@ -141,7 +139,7 @@ static void dumpbuf(unsigned long addr, char* data, long size)
    with strictly 16-aligned blocks. Except for the last block, which
    may be shorter.
  
-   The way it is written it may do one syswrite() more than necessary,
+   The way it is written it may do one sys_write() more than necessary,
    but it should do a reasonably good job at handling slowly-piped data.
 
    Not sure if that's important, but then again, hexdump is not something
@@ -154,7 +152,7 @@ static void hexdump(long fd)
 	long ptr = 0;
 	long rd;
 
-	while((rd = sysread(fd, buf + ptr, sizeof(buf) - ptr)) > 0) {
+	while((rd = sys_read(fd, buf + ptr, sizeof(buf) - ptr)) > 0) {
 		if((ptr += rd) < HEXLINE)
 			continue;
 
@@ -183,7 +181,7 @@ int main(int argc, char** argv)
 		hexdump(0);
 	} else if(argc == 2) {
 		char* fn = argv[1];
-		long fd = xchk(sysopen(fn, O_RDONLY), "cannot open", fn);
+		long fd = xchk(sys_open(fn, O_RDONLY), "cannot open", fn);
 		hexdump(fd);
 	} else {
 		fail("too many arguments", NULL, 0);

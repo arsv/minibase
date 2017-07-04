@@ -1,9 +1,7 @@
 #include <bits/major.h>
-#include <sys/statfs.h>
-#include <sys/close.h>
-#include <sys/open.h>
+#include <sys/file.h>
 #include <sys/stat.h>
-#include <sys/read.h>
+#include <sys/statfs.h>
 
 #include <string.h>
 #include <format.h>
@@ -29,7 +27,7 @@ char minbuf[4096]; /* mountinfo */
 
 long xopen(const char* fname, int flags)
 {
-	return xchk(sysopen(fname, flags), "cannot open", fname);
+	return xchk(sys_open(fname, flags), "cannot open", fname);
 }
 
 void xwriteout(char* buf, int len)
@@ -146,7 +144,7 @@ static void reportfs(char* statfile, char* mountpoint, int opts)
 	struct statfs st;
 	char* tag = mountpoint ? mountpoint : statfile;
 
-	xchk(sysstatfs(tag, &st), "statfs", tag);
+	xchk(sys_statfs(tag, &st), "statfs", tag);
 
 	if(!st.blocks && !(opts & SET_x))
 		return;
@@ -235,12 +233,12 @@ static int splitline(char* line, char** parts, int n)
 static void scanall(char* statfile, const char* dev, int opts)
 {
 	const char* mountinfo = "/proc/self/mountinfo";
-	long fd = xchk(sysopen(mountinfo, O_RDONLY), "cannot open", mountinfo);
+	long fd = xchk(sys_open(mountinfo, O_RDONLY), "cannot open", mountinfo);
 	long rd;
 	long of = 0;
 	char* mp[MP];
 
-	while((rd = sysread(fd, minbuf + of, sizeof(minbuf) - of)) > 0) {
+	while((rd = sys_read(fd, minbuf + of, sizeof(minbuf) - of)) > 0) {
 		char* p = minbuf;
 		char* e = minbuf + rd;
 		char* q;
@@ -269,7 +267,7 @@ static void scanall(char* statfile, const char* dev, int opts)
 	/* specific file was given but we could not find the mountpoint */
 	if(dev) reportfs(statfile, NULL, opts);
 
-done:	sysclose(fd);
+done:	sys_close(fd);
 }
 
 /* statfs(file) provides all the data needed except for mountpoint, which
@@ -297,7 +295,7 @@ static void scan(char* statfile, int opts)
 	char buf[20];
 	char* end = buf + sizeof(buf) - 1;
 
-	xchk(sysstat(statfile, &st), "cannot stat", statfile);
+	xchk(sys_stat(statfile, &st), "cannot stat", statfile);
 
 	char* p = fmtdev(buf, end, st.st_dev); *p++ = '\0';
 

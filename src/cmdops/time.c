@@ -1,7 +1,7 @@
 #include <sys/fork.h>
-#include <sys/waitpid.h>
-#include <sys/getrusage.h>
-#include <sys/gettimeofday.h>
+#include <sys/wait.h>
+#include <sys/time.h>
+#include <sys/rusage.h>
 
 #include <format.h>
 #include <output.h>
@@ -81,9 +81,9 @@ static void report(struct rusage* rv, struct timeval* tv)
 	p = fmtstr(p, e, "real ");
 	p = fmttv(p, e, tv);
 	p = fmtstr(p, e, " user ");
-	p = fmttv(p, e, &rv->ru_utime);
+	p = fmttv(p, e, &rv->utime);
 	p = fmtstr(p, e, " sys ");
-	p = fmttv(p, e, &rv->ru_stime);
+	p = fmttv(p, e, &rv->stime);
 	*p++ = '\n';
 
 	writeall(STDERR, buf, p - buf);
@@ -99,17 +99,17 @@ int main(int argc, char** argv, char** envp)
 		if(argv[i++][1])
 			fail("unsupported options", NULL, 0);
 
-	sysgettimeofday(&t0, NULL);
+	sys_gettimeofday(&t0, NULL);
 
-	long pid = xchk(sysfork(), "fork", NULL);
+	long pid = xchk(sys_fork(), "fork", NULL);
 
 	if(!pid) spawn(argv + i, envp);
 
 	int status;
 
-	xchk(syswaitpid(pid, &status, 0), "wait", 0);
+	xchk(sys_waitpid(pid, &status, 0), "wait", 0);
 
-	sysgettimeofday(&t1, NULL);
+	sys_gettimeofday(&t1, NULL);
 
 	xchk(getrusage(RUSAGE_CHILDREN, &rv), "getrusage", NULL);
 

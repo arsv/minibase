@@ -1,8 +1,7 @@
-#include <sys/lstat.h>
-#include <sys/open.h>
-#include <sys/fstat.h>
-#include <sys/mmap.h>
 #include <bits/stmode.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/mmap.h>
 
 #include <string.h>
 #include <format.h>
@@ -151,19 +150,19 @@ static char* sumtypemode(char* p, char* e, struct stat* st, int opts)
 
 static char* mmapfile(const char* fname, long* size)
 {
-	long fd = sysopen(fname, O_RDONLY);
+	long fd = sys_open(fname, O_RDONLY);
 	if(fd < 0) return NULL;
 
 	struct stat st;
-	long sr = sysfstat(fd, &st);
+	long sr = sys_fstat(fd, &st);
 	if(sr < 0) return NULL;
 
 	if(st.st_size > *size) return NULL;
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
-	long mr = sysmmap(NULL, st.st_size, prot, flags, fd, 0);
-	if(MMAPERROR(mr)) return NULL;
+	long mr = sys_mmap(NULL, st.st_size, prot, flags, fd, 0);
+	if(mmap_error(mr)) return NULL;
 
 	*size = st.st_size;
 	return (char*)mr;
@@ -363,7 +362,7 @@ static void stat(const char* name, int opts)
 {
 	struct stat st;
 
-	xchk(syslstat(name, &st), NULL, name);
+	xchk(sys_lstat(name, &st), NULL, name);
 
 	int len = 512;
 	char buf[len];

@@ -1,7 +1,4 @@
-#include <sys/open.h>
-#include <sys/read.h>
-#include <sys/write.h>
-
+#include <sys/file.h>
 #include <fail.h>
 
 ERRTAG = "cat";
@@ -19,7 +16,7 @@ static void dump(const char* buf, int len)
 	long wr;
 
 	while(len > 0)
-		if((wr = syswrite(1, buf, len)) > 0) {
+		if((wr = sys_write(1, buf, len)) > 0) {
 			buf += wr;
 			len -= wr;
 		} else {
@@ -32,13 +29,13 @@ static void cat(const char* name, int fd)
 {
 	long rd;
 	
-	while((rd = xchk(sysread(fd, catbuf, sizeof(catbuf)), "read", name)))
+	while((rd = xchk(sys_read(fd, catbuf, sizeof(catbuf)), "read", name)))
 		dump(catbuf, rd);
 }
 
 static int xopen(const char* name)
 {
-	return xchk(sysopen(name, O_RDONLY), NULL, name);
+	return xchk(sys_open(name, O_RDONLY), NULL, name);
 }
 
 int main(int argc, const char** argv)

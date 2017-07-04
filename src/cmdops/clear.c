@@ -1,6 +1,6 @@
-#include <sys/write.h>
-#include <sys/ioctl.h>
 #include <bits/termios.h>
+#include <sys/file.h>
+#include <sys/ioctl.h>
 
 #include <util.h>
 #include <fail.h>
@@ -64,10 +64,10 @@ int main(int argc, char** argv)
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
-	syswrite(1, reset, sizeof(reset) - 1);
+	sys_write(1, reset, sizeof(reset) - 1);
 
 	if(opts & OPT_r)
-		xchk(sysioctl(1, TCSETSW, (void*)&sane),
+		xchk(sys_ioctl(1, TCSETSW, (void*)&sane),
 			"ioctl TCSETSW", "stdout");
 
 	return 0;

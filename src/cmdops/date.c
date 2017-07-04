@@ -17,7 +17,7 @@
    well in either case as long as the zonefile correctly specifies
    system-to-UTC mapping. */
 
-#include <sys/gettimeofday.h>
+#include <sys/time.h>
 
 #include <string.h>
 #include <format.h>
@@ -96,7 +96,7 @@ static int lookslikedate(char* arg)
 
 static void systemtime(struct timedesc* zt)
 {
-	xchk(sysgettimeofday(&zt->tv, NULL), "gettimeofday", NULL);
+	xchk(sys_gettimeofday(&zt->tv, NULL), "gettimeofday", NULL);
 	zt->type = TIME_TV;
 }
 

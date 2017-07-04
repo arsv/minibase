@@ -1,5 +1,4 @@
-#include <sys/open.h>
-#include <sys/read.h>
+#include <sys/file.h>
 
 #include <output.h>
 #include <util.h>
@@ -114,7 +113,7 @@ static void strings(int minlen, long fd, int showaddr)
 		.min = minlen - 1
 	};
 
-	while((rd = sysread(fd, inbuf, sizeof(inbuf))) > 0)
+	while((rd = sys_read(fd, inbuf, sizeof(inbuf))) > 0)
 		parseblock(&ps, inbuf, rd, showaddr);
 	if(rd < 0)
 		fail("read", NULL, rd);
@@ -153,7 +152,7 @@ int main(int argc, char** argv)
 
 	if(i < argc) {
 		char* fn = argv[i];
-		long fd = xchk(sysopen(fn, O_RDONLY), "cannot open", fn);
+		long fd = xchk(sys_open(fn, O_RDONLY), "cannot open", fn);
 		strings(minlen, fd, !(opts & OPT_x));
 	} else {
 		strings(minlen, 0, !(opts & OPT_x));

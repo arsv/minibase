@@ -1,5 +1,5 @@
 #include <bits/errno.h>
-#include <sys/write.h>
+#include <sys/file.h>
 
 #include <string.h>
 #include <format.h>
@@ -180,7 +180,7 @@ static void unknown(const char* obj)
 	p = fmtstr(p, end, obj);
 	*p++ = '\n';
 
-	syswrite(2, buf, p - buf);
+	sys_write(2, buf, p - buf);
 }
 
 static void writeline(const char* msg)
@@ -192,7 +192,7 @@ static void writeline(const char* msg)
 	buf[len+0] = '\n';
 	buf[len+1] = '\0';
 
-	syswrite(1, buf, len+1);
+	sys_write(1, buf, len+1);
 };
 
 /* Unlike other tools, strerror does not use fail() with its

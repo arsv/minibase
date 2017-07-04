@@ -1,6 +1,6 @@
+#include <sys/fsnod.h>
+#include <sys/stat.h>
 #include <sys/symlink.h>
-#include <sys/unlink.h>
-#include <sys/lstat.h>
 
 #include <string.h>
 #include <util.h>
@@ -26,7 +26,7 @@ static int issymlink(char* file)
 {
 	struct stat st;
 
-	long ret = syslstat(file, &st);
+	long ret = sys_lstat(file, &st);
 
 	return (ret >= 0 && ((st.st_mode & S_IFMT) == S_IFLNK));
 }
@@ -35,7 +35,7 @@ static int issymlink(char* file)
 
 static void symlink(char* linkname, char* target, int opts)
 {
-	long ret = syssymlink(target, linkname);
+	long ret = sys_symlink(target, linkname);
 
 	if(ret >= 0)
 		return;
@@ -45,8 +45,8 @@ static void symlink(char* linkname, char* target, int opts)
 	if(opts & OPT_f && !issymlink(linkname))
 		fail("refusing to overwrite", linkname, 0);
 
-	xchk(sysunlink(linkname), "cannot unlink", linkname);
-	xchk(syssymlink(target, linkname), NULL, linkname);
+	xchk(sys_unlink(linkname), "cannot unlink", linkname);
+	xchk(sys_symlink(target, linkname), NULL, linkname);
 }
 
 static void symlinkto(char* dir, int argc, char** argv, int opts)

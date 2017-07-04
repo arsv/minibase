@@ -1,9 +1,7 @@
-#include <sys/open.h>
-#include <sys/getdents.h>
-#include <sys/fstatat.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/dents.h>
 #include <sys/brk.h>
-#include <sys/close.h>
-#include <bits/stmode.h>
 
 #include <string.h>
 #include <output.h>
@@ -45,7 +43,7 @@ struct dataseg {
 };
 
 struct idxent {
-	struct dirent64* de;
+	struct dirent* de;
 };
 
 struct topctx {
@@ -64,8 +62,8 @@ char output[PAGE];
 
 static void init(struct topctx* tc, int opts)
 {
-	void* brk = (void*)xchk(sysbrk(0), "brk", NULL);
-	void* end = (void*)xchk(sysbrk(brk + PAGE), "brk", NULL);
+	void* brk = (void*)xchk(sys_brk(0), "brk", NULL);
+	void* end = (void*)xchk(sys_brk(brk + PAGE), "brk", NULL);
 
 	if(brk >= end)
 		fail("cannot initialize heap", NULL, 0);
@@ -105,7 +103,7 @@ static void prepspace(struct dataseg* ds, long ext)
 		ext += PAGE - (ext % PAGE);
 
 	void* old = ds->end;
-	void* brk = (void*)xchk(sysbrk(ds->end + ext), "brk", NULL);
+	void* brk = (void*)xchk(sys_brk(ds->end + ext), "brk", NULL);
 
 	if(brk <= old)
 		fail("brk", NULL, 0);
@@ -125,7 +123,7 @@ static void readwhole(struct dataseg* ds, int fd, const char* dir)
 {
 	long ret;
 
-	while((ret = sysgetdents64(fd, ds->ptr, ds->end - ds->ptr)) > 0) {
+	while((ret = sys_getdents(fd, ds->ptr, ds->end - ds->ptr)) > 0) {
 		ds->ptr += ret;
 		prepspace(ds, PAGE/2);
 	} if(ret < 0)
@@ -134,19 +132,19 @@ static void readwhole(struct dataseg* ds, int fd, const char* dir)
 
 static int reindex(struct dataseg* ds, void* dents, void* deend)
 {
-	struct dirent64* de;
+	struct dirent* de;
 	void* p;
 	int nument = 0;
 
 	for(p = dents; p < deend; nument++, p += de->reclen)
-		de = (struct dirent64*) p;
+		de = (struct dirent*) p;
 
 	int len = nument * sizeof(struct idxent);
 	struct idxent* idx = (struct idxent*) alloc(ds, len);
 	struct idxent* end = idx + len;
 
 	for(p = dents; p < deend && idx < end; idx++, p += de->reclen) {
-		de = (struct dirent64*) p;
+		de = (struct dirent*) p;
 		idx->de = de;
 	}
 	
@@ -168,7 +166,7 @@ static void statidx(struct idxent* idx, int nument, int fd, int opts)
 
 		if(type != DT_UNKNOWN)
 			;
-		else if(sysfstatat(fd, p->de->name, &st, flags1) < 0)
+		else if(sys_fstatat(fd, p->de->name, &st, flags1) < 0)
 			continue;
 		else if(S_ISDIR(st.st_mode))
 			type = DT_DIR;
@@ -184,7 +182,7 @@ static void statidx(struct idxent* idx, int nument, int fd, int opts)
 		if(opts & OPT_y)
 			continue;
 
-		if(sysfstatat(fd, p->de->name, &st, flags2) < 0)
+		if(sys_fstatat(fd, p->de->name, &st, flags2) < 0)
 			continue;
 		if(S_ISLNK(st.st_mode))
 			p->de->type = DT_LNK_DIR;
@@ -241,7 +239,7 @@ static void recurse(struct topctx* tc, struct dirctx* dc,
 	list(tc, fullname, fullname, strict);
 }
 
-static void dumpentry(struct topctx* tc, struct dirctx* dc, struct dirent64* de)
+static void dumpentry(struct topctx* tc, struct dirctx* dc, struct dirent* de)
 {
 	struct bufout* bo = &(tc->bo);
 	char* name = de->name;
@@ -319,9 +317,10 @@ static void list(struct topctx* tc, const char* realpath, const char* showpath, 
 	if(!strict && !(opts & OPT_w))
 		flags |= O_NOFOLLOW;
 
-	if(tc->fd >= 0) sysclose(tc->fd); /* delayed close */
+	if(tc->fd >= 0)
+		sys_close(tc->fd); /* delayed close */
 
-	if((tc->fd = sysopen(realpath, flags)) < 0) {
+	if((tc->fd = sys_open(realpath, flags)) < 0) {
 		if(strict && tc->fd == ENOTDIR)
 			return;
 		else

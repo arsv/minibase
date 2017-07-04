@@ -1,5 +1,5 @@
-#include <sys/open.h>
-#include <sys/fstat.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/mmap.h>
 
 #include <alloca.h>
@@ -156,19 +156,19 @@ static int maybe_utc_zone(struct zonefile* zf, const char* zone)
 
 static void open_zone_file(struct zonefile* zf, const char* name)
 {
-	long fd = xchk(sysopen(name, O_RDONLY), name, NULL);
+	long fd = xchk(sys_open(name, O_RDONLY), name, NULL);
 
 	struct stat st;
-	xchk(sysfstat(fd, &st), "stat", name);
+	xchk(sys_fstat(fd, &st), "stat", name);
 
 	if(st.st_size >= 0xFFFFFFFF)
 		fail("zone file too large:", name, 0);
 
 	int prot = PROT_READ;
 	int flags = MAP_SHARED;
-	long addr = sysmmap(NULL, st.st_size, prot, flags, fd, 0);
+	long addr = sys_mmap(NULL, st.st_size, prot, flags, fd, 0);
 
-	if(MMAPERROR(addr))
+	if(mmap_error(addr))
 		fail("mmap", name, addr);
 
 	zf->name = name;

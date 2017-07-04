@@ -1,8 +1,7 @@
-#include <sys/geteuid.h>
-#include <sys/fstat.h>
-#include <sys/open.h>
+#include <sys/creds.h>
+#include <sys/stat.h>
+#include <sys/file.h>
 #include <sys/mmap.h>
-#include <sys/write.h>
 
 #include <format.h>
 #include <string.h>
@@ -17,19 +16,19 @@ ERRLIST = {
 
 static char* mapfile(const char* name, int* size)
 {
-	long fd = xchk(sysopen(name, O_RDONLY), "cannot open", name);
+	long fd = xchk(sys_open(name, O_RDONLY), "cannot open", name);
 
 	struct stat st;	
-	xchk(sysfstat(fd, &st), "cannot stat", name);	
+	xchk(sys_fstat(fd, &st), "cannot stat", name);	
 	/* get larger-than-int files out of the picture */
 	if(st.st_size > 0x7FFFFFFF)
 		fail("file too large:", name, 0);
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
-	long ret = sysmmap(NULL, st.st_size, prot, flags, fd, 0);
+	long ret = sys_mmap(NULL, st.st_size, prot, flags, fd, 0);
 
-	if(MMAPERROR(ret))
+	if(mmap_error(ret))
 		fail("cannot mmap", name, ret);
 
 	*size = st.st_size;
@@ -76,7 +75,7 @@ int main(int argc, char** argv)
 	int filesize;
 	char* filedata = mapfile("/etc/passwd", &filesize);
 
-	long uid = xchk(sysgeteuid(), NULL, NULL);
+	long uid = xchk(sys_geteuid(), NULL, NULL);
 	char uidstr[20];
 	char* uidend = uidstr + sizeof(uidstr) - 2;
 	char* p = fmtlong(uidstr, uidend, uid); *p = '\0';
@@ -88,10 +87,10 @@ int main(int argc, char** argv)
 		char name[namelen];
 		memcpy(name, nameptr, namelen);
 		name[namelen] = '\n';
-		syswrite(1, name, namelen + 1);
+		sys_write(1, name, namelen + 1);
 	} else {
 		*p = '\n';
-		syswrite(1, uidstr, p - uidstr + 1);
+		sys_write(1, uidstr, p - uidstr + 1);
 	}
 
 	return 0;

@@ -1,17 +1,14 @@
-#include <sys/open.h>
-#include <sys/close.h>
-#include <sys/getdents.h>
-#include <sys/chown.h>
+#include <sys/file.h>
+#include <sys/dents.h>
+#include <sys/access.h>
 #include <sys/stat.h>
-#include <sys/rmdir.h>
+#include <sys/fsnod.h>
 #include <sys/umask.h>
-#include <sys/lstat.h>
-#include <sys/fstat.h>
 #include <sys/mmap.h>
-#include <sys/_exit.h>
 
 #include <string.h>
 #include <format.h>
+#include <exit.h>
 #include <util.h>
 #include <fail.h>
 
@@ -46,7 +43,7 @@ struct chown {
 	int opts;
 };
 
-static void recdent(const char* dirname, struct chown* ch, struct dirent64* de);
+static void recdent(const char* dirname, struct chown* ch, struct dirent* de);
 static void chownst(const char* entname, struct chown* ch, struct stat* st);
 
 /* With -f we keep going *and* suppress the message.
@@ -77,19 +74,19 @@ static void recurse(const char* dirname, struct chown* ch)
 	const int delen = sizeof(debuf);
 	long rd;
 
-	long dirfd = sysopen(dirname, O_DIRECTORY);
+	long dirfd = sys_open(dirname, O_DIRECTORY);
 
 	if(dirfd < 0)
 		return mfail(dirfd, ch, "cannot open", dirname);
 
-	while((rd = sysgetdents64(dirfd, (struct dirent64*)debuf, delen)) > 0)
+	while((rd = sys_getdents(dirfd, (struct dirent*)debuf, delen)) > 0)
 	{
 		char* ptr = debuf;
 		char* end = debuf + rd;
 
 		while(ptr < end)
 		{
-			struct dirent64* dep = (struct dirent64*) ptr;
+			struct dirent* dep = (struct dirent*) ptr;
 
 			if(!dotddot(dep->name))
 				recdent(dirname, ch, dep);
@@ -100,10 +97,10 @@ static void recurse(const char* dirname, struct chown* ch)
 		}
 	};
 
-	sysclose(dirfd);
+	sys_close(dirfd);
 };
 
-static void recdent(const char* dirname, struct chown* ch, struct dirent64* de)
+static void recdent(const char* dirname, struct chown* ch, struct dirent* de)
 {
 	int dirnlen = strlen(dirname);
 	int depnlen = strlen(de->name);
@@ -118,7 +115,7 @@ static void recdent(const char* dirname, struct chown* ch, struct dirent64* de)
 	*p++ = '\0';
 
 	struct stat st;
-	long ret = syslstat(fullname, &st);
+	long ret = sys_lstat(fullname, &st);
 
 	if(ret < 0)
 		mfail(ret, ch, "cannot stat", fullname);
@@ -140,7 +137,7 @@ static void chownst(const char* name, struct chown* ch, struct stat* st)
 	int uid = (ch->opts & SET_uid) ? ch->uid : st->st_uid;
 	int gid = (ch->opts & SET_gid) ? ch->gid : st->st_gid;
 
-	long ret = syschown(name, uid, gid);
+	long ret = sys_chown(name, uid, gid);
 
 	if(ret < 0)
 		mfail(ret, ch, "cannot chown", name);
@@ -149,7 +146,7 @@ static void chownst(const char* name, struct chown* ch, struct stat* st)
 static void chown(const char* name, struct chown* ch)
 {
 	struct stat st;
-	long ret = sysstat(name, &st);
+	long ret = sys_stat(name, &st);
 
 	if(ret < 0)
 		mfail(ret, ch, "cannot stat", name);
@@ -164,10 +161,10 @@ static void chown(const char* name, struct chown* ch)
 
 static char* mapfile(const char* name, int* size)
 {
-	long fd = xchk(sysopen(name, O_RDONLY), "cannot open", name);
+	long fd = xchk(sys_open(name, O_RDONLY), "cannot open", name);
 
 	struct stat st;	
-	xchk(sysfstat(fd, &st), "cannot stat", name);	
+	xchk(sys_fstat(fd, &st), "cannot stat", name);	
 	/* get larger-than-int files out of the picture */
 	if(st.st_size > 0x7FFFFFFF)
 		fail("file too large:", name, 0);
@@ -175,9 +172,9 @@ static char* mapfile(const char* name, int* size)
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
-	long ret = sysmmap(NULL, st.st_size, prot, flags, fd, 0);
+	long ret = sys_mmap(NULL, st.st_size, prot, flags, fd, 0);
 
-	if(MMAPERROR(ret))
+	if(mmap_error(ret))
 		fail("cannot mmap", name, ret);
 
 	*size = st.st_size;
