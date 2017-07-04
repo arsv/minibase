@@ -1,4 +1,4 @@
-#include <sys/nanosleep.h>
+#include <sys/sleep.h>
 
 #include <format.h>
 #include <null.h>
@@ -48,7 +48,7 @@ int cmd_sleep(struct sh* ctx)
 		return ret;
 	if(moreleft(ctx))
 		return -1;
-	if((ret = sysnanosleep(&sp, NULL)))
+	if((ret = sys_nanosleep(&sp, NULL)))
 		return error(ctx, "sleep", NULL, ret);
 
 	return 0;

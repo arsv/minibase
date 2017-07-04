@@ -1,9 +1,6 @@
-#include <sys/open.h>
-#include <sys/close.h>
-#include <sys/write.h>
-#include <sys/mkdir.h>
-#include <sys/unlink.h>
-#include <sys/dup2.h>
+#include <sys/file.h>
+#include <sys/fsnod.h>
+#include <sys/fcntl.h>
 
 #include <string.h>
 
@@ -46,13 +43,13 @@ int cmd_open(struct sh* ctx)
 	if(moreleft(ctx))
 		return -1;
 
-	if((fd = sysopen3(name, flags, 0666)) < 0)
+	if((fd = sys_open3(name, flags, 0666)) < 0)
 		return error(ctx, "open", name, fd);
 	if(fd == rfd)
 		return 0;
 
-	ret = fchk(sysdup2(fd, rfd), ctx, name);
-	sysclose(fd);
+	ret = fchk(sys_dup2(fd, rfd), ctx, name);
+	sys_close(fd);
 
 	return ret;
 }
@@ -68,7 +65,7 @@ int cmd_dupfd(struct sh* ctx)
 	if(moreleft(ctx))
 		return -1;
 
-	return fchk(sysdup2(oldfd, newfd), ctx, NULL);
+	return fchk(sys_dup2(oldfd, newfd), ctx, NULL);
 }
 
 int cmd_close(struct sh* ctx)
@@ -80,7 +77,7 @@ int cmd_close(struct sh* ctx)
 	if(moreleft(ctx))
 		return -1;
 
-	return fchk(sysclose(fd), ctx, NULL);
+	return fchk(sys_close(fd), ctx, NULL);
 }
 
 int cmd_write(struct sh* ctx)
@@ -96,13 +93,13 @@ int cmd_write(struct sh* ctx)
 	if(moreleft(ctx))
 		return -1;
 
-	if((fd = sysopen(name, O_WRONLY)) < 0)
+	if((fd = sys_open(name, O_WRONLY)) < 0)
 		return error(ctx, "open", name, 0);
 
 	int len = strlen(data);
 	data[len] = '\n';
 
-	if((ret = syswrite(fd, data, len+1)) < 0)
+	if((ret = sys_write(fd, data, len+1)) < 0)
 		return error(ctx, "write", name, ret);
 	else if(ret < len)
 		return error(ctx, "incomplete write", NULL, 0);
@@ -119,7 +116,7 @@ int cmd_unlink(struct sh* ctx)
 	if(noneleft(ctx))
 		return -1;
 	while((name = shift(ctx)))
-		if(fchk(sysunlink(name), ctx, name))
+		if(fchk(sys_unlink(name), ctx, name))
 			return -1;
 
 	return 0;
@@ -135,7 +132,7 @@ static int mkdirs(char* name, int mode)
 
 	if(!namelen)
 		return -EINVAL;
-	if((ret = sysmkdir(name, mode)) >= 0 || ret == -EEXIST)
+	if((ret = sys_mkdir(name, mode)) >= 0 || ret == -EEXIST)
 		return 0;
 	if(ret != -ENOENT)
 		goto out;
@@ -149,7 +146,7 @@ static int mkdirs(char* name, int mode)
 			goto out;
 		*q = '\0';
 
-		if((ret = sysmkdir(name, mode)) >= 0)
+		if((ret = sys_mkdir(name, mode)) >= 0)
 			break;
 		if(ret != -ENOENT)
 			goto out;
@@ -159,7 +156,7 @@ static int mkdirs(char* name, int mode)
 			;
 		if(*q) goto out;
 
-		if((ret = sysmkdir(name, mode)) < 0)
+		if((ret = sys_mkdir(name, mode)) < 0)
 			goto out;
 	}; ret = 0;
 out:

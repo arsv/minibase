@@ -1,8 +1,8 @@
 #include <bits/errno.h>
-#include <sys/_exit.h>
 
 #include <string.h>
 #include <format.h>
+#include <exit.h>
 #include <util.h>
 
 #include "msh.h"

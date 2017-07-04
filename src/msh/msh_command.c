@@ -1,10 +1,10 @@
 #include <sys/fork.h>
-#include <sys/_exit.h>
 #include <sys/stat.h>
-#include <sys/waitpid.h>
+#include <sys/wait.h>
 
 #include <string.h>
 #include <format.h>
+#include <exit.h>
 #include <util.h>
 
 #include "msh.h"
@@ -47,7 +47,7 @@ static int describe(struct sh* ctx, int status)
 
 static int spawn(struct sh* ctx, int dash)
 {
-	long pid = sysfork();
+	long pid = sys_fork();
 	char* cmd = *ctx->argv;
 	int status;
 
@@ -56,7 +56,7 @@ static int spawn(struct sh* ctx, int dash)
 	if(pid == 0)
 		_exit(child(ctx, cmd));
 
-	if((pid = syswaitpid(pid, &status, 0)) < 0)
+	if((pid = sys_waitpid(pid, &status, 0)) < 0)
 		fail("wait", cmd, pid);
 
 	if(!status || dash)

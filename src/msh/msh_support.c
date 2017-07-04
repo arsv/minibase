@@ -1,14 +1,12 @@
 #include <bits/errno.h>
-#include <sys/_exit.h>
 #include <sys/brk.h>
-#include <sys/open.h>
-#include <sys/fstat.h>
-#include <sys/close.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/mmap.h>
-#include <sys/munmap.h>
 
 #include <string.h>
 #include <format.h>
+#include <exit.h>
 #include <null.h>
 #include <util.h>
 
@@ -20,12 +18,12 @@
 
 void hinit(struct sh* ctx)
 {
-	void* heap = (void*)sysbrk(0);
+	void* heap = (void*)sys_brk(0);
 	ctx->heap = heap;
 	ctx->esep = NULL;
 	ctx->csep = heap;
 	ctx->hptr = heap;
-	ctx->hend = (void*)sysbrk(heap + 4096);
+	ctx->hend = (void*)sys_brk(heap + 4096);
 }
 
 void* halloc(struct sh* ctx, int len)
@@ -37,7 +35,7 @@ void* halloc(struct sh* ctx, int len)
 
 	int spc = ctx->hend - ctx->hptr - len;
 	spc += (PAGE - spc % PAGE) % PAGE;
-	ctx->hend = (void*)sysbrk(ctx->hend + spc);
+	ctx->hend = (void*)sys_brk(ctx->hend + spc);
 
 	if(ctx->hptr + len < ctx->hend)
 		fail("cannot allocate memory", NULL, 0);
@@ -78,9 +76,9 @@ int mmapfile(struct mbuf* mb, char* name)
 	long ret;
 	struct stat st;
 
-	if((fd = sysopen(name, O_RDONLY | O_CLOEXEC)) < 0)
+	if((fd = sys_open(name, O_RDONLY | O_CLOEXEC)) < 0)
 		return fd;
-	if((ret = sysfstat(fd, &st)) < 0)
+	if((ret = sys_fstat(fd, &st)) < 0)
 		goto out;
 	/* get larger-than-int files out of the picture */
 	if(st.st_size > 0x7FFFFFFF) {
@@ -91,20 +89,20 @@ int mmapfile(struct mbuf* mb, char* name)
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
 
-	ret = sysmmap(NULL, st.st_size, prot, flags, fd, 0);
+	ret = sys_mmap(NULL, st.st_size, prot, flags, fd, 0);
 
-	if(MMAPERROR(ret))
+	if(mmap_error(ret))
 		goto out;
 
 	mb->len = st.st_size;
 	mb->buf = (char*)ret;
 	ret = 0;
 out:
-	sysclose(fd);
+	sys_close(fd);
 	return ret;
 }
 
 int munmapfile(struct mbuf* mb)
 {
-	return sysmunmap(mb->buf, mb->len);
+	return sys_munmap(mb->buf, mb->len);
 }

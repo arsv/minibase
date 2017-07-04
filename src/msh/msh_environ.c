@@ -1,4 +1,4 @@
-#include <sys/getpid.h>
+#include <sys/pid.h>
 
 #include <format.h>
 #include <string.h>
@@ -274,7 +274,7 @@ static char* valueof_pid(struct sh* ctx)
 	if(*ctx->pid)
 		goto out;
 
-	int pid = sysgetpid();
+	int pid = sys_getpid();
 	char* p = ctx->pid;
 	char* e = ctx->pid + sizeof(ctx->pid) - 1;
 

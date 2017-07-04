@@ -1,11 +1,6 @@
-#include <sys/open.h>
-#include <sys/close.h>
+#include <sys/file.h>
 #include <sys/mmap.h>
-#include <sys/munmap.h>
-
-#include <sys/setresuid.h>
-#include <sys/setresgid.h>
-#include <sys/setgroups.h>
+#include <sys/creds.h>
 
 #include <string.h>
 #include <format.h>

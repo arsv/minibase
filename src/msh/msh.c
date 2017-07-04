@@ -1,6 +1,4 @@
-#include <sys/open.h>
-#include <sys/read.h>
-
+#include <sys/file.h>
 #include <string.h>
 #include <util.h>
 
@@ -11,7 +9,7 @@ static void parsefd(struct sh* ctx, int fd)
 	char inbuf[2048];
 	int rd;
 
-	while((rd = sysread(fd, inbuf, sizeof(inbuf))) > 0) {
+	while((rd = sys_read(fd, inbuf, sizeof(inbuf))) > 0) {
 		parse(ctx, inbuf, rd);
 	} if(rd < 0) {
 		fail("read", NULL, rd);
@@ -27,7 +25,7 @@ static int openfile(struct sh* ctx, char* name)
 {
 	int fd;
 
-	if((fd = sysopen(name, O_RDONLY)) < 0)
+	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail("open", name, fd);
 
 	if(!ctx->file) {

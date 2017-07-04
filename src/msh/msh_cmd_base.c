@@ -1,8 +1,8 @@
-#include <sys/_exit.h>
-#include <sys/chdir.h>
-#include <sys/write.h>
+#include <sys/cwd.h>
+#include <sys/file.h>
 
 #include <string.h>
+#include <exit.h>
 #include <util.h>
 
 #include "msh.h"
@@ -17,7 +17,7 @@ int cmd_cd(struct sh* ctx)
 	if(moreleft(ctx))
 		return -1;
 
-	return fchk(syschdir(dir), ctx, dir);
+	return fchk(sys_chdir(dir), ctx, dir);
 }
 
 int cmd_exec(struct sh* ctx)
@@ -53,7 +53,7 @@ static int print(struct sh* ctx, int fd)
 
 	int len = strlen(msg);
 	msg[len] = '\n';
-	syswrite(fd, msg, len+1);
+	sys_write(fd, msg, len+1);
 	msg[len] = '\0';
 
 	return 0;
