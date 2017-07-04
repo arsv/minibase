@@ -1,11 +1,10 @@
 #include <bits/ints.h>
-#include <sys/write.h>
-#include <sys/_exit.h>
+#include <sys/file.h>
 #include <crypto/pbkdf2.h>
 
 #include <format.h>
 #include <string.h>
-
+#include <exit.h>
 
 /* For development use only! Takes passphrase as argument,
    likely leaving it in shell history. */
@@ -28,7 +27,7 @@ static void die(const char* msg, const char* arg)
 
 	*p++ = '\n';
 
-	syswrite(STDERR, buf, p - buf);
+	sys_write(STDERR, buf, p - buf);
 
 	_exit(0xFF);
 }
@@ -44,7 +43,7 @@ static void dump_in_hex(uint8_t* psk, int len)
 
 	*p++ = '\n';
 
-	syswrite(STDOUT, buf, p - buf);
+	sys_write(STDOUT, buf, p - buf);
 }
 
 int main(int argc, char** argv)

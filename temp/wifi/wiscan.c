@@ -1,17 +1,15 @@
 #include <sys/socket.h>
-#include <sys/bind.h>
-#include <sys/recv.h>
-#include <sys/getpid.h>
-#include <sys/write.h>
+#include <sys/sockio.h>
+#include <sys/pid.h>
+#include <sys/file.h>
 #include <sys/alarm.h>
 #include <sys/stat.h>
-#include <sys/setsockopt.h>
-#include <sys/_exit.h>
 
 #include <string.h>
 #include <format.h>
 #include <util.h>
 #include <fail.h>
+#include <exit.h>
 
 #include <netlink.h>
 #include <netlink/genl/ctrl.h>
@@ -237,7 +235,7 @@ void socket_subscribe(struct netlink* nl, int id, const char* name)
 	int lvl = SOL_NETLINK;
 	int opt = NETLINK_ADD_MEMBERSHIP;
 
-	xchk(syssetsockopt(fd, lvl, opt, &id, sizeof(id)),
+	xchk(sys_setsockopt(fd, lvl, opt, &id, sizeof(id)),
 		"setsockopt NETLINK_ADD_MEMBERSHIP", name);
 }
 
