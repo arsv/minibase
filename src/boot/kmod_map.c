@@ -1,17 +1,13 @@
-#include <sys/open.h>
-#include <sys/fstat.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/mmap.h>
-#include <sys/mremap.h>
-#include <sys/munmap.h>
-#include <sys/read.h>
-#include <sys/pipe2.h>
-#include <sys/dup2.h>
-#include <sys/close.h>
+#include <sys/pipe.h>
+#include <sys/fcntl.h>
 #include <sys/fork.h>
-#include <sys/execve.h>
-#include <sys/waitpid.h>
-#include <sys/_exit.h>
+#include <sys/exec.h>
+#include <sys/wait.h>
 
+#include <exit.h>
 #include <fail.h>
 #include <util.h>
 
@@ -29,9 +25,9 @@ static char* mmapanon(long size)
 	int prot = PROT_READ | PROT_WRITE;
 	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
 
-	long ret = sysmmap(NULL, size, prot, flags, -1, 0);
+	long ret = sys_mmap(NULL, size, prot, flags, -1, 0);
 
-	if(MMAPERROR(ret))
+	if(mmap_error(ret))
 		fail("mmap", NULL, ret);
 
 	return (char*)ret;
@@ -39,9 +35,9 @@ static char* mmapanon(long size)
 
 static char* mextend(char* buf, long size, long newsize)
 {
-	long ret = sysmremap(buf, size, newsize, MREMAP_MAYMOVE);
+	long ret = sys_mremap(buf, size, newsize, MREMAP_MAYMOVE);
 
-	if(MMAPERROR(ret))
+	if(mmap_error(ret))
 		fail("mremap", NULL, ret);
 
 	return (char*)ret;
@@ -51,9 +47,9 @@ static int child(int fds[2], char* cmd, char* path, char** envp)
 {
 	char* argv[] = { cmd, path, NULL };
 
-	xchk(sysclose(fds[0]), "close", NULL);
-	xchk(sysdup2(fds[1], STDOUT), "dup2", NULL);
-	long ret = sysexecve(cmd, argv, NULL);
+	xchk(sys_close(fds[0]), "close", NULL);
+	xchk(sys_dup2(fds[1], STDOUT), "dup2", NULL);
+	long ret = sys_execve(cmd, argv, NULL);
 
 	fail("cannot exec", cmd, ret);
 	return 0xFF;
@@ -68,7 +64,7 @@ void readall(struct mbuf* mb, int fd, char* cmd)
 
 	char* buf = mmapanon(unit);
 
-	while((rd = sysread(fd, buf + ptr, len - ptr)) > 0) {
+	while((rd = sys_read(fd, buf + ptr, len - ptr)) > 0) {
 		ptr += rd;
 		if(ptr < len) continue;
 		buf = mextend(buf, len, len + unit);
@@ -85,19 +81,19 @@ void readall(struct mbuf* mb, int fd, char* cmd)
 void decompress(struct mbuf* mb, char* path, char* cmd, char** envp)
 {
 	int fds[2];
-	xchk(syspipe2(fds, 0), "pipe", NULL);
+	xchk(sys_pipe2(fds, 0), "pipe", NULL);
 
-	int pid = xchk(sysfork(), "fork", NULL);
+	int pid = xchk(sys_fork(), "fork", NULL);
 
 	if(pid == 0)
 		_exit(child(fds, cmd, path, envp));
 
-	sysclose(fds[1]);
+	sys_close(fds[1]);
 
 	readall(mb, fds[0], cmd);
 
 	int status;
-	xchk(syswaitpid(pid, &status, 0), "wait", cmd);
+	xchk(sys_waitpid(pid, &status, 0), "wait", cmd);
 
 	if(status) fail("non-zero exit code in", cmd, 0);
 }
@@ -108,17 +104,17 @@ void mmapwhole(struct mbuf* mb, char* name)
 	long ret;
 	struct stat st;
 
-	if((fd = sysopen(name, O_RDONLY)) < 0)
+	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail("cannot open", name, fd);
 
-	if((ret = sysfstat(fd, &st)) < 0)
+	if((ret = sys_fstat(fd, &st)) < 0)
 		fail("cannot stat", name, ret);
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
-	ret = sysmmap(NULL, st.st_size, prot, flags, fd, 0);
+	ret = sys_mmap(NULL, st.st_size, prot, flags, fd, 0);
 
-	if(MMAPERROR(ret))
+	if(mmap_error(ret))
 		fail("cannot mmap", name, ret);
 
 	if(st.st_size > MAX_FILE_SIZE)
@@ -130,5 +126,5 @@ void mmapwhole(struct mbuf* mb, char* name)
 
 void munmapbuf(struct mbuf* mb)
 {
-	sysmunmap(mb->buf, mb->full);
+	sys_munmap(mb->buf, mb->full);
 }

@@ -1,4 +1,4 @@
-#include <sys/uname.h>
+#include <sys/info.h>
 
 #include <format.h>
 #include <string.h>
@@ -159,7 +159,7 @@ static void urelease(char* buf, int len)
 {
 	struct utsname uts;
 
-	xchk(sysuname(&uts), "uname", NULL);
+	xchk(sys_uname(&uts), "uname", NULL);
 
 	int relen = strlen(uts.release);
 
