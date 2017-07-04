@@ -1,17 +1,14 @@
 #include <bits/arp.h>
 #include <bits/socket.h>
-#include <bits/packet.h>
+#include <bits/socket/packet.h>
 #include <bits/ioctl/socket.h>
 #include <bits/auxvec.h>
 
 #include <sys/socket.h>
-#include <sys/bind.h>
-#include <sys/sendto.h>
-#include <sys/recv.h>
 #include <sys/ioctl.h>
 #include <sys/alarm.h>
-#include <sys/ppoll.h>
-#include <sys/sigaction.h>
+#include <sys/poll.h>
+#include <sys/signal.h>
 
 #include <format.h>
 #include <string.h>
@@ -78,9 +75,9 @@ static void setup_alarm(void)
 	};
 
 	sigemptyset(&sa.mask);
-	syssigaction(SIGALRM, &sa, NULL);
+	sys_sigaction(SIGALRM, &sa, NULL);
 
-	sysalarm(1);
+	sys_alarm(1);
 }
 
 /* Try to come up with a somewhat random xid by pulling auxvec random
@@ -113,7 +110,7 @@ static void ifreq_clear(void)
 
 static void ifreq_ioctl(int ctl, char* name)
 {
-	xchk(sysioctl(sockfd, ctl, &ifreq), "ioctl", name);
+	xchk(sys_ioctl(sockfd, ctl, &ifreq), "ioctl", name);
 }
 
 static void get_ifindex(char* name)
@@ -164,7 +161,7 @@ void setup_socket(char* name)
 	int index = 0;
 	char* p;
 
-	sockfd = xchk(syssocket(PF_PACKET, SOCK_DGRAM, 8),
+	sockfd = xchk(sys_socket(PF_PACKET, SOCK_DGRAM, 8),
 			"socket", "PF_PACKET");
 
 	if((p = parseint(name, &index)) && !*p)
@@ -184,7 +181,7 @@ void setup_socket(char* name)
 		.addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF } /* broadcast */
 	};
 
-	xchk(sysbind(sockfd, &sockaddr, sizeof(sockaddr)), "bind", NULL);
+	xchk(sys_bind(sockfd, &sockaddr, sizeof(sockaddr)), "bind", NULL);
 }
 
 /* Send */
@@ -285,7 +282,7 @@ static void send_packet(void)
 
 	int len = ntohs(packet.ip.tot_len);
 
-	xchk(syssendto(sockfd, &packet, len, 0, &sockaddr, sizeof(sockaddr)),
+	xchk(sys_sendto(sockfd, &packet, len, 0, &sockaddr, sizeof(sockaddr)),
 	     "sendto", NULL);
 }
 
@@ -335,14 +332,14 @@ static int timedrecv(int fd, char* buf, int len)
 		.events = POLLIN
 	};
 
-	int ret = sysppoll(&pfd, 1, &ts, NULL);
+	int ret = sys_ppoll(&pfd, 1, &ts, NULL);
 
 	if(!ret)
 		return -ETIMEDOUT;
 	if(ret < 0)
 		return ret;
 
-	return sysrecv(fd, buf, len, 0);
+	return sys_recv(fd, buf, len, 0);
 }
 
 int recv_packet(void)

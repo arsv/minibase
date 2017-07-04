@@ -1,4 +1,4 @@
-#include <sys/gettimeofday.h>
+#include <sys/time.h>
 
 #include <format.h>
 #include <endian.h>
@@ -17,7 +17,7 @@ static void note_reftime(void)
 {
 	/* Lease time is relative, but output should be an absolute
 	   timestamp. Reference time is DHCPACK reception. */
-	xchk(sysgettimeofday(&reftv, NULL), "gettimeofday", NULL);
+	xchk(sys_gettimeofday(&reftv, NULL), "gettimeofday", NULL);
 }
 
 static char* fmt_ip(char* p, char* e, uint8_t* ip, int len)
