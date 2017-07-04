@@ -1,7 +1,7 @@
-#include <bits/socket.h>
 #include <bits/socket/unix.h>
 #include <sys/file.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/fsnod.h>
 #include <sys/itimer.h>
 

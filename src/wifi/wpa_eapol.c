@@ -3,6 +3,7 @@
 #include <bits/arp.h>
 
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
