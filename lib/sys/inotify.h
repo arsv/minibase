@@ -1,8 +1,9 @@
 #include <syscall.h>
 #include <bits/ints.h>
+#include <bits/fcntl.h>
 
-#define IN_CLOEXEC O_CLOEXEC
-#define IN_NONBLOCK O_NONBLOCK
+#define IN_CLOEXEC       O_CLOEXEC
+#define IN_NONBLOCK      O_NONBLOCK
 
 #define IN_ACCESS        0x00000001
 #define IN_MODIFY        0x00000002
