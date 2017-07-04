@@ -1,17 +1,10 @@
-#include <bits/packet.h>
+#include <bits/socket/packet.h>
 #include <bits/ioctl/socket.h>
 #include <bits/arp.h>
 
 #include <sys/socket.h>
-#include <sys/recv.h>
-#include <sys/recvfrom.h>
-#include <sys/sendto.h>
-#include <sys/bind.h>
-#include <sys/open.h>
-#include <sys/read.h>
-#include <sys/close.h>
+#include <sys/file.h>
 #include <sys/ioctl.h>
-#include <sys/pause.h>
 
 #include <string.h>
 #include <endian.h>
@@ -156,7 +149,7 @@ static struct eapolkey* recv_eapol(uint8_t mac[6])
 	int asize = sizeof(sender);
 	int fd = rawsock;
 
-	long rd = sysrecvfrom(fd, packet, psize, 0, &sender, &asize);
+	long rd = sys_recvfrom(fd, packet, psize, 0, &sender, &asize);
 
 	struct eapolkey* ek = (struct eapolkey*) packet;
 	int eksize = sizeof(*ek);
@@ -199,7 +192,7 @@ static void send_packet(char* buf, int len)
 	dest.ifindex = ifindex;
 	memcpy(dest.addr, amac, 6);
 
-	if((wr = syssendto(fd, buf, len, 0, &dest, sizeof(dest))) < 0)
+	if((wr = sys_sendto(fd, buf, len, 0, &dest, sizeof(dest))) < 0)
 		quit("send", "PF_PACKET", wr);
 }
 
@@ -358,7 +351,7 @@ static void fill_smac(void)
 	memzero(&ifr, sizeof(ifr));
 	memcpy(ifr.name, ifname, IFNAMESIZ);
 
-	if((ret = sysioctl(fd, SIOCGIFHWADDR, &ifr)) < 0)
+	if((ret = sys_ioctl(fd, SIOCGIFHWADDR, &ifr)) < 0)
 		quit("ioctl SIOCGIFHWADDR", ifname, ret);
 
 	if(ifr.addr.family != ARPHRD_ETHER)
@@ -375,15 +368,15 @@ static void fill_rand(void)
 	long fd, rd;
 	char* urandom = "/dev/urandom";
 
-	if((fd = sysopen(urandom, O_RDONLY)) < 0)
+	if((fd = sys_open(urandom, O_RDONLY)) < 0)
 		quit("open", urandom, fd);
 
-	if((rd = sysread(fd, rand, rlen)) < 0)
+	if((rd = sys_read(fd, rand, rlen)) < 0)
 		quit("read", urandom, rd);
 	if(rd < rlen)
 		quit("read", urandom, 0);
 
-	sysclose(fd);
+	sys_close(fd);
 
 	memcpy(snonce, rand, sizeof(snonce));
 }
@@ -404,12 +397,12 @@ void open_rawsock()
 		.protocol = ethtype
 	};
 
-	if((ret = syssocket(PF_PACKET, SOCK_DGRAM, ethtype)) < 0)
+	if((ret = sys_socket(PF_PACKET, SOCK_DGRAM, ethtype)) < 0)
 		quit("socket", "PF_PACKET", ret);
 
 	rawsock = ret;
 
-	if((ret = sysbind(ret, &addr, sizeof(addr))) < 0)
+	if((ret = sys_bind(ret, &addr, sizeof(addr))) < 0)
 		quit("bind", "AF_PACKET", ret);
 }
 

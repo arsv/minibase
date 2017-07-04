@@ -1,13 +1,13 @@
 #include <bits/errno.h>
-#include <sys/sigaction.h>
+#include <sys/signal.h>
 #include <sys/itimer.h>
-#include <sys/ppoll.h>
-#include <sys/_exit.h>
+#include <sys/poll.h>
 
 #include <sigset.h>
 #include <string.h>
 #include <format.h>
 #include <fail.h>
+#include <exit.h>
 #include <util.h>
 
 #include "wpa.h"
@@ -102,10 +102,10 @@ static void setup_signals(void)
 	sigaddset(&sa.mask, SIGTERM);
 	sigaddset(&sa.mask, SIGHUP);
 
-	ret |= syssigaction(SIGINT,  &sa, NULL);
-	ret |= syssigaction(SIGHUP,  &sa, NULL);
-	ret |= syssigaction(SIGTERM, &sa, NULL);
-	ret |= syssigaction(SIGALRM, &sa, NULL);
+	ret |= sys_sigaction(SIGINT,  &sa, NULL);
+	ret |= sys_sigaction(SIGHUP,  &sa, NULL);
+	ret |= sys_sigaction(SIGTERM, &sa, NULL);
+	ret |= sys_sigaction(SIGALRM, &sa, NULL);
 
 	if(ret) fail("signal setup failed", NULL, 0);
 }
@@ -200,7 +200,7 @@ static void poll_netlink_rawsock(void)
 	};
 
 	while(1) {
-		if((ret = sysppoll(fds, 2, NULL, NULL)) < 0)
+		if((ret = sys_ppoll(fds, 2, NULL, NULL)) < 0)
 			quit("ppoll", NULL, ret);
 
 		if(fds[0].revents & ~POLLIN)

@@ -1,7 +1,5 @@
-#include <sys/bind.h>
-#include <sys/close.h>
-#include <sys/setsockopt.h>
-#include <sys/_exit.h>
+#include <sys/socket.h>
+#include <sys/file.h>
 
 #include <netlink.h>
 #include <netlink/genl/ctrl.h>
@@ -10,6 +8,7 @@
 #include <string.h>
 #include <fail.h>
 #include <util.h>
+#include <exit.h>
 
 #include "nlfam.h"
 #include "wpa.h"
@@ -200,7 +199,7 @@ static void scan_group_op(int opt)
 	int id = scangrp;
 	int ret;
 
-	if((ret = syssetsockopt(fd, lvl, opt, &id, sizeof(id))) < 0)
+	if((ret = sys_setsockopt(fd, lvl, opt, &id, sizeof(id))) < 0)
 		fail("setsockopt", "nl80211 scan", ret);
 }
 
