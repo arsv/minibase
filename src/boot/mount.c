@@ -125,7 +125,7 @@ struct flag {
 	{ 0, 0 }
 };
 
-static long parseflags(struct flag* table, char* str)
+static long parse_flags(struct flag* table, char* str)
 {
 	char* p;
 	struct flag* f;
@@ -150,7 +150,7 @@ bad:
 
 static int umount(int argc, char** argv, int i, char* flagstr)
 {
-	long flags = parseflags(umountflags, flagstr);
+	long flags = parse_flags(umountflags, flagstr);
 
 	for(; i < argc; i++)
 		xchk(sys_umount(argv[i], flags), argv[i], NULL);
@@ -160,7 +160,7 @@ static int umount(int argc, char** argv, int i, char* flagstr)
 
 static void mount(int argc, char** argv, int i, char* flagstr)
 {
-	long flags = parseflags(mountflags, flagstr);
+	long flags = parse_flags(mountflags, flagstr);
 	char *source, *target, *fstype, *data;
 
 	if(i < argc)

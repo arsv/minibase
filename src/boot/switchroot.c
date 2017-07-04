@@ -80,7 +80,7 @@ static void delete_rec(struct root* ctx, int dirfd, char* dir)
 	};
 };
 
-static void makepath(char* buf, int len, char* dir, char* name)
+static void make_path(char* buf, int len, char* dir, char* name)
 {
 	char* p = buf;
 	char* e = buf + len - 1;
@@ -91,7 +91,7 @@ static void makepath(char* buf, int len, char* dir, char* name)
 	*p = '\0';
 }
 
-static void movemount(struct root* ctx, char* path)
+static void move_mount(struct root* ctx, char* path)
 {
 	char newpath[ctx->newrlen + strlen(path) + 5];
 
@@ -129,7 +129,7 @@ static void delete_ent(struct root* ctx, char* dir, int dirfd, struct dirent* de
 	char* name = de->name;
 	char path[strlen(dir) + strlen(name) + 5];
 
-	makepath(path, sizeof(path), dir, name);
+	make_path(path, sizeof(path), dir, name);
 
 	if(de->type == DT_DIR)
 		goto dir;
@@ -150,7 +150,7 @@ dir:
 		/* do nothing */
 		ret = 0;
 	} else {
-		movemount(ctx, path);
+		move_mount(ctx, path);
 		ret = 0;
 	}
 out:
@@ -198,7 +198,7 @@ static int stat_old_new_root(struct root* ctx, char* newroot)
 
 /* Avoid deleting any actual permanent files as hard as possible. */
 
-static int checkramfs(void)
+static int check_ramfs(void)
 {
 	struct statfs st;
 
@@ -235,7 +235,7 @@ static void changeroot(char* newroot)
 
 	if(sys_getpid() != 1)
 		fail("not running as pid 1", NULL, 0);
-	if(checkramfs())
+	if(check_ramfs())
 		fail("not running on ramfs", NULL, 0);
 
 	xchk(sys_chdir(newroot), "chdir", newroot);

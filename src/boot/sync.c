@@ -20,7 +20,7 @@ ERRLIST = {
 	REPORT(EWOULDBLOCK), RESTASNUMBERS
 };
 
-static int openref(char* name)
+static int open_ref(char* name)
 {
 	const int flags = O_RDONLY | O_NONBLOCK;
 
@@ -32,7 +32,7 @@ static void simplesync(int argc, char** argv, int i)
 	if(i >= argc)
 		xchk(sys_sync(), "sync", NULL);
 	else for(; i < argc; i++)
-		xchk(sys_fsync(openref(argv[i])), NULL, argv[i]);
+		xchk(sys_fsync(open_ref(argv[i])), NULL, argv[i]);
 }
 
 static void fdatasync(int argc, char** argv, int i)
@@ -40,7 +40,7 @@ static void fdatasync(int argc, char** argv, int i)
 	if(i >= argc)
 		fail("too few arguments", NULL, 0);
 	for(; i < argc; i++)
-		xchk(sys_fdatasync(openref(argv[i])), NULL, argv[i]);
+		xchk(sys_fdatasync(open_ref(argv[i])), NULL, argv[i]);
 }
 
 static void syncfs(int argc, char** argv, int i)
@@ -53,7 +53,7 @@ static void syncfs(int argc, char** argv, int i)
 	if(i >= argc)
 		fail("too many arguments", NULL, 0);
 
-	int fd = openref(name);
+	int fd = open_ref(name);
 
 	xchk(sys_syncfs(fd), NULL, name);
 }
@@ -99,7 +99,7 @@ static void fstrim(int argc, char** argv, int i)
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
-	long fd = openref(name);
+	long fd = open_ref(name);
 
 	xchk(sys_ioctl(fd, FITRIM, &range), NULL, name);
 }
