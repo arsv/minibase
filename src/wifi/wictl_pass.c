@@ -1,5 +1,4 @@
-#include <sys/write.h>
-#include <sys/read.h>
+#include <sys/file.h>
 
 #include <crypto/pbkdf2.h>
 #include <nlusctl.h>
@@ -43,8 +42,8 @@ static int input_passphrase(char* buf, int len)
 	int rd;
 	char* prompt = "Passphrase: ";
 
-	syswrite(STDOUT, prompt, strlen(prompt));
-	rd = sysread(STDIN, buf, len);
+	sys_write(STDOUT, prompt, strlen(prompt));
+	rd = sys_read(STDIN, buf, len);
 
 	if(rd >= len)
 		fail("passphrase too long", NULL, 0);

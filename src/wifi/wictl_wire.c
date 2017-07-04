@@ -1,8 +1,6 @@
 #include <bits/socket/unix.h>
-#include <sys/open.h>
-#include <sys/read.h>
+#include <sys/file.h>
 #include <sys/socket.h>
-#include <sys/connect.h>
 
 #include <nlusctl.h>
 #include <util.h>
@@ -24,7 +22,7 @@ void init_heap_socket(CTX)
 	hinit(&ctx->hp, PAGE);
 	uc_buf_set(&ctx->uc, ctx->cbuf, sizeof(ctx->cbuf));
 
-	if((fd = syssocket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
 		fail("socket", "AF_UNIX", fd);
 
 	ctx->fd = fd;
@@ -39,7 +37,7 @@ static void connect_socket(CTX)
 		.path = WICTL
 	};
 
-	if((ret = sysconnect(ctx->fd, &addr, sizeof(addr))) < 0)
+	if((ret = sys_connect(ctx->fd, &addr, sizeof(addr))) < 0)
 		fail("connect", WICTL, ret);
 
 	ctx->connected = 1;
@@ -80,7 +78,7 @@ static struct ucmsg* recv_reply(CTX)
 			rlen = heap_left(ctx);
 		};
 
-		if((rd = sysread(fd, rbuf, rlen)) < 0)
+		if((rd = sys_read(fd, rbuf, rlen)) < 0)
 			fail("recv", NULL, rd);
 		else if(rd == 0)
 			break;
