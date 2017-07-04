@@ -1,4 +1,4 @@
-#include <sys/write.h>
+#include <sys/file.h>
 
 /* Since we have the GNU Hello as a fine example of properly designed
    GNU package, there's got to be this minibase equivalent.
@@ -10,7 +10,7 @@ int main(void)
 	const char msg[] = "Hello, world!\n";
 	int len = sizeof(msg) - 1;
 
-	syswrite(STDOUT, msg, len);
+	sys_write(STDOUT, msg, len);
 
 	return 0;
 }
