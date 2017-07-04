@@ -1,9 +1,7 @@
-#include <bits/socket.h>
-#include <bits/socket/unix.h>
 #include <bits/errno.h>
 #include <bits/fcntl.h>
 #include <bits/major.h>
-#include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 
