@@ -1,8 +1,6 @@
-#include <sys/open.h>
-#include <sys/write.h>
+#include <sys/file.h>
 #include <sys/ioctl.h>
-#include <sys/gettimeofday.h>
-#include <sys/settimeofday.h>
+#include <sys/time.h>
 
 #include <string.h>
 #include <format.h>
@@ -26,21 +24,21 @@ static const char rtc0[] = "/dev/rtc0";
 
 static void getsystime(struct timeval* tv, struct tm* tm)
 {
-	xchk( sysgettimeofday(tv, NULL),
+	xchk(sys_gettimeofday(tv, NULL),
 		"cannot get system time", NULL );
 	tv2tm(tv, tm);
 }
 
 static void setsystime(struct timeval* tv)
 {
-	xchk( syssettimeofday(tv, NULL),
+	xchk(sys_settimeofday(tv, NULL),
 		"cannot set system time", NULL );
 }
 
 static void getrtctime(struct timeval* tv, struct tm* tm, int rtcfd, const char* rtcname)
 {
 	memset(tm, 0, sizeof(*tm));
-	xchk( sysioctl(rtcfd, RTC_RD_TIME, tm),
+	xchk(sys_ioctl(rtcfd, RTC_RD_TIME, tm),
 		"cannot get RTC time on", rtcname );
 	tm2tv(tm, tv);
 }
@@ -48,7 +46,7 @@ static void getrtctime(struct timeval* tv, struct tm* tm, int rtcfd, const char*
 static void setrtctime(struct tm* tm, int rtcfd, const char* rtcname)
 {
 	tm->isdst = 0;
-	xchk( sysioctl(rtcfd, RTC_SET_TIME, tm),
+	xchk(sys_ioctl(rtcfd, RTC_SET_TIME, tm),
 		"cannot set RTC time on", rtcname );
 }
 
@@ -128,7 +126,7 @@ static void showtime(struct timeval* tv, struct tm* tm)
 	p = fmttm(p, end, tm);
 	*p++ = '\n';
 
-	syswrite(1, buf, p - buf);
+	sys_write(1, buf, p - buf);
 }
 
 #define OPTS "rswd"
@@ -170,7 +168,7 @@ int main(int argc, char** argv)
 	else if(opts & OPT_d)
 		fail("RTC device name required", NULL, 0);
 	if(opts & (OPT_w | OPT_r | OPT_s))
-		rtcfd = xchk( sysopen(rtcname, O_RDONLY),
+		rtcfd = xchk(sys_open(rtcname, O_RDONLY),
 				"cannot open", rtcname );
 
 	/* Read time in, either by parsing arguments on via syscalls */

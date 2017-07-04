@@ -1,11 +1,7 @@
 #include <bits/ioctl/fstrim.h>
+#include <sys/file.h>
 #include <sys/ioctl.h>
-#include <sys/open.h>
-
-#include <sys/sync.h>		/* I wonder who decided it's a good idea   */
-#include <sys/syncfs.h>		/* to have these *four* syscalls instead   */
-#include <sys/fsync.h>		/* of one taking optional fd and flags?    */
-#include <sys/fdatasync.h>
+#include <sys/sync.h>
 
 #include <util.h>
 #include <fail.h>
@@ -28,15 +24,15 @@ static int openref(char* name)
 {
 	const int flags = O_RDONLY | O_NONBLOCK;
 
-	return xchk(sysopen(name, flags), NULL, name);
+	return xchk(sys_open(name, flags), NULL, name);
 }
 
 static void simplesync(int argc, char** argv, int i)
 {
 	if(i >= argc)
-		xchk(syssync(), "sync", NULL);
+		xchk(sys_sync(), "sync", NULL);
 	else for(; i < argc; i++)
-		xchk(sysfsync(openref(argv[i])), NULL, argv[i]);
+		xchk(sys_fsync(openref(argv[i])), NULL, argv[i]);
 }
 
 static void fdatasync(int argc, char** argv, int i)
@@ -44,7 +40,7 @@ static void fdatasync(int argc, char** argv, int i)
 	if(i >= argc)
 		fail("too few arguments", NULL, 0);
 	for(; i < argc; i++)
-		xchk(sysfdatasync(openref(argv[i])), NULL, argv[i]);
+		xchk(sys_fdatasync(openref(argv[i])), NULL, argv[i]);
 }
 
 static void syncfs(int argc, char** argv, int i)
@@ -59,7 +55,7 @@ static void syncfs(int argc, char** argv, int i)
 
 	int fd = openref(name);
 
-	xchk(syssyncfs(fd), NULL, name);
+	xchk(sys_syncfs(fd), NULL, name);
 }
 
 static void parsesuffixed(uint64_t* u, const char* n)
@@ -105,7 +101,7 @@ static void fstrim(int argc, char** argv, int i)
 
 	long fd = openref(name);
 
-	xchk(sysioctl(fd, FITRIM, &range), NULL, name);
+	xchk(sys_ioctl(fd, FITRIM, &range), NULL, name);
 }
 
 int main(int argc, char** argv)

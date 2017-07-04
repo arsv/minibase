@@ -1,4 +1,4 @@
-#include <sys/mknod.h>
+#include <sys/fsnod.h>
 
 #include <format.h>
 #include <fail.h>
@@ -94,7 +94,7 @@ int main(int argc, char** argv)
 	}
 
 	long dev = makedev(major, minor);
-	long ret = sysmknod(name, mode | type, dev);
+	long ret = sys_mknod(name, mode | type, dev);
 
 	if(ret < 0)
 		fail("cannot create", name, ret);

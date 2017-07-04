@@ -1,22 +1,16 @@
 #include <bits/magic.h>
 #include <bits/stmode.h>
 
-#include <sys/execve.h>
-#include <sys/chroot.h>
-#include <sys/statfs.h>
-#include <sys/fstat.h>
-#include <sys/dup2.h>
+#include <sys/cwd.h>
+#include <sys/exec.h>
 #include <sys/stat.h>
-#include <sys/open.h>
-#include <sys/chdir.h>
-#include <sys/close.h>
-#include <sys/getdents.h>
-#include <sys/getpid.h>
+#include <sys/statfs.h>
+#include <sys/file.h>
+#include <sys/fcntl.h>
+#include <sys/fsnod.h>
+#include <sys/dents.h>
+#include <sys/pid.h>
 #include <sys/mount.h>
-#include <sys/umount.h>
-#include <sys/openat.h>
-#include <sys/unlinkat.h>
-#include <sys/fstatat.h>
 
 #include <format.h>
 #include <string.h>
@@ -53,7 +47,7 @@ static inline int dotddot(const char* p)
 	return 0;
 }
 
-static void delete_ent(struct root* ctx, char* dir, int dirfd, struct dirent64* de);
+static void delete_ent(struct root* ctx, char* dir, int dirfd, struct dirent* de);
 
 /* Directory tree recursion is done here in (atfd, path) mode.
    The actualy file ops are done via the directory fd, but proper
@@ -66,14 +60,14 @@ static void delete_rec(struct root* ctx, int dirfd, char* dir)
 	int delen = sizeof(debuf);
 	long rd;
 
-	while((rd = sysgetdents64(dirfd, debuf, delen)) > 0)
+	while((rd = sys_getdents(dirfd, debuf, delen)) > 0)
 	{
 		char* ptr = debuf;
 		char* end = debuf + rd;
 
 		while(ptr < end)
 		{
-			struct dirent64* de = (struct dirent64*) ptr;
+			struct dirent* de = (struct dirent*) ptr;
 			ptr += de->reclen;
 
 			if(!de->reclen)
@@ -110,12 +104,12 @@ static void movemount(struct root* ctx, char* path)
 
 	int ret;
 
-	if((ret = sysmount(path, newpath, NULL, MS_MOVE, NULL)) >= 0)
+	if((ret = sys_mount(path, newpath, NULL, MS_MOVE, NULL)) >= 0)
 		return;
 
 	warn("mount", newpath, ret);
 
-	if((ret = sysumount(path, MNT_DETACH)) >= 0)
+	if((ret = sys_umount(path, MNT_DETACH)) >= 0)
 		return;
 
 	warn("umount", path, ret);
@@ -128,7 +122,7 @@ static void movemount(struct root* ctx, char* path)
 
    The check may be skipped if getdents promises us it's a dir. */
 
-static void delete_ent(struct root* ctx, char* dir, int dirfd, struct dirent64* de)
+static void delete_ent(struct root* ctx, char* dir, int dirfd, struct dirent* de)
 {
 	int fd, ret;
 	struct stat st;
@@ -139,19 +133,19 @@ static void delete_ent(struct root* ctx, char* dir, int dirfd, struct dirent64* 
 
 	if(de->type == DT_DIR)
 		goto dir;
-	if((ret = sysunlinkat(dirfd, name, 0)) >= 0)
+	if((ret = sys_unlinkat(dirfd, name, 0)) >= 0)
 		return;
 	if(ret != EISDIR)
 		goto err;
 dir:
-	if((fd = sysopenat(dirfd, name, O_DIRECTORY)) < 0)
+	if((fd = sys_openat(dirfd, name, O_DIRECTORY)) < 0)
 		return;
-	if((ret = sysfstatat(fd, "", &st, AT_EMPTY_PATH)) < 0)
+	if((ret = sys_fstatat(fd, "", &st, AT_EMPTY_PATH)) < 0)
 		goto out;
 
 	if(st.st_dev == ctx->olddev) {
 		delete_rec(ctx, fd, path);
-		ret = sysunlinkat(dirfd, name, AT_REMOVEDIR);
+		ret = sys_unlinkat(dirfd, name, AT_REMOVEDIR);
 	} else if(st.st_dev == ctx->newdev) {
 		/* do nothing */
 		ret = 0;
@@ -160,7 +154,7 @@ dir:
 		ret = 0;
 	}
 out:
-	sysclose(fd);
+	sys_close(fd);
 err:
 	if(ret) warn(NULL, path, ret);
 }
@@ -180,13 +174,13 @@ static int stat_old_new_root(struct root* ctx, char* newroot)
 	ctx->newroot = newroot;
 	ctx->newrlen = strlen(newroot);
 
-	xchk(sysstat(newroot, &st), "stat", newroot);
+	xchk(sys_stat(newroot, &st), "stat", newroot);
 
 	ctx->newdev = st.st_dev;
 
-	int fd = xchk(sysopen("/", O_DIRECTORY), "open", "/");
+	int fd = xchk(sys_open("/", O_DIRECTORY), "open", "/");
 
-	xchk(sysfstatat(fd, "", &st, AT_EMPTY_PATH), "stat", "/");
+	xchk(sys_fstatat(fd, "", &st, AT_EMPTY_PATH), "stat", "/");
 
 	ctx->olddev = st.st_dev;
 
@@ -194,7 +188,7 @@ static int stat_old_new_root(struct root* ctx, char* newroot)
 		fail("new root is on the same fs", NULL, 0);
 
 	/* . = newroot, so .. is its parent directory */
-	xchk(sysstat("..", &st), "stat", "..");
+	xchk(sys_stat("..", &st), "stat", "..");
 
 	if(st.st_dev != ctx->olddev)
 		fail(newroot, "is not directly under /", 0);
@@ -208,7 +202,7 @@ static int checkramfs(void)
 {
 	struct statfs st;
 
-	if(sysstatfs("/", &st) < 0)
+	if(sys_statfs("/", &st) < 0)
 		return -1;
 	if(st.type != RAMFS_MAGIC && st.type != TMPFS_MAGIC)
 		return -1;
@@ -221,39 +215,39 @@ static void maybe_reopen_fds(struct root* ctx)
 	struct stat st;
 	int fd, i;
 
-	if((sysfstat(0, &st)) < 0)
+	if((sys_fstat(0, &st)) < 0)
 		return;
 	if(st.st_dev != ctx->olddev)
 		return;
-	if((fd = sysopen("/dev/console", O_RDWR)) < 0)
+	if((fd = sys_open("/dev/console", O_RDWR)) < 0)
 		return;
 
 	for(i = 0; i <= 2; i++)
 		if(fd != i)
-			sysdup2(fd, i);
+			sys_dup2(fd, i);
 	if(fd > 2)
-		sysclose(fd);
+		sys_close(fd);
 }
 
 static void changeroot(char* newroot)
 {
 	struct root ctx;
 
-	if(sysgetpid() != 1)
+	if(sys_getpid() != 1)
 		fail("not running as pid 1", NULL, 0);
 	if(checkramfs())
 		fail("not running on ramfs", NULL, 0);
 
-	xchk(syschdir(newroot), "chdir", newroot);
+	xchk(sys_chdir(newroot), "chdir", newroot);
 
 	int rfd = stat_old_new_root(&ctx, newroot);
 
 	delete_rec(&ctx, rfd, "");
-	sysclose(rfd);
+	sys_close(rfd);
 
-	xchk(sysmount(".", "/", NULL, MS_MOVE, NULL), "mount", ". to /");
-	xchk(syschroot("."), "chroot", ".");
-	xchk(syschdir("/"), "chdir", "/");
+	xchk(sys_mount(".", "/", NULL, MS_MOVE, NULL), "mount", ". to /");
+	xchk(sys_chroot("."), "chroot", ".");
+	xchk(sys_chdir("/"), "chdir", "/");
 
 	maybe_reopen_fds(&ctx);
 }
@@ -274,6 +268,6 @@ int main(int argc, char** argv)
 		argv[1] = NULL;
 	}
 
-	long ret = sysexecve(*argv, argv, NULL);
+	long ret = sys_execve(*argv, argv, NULL);
 	fail("cannot exec", *argv, ret);
 }

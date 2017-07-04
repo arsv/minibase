@@ -1,6 +1,5 @@
 #include <sys/mount.h>
-#include <sys/mkdir.h>
-#include <sys/umount.h>
+#include <sys/fsnod.h>
 #include <string.h>
 #include <fail.h>
 
@@ -53,7 +52,7 @@ static int mountcg(char* path)
 	char* group = path + len;
 	int flags = MS_NODEV | MS_NOSUID | MS_NOEXEC | MS_RELATIME;
 
-	xchk(sysmount(NULL, path, "cgroup", flags, group), path, NULL);
+	xchk(sys_mount(NULL, path, "cgroup", flags, group), path, NULL);
 
 	return 1;
 }
@@ -75,7 +74,7 @@ static void mountvfs(char* tag, long flags)
 
 	flags |= p->flags | MS_RELATIME;
 
-	xchk(sysmount(NULL, p->point, p->type, flags, ""), p->point, NULL);
+	xchk(sys_mount(NULL, p->point, p->type, flags, ""), p->point, NULL);
 }
 
 static void mntvfs(int argc, char** argv, int i, char* flagstr)
@@ -154,7 +153,7 @@ static int umount(int argc, char** argv, int i, char* flagstr)
 	long flags = parseflags(umountflags, flagstr);
 
 	for(; i < argc; i++)
-		xchk(sysumount(argv[i], flags), argv[i], NULL);
+		xchk(sys_umount(argv[i], flags), argv[i], NULL);
 
 	return 0;
 }
@@ -198,7 +197,7 @@ static void mount(int argc, char** argv, int i, char* flagstr)
 	/* Errors from mount(2) may apply to either the source *or* the target.
 	   There's no way to tell, so generic "mount: errno" message got to be
 	   the least confusing one. */
-	xchk(sysmount(source, target, fstype, flags, data), NULL, NULL);
+	xchk(sys_mount(source, target, fstype, flags, data), NULL, NULL);
 }
 
 

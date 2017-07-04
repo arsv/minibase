@@ -1,7 +1,7 @@
-#include <sys/inotify.h>
-#include <sys/read.h>
-#include <sys/alarm.h>
+#include <sys/file.h>
 #include <sys/stat.h>
+#include <sys/alarm.h>
+#include <sys/inotify.h>
 
 #include <string.h>
 #include <format.h>
@@ -36,7 +36,7 @@ static int check_file(const char* path)
 {
 	struct stat st;
 
-	long ret = sysstat(path, &st);
+	long ret = sys_stat(path, &st);
 
 	if(ret >= 0)
 		return 1;
@@ -56,7 +56,7 @@ static void watch_ino_for(int fd, char* name)
 	int inolen = sizeof(inobuf);
 	long rd;
 
-	while((rd = sysread(fd, inobuf, inolen)) > 0) {
+	while((rd = sys_read(fd, inobuf, inolen)) > 0) {
 		char* inoend = inobuf + rd;
 		char* p = inobuf;
 
@@ -125,7 +125,7 @@ int main(int argc, char** argv)
 	if(i >= argc)
 		fail("too few arguments", NULL, 0);
 
-	sysalarm(timeout);
+	sys_alarm(timeout);
 
 	int fd = xchk(sys_inotify_init(), "inotify-init", NULL);
 
