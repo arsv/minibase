@@ -17,13 +17,13 @@ build: lib/all.a
 install:
 	$(MAKE) -C src install
 
-clean: clean-lib clean-src
+clean: clean-lib clean-src clean-test
 
 clean-src:
 	$(MAKE) -C src clean-rec
 
-clean-lib:
-	$(MAKE) -C lib clean
+clean-%:
+	$(MAKE) -C $* clean
 
 test:
 	$(MAKE) -C test
