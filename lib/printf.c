@@ -13,6 +13,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <format.h>
+#include <printf.h>
 #include <util.h>
 
 #define F0 (1<<0)
@@ -139,7 +140,7 @@ int puts(const char* str)
         return writeall(STDOUT, (char*)str, strlen(str));
 }
 
-int eprintf(const char* fmt, ...)
+int tracef(const char* fmt, ...)
 {
 	int ret;
 	va_list ap;
