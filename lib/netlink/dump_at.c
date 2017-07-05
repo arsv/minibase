@@ -1,5 +1,5 @@
 #include <string.h>
-#include <format.h>
+#include <printf.h>
 
 #include "base.h"
 #include "dump.h"
@@ -81,29 +81,29 @@ static void nl_dump_attr(char* pref, struct nlattr* at)
 		bytebuf[0] = '\0';
 
 	if(len == 0) {
-		eprintf("%s %i empty\n", pref, at->type);
+		tracef("%s %i empty\n", pref, at->type);
 	} else if(nl_attr_is_nest(at)) {
-		eprintf("%s %i: nest\n", pref, at->type);
+		tracef("%s %i: nest\n", pref, at->type);
 		nl_dump_rec(pref, at);
 	} else if(nl_attr_is_printable_str(at)) {
-		eprintf("%s %i: \"%s\"\n",
+		tracef("%s %i: \"%s\"\n",
 				pref, at->type, buf);
 	} else if(len == 8) {
-		eprintf("%s %i: %s = long %li\n",
+		tracef("%s %i: %s = long %li\n",
 				pref, at->type, bytebuf, *(int64_t*)buf);
 	} else if(len == 4) {
-		eprintf("%s %i: %s = int %i\n",
+		tracef("%s %i: %s = int %i\n",
 				pref, at->type, bytebuf, *(int32_t*)buf);
 	} else if(len == 2) {
-		eprintf("%s %i: %s = short %i\n",
+		tracef("%s %i: %s = short %i\n",
 				pref, at->type, bytebuf, *(int16_t*)buf);
 	} else if(len < 15) {
 		char prn[len+1];
 		nl_hexstring(prn, buf, len);
-		eprintf("%s %i: %s    %s\n",
+		tracef("%s %i: %s    %s\n",
 				pref, at->type, bytebuf, prn);
 	} else {
-		eprintf("%s %i: %i bytes\n",
+		tracef("%s %i: %i bytes\n",
 				pref, at->type, len);
 		nl_hexdump(buf, len);
 	}

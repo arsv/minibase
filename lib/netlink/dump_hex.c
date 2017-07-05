@@ -1,4 +1,4 @@
-#include <format.h>
+#include <printf.h>
 #include <string.h>
 
 void nl_hexdump(char* inbuf, int inlen)
@@ -40,6 +40,6 @@ void nl_hexdump(char* inbuf, int inlen)
 			p = linebuf + 4 + 16*3 + 4 + c;
 			*p = (x >= 0x20 && x < 0x7F) ? x : '.';
 		}
-		eprintf("%s\n", linebuf);
+		tracef("%s\n", linebuf);
 	}
 }
