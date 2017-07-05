@@ -20,35 +20,32 @@ const struct test {
 	{ D(2025,  9, 30), 1759190400 }
 };
 
-static char* fmtts(char* p, char* e, time_t ts)
-{
-	return fmtpad(p, e, 10, fmtlong(p, e, ts));
-}
-
-static int check(const struct tm* tm, time_t exp, time_t got)
+static int check(time_t ts, const struct tm* exp, struct tm* got)
 {
 	char buf[500];
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
+	int ret;
 
-	p = fmttm(p, e, tm);
+	p = fmtpad(p, e, 10, fmtlong(p, e, ts));
 	p = fmtstr(p, e, " = ");
+	p = fmttm(p, e, got);
 
-	if(got == exp) {
-		p = fmtts(p, e, got);
+	if(!memcmp(exp, got, sizeof(*exp))) {
 		p = fmtstr(p, e, " OK");
+		ret = 0;
 	} else {
-		p = fmtts(p, e, got);
-		p = fmtstr(p, e, " != ");
-		p = fmtts(p, e, exp);
+		p = fmtstr(p, e, " / ");
+		p = fmttm(p, e, exp);
 		p = fmtstr(p, e, " FAIL");
-	}
+		ret = !0;
+	};
 
 	*p++ = '\n';
 
 	writeall(STDERR, buf, p - buf);
 
-	return (got != exp);
+	return ret;
 }
 
 int main(void)
@@ -60,13 +57,18 @@ int main(void)
 	const struct test* tst;
 
 	for(tst = buf; tst < end; tst++) {
-		struct timeval tv;
+		struct tm tm;
+		struct timeval tv = { tst->ts, 0 };
 
-		tm2tv(&tst->tm, &tv);
+		memzero(&tm, sizeof(tm));
 
-		ret |= check(&tst->tm, tst->ts, tv.sec);
+		tv2tm(&tv, &tm);
 
+		/* blank out fields we do not check */
+		tm.wday = 0;
+		tm.yday = 0;
 
+		ret |= check(tst->ts, &tst->tm, &tm);
 	}
 
 	return ret;
