@@ -1,7 +1,7 @@
 #include <bits/time.h>
 #include <format.h>
 
-char* fmttm(char* buf, char* end, struct tm* tm)
+char* fmttm(char* buf, char* end, const struct tm* tm)
 {
 	char* p = buf;
 

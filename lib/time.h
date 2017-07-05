@@ -3,7 +3,7 @@
 
 #include <bits/time.h>
 
-void tm2tv(struct tm* tm, struct timeval* tv);
-void tv2tm(struct timeval* tv, struct tm* tm);
+void tm2tv(const struct tm* tm, struct timeval* tv);
+void tv2tm(const struct timeval* tv, struct tm* tm);
 
 #endif

@@ -15,7 +15,7 @@
 #define DAYS_PER_100Y (365*100 + 24)
 #define DAYS_PER_4Y   (365*4   + 1)
 
-void tv2tm(struct timeval* tv, struct tm* tm)
+void tv2tm(const struct timeval* tv, struct tm* tm)
 {
 	time_t ts = tv->sec;	
 	static const char mdays[] = {31,30,31,30,31,31,30,31,30,31,31,29};

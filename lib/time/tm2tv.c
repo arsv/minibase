@@ -10,7 +10,7 @@ static const short mdays[] = {
 	30, 31, 30, 31
 };
 
-void tm2tv(struct tm* tm, struct timeval* tv)
+void tm2tv(const struct tm* tm, struct timeval* tv)
 {
 	int day = tm->mday; /* 1-based */
 	int mon = tm->mon;  /* 0-based */
