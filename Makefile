@@ -24,3 +24,8 @@ clean-src:
 
 clean-lib:
 	$(MAKE) -C lib clean
+
+test:
+	$(MAKE) -C test
+
+.PHONY: test
