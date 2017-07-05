@@ -12,12 +12,12 @@ include $/config.mk
 %: %.o
 	$(LD) -o $@ $(filter %.o,$^) $(LIBS)
 
+all: $(test)
+
 run: $(test) $(patsubst %,run-%,$(test))
 
 run-%:
 	./$*
-
-all: $(test)
 
 clean:
 	rm -f *.o $(test)

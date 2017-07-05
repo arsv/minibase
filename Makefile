@@ -26,6 +26,6 @@ clean-%:
 	$(MAKE) -C $* clean
 
 test:
-	$(MAKE) -C test
+	$(MAKE) -C test run
 
 .PHONY: test
