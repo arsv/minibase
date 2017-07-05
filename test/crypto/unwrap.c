@@ -1,5 +1,5 @@
 #include <crypto/aes128.h>
-#include <format.h>
+#include <printf.h>
 
 uint8_t kek[16] = {
 	0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
@@ -19,9 +19,9 @@ int main(void)
 	aes128_unwrap(kek, data, sizeof(data));
 
 	for(i = 0; i < 24; i++) {
-		eprintf("%02X ", data[i]);
+		tracef("%02X ", data[i]);
 		if(i % 8 == 7)
-			eprintf("\n");
+			tracef("\n");
 	}
 
 	return 0;

@@ -1,6 +1,6 @@
 #include <crypto/sha1.h>
 #include <string.h>
-#include <format.h>
+#include <printf.h>
 
 /* Tests from RFC 2202, section 3 */
 
@@ -34,8 +34,8 @@ struct test {
 void dump(uint8_t hash[20])
 {
 	for(int i = 0; i < 20; i++)
-		eprintf("%02X ", hash[i]);
-	eprintf("\n");
+		tracef("%02X ", hash[i]);
+	tracef("\n");
 }
 
 int printable(char* msg)
@@ -65,9 +65,9 @@ int test(struct test* tp)
 	char* msg = tp->input;
 
 	if(!diff) {
-		eprintf("OK %s\n", msg);
+		tracef("OK %s\n", msg);
 	} else {
-		eprintf("FAIL %s\n", msg);
+		tracef("FAIL %s\n", msg);
 
 		dump(hash);
 		dump(temp);

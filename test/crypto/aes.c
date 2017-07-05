@@ -1,6 +1,6 @@
-#include <format.h>
-#include <string.h>
 #include <crypto/aes128.h>
+#include <string.h>
+#include <printf.h>
 
 uint8_t rawkey[16] = {
 	0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
@@ -63,12 +63,12 @@ void check_key_expansion(void)
 
 	for(i = 0; i < 44; i++)
 		if(ae.W[i] != expanded[i]) {
-			eprintf("FAIL %i %08X expected %08X\n",
+			tracef("FAIL %i %08X expected %08X\n",
 					i, ae.W[i], expanded[i]);
 			break;
 		}
 	if(i >= 44)
-		eprintf("OK key expanded\n");
+		tracef("OK key expanded\n");
 }
 
 uint8_t key[16] = {
@@ -94,9 +94,9 @@ void check_decryption(void)
 	aes128_decrypt(&ae, crypt);
 
 	if(memcmp(crypt, plain, 16))
-		eprintf("FAIL decrypt\n");
+		tracef("FAIL decrypt\n");
 	else
-		eprintf("OK decrypted\n");
+		tracef("OK decrypted\n");
 }
 
 int main(void)
