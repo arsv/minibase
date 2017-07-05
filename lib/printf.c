@@ -51,6 +51,12 @@ char* fmtfpad(char* p, char* e, char* q, int flags, int num)
 		return fmtpad(p, e, num, q);
 }
 
+static char* fmtstr_(char* p, char* e, char* str)
+{
+	if(!str) str = "(null)";
+	return fmtstr(p, e, str);
+}
+
 int vfdprintf(int fd, const char* fmt, va_list ap)
 {
 	char buf[PRINTFBUF];
@@ -82,7 +88,7 @@ int vfdprintf(int fd, const char* fmt, va_list ap)
 
 		switch(*fmt++) {
 		case 's':
-			q = fmtstr(p, e, va_arg(ap, char*));
+			q = fmtstr_(p, e, va_arg(ap, char*));
 			break;
 		case 'c':
 			q = fmtchar(p, e, va_arg(ap, unsigned));
