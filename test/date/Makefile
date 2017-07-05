@@ -1,7 +1,3 @@
-/ = ../../
+test = tm2tv
 
-include $/config.mk
-
-bin = tm2tv
-
-include $/common.mk
+include ../rules.mk
