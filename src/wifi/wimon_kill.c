@@ -8,15 +8,13 @@
 
 #include "wimon.h"
 
-/* RFkill handling in Linux is weird, to put things mildly.
-
-   When a card gets rf-killed, the link loses IFF_UP and RTNL gets notification
+/* When a card gets rf-killed, the link loses IFF_UP and RTNL gets notification
    of a state change. But when rfkill gets undone, the reverse does not happen.
    The interface remains in "down" state and must be commanded back "up".
    RTNL layer also gets no notifications of any kind that rf-unkill happened.
 
    The only somewhat reliable way to be notified is by listening to /dev/rfkill.
-   Now that device however is provided by a standalone module that may not be
+   Now rfkill device however is provided by a standalone module that may not be
    loadeded at any given time, and may get un-/re-loaded. Normally this does not
    happens, so wimon keeps the fd open. However if open attempt fails, wimon
    will try to re-open it on any suitable occasion. This may lead to redundant

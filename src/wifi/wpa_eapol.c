@@ -131,7 +131,7 @@ static void fetch_gtk(char* buf, int len)
 
 		/* Flags in kd->data[0] of GTK KDEs;
 		   Ref. IEEE 802.11-2012 Fig. 11-31
-		   The lowest three bits are key index.
+		   The lowest three bits = key index.
 		   For GTK, it may be 1, 2 or 3 but not 0. */
 		if(!(gtkindex = kd->data[0] & 0x3))
 			quit("bad GTK index", NULL, 0);
