@@ -14,6 +14,14 @@ struct ucbuf {
 	int over;
 };
 
+struct urbuf {
+	char* buf;
+	char* mptr;
+	char* rptr;
+	char* end;
+	struct ucmsg* msg;
+};
+
 struct ucmsg {
 	unsigned len;
 	int cmd;
@@ -66,3 +74,5 @@ void* uc_payload(struct ucattr* at);
 int uc_paylen(struct ucattr* at);
 
 void uc_dump(struct ucmsg* msg);
+
+int uc_recv(int fd, struct urbuf* ur, int block);
