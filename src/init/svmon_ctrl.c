@@ -28,7 +28,7 @@ static void killrec(struct svcrec* rc, int group, int sig)
 static void dumpstate(void)
 {
 	int blen = PAGE;
-	char* buf = alloc(blen);
+	char* buf = heap_alloc(blen);
 
 	if(!buf) return;
 
@@ -55,7 +55,7 @@ static void dumpstate(void)
 
 	writeall(gg.outfd, buf, p - buf);
 
-	afree();
+	heap_flush();
 }
 
 static void showring(struct svcrec* rc)
@@ -214,7 +214,7 @@ static void readcmd(int fd)
 	gg.outfd = STDERR;
 }
 
-void setctl(void)
+void setup_ctrl(void)
 {
 	int fd;
 	struct sockaddr_un addr = {

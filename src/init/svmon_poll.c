@@ -38,7 +38,7 @@ static void sighandler(int sig)
 	}
 }
 
-int setsignals(void)
+int setup_signals(void)
 {
 	struct sigaction sa = {
 		.handler = sighandler,

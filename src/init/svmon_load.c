@@ -65,7 +65,7 @@ static void tryfile(char* dir, char* base)
 int load_dir_ents(void)
 {
 	int delen = PAGE;
-	char* debuf = alloc(delen);
+	char* debuf = heap_alloc(delen);
 
 	if(!debuf) return -1;
 
@@ -74,7 +74,7 @@ int load_dir_ents(void)
 
 	if((fd = sys_open(dir, O_RDONLY | O_DIRECTORY)) < 0) {
 		report("open", dir, fd);
-		afree();
+		heap_flush();
 		return fd;
 	}
 
@@ -100,8 +100,8 @@ int load_dir_ents(void)
 		report("getdents", dir, rd);
 	}
 
-	afree();
 	sys_close(fd);
+	heap_flush();
 	return rd;
 }
 

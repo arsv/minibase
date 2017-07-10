@@ -52,8 +52,8 @@ void initpass(void);
 void waitpoll(void);
 void waitpids(void);
 
-int setsignals(void);
-void setctl(void);
+int setup_signals(void);
+void setup_ctrl(void);
 void acceptctl(int sfd);
 void wakeupin(int ttw);
 void stopall(void);
@@ -71,6 +71,6 @@ void droprec(struct svcrec* rc);
 void report(char* msg, char* arg, int err);
 void reprec(struct svcrec* rc, char* msg);
 
-void setbrk(void);
-char* alloc(int len);
-void afree(void);
+void setup_heap(void);
+char* heap_alloc(int len);
+void heap_flush(void);

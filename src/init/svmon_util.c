@@ -101,13 +101,13 @@ static char* brk;
 static char* ptr;
 static char* end;
 
-void setbrk(void)
+void setup_heap(void)
 {
 	brk = (char*)sys_brk(NULL);
 	ptr = end = brk;
 }
 
-char* alloc(int len)
+char* heap_alloc(int len)
 {
 	char* old = ptr;
 	char* req = old + len;
@@ -126,7 +126,7 @@ done:
 	return old;
 }
 
-void afree(void)
+void heap_flush(void)
 {
 	end = ptr = (char*)sys_brk(brk);
 }

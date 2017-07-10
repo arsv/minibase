@@ -20,13 +20,13 @@ static int setup(char** envp)
 	gg.uid = sys_getuid();
 	gg.outfd = STDERR;
 
-	setbrk();
-	setctl();
+	setup_heap();
+	setup_ctrl();
 
-	return setsignals();
+	return setup_signals();
 }
 
-static int forkreboot(void)
+static int spawn_reboot(void)
 {
 	int pid = sys_fork();
 
@@ -59,7 +59,7 @@ int main(int argc, char** argv, char** envp)
 		if(gg.state & S_SIGCHLD)
 			waitpids();
 		if(gg.state & S_REOPEN)
-			setctl();
+			setup_ctrl();
 		if(gg.state & S_RELOAD)
 			reload();
 		if(gg.state & S_PASSREQ)
@@ -71,6 +71,6 @@ reboot:
 		sys_unlink(SVCTL);
 		return 0;
 	} else {
-		return forkreboot();
+		return spawn_reboot();
 	}
 };
