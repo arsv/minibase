@@ -1,11 +1,7 @@
 #include <bits/socket.h>
-#include <bits/socket/unspec.h>
 #include <bits/socket/unix.h>
 #include <sys/socket.h>
 #include <sys/file.h>
-#include <sys/alarm.h>
-#include <sys/creds.h>
-#include <sys/kill.h>
 #include <sys/itimer.h>
 
 #include <nlusctl.h>
@@ -16,15 +12,18 @@
 #include "common.h"
 #include "svmon.h"
 
+#define REPLIED 1
+
 #define CN struct conn* cn
 #define MSG struct ucmsg* msg
 
-static void send_reply(CN, struct ucbuf* uc)
+static int send_reply(CN, struct ucbuf* uc)
 {
 	writeall(cn->fd, uc->brk, uc->ptr - uc->brk);
+	return REPLIED;
 }
 
-void reply(CN, int err)
+static int reply(CN, int err)
 {
 	char cbuf[16];
 	struct ucbuf uc;
@@ -33,7 +32,53 @@ void reply(CN, int err)
 	uc_put_hdr(&uc, err);
 	uc_put_end(&uc);
 
-	send_reply(cn, &uc);
+	return send_reply(cn, &uc);
+}
+
+static int estimate_list_size(void)
+{
+	int count = 0;
+	struct proc* rc;
+
+	for(rc = firstrec(); rc; rc = nextrec(rc))
+		count++;
+
+	return 10*count*sizeof(struct ucattr) + count*sizeof(*rc);
+}
+
+static void put_proc_entry(struct ucbuf* uc, struct proc* rc)
+{
+	struct ucattr* at;
+
+	at = uc_put_nest(uc, ATTR_PROC);
+
+	uc_put_int(uc, ATTR_PID, rc->pid);
+	uc_put_str(uc, ATTR_NAME, rc->name);
+
+	if(ring_buf_for(rc))
+		uc_put_flag(uc, ATTR_RING);
+
+	uc_end_nest(uc, at);
+}
+
+static int rep_list(CN)
+{
+	int size = estimate_list_size();
+	char* buf = heap_alloc(size);
+
+	if(!buf) return -ENOMEM;
+
+	struct ucbuf uc = { buf, buf, buf + size, 0 };
+	struct proc* rc;
+
+	uc_put_hdr(&uc, 0);
+
+	for(rc = firstrec(); rc; rc = nextrec(rc))
+		put_proc_entry(&uc, rc);
+
+	uc_put_end(&uc);
+
+	return send_reply(cn, &uc);
 }
 
 static int reboot(char code)
@@ -60,7 +105,7 @@ static int cmd_poweroff(CN, MSG)
 
 static int cmd_list(CN, MSG)
 {
-	return -EINVAL;
+	return rep_list(cn);
 }
 
 static const struct cmd {
@@ -87,6 +132,8 @@ static void dispatch(CN, MSG)
 		reply(cn, -ENOSYS);
 	else if((ret = cd->call(cn, msg)) <= 0)
 		reply(cn, ret);
+
+	heap_flush();
 }
 
 void close_conn(CN)

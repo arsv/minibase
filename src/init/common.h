@@ -19,3 +19,4 @@
 #define ATTR_NAME     2
 #define ATTR_CODE     3
 #define ATTR_PID      4
+#define ATTR_RING     5
