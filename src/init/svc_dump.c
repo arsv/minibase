@@ -3,25 +3,6 @@
 #include "common.h"
 #include "svc.h"
 
-//static int cmp_int(attr at, attr bt, int key)
-//{
-//	int* na = uc_sub_int(at, key);
-//	int* nb = uc_sub_int(bt, key);
-//
-//	if(!na && nb)
-//		return -1;
-//	if(na && !nb)
-//		return  1;
-//	if(!na || !nb)
-//		return 0;
-//	if(*na < *nb)
-//		return -1;
-//	if(*na > *nb)
-//		return  1;
-//
-//	return 0;
-//}
-
 static int cmp_str(attr at, attr bt, int key)
 {
 	char* na = uc_sub_str(at, key);
