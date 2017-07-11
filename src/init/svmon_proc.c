@@ -15,7 +15,7 @@
 
 static time_t passtime;
 
-static void setpasstime(void)
+static void set_passtime(void)
 {
 	struct timespec tp = { 0, 0 };
 	long ret;
@@ -27,7 +27,7 @@ static void setpasstime(void)
 	}
 }
 
-static int waitneeded(time_t* last, time_t wait)
+static int wait_needed(time_t* last, time_t wait)
 {
 	time_t curtime = passtime;
 	time_t endtime = *last + wait;
@@ -41,7 +41,7 @@ static int waitneeded(time_t* last, time_t wait)
 	}
 }
 
-static int child(struct svcrec* rc)
+static int child(struct proc* rc)
 {
 	char* dir = gg.dir;
 	int dlen = strlen(dir);
@@ -64,9 +64,9 @@ static int child(struct svcrec* rc)
 	return -1;
 }
 
-static void spawn(struct svcrec* rc)
+static void spawn(struct proc* rc)
 {
-	if(waitneeded(&rc->lastrun, TIME_TO_RESTART))
+	if(wait_needed(&rc->lastrun, TIME_TO_RESTART))
 		return;
 
 	rc->lastrun = passtime;
@@ -93,23 +93,25 @@ static void spawn(struct svcrec* rc)
 	} else {
 		rc->pid = pid;
 		sys_close(pipe[1]);
-		setpollfd(rc, pipe[0]);
+		rc->pipefd = pipe[0];
 	}
+
+	gg.pollset = 0;
 }
 
-static void stop(struct svcrec* rc)
+static void stop(struct proc* rc)
 {
 	if(rc->flags & P_SIGKILL) {
 		/* The process has been sent SIGKILL, still refuses
 		   to kick the bucket. Just forget about it then,
 		   reset p->pid and let the next initpass restart the entry. */
-		if(waitneeded(&rc->lastsig, TIME_TO_SKIP))
+		if(wait_needed(&rc->lastsig, TIME_TO_SKIP))
 			return;
 		reprec(rc, "refuses to die on SIGKILL, skipping");
 		rc->pid = 0;
 	} else if(rc->flags & P_SIGTERM) {
 		/* The process has been signalled, but has not died yet */
-		if(waitneeded(&rc->lastsig, TIME_TO_SIGKILL))
+		if(wait_needed(&rc->lastsig, TIME_TO_SIGKILL))
 			return;
 		reprec(rc, "refuses to exit, sending SIGKILL");
 		sys_kill(rc->pid, SIGKILL);
@@ -129,31 +131,31 @@ static void stop(struct svcrec* rc)
 			sys_kill(rc->pid, SIGCONT);
 
 		/* make sure we'll get initpass to send SIGKILL if necessary */
-		waitneeded(&rc->lastsig, TIME_TO_SIGKILL);
+		wait_needed(&rc->lastsig, TIME_TO_SIGKILL);
 	}
 }
 
-static void markdead(struct svcrec* rc, int status)
+static void markdead(struct proc* rc, int status)
 {
 	rc->pid = 0;
 	rc->status = status;
 
 	if(rc->flags & P_STALE)
-		droprec(rc);
+		free_proc_slot(rc);
 
 	/* possibly unexpected death */
-	gg.state |= S_PASSREQ;
+	gg.passreq = 1;
 }
 
 void waitpids(void)
 {
 	pid_t pid;
 	int status;
-	struct svcrec *rc;
+	struct proc *rc;
 	const int flags = WNOHANG | WUNTRACED | WCONTINUED;
 
 	while((pid = sys_waitpid(-1, &status, flags)) > 0) {
-		if(!(rc = findpid(pid)))
+		if(!(rc = find_by_pid(pid)))
 			continue; /* Some stray child died. Like we care. */
 		if(WIFSTOPPED(status))
 			rc->flags |= P_SIGSTOP;
@@ -166,10 +168,10 @@ void waitpids(void)
 
 void initpass(void)
 {
-	struct svcrec* rc;
+	struct proc* rc;
 	int running = 0;
 
-	setpasstime();
+	set_passtime();
 
 	for(rc = firstrec(); rc; rc = nextrec(rc)) {
 		int disabled = (rc->flags & P_DISABLED);
@@ -183,15 +185,15 @@ void initpass(void)
 	}
 
 	if(!running)
-		gg.state |= S_REBOOT;
+		gg.reboot = 1;
 }
 
-void stopall(void)
+void stop_all_procs(void)
 {
-	struct svcrec* rc;
+	struct proc* rc;
 
 	for(rc = firstrec(); rc; rc = nextrec(rc))
 		rc->flags |= P_DISABLED;
 
-	gg.state |= S_PASSREQ;
+	gg.passreq = 1;
 }

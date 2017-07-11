@@ -1,33 +1,25 @@
 #include <bits/types.h>
 #include "config.h"
 
-#define S_SIGCHLD (1<<0)
-#define S_PASSREQ (1<<1)
-#define S_TERMREQ (1<<2)
-#define S_REOPEN  (1<<4)
-#define S_RELOAD  (1<<5)
-#define S_REBOOT  (1<<6)
-
 #define P_DISABLED (1<<0)
 #define P_SIGSTOP  (1<<1)
 #define P_SIGTERM  (1<<2)
 #define P_SIGKILL  (1<<3)
 #define P_STALE    (1<<4)
 
-struct svcrec {
-	int pid;
-	uint8_t flags;
-	char name[NAMELEN];
-	time_t lastrun;
-	time_t lastsig;
-	int status;
-};
-
-struct svcmon {
-	int state;
-	char rbcode;
-	int outfd;
+struct top {
 	int uid;
+	int outfd;
+	int ctrlfd;
+	char rbcode;
+
+	short reopen;
+	short reload;
+	short reboot;
+	short pollset;
+	short passreq;
+	short termreq;
+	short sigchld;
 
 	char* dir;
 	char** env;
@@ -35,18 +27,40 @@ struct svcmon {
 	int nr;
 };
 
-struct ringbuf {
+struct proc {
+	int pid;
+	uint8_t flags;
+	char name[NAMELEN];
+	time_t lastrun;
+	time_t lastsig;
+	int status;
+	int pipefd;
+};
+
+struct ring {
 	char* buf;
 	short ptr;
 };
 
-extern struct svcmon gg;
+struct conn {
+	int fd;
+};
 
-int reload(void);
+extern struct top gg;
+extern struct proc procs[];
+extern struct conn conns[];
+extern int nprocs;
+extern int nconns;
 
-struct svcrec* findrec(char* name);
-struct svcrec* makerec(void);
-struct svcrec* findpid(int pid);
+int reload_procs(void);
+
+struct proc* find_by_name(char* name);
+struct proc* find_by_pid(int pid);
+struct proc* grab_proc_slot(void);
+void free_proc_slot(struct proc* rc);
+
+struct conn* grab_conn_slot(void);
+void free_conn_slot(struct conn* cn);
 
 void initpass(void);
 void waitpoll(void);
@@ -54,22 +68,26 @@ void waitpids(void);
 
 int setup_signals(void);
 void setup_ctrl(void);
-void acceptctl(int sfd);
+void accept_ctrl(int sfd);
+void handle_conn(struct conn* cn);
+void close_conn(struct conn* cn);
 void wakeupin(int ttw);
-void stopall(void);
+void stop_all_procs(void);
 
-void setctrlfd(int fd);
-void setpollfd(struct svcrec* rc, int fd);
-void flushring(struct svcrec* rc);
-struct ringbuf* ringfor(struct svcrec* rc);
+void set_ctrl_fd(int fd);
+void set_proc_fd(struct proc* rc, int fd);
+void set_conn_fd(struct conn* cn, int fd);
 
-struct svcrec* firstrec(void);
-struct svcrec* nextrec(struct svcrec* rc);
-int recindex(struct svcrec* rc);
-void droprec(struct svcrec* rc);
+void flush_ring_buf(struct proc* rc);
+struct ring* ring_buf_for(struct proc* rc);
+
+struct proc* firstrec(void);
+struct proc* nextrec(struct proc* rc);
+int proc_index(struct proc* rc);
+int conn_index(struct conn* cn);
 
 void report(char* msg, char* arg, int err);
-void reprec(struct svcrec* rc, char* msg);
+void reprec(struct proc* rc, char* msg);
 
 void setup_heap(void);
 char* heap_alloc(int len);

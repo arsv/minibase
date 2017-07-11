@@ -20,15 +20,15 @@ static inline int dotddot(const char* p)
 
 static void addfile(char* base, int blen)
 {
-	struct svcrec* rc;
+	struct proc* rc;
 
-	if((rc = findrec(base))) {
+	if((rc = find_by_name(base))) {
 		rc->flags &= ~P_STALE;
 		return;
 	}
 
-	if(!(rc = makerec()))
-		return report("cannot create svcrec", NULL, 0);
+	if(!(rc = grab_proc_slot()))
+		return report("cannot create proc", NULL, 0);
 
 	memset(rc, 0, sizeof(*rc));
 	memcpy(rc->name, base, blen);
@@ -105,35 +105,35 @@ int load_dir_ents(void)
 	return rd;
 }
 
-static void mark_stale(struct svcrec* rc)
+static void mark_stale(struct proc* rc)
 {
 	rc->flags |= P_STALE;
 }
 
-static void unmark_stale(struct svcrec* rc)
+static void unmark_stale(struct proc* rc)
 {
 	rc->flags &= ~P_STALE;
 }
 
-static void disable_stale(struct svcrec* rc)
+static void disable_stale(struct proc* rc)
 {
 	if(!(rc->flags & P_STALE))
 		return;
 	if(rc->pid <= 0)
-		droprec(rc);
+		free_proc_slot(rc);
 	else
 		rc->flags |= P_DISABLED;
 }
 
-static void foreach_rec(void (*func)(struct svcrec* rc))
+static void foreach_rec(void (*func)(struct proc* rc))
 {
-	struct svcrec* rc;
+	struct proc* rc;
 
 	for(rc = firstrec(); rc; rc = nextrec(rc))
 		func(rc);
 }
 
-int reload(void)
+int reload_procs(void)
 {
 	foreach_rec(mark_stale);
 

@@ -6,212 +6,144 @@
 #include <sys/alarm.h>
 #include <sys/creds.h>
 #include <sys/kill.h>
+#include <sys/itimer.h>
 
+#include <nlusctl.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
 
+#include "common.h"
 #include "svmon.h"
 
-#define PONLY 0
-#define GROUP 1
+#define CN struct conn* cn
+#define MSG struct ucmsg* msg
 
-static void killrec(struct svcrec* rc, int group, int sig)
+static void send_reply(CN, struct ucbuf* uc)
 {
-	int pid = rc->pid;
-
-	if(group) pid = -pid;
-
-	sys_kill(pid, sig);
+	writeall(cn->fd, uc->brk, uc->ptr - uc->brk);
 }
 
-static void dumpstate(void)
+void reply(CN, int err)
 {
-	int blen = PAGE;
-	char* buf = heap_alloc(blen);
+	char cbuf[16];
+	struct ucbuf uc;
 
-	if(!buf) return;
+	uc_buf_set(&uc, cbuf, sizeof(cbuf));
+	uc_put_hdr(&uc, err);
+	uc_put_end(&uc);
 
-	char* p = buf;
-	char* e = buf + blen;
-	struct svcrec* rc;
-
-	for(rc = firstrec(); rc; rc = nextrec(rc)) {
-		struct ringbuf* rg = ringfor(rc);
-
-		p = fmtstr(p, e, " ");
-
-		if(rc->pid > 0)
-			p = fmtpad(p, e, 5, fmtint(p, e, rc->pid));
-		else
-			p = fmtpad(p, e, 5, fmtstr(p, e, "-"));
-
-		p = fmtstr(p, e, rg ? "*" : " ");
-
-		p = fmtstr(p, e, " ");
-		p = fmtstr(p, e, rc->name);
-		p = fmtstr(p, e, "\n");
-	}
-
-	writeall(gg.outfd, buf, p - buf);
-
-	heap_flush();
+	send_reply(cn, &uc);
 }
 
-static void showring(struct svcrec* rc)
-{
-	struct ringbuf* rg = ringfor(rc);
-
-	if(!rg) return;
-
-	char* buf = rg->buf;
-	int ptr = rg->ptr;
-	int off = ptr % RINGSIZE;
-
-	writeall(gg.outfd, "#", 1);
-
-	if(ptr >= RINGSIZE)
-		writeall(gg.outfd, buf + off, RINGSIZE - off);
-
-	writeall(gg.outfd, buf, off);
-}
-
-static void dumpidof(struct svcrec* rc)
-{
-	char buf[40];
-
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
-
-	if(rc->pid <= 0)
-		return;
-
-	p = fmtstr(p, e, "#");
-	p = fmtint(p, e, rc->pid);
-	*p++ = '\n';
-
-	sys_write(gg.outfd, buf, p - buf);
-}
-
-static void disable(struct svcrec* rc)
-{
-	rc->lastsig = 0;
-	rc->flags |= P_DISABLED;
-	gg.state |= S_PASSREQ;
-}
-
-static void enable(struct svcrec* rc)
-{
-	rc->lastrun = 0;
-	rc->flags &= ~P_DISABLED;
-	gg.state |= S_PASSREQ;
-}
-
-static void reboot(char code)
+static int reboot(char code)
 {
 	gg.rbcode = code;
-	stopall();
-}
-
-static void restart(struct svcrec* rc)
-{
-	if(rc->pid > 0)
-		sys_kill(rc->pid, SIGTERM);
-
-	if(rc->flags & P_DISABLED) {
-		rc->flags &= ~P_DISABLED;
-		gg.state |= S_PASSREQ;
-	}
-
-	flushring(rc);
-}
-
-static void flusharg(struct svcrec* rc)
-{
-	if(rc)
-		flushring(rc);
-	else for(rc = firstrec(); rc; rc = nextrec(rc))
-		flushring(rc);
-}
-
-static void parsecmd(char* cmd)
-{
-	char* arg = cmd + 1;
-	struct svcrec* rc = NULL;
-
-	/* Check whether this command needs arguments */
-	switch(*cmd) {
-		/* Optional arg */
-		case 'f':
-			if(!*arg) break;
-
-		/* Mandatory argument */
-		case 'x':             /* restart */
-		case 'd': case 'e':   /* stop-start (disable-enable) */
-		case 's': case 'c':   /* pause-resume (stop-continue) */
-		case 'u': case 'i':   /* hup, pidof */
-		case 'q':             /* show */
-			if(!(rc = findrec(arg)))
-				return report("no entry named", arg, 0);
-			break;
-
-		/* Anything else is no-argument */
-		default: if(*arg)
-			return report("no argument allowed for", cmd, 0);
-	}
-
-	/* Now the command itself */
-	switch(*cmd) {
-		/* halt */
-		case 'h': reboot('h'); break;
-		case 'p': reboot('p'); break;
-		case 'r': reboot('r'); break;
-		/* process ops */
-		case 'x': restart(rc); break;
-		case 'd': disable(rc); break;
-		case 'e': enable(rc); break;
-		case 's': killrec(rc, GROUP, SIGSTOP); break;
-		case 'c': killrec(rc, GROUP, SIGCONT); break;
-		case 'u': killrec(rc, PONLY, SIGHUP); break;
-		/* state query */
-		case 'l': dumpstate(); break;
-		case 'i': dumpidof(rc); break;
-		case 'q': showring(rc); break;
-		case 'f': flusharg(rc); break;
-		/* reconfigure */
-		case 'z': reload(); break;
-		default: report("unknown command", cmd, 0);
-	}
-}
-
-static int checkuser(int fd)
-{
-	struct ucred cred;
-	int credlen = sizeof(cred);
-
-	if(sys_getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &credlen))
-		return -1;
-
-	if(cred.uid != gg.uid)
-		return -1;
-
+	stop_all_procs();
 	return 0;
 }
 
-static void readcmd(int fd)
+static int cmd_reboot(CN, MSG)
 {
-	int rb;
-	char cbuf[NAMELEN+10];
+	return reboot('r');
+}
 
-	if((rb = sys_read(fd, cbuf, NAMELEN+1)) < 0)
-		return report("recvmsg", NULL, rb);
-	if(rb >= NAMELEN)
-		return report("recvmsg", "message too long", 0);
-	cbuf[rb] = '\0';
+static int cmd_shutdown(CN, MSG)
+{
+	return reboot('h');
+}
 
-	gg.outfd = fd;
-	parsecmd(cbuf);
-	gg.outfd = STDERR;
+static int cmd_poweroff(CN, MSG)
+{
+	return reboot('p');
+}
+
+static int cmd_list(CN, MSG)
+{
+	return -EINVAL;
+}
+
+static const struct cmd {
+	int cmd;
+	int (*call)(CN, MSG);
+} commands[] = {
+	{ CMD_LIST,     cmd_list     },
+	{ CMD_REBOOT,   cmd_reboot   },
+	{ CMD_SHUTDOWN, cmd_shutdown },
+	{ CMD_POWEROFF, cmd_poweroff },
+	{ 0,            NULL         }
+};
+
+static void dispatch(CN, MSG)
+{
+	const struct cmd* cd;
+	int cmd = msg->cmd;
+	int ret;
+
+	for(cd = commands; cd->cmd; cd++)
+		if(cd->cmd == cmd)
+			break;
+	if(!cd->cmd)
+		reply(cn, -ENOSYS);
+	else if((ret = cd->call(cn, msg)) <= 0)
+		reply(cn, ret);
+}
+
+void close_conn(CN)
+{
+	sys_close(cn->fd);
+	memzero(cn, sizeof(*cn));
+	gg.pollset = 0;
+}
+
+void handle_conn(CN)
+{
+	int ret, fd = cn->fd;
+
+	char rxbuf[500];
+	struct urbuf ur = {
+		.buf = rxbuf,
+		.mptr = rxbuf,
+		.rptr = rxbuf,
+		.end = rxbuf + sizeof(rxbuf)
+	};
+	struct itimerval old, itv = {
+		.interval = { 0, 0 },
+		.value = { 1, 0 }
+	};
+
+	sys_setitimer(0, &itv, &old);
+
+	while(1) {
+		if((ret = uc_recv(fd, &ur, 0)) < 0)
+			break;
+
+		dispatch(cn, ur.msg);
+
+		if(ur.mptr >= ur.rptr)
+			break;
+	}
+
+	if(ret != -EBADF && ret != -EAGAIN)
+		close_conn(cn);
+
+	sys_setitimer(0, &old, NULL);
+}
+
+void accept_ctrl(int sfd)
+{
+	int cfd;
+	struct sockaddr addr;
+	int addr_len = sizeof(addr);
+	struct conn *cn;
+
+	while((cfd = sys_accept(sfd, &addr, &addr_len)) > 0)
+		if((cn = grab_conn_slot()))
+			cn->fd = cfd;
+		else
+			sys_close(cfd);
+
+	gg.pollset = 0;
 }
 
 void setup_ctrl(void)
@@ -221,22 +153,16 @@ void setup_ctrl(void)
 		.family = AF_UNIX,
 		.path = SVCTL
 	};
-
-	/* This way readable "@initctl" can be used for reporting below,
-	   and config.h looks better too. */
-	if(addr.path[0] == '@')
-		addr.path[0] = '\0';
-
-	/* we're not going to block for connections, just accept whatever
-	   is already there; so it's SOCK_NONBLOCK */
 	const int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
+
 	if((fd = sys_socket(AF_UNIX, flags, 0)) < 0)
 		return report("socket", "AF_UNIX", fd);
 
 	long ret;
 	char* name = SVCTL;
 
-	setctrlfd(fd);
+	gg.ctrlfd = fd;
+	gg.pollset = 0;
 
 	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
 		report("bind", name, ret);
@@ -245,32 +171,6 @@ void setup_ctrl(void)
 	else
 		return;
 
-	setctrlfd(-1);
-}
-
-void acceptctl(int sfd)
-{
-	int cfd;
-	int gotcmd = 0;
-	struct sockaddr addr;
-	int addr_len = sizeof(addr);
-
-	while((cfd = sys_accept(sfd, &addr, &addr_len)) > 0) {
-		int nonroot = checkuser(cfd);
-
-		if(nonroot) {
-			const char* denied = "Access denied\n";
-			sys_write(cfd, denied, strlen(denied));
-		} else {
-			gotcmd = 1;
-			sys_alarm(SVCTL_TIMEOUT);
-			readcmd(cfd);
-		}
-
-		sys_close(cfd);
-
-	} if(gotcmd) {
-		/* disable the timer in case it has been set */
-		sys_alarm(0);
-	}
+	gg.ctrlfd = -1;
+	sys_close(fd);
 }

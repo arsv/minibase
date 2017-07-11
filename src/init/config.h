@@ -1,4 +1,5 @@
-#define MAXRECS 100
+#define NCONNS 10
+#define NPROCS 100
 #define NAMELEN 19
 
 #define PAGE 4096

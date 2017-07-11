@@ -8,10 +8,14 @@
 
 #include <format.h>
 #include <util.h>
+#include <fail.h>
 
 #include "svmon.h"
 
-struct svcmon gg;
+ERRTAG = "svmon";
+ERRLIST = { RESTASNUMBERS };
+
+struct top gg;
 
 static int setup(char** envp)
 {
@@ -46,23 +50,26 @@ int main(int argc, char** argv, char** envp)
 {
 	if(setup(envp))
 		goto reboot;
-	if(reload())
+	if(reload_procs())
 		goto reboot;
 
 	initpass();
 
-	while(!(gg.state & S_REBOOT)) {
-		gg.state = 0;
+	while(!gg.reboot) {
+		gg.sigchld = 0;
+		gg.reopen = 0;
+		gg.reload = 0;
+		gg.passreq = 0;
 
 		waitpoll();
 
-		if(gg.state & S_SIGCHLD)
+		if(gg.sigchld)
 			waitpids();
-		if(gg.state & S_REOPEN)
+		if(gg.reopen)
 			setup_ctrl();
-		if(gg.state & S_RELOAD)
-			reload();
-		if(gg.state & S_PASSREQ)
+		if(gg.reload)
+			reload_procs();
+		if(gg.passreq)
 			initpass();
 	}
 

@@ -15,25 +15,24 @@
 static sigset_t defsigset;
 static struct timespec timetowait;
 
-/* There's always ctlfd in pfds[0], so the indexes for pfds[]
-   are shifted by one compared to rings[] and recs[]. */
+#define NPFDS (1+NCONNS+NPROCS)
 
-static struct pollfd pfds[MAXRECS+1];
-static struct ringbuf rings[MAXRECS];
+static struct pollfd pfds[NPFDS];
+static struct ring rings[NPROCS];
+static int npfds;
+static short pfdkeys[NPFDS];
 
 /* A single handler for all signals we care about. */
 
 static void sighandler(int sig)
 {
-	switch(sig)
-	{
+	switch(sig) {
 		case SIGINT:
 		case SIGTERM:
-			gg.rbcode = 'r';
-			stopall();
+			stop_all_procs();
 			break;
 		case SIGCHLD:
-			gg.state |= S_SIGCHLD;
+			gg.sigchld = 1;
 			break;
 	}
 }
@@ -82,106 +81,160 @@ void wakeupin(int seconds)
 	timetowait.nsec = 0;
 }
 
-static void setfd(int fi, int fd)
+struct ring* ring_buf_for(struct proc* rc)
 {
-	if(pfds[fi].fd > 0)
-		sys_close(pfds[fi].fd);
-
-	pfds[fi].fd = fd;
-	pfds[fi].events = POLLIN;
-}
-
-void setctrlfd(int fd)
-{
-	setfd(0, fd);
-}
-
-void setpollfd(struct svcrec* rc, int fd)
-{
-	setfd(recindex(rc) + 1, fd); 
-}
-
-struct ringbuf* ringfor(struct svcrec* rc)
-{
-	int ri = recindex(rc);
-	struct ringbuf* rg = &rings[ri];
+	int ri = proc_index(rc);
+	struct ring* rg = &rings[ri];
 
 	return rg->buf ? rg : NULL;
 }
 
-void flushring(struct svcrec* rc)
+static void unmap_ring_buf(struct ring* rg)
 {
-	struct ringbuf* rg = ringfor(rc);
-
-	if(!rg) return;
-
 	sys_munmap(rg->buf, RINGSIZE);
 
 	rg->buf = NULL;
 	rg->ptr = 0;
 }
 
-static int mmapring(struct ringbuf* rg)
+void flush_ring_buf(struct proc* rc)
+{
+	struct ring* rg;
+
+	if(!(rg = ring_buf_for(rc)))
+		return;
+
+	unmap_ring_buf(rg);
+}
+
+static int mmap_ring_buf(struct ring* rg)
 {
 	int prot = PROT_READ | PROT_WRITE;
 	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
 	long ret = sys_mmap(NULL, RINGSIZE, prot, flags, -1, 0);
 
-	if(mmap_error(ret)) {
-		return 0;
-	} else {
-		rg->buf = (char*)ret;
-		rg->ptr = 0;
-		return 1;
-	}
+	if(mmap_error(ret))
+		return ret;
+
+	rg->buf = (char*)ret;
+	rg->ptr = 0;
+
+	return 0;
 }
 
-static void readring(struct ringbuf* rg, int fd)
+static int read_into_ring_buf(struct ring* rg, int fd)
 {
+	int ret;
+
+	if(rg->buf)
+		;
+	else if((ret = mmap_ring_buf(rg)) < 0)
+		return ret;
+
 	int off = rg->ptr % RINGSIZE;
 
 	char* start = rg->buf + off;
 	int avail = RINGSIZE - off;
 
-	int rd = sys_read(fd, start, avail);
+	if((ret = sys_read(fd, start, avail)) <= 0)
+		return ret;
 
-	if(rd <= 0) return;
-
-	int ptr = rg->ptr + rd;
+	int ptr = rg->ptr + ret;
 
 	if(ptr >= RINGSIZE)
 		ptr = RINGSIZE + ptr % RINGSIZE;
 
 	rg->ptr = ptr;
+
+	return ret;
 }
 
-static void bufoutput(int fd, int fdi, int rbi)
+static void close_proc_pipe(struct proc* rc)
 {
-	struct ringbuf* rg = &rings[rbi];
-
-	if(!rg->buf && !mmapring(rg))
-		pfds[fdi].fd = -1;
-	else
-		readring(rg, fd);
+	sys_close(rc->pipefd);
+	rc->pipefd = -1;
+	gg.pollset = 0;
 }
 
-static void checkfds(int nr)
+static void close_ctrl(int fd)
 {
-	int i;
+	sys_close(fd);
+	gg.ctrlfd = -1;
+	gg.pollset = 0;
+}
 
-	for(i = 0; i < nr; i++) {
-		int fd = pfds[i].fd;
-		int re = pfds[i].revents;
+static void recv_ctrl(struct pollfd* pf)
+{
+	if(pf->revents & POLLIN)
+		accept_ctrl(pf->fd);
+	if(pf->revents & ~POLLIN)
+		close_ctrl(pf->fd);
+}
 
-		if(re & POLLIN) {
-			if(i == 0)
-				acceptctl(fd);
-			else
-				bufoutput(fd, i, i-1);
-		} if(re & POLLHUP) {
-			pfds[i].fd = -1;
-		}
+static void recv_conn(struct pollfd* pf, struct conn* cn)
+{
+	if(pf->revents & POLLIN)
+		handle_conn(cn);
+	if(pf->revents & ~POLLIN)
+		close_conn(cn);
+}
+
+static void recv_proc(struct pollfd* pf, struct proc* rc, struct ring* rg)
+{
+	if(pf->revents & POLLIN)
+		if(read_into_ring_buf(rg, pf->fd) >= 0)
+			return;
+	if(pf->revents) {
+		unmap_ring_buf(rg);
+		close_proc_pipe(rc);
 	}
+}
+
+static void check_polled_fds(void)
+{
+	int i, key;
+
+	for(i = 0; i < npfds; i++)
+		if((key = pfdkeys[i]) == 0)
+			recv_ctrl(&pfds[i]);
+		else if(key > 0)
+			recv_proc(&pfds[i], &procs[key-1], &rings[key-1]);
+		else if(key < 0)
+			recv_conn(&pfds[i], &conns[-key-1]);
+}
+
+static void add_polled_fd(int fd, int key)
+{
+	if(npfds >= NPFDS)
+		return;
+
+	int i = npfds++;
+	struct pollfd* pf = &pfds[i];
+
+	pf->fd = fd;
+	pf->events = POLLIN;
+
+	pfdkeys[i] = key;
+}
+
+static void update_poll_fds(void)
+{
+	int i, fd;
+
+	npfds = 0;
+
+	if(gg.ctrlfd > 0)
+		add_polled_fd(gg.ctrlfd, 0);
+
+	for(i = 0; i < nconns; i++)
+		if((fd = conns[i].fd) > 0)
+			add_polled_fd(fd, -1 - i);
+
+	for(i = 0; i < nprocs; i++)
+		if((fd = procs[i].pipefd) > 0)
+			add_polled_fd(fd, 1 + i);
+
+	gg.pollset = 1;
 }
 
 static void msleep(int ms)
@@ -192,7 +245,6 @@ static void msleep(int ms)
 
 void waitpoll(void)
 {
-	int nfds = gg.nr + 1;
 	struct timespec* ts;
 
 	if(timetowait.sec > 0 || timetowait.nsec > 0)
@@ -200,7 +252,10 @@ void waitpoll(void)
 	else
 		ts = NULL;
 
-	int r = sys_ppoll(pfds, nfds, ts, &defsigset);
+	if(!gg.pollset)
+		update_poll_fds();
+
+	int r = sys_ppoll(pfds, npfds, ts, &defsigset);
 
 	if(r == -EINTR) {
 		/* we're ok here, sighandlers did their job */
@@ -208,10 +263,10 @@ void waitpoll(void)
 		report("ppoll", NULL, r);
 		msleep(1000);
 	} else if(r > 0) {
-		checkfds(nfds);
+		check_polled_fds();
 	} else { /* timeout has been reached */
 		timetowait.sec = 0;
 		timetowait.nsec = 0;
-		gg.state |= S_PASSREQ;
+		gg.passreq = 1;
 	}
 }
