@@ -88,10 +88,9 @@ static void dump_proc(CTX, AT, int maxlen)
 	output(ctx, buf, p - buf);
 }
 
-static void dump_rec(CTX, AT)
+void dump_msg(CTX, MSG)
 {
-	output(ctx, "Blah\n", 5);
-	newline(ctx);
+	uc_dump(msg);
 }
 
 void dump_list(CTX, MSG)
@@ -109,10 +108,10 @@ void dump_list(CTX, MSG)
 
 void dump_info(CTX, MSG)
 {
-
+	uc_dump(msg);
 }
 
 void dump_pid(CTX, MSG)
 {
-
+	uc_dump(msg);
 }

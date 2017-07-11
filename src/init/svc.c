@@ -106,7 +106,7 @@ static void recv_dump(CTX, char* name, void (*dump)(CTX, MSG))
 
 static void recv_empty(CTX)
 {
-	recv_dump(ctx, NULL, NULL);
+	recv_dump(ctx, NULL, dump_msg);
 }
 
 static void multi_name_req(CTX, int cmd)
@@ -127,6 +127,9 @@ static void multi_name_req(CTX, int cmd)
 	uc_put_end(UC);
 
 	send_command(ctx);
+
+	init_recv_heap(ctx);
+	recv_empty(ctx);
 }
 
 static void cmd_start(CTX)

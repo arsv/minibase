@@ -42,3 +42,4 @@ struct ucmsg* recv_reply(CTX);
 void dump_list(CTX, MSG);
 void dump_info(CTX, MSG);
 void dump_pid(CTX, MSG);
+void dump_msg(CTX, MSG);
