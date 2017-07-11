@@ -1,4 +1,5 @@
 #include <string.h>
+#include <format.h>
 #include <util.h>
 #include "common.h"
 #include "svc.h"
@@ -21,7 +22,7 @@ static int rec_ord(const void* a, const void* b, long p)
 	int ret;
 
 	if((ret = cmp_str(at, bt, ATTR_NAME)))
-		return -ret;
+		return ret;
 
 	return 0;
 }
@@ -47,15 +48,44 @@ static attr* prep_list(CTX, MSG, int key, qcmp cmp)
 	return refs;
 }
 
-static void dump_attr_list(CTX, attr* list, void (*dump)(CTX, AT))
+static int max_proc_len(attr* procs)
 {
-	for(attr* ap = list; *ap; ap++)
-		dump(ctx, *ap);
+	int len, max = 0;
+	char* name;
+
+	for(attr* ap = procs; *ap; ap++)
+		if((name = uc_sub_str(*ap, ATTR_NAME)))
+			if((len = strlen(name)) > max)
+				max = len;
+
+	return len;
 }
 
-static void newline(CTX)
+static void dump_proc(CTX, AT, int maxlen)
 {
-	output(ctx, "\n", 1);
+	char buf[100];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
+
+	char* name = uc_sub_str(at, ATTR_NAME);
+	int* pid = uc_sub_int(at, ATTR_PID);
+
+	if(pid)
+		p = fmtint(p, e, *pid);
+	else
+		p = fmtstr(p, e, "-");
+
+	if(uc_sub(at, ATTR_RING))
+		p = fmtstr(p, e, "*");
+	else
+		p = fmtstr(p, e, " ");
+
+	p = fmtstr(p, e, " ");
+	p = fmtpadr(p, e, maxlen, fmtstr(p, e, name ? name : "???"));
+
+	*p++ = '\n';
+
+	output(ctx, buf, p - buf);
 }
 
 static void dump_rec(CTX, AT)
@@ -66,10 +96,14 @@ static void dump_rec(CTX, AT)
 
 void dump_list(CTX, MSG)
 {
-	attr* scans = prep_list(ctx, msg, ATTR_PROC, rec_ord);
+	attr* procs = prep_list(ctx, msg, ATTR_PROC, rec_ord);
+	int maxlen = max_proc_len(procs);
 
 	init_output(ctx);
-	dump_attr_list(ctx, scans, dump_rec);
+
+	for(attr* ap = procs; *ap; ap++)
+		dump_proc(ctx, *ap, maxlen);
+
 	fini_output(ctx);
 }
 

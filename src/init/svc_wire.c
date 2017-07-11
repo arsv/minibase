@@ -91,6 +91,9 @@ struct ucmsg* recv_reply(CTX)
 		ctx->ur.end = ctx->hp.end;
 	}
 
+	if(ctx->ur.end == ctx->hp.end)
+		ctx->hp.ptr = ctx->ur.rptr;
+
 	return ctx->ur.msg;
 }
 
