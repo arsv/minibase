@@ -2,10 +2,14 @@
 
 char* fmtpad(char* p, char* e, int width, char* q)
 {
+	if(q < p || q > e)
+		return q;
+
 	int qplen = q - p;
 	int shift = width - qplen;
 
-	if(shift <= 0) return q;
+	if(shift < 0)
+		return q;
 
 	char* z;
 

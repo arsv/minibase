@@ -20,6 +20,7 @@ char* fmtulong(char* buf, char* end, unsigned long num);
 char* fmtxlong(char* buf, char* end, long num);
 char* fmtpad(char* p, char* e, int width, char* q);
 char* fmtpad0(char* p, char* e, int width, char* q);
+char* fmtpadr(char* p, char* e, int width, char* q);
 
 char* fmtsize(char* p, char* e, uint64_t n);
 char* fmtstr(char* dst, char* end, const char* src);
