@@ -28,18 +28,19 @@ static int take_complete_msg(struct urbuf* ur)
 	ur->msg = msg;
 	ur->mptr += msg->len;
 
-	return 0;
+	return msg->len;
 }
 
 int uc_recv(int fd, struct urbuf* ur, int block)
 {
 	int left, rd, ret;
 	int flags = block ? 0 : MSG_DONTWAIT;
+	long total = 0;
 
 	ur->msg = NULL;
 
 	if((ret = take_complete_msg(ur)) >= 0)
-		return ret;
+		return 0;
 
 	shift_buf(ur);
 
@@ -53,9 +54,10 @@ int uc_recv(int fd, struct urbuf* ur, int block)
 			break;
 
 		ur->rptr += rd;
+		total += rd;
 
 		if((ret = take_complete_msg(ur)) >= 0)
-			return ret;
+			return total;
 
 		flags = 0;
 	}
