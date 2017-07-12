@@ -107,7 +107,7 @@ static void recv_dump(CTX, char* name, void (*dump)(CTX, MSG))
 
 static void recv_empty(CTX)
 {
-	recv_dump(ctx, NULL, dump_msg);
+	recv_dump(ctx, NULL, NULL);
 }
 
 static void multi_name_req(CTX, int cmd, int argreq)

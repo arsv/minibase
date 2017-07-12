@@ -8,12 +8,8 @@
 
 #include <format.h>
 #include <util.h>
-#include <fail.h>
 
 #include "svmon.h"
-
-ERRTAG = "svmon";
-ERRLIST = { RESTASNUMBERS };
 
 struct top gg;
 

@@ -103,11 +103,6 @@ static void dump_proc(CTX, AT, int maxpidlen)
 	output(ctx, buf, p - buf);
 }
 
-void dump_msg(CTX, MSG)
-{
-	uc_dump(msg);
-}
-
 void dump_list(CTX, MSG)
 {
 	attr* procs = prep_list(ctx, msg, ATTR_PROC, rec_ord);

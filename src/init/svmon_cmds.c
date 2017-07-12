@@ -14,8 +14,6 @@
 #include "common.h"
 #include "svmon.h"
 
-#define NPREQS 10
-
 #define NOERROR 0
 #define REPLIED 1
 

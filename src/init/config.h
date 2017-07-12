@@ -1,5 +1,6 @@
 #define NCONNS 10
 #define NPROCS 100
+#define NPREQS 10
 #define NAMELEN 19
 
 #define PAGE 4096
