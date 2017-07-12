@@ -331,7 +331,10 @@ static void kill_proc(struct proc* rc, int group, int sig)
 {
 	int pid = rc->pid;
 
-	if(group) pid = -pid;
+	if(pid <= 0)
+		return;
+	if(group)
+		pid = -pid;
 
 	sys_kill(pid, sig);
 }
