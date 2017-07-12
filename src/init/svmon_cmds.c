@@ -178,7 +178,7 @@ static int reboot(char code)
 {
 	gg.rbcode = code;
 	stop_all_procs();
-	return 0;
+	return NOERROR;
 }
 
 static int cmd_reboot(CN, MSG)
@@ -232,7 +232,7 @@ static int cmd_getpid(CN, MSG)
 static int cmd_reload(CN, MSG)
 {
 	gg.reload = 1;
-	return 0;
+	return NOERROR;
 }
 
 static int foreach_named(CN, MSG, void (*func)(struct proc* rc))
@@ -269,7 +269,19 @@ static int forall_procs(CN, MSG, void (*func)(struct proc* rc))
 	for(rc = firstrec(); rc; rc = nextrec(rc))
 		func(rc);
 
-	return 0;
+	return NOERROR;
+}
+
+static void kill_proc(struct proc* rc, int group, int sig)
+{
+	int pid = rc->pid;
+
+	if(pid <= 0)
+		return;
+	if(group)
+		pid = -pid;
+
+	sys_kill(pid, sig);
 }
 
 static void disable_proc(struct proc* rc)
@@ -286,15 +298,27 @@ static void enable_proc(struct proc* rc)
 	gg.passreq = 1;
 }
 
+static void pause_proc(struct proc* rc)
+{
+	kill_proc(rc, 1, SIGSTOP);
+}
+
+static void resume_proc(struct proc* rc)
+{
+	kill_proc(rc, 1, SIGCONT);
+}
+
+static void hup_proc(struct proc* rc)
+{
+	kill_proc(rc, 0, SIGHUP);
+}
+
 static void restart_proc(struct proc* rc)
 {
-	if(rc->pid > 0)
-		sys_kill(rc->pid, SIGTERM);
+	kill_proc(rc, 0, SIGTERM);
 
-	if(rc->flags & P_DISABLED) {
-		rc->flags &= ~P_DISABLED;
-		gg.passreq = 1;
-	}
+	if(rc->flags & P_DISABLED)
+		enable_proc(rc);
 
 	flush_ring_buf(rc);
 }
@@ -325,33 +349,6 @@ static int cmd_flush(CN, MSG)
 		return foreach_named(cn, msg, flush_proc);
 	else
 		return forall_procs(cn, msg, flush_proc);
-}
-
-static void kill_proc(struct proc* rc, int group, int sig)
-{
-	int pid = rc->pid;
-
-	if(pid <= 0)
-		return;
-	if(group)
-		pid = -pid;
-
-	sys_kill(pid, sig);
-}
-
-static void pause_proc(struct proc* rc)
-{
-	kill_proc(rc, 1, SIGSTOP);
-}
-
-static void resume_proc(struct proc* rc)
-{
-	kill_proc(rc, 1, SIGCONT);
-}
-
-static void hup_proc(struct proc* rc)
-{
-	kill_proc(rc, 0, SIGHUP);
 }
 
 static int cmd_pause(CN, MSG)
