@@ -46,6 +46,8 @@ struct conn {
 	int fd;
 };
 
+struct ucmsg;
+
 extern struct top gg;
 extern struct proc procs[];
 extern struct conn conns[];
@@ -73,6 +75,7 @@ void handle_conn(struct conn* cn);
 void close_conn(struct conn* cn);
 void wakeupin(int ttw);
 void stop_all_procs(void);
+void dispatch_cmd(struct conn* cn, struct ucmsg* msg);
 
 void set_ctrl_fd(int fd);
 void set_proc_fd(struct proc* rc, int fd);
