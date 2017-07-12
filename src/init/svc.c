@@ -17,17 +17,18 @@ ERRLIST = {
 	RESTASNUMBERS
 };
 
-#define OPTS "hiprstwqxz"
-#define OPT_h (1<<0)
-#define OPT_i (1<<1)
-#define OPT_p (1<<2)
-#define OPT_r (1<<3)
-#define OPT_s (1<<4)
-#define OPT_t (1<<5)
-#define OPT_w (1<<6)
-#define OPT_q (1<<7)
-#define OPT_x (1<<8)
-#define OPT_z (1<<9)
+#define OPTS "fhiprstwqxz"
+#define OPT_f  (1<<0)
+#define OPT_h  (1<<1)
+#define OPT_i  (1<<2)
+#define OPT_p  (1<<3)
+#define OPT_r  (1<<4)
+#define OPT_s  (1<<5)
+#define OPT_t  (1<<6)
+#define OPT_w  (1<<7)
+#define OPT_q  (1<<8)
+#define OPT_x  (1<<9)
+#define OPT_z (1<<10)
 
 #define UCBUF(n, l) \
 	char txbuf[n*sizeof(struct ucattr) + 4*n + l + 10]; \
@@ -109,13 +110,13 @@ static void recv_empty(CTX)
 	recv_dump(ctx, NULL, dump_msg);
 }
 
-static void multi_name_req(CTX, int cmd)
+static void multi_name_req(CTX, int cmd, int argreq)
 {
 	int count = count_args(ctx);
 	int length = sum_length(ctx);
 	char* name;
 
-	if(!count)
+	if(!count && argreq)
 		fail("too few arguments", NULL, 0);
 
 	UCBUF(count, length);
@@ -134,32 +135,37 @@ static void multi_name_req(CTX, int cmd)
 
 static void cmd_start(CTX)
 {
-	multi_name_req(ctx, CMD_ENABLE);
+	multi_name_req(ctx, CMD_ENABLE, 1);
 }
 
 static void cmd_stop(CTX)
 {
-	multi_name_req(ctx, CMD_DISABLE);
+	multi_name_req(ctx, CMD_DISABLE, 1);
 }
 
 static void cmd_restart(CTX)
 {
-	multi_name_req(ctx, CMD_RESTART);
+	multi_name_req(ctx, CMD_RESTART, 1);
 }
 
 static void cmd_hup(CTX)
 {
-	multi_name_req(ctx, CMD_HUP);
+	multi_name_req(ctx, CMD_HUP, 1);
 }
 
 static void cmd_pause(CTX)
 {
-	multi_name_req(ctx, CMD_PAUSE);
+	multi_name_req(ctx, CMD_PAUSE, 1);
 }
 
 static void cmd_resume(CTX)
 {
-	multi_name_req(ctx, CMD_RESUME);
+	multi_name_req(ctx, CMD_RESUME, 1);
+}
+
+static void cmd_flush(CTX)
+{
+	multi_name_req(ctx, CMD_FLUSH, 0);
 }
 
 static void cmd_pidof(CTX)
@@ -262,6 +268,7 @@ static const struct cmdrec {
 	{ OPT_r, cmd_restart  },
 	{ OPT_s, cmd_start    },
 	{ OPT_t, cmd_stop     },
+	{ OPT_f, cmd_flush    },
 	{ OPT_w, cmd_resume   },
 	{ OPT_q, cmd_reload   },
 	{ OPT_x, cmd_shutdown },

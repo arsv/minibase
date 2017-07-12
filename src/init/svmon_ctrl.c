@@ -262,6 +262,16 @@ static int foreach_named(CN, MSG, void (*func)(struct proc* rc))
 	return NOERROR;
 }
 
+static int forall_procs(CN, MSG, void (*func)(struct proc* rc))
+{
+	struct proc* rc;
+
+	for(rc = firstrec(); rc; rc = nextrec(rc))
+		func(rc);
+
+	return 0;
+}
+
 static void disable_proc(struct proc* rc)
 {
 	rc->lastsig = 0;
@@ -289,6 +299,11 @@ static void restart_proc(struct proc* rc)
 	flush_ring_buf(rc);
 }
 
+static void flush_proc(struct proc* rc)
+{
+	flush_ring_buf(rc);
+}
+
 static int cmd_enable(CN, MSG)
 {
 	return foreach_named(cn, msg, enable_proc);
@@ -304,6 +319,14 @@ static int cmd_restart(CN, MSG)
 	return foreach_named(cn, msg, restart_proc);
 }
 
+static int cmd_flush(CN, MSG)
+{
+	if(uc_get(msg, ATTR_NAME))
+		return foreach_named(cn, msg, flush_proc);
+	else
+		return forall_procs(cn, msg, flush_proc);
+}
+
 static const struct cmd {
 	int cmd;
 	int (*call)(CN, MSG);
@@ -316,6 +339,7 @@ static const struct cmd {
 	{ CMD_RELOAD,   cmd_reload   },
 	{ CMD_STATUS,   cmd_status   },
 	{ CMD_GETPID,   cmd_getpid   },
+	{ CMD_FLUSH,    cmd_flush    },
 	{ CMD_SHUTDOWN, cmd_shutdown },
 	{ CMD_POWEROFF, cmd_poweroff },
 	{ 0,            NULL         }
