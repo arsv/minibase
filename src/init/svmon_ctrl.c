@@ -7,6 +7,7 @@
 #include <nlusctl.h>
 #include <string.h>
 #include <format.h>
+#include <alloca.h>
 #include <util.h>
 
 #include "common.h"
@@ -35,6 +36,16 @@ static int reply(CN, int err)
 	return send_reply(cn, &uc);
 }
 
+static int ringsize(struct ring* rg)
+{
+	if(!rg)
+		return 0;
+	if(rg->ptr < RINGSIZE)
+		return rg->ptr;
+	else
+		return RINGSIZE;
+}
+
 static int estimate_list_size(void)
 {
 	int count = 0;
@@ -46,16 +57,21 @@ static int estimate_list_size(void)
 	return 10*count*sizeof(struct ucattr) + count*sizeof(*rc);
 }
 
+static int estimate_status_size(struct proc* rc, struct ring* rg)
+{
+	return 5*sizeof(struct ucattr) + sizeof(struct proc) + ringsize(rg);
+}
+
 static void put_proc_entry(struct ucbuf* uc, struct proc* rc)
 {
 	struct ucattr* at;
 
 	at = uc_put_nest(uc, ATTR_PROC);
 
-	if(rc->pid > 0)
-		uc_put_int(uc, ATTR_PID, rc->pid);
 	uc_put_str(uc, ATTR_NAME, rc->name);
 
+	if(rc->pid > 0)
+		uc_put_int(uc, ATTR_PID, rc->pid);
 	if(ring_buf_for(rc))
 		uc_put_flag(uc, ATTR_RING);
 
@@ -76,6 +92,48 @@ static int rep_list(CN)
 
 	for(rc = firstrec(); rc; rc = nextrec(rc))
 		put_proc_entry(&uc, rc);
+
+	uc_put_end(&uc);
+
+	return send_reply(cn, &uc);
+}
+
+static void put_ring_buf(struct ucbuf* uc, struct ring* rg)
+{
+	if(rg->ptr <= RINGSIZE) {
+		uc_put_bin(uc, ATTR_RING, rg->buf, rg->ptr);
+	} else {
+		int tail = rg->ptr % RINGSIZE;
+		int head = RINGSIZE - tail;
+		struct ucattr* at = uc_put_attr(uc, ATTR_RING, RINGSIZE);
+		if(!at) return;
+		memcpy(at->payload, rg->buf + tail, head);
+		memcpy(at->payload + head, rg->buf, tail);
+	}
+}
+
+static int rep_status(CN, struct proc* rc)
+{
+	struct ring* rg = ring_buf_for(rc);
+	int size = estimate_status_size(rc, rg);
+	char* buf;
+
+	if(size < 200)
+		buf = alloca(size);
+	else
+		buf = heap_alloc(size);
+	if(!buf)
+		return -ENOMEM;
+
+	struct ucbuf uc = { buf, buf, buf + size, 0 };
+
+	uc_put_hdr(&uc, 0);
+	uc_put_str(&uc, ATTR_NAME, rc->name);
+
+	if(rc->pid > 0)
+		uc_put_int(&uc, ATTR_PID, rc->pid);
+	if(rg)
+		put_ring_buf(&uc, rg);
 
 	uc_put_end(&uc);
 
@@ -109,6 +167,19 @@ static int cmd_list(CN, MSG)
 	return rep_list(cn);
 }
 
+static int cmd_status(CN, MSG)
+{
+	char* name;
+	struct proc* rc;
+
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
+	if(!(rc = find_by_name(name)))
+		return -ENOENT;
+
+	return rep_status(cn, rc);
+}
+
 static int cmd_reload(CN, MSG)
 {
 	gg.reload = 1;
@@ -122,6 +193,7 @@ static const struct cmd {
 	{ CMD_LIST,     cmd_list     },
 	{ CMD_REBOOT,   cmd_reboot   },
 	{ CMD_RELOAD,   cmd_reload   },
+	{ CMD_STATUS,   cmd_status   },
 	{ CMD_SHUTDOWN, cmd_shutdown },
 	{ CMD_POWEROFF, cmd_poweroff },
 	{ 0,            NULL         }

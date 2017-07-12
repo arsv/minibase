@@ -188,7 +188,7 @@ static void cmd_status(CTX)
 	UCBUF(1, 100);
 
 	if((name = shift_arg(ctx))) {
-		uc_put_hdr(UC, CMD_SHOW);
+		uc_put_hdr(UC, CMD_STATUS);
 		uc_put_str(UC, ATTR_NAME, name);
 		uc_put_end(UC);
 	} else {

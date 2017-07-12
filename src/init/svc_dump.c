@@ -120,9 +120,58 @@ void dump_list(CTX, MSG)
 	fini_output(ctx);
 }
 
+static void newline(CTX)
+{
+	output(ctx, "\n", 1);
+}
+
+static void dump_proc_ring(CTX, MSG)
+{
+	attr ring;
+	int paylen;
+
+	if(!(ring = uc_get(msg, ATTR_RING)))
+		return;
+
+	if((paylen = uc_paylen(ring)) <= 0)
+		return;
+
+	output(ctx, ring->payload, uc_paylen(ring));
+
+	if(ring->payload[paylen-1] == '\n')
+		newline(ctx);
+}
+
 void dump_info(CTX, MSG)
 {
-	uc_dump(msg);
+	char buf[200];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
+
+	int* pid = uc_get_int(msg, ATTR_PID);
+	char* name = uc_get_str(msg, ATTR_NAME);
+
+	init_output(ctx);
+
+	dump_proc_ring(ctx, msg);
+
+	if(name) {
+		p = fmtstr(p, e, name);
+		p = fmtstr(p, e, " is ");
+	}
+	if(pid) {
+		p = fmtstr(p, e, "running, PID ");
+		p = fmtint(p, e, *pid);
+	} else {
+		p = fmtstr(p, e, "dead");
+	}
+
+	p = fmtstr(p, e, ".");
+	*p++ = '\n';
+
+	output(ctx, buf, p - buf);
+
+	fini_output(ctx);
 }
 
 void dump_pid(CTX, MSG)
