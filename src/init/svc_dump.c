@@ -167,7 +167,6 @@ void dump_info(CTX, MSG)
 		p = fmtstr(p, e, "dead");
 	}
 
-	p = fmtstr(p, e, ".");
 	*p++ = '\n';
 
 	output(ctx, buf, p - buf);
