@@ -327,6 +327,45 @@ static int cmd_flush(CN, MSG)
 		return forall_procs(cn, msg, flush_proc);
 }
 
+static void kill_proc(struct proc* rc, int group, int sig)
+{
+	int pid = rc->pid;
+
+	if(group) pid = -pid;
+
+	sys_kill(pid, sig);
+}
+
+static void pause_proc(struct proc* rc)
+{
+	kill_proc(rc, 1, SIGSTOP);
+}
+
+static void resume_proc(struct proc* rc)
+{
+	kill_proc(rc, 1, SIGCONT);
+}
+
+static void hup_proc(struct proc* rc)
+{
+	kill_proc(rc, 0, SIGHUP);
+}
+
+static int cmd_pause(CN, MSG)
+{
+	return foreach_named(cn, msg, pause_proc);
+}
+
+static int cmd_resume(CN, MSG)
+{
+	return foreach_named(cn, msg, resume_proc);
+}
+
+static int cmd_hup(CN, MSG)
+{
+	return foreach_named(cn, msg, hup_proc);
+}
+
 static const struct cmd {
 	int cmd;
 	int (*call)(CN, MSG);
@@ -340,6 +379,9 @@ static const struct cmd {
 	{ CMD_STATUS,   cmd_status   },
 	{ CMD_GETPID,   cmd_getpid   },
 	{ CMD_FLUSH,    cmd_flush    },
+	{ CMD_PAUSE,    cmd_pause    },
+	{ CMD_RESUME,   cmd_resume   },
+	{ CMD_HUP,      cmd_hup      },
 	{ CMD_SHUTDOWN, cmd_shutdown },
 	{ CMD_POWEROFF, cmd_poweroff },
 	{ 0,            NULL         }
