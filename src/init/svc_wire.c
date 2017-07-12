@@ -114,5 +114,8 @@ void fini_output(CTX)
 
 void output(CTX, char* buf, int len)
 {
-	bufout(&ctx->bo, buf, len);
+	if(ctx->bo.len)
+		bufout(&ctx->bo, buf, len);
+	else
+		writeall(STDOUT, buf, len);
 }
