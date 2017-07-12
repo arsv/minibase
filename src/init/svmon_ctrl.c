@@ -109,12 +109,19 @@ static int cmd_list(CN, MSG)
 	return rep_list(cn);
 }
 
+static int cmd_reload(CN, MSG)
+{
+	gg.reload = 1;
+	return 0;
+}
+
 static const struct cmd {
 	int cmd;
 	int (*call)(CN, MSG);
 } commands[] = {
 	{ CMD_LIST,     cmd_list     },
 	{ CMD_REBOOT,   cmd_reboot   },
+	{ CMD_RELOAD,   cmd_reload   },
 	{ CMD_SHUTDOWN, cmd_shutdown },
 	{ CMD_POWEROFF, cmd_poweroff },
 	{ 0,            NULL         }
