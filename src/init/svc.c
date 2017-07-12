@@ -134,12 +134,12 @@ static void multi_name_req(CTX, int cmd)
 
 static void cmd_start(CTX)
 {
-	multi_name_req(ctx, CMD_START);
+	multi_name_req(ctx, CMD_ENABLE);
 }
 
 static void cmd_stop(CTX)
 {
-	multi_name_req(ctx, CMD_STOP);
+	multi_name_req(ctx, CMD_DISABLE);
 }
 
 static void cmd_restart(CTX)

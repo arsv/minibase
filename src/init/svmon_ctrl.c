@@ -2,6 +2,7 @@
 #include <bits/socket/unix.h>
 #include <sys/socket.h>
 #include <sys/file.h>
+#include <sys/kill.h>
 #include <sys/itimer.h>
 
 #include <nlusctl.h>
@@ -13,10 +14,18 @@
 #include "common.h"
 #include "svmon.h"
 
+#define NPREQS 10
+
+#define NOERROR 0
 #define REPLIED 1
 
 #define CN struct conn* cn
 #define MSG struct ucmsg* msg
+
+static struct preq {
+	char* name;
+	struct proc* rc;
+} preqs[NPREQS];
 
 static int send_reply(CN, struct ucbuf* uc)
 {
@@ -31,6 +40,19 @@ static int reply(CN, int err)
 
 	uc_buf_set(&uc, cbuf, sizeof(cbuf));
 	uc_put_hdr(&uc, err);
+	uc_put_end(&uc);
+
+	return send_reply(cn, &uc);
+}
+
+static int rep_name_err(CN, int err, char* name)
+{
+	char cbuf[50];
+	struct ucbuf uc;
+
+	uc_buf_set(&uc, cbuf, sizeof(cbuf));
+	uc_put_hdr(&uc, err);
+	uc_put_str(&uc, ATTR_NAME, name);
 	uc_put_end(&uc);
 
 	return send_reply(cn, &uc);
@@ -213,11 +235,83 @@ static int cmd_reload(CN, MSG)
 	return 0;
 }
 
+static int foreach_named(CN, MSG, void (*func)(struct proc* rc))
+{
+	int n = 0;
+	struct proc* rc;
+	struct preq* pr;
+	char* name;
+	struct ucattr* at;
+
+	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at)) {
+		if(!(name = uc_is_str(at, ATTR_NAME)))
+			continue;
+		if(n >= NPREQS)
+			return -ENFILE;
+		if(!(rc = find_by_name(at->payload)))
+			return rep_name_err(cn, -ENOENT, name);
+
+		pr = &preqs[n++];
+		pr->name = name;
+		pr->rc = rc;
+	}
+
+	for(pr = preqs; pr < preqs + n; pr++)
+		func(pr->rc);
+
+	return NOERROR;
+}
+
+static void disable_proc(struct proc* rc)
+{
+	rc->lastsig = 0;
+	rc->flags |= P_DISABLED;
+	gg.passreq = 1;
+}
+
+static void enable_proc(struct proc* rc)
+{
+	rc->lastrun = 0;
+	rc->flags &= ~P_DISABLED;
+	gg.passreq = 1;
+}
+
+static void restart_proc(struct proc* rc)
+{
+	if(rc->pid > 0)
+		sys_kill(rc->pid, SIGTERM);
+
+	if(rc->flags & P_DISABLED) {
+		rc->flags &= ~P_DISABLED;
+		gg.passreq = 1;
+	}
+
+	flush_ring_buf(rc);
+}
+
+static int cmd_enable(CN, MSG)
+{
+	return foreach_named(cn, msg, enable_proc);
+}
+
+static int cmd_disable(CN, MSG)
+{
+	return foreach_named(cn, msg, disable_proc);
+}
+
+static int cmd_restart(CN, MSG)
+{
+	return foreach_named(cn, msg, restart_proc);
+}
+
 static const struct cmd {
 	int cmd;
 	int (*call)(CN, MSG);
 } commands[] = {
 	{ CMD_LIST,     cmd_list     },
+	{ CMD_ENABLE,   cmd_enable   },
+	{ CMD_DISABLE,  cmd_disable  },
+	{ CMD_RESTART,  cmd_restart  },
 	{ CMD_REBOOT,   cmd_reboot   },
 	{ CMD_RELOAD,   cmd_reload   },
 	{ CMD_STATUS,   cmd_status   },

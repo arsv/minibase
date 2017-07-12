@@ -4,9 +4,9 @@
 #define CMD_GETPID     3
 #define CMD_FLUSH      4
 #define CMD_QUERY      5
-#define CMD_START      6
-#define CMD_RESTART    7
-#define CMD_STOP       8
+#define CMD_ENABLE     6
+#define CMD_DISABLE    7
+#define CMD_RESTART    8
 #define CMD_PAUSE      9
 #define CMD_RESUME    10
 #define CMD_HUP       11
