@@ -39,6 +39,7 @@ void uc_buf_set(struct ucbuf* uc, char* buf, int len);
 void uc_put_hdr(struct ucbuf* uc, int cmd);
 void uc_put_end(struct ucbuf* uc);
 
+struct ucattr* uc_put_attr(struct ucbuf* uc, int key, int len);
 void uc_put_bin(struct ucbuf* uc, int key, void* buf, int len);
 void uc_put_int(struct ucbuf* uc, int key, int v);
 void uc_put_str(struct ucbuf* uc, int key, char* str);
