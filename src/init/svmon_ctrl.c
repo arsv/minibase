@@ -140,6 +140,18 @@ static int rep_status(CN, struct proc* rc)
 	return send_reply(cn, &uc);
 }
 
+static int rep_pid(CN, struct proc* rc)
+{
+	char buf[100];
+	struct ucbuf uc = { buf, buf, buf + sizeof(buf), 0 };
+
+	uc_put_hdr(&uc, 0);
+	uc_put_int(&uc, ATTR_PID, rc->pid);
+	uc_put_end(&uc);
+
+	return send_reply(cn, &uc);
+}
+
 static int reboot(char code)
 {
 	gg.rbcode = code;
@@ -180,6 +192,21 @@ static int cmd_status(CN, MSG)
 	return rep_status(cn, rc);
 }
 
+static int cmd_getpid(CN, MSG)
+{
+	char* name;
+	struct proc* rc;
+
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
+	if(!(rc = find_by_name(name)))
+		return -ENOENT;
+	if(rc->pid <= 0)
+		return -ECHILD;
+
+	return rep_pid(cn, rc);
+}
+
 static int cmd_reload(CN, MSG)
 {
 	gg.reload = 1;
@@ -194,6 +221,7 @@ static const struct cmd {
 	{ CMD_REBOOT,   cmd_reboot   },
 	{ CMD_RELOAD,   cmd_reload   },
 	{ CMD_STATUS,   cmd_status   },
+	{ CMD_GETPID,   cmd_getpid   },
 	{ CMD_SHUTDOWN, cmd_shutdown },
 	{ CMD_POWEROFF, cmd_poweroff },
 	{ 0,            NULL         }

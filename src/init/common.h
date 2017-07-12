@@ -1,7 +1,7 @@
 #define CMD_RESET      0
 #define CMD_LIST       1
 #define CMD_STATUS     2
-#define CMD_PIDOF      3
+#define CMD_GETPID     3
 #define CMD_FLUSH      4
 #define CMD_QUERY      5
 #define CMD_START      6

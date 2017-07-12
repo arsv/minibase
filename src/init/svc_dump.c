@@ -1,6 +1,7 @@
 #include <string.h>
 #include <format.h>
 #include <util.h>
+#include <fail.h>
 #include "common.h"
 #include "svc.h"
 
@@ -176,5 +177,16 @@ void dump_info(CTX, MSG)
 
 void dump_pid(CTX, MSG)
 {
-	uc_dump(msg);
+	char buf[50];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
+	int* pid;
+
+	if(!(pid = uc_get_int(msg, ATTR_PID)))
+		fail("no PID in reply", NULL, 0);
+
+	p = fmtint(p, e, *pid);
+	*p++ = '\n';
+
+	output(ctx, buf, p - buf);
 }

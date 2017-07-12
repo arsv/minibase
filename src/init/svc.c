@@ -172,7 +172,7 @@ static void cmd_pidof(CTX)
 		fail("too few arguments", NULL, 0);
 
 	UCBUF(1, strlen(name));
-	uc_put_hdr(UC, CMD_PIDOF);
+	uc_put_hdr(UC, CMD_GETPID);
 	uc_put_str(UC, ATTR_NAME, name);
 	uc_put_end(UC);
 
