@@ -48,32 +48,46 @@ static attr* prep_list(CTX, MSG, int key, qcmp cmp)
 	return refs;
 }
 
-static int max_proc_len(attr* procs)
+static int intlen(int x)
 {
-	int len, max = 0;
-	char* name;
+	int len = 1;
 
-	for(attr* ap = procs; *ap; ap++)
-		if((name = uc_sub_str(*ap, ATTR_NAME)))
-			if((len = strlen(name)) > max)
-				max = len;
+	if(x < 0) { x = -x; len++; };
+
+	for(; x > 10; len++) x /= 10;
 
 	return len;
 }
 
-static void dump_proc(CTX, AT, int maxlen)
+static int max_pid_len(attr* procs)
+{
+	int len, max = 0;
+	int* pid;
+
+	for(attr* ap = procs; *ap; ap++)
+		if((pid = uc_sub_int(*ap, ATTR_PID)))
+			if((len = intlen(*pid)) > max)
+				max = len;
+
+	return max;
+}
+
+static void dump_proc(CTX, AT, int maxpidlen)
 {
 	char buf[100];
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
+	char* q;
 
 	char* name = uc_sub_str(at, ATTR_NAME);
 	int* pid = uc_sub_int(at, ATTR_PID);
 
 	if(pid)
-		p = fmtint(p, e, *pid);
+		q = fmtint(p, e, *pid);
 	else
-		p = fmtstr(p, e, "-");
+		q = fmtstr(p, e, "-");
+
+	p = fmtpad(p, e, maxpidlen, q);
 
 	if(uc_sub(at, ATTR_RING))
 		p = fmtstr(p, e, "*");
@@ -81,7 +95,7 @@ static void dump_proc(CTX, AT, int maxlen)
 		p = fmtstr(p, e, " ");
 
 	p = fmtstr(p, e, " ");
-	p = fmtpadr(p, e, maxlen, fmtstr(p, e, name ? name : "???"));
+	p = fmtstr(p, e, name ? name : "???");
 
 	*p++ = '\n';
 
@@ -96,7 +110,7 @@ void dump_msg(CTX, MSG)
 void dump_list(CTX, MSG)
 {
 	attr* procs = prep_list(ctx, msg, ATTR_PROC, rec_ord);
-	int maxlen = max_proc_len(procs);
+	int maxlen = max_pid_len(procs);
 
 	init_output(ctx);
 

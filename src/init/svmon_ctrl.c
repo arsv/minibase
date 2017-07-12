@@ -52,7 +52,8 @@ static void put_proc_entry(struct ucbuf* uc, struct proc* rc)
 
 	at = uc_put_nest(uc, ATTR_PROC);
 
-	uc_put_int(uc, ATTR_PID, rc->pid);
+	if(rc->pid > 0)
+		uc_put_int(uc, ATTR_PID, rc->pid);
 	uc_put_str(uc, ATTR_NAME, rc->name);
 
 	if(ring_buf_for(rc))
