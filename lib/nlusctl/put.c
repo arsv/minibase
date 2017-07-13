@@ -54,7 +54,10 @@ void uc_put_hdr(struct ucbuf* uc, int cmd)
 
 void uc_put_end(struct ucbuf* uc)
 {
-	struct ucmsg* msg = uc_msg_hdr(uc);
+	struct ucmsg* msg;
+
+	if(!(msg = uc_msg_hdr(uc)))
+		return;
 
 	msg->len = uc->ptr - uc->brk;
 }
