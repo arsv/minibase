@@ -18,16 +18,16 @@ ERRLIST = {
 };
 
 #define OPTS "fhiprstwqxz"
-#define OPT_f  (1<<0)
-#define OPT_h  (1<<1)
-#define OPT_i  (1<<2)
-#define OPT_p  (1<<3)
-#define OPT_r  (1<<4)
-#define OPT_s  (1<<5)
-#define OPT_t  (1<<6)
-#define OPT_w  (1<<7)
-#define OPT_q  (1<<8)
-#define OPT_x  (1<<9)
+#define OPT_f (1<<0)
+#define OPT_h (1<<1)
+#define OPT_i (1<<2)
+#define OPT_p (1<<3)
+#define OPT_r (1<<4)
+#define OPT_s (1<<5)
+#define OPT_t (1<<6)
+#define OPT_w (1<<7)
+#define OPT_q (1<<8)
+#define OPT_x (1<<9)
 #define OPT_z (1<<10)
 
 #define UCBUF(n, l) \
@@ -119,17 +119,12 @@ static void multi_name_req(CTX, int cmd, int argreq)
 	if(!count && argreq)
 		fail("too few arguments", NULL, 0);
 
-	UCBUF(count, length);
-	uc_put_hdr(UC, cmd);
+	start_request(ctx, cmd, count, length);
 
 	while((name = shift_arg(ctx)))
 		uc_put_str(UC, ATTR_NAME, name);
 
-	uc_put_end(UC);
-
-	send_command(ctx);
-
-	init_recv_heap(ctx);
+	send_request(ctx);
 	recv_empty(ctx);
 }
 
@@ -172,19 +167,15 @@ static void cmd_pidof(CTX)
 {
 	char* name;
 
-	init_recv_small(ctx);
-
 	if(!(name = shift_arg(ctx)))
 		fail("too few arguments", NULL, 0);
 
-	UCBUF(1, strlen(name));
-	uc_put_hdr(UC, CMD_GETPID);
-	uc_put_str(UC, ATTR_NAME, name);
-	uc_put_end(UC);
-
 	no_other_options(ctx);
-	send_command(ctx);
 
+	start_request(ctx, CMD_GETPID, 1, NAMELEN);
+	uc_put_str(UC, ATTR_NAME, name);
+
+	send_request(ctx);
 	recv_dump(ctx, name, dump_pid);
 }
 
@@ -194,32 +185,26 @@ static void cmd_status(CTX)
 	UCBUF(1, 100);
 
 	if((name = shift_arg(ctx))) {
-		uc_put_hdr(UC, CMD_STATUS);
+		start_request(ctx, CMD_STATUS, 1, NAMELEN);
 		uc_put_str(UC, ATTR_NAME, name);
-		uc_put_end(UC);
 	} else {
-		uc_put_hdr(UC, CMD_LIST);
-		uc_put_end(UC);
+		start_request(ctx, CMD_LIST, 0, 0);
 	}
 
 	no_other_options(ctx);
-	send_command(ctx);
+	send_request(ctx);
 
-	init_recv_heap(ctx);
+	expect_large(ctx);
 	recv_dump(ctx, name, name ? dump_info : dump_list);
 }
 
 static void cmd_reload(CTX)
 {
-	UCBUF(0, 30);
-
-	uc_put_hdr(UC, CMD_RELOAD);
-	uc_put_end(UC);
-
 	no_other_options(ctx);
-	send_command(ctx);
 
-	init_recv_small(ctx);
+	start_request(ctx, CMD_RELOAD, 0, 0);
+	send_request(ctx);
+
 	recv_empty(ctx);
 }
 
@@ -248,13 +233,11 @@ static void cmd_shutdown(CTX)
 	if(!rc->cmd)
 		fail("unknown mode", mode, 0);
 
-	uc_put_hdr(UC, rc->cmd);
-	uc_put_end(UC);
-
 	no_other_options(ctx);
-	send_command(ctx);
 
-	init_recv_small(ctx);
+	start_request(ctx, rc->cmd, 0, 0);
+	send_request(ctx);
+
 	recv_empty(ctx);
 }
 
@@ -288,7 +271,10 @@ int main(int argc, char** argv)
 	for(cr = commands; cr->opt; cr++)
 		if(use_opt(ctx, cr->opt))
 			break;
+
 	cr->cmd(ctx);
+
+	flush_output(ctx);
 
 	return 0;
 }

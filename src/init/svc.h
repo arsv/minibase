@@ -1,10 +1,14 @@
 #include <output.h>
 #include <nlusctl.h>
-#include <heap.h>
 
-struct heap;
 struct ucbuf;
 struct urbuf;
+
+struct heap {
+	void* brk;
+	void* ptr;
+	void* end;
+};
 
 struct top {
 	int opts;
@@ -13,13 +17,14 @@ struct top {
 	char** argv;
 
 	int fd;
-	struct heap hp;
+	int connected;
+
 	struct ucbuf uc;
 	struct urbuf ur;
-	int connected;
-	char cbuf[128];
-
 	struct bufout bo;
+
+	char smallbuf[128];
+	struct heap hp;
 };
 
 #define CTX struct top* ctx
@@ -29,15 +34,15 @@ struct top {
 
 typedef struct ucattr* attr;
 
-void init_output(CTX);
-void fini_output(CTX);
 void output(CTX, char* buf, int len);
+void flush_output(CTX);
 
 void init_socket(CTX);
-void init_recv_small(CTX);
-void init_recv_heap(CTX);
-void send_command(CTX);
+void expect_large(CTX);
+void start_request(CTX, int cmd, int count, int length);
+void send_request(CTX);
 struct ucmsg* recv_reply(CTX);
+void* heap_alloc(CTX, int size);
 
 void dump_list(CTX, MSG);
 void dump_info(CTX, MSG);

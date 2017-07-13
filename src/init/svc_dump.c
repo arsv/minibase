@@ -37,7 +37,7 @@ static attr* prep_list(CTX, MSG, int key, qcmp cmp)
 		if(at->key == key)
 			n++;
 
-	attr* refs = halloc(&ctx->hp, (n+1)*sizeof(void*));
+	attr* refs = heap_alloc(ctx, (n+1)*sizeof(void*));
 
 	for(at = uc_get_0(msg); at && i < n; at = uc_get_n(msg, at))
 		if(at->key == key)
@@ -108,12 +108,8 @@ void dump_list(CTX, MSG)
 	attr* procs = prep_list(ctx, msg, ATTR_PROC, rec_ord);
 	int maxlen = max_pid_len(procs);
 
-	init_output(ctx);
-
 	for(attr* ap = procs; *ap; ap++)
 		dump_proc(ctx, *ap, maxlen);
-
-	fini_output(ctx);
 }
 
 static void newline(CTX)
@@ -147,8 +143,6 @@ void dump_info(CTX, MSG)
 	int* pid = uc_get_int(msg, ATTR_PID);
 	char* name = uc_get_str(msg, ATTR_NAME);
 
-	init_output(ctx);
-
 	dump_proc_ring(ctx, msg);
 
 	if(name) {
@@ -165,8 +159,6 @@ void dump_info(CTX, MSG)
 	*p++ = '\n';
 
 	output(ctx, buf, p - buf);
-
-	fini_output(ctx);
 }
 
 void dump_pid(CTX, MSG)
