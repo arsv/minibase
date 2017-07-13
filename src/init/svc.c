@@ -30,15 +30,6 @@ ERRLIST = {
 #define OPT_x (1<<9)
 #define OPT_z (1<<10)
 
-#define UCBUF(n, l) \
-	char txbuf[n*sizeof(struct ucattr) + 4*n + l + 10]; \
-	ctx->uc = (struct ucbuf) { \
-		.brk = txbuf, \
-		.ptr = txbuf, \
-		.end = txbuf + sizeof(txbuf), \
-		.over = 0 \
-	}
-
 static void no_other_options(CTX)
 {
 	if(ctx->argi < ctx->argc)
@@ -122,7 +113,7 @@ static void multi_name_req(CTX, int cmd, int argreq)
 	start_request(ctx, cmd, count, length);
 
 	while((name = shift_arg(ctx)))
-		uc_put_str(UC, ATTR_NAME, name);
+		add_str_attr(ctx, ATTR_NAME, name);
 
 	send_request(ctx);
 	recv_empty(ctx);
@@ -173,7 +164,7 @@ static void cmd_pidof(CTX)
 	no_other_options(ctx);
 
 	start_request(ctx, CMD_GETPID, 1, NAMELEN);
-	uc_put_str(UC, ATTR_NAME, name);
+	add_str_attr(ctx, ATTR_NAME, name);
 
 	send_request(ctx);
 	recv_dump(ctx, name, dump_pid);
@@ -182,11 +173,10 @@ static void cmd_pidof(CTX)
 static void cmd_status(CTX)
 {
 	char* name;
-	UCBUF(1, 100);
 
 	if((name = shift_arg(ctx))) {
 		start_request(ctx, CMD_STATUS, 1, NAMELEN);
-		uc_put_str(UC, ATTR_NAME, name);
+		add_str_attr(ctx, ATTR_NAME, name);
 	} else {
 		start_request(ctx, CMD_LIST, 0, 0);
 	}
@@ -222,7 +212,6 @@ static void cmd_shutdown(CTX)
 {
 	char* mode;
 	const struct rbcode* rc;
-	UCBUF(0, 30);
 
 	if(!(mode = shift_arg(ctx)))
 		fail("argument required", NULL, 0);

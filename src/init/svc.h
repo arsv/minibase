@@ -40,6 +40,7 @@ void flush_output(CTX);
 void init_socket(CTX);
 void expect_large(CTX);
 void start_request(CTX, int cmd, int count, int length);
+void add_str_attr(CTX, int key, char* name);
 void send_request(CTX);
 struct ucmsg* recv_reply(CTX);
 void* heap_alloc(CTX, int size);

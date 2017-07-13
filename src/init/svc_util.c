@@ -138,6 +138,11 @@ void start_request(CTX, int cmd, int count, int paylen)
 	uc_put_hdr(&ctx->uc, cmd);
 }
 
+void add_str_attr(CTX, int key, char* val)
+{
+	uc_put_str(&ctx->uc, key, val);
+}
+
 void send_request(CTX)
 {
 	int wr, fd = ctx->fd;
