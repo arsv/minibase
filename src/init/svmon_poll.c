@@ -184,10 +184,8 @@ static void recv_proc(struct pollfd* pf, struct proc* rc, struct ring* rg)
 	if(pf->revents & POLLIN)
 		if(read_into_ring_buf(rg, pf->fd) >= 0)
 			return;
-	if(pf->revents) {
-		unmap_ring_buf(rg);
+	if(pf->revents)
 		close_proc_pipe(rc);
-	}
 }
 
 static void check_polled_fds(void)
