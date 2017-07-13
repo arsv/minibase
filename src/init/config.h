@@ -15,6 +15,8 @@
 
 #define SVCTL_TIMEOUT 2
 
+#define STABLE_TRESHOLD 10
+
 #define TIME_TO_RESTART 1
 #define TIME_TO_SIGKILL 2
 #define TIME_TO_SKIP    5

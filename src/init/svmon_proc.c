@@ -135,11 +135,18 @@ static void stop(struct proc* rc)
 	}
 }
 
-static void markdead(struct proc* rc, int status)
+static time_t runtime(struct proc* rc)
+{
+	return passtime - rc->lastrun;
+}
+
+static void mark_dead(struct proc* rc, int status)
 {
 	rc->pid = 0;
 	rc->status = status;
 
+	if(runtime(rc) < STABLE_TRESHOLD)
+		rc->flags |= P_DISABLED;
 	if(rc->flags & P_STALE)
 		free_proc_slot(rc);
 
@@ -162,7 +169,7 @@ void waitpids(void)
 		else if(WIFCONTINUED(status))
 			rc->flags &= ~P_SIGSTOP;
 		else
-			markdead(rc, status);
+			mark_dead(rc, status);
 	}
 }
 
