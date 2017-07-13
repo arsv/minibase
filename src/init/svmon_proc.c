@@ -156,7 +156,7 @@ static void mark_dead(struct proc* rc, int status)
 	gg.passreq = 1;
 }
 
-void waitpids(void)
+void wait_pids(void)
 {
 	pid_t pid;
 	int status;
@@ -177,7 +177,7 @@ void waitpids(void)
 	passtime = 0;
 }
 
-void initpass(void)
+void check_procs(void)
 {
 	struct proc* rc;
 	int running = 0;

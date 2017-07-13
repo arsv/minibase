@@ -241,7 +241,7 @@ static void msleep(int ms)
 	sys_nanosleep(&sp, NULL);
 }
 
-void waitpoll(void)
+void wait_poll(void)
 {
 	struct timespec* ts;
 

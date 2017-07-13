@@ -65,9 +65,9 @@ void free_proc_slot(struct proc* rc);
 struct conn* grab_conn_slot(void);
 void free_conn_slot(struct conn* cn);
 
-void initpass(void);
-void waitpoll(void);
-void waitpids(void);
+void check_procs(void);
+void wait_poll(void);
+void wait_pids(void);
 
 int setup_signals(void);
 void setup_ctrl(void);

@@ -49,7 +49,7 @@ int main(int argc, char** argv, char** envp)
 	if(reload_procs())
 		goto reboot;
 
-	initpass();
+	check_procs();
 
 	while(!gg.reboot) {
 		gg.sigchld = 0;
@@ -57,16 +57,16 @@ int main(int argc, char** argv, char** envp)
 		gg.reload = 0;
 		gg.passreq = 0;
 
-		waitpoll();
+		wait_poll();
 
 		if(gg.sigchld)
-			waitpids();
+			wait_pids();
 		if(gg.reopen)
 			setup_ctrl();
 		if(gg.reload)
 			reload_procs();
 		if(gg.passreq)
-			initpass();
+			check_procs();
 		if(gg.heapreq)
 			heap_flush();
 	}
