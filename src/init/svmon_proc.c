@@ -69,7 +69,6 @@ static void spawn(struct proc* rc)
 	if(wait_needed(&rc->lastrun, TIME_TO_RESTART))
 		return;
 
-	rc->lastrun = passtime;
 	rc->lastsig = 0;
 
 	int pipe[2];
@@ -137,6 +136,9 @@ static void stop(struct proc* rc)
 
 static time_t runtime(struct proc* rc)
 {
+	if(!passtime)
+		set_passtime();
+
 	return passtime - rc->lastrun;
 }
 
@@ -171,6 +173,8 @@ void waitpids(void)
 		else
 			mark_dead(rc, status);
 	}
+
+	passtime = 0;
 }
 
 void initpass(void)
@@ -193,6 +197,8 @@ void initpass(void)
 
 	if(!running)
 		gg.reboot = 1;
+
+	passtime = 0;
 }
 
 void stop_all_procs(void)
