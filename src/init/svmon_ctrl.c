@@ -15,11 +15,9 @@
 
 static char rxbuf[200];
 
-void close_conn(struct conn* cn)
+static void shutdown_conn(struct conn* cn)
 {
-	sys_close(cn->fd);
-	memzero(cn, sizeof(*cn));
-	gg.pollset = 0;
+	sys_shutdown(cn->fd, SHUT_RDWR);
 }
 
 void handle_conn(struct conn* cn)
@@ -50,8 +48,8 @@ void handle_conn(struct conn* cn)
 			break;
 	}
 
-	if(ret != -EBADF && ret != -EAGAIN)
-		close_conn(cn);
+	if(ret < 0 && ret != -EBADF && ret != -EAGAIN)
+		shutdown_conn(cn);
 
 	sys_setitimer(0, &old, NULL);
 }

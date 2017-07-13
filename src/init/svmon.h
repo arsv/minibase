@@ -73,7 +73,6 @@ int setup_signals(void);
 void setup_ctrl(void);
 void accept_ctrl(int sfd);
 void handle_conn(struct conn* cn);
-void close_conn(struct conn* cn);
 void wakeupin(int ttw);
 void stop_all_procs(void);
 int dispatch_cmd(struct conn* cn, struct ucmsg* msg);

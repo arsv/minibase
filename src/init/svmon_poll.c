@@ -7,6 +7,7 @@
 
 #include <sigset.h>
 #include <format.h>
+#include <string.h>
 #include <null.h>
 #include <exit.h>
 
@@ -153,6 +154,13 @@ static void close_proc_pipe(struct proc* rc)
 {
 	sys_close(rc->pipefd);
 	rc->pipefd = -1;
+	gg.pollset = 0;
+}
+
+static void close_conn(struct conn* cn)
+{
+	sys_close(cn->fd);
+	memzero(cn, sizeof(*cn));
 	gg.pollset = 0;
 }
 
