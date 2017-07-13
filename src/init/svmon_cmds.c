@@ -25,35 +25,56 @@ static struct preq {
 	struct proc* rc;
 } preqs[NPREQS];
 
-static int send_reply(CN, struct ucbuf* uc)
+static char txbuf[100]; /* for small replies */
+static struct ucbuf uc;
+
+static void start_reply(int cmd, int expected)
 {
-	writeall(cn->fd, uc->brk, uc->ptr - uc->brk);
+	char* buf = NULL;
+	int len;
+	int req = expected + sizeof(struct ucmsg) + 4;
+
+	if(req > sizeof(txbuf)) {
+		buf = heap_alloc(req);
+		len = req;
+	} if(!buf) {
+		buf = txbuf;
+		len = sizeof(txbuf);
+	}
+
+	uc.brk = buf;
+	uc.ptr = buf;
+	uc.end = buf + len;
+
+	uc_put_hdr(&uc, cmd);
+}
+
+static int send_reply(CN)
+{
+	uc_put_end(&uc);
+
+	writeall(cn->fd, uc.brk, uc.ptr - uc.brk);
+
+	if(uc.brk != txbuf)
+		heap_trim(uc.brk);
+
 	return REPLIED;
 }
 
 static int reply(CN, int err)
 {
-	char cbuf[16];
-	struct ucbuf uc;
+	start_reply(err, 0);
 
-	uc_buf_set(&uc, cbuf, sizeof(cbuf));
-	uc_put_hdr(&uc, err);
-	uc_put_end(&uc);
-
-	return send_reply(cn, &uc);
+	return send_reply(cn);
 }
 
 static int rep_name_err(CN, int err, char* name)
 {
-	char cbuf[50];
-	struct ucbuf uc;
+	start_reply(err, 10 + strlen(name));
 
-	uc_buf_set(&uc, cbuf, sizeof(cbuf));
-	uc_put_hdr(&uc, err);
 	uc_put_str(&uc, ATTR_NAME, name);
-	uc_put_end(&uc);
 
-	return send_reply(cn, &uc);
+	return send_reply(cn);
 }
 
 static int ringsize(struct ring* rg)
@@ -100,54 +121,40 @@ static void put_proc_entry(struct ucbuf* uc, struct proc* rc)
 
 static int rep_list(CN)
 {
-	int size = estimate_list_size();
-	char* buf = heap_alloc(size);
-
-	if(!buf) return -ENOMEM;
-
-	struct ucbuf uc = { buf, buf, buf + size, 0 };
 	struct proc* rc;
 
-	uc_put_hdr(&uc, 0);
+	start_reply(0, estimate_list_size());
 
 	for(rc = firstrec(); rc; rc = nextrec(rc))
 		put_proc_entry(&uc, rc);
 
-	uc_put_end(&uc);
-
-	return send_reply(cn, &uc);
+	return send_reply(cn);
 }
 
 static void put_ring_buf(struct ucbuf* uc, struct ring* rg)
 {
 	if(rg->ptr <= RINGSIZE) {
 		uc_put_bin(uc, ATTR_RING, rg->buf, rg->ptr);
-	} else {
-		int tail = rg->ptr % RINGSIZE;
-		int head = RINGSIZE - tail;
-		struct ucattr* at = uc_put_attr(uc, ATTR_RING, RINGSIZE);
-		if(!at) return;
-		memcpy(at->payload, rg->buf + tail, head);
-		memcpy(at->payload + head, rg->buf, tail);
+		return;
 	}
+
+	int tail = rg->ptr % RINGSIZE;
+	int head = RINGSIZE - tail;
+	struct ucattr* at;
+
+	if(!(at = uc_put_attr(uc, ATTR_RING, RINGSIZE)))
+		return;
+
+	memcpy(at->payload, rg->buf + tail, head);
+	memcpy(at->payload + head, rg->buf, tail);
 }
 
 static int rep_status(CN, struct proc* rc)
 {
 	struct ring* rg = ring_buf_for(rc);
-	int size = estimate_status_size(rc, rg);
-	char* buf;
 
-	if(size < 200)
-		buf = alloca(size);
-	else
-		buf = heap_alloc(size);
-	if(!buf)
-		return -ENOMEM;
+	start_reply(0, estimate_status_size(rc, rg));
 
-	struct ucbuf uc = { buf, buf, buf + size, 0 };
-
-	uc_put_hdr(&uc, 0);
 	uc_put_str(&uc, ATTR_NAME, rc->name);
 
 	if(rc->pid > 0)
@@ -155,27 +162,24 @@ static int rep_status(CN, struct proc* rc)
 	if(rg)
 		put_ring_buf(&uc, rg);
 
-	uc_put_end(&uc);
-
-	return send_reply(cn, &uc);
+	return send_reply(cn);
 }
 
 static int rep_pid(CN, struct proc* rc)
 {
-	char buf[100];
-	struct ucbuf uc = { buf, buf, buf + sizeof(buf), 0 };
+	start_reply(0, 16);
 
-	uc_put_hdr(&uc, 0);
 	uc_put_int(&uc, ATTR_PID, rc->pid);
-	uc_put_end(&uc);
 
-	return send_reply(cn, &uc);
+	return send_reply(cn);
 }
 
 static int reboot(char code)
 {
 	gg.rbcode = code;
+
 	stop_all_procs();
+
 	return NOERROR;
 }
 
@@ -230,6 +234,7 @@ static int cmd_getpid(CN, MSG)
 static int cmd_reload(CN, MSG)
 {
 	gg.reload = 1;
+
 	return NOERROR;
 }
 
@@ -385,7 +390,7 @@ static const struct cmd {
 	{ 0,            NULL         }
 };
 
-void dispatch_cmd(CN, MSG)
+int dispatch_cmd(CN, MSG)
 {
 	const struct cmd* cd;
 	int cmd = msg->cmd;
@@ -395,9 +400,9 @@ void dispatch_cmd(CN, MSG)
 		if(cd->cmd == cmd)
 			break;
 	if(!cd->cmd)
-		reply(cn, -ENOSYS);
+		ret = reply(cn, -ENOSYS);
 	else if((ret = cd->call(cn, msg)) <= 0)
-		reply(cn, ret);
+		ret = reply(cn, ret);
 
-	heap_flush();
+	return ret;
 }

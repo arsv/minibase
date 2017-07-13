@@ -13,6 +13,8 @@
 
 #include "svmon.h"
 
+static char rxbuf[200];
+
 void close_conn(struct conn* cn)
 {
 	sys_close(cn->fd);
@@ -24,7 +26,6 @@ void handle_conn(struct conn* cn)
 {
 	int ret, fd = cn->fd;
 
-	char rxbuf[500];
 	struct urbuf ur = {
 		.buf = rxbuf,
 		.mptr = rxbuf,
@@ -42,7 +43,8 @@ void handle_conn(struct conn* cn)
 		if((ret = uc_recv(fd, &ur, 0)) < 0)
 			break;
 
-		dispatch_cmd(cn, ur.msg);
+		if((ret = dispatch_cmd(cn, ur.msg)) < 0)
+			break;
 
 		if(ur.mptr >= ur.rptr)
 			break;

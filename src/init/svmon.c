@@ -67,6 +67,8 @@ int main(int argc, char** argv, char** envp)
 			reload_procs();
 		if(gg.passreq)
 			initpass();
+		if(gg.heapreq)
+			heap_flush();
 	}
 
 reboot:

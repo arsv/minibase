@@ -64,19 +64,18 @@ static void tryfile(char* dir, char* base)
 
 int load_dir_ents(void)
 {
-	int delen = PAGE;
-	char* debuf = heap_alloc(delen);
-
-	if(!debuf) return -1;
-
 	char* dir = gg.dir;
-	long fd, rd;
+	char* debuf;
+	int delen = PAGE;
+	long fd, rd = -ENOMEM;
 
 	if((fd = sys_open(dir, O_RDONLY | O_DIRECTORY)) < 0) {
 		report("open", dir, fd);
-		heap_flush();
 		return fd;
 	}
+
+	if(!(debuf = heap_alloc(delen)))
+		goto out;
 
 	while((rd = sys_getdents(fd, debuf, delen)) > 0) {
 		char* ptr = debuf;
@@ -100,8 +99,10 @@ int load_dir_ents(void)
 		report("getdents", dir, rd);
 	}
 
+	heap_trim(debuf);
+out:
 	sys_close(fd);
-	heap_flush();
+
 	return rd;
 }
 
@@ -137,7 +138,7 @@ int reload_procs(void)
 {
 	foreach_rec(mark_stale);
 
-	int ret  = load_dir_ents();
+	int ret = load_dir_ents();
 
 	if(!ret)
 		foreach_rec(disable_stale);

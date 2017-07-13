@@ -1,5 +1,5 @@
 #define NCONNS 10
-#define NPROCS 100
+#define NPROCS 90
 #define NPREQS 10
 #define NAMELEN 19
 

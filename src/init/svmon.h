@@ -20,6 +20,7 @@ struct top {
 	short passreq;
 	short termreq;
 	short sigchld;
+	short heapreq;
 
 	char* dir;
 	char** env;
@@ -75,7 +76,7 @@ void handle_conn(struct conn* cn);
 void close_conn(struct conn* cn);
 void wakeupin(int ttw);
 void stop_all_procs(void);
-void dispatch_cmd(struct conn* cn, struct ucmsg* msg);
+int dispatch_cmd(struct conn* cn, struct ucmsg* msg);
 
 void set_ctrl_fd(int fd);
 void set_proc_fd(struct proc* rc, int fd);
@@ -93,5 +94,6 @@ void report(char* msg, char* arg, int err);
 void reprec(struct proc* rc, char* msg);
 
 void setup_heap(void);
-char* heap_alloc(int len);
+void* heap_alloc(int len);
+void heap_trim(void* ptr);
 void heap_flush(void);
