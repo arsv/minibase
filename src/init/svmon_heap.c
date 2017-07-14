@@ -16,24 +16,22 @@ void setup_heap(void)
 	ptr = end = brk;
 }
 
+static long alignto(long x, long size)
+{
+	return x + (size - x % size) % size;
+}
+
 void* heap_alloc(int len)
 {
 	void* old = ptr;
-	void* new = ptr + len;
+	void* new = old + len;
+	void* req = old + alignto(len, PAGE);
 
-	if(new <= end)
-		goto done;
-
-	int aligned = len + (PAGE - len) % PAGE;
-	void* req = old + aligned;
-
-	end = (char*)sys_brk(req);
-
-	if(new > end) {
-		report("out of memory", NULL, 0);
+	if(new > end)
+		end = (char*)sys_brk(req);
+	if(new > end)
 		return NULL;
-	}
-done:
+
 	ptr = new;
 	return old;
 }
