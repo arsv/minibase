@@ -43,9 +43,6 @@ void handle_conn(struct conn* cn)
 
 		if((ret = dispatch_cmd(cn, ur.msg)) < 0)
 			break;
-
-		if(ur.mptr >= ur.rptr)
-			break;
 	}
 
 	if(ret < 0 && ret != -EBADF && ret != -EAGAIN)
@@ -61,11 +58,14 @@ void accept_ctrl(int sfd)
 	int addr_len = sizeof(addr);
 	struct conn *cn;
 
-	while((cfd = sys_accept(sfd, &addr, &addr_len)) > 0)
-		if((cn = grab_conn_slot()))
+	while((cfd = sys_accept(sfd, &addr, &addr_len)) > 0) {
+		if((cn = grab_conn_slot())) {
 			cn->fd = cfd;
-		else
+		} else {
+			sys_shutdown(cfd, SHUT_RDWR);
 			sys_close(cfd);
+		}
+	}
 
 	gg.pollset = 0;
 }
