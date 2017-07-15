@@ -20,11 +20,10 @@ static void set_passtime(void)
 	struct timespec tp = { 0, 0 };
 	long ret;
 
-	if((ret = sys_clock_gettime(CLOCK_MONOTONIC, &tp))) {
+	if((ret = sys_clock_gettime(CLOCK_MONOTONIC, &tp)) < 0)
 		report("clock_gettime", "CLOCK_MONOTONIC", ret);
-	} else {
+	else
 		passtime = BOOTCLOCKOFFSET + tp.sec;
-	}
 }
 
 static int wait_needed(time_t* last, time_t wait)
@@ -74,15 +73,11 @@ static void spawn(struct proc* rc)
 	int pipe[2];
 	int pid, ret;
 
-	if((ret = sys_pipe2(pipe, O_NONBLOCK))) {
-		report("pipe", NULL, ret);
-		return;
-	}
+	if((ret = sys_pipe2(pipe, O_NONBLOCK)))
+		return report("pipe", NULL, ret);
 
-	if((pid = sys_fork()) < 0) {
-		report("fork", NULL, ret);
-		return;
-	}
+	if((pid = sys_fork()) < 0)
+		return report("fork", NULL, ret);
 
 	if(pid == 0) {
 		sys_close(pipe[0]);
@@ -101,35 +96,26 @@ static void spawn(struct proc* rc)
 static void stop(struct proc* rc)
 {
 	if(rc->flags & P_SIGKILL) {
-		/* The process has been sent SIGKILL, still refuses
-		   to kick the bucket. Just forget about it then,
-		   reset p->pid and let the next initpass restart the entry. */
 		if(wait_needed(&rc->lastsig, TIME_TO_SKIP))
 			return;
 		reprec(rc, "refuses to die on SIGKILL, skipping");
+		rc->flags &= ~(P_SIGTERM | P_SIGKILL);
 		rc->pid = 0;
 	} else if(rc->flags & P_SIGTERM) {
-		/* The process has been signalled, but has not died yet */
 		if(wait_needed(&rc->lastsig, TIME_TO_SIGKILL))
 			return;
 		reprec(rc, "refuses to exit, sending SIGKILL");
+		rc->lastsig = passtime;
 		sys_kill(rc->pid, SIGKILL);
 		rc->flags |= P_SIGKILL;
 	} else {
-		/* Regular stop() invocation, gently ask the process to leave
-		   the kernel process table */
-
 		rc->lastsig = passtime;
 		sys_kill(rc->pid, SIGTERM);
 		rc->flags |= P_SIGTERM;
 
-		/* Attempt to wake the process up to recieve SIGTERM. */
-		/* This must be done *after* sending the killing signal
-		   to ensure SIGCONT does not arrive first. */
 		if(rc->flags & P_SIGSTOP)
 			sys_kill(rc->pid, SIGCONT);
 
-		/* make sure we'll get initpass to send SIGKILL if necessary */
 		wait_needed(&rc->lastsig, TIME_TO_SIGKILL);
 	}
 }
@@ -146,14 +132,14 @@ static void mark_dead(struct proc* rc, int status)
 {
 	rc->pid = 0;
 	rc->status = status;
+	rc->flags &= ~(P_SIGTERM | P_SIGKILL | P_SIGSTOP);
 
 	if(runtime(rc) < STABLE_TRESHOLD)
 		rc->flags |= P_DISABLED;
 	if(rc->flags & P_STALE)
 		free_proc_slot(rc);
 
-	/* possibly unexpected death */
-	gg.passreq = 1;
+	gg.passreq = 1; /* possibly unexpected death */
 }
 
 void wait_pids(void)
