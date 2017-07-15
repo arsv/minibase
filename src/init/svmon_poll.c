@@ -1,5 +1,6 @@
 #include <bits/time.h>
 #include <sys/signal.h>
+#include <sys/clock.h>
 #include <sys/sleep.h>
 #include <sys/poll.h>
 #include <sys/file.h>
@@ -15,6 +16,7 @@
 
 static sigset_t defsigset;
 static struct timespec timetowait;
+time_t passtime;
 
 #define NPFDS (1+NCONNS+NPROCS)
 
@@ -69,6 +71,18 @@ int setup_signals(void)
 
 	return ret;
 }
+
+void set_passtime(void)
+{
+	struct timespec tp = { 0, 0 };
+	long ret;
+
+	if((ret = sys_clock_gettime(CLOCK_MONOTONIC, &tp)) < 0)
+		report("clock_gettime", "CLOCK_MONOTONIC", ret);
+	else
+		passtime = BOOTCLOCKOFFSET + tp.sec;
+}
+
 
 void wakeupin(int seconds)
 {
@@ -246,6 +260,8 @@ void wait_poll(void)
 
 	if(!gg.pollset)
 		update_poll_fds();
+
+	passtime = 0;
 
 	int r = sys_ppoll(pfds, npfds, ts, &defsigset);
 

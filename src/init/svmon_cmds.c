@@ -115,6 +115,8 @@ static void put_proc_entry(struct ucbuf* uc, struct proc* rc)
 		uc_put_int(uc, ATTR_PID, rc->pid);
 	if(rc->buf)
 		uc_put_flag(uc, ATTR_RING);
+	if(rc->status)
+		uc_put_int(uc, ATTR_EXIT, rc->status);
 
 	uc_end_nest(uc, at);
 }
@@ -159,6 +161,9 @@ static int rep_status(CN, struct proc* rc)
 		uc_put_int(&uc, ATTR_PID, rc->pid);
 	if(rc->buf)
 		put_ring_buf(&uc, rc);
+
+	if(rc->lastrun)
+		uc_put_int(&uc, ATTR_TIME, runtime(rc));
 
 	return send_reply(cn);
 }

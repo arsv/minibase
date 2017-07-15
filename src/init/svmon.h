@@ -51,6 +51,8 @@ extern struct conn conns[];
 extern int nprocs;
 extern int nconns;
 
+extern time_t passtime;
+
 struct proc* firstrec(void);
 struct proc* nextrec(struct proc* rc);
 
@@ -61,6 +63,9 @@ void free_proc_slot(struct proc* rc);
 
 struct conn* grab_conn_slot(void);
 void free_conn_slot(struct conn* cn);
+
+void set_passtime(void);
+int runtime(struct proc* rc);
 
 void check_procs(void);
 void wait_poll(void);

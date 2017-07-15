@@ -20,3 +20,5 @@
 #define ATTR_CODE     3
 #define ATTR_PID      4
 #define ATTR_RING     5
+#define ATTR_EXIT     6
+#define ATTR_TIME     7

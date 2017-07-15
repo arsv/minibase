@@ -5,26 +5,12 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/wait.h>
-#include <sys/clock.h>
 
 #include <format.h>
 #include <string.h>
 #include <exit.h>
 
 #include "svmon.h"
-
-static time_t passtime;
-
-static void set_passtime(void)
-{
-	struct timespec tp = { 0, 0 };
-	long ret;
-
-	if((ret = sys_clock_gettime(CLOCK_MONOTONIC, &tp)) < 0)
-		report("clock_gettime", "CLOCK_MONOTONIC", ret);
-	else
-		passtime = BOOTCLOCKOFFSET + tp.sec;
-}
 
 static int wait_needed(time_t* last, time_t wait)
 {
@@ -120,12 +106,19 @@ static void stop(struct proc* rc)
 	}
 }
 
-static time_t runtime(struct proc* rc)
+int runtime(struct proc* rc)
 {
 	if(!passtime)
 		set_passtime();
 
-	return passtime - rc->lastrun;
+	time_t diff = passtime - rc->lastrun;
+
+	if(diff < 0)
+		return 0;
+	if(diff > 0x7FFFFFFF)
+		return 0x7FFFFFFF;
+
+	return diff;
 }
 
 static void mark_dead(struct proc* rc, int status)
@@ -183,8 +176,6 @@ void check_procs(void)
 
 	if(!running)
 		gg.reboot = 1;
-
-	passtime = 0;
 }
 
 void stop_all_procs(void)
