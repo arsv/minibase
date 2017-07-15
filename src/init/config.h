@@ -1,10 +1,3 @@
-#define NCONNS 10
-#define NPROCS 90
-#define NPREQS 10
-#define NAMELEN 19
-
-#define PAGE 4096
-
 #ifdef DEVEL
 #define SVDIR "./rc"
 #define SVCTL "./ctl"
@@ -13,14 +6,15 @@
 #define SVCTL "/run/svcmon"
 #endif
 
-#define SVCTL_TIMEOUT 2
+#define NAMELEN 19
+#define NPROCS 90
+#define NCONNS 10
+#define NPREQS 10
 
 #define STABLE_TRESHOLD 10
-
 #define TIME_TO_RESTART 1
 #define TIME_TO_SIGKILL 2
 #define TIME_TO_SKIP    5
 
-#define BOOTCLOCKOFFSET 1000
-
-#define RINGSIZE PAGE
+#define PAGE 4096
+#define RINGSIZE 4096

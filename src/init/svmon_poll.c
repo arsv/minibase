@@ -14,11 +14,12 @@
 
 #include "svmon.h"
 
+#define BOOTCLOCKOFFSET 1000
+#define NPFDS (1+NCONNS+NPROCS)
+
 static sigset_t defsigset;
 static struct timespec timetowait;
 time_t passtime;
-
-#define NPFDS (1+NCONNS+NPROCS)
 
 static struct pollfd pfds[NPFDS];
 static int npfds;
