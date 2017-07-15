@@ -24,8 +24,6 @@ struct top {
 
 	char* dir;
 	char** env;
-
-	int nr;
 };
 
 struct proc {
