@@ -19,7 +19,6 @@ static struct timespec timetowait;
 #define NPFDS (1+NCONNS+NPROCS)
 
 static struct pollfd pfds[NPFDS];
-static struct ring rings[NPROCS];
 static int npfds;
 static short pfdkeys[NPFDS];
 
@@ -82,33 +81,20 @@ void wakeupin(int seconds)
 	timetowait.nsec = 0;
 }
 
-struct ring* ring_buf_for(struct proc* rc)
+static void unmap_ring_buf(struct proc* rc)
 {
-	int ri = proc_index(rc);
-	struct ring* rg = &rings[ri];
+	sys_munmap(rc->buf, RINGSIZE);
 
-	return rg->buf ? rg : NULL;
-}
-
-static void unmap_ring_buf(struct ring* rg)
-{
-	sys_munmap(rg->buf, RINGSIZE);
-
-	rg->buf = NULL;
-	rg->ptr = 0;
+	rc->buf = NULL;
+	rc->ptr = 0;
 }
 
 void flush_ring_buf(struct proc* rc)
 {
-	struct ring* rg;
-
-	if(!(rg = ring_buf_for(rc)))
-		return;
-
-	unmap_ring_buf(rg);
+	unmap_ring_buf(rc);
 }
 
-static int mmap_ring_buf(struct ring* rg)
+static int mmap_ring_buf(struct proc* rc)
 {
 	int prot = PROT_READ | PROT_WRITE;
 	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
@@ -117,35 +103,35 @@ static int mmap_ring_buf(struct ring* rg)
 	if(mmap_error(ret))
 		return ret;
 
-	rg->buf = (char*)ret;
-	rg->ptr = 0;
+	rc->buf = (char*)ret;
+	rc->ptr = 0;
 
 	return 0;
 }
 
-static int read_into_ring_buf(struct ring* rg, int fd)
+static int read_into_ring_buf(struct proc* rc, int fd)
 {
 	int ret;
 
-	if(rg->buf)
+	if(rc->buf)
 		;
-	else if((ret = mmap_ring_buf(rg)) < 0)
+	else if((ret = mmap_ring_buf(rc)) < 0)
 		return ret;
 
-	int off = rg->ptr % RINGSIZE;
+	int off = rc->ptr % RINGSIZE;
 
-	char* start = rg->buf + off;
+	char* start = rc->buf + off;
 	int avail = RINGSIZE - off;
 
 	if((ret = sys_read(fd, start, avail)) <= 0)
 		return ret;
 
-	int ptr = rg->ptr + ret;
+	int ptr = rc->ptr + ret;
 
 	if(ptr >= RINGSIZE)
 		ptr = RINGSIZE + ptr % RINGSIZE;
 
-	rg->ptr = ptr;
+	rc->ptr = ptr;
 
 	return ret;
 }
@@ -187,10 +173,10 @@ static void recv_conn(struct pollfd* pf, struct conn* cn)
 		close_conn(cn);
 }
 
-static void recv_proc(struct pollfd* pf, struct proc* rc, struct ring* rg)
+static void recv_proc(struct pollfd* pf, struct proc* rc)
 {
 	if(pf->revents & POLLIN)
-		if(read_into_ring_buf(rg, pf->fd) >= 0)
+		if(read_into_ring_buf(rc, pf->fd) >= 0)
 			return;
 	if(pf->revents)
 		close_proc_pipe(rc);
@@ -204,7 +190,7 @@ static void check_polled_fds(void)
 		if((key = pfdkeys[i]) == 0)
 			recv_ctrl(&pfds[i]);
 		else if(key > 0)
-			recv_proc(&pfds[i], &procs[key-1], &rings[key-1]);
+			recv_proc(&pfds[i], &procs[key-1]);
 		else if(key < 0)
 			recv_conn(&pfds[i], &conns[-key-1]);
 }

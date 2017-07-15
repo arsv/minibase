@@ -77,12 +77,12 @@ static int rep_name_err(CN, int err, char* name)
 	return send_reply(cn);
 }
 
-static int ringsize(struct ring* rg)
+static int ringsize(struct proc* rc)
 {
-	if(!rg)
+	if(!rc->buf)
 		return 0;
-	if(rg->ptr < RINGSIZE)
-		return rg->ptr;
+	if(rc->ptr < RINGSIZE)
+		return rc->ptr;
 	else
 		return RINGSIZE;
 }
@@ -98,9 +98,9 @@ static int estimate_list_size(void)
 	return 10*count*sizeof(struct ucattr) + count*sizeof(*rc);
 }
 
-static int estimate_status_size(struct proc* rc, struct ring* rg)
+static int estimate_status_size(struct proc* rc)
 {
-	return 5*sizeof(struct ucattr) + sizeof(struct proc) + ringsize(rg);
+	return 5*sizeof(struct ucattr) + sizeof(struct proc) + ringsize(rc);
 }
 
 static void put_proc_entry(struct ucbuf* uc, struct proc* rc)
@@ -113,7 +113,7 @@ static void put_proc_entry(struct ucbuf* uc, struct proc* rc)
 
 	if(rc->pid > 0)
 		uc_put_int(uc, ATTR_PID, rc->pid);
-	if(ring_buf_for(rc))
+	if(rc->buf)
 		uc_put_flag(uc, ATTR_RING);
 
 	uc_end_nest(uc, at);
@@ -131,36 +131,34 @@ static int rep_list(CN)
 	return send_reply(cn);
 }
 
-static void put_ring_buf(struct ucbuf* uc, struct ring* rg)
+static void put_ring_buf(struct ucbuf* uc, struct proc* rc)
 {
-	if(rg->ptr <= RINGSIZE) {
-		uc_put_bin(uc, ATTR_RING, rg->buf, rg->ptr);
+	if(rc->ptr <= RINGSIZE) {
+		uc_put_bin(uc, ATTR_RING, rc->buf, rc->ptr);
 		return;
 	}
 
-	int tail = rg->ptr % RINGSIZE;
+	int tail = rc->ptr % RINGSIZE;
 	int head = RINGSIZE - tail;
 	struct ucattr* at;
 
 	if(!(at = uc_put_attr(uc, ATTR_RING, RINGSIZE)))
 		return;
 
-	memcpy(at->payload, rg->buf + tail, head);
-	memcpy(at->payload + head, rg->buf, tail);
+	memcpy(at->payload, rc->buf + tail, head);
+	memcpy(at->payload + head, rc->buf, tail);
 }
 
 static int rep_status(CN, struct proc* rc)
 {
-	struct ring* rg = ring_buf_for(rc);
-
-	start_reply(0, estimate_status_size(rc, rg));
+	start_reply(0, estimate_status_size(rc));
 
 	uc_put_str(&uc, ATTR_NAME, rc->name);
 
 	if(rc->pid > 0)
 		uc_put_int(&uc, ATTR_PID, rc->pid);
-	if(rg)
-		put_ring_buf(&uc, rg);
+	if(rc->buf)
+		put_ring_buf(&uc, rc);
 
 	return send_reply(cn);
 }

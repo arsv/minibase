@@ -34,9 +34,7 @@ struct proc {
 	time_t lastsig;
 	int status;
 	int pipefd;
-};
-
-struct ring {
+	/* ring buffer */
 	char* buf;
 	short ptr;
 };
@@ -78,9 +76,7 @@ int dispatch_cmd(struct conn* cn, struct ucmsg* msg);
 void set_ctrl_fd(int fd);
 void set_proc_fd(struct proc* rc, int fd);
 void set_conn_fd(struct conn* cn, int fd);
-
 void flush_ring_buf(struct proc* rc);
-struct ring* ring_buf_for(struct proc* rc);
 
 struct proc* firstrec(void);
 struct proc* nextrec(struct proc* rc);
