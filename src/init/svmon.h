@@ -51,7 +51,8 @@ extern struct conn conns[];
 extern int nprocs;
 extern int nconns;
 
-int reload_procs(void);
+struct proc* firstrec(void);
+struct proc* nextrec(struct proc* rc);
 
 struct proc* find_by_name(char* name);
 struct proc* find_by_pid(int pid);
@@ -72,16 +73,9 @@ void handle_conn(struct conn* cn);
 void wakeupin(int ttw);
 void stop_all_procs(void);
 int dispatch_cmd(struct conn* cn, struct ucmsg* msg);
-
-void set_ctrl_fd(int fd);
-void set_proc_fd(struct proc* rc, int fd);
-void set_conn_fd(struct conn* cn, int fd);
 void flush_ring_buf(struct proc* rc);
 
-struct proc* firstrec(void);
-struct proc* nextrec(struct proc* rc);
-int proc_index(struct proc* rc);
-int conn_index(struct conn* cn);
+int reload_procs(void);
 
 void report(char* msg, char* arg, int err);
 void reprec(struct proc* rc, char* msg);

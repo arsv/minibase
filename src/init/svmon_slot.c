@@ -107,13 +107,3 @@ struct proc* find_by_pid(int pid)
 
 	return NULL;
 }
-
-int proc_index(struct proc* rc)
-{
-	return rc - procs;
-}
-
-int conn_index(struct conn* cn)
-{
-	return cn - conns;
-}
