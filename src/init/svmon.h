@@ -78,6 +78,8 @@ void handle_conn(struct conn* cn);
 void wakeupin(int ttw);
 void stop_all_procs(void);
 int dispatch_cmd(struct conn* cn, struct ucmsg* msg);
+
+int read_into_ring_buf(struct proc* rc, int fd);
 void flush_ring_buf(struct proc* rc);
 
 int reload_procs(void);

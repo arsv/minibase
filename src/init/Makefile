@@ -15,6 +15,6 @@ man1 =
 include $/common.mk
 
 svmon: svmon.o svmon_slot.o svmon_proc.o svmon_poll.o svmon_ctrl.o \
-	svmon_cmds.o svmon_load.o svmon_heap.o svmon_warn.o
+	svmon_cmds.o svmon_load.o svmon_heap.o svmon_warn.o svmon_ring.o
 
 svc: svc.o svc_dump.o svc_util.o
