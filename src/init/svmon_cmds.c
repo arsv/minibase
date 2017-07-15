@@ -294,8 +294,13 @@ static void disable_proc(struct proc* rc)
 
 static void enable_proc(struct proc* rc)
 {
-	rc->lastrun = 0;
+	if(rc->pid)
+		return;
+
 	rc->flags &= ~P_DISABLED;
+	rc->lastrun = 0;
+	flush_ring_buf(rc);
+
 	gg.passreq = 1;
 }
 
@@ -317,11 +322,7 @@ static void hup_proc(struct proc* rc)
 static void restart_proc(struct proc* rc)
 {
 	kill_proc(rc, 0, SIGTERM);
-
-	if(rc->flags & P_DISABLED)
-		enable_proc(rc);
-
-	flush_ring_buf(rc);
+	enable_proc(rc);
 }
 
 static void flush_proc(struct proc* rc)
