@@ -21,6 +21,7 @@ struct top {
 	short termreq;
 	short sigchld;
 	short heapreq;
+	short ringreq;
 
 	char* dir;
 	char** env;
@@ -82,6 +83,7 @@ int dispatch_cmd(struct conn* cn, struct ucmsg* msg);
 char* ring_buf_for(struct proc* rc);
 int read_into_ring_buf(struct proc* rc, int fd);
 void flush_ring_buf(struct proc* rc);
+void trim_ring_area(void);
 
 int reload_procs(void);
 

@@ -56,6 +56,7 @@ int main(int argc, char** argv, char** envp)
 		gg.reopen = 0;
 		gg.reload = 0;
 		gg.passreq = 0;
+		gg.ringreq = 0;
 
 		wait_poll();
 
@@ -69,6 +70,8 @@ int main(int argc, char** argv, char** envp)
 			check_procs();
 		if(gg.heapreq)
 			heap_flush();
+		if(gg.ringreq)
+			trim_ring_area();
 	}
 
 reboot:

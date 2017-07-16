@@ -1,6 +1,5 @@
 #include <sys/mmap.h>
 #include <sys/file.h>
-#include <printf.h>
 #include <string.h>
 #include <null.h>
 
@@ -19,13 +18,10 @@ static int extend_ring_area(void)
 	int size = ringlength + PAGE;
 	long new;
 
-	if(ringarea) {
+	if(ringarea)
 		new = sys_mremap(ringarea, ringlength, size, rflags);
-		tracef("remap %i -> %i = %lX\n", ringlength, size, new);
-	} else {
+	else
 		new = sys_mmap(NULL, size, prot, mflags, -1, 0);
-		tracef("mmap %i = %lX\n", size, new);
-	}
 
 	if(mmap_error(new)) {
 		report("mmap failed", NULL, new);
@@ -42,7 +38,7 @@ static void index_ring_usage(short* use, int count)
 {
 	struct proc* rc;
 
-	memzero(use, count);
+	memzero(use, count*sizeof(*use));
 
 	for(rc = firstrec(); rc; rc = nextrec(rc)) {
 		if(!rc->ptr)
@@ -55,16 +51,66 @@ static void index_ring_usage(short* use, int count)
 
 }
 
-char* ring_buf_for(struct proc* rc)
+static struct proc* proc_by_idx(int i)
+{
+	if(i < 0 || i >= nprocs)
+		return NULL;
+
+	return &procs[i];
+}
+
+static char* ring_buf_by_idx(int i)
 {
 	int len = RINGSIZE;
-	int off = len * rc->idx;
+	int off = len * i;
 	int end = off + len;
 
+	if(i < 0)
+		return NULL;
 	if(end > ringlength)
 		return NULL;
 
 	return ringarea + off;
+}
+
+char* ring_buf_for(struct proc* rc)
+{
+	return ring_buf_by_idx(rc->idx);
+}
+
+static void swap_ring_bufs(short* idx, int oldi, int newi)
+{
+	int ri = idx[oldi];
+	struct proc* rc = proc_by_idx(ri - 1);
+
+	char* old = ring_buf_by_idx(oldi);
+	char* new = ring_buf_by_idx(newi);
+
+	if(!rc || !old || !new)
+		return;
+
+	int len = rc->ptr > RINGSIZE ? RINGSIZE : rc->ptr;
+	memcpy(new, old, len);
+	rc->idx = newi;
+
+	idx[newi] = ri;
+	idx[oldi] = -1;
+}
+
+static void compact_used_bufs(short* idx, int count)
+{
+	int i = 0, j = count - 1;
+
+	while(1) {
+		while(i < j &&  idx[i]) i++;
+		while(j > i && !idx[j]) j--;
+		/* i = hole, j = last used */
+
+		if(i < j)
+			swap_ring_bufs(idx, j--, i++);
+		if(i >= j)
+			break;
+	}
 }
 
 char* map_ring_buf(struct proc* rc)
@@ -73,21 +119,18 @@ char* map_ring_buf(struct proc* rc)
 	short idx[count];
 
 	index_ring_usage(idx, count);
+	compact_used_bufs(idx, count);
 
 	for(i = 0; i < count; i++)
 		if(!idx[i])
 			break;
 	if(i < count)
-		tracef("using hole\n");
-	else if(extend_ring_area()) {
-		tracef("extend failed\n");
+		;
+	else if(extend_ring_area())
 		return NULL;
-	}
 
 	rc->idx = i;
 	rc->ptr = 0;
-
-	tracef("proc %s ring idx %i\n", rc->name, i);
 
 	return ring_buf_for(rc);
 }
@@ -98,46 +141,67 @@ int pages(int len)
 	return len / PAGE;
 }
 
-void trim_ring_area(void)
+static void unmap_ring_area(void)
 {
-	int count = ringlength / RINGSIZE;
-	short idx[count];
+	if(sys_munmap(ringarea, ringlength) < 0)
+		return;
 
-	index_ring_usage(idx, count);
+	ringarea = NULL;
+	ringlength = 0;
+}
 
-	while(count > 0 && !idx[count-1])
-		count--;
-
-	int need = count * RINGSIZE;
+static void remap_ring_area(int count)
+{
+	int need = (count+1) * RINGSIZE;
 	int havepages = pages(ringlength);
 	int needpages = pages(need);
 
 	if(needpages >= havepages)
 		return;
 
-	if(needpages > 0) {
-		int size = needpages * PAGE;
-		long new = sys_mremap(ringarea, ringlength, size, 0);
+	int size = needpages * PAGE;
+	long new = sys_mremap(ringarea, ringlength, size, 0);
 
-		if(mmap_error(new))
-			return;
+	if(mmap_error(new))
+		return;
 
-		ringarea = (char*)new;
-		ringlength = size;
-	} else {
-		if(sys_munmap(ringarea, ringlength) < 0)
-			return;
+	ringarea = (char*)new;
+	ringlength = size;
+}
 
-		ringarea = NULL;
-		ringlength = 0;
-	}
+static int count_rings_needed(void)
+{
+	int count = ringlength / RINGSIZE;
+	short idx[count];
+
+	index_ring_usage(idx, count);
+	compact_used_bufs(idx, count);
+
+	while(count > 0 && !idx[count-1])
+		count--;
+
+	return count;
+}
+
+void trim_ring_area(void)
+{
+	int count = count_rings_needed();
+
+	if(count)
+		remap_ring_area(count);
+	else
+		unmap_ring_area();
 }
 
 void flush_ring_buf(struct proc* rc)
 {
-	tracef("flush for %s (was %i)\n", rc->name, rc->idx);
+	if(!rc->ptr)
+		return;
+
 	rc->idx = -1;
 	rc->ptr = 0;
+
+	gg.ringreq = 1;
 }
 
 static int wrapto(int x, int size)
