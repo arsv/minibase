@@ -5,6 +5,15 @@
 #include "config.h"
 #include "svmon.h"
 
+/* Supservisor ring buffers are supposed to be the fallback option
+   for misbehaving services, something that's only gets used rarely.
+   Well-bahaving services should be silent.
+
+   So with that in mind, we map a dedicated page-long buffer for each
+   child that needs it, effectively using mmap() as malloc(). That's
+   not good, but if the buffers are few, still acceptable. And it's so
+   much easier than managing a contiguous area. */
+
 static int mmap_ring_buf(struct proc* rc)
 {
 	int prot = PROT_READ | PROT_WRITE;
