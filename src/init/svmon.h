@@ -35,7 +35,7 @@ struct proc {
 	int status;
 	int pipefd;
 	/* ring buffer */
-	char* buf;
+	short idx;
 	short ptr;
 };
 
@@ -79,6 +79,7 @@ void wakeupin(int ttw);
 void stop_all_procs(void);
 int dispatch_cmd(struct conn* cn, struct ucmsg* msg);
 
+char* ring_buf_for(struct proc* rc);
 int read_into_ring_buf(struct proc* rc, int fd);
 void flush_ring_buf(struct proc* rc);
 

@@ -17,4 +17,4 @@
 #define TIME_TO_SKIP    5
 
 #define PAGE 4096
-#define RINGSIZE 4096
+#define RINGSIZE 1024

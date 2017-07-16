@@ -79,8 +79,6 @@ static int rep_name_err(CN, int err, char* name)
 
 static int ringsize(struct proc* rc)
 {
-	if(!rc->buf)
-		return 0;
 	if(rc->ptr < RINGSIZE)
 		return rc->ptr;
 	else
@@ -113,7 +111,7 @@ static void put_proc_entry(struct ucbuf* uc, struct proc* rc)
 
 	if(rc->pid > 0)
 		uc_put_int(uc, ATTR_PID, rc->pid);
-	if(rc->buf)
+	if(rc->ptr)
 		uc_put_flag(uc, ATTR_RING);
 	if(rc->status)
 		uc_put_int(uc, ATTR_EXIT, rc->status);
@@ -135,20 +133,23 @@ static int rep_list(CN)
 
 static void put_ring_buf(struct ucbuf* uc, struct proc* rc)
 {
+	int ptr = rc->ptr;
+	char* buf = ring_buf_for(rc);
+
 	if(rc->ptr <= RINGSIZE) {
-		uc_put_bin(uc, ATTR_RING, rc->buf, rc->ptr);
+		uc_put_bin(uc, ATTR_RING, buf, ptr);
 		return;
 	}
 
-	int tail = rc->ptr % RINGSIZE;
+	int tail = ptr % RINGSIZE;
 	int head = RINGSIZE - tail;
 	struct ucattr* at;
 
 	if(!(at = uc_put_attr(uc, ATTR_RING, RINGSIZE)))
 		return;
 
-	memcpy(at->payload, rc->buf + tail, head);
-	memcpy(at->payload + head, rc->buf, tail);
+	memcpy(at->payload, buf + tail, head);
+	memcpy(at->payload + head, buf, tail);
 }
 
 static int rep_status(CN, struct proc* rc)
@@ -159,7 +160,7 @@ static int rep_status(CN, struct proc* rc)
 
 	if(rc->pid > 0)
 		uc_put_int(&uc, ATTR_PID, rc->pid);
-	if(rc->buf)
+	if(rc->ptr)
 		put_ring_buf(&uc, rc);
 
 	if(rc->lastrun)
