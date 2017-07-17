@@ -1,0 +1,39 @@
+.TH super 8
+'''
+.SH NAME
+\fBsuper\fR \- top-level process supervisor
+'''
+.SH DESCRIPTION
+\fBsuper\fR runs as PID 1 for most of the system's uptime, spawning
+and monitoring a set of child processes. Whenever a spawned process
+dies, \fBsuper\fR attempts to re-spawn it.
+.P
+The list of services to run is just a list of files in a pre-defined
+directory /etc/rc; \fBsuper\fR tries to \fBexecve\fR(2) each file in
+a spawned child process.
+'''
+.SH USAGE
+During system startup, the initial PID 1 (typically \fBinit\fR(8))
+should exec into \fBsuper\fR, which then will run until commanded to
+shutdown. Once commanded, \fBsuper\fR stops all services and execs into
+\fB/sbin/reboot\fR(8) which should be available.
+.P
+User interaction with \fBsuper\fR happens via its control socket.
+See \fBsvc\fR(8).
+.P
+For most services, the files in /etc/rc should be executable scripts
+setting up process environment and exec-ing their respective commands.
+'''
+.SH NOTES
+\fBsuper\fR passes its credentials and environment to child processes
+unchanged. In most cases child processes should drop extra privileges
+immediately.
+'''
+.SH FILES
+.IP "/etc/rc" 4
+Directory containing services to spawn.
+.IP "/run/super" 4
+Control socket.
+'''
+.SH SEE ALSO
+\fBsvc\fR(8), \fBmsh\fR(1), \fBinit\fR(8), \fBreboot\fR(8).
