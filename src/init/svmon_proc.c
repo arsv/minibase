@@ -79,14 +79,43 @@ static void spawn(struct proc* rc)
 	request(F_UPDATE_PFDS);
 }
 
+static void mark_dead(struct proc* rc, int status)
+{
+	rc->pid = 0;
+	rc->status = status;
+	rc->flags &= ~(P_SIGTERM | P_SIGKILL | P_SIGSTOP);
+
+	if(rc->flags & P_RESTART)
+		rc->flags &= ~P_RESTART;
+	else if(rc->flags & (P_DISABLED | P_STALE))
+		;
+	else if(!status) /* successful exits are ok */
+		;
+	else if(runtime(rc) < STABLE_TRESHOLD)
+		rc->flags |= P_FAILED;
+
+	if(rc->flags & (P_STALE | P_DISABLED))
+		flush_ring_buf(rc);
+	if(rc->flags & P_STALE)
+		free_proc_slot(rc);
+
+	request(F_CHECK_PROCS);
+}
+
 static void stop(struct proc* rc)
 {
-	if(rc->flags & P_SIGKILL) {
+	if(rc->flags & P_STUCK) {
+		return;
+	} else if(rc->flags & P_SIGKILL) {
 		if(wait_needed(&rc->lastsig, TIME_TO_SKIP))
 			return;
-		reprec(rc, "refuses to die on SIGKILL, skipping");
-		rc->flags &= ~(P_SIGTERM | P_SIGKILL);
-		rc->pid = 0;
+		if(rbcode) {
+			reprec(rc, "refuses to die, skipping");
+			mark_dead(rc, -1);
+		} else {
+			reprec(rc, "refuses to die on SIGKILL");
+			rc->flags |= P_STUCK;
+		}
 	} else if(rc->flags & P_SIGTERM) {
 		if(wait_needed(&rc->lastsig, TIME_TO_SIGKILL))
 			return;
@@ -121,20 +150,6 @@ int runtime(struct proc* rc)
 	return diff;
 }
 
-static void mark_dead(struct proc* rc, int status)
-{
-	rc->pid = 0;
-	rc->status = status;
-	rc->flags &= ~(P_SIGTERM | P_SIGKILL | P_SIGSTOP);
-
-	if(runtime(rc) < STABLE_TRESHOLD)
-		rc->flags |= P_DISABLED;
-	if(rc->flags & P_STALE)
-		free_proc_slot(rc);
-
-	request(F_CHECK_PROCS); /* possibly unexpected death */
-}
-
 void wait_pids(void)
 {
 	pid_t pid;
@@ -164,7 +179,7 @@ void check_procs(void)
 	set_passtime();
 
 	for(rc = firstrec(); rc; rc = nextrec(rc)) {
-		int disabled = (rc->flags & P_DISABLED);
+		int disabled = (rc->flags & (P_DISABLED | P_FAILED));
 
 		if(!disabled || rc->pid > 0)
 			running = 1;

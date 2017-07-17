@@ -140,7 +140,7 @@ int reload_procs(void)
 
 	int ret = load_dir_ents();
 
-	if(!ret)
+	if(ret >= 0)
 		foreach_rec(disable_stale);
 	else
 		foreach_rec(unmark_stale);

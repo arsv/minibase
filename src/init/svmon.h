@@ -5,7 +5,10 @@
 #define P_SIGSTOP       (1<<1)
 #define P_SIGTERM       (1<<2)
 #define P_SIGKILL       (1<<3)
-#define P_STALE         (1<<4)
+#define P_RESTART       (1<<4)
+#define P_FAILED        (1<<5)
+#define P_STALE         (1<<6)
+#define P_STUCK         (1<<7)
 
 #define F_WAIT_PIDS     (1<<0)
 #define F_SETUP_CTRL    (1<<1)

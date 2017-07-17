@@ -113,7 +113,7 @@ static void put_proc_entry(struct ucbuf* uc, struct proc* rc)
 		uc_put_int(uc, ATTR_PID, rc->pid);
 	if(rc->ptr)
 		uc_put_flag(uc, ATTR_RING);
-	if(rc->status)
+	if(rc->status && !(rc->flags & P_DISABLED))
 		uc_put_int(uc, ATTR_EXIT, rc->status);
 
 	uc_end_nest(uc, at);
@@ -165,6 +165,8 @@ static int rep_status(CN, struct proc* rc)
 
 	if(rc->lastrun)
 		uc_put_int(&uc, ATTR_TIME, runtime(rc));
+	if(rc->status && !(rc->flags & P_DISABLED))
+		uc_put_int(&uc, ATTR_EXIT, rc->status);
 
 	return send_reply(cn);
 }
@@ -294,17 +296,34 @@ static void kill_proc(struct proc* rc, int group, int sig)
 static void disable_proc(struct proc* rc)
 {
 	rc->lastsig = 0;
+	rc->status = 0;
+
+	rc->flags &= ~(P_RESTART | P_FAILED);
 	rc->flags |= P_DISABLED;
+
+	if(!rc->pid)
+		flush_ring_buf(rc);
+
 	request(F_CHECK_PROCS);
 }
 
 static void enable_proc(struct proc* rc)
 {
-	if(rc->pid)
-		return;
+	rc->flags &= ~(P_DISABLED | P_FAILED);
 
-	rc->flags &= ~P_DISABLED;
+	if(rc->flags & (P_SIGTERM | P_SIGKILL))
+		rc->flags |= P_RESTART;
+
+	if(rc->flags & P_STUCK) {
+		rc->flags &= ~P_STUCK;
+		rc->pid = 0;
+	} else if(rc->pid) {
+		return;
+	}
+
 	rc->lastrun = 0;
+	rc->status = 0;
+
 	flush_ring_buf(rc);
 
 	request(F_CHECK_PROCS);

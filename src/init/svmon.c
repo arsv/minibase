@@ -59,18 +59,16 @@ int main(int argc, char** argv, char** envp)
 	if(reload_procs())
 		goto reboot;
 
-	flagged = F_CHECK_PROCS | F_UPDATE_PFDS;
+	check_procs();
+	update_poll_fds();
 
 	while(!rbcode) {
-		if(need_to(F_CHECK_PROCS))
-			check_procs();
-		if(need_to(F_UPDATE_PFDS))
-			update_poll_fds();
-
 		wait_poll();
 
 		if(need_to(F_WAIT_PIDS))
 			wait_pids();
+		if(need_to(F_CHECK_PROCS))
+			check_procs();
 		if(need_to(F_SETUP_CTRL))
 			setup_ctrl();
 		if(need_to(F_RELOAD_PROCS))
@@ -79,6 +77,8 @@ int main(int argc, char** argv, char** envp)
 			flush_heap();
 		if(need_to(F_TRIM_RING))
 			trim_ring_area();
+		if(need_to(F_UPDATE_PFDS))
+			update_poll_fds();
 	}
 reboot:
 	if(sys_getpid() != 1) {
