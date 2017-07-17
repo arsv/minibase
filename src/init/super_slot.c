@@ -3,7 +3,7 @@
 #include <format.h>
 #include <util.h>
 
-#include "svmon.h"
+#include "super.h"
 
 struct proc procs[NPROCS];
 struct conn conns[NCONNS];

@@ -11,7 +11,7 @@
 #include <null.h>
 #include <exit.h>
 
-#include "svmon.h"
+#include "super.h"
 
 #define BOOTCLOCKOFFSET 1000
 #define NPFDS (1+NCONNS+NPROCS)

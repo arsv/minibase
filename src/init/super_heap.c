@@ -1,6 +1,6 @@
 #include <sys/brk.h>
 #include <null.h>
-#include "svmon.h"
+#include "super.h"
 
 /* Heap is only used for large buffers in load_dir_ents()
    and ctrl code. Custom routines because the ones from util.h

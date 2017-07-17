@@ -10,7 +10,7 @@
 #include <string.h>
 #include <exit.h>
 
-#include "svmon.h"
+#include "super.h"
 
 static int wait_needed(time_t* last, time_t wait)
 {

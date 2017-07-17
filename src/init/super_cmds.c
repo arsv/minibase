@@ -12,7 +12,7 @@
 #include <util.h>
 
 #include "common.h"
-#include "svmon.h"
+#include "super.h"
 
 #define NOERROR 0
 #define REPLIED 1

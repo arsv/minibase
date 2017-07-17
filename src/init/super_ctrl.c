@@ -11,7 +11,7 @@
 #include <alloca.h>
 #include <util.h>
 
-#include "svmon.h"
+#include "super.h"
 
 int ctrlfd;
 static char rxbuf[200];

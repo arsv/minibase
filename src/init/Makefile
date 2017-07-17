@@ -8,13 +8,13 @@ CFLAGS += -DDEVEL
 also = trap tick
 endif
 
-sbin = svmon svc init reboot
+sbin = init reboot super svc
 
 man1 =
 
 include $/common.mk
 
-svmon: svmon.o svmon_slot.o svmon_proc.o svmon_poll.o svmon_ctrl.o \
-	svmon_cmds.o svmon_load.o svmon_heap.o svmon_warn.o svmon_ring.o
+super: super.o super_slot.o super_proc.o super_poll.o super_ctrl.o \
+	super_cmds.o super_load.o super_heap.o super_warn.o super_ring.o
 
 svc: svc.o svc_dump.o svc_util.o

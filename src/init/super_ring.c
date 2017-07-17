@@ -4,7 +4,7 @@
 #include <null.h>
 
 #include "config.h"
-#include "svmon.h"
+#include "super.h"
 
 /* Well-behaved services are expected to be silent and/or use syslog
    for logging. However, if a service fails to start, or fails later

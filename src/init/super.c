@@ -8,7 +8,7 @@
 #include <format.h>
 #include <util.h>
 
-#include "svmon.h"
+#include "super.h"
 
 char* confdir;
 char** environ;
