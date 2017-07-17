@@ -1,28 +1,23 @@
 #include <bits/types.h>
 #include "config.h"
 
-#define P_DISABLED (1<<0)
-#define P_SIGSTOP  (1<<1)
-#define P_SIGTERM  (1<<2)
-#define P_SIGKILL  (1<<3)
-#define P_STALE    (1<<4)
+#define P_DISABLED      (1<<0)
+#define P_SIGSTOP       (1<<1)
+#define P_SIGTERM       (1<<2)
+#define P_SIGKILL       (1<<3)
+#define P_STALE         (1<<4)
+
+#define F_WAIT_PIDS     (1<<0)
+#define F_SETUP_CTRL    (1<<1)
+#define F_RELOAD_PROCS  (1<<2)
+#define F_CHECK_PROCS   (1<<3)
+#define F_FLUSH_HEAP    (1<<4)
+#define F_TRIM_RING     (1<<5)
+#define F_UPDATE_PFDS   (1<<6)
 
 struct top {
-	int uid;
-	int outfd;
 	int ctrlfd;
 	char rbcode;
-
-	short reopen;
-	short reload;
-	short reboot;
-	short pollset;
-	short passreq;
-	short termreq;
-	short sigchld;
-	short heapreq;
-	short ringreq;
-
 	char* dir;
 	char** env;
 };
@@ -67,8 +62,8 @@ void free_conn_slot(struct conn* cn);
 
 void set_passtime(void);
 int runtime(struct proc* rc);
-
 void check_procs(void);
+void update_poll_fds(void);
 void wait_poll(void);
 void wait_pids(void);
 
@@ -79,6 +74,7 @@ void handle_conn(struct conn* cn);
 void wakeupin(int ttw);
 void stop_all_procs(void);
 int dispatch_cmd(struct conn* cn, struct ucmsg* msg);
+void request(int flag);
 
 char* ring_buf_for(struct proc* rc);
 int read_into_ring_buf(struct proc* rc, int fd);
@@ -92,5 +88,5 @@ void reprec(struct proc* rc, char* msg);
 
 void setup_heap(void);
 void* heap_alloc(int len);
-void heap_trim(void* ptr);
-void heap_flush(void);
+void trim_heap(void* ptr);
+void flush_heap(void);

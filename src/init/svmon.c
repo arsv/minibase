@@ -1,6 +1,5 @@
 #include <sys/fsnod.h>
 #include <sys/pid.h>
-#include <sys/creds.h>
 #include <sys/file.h>
 #include <sys/fork.h>
 #include <sys/wait.h>
@@ -12,13 +11,12 @@
 #include "svmon.h"
 
 struct top gg;
+static short flagged;
 
 static int setup(char** envp)
 {
 	gg.dir = SVDIR;
 	gg.env = envp;
-	gg.uid = sys_getuid();
-	gg.outfd = STDERR;
 
 	setup_heap();
 	setup_ctrl();
@@ -42,6 +40,20 @@ static int spawn_reboot(void)
 	return -1;
 }
 
+void request(int flags)
+{
+	flagged |= flags;
+}
+
+static int need_to(int flag)
+{
+	int ret = flagged & flag;
+
+	flagged &= ~flag;
+
+	return ret;
+}
+
 int main(int argc, char** argv, char** envp)
 {
 	if(setup(envp))
@@ -49,31 +61,27 @@ int main(int argc, char** argv, char** envp)
 	if(reload_procs())
 		goto reboot;
 
-	check_procs();
+	flagged = F_CHECK_PROCS | F_UPDATE_PFDS;
 
-	while(!gg.reboot) {
-		gg.sigchld = 0;
-		gg.reopen = 0;
-		gg.reload = 0;
-		gg.passreq = 0;
-		gg.ringreq = 0;
+	while(!gg.rbcode) {
+		if(need_to(F_CHECK_PROCS))
+			check_procs();
+		if(need_to(F_UPDATE_PFDS))
+			update_poll_fds();
 
 		wait_poll();
 
-		if(gg.sigchld)
+		if(need_to(F_WAIT_PIDS))
 			wait_pids();
-		if(gg.reopen)
+		if(need_to(F_SETUP_CTRL))
 			setup_ctrl();
-		if(gg.reload)
+		if(need_to(F_RELOAD_PROCS))
 			reload_procs();
-		if(gg.passreq)
-			check_procs();
-		if(gg.heapreq)
-			heap_flush();
-		if(gg.ringreq)
+		if(need_to(F_FLUSH_HEAP))
+			flush_heap();
+		if(need_to(F_TRIM_RING))
 			trim_ring_area();
 	}
-
 reboot:
 	if(sys_getpid() != 1) {
 		sys_unlink(SVCTL);

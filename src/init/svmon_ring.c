@@ -201,7 +201,7 @@ void flush_ring_buf(struct proc* rc)
 	rc->idx = -1;
 	rc->ptr = 0;
 
-	gg.ringreq = 1;
+	request(F_TRIM_RING);
 }
 
 static int wrapto(int x, int size)

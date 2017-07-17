@@ -23,6 +23,7 @@ time_t passtime;
 static struct pollfd pfds[NPFDS];
 static int npfds;
 static short pfdkeys[NPFDS];
+static short pollset;
 
 /* A single handler for all signals we care about. */
 
@@ -34,7 +35,7 @@ static void sighandler(int sig)
 			stop_all_procs();
 			break;
 		case SIGCHLD:
-			gg.sigchld = 1;
+			request(F_WAIT_PIDS);
 			break;
 	}
 }
@@ -99,21 +100,21 @@ static void close_proc_pipe(struct proc* rc)
 {
 	sys_close(rc->pipefd);
 	rc->pipefd = -1;
-	gg.pollset = 0;
+	pollset = 0;
 }
 
 static void close_conn(struct conn* cn)
 {
 	sys_close(cn->fd);
 	memzero(cn, sizeof(*cn));
-	gg.pollset = 0;
+	pollset = 0;
 }
 
 static void close_ctrl(int fd)
 {
 	sys_close(fd);
 	gg.ctrlfd = -1;
-	gg.pollset = 0;
+	pollset = 0;
 }
 
 static void recv_ctrl(struct pollfd* pf)
@@ -168,7 +169,7 @@ static void add_polled_fd(int fd, int key)
 	pfdkeys[i] = key;
 }
 
-static void update_poll_fds(void)
+void update_poll_fds(void)
 {
 	int i, fd;
 
@@ -184,8 +185,6 @@ static void update_poll_fds(void)
 	for(i = 0; i < nprocs; i++)
 		if((fd = procs[i].pipefd) > 0)
 			add_polled_fd(fd, 1 + i);
-
-	gg.pollset = 1;
 }
 
 static void msleep(int ms)
@@ -203,7 +202,7 @@ void wait_poll(void)
 	else
 		ts = NULL;
 
-	if(!gg.pollset)
+	if(!pollset)
 		update_poll_fds();
 
 	passtime = 0;
@@ -220,6 +219,6 @@ void wait_poll(void)
 	} else { /* timeout has been reached */
 		timetowait.sec = 0;
 		timetowait.nsec = 0;
-		gg.passreq = 1;
+		request(F_CHECK_PROCS);
 	}
 }

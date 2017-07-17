@@ -67,7 +67,7 @@ void accept_ctrl(int sfd)
 		}
 	}
 
-	gg.pollset = 0;
+	request(F_UPDATE_PFDS);
 }
 
 void setup_ctrl(void)
@@ -86,7 +86,7 @@ void setup_ctrl(void)
 	char* name = SVCTL;
 
 	gg.ctrlfd = fd;
-	gg.pollset = 0;
+	request(F_UPDATE_PFDS);
 
 	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
 		report("bind", name, ret);

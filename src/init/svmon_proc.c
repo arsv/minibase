@@ -76,7 +76,7 @@ static void spawn(struct proc* rc)
 		rc->pipefd = pipe[0];
 	}
 
-	gg.pollset = 0;
+	request(F_UPDATE_PFDS);
 }
 
 static void stop(struct proc* rc)
@@ -132,7 +132,7 @@ static void mark_dead(struct proc* rc, int status)
 	if(rc->flags & P_STALE)
 		free_proc_slot(rc);
 
-	gg.passreq = 1; /* possibly unexpected death */
+	request(F_CHECK_PROCS); /* possibly unexpected death */
 }
 
 void wait_pids(void)
@@ -174,8 +174,8 @@ void check_procs(void)
 			stop(rc);
 	}
 
-	if(!running)
-		gg.reboot = 1;
+	if(!running && !gg.rbcode)
+		gg.rbcode = 'r';
 }
 
 void stop_all_procs(void)
@@ -185,5 +185,5 @@ void stop_all_procs(void)
 	for(rc = firstrec(); rc; rc = nextrec(rc))
 		rc->flags |= P_DISABLED;
 
-	gg.passreq = 1;
+	request(F_CHECK_PROCS);
 }

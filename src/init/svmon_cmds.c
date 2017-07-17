@@ -56,7 +56,7 @@ static int send_reply(CN)
 	writeall(cn->fd, uc.brk, uc.ptr - uc.brk);
 
 	if(uc.brk != txbuf)
-		heap_trim(uc.brk);
+		trim_heap(uc.brk);
 
 	return REPLIED;
 }
@@ -237,7 +237,7 @@ static int cmd_getpid(CN, MSG)
 
 static int cmd_reload(CN, MSG)
 {
-	gg.reload = 1;
+	request(F_RELOAD_PROCS);
 
 	return NOERROR;
 }
@@ -295,7 +295,7 @@ static void disable_proc(struct proc* rc)
 {
 	rc->lastsig = 0;
 	rc->flags |= P_DISABLED;
-	gg.passreq = 1;
+	request(F_CHECK_PROCS);
 }
 
 static void enable_proc(struct proc* rc)
@@ -307,7 +307,7 @@ static void enable_proc(struct proc* rc)
 	rc->lastrun = 0;
 	flush_ring_buf(rc);
 
-	gg.passreq = 1;
+	request(F_CHECK_PROCS);
 }
 
 static void pause_proc(struct proc* rc)

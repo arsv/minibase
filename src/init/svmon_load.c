@@ -99,7 +99,7 @@ int load_dir_ents(void)
 		report("getdents", dir, rd);
 	}
 
-	heap_trim(debuf);
+	trim_heap(debuf);
 out:
 	sys_close(fd);
 

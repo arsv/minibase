@@ -14,10 +14,8 @@ void report(char* msg, char* arg, int err)
 	char* p = warnbuf;
 	char* e = warnbuf + sizeof(warnbuf) - 1;
 
-	if(gg.outfd <= STDERR) {
-		p = fmtstr(p, e, tag);
-		p = fmtstr(p, e, ": ");
-	};
+	p = fmtstr(p, e, tag);
+	p = fmtstr(p, e, ": ");
 
 	p = fmtstr(p, e, msg);
 
@@ -33,7 +31,7 @@ void report(char* msg, char* arg, int err)
 
 	*p++ = '\n';
 
-	writeall(gg.outfd, warnbuf, p - warnbuf);
+	writeall(STDERR, warnbuf, p - warnbuf);
 }
 
 void reprec(struct proc* rc, char* msg)
@@ -47,5 +45,5 @@ void reprec(struct proc* rc, char* msg)
 
 	*p++ = '\n';
 
-	writeall(gg.outfd, warnbuf, p - warnbuf);
+	writeall(STDERR, warnbuf, p - warnbuf);
 }

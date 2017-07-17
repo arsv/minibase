@@ -36,19 +36,17 @@ void* heap_alloc(int len)
 	return old;
 }
 
-void heap_trim(void* old)
+void trim_heap(void* old)
 {
 	if(old < brk || old > end)
 		return;
 
 	ptr = old;
-	gg.heapreq = 1;
+	request(F_FLUSH_HEAP);
 }
 
-void heap_flush(void)
+void flush_heap(void)
 {
-	gg.heapreq = 0;
-
 	if(ptr > brk)
 		report("retaining non-empty heap", NULL, 0);
 	else if(end == brk)
