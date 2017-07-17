@@ -1,9 +1,9 @@
-#include <sys/nanosleep.h>
-#include <sys/write.h>
-#include <sys/sigaction.h>
-#include <sys/_exit.h>
+#include <sys/sleep.h>
+#include <sys/file.h>
+#include <sys/signal.h>
 
 #include <format.h>
+#include <exit.h>
 #include <null.h>
 
 /* Signal trap, to be used as a stub for service scripts in ./rc
@@ -31,7 +31,7 @@ void say(const char* what)
 	p = fmtstr(p, e, what);
 	p = fmtstr(p, e, "\n");
 
-	syswrite(STDOUT, saybuf, p - saybuf);
+	sys_write(STDOUT, saybuf, p - saybuf);
 }
 
 void sighandler(int sig)
@@ -54,25 +54,25 @@ void trapsig(void)
 		.restorer = sigreturn
 	};
 
-	syssigaction(SIGINT,  &sa, NULL);
-	syssigaction(SIGTERM, &sa, NULL);
-	syssigaction(SIGHUP,  &sa, NULL);
-	syssigaction(SIGKILL, &sa, NULL);
-	syssigaction(SIGCONT, &sa, NULL);
+	sys_sigaction(SIGINT,  &sa, NULL);
+	sys_sigaction(SIGTERM, &sa, NULL);
+	sys_sigaction(SIGHUP,  &sa, NULL);
+	sys_sigaction(SIGKILL, &sa, NULL);
+	sys_sigaction(SIGCONT, &sa, NULL);
 }
 
 void sleepx(int sec)
 {
 	struct timespec tr;
 	struct timespec ts = {
-		.tv_sec = sec,
-		.tv_nsec = 0
+		.sec = sec,
+		.nsec = 0
 	};
 
 	while(1) {
-		if(!sysnanosleep(&ts, &tr))
+		if(!sys_nanosleep(&ts, &tr))
 			break;
-		if(tr.tv_sec <= 0)
+		if(tr.sec <= 0)
 			break;
 		ts = tr;
 	};
