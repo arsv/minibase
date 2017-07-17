@@ -180,7 +180,7 @@ static int rep_pid(CN, struct proc* rc)
 
 static int reboot(char code)
 {
-	gg.rbcode = code;
+	rbcode = code;
 
 	stop_all_procs();
 

@@ -13,6 +13,7 @@
 
 #include "svmon.h"
 
+int ctrlfd;
 static char rxbuf[200];
 
 static void shutdown_conn(struct conn* cn)
@@ -85,7 +86,7 @@ void setup_ctrl(void)
 	long ret;
 	char* name = SVCTL;
 
-	gg.ctrlfd = fd;
+	ctrlfd = fd;
 	request(F_UPDATE_PFDS);
 
 	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
@@ -95,6 +96,6 @@ void setup_ctrl(void)
 	else
 		return;
 
-	gg.ctrlfd = -1;
+	ctrlfd = -1;
 	sys_close(fd);
 }

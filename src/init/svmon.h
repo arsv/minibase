@@ -15,13 +15,6 @@
 #define F_TRIM_RING     (1<<5)
 #define F_UPDATE_PFDS   (1<<6)
 
-struct top {
-	int ctrlfd;
-	char rbcode;
-	char* dir;
-	char** env;
-};
-
 struct proc {
 	int pid;
 	uint8_t flags;
@@ -41,13 +34,16 @@ struct conn {
 
 struct ucmsg;
 
-extern struct top gg;
+extern char rbcode;
+extern int ctrlfd;
+extern char* confdir;
+extern char** environ;
+extern time_t passtime;
+
 extern struct proc procs[];
 extern struct conn conns[];
 extern int nprocs;
 extern int nconns;
-
-extern time_t passtime;
 
 struct proc* firstrec(void);
 struct proc* nextrec(struct proc* rc);

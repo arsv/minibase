@@ -113,7 +113,7 @@ static void close_conn(struct conn* cn)
 static void close_ctrl(int fd)
 {
 	sys_close(fd);
-	gg.ctrlfd = -1;
+	ctrlfd = -1;
 	pollset = 0;
 }
 
@@ -175,8 +175,8 @@ void update_poll_fds(void)
 
 	npfds = 0;
 
-	if(gg.ctrlfd > 0)
-		add_polled_fd(gg.ctrlfd, 0);
+	if(ctrlfd > 0)
+		add_polled_fd(ctrlfd, 0);
 
 	for(i = 0; i < nconns; i++)
 		if((fd = conns[i].fd) > 0)

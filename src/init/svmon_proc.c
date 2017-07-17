@@ -28,7 +28,7 @@ static int wait_needed(time_t* last, time_t wait)
 
 static int child(struct proc* rc)
 {
-	char* dir = gg.dir;
+	char* dir = confdir;
 	int dlen = strlen(dir);
 	char* base = rc->name;
 	char blen = strlen(base);
@@ -44,7 +44,7 @@ static int child(struct proc* rc)
 
 	char* argv[] = { path, NULL };
 
-	sys_execve(*argv, argv, gg.env);
+	sys_execve(*argv, argv, environ);
 
 	return -1;
 }
@@ -174,8 +174,8 @@ void check_procs(void)
 			stop(rc);
 	}
 
-	if(!running && !gg.rbcode)
-		gg.rbcode = 'r';
+	if(!running && !rbcode)
+		rbcode = 'r';
 }
 
 void stop_all_procs(void)

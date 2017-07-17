@@ -10,28 +10,20 @@
 
 #include "svmon.h"
 
-struct top gg;
+char* confdir;
+char** environ;
+char rbcode;
+
 static short flagged;
-
-static int setup(char** envp)
-{
-	gg.dir = SVDIR;
-	gg.env = envp;
-
-	setup_heap();
-	setup_ctrl();
-
-	return setup_signals();
-}
 
 static int spawn_reboot(void)
 {
 	int pid = sys_fork();
 
 	if(pid == 0) {
-		char arg[] = { '-', gg.rbcode, '\0' };
+		char arg[] = { '-', rbcode, '\0' };
 		char* argv[] = { "/sbin/reboot", arg, NULL };
-		sys_execve(*argv, argv, gg.env);
+		sys_execve(*argv, argv, environ);
 	} else if(pid > 0) {
 		int status;
 		sys_waitpid(pid, &status, 0);
@@ -56,14 +48,20 @@ static int need_to(int flag)
 
 int main(int argc, char** argv, char** envp)
 {
-	if(setup(envp))
+	environ = envp;
+	confdir = SVDIR;
+
+	setup_heap();
+	setup_ctrl();
+
+	if(setup_signals())
 		goto reboot;
 	if(reload_procs())
 		goto reboot;
 
 	flagged = F_CHECK_PROCS | F_UPDATE_PFDS;
 
-	while(!gg.rbcode) {
+	while(!rbcode) {
 		if(need_to(F_CHECK_PROCS))
 			check_procs();
 		if(need_to(F_UPDATE_PFDS))
