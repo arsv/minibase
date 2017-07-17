@@ -6,6 +6,30 @@
 #include "config.h"
 #include "svmon.h"
 
+/* Well-behaved services are expected to be silent and/or use syslog
+   for logging. However, if a service fails to start, or fails later
+   at runtime for some reason, it can and should complain to stderr,
+   hopefully indicating the reason it failed. In such cases supervisor
+   stores the output and allows the user to review it later to diagnose
+   the problem.
+
+   Now generally error messages are small and the most important ones
+   are issued last. However, we cannot rely on the whole output of the
+   service being small, so the output gets stored in a fixed-size ring
+   buffer. And because the service are not expected to output anything
+   during normal operation, the buffers are allocated on demand.
+
+   Most of the code below is only needed to manage a single mmaped area
+   used for all active ring buffers. It could be made much simplier by
+   mmaping a dedicated page for each active buffer, but that would just
+   mean abuse of the kernel allocator. So we don't do that.
+
+   The type of ringarea is really char[RINGSIZE][count], and rc->idx are
+   indexes into that array. A proc has a buffer allocated if rc->ptr is
+   non-zero; for rc->idx, 0 is a valid value. Non-wrapped buffers have
+   ptr < RINGSIZE, for a wrapped buffer RINGSIZE <= ptr < 2*RINGSIZE
+   and (ptr % RINGSIZE) is the ring seam. */
+
 static char* ringarea;
 static int ringlength;
 
