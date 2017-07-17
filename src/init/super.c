@@ -49,7 +49,7 @@ static int need_to(int flag)
 int main(int argc, char** argv, char** envp)
 {
 	environ = envp;
-	confdir = SVDIR;
+	confdir = CONFDIR;
 
 	setup_heap();
 	setup_ctrl();
@@ -82,7 +82,7 @@ int main(int argc, char** argv, char** envp)
 	}
 reboot:
 	if(sys_getpid() != 1) {
-		sys_unlink(SVCTL);
+		sys_unlink(CONTROL);
 		return 0;
 	} else {
 		return spawn_reboot();

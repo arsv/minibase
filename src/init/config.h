@@ -1,9 +1,9 @@
 #ifdef DEVEL
-#define SVDIR "./rc"
-#define SVCTL "./ctl"
+#define CONFDIR "./rc"
+#define CONTROL "./ctl"
 #else
-#define SVDIR "/etc/rc"
-#define SVCTL "/run/svcmon"
+#define CONFDIR "/etc/rc"
+#define CONTROL "/run/super"
 #endif
 
 #define NAMELEN 19
@@ -11,7 +11,7 @@
 #define NCONNS 10
 #define NPREQS 10
 
-#define STABLE_TRESHOLD 10
+#define STABLE_TRESHOLD 5
 #define TIME_TO_RESTART 1
 #define TIME_TO_SIGKILL 2
 #define TIME_TO_SKIP    5

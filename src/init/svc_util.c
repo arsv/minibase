@@ -108,11 +108,11 @@ static void connect_socket(CTX)
 
 	struct sockaddr_un addr = {
 		.family = AF_UNIX,
-		.path = SVCTL
+		.path = CONTROL
 	};
 
 	if((ret = sys_connect(ctx->fd, &addr, sizeof(addr))) < 0)
-		fail("connect", SVCTL, ret);
+		fail("connect", addr.path, ret);
 
 	ctx->connected = 1;
 }

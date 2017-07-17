@@ -64,7 +64,7 @@ static void tryfile(char* dir, char* base)
 
 int load_dir_ents(void)
 {
-	char* dir = SVDIR;
+	char* dir = confdir;
 	char* debuf;
 	int delen = PAGE;
 	long fd, rd = -ENOMEM;

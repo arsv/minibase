@@ -2,13 +2,9 @@
 
 include $/config.mk
 
-ifdef devel
-CFLAGS += -DDEVEL
+sbin = init reboot super svc
 
 also = trap tick
-endif
-
-sbin = init reboot super svc
 
 man1 =
 

@@ -76,7 +76,7 @@ void setup_ctrl(void)
 	int fd;
 	struct sockaddr_un addr = {
 		.family = AF_UNIX,
-		.path = SVCTL
+		.path = CONTROL
 	};
 	const int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
 
@@ -84,7 +84,7 @@ void setup_ctrl(void)
 		return report("socket", "AF_UNIX", fd);
 
 	long ret;
-	char* name = SVCTL;
+	char* name = addr.path;
 
 	ctrlfd = fd;
 	request(F_UPDATE_PFDS);
