@@ -12,6 +12,15 @@
 #include <exit.h>
 #include <fail.h>
 
+/* This tiny executable gets spawned as PID 1, either by the kernel
+   or by switchroot if the system boots with initrd. Its task is
+   to run sequential initialization and proceed to reboot if it fails.
+
+   If everything goes well, it execs into the supervisor.
+
+   Despite the traditional role of /sbin/init, this one is normally
+   a short-lived process that does not do any supervision itself. */
+
 #define PAGE 4096
 
 ERRTAG = "init";
