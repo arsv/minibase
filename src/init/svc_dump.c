@@ -1,3 +1,5 @@
+#include <sys/wait.h>
+
 #include <string.h>
 #include <format.h>
 #include <util.h>
@@ -142,18 +144,29 @@ void dump_info(CTX, MSG)
 
 	int* pid = uc_get_int(msg, ATTR_PID);
 	char* name = uc_get_str(msg, ATTR_NAME);
+	int* exit = uc_get_int(msg, ATTR_EXIT);
 
 	dump_proc_ring(ctx, msg);
 
-	if(name) {
-		p = fmtstr(p, e, name);
-		p = fmtstr(p, e, " is ");
-	}
+	p = fmtstr(p, e, name ? name : "???");
+
 	if(pid) {
-		p = fmtstr(p, e, "running, PID ");
+		p = fmtstr(p, e, " is running, PID ");
 		p = fmtint(p, e, *pid);
+	} else if(exit) {
+		int status = *exit;
+
+		p = fmtstr(p, e, " has failed");
+
+		if(WIFEXITED(status)) {
+			p = fmtstr(p, e, ", exit code ");
+			p = fmtint(p, e, WEXITSTATUS(status));
+		} else if(WIFSIGNALED(status)) {
+			p = fmtstr(p, e, ", killed by signal ");
+			p = fmtint(p, e, WTERMSIG(status));
+		}
 	} else {
-		p = fmtstr(p, e, "dead");
+		p = fmtstr(p, e, " is not running");
 	}
 
 	*p++ = '\n';
