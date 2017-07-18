@@ -273,7 +273,7 @@ int main(int argc, char** argv, char** envp)
 		exec_into("/bin/sh", newenv);
 	} else {
 		spawn_if_exists("/etc/sysinit", newenv);
-		exec_into("/sbin/svcmon", newenv);
+		exec_into("/sbin/super", newenv);
 	}
 
 	warn("startup failed, going for reboot", NULL, 0);
