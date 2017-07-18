@@ -1,2 +1,14 @@
-See ../../doc/vtmux.txt and what vtmux is, and ../../doc/login.txt
-on how it fits within the planned user login structure.
+Virtual terminal multiplexer (vtmux) spawns VT-grabbing clients,
+provides them with access to KMS/input devices, and allows the user
+to switch between VTs.
+
+Since VT-grabbing clients are usually user sessions, vtmux also
+indirectly deals with user logins. Within systemd the equivalent
+tool is called "logind".
+
+See ../../doc/vtmux.txt for more detailed description,
+and ../../doc/login.txt on how it fits within the planned
+user session management infrastructure.
+
+Current status: *INCOMPLETE*, missing client communication
+(and clients to communicate with for that matter).
