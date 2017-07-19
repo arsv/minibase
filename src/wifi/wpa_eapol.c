@@ -348,9 +348,14 @@ static void fill_smac(void)
 	int fd = rawsock;
 	struct ifreq ifr;
 	long ret;
+	int ifnlen = strlen(ifname);
 
 	memzero(&ifr, sizeof(ifr));
-	memcpy(ifr.name, ifname, IFNAMESIZ);
+
+	if(ifnlen > sizeof(ifr.name))
+		quit("iface name too long", NULL, 0);
+
+	memcpy(ifr.name, ifname, ifnlen);
 
 	if((ret = sys_ioctl(fd, SIOCGIFHWADDR, &ifr)) < 0)
 		quit("ioctl SIOCGIFHWADDR", ifname, ret);
