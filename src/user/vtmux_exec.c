@@ -216,9 +216,9 @@ static void preset(struct term* cvt, char* cmd, int tty)
 	long ret;
 
 	if((ret = set_slot_command(cvt, cmd)))
-		warn(NULL, cmd, ret);
-	else
-		cvt->pin = 1;
+		fail("name too long:", cmd, 0);
+
+	cvt->pin = 1;
 
 	if(tty <= 0) return;
 
@@ -254,6 +254,7 @@ void setup_pinned(char* greeter, int n, char** cmds, int spareinitial)
 		fail("no slots left for greeter", NULL, 0);
 
 	initialtty = activetty = tty;
+	gvt->pin = 1;
 
 	for(i = 0; i < n; i++)
 		if(!(cvt = grab_term_slot()))

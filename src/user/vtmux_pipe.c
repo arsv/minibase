@@ -1,6 +1,7 @@
 #include <bits/errno.h>
 #include <bits/fcntl.h>
 #include <bits/major.h>
+#include <bits/cmsg.h>
 #include <sys/sockio.h>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -14,12 +15,32 @@
 
 static void reply(struct term* cvt, int errno)
 {
-	sys_write(cvt->ctlfd, (void*)&errno, sizeof(errno));
+	sys_send(cvt->ctlfd, (void*)&errno, sizeof(errno), 0);
 }
 
 static void reply_send_fd(struct term* cvt, int errno, int fdts)
 {
-	sys_write(cvt->ctlfd, (void*)&errno, sizeof(errno));
+	int ret;
+
+	struct iovec iov = {
+		.base = &errno,
+		.len = sizeof(errno)
+	};
+	struct cmsgfd fdm = {
+		.len = sizeof(struct cmsgfd),
+		.level = SOL_SOCKET,
+		.type = SCM_RIGHTS,
+		.fd = fdts
+	};
+	struct msghdr msg = {
+		.iov = &iov,
+		.iovlen = 1,
+		.control = &fdm,
+		.controllen = sizeof(fdm)
+	};
+
+	if((ret = sys_sendmsg(cvt->ctlfd, &msg, 0)) < 0)
+		warn("sendmsg", NULL, ret);
 }
 
 static void send_notification(int tty, int cmd)
@@ -141,7 +162,7 @@ static int is_zstr(char* buf, int len)
    For DRIs, the active tty may not have yet opened this particular device,
    so the background one will become master despite being in background. */
 
-static void cmd_open(struct term* cvt, void* buf, int len)
+static void req_open(struct term* cvt, void* buf, int len)
 {
 	struct pmsg_open* msg = buf;
 	int ret;
@@ -151,20 +172,21 @@ static void cmd_open(struct term* cvt, void* buf, int len)
 	if(!is_zstr(msg->path, len - sizeof(*msg)))
 		return reply(cvt, -EINVAL);
 
-	if((ret = open_managed_dev(msg->path, msg->mode, cvt->tty)))
+	if((ret = open_managed_dev(msg->path, msg->mode, cvt->tty)) < 0)
 		return reply(cvt, ret);
 
 	return reply_send_fd(cvt, PIPE_REP_OK, ret);
 }
 
-static void dispatch(struct term* cvt, void* buf, int len)
+static void dispatch_req(struct term* cvt, void* buf, int len)
 {
 	struct pmsg* msg = buf;
 
 	if(len < sizeof(*msg))
-		reply(cvt, -EINVAL);
-	else if(msg->code == PIPE_CMD_OPEN)
-		cmd_open(cvt, buf, len);
+		return reply(cvt, -EINVAL);
+
+	if(msg->code == PIPE_CMD_OPEN)
+		req_open(cvt, buf, len);
 	else
 		reply(cvt, -ENOSYS);
 }
@@ -181,7 +203,7 @@ void handle_pipe(struct term* cvt)
 	int maxlen = sizeof(buf);
 
 	while((rd = sys_recv(fd, buf, maxlen, MSG_DONTWAIT)) > 0) {
-		dispatch(cvt, buf, rd);
+		dispatch_req(cvt, buf, rd);
 	} if(rd < 0 && rd != -EAGAIN) {
 		warn("recv", NULL, rd);
 	}

@@ -2,6 +2,7 @@
 #include <sys/kill.h>
 #include <sys/file.h>
 #include <sys/wait.h>
+#include <sys/fsnod.h>
 
 #include <format.h>
 #include <null.h>
@@ -65,12 +66,13 @@ void waitpids(void)
 		closevt(cvt, !!status);
 	}
 
-	if(!active)
+	if(!active) {
 		return;
-	if(active->pin)
+	} if(active->pin) {
 		switchto(active->tty); /* try to restart it */
-	else
+	} else {
 		switchto(terms[0].tty); /* greeter */
+	}
 }
 
 /* Shutdown routines: wait for VT clients to die before exiting. */
@@ -120,4 +122,6 @@ void shutdown(void)
 		else break;
 
 	unlock_switch();
+
+	sys_unlink(CONTROL);
 }

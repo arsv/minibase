@@ -27,7 +27,6 @@ static void start_reply(int cmd, int expected)
 {
 	char* buf = NULL;
 	int len;
-	int req = expected + sizeof(struct ucmsg) + 4;
 
 	buf = txbuf;
 	len = sizeof(txbuf);
@@ -62,7 +61,7 @@ static int cmd_switch(CN, MSG)
 	if(!(tty = uc_get_int(msg, ATTR_TTY)))
 		return -EINVAL;
 
-	if((ret = switchto(*tty)))
+	if((ret = switchto(*tty)) < 0)
 		return ret;
 
 	return reply(cn, 0);

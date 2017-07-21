@@ -89,7 +89,6 @@ void disable(struct mdev* md, int drop)
 
 void closevt(struct term* vt, int keepvt)
 {
-	int i;
 	int tty = vt->tty;
 	struct mdev* md;
 

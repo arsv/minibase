@@ -74,8 +74,6 @@ static int add_poll_fd(int n, int fd, int key)
 
 void update_poll_fds(void)
 {
-	struct term* tm;
-	struct conn* cn;
 	int i, n = 0;
 
 	n = add_poll_fd(n, ctrlfd, 0);
