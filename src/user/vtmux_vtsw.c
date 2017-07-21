@@ -62,7 +62,7 @@ int unlock_switch(void)
    It's also a good idea to disable devices before releasing them
    from under a dead client. Leaked fds may still linger about. */
 
-void disable(struct vtd* md, int drop)
+void disable(struct mdev* md, int drop)
 {
 	int dev = md->dev;
 	int maj = major(dev);
@@ -87,36 +87,37 @@ void disable(struct vtd* md, int drop)
    a pinned command there, or it's the initial vt vtmux itself
    runs on. Those are kept open. */
 
-void closevt(struct vtx* cvt, int keepvt)
+void closevt(struct term* vt, int keepvt)
 {
 	int i;
-	int tty = cvt->tty;
+	int tty = vt->tty;
+	struct mdev* md;
 
-	cvt->pid = 0;
+	vt->pid = 0;
 
-	for(i = 0; i < nvtdevices; i++)
-		if(vtdevices[i].tty == tty)
-			disable(&vtdevices[i], PERMANENTLY);
+	for(md = mdevs; md < mdevs + nmdevs; md++)
+		if(md->tty == tty)
+			disable(md, PERMANENTLY);
 
-	if(cvt->ctlfd > 0) {
-		sys_close(cvt->ctlfd);
-		cvt->ctlfd = 0;
+	if(vt->ctlfd > 0) {
+		sys_close(vt->ctlfd);
+		vt->ctlfd = 0;
 	}
 
 	if(keepvt) {
-		IOCTL(cvt->ttyfd, KDSETMODE, 0);
+		IOCTL(vt->ttyfd, KDSETMODE, 0);
 	} else {
-		if(!cvt->pin)
-			memset(cvt->cmd, 0, sizeof(cvt->cmd));
-		if(!cvt->pin && cvt->tty != initialtty) {
-			sys_close(cvt->ttyfd);
-			cvt->ttyfd = -1;
-			cvt->tty = 0;
-			IOCTL(0, VT_DISALLOCATE, cvt->tty);
+		if(!vt->pin)
+			memset(vt->cmd, 0, sizeof(vt->cmd));
+		if(!vt->pin && vt->tty != initialtty) {
+			sys_close(vt->ttyfd);
+			vt->ttyfd = -1;
+			vt->tty = 0;
+			IOCTL(0, VT_DISALLOCATE, vt->tty);
 		}
 	}
 
-	pollready = 0;
+	pollset = 0;
 }
 
 /* Session switch sequence:
@@ -135,17 +136,15 @@ void closevt(struct vtx* cvt, int keepvt)
 
 static void disengage(int tty)
 {
-	int i;
+	struct mdev* md;
 
-	for(i = 0; i < nvtdevices; i++) {
-		struct vtd* mdi = &vtdevices[i];
-
-		if(mdi->tty != tty)
+	for(md = mdevs; md < mdevs + nmdevs; md++) {
+		if(md->tty != tty)
 			continue;
-		if(mdi->fd <= 0)
+		if(md->fd <= 0)
 			continue;
 
-		disable(mdi, TEMPORARILY);
+		disable(md, TEMPORARILY);
 	}
 
 	notify_deactivated(tty);
@@ -156,22 +155,17 @@ static void disengage(int tty)
 
 static void engage(int tty)
 {
-	int i;
+	struct mdev* md;
 
-	for(i = 0; i < nvtdevices; i++) {
-		struct vtd* mdi = &vtdevices[i];
-
-		if(mdi->tty != tty)
+	for(md = mdevs; md < mdevs + nmdevs; md++) {
+		if(md->tty != tty)
 			continue;
-		if(mdi->fd <= 0)
+		if(md->fd <= 0)
 			continue;
-
-		int maj = major(mdi->dev);
-
-		if(maj != DRI_MAJOR)
+		if(major(md->dev) != DRI_MAJOR)
 			continue;
 
-		IOCTL(mdi->fd, DRM_IOCTL_SET_MASTER, 0);
+		IOCTL(md->fd, DRM_IOCTL_SET_MASTER, 0);
 	}
 
 	notify_activated(tty);

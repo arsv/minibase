@@ -61,28 +61,13 @@ int query_empty_tty(void)
 	return tty;
 }
 
-struct vtx* grab_console_slot(void)
+struct term* allocate_console(void)
 {
-	int i;
-
-	/* never grab greeter slot this way */
-	for(i = 1; i < nconsoles; i++)
-		if(consoles[i].pin)
-			continue;
-		else if(consoles[i].pid <= 0)
-			break;
-	if(i >= CONSOLES)
-		return NULL;
-	if(i == nconsoles)
-		nconsoles++;
-
-	struct vtx* cvt = &consoles[i];
-
-	if(cvt->tty == initialtty)
-		return cvt;
-
+	struct term* cvt;
 	int tty, ttyfd;
 
+	if(!(cvt = grab_term_slot()))
+		return NULL;
 	if((tty = query_empty_tty()) < 0)
 		return NULL;
 	if((ttyfd = open_tty_device(tty)) < 0)
@@ -94,7 +79,7 @@ struct vtx* grab_console_slot(void)
 	return cvt;
 }
 
-int set_slot_command(struct vtx* cvt, char* cmd)
+int set_slot_command(struct term* cvt, char* cmd)
 {
 	int cmdlen = strlen(cmd);
 
@@ -107,7 +92,7 @@ int set_slot_command(struct vtx* cvt, char* cmd)
 	return 0;
 }
 
-void free_console_slot(struct vtx* cvt)
+void free_console_slot(struct term* cvt)
 {
 	memset(cvt->cmd, 0, sizeof(cvt->cmd));
 
@@ -149,7 +134,7 @@ static int child_proc(int ttyfd, int ctlfd, char* cmd)
 	return 0;
 }
 
-static int start_cmd_on(struct vtx* cvt)
+static int start_cmd_on(struct term* cvt)
 {
 	int sk[2];
 	int ret, pid;
@@ -177,10 +162,10 @@ static int start_cmd_on(struct vtx* cvt)
 int spawn(char* cmd)
 {
 	int old = activetty;
-	struct vtx* cvt;
+	struct term* cvt;
 	int ret = -EAGAIN;
 
-	if(!(cvt = grab_console_slot()))
+	if(!(cvt = allocate_console()))
 		return -EMFILE;
 
 	if((ret = set_slot_command(cvt, cmd)))
@@ -199,18 +184,7 @@ done:
 	return ret;
 }
 
-static struct vtx* find_vt_rec(int tty)
-{
-	int i;
-
-	for(i = 0; i < nconsoles; i++)
-		if(consoles[i].tty == tty)
-			return &consoles[i];
-
-	return NULL;
-}
-
-int invoke(struct vtx* cvt)
+int invoke(struct term* cvt)
 {
 	long ret;
 
@@ -227,17 +201,17 @@ int invoke(struct vtx* cvt)
 
 int switchto(int tty)
 {
-	struct vtx* cvt = find_vt_rec(tty);
+	struct term* cvt;
 
-	if(!cvt)
-		return activate(tty);
-	else
+	if((cvt = find_term_by_tty(tty)))
 		return invoke(cvt);
+	else
+		return activate(tty);
 }
 
 /* Initial VTs setup: greeter and pinned commands */
 
-static void preset(struct vtx* cvt, char* cmd, int tty)
+static void preset(struct term* cvt, char* cmd, int tty)
 {
 	long ret;
 
@@ -270,26 +244,27 @@ static int choose_some_high_tty(int mask)
 
 void setup_pinned(char* greeter, int n, char** cmds, int spareinitial)
 {
-	int mask = 0;
-	int i;
+	struct term* gvt;
+	struct term* cvt;
+	int tty, mask, i;
 
-	if(n >= CONSOLES - 1)
-		fail("too many pre-set commands", NULL, 0);
-	if((activetty = lock_switch(&mask)) <= 0)
-		fail("cannot setup initial console", NULL, activetty);
+	if((tty = lock_switch(&mask)) <= 0)
+		fail("cannot setup initial console", NULL, tty);
+	if(!(gvt = grab_term_slot()))
+		fail("no slots left for greeter", NULL, 0);
 
-	initialtty = activetty;
+	initialtty = activetty = tty;
 
 	for(i = 0; i < n; i++)
-		if(i == 0 && !spareinitial)
-			preset(&consoles[i+1], cmds[i], initialtty);
+		if(!(cvt = grab_term_slot()))
+			fail("too many preset vts", NULL, 0);
+		else if(i == 0 && !spareinitial)
+			preset(cvt, cmds[i], initialtty);
 		else
-			preset(&consoles[i+1], cmds[i], query_empty_tty());
+			preset(cvt, cmds[i], query_empty_tty());
 
 	if(!n && !spareinitial)
-		preset(&consoles[0], greeter, initialtty);
+		preset(gvt, greeter, initialtty);
 	else
-		preset(&consoles[0], greeter, choose_some_high_tty(mask));
-
-	nconsoles = n + 1;
+		preset(gvt, greeter, choose_some_high_tty(mask));
 }

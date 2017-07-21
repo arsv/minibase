@@ -12,24 +12,21 @@
 #include "vtmux.h"
 #include "vtmux_pipe.h"
 
-static void reply(struct vtx* cvt, int errno)
+static void reply(struct term* cvt, int errno)
 {
 	sys_write(cvt->ctlfd, (void*)&errno, sizeof(errno));
 }
 
-static void reply_send_fd(struct vtx* cvt, int errno, int fdts)
+static void reply_send_fd(struct term* cvt, int errno, int fdts)
 {
 	sys_write(cvt->ctlfd, (void*)&errno, sizeof(errno));
 }
 
 static void send_notification(int tty, int cmd)
 {
-	struct vtx* cvt;
+	struct term* cvt;
 
-	for(cvt = consoles; cvt < consoles + nconsoles; cvt++)
-		if(cvt->tty == tty)
-			break;
-	if(!cvt->tty)
+	if(!(cvt = find_term_by_tty(tty)))
 		return;
 
 	reply(cvt, cmd);
@@ -43,21 +40,6 @@ void notify_activated(int tty)
 void notify_deactivated(int tty)
 {
 	send_notification(tty, PIPE_REP_DEACTIVATE);
-}
-
-static struct vtd* grab_dev_slot(void)
-{
-	int i;
-
-	for(i = 0; i < nvtdevices; i++)
-		if(vtdevices[i].fd <= 0)
-			break;
-	if(i >= INPUTS)
-		return NULL;
-	if(i == nvtdevices)
-		nvtdevices++;
-
-	return &vtdevices[i];
 }
 
 static int check_managed_dev(int fd, int* dev, int tty)
@@ -89,18 +71,16 @@ static int check_managed_dev(int fd, int* dev, int tty)
    would also mess up mastering. Inputs would be ok, but there's
    still no point in opening them more than once. */
 
-static int check_for_duplicate(struct vtd* vd, int dev, int tty)
+static int check_for_duplicate(struct mdev* md, int dev, int tty)
 {
-	int i;
+	struct mdev* mx;
 
-	for(i = 0; i < nvtdevices; i++) {
-		struct vtd* vx = &vtdevices[i];
-
-		if(vx == vd)
+	for(mx = mdevs; mx < mdevs + nmdevs; mx++) {
+		if(mx == md)
 			continue;
-		if(vx->tty != tty)
+		if(mx->tty != tty)
 			continue;
-		if(vx->dev != dev)
+		if(mx->dev != dev)
 			continue;
 
 		return -ENFILE;
@@ -111,25 +91,25 @@ static int check_for_duplicate(struct vtd* vd, int dev, int tty)
 
 static int open_managed_dev(char* path, int mode, int tty)
 {
-	struct vtd* vd;
+	struct mdev* md;
 	int dfd, ret;
 
-	if(!(vd = grab_dev_slot()))
+	if(!(md = grab_mdev_slot()))
 		return -EMFILE;
 
 	if((dfd = sys_open(path, O_RDWR | O_NOCTTY | O_CLOEXEC)) < 0)
 		return dfd;
 
-	if((ret = check_managed_dev(dfd, &vd->dev, tty)) < 0)
+	if((ret = check_managed_dev(dfd, &md->dev, tty)) < 0)
 		goto close;
-	if((ret = check_for_duplicate(vd, vd->dev, tty)) < 0)
+	if((ret = check_for_duplicate(md, md->dev, tty)) < 0)
 		goto close;
 
-	vd->fd = dfd;
-	vd->tty = tty;
+	md->fd = dfd;
+	md->tty = tty;
 
 	if(tty != activetty)
-		disable(vd, TEMPORARILY);
+		disable(md, TEMPORARILY);
 
 	return dfd;
 close:
@@ -161,7 +141,7 @@ static int is_zstr(char* buf, int len)
    For DRIs, the active tty may not have yet opened this particular device,
    so the background one will become master despite being in background. */
 
-static void cmd_open(struct vtx* cvt, void* buf, int len)
+static void cmd_open(struct term* cvt, void* buf, int len)
 {
 	struct pmsg_open* msg = buf;
 	int ret;
@@ -177,7 +157,7 @@ static void cmd_open(struct vtx* cvt, void* buf, int len)
 	return reply_send_fd(cvt, PIPE_REP_OK, ret);
 }
 
-static void dispatch(struct vtx* cvt, void* buf, int len)
+static void dispatch(struct term* cvt, void* buf, int len)
 {
 	struct pmsg* msg = buf;
 
@@ -194,7 +174,7 @@ static void dispatch(struct vtx* cvt, void* buf, int len)
    for reply. But, the protocol does not prevent sending cmds
    in bulk, and dropping the loop here does not save us much. */
 
-void handle_pipe(struct vtx* cvt)
+void handle_pipe(struct term* cvt)
 {
 	int rd, fd = cvt->ctlfd;
 	char buf[100];

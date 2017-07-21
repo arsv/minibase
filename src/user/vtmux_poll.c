@@ -3,16 +3,19 @@
 #include <sys/signal.h>
 
 #include <format.h>
+#include <string.h>
 #include <sigset.h>
 #include <fail.h>
 
 #include "vtmux.h"
 
-#define PFDS (CONSOLES + KEYBOARDS + 1)
+#define PFDS (1 + NTERMS + NCONNS)
 
-int nfds;
-struct pollfd pfds[PFDS];
 static sigset_t defsigset;
+struct pollfd pfds[PFDS];
+int npfds, pfdkeys[PFDS];
+
+int pollset;
 int sigterm;
 int sigchld;
 
@@ -55,42 +58,35 @@ void setup_signals(void)
 	if(ret) fail("signal init failed", NULL, 0);
 }
 
-/* Empty slots have everything = 0, but listening on fd 0
-   aka stdin is not a good idea, so we skip those.
-
-   The number of taken entries in pfds still has to match nconsoles
-   so that check_polled_fds would be able to match fd to their
-   respective consoles[] or keyboards[] slots. */
-
-static int consfd(struct vtx* cvt)
+static int add_poll_fd(int n, int fd, int key)
 {
-	return cvt->pid > 0 ? cvt->ctlfd : -1;
-}
+	if(fd <= 0)
+		return n;
 
-static int keybfd(struct kbd* kb)
-{
-	return kb->fd > 0 ? kb->fd : -1;
+	struct pollfd* pf = &pfds[n];
+
+	pf->fd = fd;
+	pf->events = POLLIN;
+	pfdkeys[n] = key;
+
+	return n + 1;
 }
 
 void update_poll_fds(void)
 {
-	int i;
-	int j = 0;
+	struct term* tm;
+	struct conn* cn;
+	int i, n = 0;
 
-	for(i = 0; i < nconsoles && j < PFDS; i++)
-		pfds[j++].fd = consfd(&consoles[i]);
+	n = add_poll_fd(n, ctrlfd, 0);
 
-	for(i = 0; i < nkeyboards && j < PFDS; i++)
-		pfds[j++].fd = keybfd(&keyboards[i]);
+	for(i = 0; i < nterms; i++)
+		n = add_poll_fd(n, terms[i].ctlfd, 1 + i);
+	for(i = 0; i < nconns; i++)
+		n = add_poll_fd(n, conns[i].fd, -1 - i);
 
-	if(j < PFDS && inotifyfd > 0)
-		pfds[j++].fd = inotifyfd;
-
-	for(i = 0; i < j; i++)
-		pfds[i].events = POLLIN;
-
-	nfds = j;
-	pollready = 1;
+	npfds = n;
+	pollset = 1;
 }
 
 /* Failing fds are dealt with immediately, to avoid re-queueing
@@ -98,78 +94,81 @@ void update_poll_fds(void)
    where the fds get closed. Control fds are closed either here
    or in closevt(). */
 
-static void close_pipe(struct vtx* cvt)
+static void close_pipe(struct term* vt)
 {
-	if(cvt->ctlfd > 0) {
-		sys_close(cvt->ctlfd);
-		cvt->ctlfd = -1;
-	}
+	sys_close(vt->ctlfd);
+	vt->ctlfd = -1;
+	pollset = 0;
 }
 
-static void close_kbd(struct kbd* kb)
+static void close_ctrl()
 {
-	sys_close(kb->fd);
-	kb->fd = 0;
-	kb->dev = 0;
-	kb->mod = 0;
+	sys_close(ctrlfd);
+	ctrlfd = -1;
+	pollset = 0;
+}
+
+static void close_conn(struct conn* cn)
+{
+	sys_close(cn->fd);
+	memzero(cn, sizeof(*cn));
+	pollset = 0;
+}
+
+static void recv_ctrl(struct pollfd* pf)
+{
+	if(pf->revents & POLLIN)
+		accept_ctrl();
+	if(pf->revents & ~POLLIN)
+		close_ctrl();
+}
+
+static void recv_term(struct pollfd* pf, struct term* vt)
+{
+	if(pf->revents & POLLIN)
+		handle_pipe(vt);
+	if(pf->revents & ~POLLIN)
+		close_pipe(vt);
+}
+
+static void recv_conn(struct pollfd* pf, struct conn* cn)
+{
+	if(pf->revents & POLLIN)
+		handle_conn(cn);
+	if(pf->revents & ~POLLIN)
+		close_conn(cn);
 }
 
 void check_polled_fds(void)
 {
-	int j, k;
+	int i, key;
 
-	for(j = 0; j < nfds; j++) {
-		int revents = pfds[j].revents;
-		int pollin = revents & POLLIN;
-		int fd = pfds[j].fd;
-
-		if(!revents)
-			continue;
-		if(!pollin)
-			pfds[j].fd = -1;
-
-		if((k = j) < nconsoles) {
-			struct vtx* cvt = &consoles[k];
-
-			if(pollin)
-				handle_pipe(cvt);
-			else
-				close_pipe(cvt);
-
-		} else if((k = j - nconsoles) < nkeyboards) {
-			struct kbd* kb = &keyboards[k];
-
-			if(pollin)
-				handle_kbd(kb, fd);
-			else
-				close_kbd(kb);
-		} else {
-			if(pollin)
-				handle_inotify(fd);
-			else
-				inotifyfd = -1; /* ugh */
-		}
-	}
+	for(i = 0; i < npfds; i++)
+		if((key = pfdkeys[i]) == 0)
+			recv_ctrl(&pfds[i]);
+		else if(key > 0)
+			recv_term(&pfds[i], &terms[key-1]);
+		else if(key < 0)
+			recv_conn(&pfds[i], &conns[-key-1]);
 }
 
-void mainloop(void)
+int wait_poll(void)
 {
-	while(!sigterm)
-	{
-		sigchld = 0;
+	sigchld = 0;
 
-		if(!pollready)
-			update_poll_fds();
+	if(!pollset)
+		update_poll_fds();
 
-		int r = sys_ppoll(pfds, nfds, NULL, &defsigset);
+	int r = sys_ppoll(pfds, npfds, NULL, &defsigset);
 
-		if(sigchld)
-			waitpids();
-		if(r == -EINTR)
-			; /* signal has been caught and handled */
-		else if(r < 0)
-			fail("ppoll", NULL, r);
-		else if(r > 0)
-			check_polled_fds();
-	}
+	if(sigchld)
+		waitpids();
+	if(r == -EINTR)
+		; /* signal has been caught and handled */
+	else if(r < 0)
+		fail("ppoll", NULL, r);
+	else if(r > 0)
+		check_polled_fds();
+
+	return sigterm;
 }

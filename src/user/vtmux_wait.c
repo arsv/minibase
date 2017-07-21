@@ -29,17 +29,6 @@
    being used for some time. There's no point in keeping it running
    in background, it will be re-started on request anyway. */
 
-static struct vtx* find_pid_rec(int pid)
-{
-	int i;
-
-	for(i = 0; i < nconsoles; i++)
-		if(consoles[i].pid == pid)
-			return &consoles[i];
-
-	return NULL;
-}
-
 static void report_cause(int fd, int status)
 {
 	char msg[32];
@@ -62,14 +51,12 @@ void waitpids(void)
 {
 	int status;
 	int pid;
-	struct vtx* active = NULL;
+	struct term *cvt, *active = NULL;
 
-	while((pid = sys_waitpid(-1, &status, WNOHANG)) > 0)
-	{
-		struct vtx* cvt = find_pid_rec(pid);
-
-		if(!cvt)
+	while((pid = sys_waitpid(-1, &status, WNOHANG)) > 0) {
+		if(!(cvt = find_term_by_pid(pid)))
 			continue;
+
 		if(status)
 			report_cause(cvt->ttyfd, status);
 		if(cvt->tty == activetty && !status)
@@ -83,39 +70,40 @@ void waitpids(void)
 	if(active->pin)
 		switchto(active->tty); /* try to restart it */
 	else
-		switchto(consoles[0].tty); /* greeter */
+		switchto(terms[0].tty); /* greeter */
 }
 
 /* Shutdown routines: wait for VT clients to die before exiting. */
 
-static int countrunning(void)
+static int count_running(void)
 {
-	int i;
 	int count = 0;
+	struct term* cvt;
 
-	for(i = 0; i < nconsoles; i++)
-		if(consoles[i].pid > 0)
+	for(cvt = terms; cvt < terms + nterms; cvt++)
+		if(cvt->pid > 0)
 			count++;
 
 	return count;
 }
 
-static void markdead(int pid)
+static void mark_dead(int pid)
 {
-	int i;
+	struct term* cvt;
 
-	for(i = 0; i < nconsoles; i++)
-		if(consoles[i].pid == pid)
-			consoles[i].pid = -1;
+	if(!(cvt = find_term_by_pid(pid)))
+		return;
+
+	cvt->pid = -1;
 }
 
-static void killall(void)
+static void kill_all_terms(void)
 {
-	int i;
+	struct term* cvt;
 
-	for(i = 0; i < nconsoles; i++)
-		if(consoles[i].pid > 0)
-			sys_kill(consoles[i].pid, SIGTERM);
+	for(cvt = terms; cvt < terms + nterms; cvt++)
+		if(cvt->pid > 0)
+			sys_kill(cvt->pid, SIGTERM);
 }
 
 void shutdown(void)
@@ -124,11 +112,11 @@ void shutdown(void)
 	int pid;
 
 	sys_alarm(5);
-	killall();
+	kill_all_terms();
 
-	while(countrunning() > 0)
+	while(count_running() > 0)
 		if((pid = sys_waitpid(-1, &status, 0)) > 0)
-			markdead(pid);
+			mark_dead(pid);
 		else break;
 
 	unlock_switch();
