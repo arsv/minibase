@@ -98,7 +98,7 @@ void update_poll_fds(void)
    where the fds get closed. Control fds are closed either here
    or in closevt(). */
 
-static void closectl(struct vtx* cvt)
+static void close_pipe(struct vtx* cvt)
 {
 	if(cvt->ctlfd > 0) {
 		sys_close(cvt->ctlfd);
@@ -106,7 +106,7 @@ static void closectl(struct vtx* cvt)
 	}
 }
 
-static void closekbd(struct kbd* kb)
+static void close_kbd(struct kbd* kb)
 {
 	sys_close(kb->fd);
 	kb->fd = 0;
@@ -132,20 +132,20 @@ void check_polled_fds(void)
 			struct vtx* cvt = &consoles[k];
 
 			if(pollin)
-				handlectl(cvt, fd);
+				handle_pipe(cvt);
 			else
-				closectl(cvt);
+				close_pipe(cvt);
 
 		} else if((k = j - nconsoles) < nkeyboards) {
 			struct kbd* kb = &keyboards[k];
 
 			if(pollin)
-				handlekbd(kb, fd);
+				handle_kbd(kb, fd);
 			else
-				closekbd(kb);
+				close_kbd(kb);
 		} else {
 			if(pollin)
-				handleino(fd);
+				handle_inotify(fd);
 			else
 				inotifyfd = -1; /* ugh */
 		}

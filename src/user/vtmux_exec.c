@@ -155,7 +155,7 @@ static int start_cmd_on(struct vtx* cvt)
 	int ret, pid;
 
 	int domain = AF_UNIX;
-	int type = SOCK_DGRAM | SOCK_CLOEXEC;
+	int type = SOCK_SEQPACKET | SOCK_CLOEXEC;
 	int proto = 0;
 
 	if((ret = sys_socketpair(domain, type, proto, sk)) < 0)

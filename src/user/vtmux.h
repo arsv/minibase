@@ -60,10 +60,14 @@ extern int nkeyboards;
 /* Cross-module prototypes */
 
 void setup_signals(void);
+
+void handle_pipe(struct vtx* cvt);
+void notify_activated(int tty);
+void notify_deactivated(int tty);
+
 void setup_keyboards(void);
-void handlectl(struct vtx* cvt, int fd);
-void handlekbd(struct kbd* kb, int fd);
-void handleino(int fd);
+void handle_kbd(struct kbd* kb, int fd);
+void handle_inotify(int fd);
 
 int lock_switch(int* mask);
 int unlock_switch(void);

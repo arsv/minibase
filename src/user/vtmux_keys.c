@@ -65,7 +65,7 @@ void keypress(struct kbd* kb, int code)
 	}
 }
 
-void handlekbd(struct kbd* kb, int fd)
+void handle_kbd(struct kbd* kb, int fd)
 {
 	char buf[256];
 	char* ptr;

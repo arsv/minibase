@@ -169,7 +169,7 @@ void setup_keyboards(void)
 	pollready = 0;
 }
 
-void handleino(int fd)
+void handle_inotify(int fd)
 {
 	char buf[512];
 	int len = sizeof(buf);

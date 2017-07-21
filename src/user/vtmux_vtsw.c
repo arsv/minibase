@@ -4,7 +4,6 @@
 #include <bits/major.h>
 
 #include <sys/file.h>
-#include <sys/kill.h>
 #include <sys/ioctl.h>
 
 #include <string.h>
@@ -148,6 +147,8 @@ static void disengage(int tty)
 
 		disable(mdi, TEMPORARILY);
 	}
+
+	notify_deactivated(tty);
 }
 
 /* Only need to activate DRIs here. It's up to the client to re-open inputs.
@@ -172,6 +173,8 @@ static void engage(int tty)
 
 		IOCTL(mdi->fd, DRM_IOCTL_SET_MASTER, 0);
 	}
+
+	notify_activated(tty);
 }
 
 /* Order is somewhat important here: we should better disconnect
