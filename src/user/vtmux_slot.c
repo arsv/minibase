@@ -60,6 +60,16 @@ struct mdev* grab_mdev_slot(void)
 	return grab_slot(mdevs, &nmdevs, NMDEVS, sizeof(*mdevs));
 }
 
+void free_term_slot(struct term* vt)
+{
+	return free_slot(terms, &nterms, sizeof(*vt), vt);
+}
+
+void free_mdev_slot(struct mdev* md)
+{
+	return free_slot(mdevs, &nmdevs, sizeof(*md), md);
+}
+
 struct term* find_term_by_pid(int pid)
 {
 	struct term* vt;

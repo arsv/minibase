@@ -77,10 +77,7 @@ void disable(struct mdev* md, int drop)
 		return;
 
 	sys_close(md->fd);
-
-	md->fd = 0;
-	md->dev = 0;
-	md->tty = 0;
+	free_mdev_slot(md);
 }
 
 /* Dead VTs are closed/released/disallocated, unless there's
@@ -110,9 +107,8 @@ void closevt(struct term* vt, int keepvt)
 			memset(vt->cmd, 0, sizeof(vt->cmd));
 		if(!vt->pin && vt->tty != initialtty) {
 			sys_close(vt->ttyfd);
-			vt->ttyfd = -1;
-			vt->tty = 0;
 			IOCTL(0, VT_DISALLOCATE, vt->tty);
+			free_term_slot(vt);
 		}
 	}
 
@@ -211,4 +207,12 @@ int activate(int tty)
 		ret = -EAGAIN; /* mis-switch */
 out:
 	return ret;
+}
+
+void restore_initial_tty(void)
+{
+	int tty = initialtty;
+
+	IOCTL(0, VT_ACTIVATE, tty);
+	IOCTL(0, VT_WAITACTIVE, tty);
 }

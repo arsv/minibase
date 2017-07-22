@@ -55,10 +55,8 @@ int main(int argc, char** argv, char** envp)
 	else if(opts & OPT_g)
 		fail("missing argument", NULL, 0);
 
-	int spareinitial = !!(opts & OPT_n);
-
 	setup_signals();
-	setup_pinned(greeter, argc - i, argv + i, spareinitial);
+	setup_pinned(greeter, argc - i, argv + i);
 	setup_ctrl();
 
 	if(terms[1].pin)
@@ -66,10 +64,11 @@ int main(int argc, char** argv, char** envp)
 	else
 		invoke(&terms[0]);
 
-	while(!wait_poll())
-		;
+	poll_inputs();
 
-	shutdown();
+	terminate_children();
+	restore_initial_tty();
+	clear_ctrl();
 
 	return 0;
 }

@@ -65,12 +65,10 @@ void closevt(struct term* cvt, int keepvt);
 void disable(struct mdev* md, int drop);
 
 void shutdown(void);
-void waitpids(void);
-
 int switchto(int tty);
 int spawn(char* cmd);
 int invoke(struct term* cvt);
-void setup_pinned(char* greeter, int n, char** cmds, int spareinitial);
+void setup_pinned(char* greeter, int n, char** cmds);
 int prep_event_dev(int fd);
 
 struct term* grab_term_slot(void);
@@ -78,6 +76,8 @@ struct conn* grab_conn_slot(void);
 struct mdev* grab_mdev_slot(void);
 struct term* find_term_by_pid(int pid);
 struct term* find_term_by_tty(int tty);
+void free_term_slot(struct term* vt);
+void free_mdev_slot(struct mdev* md);
 
 int wait_poll(void);
 
@@ -86,3 +86,10 @@ void setup_ctrl(void);
 void handle_conn(struct conn* cn);
 
 void handle_pipe(struct term* vt);
+void clear_ctrl(void);
+void poll_inputs(void);
+void terminate_children(void);
+
+void restore_initial_tty(void);
+int open_tty_device(int tty);
+void disable_all_tty_devs(int tty);

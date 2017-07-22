@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <sys/file.h>
 #include <sys/kill.h>
+#include <sys/fsnod.h>
 #include <sys/itimer.h>
 
 #include <nlusctl.h>
@@ -99,4 +100,9 @@ void setup_ctrl(void)
 
 	ctrlfd = -1;
 	sys_close(fd);
+}
+
+void clear_ctrl(void)
+{
+	sys_unlink(CONTROL);
 }

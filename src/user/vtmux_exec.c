@@ -99,9 +99,6 @@ void free_console_slot(struct term* cvt)
 	cvt->pid = 0;
 	cvt->ctlfd = 0;
 
-	if(cvt->tty == initialtty)
-		return;
-
 	sys_close(cvt->ttyfd);
 	cvt->ttyfd = -1;
 	cvt->tty = 0;
@@ -195,8 +192,8 @@ int invoke(struct term* cvt)
 		return sys_kill(cvt->pid, SIGCONT);
 	else if(cvt->pin)
 		return start_cmd_on(cvt);
-
-	return -ENOENT;
+	else
+		return -ENOENT;
 }
 
 int switchto(int tty)
@@ -242,7 +239,7 @@ static int choose_some_high_tty(int mask)
 	return 0;
 }
 
-void setup_pinned(char* greeter, int n, char** cmds, int spareinitial)
+void setup_pinned(char* greeter, int n, char** cmds)
 {
 	struct term* gvt;
 	struct term* cvt;
@@ -259,13 +256,8 @@ void setup_pinned(char* greeter, int n, char** cmds, int spareinitial)
 	for(i = 0; i < n; i++)
 		if(!(cvt = grab_term_slot()))
 			fail("too many preset vts", NULL, 0);
-		else if(i == 0 && !spareinitial)
-			preset(cvt, cmds[i], initialtty);
 		else
 			preset(cvt, cmds[i], query_empty_tty());
 
-	if(!n && !spareinitial)
-		preset(gvt, greeter, initialtty);
-	else
-		preset(gvt, greeter, choose_some_high_tty(mask));
+	preset(gvt, greeter, choose_some_high_tty(mask));
 }
