@@ -1,5 +1,7 @@
 #include <bits/ioctl/tty.h>
+#include <bits/ioctl/common.h>
 #include <bits/socket/unix.h>
+
 #include <bits/fcntl.h>
 
 #include <sys/file.h>
@@ -7,6 +9,7 @@
 #include <sys/fork.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/pgrp.h>
 #include <sys/exec.h>
 #include <sys/socket.h>
 
@@ -104,6 +107,26 @@ void free_console_slot(struct term* cvt)
 	cvt->tty = 0;
 }
 
+/* All child_* functions run in the child process. */
+
+static void child_prep_fds(int ttyfd, int ctlfd)
+{
+	sys_dup2(ttyfd, 0);
+	sys_dup2(ttyfd, 1);
+	sys_dup2(ttyfd, 2);
+	sys_dup2(ctlfd, 3);
+}
+
+static void child_set_ctty(void)
+{
+	int ret;
+
+	if((ret = sys_setsid()) < 0)
+		warn("setsid", NULL, ret);
+	if((ret = sys_ioctl(STDOUT, TIOCSCTTY, 0)) < 0)
+		warn("ioctl", "TIOCSCTTY", ret);
+}
+
 static int child_proc(int ttyfd, int ctlfd, char* cmd)
 {
 	int cmdlen = strlen(cmd);
@@ -121,10 +144,8 @@ static int child_proc(int ttyfd, int ctlfd, char* cmd)
 
 	char* argv[] = { path, NULL };
 
-	sys_dup2(ttyfd, 0);
-	sys_dup2(ttyfd, 1);
-	sys_dup2(ttyfd, 2);
-	sys_dup2(ctlfd, 3);
+	child_prep_fds(ttyfd, ctlfd);
+	child_set_ctty();
 
 	xchk(sys_execve(*argv, argv, environ), "exec", cmd);
 
