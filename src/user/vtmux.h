@@ -88,8 +88,11 @@ void handle_conn(struct conn* cn);
 void handle_pipe(struct term* vt);
 void clear_ctrl(void);
 void poll_inputs(void);
+int poll_final(int secs);
 void terminate_children(void);
+void wait_pids(int shutdown);
 
 void restore_initial_tty(void);
 int open_tty_device(int tty);
 void disable_all_tty_devs(int tty);
+int count_running(void);
