@@ -156,15 +156,21 @@ static void engage(int tty)
    VT_WAITACTIVE active below *is* necessary; switch does not
    occur otherwise. XXX: check what's really going on there. */
 
-static void switch_vt(int tty)
+static int switch_vt(int tty)
 {
-	IOCTL(0, VT_ACTIVATE, tty);
-	IOCTL(0, VT_WAITACTIVE, tty);
+	int ret;
+
+	if((ret = sys_ioctli(0, VT_ACTIVATE, tty)) < 0)
+		return ret;
+	if((ret = sys_ioctli(0, VT_WAITACTIVE, tty)) < 0)
+		return ret;
+
+	return 0;
 }
 
 int activate(int tty)
 {
-	long ret;
+	long ret, swret;
 	int tries = 0;
 
 	if(activetty == tty)
@@ -176,17 +182,19 @@ int activate(int tty)
 		if((ret = unlock_switch()) < 0)
 			goto out;
 
-		switch_vt(tty);
+		swret = switch_vt(tty);
 
 		if((ret = lock_switch(NULL)) < 0)
 			goto out;
 
-	} while(ret != tty && tries++ < 5);
+	} while(ret != tty && !swret && tries++ < 5);
 
 	activetty = ret;
 	engage(activetty);
 
-	if(activetty != tty)
+	if(swret < 0)
+		ret = swret;
+	else if(activetty != tty)
 		ret = -EAGAIN; /* mis-switch */
 out:
 	return ret;
