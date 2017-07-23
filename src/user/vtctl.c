@@ -118,7 +118,7 @@ static void cmd_spawn(CTX)
 
 	no_other_options(ctx);
 
-	start_request(ctx, CMD_SWITCH, 0, 0);
+	start_request(ctx, CMD_SPAWN, 0, 0);
 	add_str_attr(ctx, ATTR_NAME, name);
 	send_request(ctx);
 
