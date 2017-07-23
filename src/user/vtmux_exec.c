@@ -2,8 +2,6 @@
 #include <bits/ioctl/common.h>
 #include <bits/socket/unix.h>
 
-#include <bits/fcntl.h>
-
 #include <sys/file.h>
 #include <sys/kill.h>
 #include <sys/fork.h>
