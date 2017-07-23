@@ -221,22 +221,21 @@ static void preset(struct term* cvt, char* cmd, int tty)
 {
 	long ret;
 
-	if((ret = set_slot_command(cvt, cmd)))
-		fail("name too long:", cmd, 0);
-
 	if(tty <= 0)
 		fail("no tty for", cmd, 0);
+	if((ret = set_slot_command(cvt, cmd)))
+		fail("name too long:", cmd, 0);
 
 	cvt->pin = 1;
 	cvt->tty = tty;
 	cvt->ctlfd = -1;
 }
 
-static int choose_some_high_tty(int mask)
+static int choose_empty_tty(int mask, int last)
 {
 	int i;
 
-	for(i = 10; i < 15; i++)
+	for(i = last + 1; i < 15; i++)
 		if(!(mask & (1<<i)))
 			return i;
 
@@ -257,11 +256,21 @@ void setup_pinned(char* greeter, int n, char** cmds)
 	initialtty = activetty = tty;
 	gvt->pin = 1;
 
-	for(i = 0; i < n; i++)
+	tty = 0;
+
+	for(i = 0; i < n; i++) {
 		if(!(cvt = grab_term_slot()))
 			fail("too many preset vts", NULL, 0);
-		else
-			preset(cvt, cmds[i], query_empty_tty());
+		if((tty = choose_empty_tty(mask, tty)) <= 0)
+			fail("no VTs left for", cmds[i], 0);
 
-	preset(gvt, greeter, choose_some_high_tty(mask));
+		preset(cvt, cmds[i], tty);
+	}
+
+	if(tty < 10)
+		tty = 10;
+	if((tty = choose_empty_tty(mask, tty)) <= 0)
+		fail("no VTs left for greeter", NULL, 0);
+
+	preset(gvt, greeter, tty);
 }
