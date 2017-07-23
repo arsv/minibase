@@ -91,7 +91,9 @@ static int cmd_spawn(CN, MSG)
 	if(!name_is_simple(name))
 		return -EACCES;
 
-	return reply(cn, spawn(name));
+	int ret = spawn(name);
+
+	return reply(cn, ret);
 }
 
 static const struct cmd {
