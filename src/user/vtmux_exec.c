@@ -67,17 +67,14 @@ int query_empty_tty(void)
 struct term* allocate_console(void)
 {
 	struct term* cvt;
-	int tty, ttyfd;
+	int tty;
 
 	if(!(cvt = grab_term_slot()))
 		return NULL;
 	if((tty = query_empty_tty()) < 0)
 		return NULL;
-	if((ttyfd = open_tty_device(tty)) < 0)
-		return NULL;
 
 	cvt->tty = tty;
-	cvt->ttyfd = ttyfd;
 
 	return cvt;
 }
@@ -93,18 +90,6 @@ int set_slot_command(struct term* cvt, char* cmd)
 	cvt->cmd[cmdlen] = '\0';
 
 	return 0;
-}
-
-void free_console_slot(struct term* cvt)
-{
-	memset(cvt->cmd, 0, sizeof(cvt->cmd));
-
-	cvt->pid = 0;
-	cvt->ctlfd = 0;
-
-	sys_close(cvt->ttyfd);
-	cvt->ttyfd = -1;
-	cvt->tty = 0;
 }
 
 /* All child_* functions run in the child process. */
@@ -154,12 +139,15 @@ static int child_proc(int ttyfd, int ctlfd, char* cmd)
 
 static int start_cmd_on(struct term* cvt)
 {
-	int sk[2];
+	int ttyfd, sk[2];
 	int ret, pid;
 
 	int domain = AF_UNIX;
 	int type = SOCK_SEQPACKET | SOCK_CLOEXEC;
 	int proto = 0;
+
+	if((ttyfd = open_tty_device(cvt->tty)) < 0)
+		return ttyfd;
 
 	if((ret = sys_socketpair(domain, type, proto, sk)) < 0)
 		return ret;
@@ -168,9 +156,11 @@ static int start_cmd_on(struct term* cvt)
 		return pid;
 
 	if(pid == 0)
-		_exit(child_proc(cvt->ttyfd, sk[1], cvt->cmd));
+		_exit(child_proc(ttyfd, sk[1], cvt->cmd));
 
 	sys_close(sk[1]);
+	sys_close(ttyfd);
+
 	cvt->ctlfd = sk[0];
 	cvt->pid = pid;
 
@@ -197,7 +187,7 @@ int spawn(char* cmd)
 
 	activate(old);
 fail:
-	free_console_slot(cvt);
+	free_term_slot(cvt);
 done:
 	return ret;
 }
@@ -236,16 +226,11 @@ static void preset(struct term* cvt, char* cmd, int tty)
 	if((ret = set_slot_command(cvt, cmd)))
 		fail("name too long:", cmd, 0);
 
+	if(tty <= 0)
+		fail("no tty for", cmd, 0);
+
 	cvt->pin = 1;
-
-	if(tty <= 0) return;
-
-	int fd = open_tty_device(tty);
-
-	if(fd < 0) return;
-
 	cvt->tty = tty;
-	cvt->ttyfd = fd;
 	cvt->ctlfd = -1;
 }
 

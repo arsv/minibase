@@ -9,7 +9,6 @@
    non-zero and may not match indexes in consoles[]. */
 
 struct term {
-	int ttyfd;    /* /dev/ttyN */
 	int ctlfd;    /* control socket */
 	int pid;
 	short tty;    /* N in ttyN, always 1-based */
@@ -96,3 +95,6 @@ void restore_initial_tty(void);
 int open_tty_device(int tty);
 void disable_all_tty_devs(int tty);
 int count_running(void);
+void disable_all_devs_for(int tty);
+
+long ioctl(int fd, int req, long arg, const char* name);

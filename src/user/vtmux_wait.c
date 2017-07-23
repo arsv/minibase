@@ -1,3 +1,5 @@
+#include <bits/ioctl/tty.h>
+
 #include <sys/file.h>
 #include <sys/kill.h>
 #include <sys/wait.h>
@@ -50,45 +52,47 @@ static void report_cause(int fd, int status)
 		warn("write", NULL, ret);
 }
 
-/* No idea why this is necessary, but the open tty fd somehow gets
-   invalidated when the child exits. May be related to setsid.
-   Anyway, to do anything with the tty we have to re-open it.
+/* In case of abnormal exits, do not switch VT to let the user
+   read whatever error messages may be there. */
 
-   There are few cases when the newly-opened fd will be closed
-   immediately in closevt(), however skipping reopen just isn't
-   worth the trouble. */
-
-static void reopen_tty_device(struct term* vt)
+static void handle_dead(struct term* vt, int status)
 {
-	int fd;
+	int tty = vt->tty;
+	int ttyfd;
 
-	sys_close(vt->ttyfd);
-	vt->ttyfd = 0;
+	sys_close(vt->ctlfd);
+	disable_all_devs_for(tty);
 
-	if((fd = open_tty_device(vt->tty)) < 0)
-		return;
+	vt->ctlfd = 0;
+	vt->pid = 0;
 
-	vt->ttyfd = fd;
+	if(status && (ttyfd = open_tty_device(tty)) >= 0) {
+		ioctl(ttyfd, KDSETMODE, 0, "KDSETMODE");
+		report_cause(ttyfd, status);
+		sys_close(ttyfd);
+	}
+
+	if(!status && !vt->pin)
+		ioctl(0, VT_DISALLOCATE, tty, "VT_DISALLOCATE");
+	if(!vt->pin)
+		free_term_slot(vt);
+
+	pollset = 0;
 }
 
 void wait_pids(int shutdown)
 {
 	int status;
 	int pid, ret;
-	struct term *cvt, *active = NULL;
+	struct term *vt, *active = NULL;
 
 	while((pid = sys_waitpid(-1, &status, WNOHANG)) > 0) {
-		if(!(cvt = find_term_by_pid(pid)))
+		if(!(vt = find_term_by_pid(pid)))
 			continue;
+		if(vt->tty == activetty && !status)
+			active = vt;
 
-		reopen_tty_device(cvt);
-
-		if(status && cvt->ttyfd > 0)
-			report_cause(cvt->ttyfd, status);
-		if(cvt->tty == activetty && !status)
-			active = cvt;
-
-		closevt(cvt, !!status);
+		handle_dead(vt, status);
 	}
 
 	if(!active || shutdown)

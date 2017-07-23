@@ -12,7 +12,7 @@
 
 #include "vtmux.h"
 
-static long ioctl(int fd, int req, long arg, char* name)
+long ioctl(int fd, int req, long arg, const char* name)
 {
 	long ret;
 
@@ -84,35 +84,13 @@ void disable(struct mdev* md, int drop)
    a pinned command there, or it's the initial vt vtmux itself
    runs on. Those are kept open. */
 
-void closevt(struct term* vt, int keepvt)
+void disable_all_devs_for(int tty)
 {
-	int tty = vt->tty;
 	struct mdev* md;
-
-	vt->pid = 0;
 
 	for(md = mdevs; md < mdevs + nmdevs; md++)
 		if(md->tty == tty)
 			disable(md, PERMANENTLY);
-
-	if(vt->ctlfd > 0) {
-		sys_close(vt->ctlfd);
-		vt->ctlfd = 0;
-	}
-
-	if(keepvt) {
-		IOCTL(vt->ttyfd, KDSETMODE, 0);
-	} else {
-		if(!vt->pin)
-			memset(vt->cmd, 0, sizeof(vt->cmd));
-		if(!vt->pin && vt->tty != initialtty) {
-			sys_close(vt->ttyfd);
-			IOCTL(0, VT_DISALLOCATE, vt->tty);
-			free_term_slot(vt);
-		}
-	}
-
-	pollset = 0;
 }
 
 /* Session switch sequence:
