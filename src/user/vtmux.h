@@ -60,12 +60,8 @@ int dispatch_cmd(struct conn* cn, struct ucmsg* msg);
 int lock_switch(int* mask);
 int unlock_switch(void);
 int activate(int tty);
-void closevt(struct term* cvt, int keepvt);
 void disable(struct mdev* md, int drop);
-
-void shutdown(void);
 int switchto(int tty);
-int prep_event_dev(int fd);
 
 struct term* grab_term_slot(void);
 struct conn* grab_conn_slot(void);
@@ -89,15 +85,10 @@ void terminate_children(void);
 void wait_pids(int shutdown);
 
 void restore_initial_tty(void);
-void disable_all_tty_devs(int tty);
 int count_running(void);
 void disable_all_devs_for(int tty);
 
 long ioctl(int fd, int req, void* arg, const char* name);
-
-void start_greeter(void);
-void start_initial(void);
-void start_whatever(void);
 
 int spawn(int tty, char* cmd);
 int spawn_pinned(int tty);
