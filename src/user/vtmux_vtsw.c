@@ -12,18 +12,15 @@
 
 #include "vtmux.h"
 
-long ioctl(int fd, int req, long arg, const char* name)
+long ioctl(int fd, int req, void* arg, const char* name)
 {
 	long ret;
 
-	if((ret = sys_ioctli(fd, req, arg)) < 0)
+	if((ret = sys_ioctl(fd, req, arg)) < 0)
 		warn("ioctl", name, ret);
 
 	return ret;
 }
-
-#define IOCTL(ff, rr, aa) \
-	ioctl(ff, rr, aa, #rr)
 
 /* This is incredibly racy, but the only alternative is to hold all
    pinned VTs open so that VT_OPENQRY would skip them. And then again,
@@ -109,10 +106,10 @@ int lock_switch(int* mask)
 	struct vt_stat vst;
 	long ret;
 
-	if((ret = IOCTL(0, VT_LOCKSWITCH, 0)) < 0)
+	if((ret = ioctl(0, VT_LOCKSWITCH, NULL, "VT_LOCKSWITCH")) < 0)
 		return ret;
 
-	if((ret = IOCTL(0, VT_GETSTATE, (long)&vst)) < 0)
+	if((ret = ioctl(0, VT_GETSTATE, &vst, "VT_GETSTATE")) < 0)
 		return ret;
 
 	if(mask)
@@ -123,7 +120,7 @@ int lock_switch(int* mask)
 
 int unlock_switch(void)
 {
-	return IOCTL(0, VT_UNLOCKSWITCH, 0);
+	return ioctl(0, VT_UNLOCKSWITCH, NULL, "VT_UNLOCKSWITCH");
 }
 
 /* Per current systemd-induced design, DRI devices can be suspended
@@ -141,9 +138,9 @@ void disable(struct mdev* md, int drop)
 	int fd = md->fd;
 
 	if(maj == DRI_MAJOR)
-		IOCTL(fd, DRM_IOCTL_DROP_MASTER, 0);
+		ioctl(fd, DRM_IOCTL_DROP_MASTER, NULL, "DROP_MASTER");
 	else if(maj == INPUT_MAJOR)
-		IOCTL(fd, EVIOCREVOKE, 0);
+		ioctl(fd, EVIOCREVOKE, 0, "EVIOCREVOKE");
 
 	if(!drop && maj != INPUT_MAJOR)
 		return;
@@ -209,7 +206,7 @@ static void engage(int tty)
 		if(major(md->dev) != DRI_MAJOR)
 			continue;
 
-		IOCTL(md->fd, DRM_IOCTL_SET_MASTER, 0);
+		ioctl(md->fd, DRM_IOCTL_SET_MASTER, NULL, "SET_MASTER");
 	}
 
 	notify_activated(tty);

@@ -67,7 +67,7 @@ static void wipe_dead(struct term* vt, int status)
 	vt->pid = 0;
 
 	if(status && (ttyfd = open_tty_device(tty)) >= 0) {
-		ioctl(ttyfd, KDSETMODE, 0, "KDSETMODE");
+		ioctl(ttyfd, KDSETMODE, NULL, "KDSETMODE");
 		report_cause(ttyfd, status);
 		sys_close(ttyfd);
 	}

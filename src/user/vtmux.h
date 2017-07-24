@@ -93,7 +93,7 @@ void disable_all_tty_devs(int tty);
 int count_running(void);
 void disable_all_devs_for(int tty);
 
-long ioctl(int fd, int req, long arg, const char* name);
+long ioctl(int fd, int req, void* arg, const char* name);
 
 void start_greeter(void);
 void start_initial(void);
