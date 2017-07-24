@@ -11,7 +11,39 @@
 #include <fail.h>
 
 #include "vtmux.h"
-#include "vtmux_pipe.h"
+
+/* Each client gets a pipe (really a socket pair) to the vtmux instance
+   that spawned it. The client uses it request access to managed devices
+   (DRM and inputs).
+
+   The following implements weston-launch protocol.
+
+   In this implementation, the pipe is also used to notify the client when
+   its VT becomes active or inactive. The client needs some sort of note
+   from vtmux to attempt re-opening the devices. Kernel-issued signals
+   (see ioctl_console(2), VT_SETMODE, acqsig) are not reliable because
+   the signal may arrive before vtmux is done switching, prompting the client
+   to do DRM management ioctl on a fd that is not yet a DRM master.
+
+   Note there is no way to close fds atm; inputs are closed and re-opened
+   on every switch, and DRMs are only closed when the client exits. */
+
+#define PIPE_CMD_OPEN       0
+
+#define PIPE_REP_OK         0
+#define PIPE_REP_ACTIVATE   1
+#define PIPE_REP_DEACTIVATE 2
+
+struct pmsg {
+	int code;
+	char payload[];
+};
+
+struct pmsg_open {
+	int code;
+	int mode;
+	char path[];
+};
 
 static void reply(struct term* cvt, int errno)
 {

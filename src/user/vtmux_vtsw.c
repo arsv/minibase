@@ -25,6 +25,16 @@ long ioctl(int fd, int req, long arg, const char* name)
 #define IOCTL(ff, rr, aa) \
 	ioctl(ff, rr, aa, #rr)
 
+/* This is incredibly racy, but the only alternative is to hold all
+   pinned VTs open so that VT_OPENQRY would skip them. And then again,
+   VT_OPENQRY itself is racy. It is probably impossible to do userspace
+   VT allocation correctly in Linux.
+
+   Considering typicaly usage, let's just pretend that no other process
+   would ever attempt to grab concurrently with vtmux. It's not like
+   system-logind is any better. */
+
+
 static int query_empty_mask(int* mask)
 {
 	struct vt_stat vst;
@@ -75,6 +85,16 @@ int query_greeter_tty(void)
 			return tty;
 
 	return query_empty_tty();
+}
+
+static int looks_active(int tty)
+{
+	int mask, ret;
+
+	if((ret = query_empty_mask(&mask)) < 0)
+		return ret;
+
+	return (mask & (1 << tty));
 }
 
 /* Locking VT switch prevents non-priviledged processes from switching
@@ -132,9 +152,8 @@ void disable(struct mdev* md, int drop)
 	free_mdev_slot(md);
 }
 
-/* Dead VTs are closed/released/disallocated, unless there's
-   a pinned command there, or it's the initial vt vtmux itself
-   runs on. Those are kept open. */
+/* Final treatment for FDs of a client that died. Just closing them
+   is not a good idea since client might have leaked some to its children. */
 
 void disable_all_devs_for(int tty)
 {
@@ -252,6 +271,9 @@ int activate(int tty)
 	return ret;
 }
 
+/* Grab lock on startup, do some switching on C-A-Fn, and try to restore
+   the initial state before exiting. */
+
 void grab_initial_lock(void)
 {
 	int ret;
@@ -264,32 +286,6 @@ void grab_initial_lock(void)
 
 	if(!primarytty)
 		primarytty = ret;
-}
-
-void restore_initial_tty(void)
-{
-	int tty = initialtty;
-
-	unlock_switch();
-
-	if(initialtty == activetty)
-		return;
-
-	switch_wait(tty);
-}
-
-static int looks_active(int tty)
-{
-	struct vt_stat vst;
-	int ret;
-
-	if(tty <= 0 || tty >= 32)
-		return -EINVAL;
-
-	if((ret = sys_ioctl(0, VT_GETSTATE, &vst)) < 0)
-		return ret;
-
-	return vst.state & (1 << tty);
 }
 
 int switchto(int tty)
@@ -312,4 +308,16 @@ int switchto(int tty)
 		return spawn_pinned(tty);
 
 	return -ENOENT;
+}
+
+void restore_initial_tty(void)
+{
+	int tty = initialtty;
+
+	unlock_switch();
+
+	if(initialtty == activetty)
+		return;
+
+	switch_wait(tty);
 }

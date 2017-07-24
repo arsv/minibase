@@ -167,23 +167,6 @@ done:
 	return ret;
 }
 
-/* This is a fall-back routine called to switch to a VT that appears
-   to be empty. If there's a pinned command associated with that VT,
-   spawn it and proceed with the switch, otherwise remain on activetty. */
-
-int spawn_pinned(int tty)
-{
-	char buf[20];
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
-
-	p = fmtstr(p, e, "tty");
-	p = fmtint(p, e, tty);
-	*p++ = '\0';
-
-	return spawn(tty, buf);
-}
-
 int show_greeter(void)
 {
 	int tty;
@@ -196,6 +179,17 @@ int show_greeter(void)
 
 	return spawn(tty, "LOGIN");
 }
+
+/* The idea behind the following code is to allow the user to dedicate
+   certain TTYs to certain clients, so that for instance C-A-F5 would
+   always switch to the same user session, spawning it if necessary.
+
+   Pinned clients are defined by their names: /etc/vts/ttyN.
+
+   The set of pinned clients is cached within vtmux. This is to avoid
+   checking access() during every VT switch, and also to allow for sane
+   empty VT allocation code. The assumption is that the set is mostly
+   static while vtmux runs. */
 
 void scan_pinned(void)
 {
@@ -226,4 +220,17 @@ int pinned(int tty)
 		return 0;
 
 	return (pinmask & (1 << tty));
+}
+
+int spawn_pinned(int tty)
+{
+	char buf[20];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
+
+	p = fmtstr(p, e, "tty");
+	p = fmtint(p, e, tty);
+	*p++ = '\0';
+
+	return spawn(tty, buf);
 }
