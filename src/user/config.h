@@ -1,3 +1,5 @@
+#define CONFDIR "/etc/vts"
+
 #ifdef DEVEL
 # define CONTROL "./run/vtmux"
 #else

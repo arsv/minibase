@@ -2,6 +2,7 @@
 #include <bits/ioctl/common.h>
 #include <bits/socket/unix.h>
 
+#include <sys/access.h>
 #include <sys/file.h>
 #include <sys/kill.h>
 #include <sys/fork.h>
@@ -18,6 +19,8 @@
 
 #include "vtmux.h"
 
+int pinmask;
+
 /* Open a new VT and start a client there.
 
    A client is always a script in /etc/vtx; vtmux starts it with
@@ -30,7 +33,7 @@
    mapping between via first and the last fields in traditional
    /etc/passwd format.
 
-   Greeter itself is just another pinned client named "login". */
+   Greeter itself is just another pinned client named "LOGIN". */
 
 int open_tty_device(int tty)
 {
@@ -49,45 +52,6 @@ int open_tty_device(int tty)
 		warn("open", namebuf, fd);
 
 	return fd;
-}
-
-int query_empty_tty(void)
-{
-	int tty;
-	long ret;
-
-	if((ret = sys_ioctl(0, VT_OPENQRY, &tty)) < 0)
-		warn("ioctl", "VT_OPENQRY", ret);
-
-	return tty;
-}
-
-struct term* allocate_console(void)
-{
-	struct term* cvt;
-	int tty;
-
-	if(!(cvt = grab_term_slot()))
-		return NULL;
-	if((tty = query_empty_tty()) < 0)
-		return NULL;
-
-	cvt->tty = tty;
-
-	return cvt;
-}
-
-int set_slot_command(struct term* cvt, char* cmd)
-{
-	int cmdlen = strlen(cmd);
-
-	if(cmdlen > CMDSIZE - 1)
-		return -ENAMETOOLONG;
-
-	memcpy(cvt->cmd, cmd, cmdlen);
-	cvt->cmd[cmdlen] = '\0';
-
-	return 0;
 }
 
 /* All child_* functions run in the child process. */
@@ -110,32 +74,21 @@ static void child_set_ctty(void)
 		warn("ioctl", "TIOCSCTTY", ret);
 }
 
-static int child_proc(int ttyfd, int ctlfd, char* cmd)
+static int child_proc(int ttyfd, int ctlfd, char* path)
 {
-	int cmdlen = strlen(cmd);
-	char* dir = "/etc/vts";
-	int dirlen = strlen(dir);
-
-	char path[dirlen+cmdlen+2];
-	char* p = path;
-	char* e = path + sizeof(path) - 1;
-
-	p = fmtstr(p, e, dir);
-	p = fmtstr(p, e, "/");
-	p = fmtstr(p, e, cmd);
-	*p++ = '\0';
-
 	char* argv[] = { path, NULL };
 
 	child_prep_fds(ttyfd, ctlfd);
 	child_set_ctty();
 
-	xchk(sys_execve(*argv, argv, environ), "exec", cmd);
+	xchk(sys_execve(*argv, argv, environ), "exec", path);
 
 	return 0;
 }
 
-static int start_cmd_on(struct term* cvt)
+/* This runs with $tty already active. */
+
+static int start_cmd_on(struct term* cvt, int tty, char* path)
 {
 	int ttyfd, sk[2];
 	int ret, pid;
@@ -144,7 +97,7 @@ static int start_cmd_on(struct term* cvt)
 	int type = SOCK_SEQPACKET | SOCK_CLOEXEC;
 	int proto = 0;
 
-	if((ttyfd = open_tty_device(cvt->tty)) < 0)
+	if((ttyfd = open_tty_device(tty)) < 0)
 		return ttyfd;
 
 	if((ret = sys_socketpair(domain, type, proto, sk)) < 0)
@@ -154,33 +107,57 @@ static int start_cmd_on(struct term* cvt)
 		return pid;
 
 	if(pid == 0)
-		_exit(child_proc(ttyfd, sk[1], cvt->cmd));
+		_exit(child_proc(ttyfd, sk[1], path));
 
 	sys_close(sk[1]);
 	sys_close(ttyfd);
 
 	cvt->ctlfd = sk[0];
 	cvt->pid = pid;
+	cvt->tty = tty;
 
 	return 0;
 }
 
-int spawn(char* cmd)
+static void make_cmd_path(char* buf, int len, char* dir, char* cmd)
 {
+	char* p = buf;
+	char* e = buf + len - 1;
+
+	p = fmtstr(p, e, dir);
+	p = fmtstr(p, e, "/");
+	p = fmtstr(p, e, cmd);
+	*p++ = '\0';
+}
+
+static int check_cmd_exists(char* path)
+{
+	return sys_access(path, X_OK);
+}
+
+/* Switch to $tty and spawn $cmd there. The code does a quick check
+   for $cmd first to avoid rather heavy VT switch operation in case
+   there's nothing to run there. The chosen tty must be free. */
+
+int spawn(int tty, char* cmd)
+{
+	char* dir = CONFDIR;
+	char path[strlen(dir) + strlen(cmd) + 5];
+
 	int old = activetty;
 	struct term* cvt;
 	int ret = -EAGAIN;
 
-	if(!(cvt = allocate_console()))
+	make_cmd_path(path, sizeof(path), dir, cmd);
+
+	if((ret = check_cmd_exists(path)) < 0)
+		return ret;
+	if(!(cvt = grab_term_slot()))
 		return -EMFILE;
 
-	if((ret = set_slot_command(cvt, cmd)))
+	if((ret = activate(tty)) < 0)
 		goto fail;
-
-	if((ret = activate(cvt->tty)) < 0)
-		goto fail;
-
-	if(!(ret = start_cmd_on(cvt)))
+	if(!(ret = start_cmd_on(cvt, tty, path)))
 		goto done;
 
 	activate(old);
@@ -190,87 +167,63 @@ done:
 	return ret;
 }
 
-int invoke(struct term* cvt)
+/* This is a fall-back routine called to switch to a VT that appears
+   to be empty. If there's a pinned command associated with that VT,
+   spawn it and proceed with the switch, otherwise remain on activetty. */
+
+int spawn_pinned(int tty)
 {
-	long ret;
+	char buf[20];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
 
-	if((ret = activate(cvt->tty)) < 0)
-		return ret;
+	p = fmtstr(p, e, "tty");
+	p = fmtint(p, e, tty);
+	*p++ = '\0';
 
-	if(cvt->pid > 0)
-		return sys_kill(cvt->pid, SIGCONT);
-	else if(cvt->pin)
-		return start_cmd_on(cvt);
-	else
-		return -ENOENT;
+	return spawn(tty, buf);
 }
 
-int switchto(int tty)
+int show_greeter(void)
 {
-	struct term* cvt;
+	int tty;
 
-	if((cvt = find_term_by_tty(tty)))
-		return invoke(cvt);
-	else
-		return activate(tty);
+	if(greetertty)
+		return switchto(greetertty);
+
+	if((tty = query_greeter_tty()) < 0)
+		return tty;
+
+	return spawn(tty, "LOGIN");
 }
 
-/* Initial VTs setup: greeter and pinned commands */
-
-static void preset(struct term* cvt, char* cmd, int tty)
+void scan_pinned(void)
 {
-	long ret;
+	int tty;
 
-	if(tty <= 0)
-		fail("no tty for", cmd, 0);
-	if((ret = set_slot_command(cvt, cmd)))
-		fail("name too long:", cmd, 0);
+	char* dir = CONFDIR;
+	char buf[strlen(dir) + 20];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
 
-	cvt->pin = 1;
-	cvt->tty = tty;
-	cvt->ctlfd = -1;
-}
+	p = fmtstr(p, e, dir);
+	p = fmtstr(p, e, "/tty");
 
-static int choose_empty_tty(int mask, int last)
-{
-	int i;
+	pinmask = 0;
 
-	for(i = last + 1; i < 15; i++)
-		if(!(mask & (1<<i)))
-			return i;
+	for(tty = 1; tty <= 12; tty++) {
+		char* q = fmtint(p, e, tty);
+		*q++ = '\0';
 
-	return 0;
-}
-
-void setup_pinned(char* greeter, int n, char** cmds)
-{
-	struct term* gvt;
-	struct term* cvt;
-	int tty, mask, i;
-
-	if((tty = lock_switch(&mask)) <= 0)
-		fail("cannot setup initial console", NULL, tty);
-	if(!(gvt = grab_term_slot()))
-		fail("no slots left for greeter", NULL, 0);
-
-	initialtty = activetty = tty;
-	gvt->pin = 1;
-
-	tty = 0;
-
-	for(i = 0; i < n; i++) {
-		if(!(cvt = grab_term_slot()))
-			fail("too many preset vts", NULL, 0);
-		if((tty = choose_empty_tty(mask, tty)) <= 0)
-			fail("no VTs left for", cmds[i], 0);
-
-		preset(cvt, cmds[i], tty);
+		if(sys_access(buf, X_OK) >= 0)
+			pinmask |= (1 << tty);
 	}
+}
 
-	if(tty < 10)
-		tty = 10;
-	if((tty = choose_empty_tty(mask, tty)) <= 0)
-		fail("no VTs left for greeter", NULL, 0);
+int pinned(int tty)
+{
+	if(tty <= 0 || tty >= 32)
+		return 0;
 
-	preset(gvt, greeter, tty);
+	return (pinmask & (1 << tty));
 }

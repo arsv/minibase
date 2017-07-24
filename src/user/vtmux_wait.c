@@ -55,7 +55,7 @@ static void report_cause(int fd, int status)
 /* In case of abnormal exits, do not switch VT to let the user
    read whatever error messages may be there. */
 
-static void handle_dead(struct term* vt, int status)
+static void wipe_dead(struct term* vt, int status)
 {
 	int tty = vt->tty;
 	int ttyfd;
@@ -72,37 +72,36 @@ static void handle_dead(struct term* vt, int status)
 		sys_close(ttyfd);
 	}
 
-	if(!status && !vt->pin)
+	if(!status)
 		ioctl(0, VT_DISALLOCATE, tty, "VT_DISALLOCATE");
-	if(!vt->pin)
-		free_term_slot(vt);
+
+	if(tty == greetertty)
+		greetertty = 0;
+
+	free_term_slot(vt);
 
 	pollset = 0;
 }
 
 void wait_pids(int shutdown)
 {
-	int status;
-	int pid, ret;
-	struct term *vt, *active = NULL;
+	int pid, status;
+	struct term *vt;
+	int active = 0;
 
 	while((pid = sys_waitpid(-1, &status, WNOHANG)) > 0) {
 		if(!(vt = find_term_by_pid(pid)))
 			continue;
 		if(vt->tty == activetty && !status)
-			active = vt;
+			active = 1;
 
-		handle_dead(vt, status);
+		wipe_dead(vt, status);
 	}
 
 	if(!active || shutdown)
 		return;
-	else if(active->pin)
-		ret = switchto(active->tty); /* try to restart it */
-	else
-		ret = switchto(terms[0].tty); /* greeter */
-	if(ret < 0)
-		warn("switchto", NULL, ret);
+
+	switchto(primarytty);
 }
 
 /* Shutdown routines: wait for VT clients to die before exiting. */

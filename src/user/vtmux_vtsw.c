@@ -25,6 +25,58 @@ long ioctl(int fd, int req, long arg, const char* name)
 #define IOCTL(ff, rr, aa) \
 	ioctl(ff, rr, aa, #rr)
 
+static int query_empty_mask(int* mask)
+{
+	struct vt_stat vst;
+	int ret;
+
+	if((ret = sys_ioctl(0, VT_GETSTATE, &vst)) < 0)
+		return ret;
+
+	*mask = vst.state;
+
+	return 0;
+}
+
+static int usable(int mask, int tty)
+{
+	if(pinned(tty))
+		return 0;
+
+	return !(mask & (1 << tty));
+}
+
+int query_empty_tty(void)
+{
+	int mask, ret, tty;
+
+	if((ret = query_empty_mask(&mask)) < 0)
+		return ret;
+
+	for(tty = 1; tty <= 32; tty++)
+		if(usable(mask, tty))
+			return tty;
+
+	return -ENOTTY;
+}
+
+int query_greeter_tty(void)
+{
+	int mask, ret, tty;
+
+	if((ret = query_empty_mask(&mask)) < 0)
+		return ret;
+
+	for(tty = 12; tty >= 10; tty--)
+		if(usable(mask, tty))
+			return tty;
+	for(tty = 13; tty <= 20; tty++)
+		if(usable(mask, tty))
+			return tty;
+
+	return query_empty_tty();
+}
+
 /* Locking VT switch prevents non-priviledged processes from switching
    VTs at will, and disabled in-kernel Ctrl-Alt-Fn handlers so we can
    use our own. However, vtmux can't switch VTs against the lock either.
@@ -156,7 +208,7 @@ static void engage(int tty)
    VT_WAITACTIVE active below *is* necessary; switch does not
    occur otherwise. XXX: check what's really going on there. */
 
-static int switch_vt(int tty)
+static int switch_wait(int tty)
 {
 	int ret;
 
@@ -180,12 +232,12 @@ int activate(int tty)
 
 	do {
 		if((ret = unlock_switch()) < 0)
-			goto out;
+			return ret;
 
-		swret = switch_vt(tty);
+		swret = switch_wait(tty);
 
 		if((ret = lock_switch(NULL)) < 0)
-			goto out;
+			return ret;
 
 	} while(ret != tty && !swret && tries++ < 5);
 
@@ -193,11 +245,25 @@ int activate(int tty)
 	engage(activetty);
 
 	if(swret < 0)
-		ret = swret;
+		return swret;
 	else if(activetty != tty)
-		ret = -EAGAIN; /* mis-switch */
-out:
+		return -EAGAIN; /* mis-switch */
+
 	return ret;
+}
+
+void grab_initial_lock(void)
+{
+	int ret;
+
+	if((ret = lock_switch(NULL)) < 0)
+		fail("cannot lock VT switching", NULL, 0);
+
+	activetty = ret;
+	initialtty = ret;
+
+	if(!primarytty)
+		primarytty = ret;
 }
 
 void restore_initial_tty(void)
@@ -209,5 +275,41 @@ void restore_initial_tty(void)
 	if(initialtty == activetty)
 		return;
 
-	switch_vt(tty);
+	switch_wait(tty);
+}
+
+static int looks_active(int tty)
+{
+	struct vt_stat vst;
+	int ret;
+
+	if(tty <= 0 || tty >= 32)
+		return -EINVAL;
+
+	if((ret = sys_ioctl(0, VT_GETSTATE, &vst)) < 0)
+		return ret;
+
+	return vst.state & (1 << tty);
+}
+
+int switchto(int tty)
+{
+	int ret;
+
+	if(tty < 0)
+		return -EINVAL;
+	if(tty == 0)
+		return show_greeter();
+
+	if(find_term_by_tty(tty))
+		return activate(tty);
+	if((ret = looks_active(tty)) < 0)
+		return ret;
+	else if(ret)
+		return activate(tty);
+
+	if(pinned(tty))
+		return spawn_pinned(tty);
+
+	return -ENOENT;
 }

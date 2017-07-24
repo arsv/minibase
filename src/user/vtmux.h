@@ -9,11 +9,9 @@
    non-zero and may not match indexes in consoles[]. */
 
 struct term {
-	int ctlfd;    /* control socket */
+	int tty;    /* N in ttyN, always 1-based */
+	int ctlfd;  /* control socket */
 	int pid;
-	short tty;    /* N in ttyN, always 1-based */
-	short pin;    /* the command to this particular tty */
-	char cmd[CMDSIZE];
 };
 
 /* VT-bound device handle, opened on behalf of vtx.pid and multiplexed
@@ -35,6 +33,8 @@ struct ucmsg;
 extern char** environ;
 extern int activetty;
 extern int initialtty;
+extern int primarytty;
+extern int greetertty;
 extern int pollset;
 extern int ctrlfd;
 
@@ -65,9 +65,6 @@ void disable(struct mdev* md, int drop);
 
 void shutdown(void);
 int switchto(int tty);
-int spawn(char* cmd);
-int invoke(struct term* cvt);
-void setup_pinned(char* greeter, int n, char** cmds);
 int prep_event_dev(int fd);
 
 struct term* grab_term_slot(void);
@@ -92,9 +89,23 @@ void terminate_children(void);
 void wait_pids(int shutdown);
 
 void restore_initial_tty(void);
-int open_tty_device(int tty);
 void disable_all_tty_devs(int tty);
 int count_running(void);
 void disable_all_devs_for(int tty);
 
 long ioctl(int fd, int req, long arg, const char* name);
+
+void start_greeter(void);
+void start_initial(void);
+void start_whatever(void);
+
+int spawn(int tty, char* cmd);
+int spawn_pinned(int tty);
+int query_empty_tty(void);
+int query_greeter_tty(void);
+int open_tty_device(int tty);
+int show_greeter(void);
+void grab_initial_lock(void);
+
+int pinned(int tty);
+void scan_pinned(void);

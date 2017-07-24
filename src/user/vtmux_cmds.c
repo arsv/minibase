@@ -85,13 +85,16 @@ static int name_is_simple(const char* name)
 static int cmd_spawn(CN, MSG)
 {
 	char* name;
+	int tty;
 
 	if(!(name = uc_get_str(msg, ATTR_NAME)))
 		return -EINVAL;
 	if(!name_is_simple(name))
 		return -EACCES;
+	if((tty = query_empty_tty()) <= 0)
+		return -ENOTTY;
 
-	int ret = spawn(name);
+	int ret = spawn(tty, name);
 
 	return reply(cn, ret);
 }
