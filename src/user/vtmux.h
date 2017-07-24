@@ -36,6 +36,7 @@ extern int initialtty;
 extern int primarytty;
 extern int greetertty;
 extern int pollset;
+extern int mdevreq;
 extern int ctrlfd;
 
 /* The numbers below are upper limits for loops, all arrays
@@ -100,3 +101,4 @@ void grab_initial_lock(void);
 
 int pinned(int tty);
 void scan_pinned(void);
+void flush_mdevs(void);

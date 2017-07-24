@@ -20,6 +20,7 @@ int npfds, pfdkeys[PFDS];
 int pollset;
 int sigterm;
 int sigchld;
+int mdevreq;
 
 static void sighandler(int sig)
 {
@@ -170,8 +171,11 @@ void poll_inputs(void)
 			fail("ppoll", NULL, ret);
 		else if(ret > 0)
 			check_polled_fds();
+		if(mdevreq)
+			flush_mdevs();
 
 		sigchld = 0;
+		mdevreq = 0;
 	}
 
 	sigterm = 0;

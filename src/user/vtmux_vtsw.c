@@ -142,11 +142,24 @@ void disable(struct mdev* md, int drop)
 	else if(maj == INPUT_MAJOR)
 		ioctl(fd, EVIOCREVOKE, 0, "EVIOCREVOKE");
 
-	if(!drop && maj != INPUT_MAJOR)
-		return;
+	if(drop || maj == INPUT_MAJOR) {
+		/* mark the device as gone and request cleanup */
+		md->tty = 0;
+		md->dev = 0;
+		mdevreq = 1;
+	}
+}
 
-	sys_close(md->fd);
-	free_mdev_slot(md);
+void flush_mdevs(void)
+{
+	struct mdev* md;
+	int n = nmdevs;
+
+	for(md = mdevs; md < mdevs + n; md++)
+		if(!md->dev) {
+			sys_close(md->fd);
+			free_mdev_slot(md);
+		}
 }
 
 /* Final treatment for FDs of a client that died. Just closing them
