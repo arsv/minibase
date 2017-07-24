@@ -99,24 +99,28 @@ static int start_cmd_on(struct term* cvt, int tty, char* path)
 
 	if((ttyfd = open_tty_device(tty)) < 0)
 		return ttyfd;
-
 	if((ret = sys_socketpair(domain, type, proto, sk)) < 0)
-		return ret;
+		goto out1;
 
-	if((pid = sys_fork()) < 0)
-		return pid;
-
+	if((pid = ret = sys_fork()) < 0)
+		goto out2;
 	if(pid == 0)
 		_exit(child_proc(ttyfd, sk[1], path));
 
 	sys_close(sk[1]);
-	sys_close(ttyfd);
 
 	cvt->ctlfd = sk[0];
+	cvt->ttyfd = ttyfd;
 	cvt->pid = pid;
 	cvt->tty = tty;
 
 	return 0;
+out2:
+	sys_close(sk[0]);
+	sys_close(sk[1]);
+out1:
+	sys_close(ttyfd);
+	return ret;
 }
 
 static void make_cmd_path(char* buf, int len, char* dir, char* cmd)

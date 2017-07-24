@@ -37,6 +37,9 @@ static void report_cause(int fd, int status)
 	char* p = msg;
 	char* e = msg + sizeof(msg) - 1;
 
+	if(!status)
+		return;
+
 	if(WIFEXITED(status)) {
 		p = fmtstr(p, e, "Exit ");
 		p = fmtint(p, e, WEXITSTATUS(status));
@@ -58,16 +61,14 @@ static void report_cause(int fd, int status)
 static void wipe_dead(struct term* vt, int status)
 {
 	int tty = vt->tty;
-	int ttyfd;
+	int ttyfd = open_tty_device(tty);
 
-	sys_close(vt->ctlfd);
 	disable_all_devs_for(tty);
 
 	vt->ctlfd = 0;
 	vt->pid = 0;
 
-	if(status && (ttyfd = open_tty_device(tty)) >= 0) {
-		ioctl(ttyfd, KDSETMODE, NULL, "KDSETMODE");
+	if(ttyfd >= 0) {
 		report_cause(ttyfd, status);
 		sys_close(ttyfd);
 	}
@@ -75,6 +76,8 @@ static void wipe_dead(struct term* vt, int status)
 	if(tty == greetertty)
 		greetertty = 0;
 
+	sys_close(vt->ttyfd);
+	sys_close(vt->ctlfd);
 	free_term_slot(vt);
 
 	pollset = 0;

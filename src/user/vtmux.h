@@ -10,7 +10,8 @@
 
 struct term {
 	int tty;    /* N in ttyN, always 1-based */
-	int ctlfd;  /* control socket */
+	int ttyfd;  /* open fd for the tty above */
+	int ctlfd;  /* client control pipe (socket) */
 	int pid;
 };
 

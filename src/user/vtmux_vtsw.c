@@ -137,9 +137,9 @@ void disable(struct mdev* md, int drop)
 	int maj = major(dev);
 	int fd = md->fd;
 
-	if(maj == DRI_MAJOR)
+	if(maj == DRI_MAJOR) {
 		ioctl(fd, DRM_IOCTL_DROP_MASTER, NULL, "DROP_MASTER");
-	else if(maj == INPUT_MAJOR)
+	} else if(maj == INPUT_MAJOR)
 		ioctl(fd, EVIOCREVOKE, 0, "EVIOCREVOKE");
 
 	if(drop || maj == INPUT_MAJOR) {
@@ -192,6 +192,8 @@ static void disengage(int tty)
 {
 	struct mdev* md;
 
+	notify_deactivated(tty);
+
 	for(md = mdevs; md < mdevs + nmdevs; md++) {
 		if(md->tty != tty)
 			continue;
@@ -200,8 +202,6 @@ static void disengage(int tty)
 
 		disable(md, TEMPORARILY);
 	}
-
-	notify_deactivated(tty);
 }
 
 /* Only need to activate DRIs here. It's up to the client to re-open inputs.
@@ -237,12 +237,13 @@ static void engage(int tty)
    VT_WAITACTIVE active below *is* necessary; switch does not
    occur otherwise. XXX: check what's really going on there. */
 
-static int switch_wait(int tty)
+static int switch_wait(int old, int tty)
 {
 	int ret;
 
 	if((ret = sys_ioctli(0, VT_ACTIVATE, tty)) < 0)
 		return ret;
+
 	if((ret = sys_ioctli(0, VT_WAITACTIVE, tty)) < 0)
 		return ret;
 
@@ -263,7 +264,7 @@ int activate(int tty)
 		if((ret = unlock_switch()) < 0)
 			return ret;
 
-		swret = switch_wait(tty);
+		swret = switch_wait(activetty, tty);
 
 		if((ret = lock_switch(NULL)) < 0)
 			return ret;
@@ -275,7 +276,8 @@ int activate(int tty)
 
 	if(swret < 0)
 		return swret;
-	else if(activetty != tty)
+
+	if(activetty != tty)
 		return -EAGAIN; /* mis-switch */
 
 	return ret;
@@ -322,12 +324,10 @@ int switchto(int tty)
 
 void restore_initial_tty(void)
 {
-	int tty = initialtty;
-
 	unlock_switch();
 
 	if(initialtty == activetty)
 		return;
 
-	switch_wait(tty);
+	switch_wait(activetty, initialtty);
 }
