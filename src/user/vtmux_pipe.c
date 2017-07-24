@@ -147,10 +147,12 @@ static int open_managed_dev(char* path, int mode, int tty)
 	struct mdev* md;
 	int dfd, ret;
 
+	mode &= (O_RDWR | O_NONBLOCK);
+
 	if(!(md = grab_mdev_slot()))
 		return -EMFILE;
 
-	if((dfd = sys_open(path, O_RDWR | O_NOCTTY | O_CLOEXEC)) < 0)
+	if((dfd = sys_open(path, mode | O_NOCTTY | O_CLOEXEC)) < 0)
 		return dfd;
 
 	if((ret = check_managed_dev(dfd, &md->dev, tty)) < 0)
