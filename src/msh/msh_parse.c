@@ -252,6 +252,7 @@ static void parse_vsign(struct sh* ctx, char c)
 	switch(c) {
 		case 'a'...'z':
 		case 'A'...'Z':
+		case '_':
 			add_char(ctx, c);
 			set_state(ctx, VCONT);
 			break;
@@ -279,6 +280,8 @@ static void parse_vcont(struct sh* ctx, char c)
 	switch(c) {
 		case 'a'...'z':
 		case 'A'...'Z':
+		case '0'...'9':
+		case '_':
 			add_char(ctx, c);
 			break;
 		default:
