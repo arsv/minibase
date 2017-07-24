@@ -65,9 +65,6 @@ static void wipe_dead(struct term* vt, int status)
 
 	disable_all_devs_for(tty);
 
-	vt->ctlfd = 0;
-	vt->pid = 0;
-
 	if(ttyfd >= 0) {
 		report_cause(ttyfd, status);
 		sys_close(ttyfd);
