@@ -72,9 +72,6 @@ static void wipe_dead(struct term* vt, int status)
 		sys_close(ttyfd);
 	}
 
-	if(!status)
-		ioctl(0, VT_DISALLOCATE, tty, "VT_DISALLOCATE");
-
 	if(tty == greetertty)
 		greetertty = 0;
 
