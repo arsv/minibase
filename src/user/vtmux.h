@@ -106,4 +106,5 @@ int pinned(int tty);
 void scan_pinned(void);
 void flush_mdevs(void);
 
-void acknowledge_switch(void);
+void switch_sigalrm(void);
+void switch_sigusr1(void);

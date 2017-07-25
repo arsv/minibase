@@ -3,9 +3,12 @@
 #include <bits/ioctl/tty.h>
 #include <bits/major.h>
 
+#include <sys/itimer.h>
+#include <sys/signal.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
+#include <sigset.h>
 #include <string.h>
 #include <null.h>
 #include <fail.h>
@@ -235,11 +238,18 @@ static void engage(int tty)
 	notify_activated(tty);
 }
 
-void acknowledge_switch(void)
+/* Helpers for the WTF code below */
+
+void switch_sigalrm(void)
+{
+	switching = -1;
+}
+
+void switch_sigusr1(void)
 {
 	struct term* vt;
 
-	if(!switching)
+	if(switching != 1)
 		return;
 
 	switching = 0;
@@ -250,20 +260,77 @@ void acknowledge_switch(void)
 	ioctli(vt->ttyfd, VT_RELDISP, 1, "VT_RELDISP");
 }
 
+static void prep_switch_masks(sigset_t* smask, sigset_t* tmask)
+{
+	sigemptyset(smask);
+	sigaddset(smask, SIGUSR1);
+	sigaddset(smask, SIGUSR2);
+
+	sigemptyset(tmask);
+	sigaddset(smask, SIGUSR1);
+	sigaddset(smask, SIGUSR2);
+	sigaddset(smask, SIGALRM);
+}
+
+static void prep_switch_timer(struct itimerval* itv, struct itimerval* old)
+{
+	memzero(itv, sizeof(*itv));
+	itv->value.sec = 1;
+
+	sys_setitimer(0, itv, old);
+}
+
+/* OMG WTF. The problem here: VT_WAITACTIVE is blocking and non-restartable.
+   We need a timeout on top of it, and we should expect SIGUSR as well which
+   must be acknowledged. If we run out of time, we declare the switch failed
+   and try to lock everything again, almost for sure disabling VT switching
+   until the kernel recovers. But at least the current session should remain
+   usable.
+
+   Scary cases aside, the most common path here is VT_ACTIVATE followed by
+   VT_WAITACTIVE immediately interrupted by SIGUSR1 followed by the second
+   VT_WAITACTIVE which succeeds.
+
+   Contrary to what might be expected, SIGUSR1 does not generally arrive
+   in-between VT_ACTIVATE and VT_WAITACTIVE, even though the kernel sends
+   it while handling VT_ACTIVATE request.
+
+   Logind guys apparently just gave up on VT_WAITACTIVE and decided to poll
+   /sys/class/tty/tty0/active instead. */
+
 static int switch_wait(int tty)
 {
 	int ret;
+	sigset_t smask, tmask, origmask;
+	struct itimerval old, itv;
+	prep_switch_masks(&smask, &tmask);
+	prep_switch_timer(&itv, &old);
+
+	sys_sigprocmask(SIG_UNBLOCK, &smask, &origmask);
 
 	switching = 1;
 
 	if((ret = sys_ioctli(0, VT_ACTIVATE, tty)) < 0)
-		return ret;
+		goto out;
 
-	ret = sys_ioctli(0, VT_WAITACTIVE, tty);
+	while(1) {
+		if((ret = sys_ioctli(0, VT_WAITACTIVE, tty)) >= 0)
+			break;
+		else if(ret != -EINTR)
+			break;
 
-	if(!switching)
-		return 0;
-	if(!ret)
+		sys_sigprocmask(SIG_BLOCK, &tmask, NULL);
+
+		if(switching == -1) /* timeout */
+			break;
+
+		sys_sigprocmask(SIG_UNBLOCK, &tmask, NULL);
+	}
+out:
+	sys_sigprocmask(SIG_SETMASK, &origmask, NULL);
+	sys_setitimer(0, &old, NULL);
+
+	if(switching)
 		switching = 0;
 
 	return ret;

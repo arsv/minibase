@@ -28,8 +28,19 @@ static void sighandler(int sig)
 		case SIGINT:
 		case SIGTERM: sigterm = 1; break;
 		case SIGCHLD: sigchld = 1; break;
-		case SIGUSR1: acknowledge_switch();
+		case SIGALRM: switch_sigalrm(); break;
+		case SIGUSR1: switch_sigusr1(); break;
 	}
+}
+
+static void sigaction(int sig, struct sigaction* sa, char* tag)
+{
+	xchk(sys_sigaction(sig, sa, NULL), "sigaction", tag);
+}
+
+static void sigprocmask(int how, sigset_t* mask, sigset_t* out)
+{
+	xchk(sys_sigprocmask(how, mask, out), "sigiprocmask", "SIG_BLOCK");
 }
 
 void setup_signals(void)
@@ -39,33 +50,29 @@ void setup_signals(void)
 		.flags = SA_RESTART | SA_RESTORER,
 		.restorer = sigreturn
 	};
+	sigset_t* mask = &sa.mask;
 
-	int ret = 0;
+	sigemptyset(mask);
+	sigaddset(mask, SIGCHLD);
+	sigaction(SIGUSR1, &sa, NULL);
+	sigaction(SIGUSR2, &sa, NULL);
 
-	sigemptyset(&sa.mask);
-	sigaddset(&sa.mask, SIGCHLD);
-	ret |= sys_sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
+	sigprocmask(SIG_BLOCK, mask, &defsigset);
 
-	sigaddset(&sa.mask, SIGINT);
-	sigaddset(&sa.mask, SIGTERM);
-	sigaddset(&sa.mask, SIGHUP);
-	sigaddset(&sa.mask, SIGALRM);
-	sigaddset(&sa.mask, SIGUSR1);
-	sigaddset(&sa.mask, SIGUSR2);
+	/* avoid cross-invoking these */
+	sigaddset(mask, SIGUSR1);
+	sigaddset(mask, SIGUSR2);
+	sigaddset(mask, SIGALRM);
 
-	ret |= sys_sigaction(SIGINT,  &sa, NULL);
-	ret |= sys_sigaction(SIGTERM, &sa, NULL);
-	ret |= sys_sigaction(SIGHUP,  &sa, NULL);
-	ret |= sys_sigaction(SIGALRM, &sa, NULL);
-	ret |= sys_sigaction(SIGUSR1, &sa, NULL);
-	ret |= sys_sigaction(SIGUSR2, &sa, NULL);
+	sigaction(SIGINT,  &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGHUP,  &sa, NULL);
+	sigaction(SIGALRM, &sa, NULL);
 
 	/* SIGCHLD is only allowed to arrive in ppoll,
 	   so SA_RESTART just does not make sense. */
 	sa.flags &= ~SA_RESTART;
-	ret |= sys_sigaction(SIGCHLD, &sa, NULL);
-
-	if(ret) fail("signal init failed", NULL, 0);
+	sigaction(SIGCHLD, &sa, NULL);
 }
 
 static int add_poll_fd(int n, int fd, int key)
