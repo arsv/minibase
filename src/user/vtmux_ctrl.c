@@ -25,10 +25,10 @@
 int ctrlfd;
 
 static char rxbuf[200];
-static char txbuf[100]; /* for small replies */
+static char txbuf[600];
 static struct ucbuf uc;
 
-static void start_reply(int cmd, int expected)
+static void start_reply(int cmd)
 {
 	char* buf = NULL;
 	int len;
@@ -54,7 +54,7 @@ static int send_reply(CN)
 
 static int reply(CN, int err)
 {
-	start_reply(err, 0);
+	start_reply(err);
 
 	return send_reply(cn);
 }
@@ -104,10 +104,38 @@ static int cmd_spawn(CN, MSG)
 	return reply(cn, ret);
 }
 
+static int cmd_status(CN, MSG)
+{
+	struct term* vt;
+	struct ucattr* at;
+
+	start_reply(0);
+
+	uc_put_int(&uc, ATTR_TTY, activetty);
+
+	for(vt = terms; vt < terms + nterms; vt++) {
+		if(!vt->tty)
+			continue;
+		at = uc_put_nest(&uc, ATTR_VT);
+
+		uc_put_int(&uc, ATTR_TTY, vt->tty);
+
+		if(vt->pid > 0)
+			uc_put_int(&uc, ATTR_PID, vt->pid);
+		if(vt->graph)
+			uc_put_flag(&uc, ATTR_GRAPH);
+
+		uc_end_nest(&uc, at);
+	}
+
+	return send_reply(cn);
+}
+
 static const struct cmd {
 	int cmd;
 	int (*call)(CN, MSG);
 } commands[] = {
+	{ CMD_STATUS,  cmd_status },
 	{ CMD_SWITCH,  cmd_switch },
 	{ CMD_SPAWN,   cmd_spawn  },
 	{ 0,           NULL       }
