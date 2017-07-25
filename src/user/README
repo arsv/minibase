@@ -13,5 +13,15 @@ See ../../doc/vtmux.txt for more detailed description,
 and ../../doc/login.txt on how it fits within the planned
 user session management infrastructure.
 
-Current status: *INCOMPLETE*, missing client communication
-(and clients to communicate with for that matter).
+
+Current status: implements weston-launch protocol for the clients,
+can run weston and text consoles. Switching between several Weston
+sessions works, same with several text sessions.
+
+Switching between weston and text sessions breaks weston, which remains
+running but does not draw anything. Every attemp to redraw the screen
+results in the following message on stderr:
+
+    queueing pageflip failed: Invalid argument
+
+Apparently not a vtmux issue, same happens with weston-launch.
