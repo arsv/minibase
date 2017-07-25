@@ -120,13 +120,26 @@ int unlock_switch(void)
 	return ioctl(0, VT_UNLOCKSWITCH, NULL, "VT_UNLOCKSWITCH");
 }
 
-/* Per current systemd-induced design, DRI devices can be suspended
-   and resumed but inputs are irrevocably disabled. There's no point
-   in retaining dead fds, clients are aware of that and will re-open
-   them anyway.
+/* DRI devices can be suspended and resumed but inputs are irrevocably
+   disabled. There's no point in retaining dead input fds, clients are
+   aware of that and will re-open them anyway.
 
    It's also a good idea to disable devices before releasing them
-   from under a dead client. Leaked fds may still linger about. */
+   from under a dead client. Leaked fds may still linger about.
+   However, some clients do that themselves, so DROP_MASTER may
+   routinely return EINVAL. */
+
+static void drop_drm_master(int fd, int final)
+{
+	int ret;
+
+	if((ret = sys_ioctli(fd, DRM_IOCTL_DROP_MASTER, 0)) >= 0)
+		return;
+	if(ret == -EINVAL && final)
+		return;
+
+	warn("ioctl", "DROP_MASTER", ret);
+}
 
 void disable(struct mdev* md, int drop)
 {
@@ -135,7 +148,7 @@ void disable(struct mdev* md, int drop)
 	int fd = md->fd;
 
 	if(maj == DRI_MAJOR)
-		ioctl(fd, DRM_IOCTL_DROP_MASTER, NULL, "DROP_MASTER");
+		drop_drm_master(fd, drop);
 	else if(maj == INPUT_MAJOR)
 		ioctl(fd, EVIOCREVOKE, 0, "EVIOCREVOKE");
 
