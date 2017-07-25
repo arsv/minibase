@@ -12,6 +12,8 @@
 
 #include "vtmux.h"
 
+static int switching;
+
 long ioctl(int fd, int req, void* arg, const char* name)
 {
 	long ret;
@@ -20,6 +22,11 @@ long ioctl(int fd, int req, void* arg, const char* name)
 		warn("ioctl", name, ret);
 
 	return ret;
+}
+
+long ioctli(int fd, int req, long arg, const char* name)
+{
+	return ioctl(fd, req, (void*)arg, name);
 }
 
 /* This is incredibly racy, but the only alternative is to hold all
@@ -215,29 +222,38 @@ static void engage(int tty)
 	notify_activated(tty);
 }
 
-/* Order is somewhat important here: we should better disconnect
-   all inputs/drm handles from avt before issuing VT_ACTIVATE.
-   This means two passes over vtdevices[].
+void acknowledge_switch(void)
+{
+	struct term* vt;
 
-   It is not clear however how much a single pass would hurt.
-   Presumable nothing important should happen until the process
-   being activated gets SIGCONT, by which time all fds will be
-   where they should be anyway.
+	if(!switching)
+		return;
 
-   VT_WAITACTIVE active below *is* necessary; switch does not
-   occur otherwise. XXX: check what's really going on there. */
+	switching = 0;
+
+	if(!(vt = find_term_by_tty(activetty)))
+		return;
+
+	ioctli(vt->ttyfd, VT_RELDISP, 1, "VT_RELDISP");
+}
 
 static int switch_wait(int tty)
 {
 	int ret;
 
+	switching = 1;
+
 	if((ret = sys_ioctli(0, VT_ACTIVATE, tty)) < 0)
 		return ret;
 
-	if((ret = sys_ioctli(0, VT_WAITACTIVE, tty)) < 0)
-		return ret;
+	ret = sys_ioctli(0, VT_WAITACTIVE, tty);
 
-	return 0;
+	if(!switching)
+		return 0;
+	if(!ret)
+		switching = 0;
+
+	return ret;
 }
 
 int activate(int tty)

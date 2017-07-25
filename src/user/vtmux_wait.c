@@ -55,6 +55,19 @@ static void report_cause(int fd, int status)
 		warn("write", NULL, ret);
 }
 
+static void reset_tty_modes(int ttyfd)
+{
+	struct vt_mode vtm = {
+		.mode = VT_AUTO,
+		.waitv = 0,
+		.relsig = 0,
+		.acqsig = 0
+	};
+
+	ioctl(ttyfd, VT_SETMODE, &vtm, "VT_SETMODE AUTO");
+	ioctli(ttyfd, KDSETMODE, 0, "KDSETMODE TEXT");
+}
+
 /* In case of abnormal exits, do not switch VT to let the user
    read whatever error messages may be there. */
 
@@ -66,6 +79,7 @@ static void wipe_dead(struct term* vt, int status)
 	disable_all_devs_for(tty);
 
 	if(ttyfd >= 0) {
+		reset_tty_modes(ttyfd);
 		report_cause(ttyfd, status);
 		sys_close(ttyfd);
 	}

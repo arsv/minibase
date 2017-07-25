@@ -13,6 +13,7 @@ struct term {
 	int ttyfd;  /* open fd for the tty above */
 	int ctlfd;  /* client control pipe (socket) */
 	int pid;
+	int graph;
 };
 
 /* VT-bound device handle, opened on behalf of vtx.pid and multiplexed
@@ -91,6 +92,7 @@ int count_running(void);
 void disable_all_devs_for(int tty);
 
 long ioctl(int fd, int req, void* arg, const char* name);
+long ioctli(int fd, int req, long arg, const char* name);
 
 int spawn(int tty, char* cmd);
 int spawn_pinned(int tty);
@@ -103,3 +105,5 @@ void grab_initial_lock(void);
 int pinned(int tty);
 void scan_pinned(void);
 void flush_mdevs(void);
+
+void acknowledge_switch(void);

@@ -1,3 +1,4 @@
+#include <bits/ioctl/tty.h>
 #include <bits/errno.h>
 #include <bits/fcntl.h>
 #include <bits/major.h>
@@ -142,8 +143,14 @@ static int check_for_duplicate(struct mdev* md, int dev, int tty)
 	return 0;
 }
 
-static int open_managed_dev(char* path, int mode, int tty)
+static void set_tty_graph_mode(int ttyfd)
 {
+	ioctli(ttyfd, KDSETMODE, 1, "KDSETMODE GRAPHICS");
+}
+
+static int open_managed_dev(char* path, int mode, struct term* vt)
+{
+	int tty = vt->tty;
 	struct mdev* md;
 	int dfd, ret;
 
@@ -165,6 +172,8 @@ static int open_managed_dev(char* path, int mode, int tty)
 
 	if(tty != activetty)
 		disable(md, TEMPORARILY);
+	if(major(md->dev) == DRI_MAJOR && !vt->graph)
+		set_tty_graph_mode(vt->ttyfd);
 
 	return dfd;
 close:
@@ -206,7 +215,7 @@ static void req_open(struct term* cvt, void* buf, int len)
 	if(!is_zstr(msg->path, len - sizeof(*msg)))
 		return reply(cvt, -EINVAL);
 
-	if((ret = open_managed_dev(msg->path, msg->mode, cvt->tty)) < 0)
+	if((ret = open_managed_dev(msg->path, msg->mode, cvt)) < 0)
 		return reply(cvt, ret);
 
 	return reply_send_fd(cvt, PIPE_REP_OK, ret);

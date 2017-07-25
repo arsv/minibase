@@ -28,6 +28,7 @@ static void sighandler(int sig)
 		case SIGINT:
 		case SIGTERM: sigterm = 1; break;
 		case SIGCHLD: sigchld = 1; break;
+		case SIGUSR1: acknowledge_switch();
 	}
 }
 
@@ -48,10 +49,16 @@ void setup_signals(void)
 	sigaddset(&sa.mask, SIGINT);
 	sigaddset(&sa.mask, SIGTERM);
 	sigaddset(&sa.mask, SIGHUP);
+	sigaddset(&sa.mask, SIGALRM);
+	sigaddset(&sa.mask, SIGUSR1);
+	sigaddset(&sa.mask, SIGUSR2);
 
 	ret |= sys_sigaction(SIGINT,  &sa, NULL);
 	ret |= sys_sigaction(SIGTERM, &sa, NULL);
 	ret |= sys_sigaction(SIGHUP,  &sa, NULL);
+	ret |= sys_sigaction(SIGALRM, &sa, NULL);
+	ret |= sys_sigaction(SIGUSR1, &sa, NULL);
+	ret |= sys_sigaction(SIGUSR2, &sa, NULL);
 
 	/* SIGCHLD is only allowed to arrive in ppoll,
 	   so SA_RESTART just does not make sense. */
