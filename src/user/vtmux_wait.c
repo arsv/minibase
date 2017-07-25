@@ -68,21 +68,30 @@ static void reset_tty_modes(int ttyfd)
 	ioctli(ttyfd, KDSETMODE, 0, "KDSETMODE TEXT");
 }
 
-/* In case of abnormal exits, do not switch VT to let the user
-   read whatever error messages may be there. */
+/* When the session master exits, ttyfd become unusable, returning
+   EINVAL for most ioctls. We need to reset the console and also
+   possibly ack the switch, so we try to re-open it. */
+
+static void reopen_tty_device(struct term* vt)
+{
+	int fd;
+
+	if((fd = open_tty_device(vt->tty)) < 0)
+		return;
+
+	sys_close(vt->ttyfd);
+	vt->ttyfd = fd;
+}
 
 static void wipe_dead(struct term* vt, int status)
 {
 	int tty = vt->tty;
-	int ttyfd = open_tty_device(tty);
+	int ttyfd = vt->ttyfd;
 
 	disable_all_devs_for(tty);
 
-	if(ttyfd >= 0) {
-		reset_tty_modes(ttyfd);
-		report_cause(ttyfd, status);
-		sys_close(ttyfd);
-	}
+	reset_tty_modes(ttyfd);
+	report_cause(ttyfd, status);
 
 	if(tty == greetertty)
 		greetertty = 0;
@@ -94,25 +103,47 @@ static void wipe_dead(struct term* vt, int status)
 	pollset = 0;
 }
 
+/* Most but not all clients should die while in foreground.
+   Background deaths require no special care, however when something
+   dies in foreground we may need to switch off the given VT.
+
+   To avoid excessive flickering, we first switch off the dead VT
+   and the reset its mode.
+
+   In case of abnormal foreground exits, no switch is performed
+   to let the user the error messages the client might have left
+   on the VT. */
+
 void wait_pids(int shutdown)
 {
-	int pid, status;
-	struct term *vt;
-	int active = 0;
+	int pid, status, actexit;
+	struct term *vt, *active = NULL;
 
 	while((pid = sys_waitpid(-1, &status, WNOHANG)) > 0) {
 		if(!(vt = find_term_by_pid(pid)))
 			continue;
-		if(vt->tty == activetty && !status)
-			active = 1;
-
-		wipe_dead(vt, status);
+		if(vt->tty == activetty) {
+			active = vt;
+			actexit = status;
+		} else {
+			reopen_tty_device(vt);
+			wipe_dead(vt, status);
+		}
 	}
 
-	if(!active || shutdown)
+	if(!active)
 		return;
 
-	switchto(primarytty);
+	reopen_tty_device(active);
+
+	if(active->tty == primarytty)
+		;
+	else if(actexit || shutdown)
+		;
+	else
+		switchto(primarytty);
+
+	wipe_dead(active, actexit);
 }
 
 /* Shutdown routines: wait for VT clients to die before exiting. */
