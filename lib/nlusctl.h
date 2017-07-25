@@ -70,6 +70,7 @@ char* uc_sub_str(struct ucattr* at, int key);
 void* uc_is_bin(struct ucattr* at, int key, int len);
 int* uc_is_int(struct ucattr* at, int key);
 char* uc_is_str(struct ucattr* at, int key);
+struct ucattr* uc_is_nest(struct ucattr* at, int key);
 
 void* uc_payload(struct ucattr* at);
 int uc_paylen(struct ucattr* at);
