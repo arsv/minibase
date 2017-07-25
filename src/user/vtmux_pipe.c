@@ -143,9 +143,13 @@ static int check_for_duplicate(struct mdev* md, int dev, int tty)
 	return 0;
 }
 
-static void set_tty_graph_mode(int ttyfd)
+static void set_tty_graph_mode(struct term* vt)
 {
-	ioctli(ttyfd, KDSETMODE, 1, "KDSETMODE GRAPHICS");
+	if(!vt->graph) return;
+
+	ioctli(vt->ttyfd, KDSETMODE, 1, "KDSETMODE GRAPHICS");
+
+	vt->graph = 1;
 }
 
 static int open_managed_dev(char* path, int mode, struct term* vt)
@@ -172,8 +176,8 @@ static int open_managed_dev(char* path, int mode, struct term* vt)
 
 	if(tty != activetty)
 		disable(md, TEMPORARILY);
-	if(major(md->dev) == DRI_MAJOR && !vt->graph)
-		set_tty_graph_mode(vt->ttyfd);
+	if(major(md->dev) == DRI_MAJOR)
+		set_tty_graph_mode(vt);
 
 	return dfd;
 close:
