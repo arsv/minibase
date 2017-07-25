@@ -58,8 +58,6 @@ void setup_signals(void);
 void notify_activated(int tty);
 void notify_deactivated(int tty);
 
-int dispatch_cmd(struct conn* cn, struct ucmsg* msg);
-
 int lock_switch(int* mask);
 int unlock_switch(void);
 int activate(int tty);
