@@ -7,17 +7,14 @@
 #include "msh.h"
 #include "msh_cmd.h"
 
-static int openflags(struct sh* ctx, char* str, int* dst)
+static int wflags(struct sh* ctx, char* str, int* dst)
 {
-	int flags = 0;
-	char* p;
+	int flags = O_WRONLY;
 
-	for(p = str; *p; p++) switch(*p) {
-		case 'w': flags |= O_WRONLY; break;
-		case 'r': flags |= O_RDONLY; break;
-		case 'a': flags |= O_APPEND; break;
-		case 'c': flags |= O_CREAT; break;
-		case 'x': flags |= O_EXCL; break;
+	switch(str[0]) {
+		case '\0': flags |= O_CREAT | O_TRUNC; break;
+		case 'a':  flags |= O_CREAT | O_APPEND; break;
+		case 'x': break;
 		default: return error(ctx, "open", "unknown flags", 0);
 	}
 
@@ -25,33 +22,73 @@ static int openflags(struct sh* ctx, char* str, int* dst)
 	return 0;
 }
 
-int cmd_open(struct sh* ctx)
+static int open_onto_fd(struct sh* ctx, int tofd, char* name, int fl, int md)
 {
-	int fd, rfd, ret;
-	int flags = O_RDWR;
+	int fd, ret;
+
+	if((fd = sys_open3(name, fl, md)) < 0)
+		return error(ctx, "open", name, fd);
+	if(fd == tofd)
+		return 0;
+
+	ret = fchk(sys_dup2(fd, tofd), ctx, name);
+	sys_close(fd);
+
+	return ret;
+}
+
+static int open_output(struct sh* ctx, int tofd)
+{
 	char* name;
+	int flags;
 
 	if(noneleft(ctx))
 		return -1;
-	if(dasharg(ctx))
-		if(openflags(ctx, shift(ctx)+1, &flags))
-			return -1;
-	if(shift_int(ctx, &rfd))
+
+	char* flagstr = dasharg(ctx) ? shift(ctx)+1 : "";
+
+	if(wflags(ctx, flagstr, &flags))
 		return -1;
 	if(shift_str(ctx, &name))
 		return -1;
 	if(moreleft(ctx))
 		return -1;
 
-	if((fd = sys_open3(name, flags, 0666)) < 0)
-		return error(ctx, "open", name, fd);
-	if(fd == rfd)
-		return 0;
+	return open_onto_fd(ctx, tofd, name, flags, 0666);
+}
 
-	ret = fchk(sys_dup2(fd, rfd), ctx, name);
-	sys_close(fd);
+int cmd_stdin(struct sh* ctx)
+{
+	char* name;
 
-	return ret;
+	if(noneleft(ctx))
+		return -1;
+	if(shift_str(ctx, &name))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
+
+	return open_onto_fd(ctx, STDIN, name, O_RDONLY, 0000);
+}
+
+int cmd_stdout(struct sh* ctx)
+{
+	return open_output(ctx, STDOUT);
+}
+
+int cmd_stderr(struct sh* ctx)
+{
+	return open_output(ctx, STDERR);
+}
+
+int cmd_stdtwo(struct sh* ctx)
+{
+	int ret;
+
+	if((ret = open_output(ctx, STDOUT)) < 0)
+		return ret;
+
+	return fchk(sys_dup2(STDOUT, STDERR), ctx, "dup2");
 }
 
 int cmd_dupfd(struct sh* ctx)
