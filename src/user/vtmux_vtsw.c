@@ -272,12 +272,10 @@ static void prep_switch_masks(sigset_t* smask, sigset_t* tmask)
 	sigaddset(smask, SIGALRM);
 }
 
-static void prep_switch_timer(struct itimerval* itv, struct itimerval* old)
+static void prep_switch_timer(struct itimerval* itv)
 {
 	memzero(itv, sizeof(*itv));
 	itv->value.sec = 1;
-
-	sys_setitimer(0, itv, old);
 }
 
 /* OMG WTF. The problem here: VT_WAITACTIVE is blocking and non-restartable.
@@ -304,8 +302,9 @@ static int switch_wait(int tty)
 	sigset_t smask, tmask, origmask;
 	struct itimerval old, itv;
 	prep_switch_masks(&smask, &tmask);
-	prep_switch_timer(&itv, &old);
+	prep_switch_timer(&itv);
 
+	sys_setitimer(0, &itv, &old);
 	sys_sigprocmask(SIG_UNBLOCK, &smask, &origmask);
 
 	switching = 1;
