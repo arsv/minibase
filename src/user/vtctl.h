@@ -1,4 +1,4 @@
-//#include <output.h>
+#include <output.h>
 #include <nlusctl.h>
 
 struct top {
@@ -12,9 +12,10 @@ struct top {
 
 	struct ucbuf uc;
 	struct urbuf ur;
-	//struct bufout bo;
+	struct bufout bo;
 
-	char smallbuf[128];
+	char recbuf[128];
+	char outbuf[1000];
 };
 
 #define CTX struct top* ctx
@@ -24,8 +25,9 @@ struct top {
 
 typedef struct ucattr* attr;
 
-//void output(CTX, char* buf, int len);
-//void flush_output(CTX);
+void init_output(CTX);
+void output(CTX, char* buf, int len);
+void flush_output(CTX);
 
 void init_socket(CTX);
 void start_request(CTX, int cmd, int count, int length);
@@ -34,7 +36,4 @@ void add_int_attr(CTX, int key, int val);
 void send_request(CTX);
 struct ucmsg* recv_reply(CTX);
 
-void dump_list(CTX, MSG);
-void dump_info(CTX, MSG);
-void dump_pid(CTX, MSG);
-void dump_msg(CTX, MSG);
+void dump_status(CTX, MSG);

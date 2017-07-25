@@ -90,7 +90,11 @@ static void recv_empty(CTX)
 static void cmd_status(CTX)
 {
 	no_other_options(ctx);
-	fail("not implemented", NULL, 0);
+
+	start_request(ctx, CMD_STATUS, 0, 0);
+	send_request(ctx);
+
+	recv_dump(ctx, NULL, dump_status);
 }
 
 static void cmd_switch(CTX)

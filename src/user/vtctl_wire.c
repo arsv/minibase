@@ -43,9 +43,9 @@ static void connect_socket(CTX)
 void start_request(CTX, int cmd, int count, int paylen)
 {
 	void* brk;
-	int len = sizeof(ctx->smallbuf);
+	int len = sizeof(ctx->recbuf);
 
-	brk = ctx->smallbuf;
+	brk = ctx->recbuf;
 
 	ctx->uc.brk = brk;
 	ctx->uc.ptr = brk;
@@ -86,11 +86,11 @@ void send_request(CTX)
 
 static void init_small_rxbuf(CTX)
 {
-	if(ctx->uc.brk == ctx->smallbuf)
+	if(ctx->uc.brk == ctx->recbuf)
 		fail("smallbuf tx-locked", NULL, 0);
 
-	void* buf = ctx->smallbuf;
-	int len = sizeof(ctx->smallbuf);
+	void* buf = ctx->recbuf;
+	int len = sizeof(ctx->recbuf);
 
 	ctx->ur.buf = buf;
 	ctx->ur.mptr = buf;
@@ -108,7 +108,29 @@ struct ucmsg* recv_reply(CTX)
 	while((ret = uc_recv(ctx->fd, &ctx->ur, !0)) < 0)
 		fail("recv", NULL, ret);
 
-	uc_dump(ctx->ur.msg);
-
 	return ctx->ur.msg;
+}
+
+void init_output(CTX)
+{
+	ctx->bo.fd = STDOUT;
+	ctx->bo.buf = ctx->outbuf;
+	ctx->bo.ptr = 0;
+	ctx->bo.len = sizeof(ctx->outbuf);
+}
+
+void flush_output(CTX)
+{
+	if(!ctx->bo.ptr)
+		return;
+
+	bufoutflush(&ctx->bo);
+}
+
+void output(CTX, char* buf, int len)
+{
+	if(ctx->bo.len)
+		bufout(&ctx->bo, buf, len);
+	else
+		writeall(STDOUT, buf, len);
 }
