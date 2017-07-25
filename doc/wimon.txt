@@ -81,8 +81,8 @@ The key point here is that conn-mgr knows how to instantiate the backend
 modules. The UI part only needs to talk to conn-mgr, everything else is
 more or less hidden behind it.
 
-The big flaw in this design is that conn-mgr (and very like uitool) must
-support to some degree *all* possible backend modules. Generally it is
+The big flaw in this design is that conn-mgr (and very likely uitool)
+must support to some degree *all* possible backend modules. Generally it is
 impossible to add a new module without at least re-building conn-mgr.
 This would not be acceptable for minitools.
 
