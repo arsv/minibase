@@ -2,6 +2,7 @@
 #include <sys/brk.h>
 #include <sys/file.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 
 #include <string.h>
 #include <util.h>
@@ -78,8 +79,10 @@ void send_request(CTX)
 	if(!ctx->connected)
 		connect_socket(ctx);
 
-	if((wr = writeall(fd, txbuf, txlen)) < 0)
+	if((wr = sys_send(fd, txbuf, txlen, 0)) < 0)
 		fail("write", NULL, wr);
+	else if(wr < txlen)
+		fail("incomplete write", NULL, 0);
 
 	memzero(&ctx->uc, sizeof(ctx->uc));
 }
