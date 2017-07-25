@@ -84,16 +84,6 @@ int query_greeter_tty(void)
 	return query_empty_tty();
 }
 
-static int looks_active(int tty)
-{
-	int mask, ret;
-
-	if((ret = query_empty_mask(&mask)) < 0)
-		return ret;
-
-	return (mask & (1 << tty));
-}
-
 /* Locking VT switch prevents non-priviledged processes from switching
    VTs at will, and disabled in-kernel Ctrl-Alt-Fn handlers so we can
    use our own. However, vtmux can't switch VTs against the lock either.
@@ -301,18 +291,12 @@ void grab_initial_lock(void)
 
 int switchto(int tty)
 {
-	int ret;
-
 	if(tty < 0)
 		return -EINVAL;
 	if(tty == 0)
 		return show_greeter();
 
 	if(find_term_by_tty(tty))
-		return activate(tty);
-	if((ret = looks_active(tty)) < 0)
-		return ret;
-	else if(ret)
 		return activate(tty);
 
 	if(pinned(tty))
