@@ -35,7 +35,30 @@
 #define SIGPWR		30
 #define SIGSYS		31
 
-#define SIGCLD		SIGCHLD
-#define SIGPOLL		SIGIO
+#define SIGRTMIN	32
+#define SIGRTMAX	63
+
+typedef unsigned long sigset_t;
+
+#define EMPTYSIGSET 0
+
+#define SA_NOCLDSTOP	(1<<0)
+#define SA_NOCLDWAIT	(1<<1)
+#define SA_SIGINFO	(1<<2)
+#define SA_RESTORER	(1<<26)
+#define SA_ONSTACK	(1<<27)
+#define SA_RESTART	(1<<28)
+#define SA_NODEFER	(1<<30)
+#define SA_RESETHAND	(1<<31)
+
+struct sigaction {
+	union {
+		void (*action)(int, void*, void*);
+		void (*handler)(int);
+	};
+	unsigned long flags;
+	void (*restorer)(void);
+	sigset_t mask;
+};
 
 #endif

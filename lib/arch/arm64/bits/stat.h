@@ -1,28 +1,28 @@
 #ifndef __BITS_STAT_H__
 #define __BITS_STAT_H__
 
+#include <bits/ints.h>
+#include <bits/time.h>
+
 struct stat {
-	unsigned long	st_dev;		/* Device.  */
-	unsigned long	st_ino;		/* File serial number.  */
-	unsigned int	st_mode;	/* File mode.  */
-	unsigned int	st_nlink;	/* Link count.  */
-	unsigned int	st_uid;		/* User ID of the file's owner.  */
-	unsigned int	st_gid;		/* Group ID of the file's group. */
-	unsigned long	st_rdev;	/* Device number, if device.  */
-	unsigned long	__pad1;
-	long		st_size;	/* Size of file, in bytes.  */
-	int		st_blksize;	/* Optimal block size for I/O.  */
-	int		__pad2;
-	long		st_blocks;	/* Number 512-byte blocks allocated. */
-	long		st_atime;	/* Time of last access.  */
-	unsigned long	st_atime_nsec;
-	long		st_mtime;	/* Time of last modification.  */
-	unsigned long	st_mtime_nsec;
-	long		st_ctime;	/* Time of last status change.  */
-	unsigned long	st_ctime_nsec;
-	long 		__unused3;
-	long		__unused4;
-	long		__unused5;
+	uint64_t dev;
+	uint64_t ino;
+	uint32_t nlink;
+	uint32_t __pad0;
+	uint32_t mode;
+	uint32_t uid;
+	uint32_t gid;
+	uint64_t rdev;
+	uint64_t size;
+	uint32_t blksize;
+	uint32_t __pad2;
+	uint64_t blocks;
+	struct timespec atime;
+	struct timespec mtime;
+	struct timespec ctime;
+	uint64_t __unused3;
+	uint64_t __unused4;
+	uint64_t __unused5;
 };
 
 #endif
