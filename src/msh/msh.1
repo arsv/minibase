@@ -47,10 +47,12 @@ See \fBnanosleep\fR(2). Fractional values are supported.
 .IP "\fBexit\fR \fIvalue\fR" 4
 .IP "\fBexec\fR \fIcommand\fR \fIarg\fR \fIarg\fR ..." 4
 Replace current process with \fIcommand\fR. See \fBexecve\fR(2).
-.IP "\fBopen\fR [\fB-rwacx\fR] \fIfd\fR \fIfile\fR" 4
-Open \fIfile\fR and \fBdup2\fR(2) the result to \fIfd\fR.
-.br
-Options: \fBr\fRead, \fBw\fRrite, \fBa\fRppend, \fBc\fRreate, e\fBx\fRclusively.
+.IP "\fBstdin\fR \fIfile\fR" 4
+.IP "\fBstdout\fR [\fB-ax\fR] \fIfile\fR" 4
+.IP "\fBstderr\fR [\fB-ax\fR] \fIfile\fR" 4
+.IP "\fBstdtwo\fR [\fB-ax\fR] \fIfile\fR" 4
+Redirect respective fds to the given \fIfile\fR; \fBstdtwo\fR redirects
+both stdout and stderr. Options: \fBa\fRppend, open e\fBx\fRclusively (O_EXCL).
 .IP "\fBclose\fR \fIfd\fR" 4
 .IP "\fBdupfd\fR \fIold\fR \fInew\fR" 4
 See \fBdup2\fR(2).
