@@ -37,13 +37,13 @@
 #define	SIGUNUSED	31
 
 #define NSIG		32
-#define _NSIG_WORDS	 1
+#define _NSIG_WORDS	 2
 
 #define SIGRTMIN        32
 #define SIGRTMAX        63
 
 typedef struct {
-	long sig[1];	
+	long sig[2];
 } sigset_t;
 
 #define SA_NOCLDSTOP	0x00000001
