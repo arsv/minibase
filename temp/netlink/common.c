@@ -31,15 +31,15 @@ void* mmapwhole(const char* name, long* len)
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
-	ret = sys_mmap(NULL, st.st_size, prot, flags, fd, 0);
+	ret = sys_mmap(NULL, st.size, prot, flags, fd, 0);
 
 	if(mmap_error(ret))
 		fail("cannot mmap", name, ret);
 
-	if(st.st_size > MAX_FILE_SIZE)
+	if(st.size > MAX_FILE_SIZE)
 		fail("file too large:", name, ret);	
 
-	*len = st.st_size;
+	*len = st.size;
 	return (void*) ret;
 }
 
