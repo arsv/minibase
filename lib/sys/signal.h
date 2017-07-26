@@ -1,6 +1,14 @@
 #include <syscall.h>
 #include <bits/signal.h>
 
+#define SIG_BLOCK	0
+#define SIG_UNBLOCK	1
+#define SIG_SETMASK	2
+
+#define SIG_DFL ((void*) 0L)
+#define SIG_IGN ((void*) 1L)
+#define SIG_ERR ((void*)~0L)
+
 extern void sigreturn(void);
 
 inline static long sys_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
