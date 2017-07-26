@@ -5,6 +5,8 @@
 #include <bits/stdio.h>
 #include <null.h>
 
+#define ARRAY_SIZE(a) (sizeof(a)/sizeof(*a))
+#define ARRAY_END(a) (a + ARRAY_SIZE(a))
 #define offsetof(t, f) __builtin_offsetof(t, f)
 
 int argbits(const char* key, const char* arg);
