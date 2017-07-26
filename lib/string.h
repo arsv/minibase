@@ -13,6 +13,7 @@ char* strcbrk(char* str, char c);
 int strcmp(const char* a, const char* b);
 char* strecbrk(char* p, char* e, char k);
 size_t strlen(const char* a);
+size_t strnlen(const char* a, size_t max);
 int strncmp(const char* a, const char* b, size_t n);
 char* strqbrk(char* s, const char *accept);
 char* strstr(const char* str, const char* sub);

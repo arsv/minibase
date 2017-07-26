@@ -1,10 +1,10 @@
 #include <string.h>
 
-unsigned long strlen(const char* a)
+size_t strlen(const char* p)
 {
-	int l = 0;
+	size_t len = 0;
 
-	while(*a++) l++;
+	while(*p++) len++;
 
-	return l;
+	return len;
 }
