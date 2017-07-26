@@ -3,7 +3,7 @@
 
 inline static long sys_pause(void)
 {
-	return syscall0(__NR_pause);
+	return syscall4(__NR_ppoll, 0, 0, 0, 0);
 }
 
 inline static long sys_nanosleep(struct timespec* req, struct timespec* rem)

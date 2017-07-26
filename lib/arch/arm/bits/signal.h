@@ -8,16 +8,15 @@
 #define SIGTRAP		 5
 #define SIGABRT		 6
 #define SIGIOT		 6
+#define SIGBUS		 7
 #define SIGFPE		 8
 #define SIGKILL		 9
+#define SIGUSR1		10
 #define SIGSEGV		11
+#define SIGUSR2		12
 #define SIGPIPE		13
 #define SIGALRM		14
 #define SIGTERM		15
-#define SIGUNUSED	31
-#define SIGBUS		 7
-#define SIGUSR1		10
-#define SIGUSR2		12
 #define SIGSTKFLT	16
 #define SIGCHLD		17
 #define SIGCONT		18
@@ -32,12 +31,39 @@
 #define SIGPROF		27
 #define SIGWINCH	28
 #define SIGIO		29
+#define SIGPOLL		SIGIO
 #define SIGPWR		30
 #define SIGSYS		31
+#define	SIGUNUSED	31
 
-#define SIGCLD		SIGCHLD
-#define SIGPOLL		SIGIO
+#define SIGRTMIN        32
+#define SIGRTMAX        63
 
-#define SIGLOST		SIGPWR
+typedef struct {
+	unsigned long low;
+	unsigned long high;
+} sigset_t;
+
+#define EMPTYSIGSET { 0, 0 }
+
+#define SA_NOCLDSTOP	0x00000001
+#define SA_NOCLDWAIT	0x00000002
+#define SA_SIGINFO	0x00000004
+#define SA_THIRTYTWO	0x02000000
+#define SA_RESTORER	0x04000000
+#define SA_ONSTACK	0x08000000
+#define SA_RESTART	0x10000000
+#define SA_NODEFER	0x40000000
+#define SA_RESETHAND	0x80000000
+
+struct sigaction {
+	union {
+		void (*action)(int, void*, void*);
+		void (*handler)(int);
+	};
+	sigset_t mask;
+	unsigned long flags;
+	void (*restorer)(void);
+};
 
 #endif

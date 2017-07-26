@@ -52,9 +52,9 @@ static void tryfile(char* dir, char* base)
 
 	if(sys_stat(path, &st))
 		return;
-	if((st.st_mode & S_IFMT) != S_IFREG)
+	if((st.mode & S_IFMT) != S_IFREG)
 		return;
-	if(!(st.st_mode & 0111))
+	if(!(st.mode & 0111))
 		return;
 	if(blen > NAMELEN - 1)
 		return;

@@ -89,12 +89,12 @@ static int open_stat_config(int* size)
 
 	if((ret = sys_fstat(fd, &st)) < 0)
 		goto out;
-	if(st.st_size > MAX_CONFIG_SIZE) {
+	if(st.size > MAX_CONFIG_SIZE) {
 		ret = -E2BIG;
 		goto out;
 	}
 
-	*size = st.st_size;
+	*size = st.size;
 	return fd;
 out:
 	sys_close(fd);

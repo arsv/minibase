@@ -1,12 +1,6 @@
 #ifndef __BITS_SIGNAL_H__
 #define __BITS_SIGNAL_H__
 
-#define _NSIG		64
-#define NSIG		32
-#define SIGRTMAX	(_NSIG-1)
-#define MINSIGSTKSZ	2048
-#define _NSIG_WORDS	((_NSIG/sizeof(long))>>3)
-
 #define SIGHUP		 1
 #define SIGINT		 2
 #define SIGQUIT		 3
@@ -41,41 +35,25 @@
 #define SIGPWR		30
 #define SIGSYS		31
 
-#define SIGCLD		SIGCHLD
-#define SIGPOLL		SIGIO
-
-#define SIGLOST		SIGPWR
 #define SIGRTMIN	32
-#define SIGRTMAX	(_NSIG-1)
+#define SIGRTMAX	63
 
-/* SA_FLAGS values: */
+typedef unsigned long sigset_t;
+
+#define EMPTYSIGSET 0
+
 #define SA_NOCLDSTOP	(1<<0)
 #define SA_NOCLDWAIT	(1<<1)
 #define SA_SIGINFO	(1<<2)
-#define SA_RESTORER	0x04000000
-#define SA_ONSTACK	0x08000000
-#define SA_RESTART	0x10000000
-#define SA_INTERRUPT	0x20000000 /* dummy -- ignored */
-#define SA_NODEFER	0x40000000
-#define SA_RESETHAND	0x80000000
-
-#define SIG_BLOCK	0
-#define SIG_UNBLOCK	1
-#define SIG_SETMASK	2
-
-#define SIG_DFL ((void*) 0L)
-#define SIG_IGN ((void*) 1L)
-#define SIG_ERR ((void*)~0L)
-
-typedef struct siginfo siginfo_t;
-
-typedef struct {
-	unsigned long sig[_NSIG_WORDS];
-} sigset_t;
+#define SA_RESTORER	(1<<26)
+#define SA_ONSTACK	(1<<27)
+#define SA_RESTART	(1<<28)
+#define SA_NODEFER	(1<<30)
+#define SA_RESETHAND	(1<<31)
 
 struct sigaction {
 	union {
-		void (*action)(int, siginfo_t*, void*);
+		void (*action)(int, void*, void*);
 		void (*handler)(int);
 	};
 	unsigned long flags;

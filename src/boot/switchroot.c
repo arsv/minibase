@@ -143,10 +143,10 @@ dir:
 	if((ret = sys_fstatat(fd, "", &st, AT_EMPTY_PATH)) < 0)
 		goto out;
 
-	if(st.st_dev == ctx->olddev) {
+	if(st.dev == ctx->olddev) {
 		delete_rec(ctx, fd, path);
 		ret = sys_unlinkat(dirfd, name, AT_REMOVEDIR);
-	} else if(st.st_dev == ctx->newdev) {
+	} else if(st.dev == ctx->newdev) {
 		/* do nothing */
 		ret = 0;
 	} else {
@@ -176,13 +176,13 @@ static int stat_old_new_root(struct root* ctx, char* newroot)
 
 	xchk(sys_stat(newroot, &st), "stat", newroot);
 
-	ctx->newdev = st.st_dev;
+	ctx->newdev = st.dev;
 
 	int fd = xchk(sys_open("/", O_DIRECTORY), "open", "/");
 
 	xchk(sys_fstatat(fd, "", &st, AT_EMPTY_PATH), "stat", "/");
 
-	ctx->olddev = st.st_dev;
+	ctx->olddev = st.dev;
 
 	if(ctx->newdev == ctx->olddev)
 		fail("new root is on the same fs", NULL, 0);
@@ -190,7 +190,7 @@ static int stat_old_new_root(struct root* ctx, char* newroot)
 	/* . = newroot, so .. is its parent directory */
 	xchk(sys_stat("..", &st), "stat", "..");
 
-	if(st.st_dev != ctx->olddev)
+	if(st.dev != ctx->olddev)
 		fail(newroot, "is not directly under /", 0);
 
 	return fd;
@@ -217,7 +217,7 @@ static void maybe_reopen_fds(struct root* ctx)
 
 	if((sys_fstat(0, &st)) < 0)
 		return;
-	if(st.st_dev != ctx->olddev)
+	if(st.dev != ctx->olddev)
 		return;
 	if((fd = sys_open("/dev/console", O_RDWR)) < 0)
 		return;

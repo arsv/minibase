@@ -21,17 +21,17 @@ static char* mapfile(const char* name, int* size)
 	struct stat st;	
 	xchk(sys_fstat(fd, &st), "cannot stat", name);	
 	/* get larger-than-int files out of the picture */
-	if(st.st_size > 0x7FFFFFFF)
+	if(st.size > 0x7FFFFFFF)
 		fail("file too large:", name, 0);
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
-	long ret = sys_mmap(NULL, st.st_size, prot, flags, fd, 0);
+	long ret = sys_mmap(NULL, st.size, prot, flags, fd, 0);
 
 	if(mmap_error(ret))
 		fail("cannot mmap", name, ret);
 
-	*size = st.st_size;
+	*size = st.size;
 	return (char*)ret;
 }
 

@@ -297,7 +297,7 @@ static void scan(char* statfile, int opts)
 
 	xchk(sys_stat(statfile, &st), "cannot stat", statfile);
 
-	char* p = fmtdev(buf, end, st.st_dev); *p++ = '\0';
+	char* p = fmtdev(buf, end, st.dev); *p++ = '\0';
 
 	scanall(statfile, buf, opts);
 }

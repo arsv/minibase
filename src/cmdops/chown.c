@@ -125,17 +125,17 @@ static void recdent(const char* dirname, struct chown* ch, struct dirent* de)
 
 static void chownst(const char* name, struct chown* ch, struct stat* st)
 {
-	if((st->st_mode & S_IFMT) == S_IFLNK)
+	if((st->mode & S_IFMT) == S_IFLNK)
 		return;
-	if((st->st_mode & S_IFMT) == S_IFDIR && (ch->opts & OPT_r))
+	if((st->mode & S_IFMT) == S_IFDIR && (ch->opts & OPT_r))
 		recurse(name, ch);
 	else if(ch->opts & OPT_d)
 		return;
-	if((st->st_mode & S_IFMT) == S_IFDIR && (ch->opts & OPT_n))
+	if((st->mode & S_IFMT) == S_IFDIR && (ch->opts & OPT_n))
 		return;
 
-	int uid = (ch->opts & SET_uid) ? ch->uid : st->st_uid;
-	int gid = (ch->opts & SET_gid) ? ch->gid : st->st_gid;
+	int uid = (ch->opts & SET_uid) ? ch->uid : st->uid;
+	int gid = (ch->opts & SET_gid) ? ch->gid : st->gid;
 
 	long ret = sys_chown(name, uid, gid);
 
@@ -166,18 +166,18 @@ static char* mapfile(const char* name, int* size)
 	struct stat st;	
 	xchk(sys_fstat(fd, &st), "cannot stat", name);	
 	/* get larger-than-int files out of the picture */
-	if(st.st_size > 0x7FFFFFFF)
+	if(st.size > 0x7FFFFFFF)
 		fail("file too large:", name, 0);
 
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
-	long ret = sys_mmap(NULL, st.st_size, prot, flags, fd, 0);
+	long ret = sys_mmap(NULL, st.size, prot, flags, fd, 0);
 
 	if(mmap_error(ret))
 		fail("cannot mmap", name, ret);
 
-	*size = st.st_size;
+	*size = st.size;
 	return (char*)ret;
 }
 

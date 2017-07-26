@@ -161,19 +161,19 @@ static void open_zone_file(struct zonefile* zf, const char* name)
 	struct stat st;
 	xchk(sys_fstat(fd, &st), "stat", name);
 
-	if(st.st_size >= 0xFFFFFFFF)
+	if(st.size >= 0xFFFFFFFF)
 		fail("zone file too large:", name, 0);
 
 	int prot = PROT_READ;
 	int flags = MAP_SHARED;
-	long addr = sys_mmap(NULL, st.st_size, prot, flags, fd, 0);
+	long addr = sys_mmap(NULL, st.size, prot, flags, fd, 0);
 
 	if(mmap_error(addr))
 		fail("mmap", name, addr);
 
 	zf->name = name;
 	zf->data = (void*)addr;
-	zf->len = st.st_size;
+	zf->len = st.size;
 }
 
 static void link_zone_data(struct zonefile* dst, struct zonefile* src)

@@ -41,6 +41,9 @@ fi
 if [ -z "$arch" ]; then
 	mach=`$cc -dumpmachine`
 	arch=${mach%%-*}
+	case "$arch" in
+		aarch64) arch=arm64 ;;
+	esac
 	test -n "$arch" || die "Cannot determine target arch"
 	test -d "lib/arch/$arch" || die "Unsupported arch $arch"
 fi
@@ -91,7 +94,7 @@ cat >> mini-cc <<END
 exec $cc -fno-strict-aliasing -fno-asynchronous-unwind-tables \\
 	-ffreestanding -nostdinc -I\$base/lib/arch/$arch -I\$base/lib \\
 	-no-pie -fno-stack-protector $cflags "\$@" \\
-	-nostdlib \${needslib:+\$base/lib/all.a -lgcc}
+	-nostdlib -Wl,-\\( \${needslib:+\$base/lib/all.a -lgcc} -Wl,-\\)
 END
 fi
 

@@ -1,7 +1,7 @@
-#include <sys/sigaction.h>
+#include <sys/signal.h>
 #include <sys/kill.h>
-#include <sys/write.h>
-#include <sys/getpid.h>
+#include <sys/file.h>
+#include <sys/pid.h>
 
 #include <format.h>
 #include <null.h>
@@ -19,22 +19,22 @@ void sighandler(int sig)
 	p = fmtint(p, e, sig);
 	*p++ = '\n';
 
-	syswrite(STDOUT, buf, p - buf);
+	sys_write(STDOUT, buf, p - buf);
 }
 
 int main(void)
 {
-	int self = sysgetpid();
+	int self = sys_getpid();
 
 	struct sigaction sa = {
 		.handler = sighandler,
 		.flags = SA_RESTORER,
 		.restorer = sigreturn,
-		.mask = { }
+		.mask = EMPTYSIGSET
 	};
 
-	syssigaction(SIGCHLD, &sa, NULL);
-	syskill(self, SIGCHLD);
+	sys_sigaction(SIGCHLD, &sa, NULL);
+	sys_kill(self, SIGCHLD);
 
 	return 0;
 }
