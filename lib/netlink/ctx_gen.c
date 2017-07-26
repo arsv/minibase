@@ -29,7 +29,7 @@ struct nlgen* nl_send_recv_genl(struct netlink* nl)
 	return gen;
 }
 
-struct nlgen* nl_recv_genl_nonseq(struct netlink* nl)
+struct nlgen* nl_recv_genl(struct netlink* nl)
 {
 	struct nlmsg* msg = nl_recv(nl);
 	struct nlgen* gen;

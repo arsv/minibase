@@ -45,7 +45,7 @@ int nl_send_recv_ack(struct netlink* nl);
 int nl_send_dump(struct netlink* nl);
 
 struct nlgen* nl_send_recv_genl(struct netlink* nl);
-struct nlgen* nl_recv_genl_nonseq(struct netlink* nl);
+struct nlgen* nl_recv_genl(struct netlink* nl);
 struct nlgen* nl_recv_genl_multi(struct netlink* nl);
 
 #define nl_send_recv_reply(nl, vv) \
