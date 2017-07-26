@@ -47,7 +47,7 @@ ERRLIST = {
 
 static const char* typemark(struct stat* st)
 {
-	switch(st->st_mode & S_IFMT) {
+	switch(st->mode & S_IFMT) {
 		case S_IFREG: return "File";
 		case S_IFDIR: return "Dir";
 		case S_IFLNK: return "Link";
@@ -63,7 +63,7 @@ static char* fmtmode(char* p, char* e, struct stat* st)
 {
 	char m[6];
 	const char digits[] = "01234567";
-	int mode = st->st_mode;
+	int mode = st->mode;
 
 	m[5] = '\0';
 	m[4] = digits[mode%8]; mode /= 8;
@@ -80,7 +80,7 @@ static char* fmtmode(char* p, char* e, struct stat* st)
 static char* fmtperm(char* p, char* e, struct stat* st)
 {
 	char m[12];
-	int mode = st->st_mode;
+	int mode = st->mode;
 
 	m[0] = (mode & S_ISVTX) ? 't' : '-';
 
@@ -128,9 +128,9 @@ static char* sumtypemode(char* p, char* e, struct stat* st, int opts)
 	p = fmtstr(p, e, typemark(st));
 	p = fmtstr(p, e, " ");
 
-	if(st->st_rdev) {
+	if(st->rdev) {
 		p = fmtstr(p, e, "dev ");
-		p = fmtdev(p, e, st->st_rdev);
+		p = fmtdev(p, e, st->rdev);
 		p = fmtstr(p, e, " ");
 	}
 
@@ -157,14 +157,14 @@ static char* mmapfile(const char* fname, long* size)
 	long sr = sys_fstat(fd, &st);
 	if(sr < 0) return NULL;
 
-	if(st.st_size > *size) return NULL;
+	if(st.size > *size) return NULL;
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
-	long mr = sys_mmap(NULL, st.st_size, prot, flags, fd, 0);
+	long mr = sys_mmap(NULL, st.size, prot, flags, fd, 0);
 	if(mmap_error(mr)) return NULL;
 
-	*size = st.st_size;
+	*size = st.size;
 	return (char*)mr;
 }
 
@@ -213,28 +213,28 @@ static char* sumownergrp(char* p, char* e, struct stat* st, int opts)
 	int resolve = (opts & OPT_n ? 0 : 1);
 
 	p = fmtstr(p, e, " ");
-	p = idname(p, ne, st->st_uid, resolve ? "/etc/passwd" : NULL);
+	p = idname(p, ne, st->uid, resolve ? "/etc/passwd" : NULL);
 	p = fmtstr(p, e, ":");
-	p = idname(p, ne, st->st_gid, resolve ? "/etc/group" : NULL);
+	p = idname(p, ne, st->gid, resolve ? "/etc/group" : NULL);
 	
 	return p;
 }
 
 static char* sumsize(char* p, char* e, struct stat* st, int opts)
 {
-	int mode = st->st_mode;
+	int mode = st->mode;
 
-	if(!st->st_size && !(S_ISLNK(mode) || S_ISREG(mode)))
+	if(!st->size && !(S_ISLNK(mode) || S_ISREG(mode)))
 		goto out;
 
 	p = fmtstr(p, e, " ");
-	p = fmtu64(p, e, st->st_size);
-	p = fmtstr(p, e, st->st_size == 1 ? " byte" : " bytes");
+	p = fmtu64(p, e, st->size);
+	p = fmtstr(p, e, st->size == 1 ? " byte" : " bytes");
 
-	if(st->st_size < 10000 || (opts & OPT_n)) goto out;
+	if(st->size < 10000 || (opts & OPT_n)) goto out;
 
 	p = fmtstr(p, e, " (");
-	p = fmtsize(p, e, st->st_size);
+	p = fmtsize(p, e, st->size);
 	p = fmtstr(p, e, ")");
 out:
 	return p;
@@ -242,10 +242,10 @@ out:
 
 static char* sumlinks(char* p, char* e, struct stat* st)
 {
-	if(st->st_nlink == 1) return p;
+	if(st->nlink == 1) return p;
 
 	p = fmtstr(p, e, " ");
-	p = fmtlong(p, e, st->st_nlink);
+	p = fmtlong(p, e, st->nlink);
 	p = fmtstr(p, e, " links");
 
 	return p;
@@ -253,38 +253,38 @@ static char* sumlinks(char* p, char* e, struct stat* st)
 
 static char* sumblkdevino(char* p, char* e, struct stat* st, int opts)
 {
-	int du = 512*st->st_blocks;
-	int diff = (du > st->st_size + 512 || du < st->st_size - 512);
+	int du = 512*st->blocks;
+	int diff = (du > st->size + 512 || du < st->size - 512);
 
-	if(!st->st_blocks) {
+	if(!st->blocks) {
 		p = fmtstr(p, e, "Resides");
 	} else {
 		p = fmtstr(p, e, "Takes ");
-		p = fmtu64(p, e, st->st_blocks);
-		p = fmtstr(p, e, st->st_blocks > 1 ? " blocks" : " block");
+		p = fmtu64(p, e, st->blocks);
+		p = fmtstr(p, e, st->blocks > 1 ? " blocks" : " block");
 	} if(du >= 10000 && diff && !(opts & OPT_n)) {
 		p = fmtstr(p, e, " (");
-		p = fmtsize(p, e, 512*st->st_blocks);
+		p = fmtsize(p, e, 512*st->blocks);
 		p = fmtstr(p, e, ")");
 	}
 
 	p = fmtstr(p, e, " on dev ");
-	p = fmtdev(p, e, st->st_dev);
+	p = fmtdev(p, e, st->dev);
 	p = fmtstr(p, e, " inode ");
-	p = fmtu64(p, e, st->st_ino);
+	p = fmtu64(p, e, st->ino);
 	
 	return p;
 }
 
-static char* sumtime(char* p, char* e, char* tag, long* ts)
+static char* sumtime(char* p, char* e, char* tag, struct timespec* ts)
 {
 	struct tm tm;
-	struct timeval tv = { .sec = *ts, .usec = 0 };
+	struct timeval tv = { .sec = ts->sec, .usec = ts->nsec/1000 };
 	tv2tm(&tv, &tm);
 
 	p = fmtstr(p, e, tag);
 	p = fmtstr(p, e, " ");
-	p = fmtpad(p, e, 10, fmtlong(p, e, *ts));
+	p = fmtpad(p, e, 10, fmtlong(p, e, ts->sec));
 	p = fmtstr(p, e, " ");
 	p = fmttm(p, e, &tm);
 
@@ -302,20 +302,20 @@ static char* summary(char* p, char* e, struct stat* st, int opts)
 	p = sumblkdevino(p, e, st, opts);
 
 	p = fmtstr(p, e, "\n");
-	p = sumtime(p, e, "Modify time", &(st->st_mtime));
+	p = sumtime(p, e, "Modify time", &(st->mtime));
 	p = fmtstr(p, e, "\n");
-	p = sumtime(p, e, "Access time", &(st->st_atime));
+	p = sumtime(p, e, "Access time", &(st->atime));
 
 	return p;
 }
 
-static char* formtime(char* p, char* e, long ts, int opts)
+static char* formtime(char* p, char* e, struct timespec* ts, int opts)
 {
 	if(opts & OPT_n)
-		return fmtlong(p, e, ts);
+		return fmtlong(p, e, ts->sec);
 
 	struct tm tm;
-	struct timeval tv = { .sec = ts, .usec = 0 };
+	struct timeval tv = { .sec = ts->sec, .usec = 0 };
 	tv2tm(&tv, &tm);
 
 	return fmttm(p, e, &tm);
@@ -333,27 +333,27 @@ static char* format(char* p, char* e, struct stat* st, int opts)
 	if(opts & OPT_p)
 		return fmtmodeperm(p, e, st, opts);
 	if(opts & OPT_s)
-		return fmtu64(p, e, st->st_size);
+		return fmtu64(p, e, st->size);
 	if(opts & OPT_u)
-		return formowner(p, e, st->st_uid, opts, "/etc/passwd");
+		return formowner(p, e, st->uid, opts, "/etc/passwd");
 	if(opts & OPT_g)
-		return formowner(p, e, st->st_gid, opts, "/etc/group");
+		return formowner(p, e, st->gid, opts, "/etc/group");
 	if(opts & OPT_k)
-		return fmtu64(p, e, st->st_nlink);
+		return fmtu64(p, e, st->nlink);
 	if(opts & OPT_a)
-		return formtime(p, e, st->st_atime, opts);
+		return formtime(p, e, &st->atime, opts);
 	if(opts & OPT_m)
-		return formtime(p, e, st->st_mtime, opts);
+		return formtime(p, e, &st->mtime, opts);
 	if(opts & OPT_c)
-		return formtime(p, e, st->st_ctime, opts);
+		return formtime(p, e, &st->ctime, opts);
 	if(opts & OPT_d)
-		return fmtdev(p, e, st->st_dev);
+		return fmtdev(p, e, st->dev);
 	if(opts & OPT_i)
-		return fmtu64(p, e, st->st_ino);
+		return fmtu64(p, e, st->ino);
 	if(opts & OPT_b)
-		return fmtu64(p, e, st->st_blocks);
+		return fmtu64(p, e, st->blocks);
 	if(opts & OPT_r)
-		return fmtdev(p, e, st->st_rdev);
+		return fmtdev(p, e, st->rdev);
 	else
 		fail("unhandled option", NULL, 0);
 }

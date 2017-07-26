@@ -104,17 +104,17 @@ static int check_managed_dev(int fd, int* dev, int tty)
 	if((ret = sys_fstat(fd, &st)) < 0)
 		return ret;
 
-	int maj = major(st.st_rdev);
-	int fmt = st.st_mode & S_IFMT;
+	int maj = major(st.rdev);
+	int fmt = st.mode & S_IFMT;
 
 	if(fmt != S_IFCHR)
 		return -EACCES;
 	if(maj != DRI_MAJOR && maj != INPUT_MAJOR)
 		return -EACCES;
 
-	*dev = st.st_rdev;
+	*dev = st.rdev;
 
-	if(*dev != st.st_rdev)
+	if(*dev != st.rdev)
 		return -EINVAL; /* 64-bit rdev, drop it */
 
 	return 0;

@@ -121,16 +121,16 @@ static void recdent(const char* dirname, struct chmod* ch, struct dirent* de)
 
 static void chmodst(const char* name, struct chmod* ch, struct stat* st)
 {
-	if((st->st_mode & S_IFMT) == S_IFLNK)
+	if((st->mode & S_IFMT) == S_IFLNK)
 		return;
-	if((st->st_mode & S_IFMT) == S_IFDIR && (ch->opts & OPT_r))
+	if((st->mode & S_IFMT) == S_IFDIR && (ch->opts & OPT_r))
 		recurse(name, ch);
 	else if(ch->opts & OPT_d)
 		return;
-	if((st->st_mode & S_IFMT) == S_IFDIR && (ch->opts & OPT_n))
+	if((st->mode & S_IFMT) == S_IFDIR && (ch->opts & OPT_n))
 		return;
 
-	int mode = st->st_mode;
+	int mode = st->mode;
 
 	mode &= ~ch->clr;
 	mode |=  ch->set;
@@ -152,7 +152,7 @@ static void chmod(const char* name, struct chmod* ch)
 		chmodst(name, ch, &st);
 }
 
-/* Octal modes are simply raw st_mode values */
+/* Octal modes are simply raw mode values */
 
 static void parsenum(char* modstr, struct chmod* ch)
 {

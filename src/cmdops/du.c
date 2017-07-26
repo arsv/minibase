@@ -52,9 +52,9 @@ struct node {
 static void addstsize(uint64_t* sum, struct stat* st, int opts)
 {
 	if(opts & OPT_a)
-		*sum += st->st_size;
+		*sum += st->size;
 	else
-		*sum += st->st_blocks*512;
+		*sum += st->blocks*512;
 }
 
 /* No buffering here. For each line written, there will be at least one
@@ -123,7 +123,7 @@ static void scan_dent(char* path, char* name, void* arg, int opts)
 
 	addstsize(size, &st, opts);
 
-	if((st.st_mode & S_IFMT) != S_IFDIR)
+	if((st.mode & S_IFMT) != S_IFDIR)
 		return;
 
 	for_each_in(fullname, scan_dent, size, opts);
@@ -165,7 +165,7 @@ static int scan_path(uint64_t* size, char* path, int opts)
 
 	xchk(sys_lstat(path, &st), "cannot stat", path);
 
-	int isdir = ((st.st_mode & S_IFMT) == S_IFDIR);
+	int isdir = ((st.mode & S_IFMT) == S_IFDIR);
 
 	if((opts & OPT_d) && !isdir)
 		return -1;

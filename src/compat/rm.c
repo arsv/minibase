@@ -56,7 +56,7 @@ static int samefs(const char* dirname, int dirfd, long rootdev)
 		warn("cannot stat", dirname, ret);
 
 	/* err on the safe side */
-	return (ret >= 0 && st.st_dev == rootdev);
+	return (ret >= 0 && st.dev == rootdev);
 }
 
 static void removeany(const char* name, int type, long rootdev, int opts);
@@ -149,12 +149,12 @@ err:
 
 static int samefile(struct stat* a, struct stat* b)
 {
-	return ((a->st_dev == b->st_dev) && (a->st_ino == b->st_ino));
+	return ((a->dev == b->dev) && (a->ino == b->ino));
 }
 
 /* This function handles top-level rm arguments only.
    When runnig without -x option, top-level arguments are stat'ed
-   for st_dev value, which is then used to limit cross-device recursion. */
+   for dev value, which is then used to limit cross-device recursion. */
 
 static void remove(const char* name, int opts, struct stat* rst)
 {
@@ -172,7 +172,7 @@ static void remove(const char* name, int opts, struct stat* rst)
 			return mfail(opts, "refusing to delete root", NULL, 0);
 
 		if((opts & OPT_n))
-			dev = st.st_dev;
+			dev = st.dev;
 	}
 
 	/* if we are called with -d, force directory handling */

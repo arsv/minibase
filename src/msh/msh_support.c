@@ -81,7 +81,7 @@ int mmapfile(struct mbuf* mb, char* name)
 	if((ret = sys_fstat(fd, &st)) < 0)
 		goto out;
 	/* get larger-than-int files out of the picture */
-	if(st.st_size > 0x7FFFFFFF) {
+	if(st.size > 0x7FFFFFFF) {
 		ret = -E2BIG;
 		goto out;
 	}
@@ -89,12 +89,12 @@ int mmapfile(struct mbuf* mb, char* name)
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
 
-	ret = sys_mmap(NULL, st.st_size, prot, flags, fd, 0);
+	ret = sys_mmap(NULL, st.size, prot, flags, fd, 0);
 
 	if(mmap_error(ret))
 		goto out;
 
-	mb->len = st.st_size;
+	mb->len = st.size;
 	mb->buf = (char*)ret;
 	ret = 0;
 out:

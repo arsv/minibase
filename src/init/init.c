@@ -98,12 +98,12 @@ static int open_stat(const char* name, int* len)
 		return -1;
 	}
 
-	if(st.st_size > 0x10000) {
+	if(st.size > 0x10000) {
 		warn("file too large:", name, 0);
 		return -1;
 	}
 
-	*len = st.st_size;
+	*len = st.size;
 	return fd;
 }
 

@@ -28,7 +28,7 @@ static int issymlink(char* file)
 
 	long ret = sys_lstat(file, &st);
 
-	return (ret >= 0 && ((st.st_mode & S_IFMT) == S_IFLNK));
+	return (ret >= 0 && ((st.mode & S_IFMT) == S_IFLNK));
 }
 
 /* The syscall has reversed argument order! */

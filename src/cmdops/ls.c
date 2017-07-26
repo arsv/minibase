@@ -168,9 +168,9 @@ static void statidx(struct idxent* idx, int nument, int fd, int opts)
 			;
 		else if(sys_fstatat(fd, p->de->name, &st, flags1) < 0)
 			continue;
-		else if(S_ISDIR(st.st_mode))
+		else if(S_ISDIR(st.mode))
 			type = DT_DIR;
-		else if(S_ISLNK(st.st_mode))
+		else if(S_ISLNK(st.mode))
 			type = DT_LNK;
 		else
 			type = DT_REG; /* neither DIR nor LNK nor UNKNOWN */
@@ -184,7 +184,7 @@ static void statidx(struct idxent* idx, int nument, int fd, int opts)
 
 		if(sys_fstatat(fd, p->de->name, &st, flags2) < 0)
 			continue;
-		if(S_ISLNK(st.st_mode))
+		if(S_ISLNK(st.mode))
 			p->de->type = DT_LNK_DIR;
 	}
 }
