@@ -38,9 +38,9 @@
 #define SIGRTMIN	32
 #define SIGRTMAX	63
 
-#define NSIG		32
-#define _NSIG		64
-#define _NSIG_WORDS	1
+typedef unsigned long sigset_t;
+
+#define EMPTYSIGSET 0
 
 #define SA_NOCLDSTOP	(1<<0)
 #define SA_NOCLDWAIT	(1<<1)
@@ -51,15 +51,9 @@
 #define SA_NODEFER	(1<<30)
 #define SA_RESETHAND	(1<<31)
 
-typedef struct siginfo siginfo_t;
-
-typedef struct {
-	unsigned long sig[_NSIG_WORDS];
-} sigset_t;
-
 struct sigaction {
 	union {
-		void (*action)(int, siginfo_t*, void*);
+		void (*action)(int, void*, void*);
 		void (*handler)(int);
 	};
 	unsigned long flags;
