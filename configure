@@ -91,7 +91,7 @@ cat >> mini-cc <<END
 exec $cc -fno-strict-aliasing -fno-asynchronous-unwind-tables \\
 	-ffreestanding -nostdinc -I\$base/lib/arch/$arch -I\$base/lib \\
 	-no-pie -fno-stack-protector $cflags "\$@" \\
-	-nostdlib \${needslib:+\$base/lib/all.a -lgcc}
+	-nostdlib -Wl,-\\( \${needslib:+\$base/lib/all.a -lgcc} -Wl,-\\)
 END
 fi
 
