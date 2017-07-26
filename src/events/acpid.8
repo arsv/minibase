@@ -1,0 +1,25 @@
+.TH acpid 8
+'''
+.SH NAME
+\fBacpid\fR \- ACPI event daemon
+'''
+.SH DESCRIPTION
+\fBacpid\fR listens for ACPI events over netlink interface, filters those
+few that may require handling, and spawns handler scripts:
+'''
+.IP "/etc/acpi/acpower" 4
+AC power adapter has been connected.
+.IP "/etc/acpi/battery" 4
+AC adapter has been disconnected, the device is on battery power.
+.IP "/etc/acpi/sleep" 4
+Sleep button pressed.
+.IP "/etc/acpi/power" 4
+Power button pressed.
+'''
+.SH NOTES
+There are apparently no APCI event for low battery level.
+.P
+Power and sleep buttons are also reported via input event devices.
+Lid switch may not generate any ACPI events at all even if it shows up
+as input device. Unless some handling is needed for \fBacpower\fR or
+\fBbattery\fR events, there is probably not point in running \fBacpid\fR.
