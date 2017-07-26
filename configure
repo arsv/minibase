@@ -41,6 +41,9 @@ fi
 if [ -z "$arch" ]; then
 	mach=`$cc -dumpmachine`
 	arch=${mach%%-*}
+	case "$arch" in
+		aarch64) arch=arm64 ;;
+	esac
 	test -n "$arch" || die "Cannot determine target arch"
 	test -d "lib/arch/$arch" || die "Unsupported arch $arch"
 fi
