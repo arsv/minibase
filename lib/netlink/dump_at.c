@@ -1,3 +1,5 @@
+#include <bits/ints.h>
+
 #include <string.h>
 #include <printf.h>
 
@@ -88,9 +90,11 @@ static void nl_dump_attr(char* pref, struct nlattr* at)
 	} else if(nl_attr_is_printable_str(at)) {
 		tracef("%s %i: \"%s\"\n",
 				pref, at->type, buf);
+#if BITS == 64
 	} else if(len == 8) {
 		tracef("%s %i: %s = long %li\n",
 				pref, at->type, bytebuf, *(int64_t*)buf);
+#endif
 	} else if(len == 4) {
 		tracef("%s %i: %s = int %i\n",
 				pref, at->type, bytebuf, *(int32_t*)buf);
