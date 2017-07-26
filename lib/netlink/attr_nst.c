@@ -29,12 +29,12 @@ int nl_check_nest(char* buf, int len)
 
 int nl_attr_is_nest(struct nlattr* at)
 {
-	return nl_check_nest(ATPAYLOAD(at));
+	return at && nl_check_nest(ATPAYLOAD(at));
 }
 
 struct nlattr* nl_nest(struct nlattr* at)
 {
-	if(!nl_check_nest(ATPAYLOAD(at)))
+	if(!at || !nl_check_nest(ATPAYLOAD(at)))
 		return NULL;
 	return at;
 }
