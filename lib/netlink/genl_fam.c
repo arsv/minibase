@@ -3,9 +3,7 @@
 #include <netlink.h>
 #include <netlink/genl/ctrl.h>
 
-#include <fail.h>
-
-#include "nlfam.h"
+#include "genl.h"
 
 /* No group subscription, just query the family name */
 

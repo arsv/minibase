@@ -2,7 +2,7 @@
 #include <sys/file.h>
 
 #include <netlink.h>
-#include <netlink/genl/ctrl.h>
+#include <netlink/genl.h>
 #include <netlink/genl/nl80211.h>
 
 #include <string.h>
@@ -10,7 +10,6 @@
 #include <util.h>
 #include <exit.h>
 
-#include "nlfam.h"
 #include "wpa.h"
 
 /* The netlink part deals with configuring the card to establish

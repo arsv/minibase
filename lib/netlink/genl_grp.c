@@ -2,10 +2,9 @@
 
 #include <netlink.h>
 #include <netlink/genl/ctrl.h>
-
 #include <string.h>
 
-#include "nlfam.h"
+#include "genl.h"
 
 /* GENL families (endpoints) must be resolved dynamically with
    a CTRL_CMD_GETFAMILY request to fixed "ctrl" endpoint.

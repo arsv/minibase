@@ -2,13 +2,12 @@
 
 #include <netlink.h>
 #include <netlink/dump.h>
-#include <netlink/genl/ctrl.h>
+#include <netlink/genl.h>
 #include <netlink/genl/nl80211.h>
 
 #include <string.h>
 #include <fail.h>
 
-#include "nlfam.h"
 #include "wimon.h"
 
 /* NETLINK_GENERIC connection is used mostly request and fetch scan results,
