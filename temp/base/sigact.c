@@ -30,7 +30,7 @@ int main(void)
 		.handler = sighandler,
 		.flags = SA_RESTORER,
 		.restorer = sigreturn,
-		.mask = { }
+		.mask = EMPTYSIGSET
 	};
 
 	sys_sigaction(SIGCHLD, &sa, NULL);
