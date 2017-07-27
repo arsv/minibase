@@ -11,18 +11,18 @@
 static void warn(const char* obj, const char* msg)
 {
 	char buf[100];
-	char* end = buf + sizeof(buf) - 1;
 	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
 
-	p = fmtstr(p, end, TAG ": ");
+	p = fmtstr(p, e, TAG ": ");
 
 	if(!obj) goto no;
 
-	p = fmtstr(p, end, obj);
-	p = fmtstr(p, end, " ");
+	p = fmtstr(p, e, obj);
+	p = fmtstr(p, e, " ");
 no:
-	p = fmtstr(p, end, msg);
-	p = fmtstr(p, end, "\n");
+	p = fmtstr(p, e, msg);
+	p = fmtstr(p, e, "\n");
 
 	sys_write(2, buf, p - buf);
 }
@@ -40,14 +40,15 @@ static char* xgetenv(char** envp, char* var)
 	_exit(-1);
 }
 
-static int execheck(const char* dir, int dirlen, const char* cmd, int cmdlen)
+static int execheck(char* dir, int dirlen, char* cmd, int cmdlen)
 {
 	char path[dirlen + cmdlen + 4];
 	char* p = path;
+	char* e = path + sizeof(path) - 1;
 
-	memcpy(p, dir, dirlen); p += dirlen;
-	*p++ = '/';
-	memcpy(p, cmd, cmdlen); p += cmdlen;
+	p = fmtraw(p, e, dir, dirlen);
+	p = fmtstr(p, e, "/");
+	p = fmtraw(p, e, cmd, cmdlen);
 	*p = '\0';
 
 	if(sys_access(path, X_OK) < 0)
@@ -59,11 +60,11 @@ static int execheck(const char* dir, int dirlen, const char* cmd, int cmdlen)
 	return -1;
 }
 
-static int which(const char* path, const char* cmd, int cmdlen)
+static int which(char* path, char* cmd, int cmdlen)
 { 
-	const char* pend = path + strlen(path);
-	const char* p;
-	const char* q;
+	char* pend = path + strlen(path);
+	char* p;
+	char* q;
 
 	for(p = path; p < pend; p = q + 1) {
 		for(q = p; *q && *q != ':'; q++)

@@ -12,8 +12,6 @@
 ERRTAG = "hexdump";
 ERRLIST = { RESTASNUMBERS };
 
-static const char hexdigits[] = "0123456789ABCDEF";
-
 static void writeall(int fd, char* buf, long size)
 {
 	long wr = 0;
@@ -43,27 +41,13 @@ static int isprintable(int c)
    4 bytes so we keep that. Also, the first alternative would be 2 bytes
    which is too few for actual real life usage. */
 
-static char* fmtaddr(char* p, char* end, unsigned long addr)
+static char* fmtaddr(char* p, char* e, unsigned long addr)
 {
 	int i;
 
-	for(i = 7; i >= 0; i--) {
-		if(p >= end) 
-			continue;
-		int d = addr & 0x0F;
-		*(p + i) = hexdigits[d];
-		addr >>= 4;
-	}
+	for(i = 3; i >= 0; i--)
+		p = fmtbyte(p, e, (addr >> 8*i) & 0xFF);
 
-	p += 8;
-
-	return p < end ? p : end;
-}
-
-static char* fmthexch(char* p, char* end, char c)
-{
-	if(p < end) *p++ = hexdigits[((c >> 4) & 0x0F)];
-	if(p < end) *p++ = hexdigits[((c >> 0) & 0x0F)];
 	return p;
 }
 
@@ -75,32 +59,32 @@ static char* fmthexch(char* p, char* end, char c)
    and the buffer is expected to have at least that much
    space available. */
 
-static char* makeline(char* p, char* end, unsigned long addr, char* data, int size)
+static char* makeline(char* p, char* e, unsigned long addr, char* data, int size)
 {
 	int i;
 
-	p = fmtaddr(p, end, addr);
-	p = fmtstr(p, end, "   ");
+	p = fmtaddr(p, e, addr);
+	p = fmtstr(p, e, "   ");
 
 	for(i = 0; i < 16; i++) {
 		if(i < size)
-			p = fmthexch(p, end, *(data + i));
+			p = fmtbyte(p, e, *(data + i));
 		else
-			p = fmtstr(p, end, "  ");
+			p = fmtstr(p, e, "  ");
 		if(i == 7)
-			p = fmtstr(p, end, "  ");
+			p = fmtstr(p, e, "  ");
 		else if(i != 15)
-			p = fmtstr(p, end, " ");
+			p = fmtstr(p, e, " ");
 	}
 
-	p = fmtstr(p, end, "   ");
+	p = fmtstr(p, e, "   ");
 	
 	for(i = 0; i < 16 && i < size; i++) {
 		char c = *(data + i);
-		p = fmtchar(p, end, isprintable(c) ? c : '.');
+		p = fmtchar(p, e, isprintable(c) ? c : '.');
 	}
 
-	p = fmtchar(p, end, '\n');
+	p = fmtchar(p, e, '\n');
 
 	return p;
 }

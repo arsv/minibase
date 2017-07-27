@@ -36,9 +36,9 @@ static void tvdiff(struct timeval* tv, struct timeval* t1, struct timeval* t0)
 	tv->usec = dus;
 }
 
-static char* fmtint0(char* p, char* end, int n, int w)
+static char* fmtint0(char* p, char* e, int n, int w)
 {
-	return fmtpad0(p, end, w, fmti32(p, end, n));
+	return fmtpad0(p, e, w, fmti32(p, e, n));
 }
 
 static char* fmttv(char* p, char* e, struct timeval* tv)

@@ -11,47 +11,47 @@ ERRLIST = {
 	RESTASNUMBERS
 };
 
-static char* fmtpart(char* p, char* end, long n, char* unit)
+static char* fmtpart(char* p, char* e, long n, char* unit)
 {
 	if(!n) goto out;
-	p = fmtstr(p, end, " ");
-	p = fmtlong(p, end, n);
-	p = fmtstr(p, end, " ");
-	p = fmtstr(p, end, unit);
+	p = fmtstr(p, e, " ");
+	p = fmtlong(p, e, n);
+	p = fmtstr(p, e, " ");
+	p = fmtstr(p, e, unit);
 	if(n <= 1) goto out;
-	p = fmtstr(p, end, "s");
+	p = fmtstr(p, e, "s");
 out:	return p;
 }
 
-static char* fmtuptime(char* p, char* end, long ts)
+static char* fmtuptime(char* p, char* e, long ts)
 {
 	int sec = ts % 60; ts /= 60;
 	int min = ts % 60; ts /= 60;
 	int hrs = ts % 24; ts /= 24;
 
-	p = fmtpart(p, end, ts, "day");
-	p = fmtpart(p, end, hrs, "hour");
-	p = fmtpart(p, end, min, "minute");
-	p = fmtpart(p, end, sec, "second");
+	p = fmtpart(p, e, ts, "day");
+	p = fmtpart(p, e, hrs, "hour");
+	p = fmtpart(p, e, min, "minute");
+	p = fmtpart(p, e, sec, "second");
 
 	return p;
 }
 
-static char* fmtavg(char* p, char* end, unsigned long avg, char* over)
+static char* fmtavg(char* p, char* e, unsigned long avg, char* over)
 {
 	int avgperc = (avg >> 16) & 0xFFFF;
 	int avgfrac = ((avg & 0xFFFF)*100 >> 16) & 0xFFFF;
 
-	p = fmti32(p, end, avgperc);
-	p = fmtstr(p, end, ".");
-	p = fmtulp(p, end, avgfrac, 2);
-	p = fmtstr(p, end, "% over ");
-	p = fmtstr(p, end, over);
+	p = fmti32(p, e, avgperc);
+	p = fmtstr(p, e, ".");
+	p = fmtulp(p, e, avgfrac, 2);
+	p = fmtstr(p, e, "% over ");
+	p = fmtstr(p, e, over);
 
 	return p;
 }
 
-static char* fmtmem(char* p, char* end, unsigned long n, int mu)
+static char* fmtmem(char* p, char* e, unsigned long n, int mu)
 {
 	unsigned long nb = n * mu;
 	unsigned long fr = 0;
@@ -63,73 +63,73 @@ static char* fmtmem(char* p, char* end, unsigned long n, int mu)
 
 	fr /= 102;
 
-	p = fmtu32(p, end, nb);
+	p = fmtu32(p, e, nb);
 	if(fr) {
-		p = fmtstr(p, end, ".");
-		p = fmtulp(p, end, fr, 2);
+		p = fmtstr(p, e, ".");
+		p = fmtulp(p, e, fr, 2);
 	}
-	p = fmtstr(p, end, suff);
+	p = fmtstr(p, e, suff);
 
 	return p;
 }
 
-static char* fmtline1(char* p, char* end, struct sysinfo* si)
+static char* fmtline1(char* p, char* e, struct sysinfo* si)
 {
-	p = fmtstr(p, end, "Uptime");
-	p = fmtuptime(p, end, si->uptime);	
-	p = fmtstr(p, end, ", ");
-	p = fmti32(p, end, si->procs);
-	p = fmtstr(p, end, si->procs > 1 ? " processes" : "process");
-	p = fmtstr(p, end, "\n");
+	p = fmtstr(p, e, "Uptime");
+	p = fmtuptime(p, e, si->uptime);	
+	p = fmtstr(p, e, ", ");
+	p = fmti32(p, e, si->procs);
+	p = fmtstr(p, e, si->procs > 1 ? " processes" : "process");
+	p = fmtstr(p, e, "\n");
 	return p;
 }
 
-static char* fmtline2(char* p, char* end, struct sysinfo* si)
+static char* fmtline2(char* p, char* e, struct sysinfo* si)
 {
-	p = fmtstr(p, end, "Load average ");
-	p = fmtavg(p, end, si->loads[0], "1 min");
-	p = fmtstr(p, end, ", ");
-	p = fmtavg(p, end, si->loads[1], "5 min");
-	p = fmtstr(p, end, ", ");
-	p = fmtavg(p, end, si->loads[2], "15 min");
-	p = fmtstr(p, end, "\n");
+	p = fmtstr(p, e, "Load average ");
+	p = fmtavg(p, e, si->loads[0], "1 min");
+	p = fmtstr(p, e, ", ");
+	p = fmtavg(p, e, si->loads[1], "5 min");
+	p = fmtstr(p, e, ", ");
+	p = fmtavg(p, e, si->loads[2], "15 min");
+	p = fmtstr(p, e, "\n");
 	return p;
 }
 
-static char* fmtline3(char* p, char* end, struct sysinfo* si)
+static char* fmtline3(char* p, char* e, struct sysinfo* si)
 {
-	p = fmtstr(p, end, "RAM ");
-	p = fmtmem(p, end, si->totalram, si->mem_unit);
-	p = fmtstr(p, end, " (");
-	p = fmtmem(p, end, si->freeram, si->mem_unit);
-	p = fmtstr(p, end, " free, ");
-	p = fmtmem(p, end, si->sharedram, si->mem_unit);
-	p = fmtstr(p, end, " shared, ");
-	p = fmtmem(p, end, si->bufferram, si->mem_unit);
-	p = fmtstr(p, end, " buffers)");
-	p = fmtstr(p, end, "\n");
+	p = fmtstr(p, e, "RAM ");
+	p = fmtmem(p, e, si->totalram, si->mem_unit);
+	p = fmtstr(p, e, " (");
+	p = fmtmem(p, e, si->freeram, si->mem_unit);
+	p = fmtstr(p, e, " free, ");
+	p = fmtmem(p, e, si->sharedram, si->mem_unit);
+	p = fmtstr(p, e, " shared, ");
+	p = fmtmem(p, e, si->bufferram, si->mem_unit);
+	p = fmtstr(p, e, " buffers)");
+	p = fmtstr(p, e, "\n");
 	return p;
 }
 
-static char* fmtline4(char* p, char* end, struct sysinfo* si)
+static char* fmtline4(char* p, char* e, struct sysinfo* si)
 {
 	if(!si->totalswap && !si->totalhigh)
 		return p;
 
 	if(si->totalswap) {
-		p = fmtstr(p, end, "Swap ");
-		p = fmtmem(p, end, si->totalswap, si->mem_unit);
-		p = fmtstr(p, end, " (");
-		p = fmtmem(p, end, si->freeswap, si->mem_unit);
-		p = fmtstr(p, end, " free)");
+		p = fmtstr(p, e, "Swap ");
+		p = fmtmem(p, e, si->totalswap, si->mem_unit);
+		p = fmtstr(p, e, " (");
+		p = fmtmem(p, e, si->freeswap, si->mem_unit);
+		p = fmtstr(p, e, " free)");
 	} if(si->totalhigh) {
-		p = fmtstr(p, end, si->totalswap ? " high " : "High");
-		p = fmtmem(p, end, si->totalhigh, si->mem_unit);
-		p = fmtstr(p, end, " (");
-		p = fmtmem(p, end, si->freehigh, si->mem_unit);
-		p = fmtstr(p, end, " free)");
+		p = fmtstr(p, e, si->totalswap ? " high " : "High");
+		p = fmtmem(p, e, si->totalhigh, si->mem_unit);
+		p = fmtstr(p, e, " (");
+		p = fmtmem(p, e, si->freehigh, si->mem_unit);
+		p = fmtstr(p, e, " free)");
 	}
-	p = fmtstr(p, end, "\n");
+	p = fmtstr(p, e, "\n");
 
 	return p;
 }
@@ -137,13 +137,13 @@ static char* fmtline4(char* p, char* end, struct sysinfo* si)
 static void showall(struct sysinfo* si)
 {
 	char buf[1024];
-	char* end = buf + sizeof(buf) - 1;
 	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
 
-	p = fmtline1(p, end, si);
-	p = fmtline2(p, end, si);
-	p = fmtline3(p, end, si);
-	p = fmtline4(p, end, si);
+	p = fmtline1(p, e, si);
+	p = fmtline2(p, e, si);
+	p = fmtline3(p, e, si);
+	p = fmtline4(p, e, si);
 
 	sys_write(1, buf, p - buf);
 }
