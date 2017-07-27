@@ -46,4 +46,7 @@
 
 #define F_GETFD 1
 
+#define F_LINUX_SPECIFIC_BASE 1024
+#define F_DUPFD_CLOEXEC	(F_LINUX_SPECIFIC_BASE + 6)
+
 #endif
