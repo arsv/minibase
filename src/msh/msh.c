@@ -12,7 +12,7 @@ static void parsefd(struct sh* ctx, int fd)
 	while((rd = sys_read(fd, inbuf, sizeof(inbuf))) > 0) {
 		parse(ctx, inbuf, rd);
 	} if(rd < 0) {
-		fail("read", NULL, rd);
+		fail(ctx, "read", NULL, rd);
 	};
 }
 
@@ -26,7 +26,7 @@ static int openfile(struct sh* ctx, char* name)
 	int fd;
 
 	if((fd = sys_open(name, O_RDONLY)) < 0)
-		fail("open", name, fd);
+		fail(ctx, "open", name, fd);
 
 	if(!ctx->file) {
 		ctx->file = name;
@@ -61,6 +61,7 @@ int main(int argc, char** argv, char** envp)
 
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.envp = envp;
+	ctx.errfd = STDERR;
 
 	if(i < argc && argv[i][0] == '-')
 		opts = parseopts(&ctx, argv[i++] + 1);

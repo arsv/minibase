@@ -71,6 +71,18 @@ int cmd_stdin(struct sh* ctx)
 	return open_onto_fd(ctx, STDIN, name, O_RDONLY, 0000);
 }
 
+static void save_stderr(struct sh* ctx)
+{
+	int fd;
+
+	if(ctx->errfd != STDERR)
+		return;
+	if((fd = sys_fcntl3(STDERR, F_DUPFD_CLOEXEC, 0)) < 0)
+		return;
+
+	ctx->errfd = fd;
+}
+
 int cmd_stdout(struct sh* ctx)
 {
 	return open_output(ctx, STDOUT);
@@ -78,6 +90,7 @@ int cmd_stdout(struct sh* ctx)
 
 int cmd_stderr(struct sh* ctx)
 {
+	save_stderr(ctx);
 	return open_output(ctx, STDERR);
 }
 
@@ -88,6 +101,7 @@ int cmd_stdtwo(struct sh* ctx)
 	if((ret = open_output(ctx, STDOUT)) < 0)
 		return ret;
 
+	save_stderr(ctx);
 	return fchk(sys_dup2(STDOUT, STDERR), ctx, "dup2");
 }
 

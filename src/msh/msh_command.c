@@ -52,12 +52,12 @@ static int spawn(struct sh* ctx, int dash)
 	int status;
 
 	if(pid < 0)
-		fail("fork", NULL, pid);
+		fail(ctx, "fork", NULL, pid);
 	if(pid == 0)
 		_exit(child(ctx, cmd));
 
 	if((pid = sys_waitpid(pid, &status, 0)) < 0)
-		fail("wait", cmd, pid);
+		fail(ctx, "wait", cmd, pid);
 
 	if(!status || dash)
 		return 0;

@@ -45,20 +45,27 @@ static char* fmterr(char* buf, char* end, int err)
 /* Cannot use heap here, unless halloc is changed to never cause
    or report errors. */
 
-void report(const char* file, int line, const char* err, char* arg, long ret)
+#define TAGGED_SAVED     0
+#define FILE_LINE_SAVED  1
+#define FILE_LINE_REDIR  2
+
+static void report(struct sh* ctx, const char* err, char* arg, long ret, int m)
 {
+	char* file = ctx->file;
+	int line = ctx->line;
 	int len = maybelen(file) + maybelen(err) + maybelen(arg) + 50;
+	int fd;
 
 	char buf[len];
 	char* p = buf;
 	char* e = buf + sizeof(buf);
 
-	if(file && line) {
+	if(m == TAGGED_SAVED) {
+		p = fmtstr(p, e, tag);
+	} else {
 		p = fmtstr(p, e, file);
 		p = fmtstr(p, e, ":");
 		p = fmtint(p, e, line);
-	} else {
-		p = fmtstr(p, e, tag);
 	}
 
 	p = fmtstr(p, e, ": ");
@@ -74,24 +81,29 @@ void report(const char* file, int line, const char* err, char* arg, long ret)
 
 	*p++ = '\n';
 
-	writeall(STDERR, buf, p - buf);
+	if(m == FILE_LINE_REDIR)
+		fd = STDERR;
+	else
+		fd = ctx->errfd;
+
+	writeall(fd, buf, p - buf);
 }
 
-void fail(const char* err, char* arg, long ret)
+void fail(struct sh* ctx, const char* err, char* arg, long ret)
 {
-	report(tag, 0, err, arg, ret);
+	report(ctx, err, arg, ret, TAGGED_SAVED);
 	_exit(0xFF);
 }
 
 int error(struct sh* ctx, const char* err, char* arg, long ret)
 {
-	report(ctx->file, ctx->line, err, arg, ret);
+	report(ctx, err, arg, ret, FILE_LINE_REDIR);
 	return -1;
 }
 
 void fatal(struct sh* ctx, const char* err, char* arg)
 {
-	report(ctx->file, ctx->line, err, arg, 0);
+	report(ctx, err, arg, 0, FILE_LINE_SAVED);
 	_exit(0xFF);
 }
 

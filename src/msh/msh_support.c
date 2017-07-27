@@ -38,7 +38,7 @@ void* halloc(struct sh* ctx, int len)
 	ctx->hend = (void*)sys_brk(ctx->hend + spc);
 
 	if(ctx->hptr + len < ctx->hend)
-		fail("cannot allocate memory", NULL, 0);
+		fail(ctx, "cannot allocate memory", NULL, 0);
 ptr:
 	ctx->hptr += len;
 
