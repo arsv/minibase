@@ -13,8 +13,6 @@
 #include <util.h>
 #include <exit.h>
 
-#include "acpi.h"
-
 ERRTAG = "acpid";
 ERRLIST = {
 	REPORT(EACCES), REPORT(EFAULT), REPORT(E2BIG), REPORT(EAGAIN),
@@ -30,6 +28,13 @@ struct top {
 	struct netlink nl;
 	char txbuf[50];
 	char rxbuf[2048];
+};
+
+struct acpievent {
+        char cls[20];
+        char bus[15];
+        int type;
+        int data;
 };
 
 static const struct action {

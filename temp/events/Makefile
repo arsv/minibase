@@ -2,8 +2,6 @@
 
 include $/config.mk
 
-sbin = acpid
-
-man1 =
+bin = acpilog
 
 include $/common.mk

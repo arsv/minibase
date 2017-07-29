@@ -8,8 +8,6 @@
 #include <fail.h>
 #include <util.h>
 
-#include "acpi.h"
-
 #define CTX struct top* ctx
 
 ERRTAG = "acpilog";
@@ -19,6 +17,13 @@ struct top {
 	struct netlink nl;
 	char txbuf[50];
 	char rxbuf[1024];
+};
+
+struct acpievent {
+        char cls[20];
+        char bus[15];
+        int type;
+        int data;
 };
 
 static void setup_netlink(CTX)
