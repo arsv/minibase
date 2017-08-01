@@ -2,6 +2,6 @@
 
 include $/config.mk
 
-bin = acpilog
+bin = acpilog keys swts inpid
 
 include $/common.mk
