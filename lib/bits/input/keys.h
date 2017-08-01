@@ -1,7 +1,5 @@
-#ifndef __BITS_KEYS_H__
-#define __BITS_KEYS_H__
-
-/* From uapi/linux/input-event-codes.h */
+#ifndef __BITS_INPUT_KEYS_H__
+#define __BITS_INPUT_KEYS_H__
 
 #define KEY_RESERVED		0
 #define KEY_ESC			1
@@ -119,55 +117,52 @@
 #define KEY_MUTE		113
 #define KEY_VOLUMEDOWN		114
 #define KEY_VOLUMEUP		115
-#define KEY_POWER		116	/* SC System Power Down */
+#define KEY_POWER		116	
 #define KEY_KPEQUAL		117
 #define KEY_KPPLUSMINUS		118
 #define KEY_PAUSE		119
-#define KEY_SCALE		120	/* AL Compiz Scale (Expose) */
+#define KEY_SCALE		120	
 
 #define KEY_KPCOMMA		121
 #define KEY_HANGEUL		122
-#define KEY_HANGUEL		KEY_HANGEUL
 #define KEY_HANJA		123
 #define KEY_YEN			124
 #define KEY_LEFTMETA		125
 #define KEY_RIGHTMETA		126
 #define KEY_COMPOSE		127
 
-#define KEY_STOP		128	/* AC Stop */
+#define KEY_STOP		128	
 #define KEY_AGAIN		129
-#define KEY_PROPS		130	/* AC Properties */
-#define KEY_UNDO		131	/* AC Undo */
+#define KEY_PROPS		130	
+#define KEY_UNDO		131	
 #define KEY_FRONT		132
-#define KEY_COPY		133	/* AC Copy */
-#define KEY_OPEN		134	/* AC Open */
-#define KEY_PASTE		135	/* AC Paste */
-#define KEY_FIND		136	/* AC Search */
-#define KEY_CUT			137	/* AC Cut */
-#define KEY_HELP		138	/* AL Integrated Help Center */
-#define KEY_MENU		139	/* Menu (show menu) */
-#define KEY_CALC		140	/* AL Calculator */
+#define KEY_COPY		133	
+#define KEY_OPEN		134	
+#define KEY_PASTE		135	
+#define KEY_FIND		136	
+#define KEY_CUT			137	
+#define KEY_HELP		138	
+#define KEY_MENU		139	
+#define KEY_CALC		140	
 #define KEY_SETUP		141
-#define KEY_SLEEP		142	/* SC System Sleep */
-#define KEY_WAKEUP		143	/* System Wake Up */
-#define KEY_FILE		144	/* AL Local Machine Browser */
+#define KEY_SLEEP		142	
+#define KEY_WAKEUP		143	
+#define KEY_FILE		144	
 #define KEY_SENDFILE		145
 #define KEY_DELETEFILE		146
 #define KEY_XFER		147
 #define KEY_PROG1		148
 #define KEY_PROG2		149
-#define KEY_WWW			150	/* AL Internet Browser */
+#define KEY_WWW			150	
 #define KEY_MSDOS		151
-#define KEY_COFFEE		152	/* AL Terminal Lock/Screensaver */
-#define KEY_SCREENLOCK		KEY_COFFEE
-#define KEY_ROTATE_DISPLAY	153	/* Display orientation for e.g. tablets */
-#define KEY_DIRECTION		KEY_ROTATE_DISPLAY
+#define KEY_COFFEE		152	
+#define KEY_ROTATE_DISPLAY	153	
 #define KEY_CYCLEWINDOWS	154
 #define KEY_MAIL		155
-#define KEY_BOOKMARKS		156	/* AC Bookmarks */
+#define KEY_BOOKMARKS		156	
 #define KEY_COMPUTER		157
-#define KEY_BACK		158	/* AC Back */
-#define KEY_FORWARD		159	/* AC Forward */
+#define KEY_BACK		158	
+#define KEY_FORWARD		159	
 #define KEY_CLOSECD		160
 #define KEY_EJECTCD		161
 #define KEY_EJECTCLOSECD	162
@@ -177,20 +172,20 @@
 #define KEY_STOPCD		166
 #define KEY_RECORD		167
 #define KEY_REWIND		168
-#define KEY_PHONE		169	/* Media Select Telephone */
+#define KEY_PHONE		169	
 #define KEY_ISO			170
-#define KEY_CONFIG		171	/* AL Consumer Control Configuration */
-#define KEY_HOMEPAGE		172	/* AC Home */
-#define KEY_REFRESH		173	/* AC Refresh */
-#define KEY_EXIT		174	/* AC Exit */
+#define KEY_CONFIG		171	
+#define KEY_HOMEPAGE		172	
+#define KEY_REFRESH		173	
+#define KEY_EXIT		174	
 #define KEY_MOVE		175
 #define KEY_EDIT		176
 #define KEY_SCROLLUP		177
 #define KEY_SCROLLDOWN		178
 #define KEY_KPLEFTPAREN		179
 #define KEY_KPRIGHTPAREN	180
-#define KEY_NEW			181	/* AC New */
-#define KEY_REDO		182	/* AC Redo/Repeat */
+#define KEY_NEW			181	
+#define KEY_REDO		182	
 
 #define KEY_F13			183
 #define KEY_F14			184
@@ -209,13 +204,13 @@
 #define KEY_PAUSECD		201
 #define KEY_PROG3		202
 #define KEY_PROG4		203
-#define KEY_DASHBOARD		204	/* AL Dashboard */
+#define KEY_DASHBOARD		204	
 #define KEY_SUSPEND		205
-#define KEY_CLOSE		206	/* AC Close */
+#define KEY_CLOSE		206	
 #define KEY_PLAY		207
 #define KEY_FASTFORWARD		208
 #define KEY_BASSBOOST		209
-#define KEY_PRINT		210	/* AC Print */
+#define KEY_PRINT		210	
 #define KEY_HP			211
 #define KEY_CAMERA		212
 #define KEY_SOUND		213
@@ -224,25 +219,24 @@
 #define KEY_CHAT		216
 #define KEY_SEARCH		217
 #define KEY_CONNECT		218
-#define KEY_FINANCE		219	/* AL Checkbook/Finance */
+#define KEY_FINANCE		219	
 #define KEY_SPORT		220
 #define KEY_SHOP		221
 #define KEY_ALTERASE		222
-#define KEY_CANCEL		223	/* AC Cancel */
+#define KEY_CANCEL		223	
 #define KEY_BRIGHTNESSDOWN	224
 #define KEY_BRIGHTNESSUP	225
 #define KEY_MEDIA		226
 
-#define KEY_SWITCHVIDEOMODE	227	/* Cycle between available video
-					   outputs (Monitor/LCD/TV-out/etc) */
+#define KEY_SWITCHVIDEOMODE	227	
 #define KEY_KBDILLUMTOGGLE	228
 #define KEY_KBDILLUMDOWN	229
 #define KEY_KBDILLUMUP		230
 
-#define KEY_SEND		231	/* AC Send */
-#define KEY_REPLY		232	/* AC Reply */
-#define KEY_FORWARDMAIL		233	/* AC Forward Msg */
-#define KEY_SAVE		234	/* AC Save */
+#define KEY_SEND		231	
+#define KEY_REPLY		232	
+#define KEY_FORWARDMAIL		233	
+#define KEY_SAVE		234	
 #define KEY_DOCUMENTS		235
 
 #define KEY_BATTERY		236
@@ -253,19 +247,14 @@
 
 #define KEY_UNKNOWN		240
 
-#define KEY_VIDEO_NEXT		241	/* drive next video source */
-#define KEY_VIDEO_PREV		242	/* drive previous video source */
-#define KEY_BRIGHTNESS_CYCLE	243	/* brightness up, after max is min */
-#define KEY_BRIGHTNESS_AUTO	244	/* Set Auto Brightness: manual
-					  brightness control is off,
-					  rely on ambient */
-#define KEY_BRIGHTNESS_ZERO	KEY_BRIGHTNESS_AUTO
-#define KEY_DISPLAY_OFF		245	/* display device to off state */
+#define KEY_VIDEO_NEXT		241	
+#define KEY_VIDEO_PREV		242	
+#define KEY_BRIGHTNESS_CYCLE	243	
+#define KEY_BRIGHTNESS_AUTO	244	
+#define KEY_DISPLAY_OFF		245	
 
-#define KEY_WWAN		246	/* Wireless WAN (LTE, UMTS, GSM, etc.) */
-#define KEY_WIMAX		KEY_WWAN
-#define KEY_RFKILL		247	/* Key that controls all radios */
-
-#define KEY_MICMUTE		248	/* Mute / unmute the microphone */
+#define KEY_WWAN		246	
+#define KEY_RFKILL		247	
+#define KEY_MICMUTE		248	
 
 #endif
