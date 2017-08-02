@@ -8,7 +8,7 @@ include $/common.mk
 
 # Recursive stuff; single level atm, so here and not in ../common.mk
 
-subdirs = boot cmdops compat init msh net user wifi
+subdirs = boot cmdops compat events init msh net user wifi
 makesub = $(patsubst %,sub-%,$(subdirs))
 cleansub = $(patsubst %,clean-%,$(subdirs))
 
