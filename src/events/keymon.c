@@ -22,6 +22,8 @@ char** environ;
 int pollready;
 int sigterm;
 
+typedef struct timespec timespec;
+
 static void sighandler(int sig)
 {
 	switch(sig) {
@@ -123,9 +125,52 @@ void check_polled_fds(void)
 			recv_device(&pfds[i], &devices[key-1]);
 }
 
+static timespec* prep_poll_time(timespec* ts0, timespec* ts1)
+{
+	struct action* ka;
+	int timetowait = 0;
+
+	for(ka = actions; ka < actions + nactions; ka++)
+		if(!ka->time)
+			continue;
+		else if(!timetowait || ka->time < timetowait)
+			timetowait = ka->time;
+
+	if(timetowait <= 0)
+		return NULL;
+
+	ts0->sec = timetowait / 1000;
+	ts0->nsec = (timetowait % 1000) * 1000000;
+
+	*ts1 = *ts0;
+
+	return ts1;
+}
+
+static void update_timers(timespec* ts0, timespec* ts1)
+{
+	long wait = ts0->sec*1000 + ts0->nsec/1000000;
+	long left = ts1->sec*1000 + ts1->nsec/1000000;
+	long diff = wait - left;
+
+	if(diff <= 0)
+		return;
+
+	struct action* ka;
+
+	for(ka = actions; ka < actions + nactions; ka++)
+		if(!ka->time)
+			continue;
+		else if(ka->time <= diff)
+			hold_done(ka);
+		else
+			ka->time -= diff;
+}
+
 int main(int argc, char** argv, char** envp)
 {
 	int ret;
+	timespec ts0, ts1, *pts;
 
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);
@@ -140,12 +185,17 @@ int main(int argc, char** argv, char** envp)
 		if(!pollready)
 			update_poll_fds();
 
-		ret = sys_ppoll(pfds, npfds, NULL, &defsigset);
+		pts = prep_poll_time(&ts0, &ts1);
 
-		if(ret < 0)
+		ret = sys_ppoll(pfds, npfds, pts, &defsigset);
+
+		if(ret < 0 && ret != -EINTR)
 			fail("ppoll", NULL, ret);
 		else if(ret > 0)
 			check_polled_fds();
+		if(pts)
+			update_timers(&ts0, &ts1);
+
 	}
 
 	return 0;

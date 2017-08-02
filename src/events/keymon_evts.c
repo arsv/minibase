@@ -73,9 +73,40 @@ static void set_mods(struct device* kb, int mods)
 	kb->mods = mods;
 }
 
+static void start_hold(struct action* ka, struct device* kb)
+{
+	ka->time = HOLDTIME;
+	ka->minor = kb->minor;
+}
+
+static void reset_hold(struct action* ka)
+{
+	ka->time = 0;
+	ka->minor = 0;
+}
+
+void hold_done(struct action* ka)
+{
+	ka->time = 0;
+	ka->minor = 0;
+
+	spawn(ka);
+}
+
 static void key_release(struct device* kb, int code)
 {
+	struct action* ka;
 	int mods = kb->mods;
+
+	for(ka = actions; ka < actions + nactions; ka++) {
+		if(!ka->time)
+			continue;
+		else if(ka->code != code)
+			continue;
+		else if(ka->minor != kb->minor)
+			continue;
+		else reset_hold(ka);
+	}
 
 	switch(code) {
 		case KEY_LEFTALT:  mods &= ~MOD_LALT;  break;
@@ -99,7 +130,10 @@ static void key_press(struct device* kb, int code)
 		if((ka->mode & mask) != (kb->mods & mask))
 			continue;
 
-		spawn(ka);
+		if(ka->mode & MOD_HOLD)
+			start_hold(ka, kb);
+		else
+			spawn(ka);
 	}
 
 	int mods = kb->mods;

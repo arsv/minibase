@@ -1,0 +1,3 @@
+#!/sbin/msh
+
+echo "shutdown"
