@@ -136,10 +136,16 @@ static void parse_cond(struct lbuf* lb, struct action* ka, char* p)
 	char* next = cut_word(p);
 	int code;
 
-	if(!strcmp(p, "hold")) { ka->mode |= MOD_HOLD; p = next; }
+	if(!strcmp(p, "hold")) {
+		ka->mode |= MODE_HOLD;
+		p = next;
+	} else if(!strcmp(p, "long")) {
+		ka->mode |= MODE_HOLD | MODE_LONG;
+		p = next;
+	}
 
-	if(!strncmp(p, "C-", 2)) { p += 2; ka->mode |= MOD_CTRL; }
-	if(!strncmp(p, "A-", 2)) { p += 2; ka->mode |= MOD_ALT;  }
+	if(!strncmp(p, "C-", 2)) { p += 2; ka->mode |= MODE_CTRL; }
+	if(!strncmp(p, "A-", 2)) { p += 2; ka->mode |= MODE_ALT;  }
 
 	if((code = find_key(p)))
 		ka->code = code;

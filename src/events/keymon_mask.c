@@ -51,16 +51,16 @@ static void check_keyact(struct action* ka, char* bits, char* need, int size)
 {
 	if(!hascode(bits, size, ka->code))
 		return;
-	if(ka->mode & MOD_CTRL && !hascode(bits, size, KEY_LEFTCTRL))
+	if(ka->mode & MODE_CTRL && !hascode(bits, size, KEY_LEFTCTRL))
 		return;
-	if(ka->mode & MOD_ALT  && !hascode(bits, size, KEY_LEFTALT))
+	if(ka->mode & MODE_ALT  && !hascode(bits, size, KEY_LEFTALT))
 		return;
 
 	setcode(need, size, ka->code);
 
-	if(ka->mode & MOD_CTRL)
+	if(ka->mode & MODE_CTRL)
 		setcode(need, size, KEY_LEFTCTRL);
-	if(ka->mode & MOD_ALT)
+	if(ka->mode & MODE_ALT)
 		setcode(need, size, KEY_LEFTALT);
 }
 

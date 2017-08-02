@@ -63,19 +63,23 @@ static void spawn(struct action* ka)
 
 static void set_mods(struct device* kb, int mods)
 {
-	mods &= ~(MOD_ALT | MOD_CTRL);
+	mods &= ~(MODE_ALT | MODE_CTRL);
 
 	if(mods & (MOD_LCTRL | MOD_RCTRL))
-		mods |= MOD_CTRL;
+		mods |= MODE_CTRL;
 	if(mods & (MOD_LALT | MOD_RALT))
-		mods |= MOD_ALT;
+		mods |= MODE_ALT;
 
 	kb->mods = mods;
 }
 
 static void start_hold(struct action* ka, struct device* kb)
 {
-	ka->time = HOLDTIME;
+	if(ka->mode & MODE_LONG)
+		ka->time = LONGTIME;
+	else
+		ka->time = HOLDTIME;
+
 	ka->minor = kb->minor;
 }
 
@@ -121,7 +125,7 @@ static void key_release(struct device* kb, int code)
 
 static void key_press(struct device* kb, int code)
 {
-	int mask = MOD_CTRL | MOD_ALT;
+	int mask = MODE_CTRL | MODE_ALT;
 	struct action* ka;
 
 	for(ka = actions; ka < actions + nactions; ka++) {
@@ -130,7 +134,7 @@ static void key_press(struct device* kb, int code)
 		if((ka->mode & mask) != (kb->mods & mask))
 			continue;
 
-		if(ka->mode & MOD_HOLD)
+		if(ka->mode & MODE_HOLD)
 			start_hold(ka, kb);
 		else
 			spawn(ka);
@@ -162,9 +166,9 @@ static void handle_event(struct device* kb, struct event* ev)
 			key_release(kb, code);
 	} else if(type == EV_SW) {
 		if(value == 1)
-			key_press(kb, -code);
+			key_press(kb, code | CODE_SWITCH);
 		else if(!value)
-			key_release(kb, -code);
+			key_release(kb, code | CODE_SWITCH);
 	}
 }
 

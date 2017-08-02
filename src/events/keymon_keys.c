@@ -5,6 +5,8 @@
 #include <format.h>
 #include <util.h>
 
+#include "keymon.h"
+
 /* There are much more keys than listed here, but handling those with
    keymon is not a good idea. So the list here is only for the keys
    that are expected to be handle by keymon on regular basis. Anything
@@ -63,10 +65,10 @@ static const struct sw {
 	char name[12];
 	int code;
 } sws[] = {
-	{ "LID",         SW_LID              },
-	{ "TABLET",      SW_TABLET_MODE      },
-	{ "HEADPHONE",   SW_HEADPHONE_INSERT },
-	{ "DOCK",        SW_DOCK             }
+	{ "Lid",         SW_LID              },
+	{ "Tablet",      SW_TABLET_MODE      },
+	{ "Headphone",   SW_HEADPHONE_INSERT },
+	{ "Dock",        SW_DOCK             }
 };
 
 int find_key(char* name)
@@ -85,7 +87,7 @@ int find_key(char* name)
 
 	for(sw = sws; sw < ARRAY_END(sws); sw++)
 		if(!strncmp(sw->name, name, sizeof(sw->name)))
-			return -sw->code;
+			return sw->code | CODE_SWITCH;
 
 	return 0;
 }

@@ -3,9 +3,12 @@
 #define NDEVICES 40
 #define NACTIONS 40
 
-#define MOD_CTRL    (1<<0)
-#define MOD_ALT     (1<<1)
-#define MOD_HOLD    (1<<2)
+#define CODE_SWITCH (1<<15)
+
+#define MODE_CTRL   (1<<0)
+#define MODE_ALT    (1<<1)
+#define MODE_HOLD   (1<<2)
+#define MODE_LONG   (1<<3)
 
 #define MOD_LCTRL   (1<<4)
 #define MOD_RCTRL   (1<<5)
