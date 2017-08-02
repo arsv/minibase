@@ -4,7 +4,7 @@ include $/config.mk
 
 sbin = acpid keymon
 
-man1 =
+man8 = acpid.8 keymon.8
 
 include $/common.mk
 

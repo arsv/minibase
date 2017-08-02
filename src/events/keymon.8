@@ -1,0 +1,43 @@
+.TH keymon 8
+'''
+.SH NAME
+\fBkeymon\fR \- keyboard event monitor
+'''
+.SH DESCRIPTION
+\fBkeymon\fR listens for certain events on all available keyboards
+(as well as some other input devices) and spawns certain script when
+configured events occur.
+'''
+.SH CONFIGURATION
+Events to watch for are described in /etc/keymon.conf, one per line,
+using the following format:
+.IP "" 4
+[\fImode\fR] [\fBC-\fR][\fBA-\fR]\fIkey\fB:\fR \fIaction\fR [\fIargument\fR]
+.P
+\fIkey\fR is either a numeric code (see input-event-codes.h from the Linux
+kernel sources for the full list) or one of the supported names:
+\fBF1\fR-\fBF12\fR, \fBEsc\fR, \fBPower\fR, \fBSleep\fR and some others
+(see keymon sources). Prefixes \fBC-\fR and \fBA-\fR denote Control and Alt
+modifiers respectively.
+.P
+\fBmode\fR specifies the kind of event the would trigger the action.
+Default is a momentary key press, \fBhold\fR means holding the key down
+for about 1s, and \fBlong\fR for about 10s.
+.P
+When the event happens, \fBkeymon\fR spawns /etc/keymon/\fIaction\fR,
+optionally passing it a single \fIargument\fR.
+'''
+.SH FILES
+.IP "/dev/input/event*" 4
+Input devices.
+.IP "/etc/kemon.conf" 4
+Primary configuration file.
+.IP "/etc/keymon/" 4
+Location of per-event scripts.
+'''
+.SH NOTES
+\fBkeymon\fR never spawns two scripts at the same time, no matter how
+fast the events arrive. The scripts in /etc/keymon must be short-running.
+'''
+.SH SEE ALSO
+\fBacpid\fR(8)
