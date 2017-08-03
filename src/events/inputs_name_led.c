@@ -5,18 +5,17 @@
 #include "inputs.h"
 
 static const char* names[] = {
-	[LED_NUML] = "NUML",
-	[LED_CAPSL] = "CAPSL",
-	[LED_SCROLLL] = "SCROLLL",
-	[LED_COMPOSE] = "COMPOSE",
-	[LED_KANA] = "KANA",
-	[LED_SLEEP] = "SLEEP",
-	[LED_SUSPEND] = "SUSPEND",
-	[LED_MUTE] = "MUTE",
-	[LED_MISC] = "MISC",
-	[LED_MAIL] = "MAIL",
-	[LED_CHARGING] = "CHARGING",
-	[LED_MAX] = "MAX"
+	[LED_NUML] = "NumLock",
+	[LED_CAPSL] = "CapsLock",
+	[LED_SCROLLL] = "ScrollLock",
+	[LED_COMPOSE] = "Compose",
+	[LED_KANA] = "kana",
+	[LED_SLEEP] = "sleep",
+	[LED_SUSPEND] = "suspend",
+	[LED_MUTE] = "mute",
+	[LED_MISC] = "misc",
+	[LED_MAIL] = "mail",
+	[LED_CHARGING] = "charging"
 };
 
 const struct ev ev_led = {

@@ -8,13 +8,13 @@ static const char* names[] = {
 	[REL_X] = "X",
 	[REL_Y] = "Y",
 	[REL_Z] = "Z",
-	[REL_RX] = "RX",
-	[REL_RY] = "RY",
-	[REL_RZ] = "RZ",
-	[REL_HWHEEL] = "HWHEEL",
-	[REL_DIAL] = "DIAL",
-	[REL_WHEEL] = "WHEEL",
-	[REL_MISC] = "MISC",
+	[REL_RX] = "rX",
+	[REL_RY] = "rY",
+	[REL_RZ] = "rZ",
+	[REL_HWHEEL] = "hwheel",
+	[REL_DIAL] = "dial",
+	[REL_WHEEL] = "wheel",
+	[REL_MISC] = "misc",
 };
 
 const struct ev ev_rel = {
