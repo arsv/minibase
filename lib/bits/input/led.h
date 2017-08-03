@@ -1,0 +1,12 @@
+#define LED_NUML		0x00
+#define LED_CAPSL		0x01
+#define LED_SCROLLL		0x02
+#define LED_COMPOSE		0x03
+#define LED_KANA		0x04
+#define LED_SLEEP		0x05
+#define LED_SUSPEND		0x06
+#define LED_MUTE		0x07
+#define LED_MISC		0x08
+#define LED_MAIL		0x09
+#define LED_CHARGING		0x0a
+#define LED_MAX			0x0f

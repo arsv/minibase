@@ -1,6 +1,3 @@
-#ifndef __BITS_INPUT_SWS_H__
-#define __BITS_INPUT_SWS_H__
-
 #define SW_LID			0x00
 #define SW_TABLET_MODE		0x01
 #define SW_HEADPHONE_INSERT	0x02
@@ -17,5 +14,3 @@
 #define SW_LINEIN_INSERT	0x0d
 #define SW_MUTE_DEVICE		0x0e
 #define SW_PEN_INSERTED		0x0f
-
-#endif
