@@ -11,6 +11,7 @@ int nonzero(void* a, size_t n);
 
 char* strcbrk(char* str, char c);
 int strcmp(const char* a, const char* b);
+int natcmp(const char* a, const char* b);
 char* strecbrk(char* p, char* e, char k);
 size_t strlen(const char* a);
 size_t strnlen(const char* a, size_t max);
