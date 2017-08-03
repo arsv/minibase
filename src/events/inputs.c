@@ -19,8 +19,9 @@ ERRLIST = {
 	REPORT(ENOTDIR), REPORT(EINVAL), RESTASNUMBERS
 };
 
-#define OPTS "a"
+#define OPTS "ar"
 #define OPT_a (1<<0)
+#define OPT_r (1<<1)
 
 static const char devinput[] = "/dev/input";
 
@@ -61,7 +62,7 @@ static void longinfo(char* path, int fd)
 	query_event_bits(fd);
 }
 
-void describe_input(char* path, dumper f)
+static void with_input(char* path, dumper f)
 {
 	int fd, ret;
 	struct stat st;
@@ -90,7 +91,7 @@ void describe_input(char* path, dumper f)
 	flushout();
 }
 
-void describe_entry(const char* path, char* name, dumper f)
+void with_entry(const char* path, char* name, dumper f)
 {
 	int plen = strlen(path);
 	int nlen = strlen(name);
@@ -104,15 +105,31 @@ void describe_entry(const char* path, char* name, dumper f)
 	p = fmtstr(p, e, name);
 	*p++ = '\0';
 
-	return describe_input(buf, f);
+	return with_input(buf, f);
 }
 
-void describe_named(char* name, dumper f)
+static void with_named(char* name, dumper f)
 {
 	if(*strcbrk(name, '/'))
-		describe_input(name, f);
+		with_input(name, f);
 	else
-		describe_entry(devinput, name, f);
+		with_entry(devinput, name, f);
+}
+
+static void forall_args(int i, int argc, char** argv, dumper f)
+{
+	for(; i < argc; i++)
+		with_named(argv[i], f);
+}
+
+void event_monitor(int i, int argc, char** argv, int opts)
+{
+	if(i >= argc)
+		fail("device name required", NULL, 0);
+	if(i + 1 < argc)
+		fail("too many arguments", NULL, 0);
+
+	with_named(argv[i], read_events);
 }
 
 int main(int argc, char** argv)
@@ -123,12 +140,14 @@ int main(int argc, char** argv)
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
-	dumper listinfo = (opts & OPT_a ? longinfo : shortinfo);
-
-	if(i >= argc)
-		forall_inputs(devinput, listinfo);
-	else for(; i < argc; i++)
-		describe_named(argv[i], longinfo);
+	if(opts & OPT_r)
+		event_monitor(i, argc, argv, opts);
+	else if(i < argc)
+		forall_args(i, argc, argv, longinfo);
+	else if(opts & OPT_a)
+		forall_inputs(devinput, longinfo);
+	else
+		forall_inputs(devinput, shortinfo);
 
 	return 0;
 }

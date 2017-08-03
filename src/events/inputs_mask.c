@@ -7,7 +7,7 @@
 
 #include "inputs.h"
 
-static char* getname(const struct ev* ev, int k)
+char* getname(const struct ev* ev, int k)
 {
 	if(k < 0 || k >= ev->count)
 		return NULL;

@@ -79,6 +79,6 @@ void forall_inputs(const char* dir, dumper f)
 	struct dirent** dep;
 
 	for(dep = idx; *dep; dep++)
-		describe_entry(dir, (*dep)->name, f);
+		with_entry(dir, (*dep)->name, f);
 
 }
