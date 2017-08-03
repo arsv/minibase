@@ -1,6 +1,6 @@
 #include <bits/major.h>
 #include <bits/input.h>
-#include <bits/input/keys.h>
+#include <bits/input/key.h>
 
 #include <sys/file.h>
 #include <sys/stat.h>

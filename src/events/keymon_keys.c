@@ -1,4 +1,4 @@
-#include <bits/input/keys.h>
+#include <bits/input/key.h>
 #include <bits/input/sws.h>
 
 #include <string.h>
