@@ -1,0 +1,34 @@
+.TH inputs 1
+'''
+.SH NAME
+\fBinputs\fR \- list input devices
+'''
+.SH SYNOPSIS
+\fBinputs\fR [\fB-a\fR]
+.br
+\fBinputs\fR \fIeventN\fR \fIeventN\fR ...
+.br
+\fBinputs\fR \fB-r\fR \fIeventN\fR
+'''
+.SH DESCRIPTION
+This tool lists input event devices along with their human-readable names
+and the events each device can generate. Its purpose is figuring out how
+physical devices map onto Linux device nodes and which event codes get
+generated in response to certain actions.
+'''
+.SH OPTIONS
+.IP "\fB-a\fR" 4
+List events for all available devices.
+.IP "\fB-r\fR" 4
+Read and report events from a given device.
+'''
+.SH FILES
+.IP "/dev/input/event*" 4
+Input devices.
+'''
+.SH NOTES
+Access to input devices is normally restricted in Linux.
+This tool should be run as root in most cases.
+'''
+.SH SEE ALSO
+\fBkeymon\fR(8), linux/include/uapi/input-event-codes.h
