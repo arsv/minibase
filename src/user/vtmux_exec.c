@@ -1,5 +1,5 @@
+#include <bits/ioctl/vt.h>
 #include <bits/ioctl/tty.h>
-#include <bits/ioctl/common.h>
 #include <bits/socket/unix.h>
 
 #include <sys/access.h>

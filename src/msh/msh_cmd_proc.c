@@ -1,5 +1,5 @@
 #include <bits/stdio.h>
-#include <bits/ioctl/common.h>
+#include <bits/ioctl/tty.h>
 
 #include <sys/cwd.h>
 #include <sys/umask.h>

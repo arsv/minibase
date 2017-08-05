@@ -1,4 +1,4 @@
-#include <bits/ioctl/tty.h>
+#include <bits/ioctl/vt.h>
 #include <bits/errno.h>
 #include <bits/fcntl.h>
 #include <bits/major.h>

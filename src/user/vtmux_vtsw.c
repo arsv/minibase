@@ -1,6 +1,6 @@
 #include <bits/ioctl/drm.h>
 #include <bits/ioctl/input.h>
-#include <bits/ioctl/tty.h>
+#include <bits/ioctl/vt.h>
 #include <bits/major.h>
 
 #include <sys/itimer.h>
