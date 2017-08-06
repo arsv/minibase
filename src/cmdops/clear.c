@@ -1,4 +1,4 @@
-#include <bits/termios.h>
+#include <bits/ioctl/tty.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
@@ -13,13 +13,13 @@ ERRTAG = "clear";
 ERRLIST = { REPORT(EINVAL), REPORT(EBADF), RESTASNUMBERS };
 
 static const struct termios sane = {
-	.c_iflag = BRKINT | ICRNL | IMAXBEL | IUTF8,
-	.c_oflag = OPOST | ONLCR | NL0 | CR0 | TAB0 | BS0 | VT0 | FF0,
-	.c_cflag = CREAD,
-	.c_lflag = ISIG | ICANON | IEXTEN | ECHO | ECHOE | ECHOK \
+	.iflag = BRKINT | ICRNL | IMAXBEL | IUTF8,
+	.oflag = OPOST | ONLCR | NL0 | CR0 | TAB0 | BS0 | VT0 | FF0,
+	.cflag = CREAD,
+	.lflag = ISIG | ICANON | IEXTEN | ECHO | ECHOE | ECHOK \
 	         | ECHOCTL | ECHOKE,
-	.c_line = '\0',
-	.c_cc = {
+	.line = '\0',
+	.cc = {
 		[VINTR] = ctrl('c'),
 		[VQUIT] = 28,
 		[VERASE] = 127,
