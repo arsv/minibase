@@ -8,9 +8,8 @@
    This implementation is based on the sample code from the publication
    and on tiny-AES128-C project https://github.com/kokke/tiny-AES128-C/
 
-   Decryption only for now. Implementing encryption will likely require
-   significant changes to avoid dead code when only one of them is used
-   but both get linked. */
+   Decryption and encryption in a single file for now.
+   Would be better to untangle them at some point. */
 
 static const int Nk = 4;
 static const int Nb = 4;
@@ -56,7 +55,7 @@ static const uint8_t rbox[256] = {
 
 static const uint8_t rcon[11] = {
 	0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36
-};	
+};
 
 /* Bytes and words are *BIG*endian while uint32-s are host-endian. */
 
@@ -129,8 +128,8 @@ static uint32_t rowshift(uint32_t S[4], int a, int b, int c, int d)
 {
 	return word(byte(S[a], 0),
 	            byte(S[b], 1),
-		    byte(S[c], 2),
-		    byte(S[d], 3));
+	            byte(S[c], 2),
+	            byte(S[d], 3));
 }
 
 static void inv_shift_rows(uint32_t S[4])
@@ -145,10 +144,16 @@ static void inv_shift_rows(uint32_t S[4])
 	S[0] = P0; S[1] = P1; S[2] = P2; S[3] = P3;
 }
 
-static void inv_sub_bytes(uint32_t S[4])
+static void fwd_shift_rows(uint32_t S[4])
 {
-	for(int i = 0; i < 4; i++)
-		S[i] = subword(S[i], rbox);
+	uint32_t P0, P1, P2, P3;
+
+	P0 = rowshift(S, 0, 1, 2, 3);
+	P1 = rowshift(S, 1, 2, 3, 0);
+	P2 = rowshift(S, 2, 3, 0, 1);
+	P3 = rowshift(S, 3, 0, 1, 2);
+
+	S[0] = P0; S[1] = P1; S[2] = P2; S[3] = P3;
 }
 
 static uint8_t colmul(uint32_t Si, int a, int b, int c, int d)
@@ -159,6 +164,18 @@ static uint8_t colmul(uint32_t Si, int a, int b, int c, int d)
 	       xmul(byte(Si, 3), d);
 }
 
+static void inv_sub_bytes(uint32_t S[4])
+{
+	for(int i = 0; i < 4; i++)
+		S[i] = subword(S[i], rbox);
+}
+
+static void fwd_sub_bytes(uint32_t S[4])
+{
+	for(int i = 0; i < 4; i++)
+		S[i] = subword(S[i], sbox);
+}
+
 static void inv_mix_columns(uint32_t S[4])
 {
 	for(int i = 0; i < 4; i++) {
@@ -167,6 +184,17 @@ static void inv_mix_columns(uint32_t S[4])
 		            colmul(Si, 0x09, 0x0E, 0x0B, 0x0D),
 		            colmul(Si, 0x0D, 0x09, 0x0E, 0x0B),
 		            colmul(Si, 0x0B, 0x0D, 0x09, 0x0E));
+	}
+}
+
+static void fwd_mix_columns(uint32_t S[4])
+{
+	for(int i = 0; i < 4; i++) {
+		uint32_t Si = S[i];
+		S[i] = word(colmul(Si, 0x02, 0x03, 0x01, 0x01),
+		            colmul(Si, 0x01, 0x02, 0x03, 0x01),
+		            colmul(Si, 0x01, 0x01, 0x02, 0x03),
+		            colmul(Si, 0x03, 0x01, 0x01, 0x02));
 	}
 }
 
@@ -220,6 +248,26 @@ void aes128_decrypt(struct aes128* ctx, uint8_t blk[16])
 	inv_shift_rows(S);
 	inv_sub_bytes(S);
 	add_round_key(S, W, 0);
+}
+
+void aes128_encrypt(struct aes128* ctx, uint8_t blk[16])
+{
+	uint32_t* W = ctx->W;
+	uint32_t* S = (uint32_t*) blk;
+	int r;
+
+	add_round_key(S, W, 0);
+
+	for(r = 1; r <= Nr - 1; r++) {
+		fwd_sub_bytes(S);
+		fwd_shift_rows(S);
+		fwd_mix_columns(S);
+		add_round_key(S, W, r);
+	};
+
+	fwd_sub_bytes(S);
+	fwd_shift_rows(S);
+	add_round_key(S, W, Nr);
 }
 
 void aes128_fini(struct aes128* ctx)
