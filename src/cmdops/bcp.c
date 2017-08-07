@@ -1,3 +1,4 @@
+#include <bits/ioctl/block.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/mmap.h>
@@ -18,8 +19,6 @@ ERRLIST = {
 	REPORT(ENOENT), REPORT(EEXIST),
 	RESTASNUMBERS
 };
-
-#define BLKGETSIZE64 _IOR(0x12,114,size_t)
 
 #define OPTS "rwz"
 #define OPT_r (1<<0)
