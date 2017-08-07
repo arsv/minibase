@@ -1,4 +1,3 @@
-#include <bits/errno.h>
 #include <string.h>
 #include <endian.h>
 
