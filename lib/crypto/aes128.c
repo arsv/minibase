@@ -179,9 +179,9 @@ static uint32_t rconmask(int ii)
 #endif
 }
 
-void aes128_init(struct aes128* ctx, uint8_t key[16])
+void aes128_init(struct aes128* ctx, const uint8_t key[16])
 {
-	uint32_t* K = (uint32_t*) key;
+	const uint32_t* K = (uint32_t*) key;
 	uint32_t* W = ctx->W;
 	uint32_t temp;
 	int Nw = Nb * (Nr + 1); /* 44, elements in W */
