@@ -54,10 +54,10 @@ const uint32_t expanded[44] = {
 	/* 43 */ 0xb6630ca6
 };
 
-void check_key_expansion(void)
+int check_key_expansion(void)
 {
 	struct aes128 ae;
-	int i;
+	int i, ret = 0;
 
 	aes128_init(&ae, rawkey);
 
@@ -65,10 +65,13 @@ void check_key_expansion(void)
 		if(ae.W[i] != expanded[i]) {
 			tracef("FAIL %i %08X expected %08X\n",
 					i, ae.W[i], expanded[i]);
+			ret = -1;
 			break;
 		}
 	if(i >= 44)
 		tracef("OK key expanded\n");
+
+	return ret;
 }
 
 const uint8_t key[16] = {
@@ -86,26 +89,51 @@ const uint8_t crypt[16] = {
 	0xd8,0xcd,0xb7,0x80,0x70,0xb4,0xc5,0x5a
 };
 
-void check_decryption(void)
+int check_decryption(void)
 {
 	struct aes128 ae;
 	uint8_t work[16];
+	int ret;
 
 	memcpy(work, crypt, 16);
 
 	aes128_init(&ae, key);
 	aes128_decrypt(&ae, work);
 
-	if(memcmp(work, plain, 16))
+	if((ret = memcmp(work, plain, 16)))
 		tracef("FAIL decrypt\n");
 	else
-		tracef("OK decrypted\n");
+		tracef("OK decrypt\n");
+
+	return ret;
+}
+
+int check_encryption(void)
+{
+	struct aes128 ae;
+	uint8_t work[16];
+	int ret;
+
+	memcpy(work, plain, 16);
+
+	aes128_init(&ae, key);
+	aes128_encrypt(&ae, work);
+
+	if((ret = memcmp(work, crypt, 16)))
+		tracef("FAIL encrypt\n");
+	else
+		tracef("OK encrypt\n");
+
+	return ret;
 }
 
 int main(void)
 {
-	check_key_expansion();
-	check_decryption();
+	int ret = 0;
 
-	return 0;
+	ret |= check_key_expansion();
+	ret |= check_decryption();
+	ret |= check_encryption();
+
+	return ret ? -1 : 0;
 }
