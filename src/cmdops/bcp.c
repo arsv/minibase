@@ -1,13 +1,8 @@
-#include <sys/open.h>
-#include <sys/close.h>
-#include <sys/fstat.h>
-#include <sys/read.h>
-#include <sys/write.h>
-#include <sys/lseek.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/mmap.h>
-#include <sys/munmap.h>
-#include <sys/ftruncate.h>
-#include <sys/fallocate.h>
+#include <sys/fcntl.h>
+#include <sys/truncate.h>
 #include <sys/sendfile.h>
 #include <sys/ioctl.h>
 
@@ -147,9 +142,9 @@ static void parseopts(struct bcp* ctx, int argc, char** argv)
 
 static char* mmapempty(long size)
 {
-	long ret = sysmmap(NULL, size, PROT_READ, MAP_ANONYMOUS, -1, 0);	
+	long ret = sys_mmap(NULL, size, PROT_READ, MAP_ANONYMOUS, -1, 0);	
 
-	if(MMAPERROR(ret))
+	if(mmap_error(ret))
 		fail("mmap", NULL, ret);
 
 	return (char*)ret;
@@ -161,37 +156,37 @@ static void openstat(struct file* f, long flags)
 {
 	struct stat st;
 
-	long fd = xchk(sysopen3(f->name, flags, 0666), "cannot open", f->name);
+	long fd = xchk(sys_open3(f->name, flags, 0666), "cannot open", f->name);
 
-	xchk(sysfstat(fd, &st), "cannot stat", f->name);
+	xchk(sys_fstat(fd, &st), "cannot stat", f->name);
 
 	f->fd = fd;
-	f->type = st.st_mode & S_IFMT;
+	f->type = st.mode & S_IFMT;
 
 	if(f->type == S_IFBLK) {
-		xchk(sysioctl(fd, BLKGETSIZE64, &(f->size)),
+		xchk(sys_ioctl(fd, BLKGETSIZE64, &(f->size)),
 			"cannot get size of", f->name);
 	} else {
-		f->size = st.st_size;
+		f->size = st.size;
 	}
 }
 
 static void truncate(struct file* dst, uint64_t size)
 {
-	xchk(sysftruncate(dst->fd, size), "cannot truncate", dst->name);
+	xchk(sys_ftruncate(dst->fd, size), "cannot truncate", dst->name);
 }
 
 static void seekfile(struct file* f)
 {
 	if(!f->off)
 		return;
-	xchk(syslseek(f->fd, f->off, 0),
+	xchk(sys_lseek(f->fd, f->off, 0),
 		"cannot seek", f->name);
 }
 
 static void closefile(struct file* f)
 {
-	xchk(sysclose(f->fd), "cannot close", f->name);
+	xchk(sys_close(f->fd), "cannot close", f->name);
 }
 
 static int sizable(struct file* f)
@@ -225,7 +220,7 @@ static int sendfile(struct file* dst, struct file* src, uint64_t size)
 	while(left > 0) {
 		uint64_t part = left > MAXRUN ? MAXRUN : left;
 
-		if((rd = syssendfile(dst->fd, src->fd, NULL, part)) < 0)
+		if((rd = sys_sendfile(dst->fd, src->fd, NULL, part)) < 0)
 			break;
 
 		left -= rd;
@@ -255,16 +250,16 @@ static int copymmap(struct file* dst, struct file* src, uint64_t size)
 	while(left > 0) {
 		long part = left > MAXRUN ? MAXRUN : left;
 
-		long addr = sysmmap(NULL, part, prot, flags, sfd, soff);
+		long addr = sys_mmap(NULL, part, prot, flags, sfd, soff);
 		void* buf = (void*)addr;
 
-		if(MMAPERROR(addr))
+		if(mmap_error(addr))
 			fail("mmap", src->name, addr);
 
 		if((rd = writeall(dst->fd, buf, part)) < 0)
 			fail("write", dst->name, rd);
 
-		xchk(sysmunmap(buf, part), "munmap", src->name);
+		xchk(sys_munmap(buf, part), "munmap", src->name);
 
 		left -= rd;
 		soff += rd;
@@ -286,7 +281,7 @@ static void readwrite(struct file* dst, struct file* src, uint64_t size)
 	while(left > 0) {
 		part = left > blen ? blen : left;
 
-		if((rd = sysread(src->fd, buf, part)) <= 0)
+		if((rd = sys_read(src->fd, buf, part)) <= 0)
 			fail("read", src->name, rd);
 
 		if((wr = writeall(dst->fd, buf, rd)) <= 0)
@@ -295,7 +290,7 @@ static void readwrite(struct file* dst, struct file* src, uint64_t size)
 		left -= wr;
 	}
 
-	sysmunmap(buf, blen);
+	sys_munmap(buf, blen);
 }
 
 static void transfer(struct bcp* ctx, struct file* dst, struct file* src)
@@ -377,7 +372,7 @@ static int zerohole(struct file* dst, uint64_t size)
 {
 	const int flags = FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE;
 
-	long ret = sysfallocate(dst->fd, flags, dst->off, size);
+	long ret = sys_fallocate(dst->fd, flags, dst->off, size);
 
 	if(!ret)
 		return 1;
@@ -396,7 +391,7 @@ static void zerommap(struct file* dst, uint64_t size)
 	while(size > 0) {
 		long run = size > MAXRUN ? MAXRUN : size;
 
-		long wrt = syswrite(dst->fd, zeroes, run);
+		long wrt = sys_write(dst->fd, zeroes, run);
 			
 		if(wrt <= 0) /* 0 is not ok here */
 			fail("cannot write to", dst->name, wrt);
@@ -414,7 +409,7 @@ static void zmode(struct bcp* ctx)
 	if(!(ctx->opts & SET_size))
 		fail("size must be specified with -z", NULL, 0);
 
-	dst->fd = xchk(sysopen3(dst->name, O_WRONLY | O_CREAT | O_EXCL, 0666),
+	dst->fd = xchk(sys_open3(dst->name, O_WRONLY | O_CREAT | O_EXCL, 0666),
 			"cannot create", dst->name);
 
 	truncate(dst, ctx->size);
