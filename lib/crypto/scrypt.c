@@ -1,49 +1,79 @@
+/* Colin Percival's code, slightly modified to fit the minibase style.
+   In this version the caller is responsible for allocating memory.
+   Original copyright notice follows: */
+/*-
+ * Copyright 2009 Colin Percival
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * This file was originally written by Colin Percival as part of the Tarsnap
+ * online backup system.
+ */
+
 #include <bits/ints.h>
 #include <bits/errno.h>
 #include <crypto/pbkdf2.h>
-#include <endian.h>
 #include <string.h>
 
 #include "scrypt.h"
 
-static uint32_t le32dec(const void* pp)
+#ifdef BIGENDIAN
+static uint32_t swab(uint32_t x)
 {
-	const uint8_t* p = (uint8_t const*)pp;
+	return ((x & 0x000000FF) << 24)
+	     | ((x & 0x0000FF00) <<  8)
+	     | ((x & 0x00FF0000) >>  8)
+	     | ((x & 0xFF000000) >> 24);
+}
+#else
+static uint32_t swab(uint32_t x)
+{
+	return x;
+}
+#endif
 
-	return ((uint32_t)(p[0]) + ((uint32_t)(p[1]) << 8) +
-	    ((uint32_t)(p[2]) << 16) + ((uint32_t)(p[3]) << 24));
+static void blkcpy(uint32_t* dst, const uint32_t* src, size_t n)
+{
+	for(size_t i = 0; i < n; i++)
+		dst[i] = src[i];
 }
 
-static void le32enc(void* pp, uint32_t x)
+static void blkxor(uint32_t* dst, const uint32_t* src, size_t n)
 {
-	uint8_t * p = (uint8_t *)pp;
-
-	p[0] = x & 0xff;
-	p[1] = (x >> 8) & 0xff;
-	p[2] = (x >> 16) & 0xff;
-	p[3] = (x >> 24) & 0xff;
+	for(size_t i = 0; i < n; i++)
+		dst[i] ^= src[i];
 }
 
-static void blkcpy(void* dest, const void* src, size_t len)
+static void blkadd(uint32_t* dst, uint32_t* src, size_t n)
 {
-	size_t* D = dest;
-	const size_t* S = src;
-	size_t L = len / sizeof(size_t);
-	size_t i;
-
-	for(i = 0; i < L; i++)
-		D[i] = S[i];
+	for(size_t i = 0; i < n; i++)
+		dst[i] += src[i];
 }
 
-static void blkxor(void* dest, const void* src, size_t len)
+static void sx(uint32_t* x, int k, int i, int j, int n)
 {
-	size_t* D = dest;
-	const size_t* S = src;
-	size_t L = len / sizeof(size_t);
-	size_t i;
-
-	for (i = 0; i < L; i++)
-		D[i] ^= S[i];
+	uint32_t z = x[i] + x[j];
+	x[k] ^= (z << n) | (z >> (32 - n));
 }
 
 static void salsa20_8(uint32_t B[16])
@@ -51,117 +81,88 @@ static void salsa20_8(uint32_t B[16])
 	uint32_t x[16];
 	size_t i;
 
-	blkcpy(x, B, 64);
+	blkcpy(x, B, 16);
+
 	for (i = 0; i < 8; i += 2) {
-#define R(a,b) (((a) << (b)) | ((a) >> (32 - (b))))
-		/* Operate on columns. */
-		x[ 4] ^= R(x[ 0]+x[12], 7);  x[ 8] ^= R(x[ 4]+x[ 0], 9);
-		x[12] ^= R(x[ 8]+x[ 4],13);  x[ 0] ^= R(x[12]+x[ 8],18);
+		sx(x, 4, 0,12, 7);  sx(x, 8, 4, 0, 9);
+		sx(x,12, 8, 4,13);  sx(x, 0,12, 8,18);
+		sx(x, 9, 5, 1, 7);  sx(x,13, 9, 5, 9);
+		sx(x, 1,13, 9,13);  sx(x, 5, 1,13,18);
+		sx(x,14,10, 6, 7);  sx(x, 2,14,10, 9);
+		sx(x, 6, 2,14,13);  sx(x,10, 6, 2,18);
+		sx(x, 3,15,11, 7);  sx(x, 7, 3,15, 9);
+		sx(x,11, 7, 3,13);  sx(x,15,11, 7,18);
 
-		x[ 9] ^= R(x[ 5]+x[ 1], 7);  x[13] ^= R(x[ 9]+x[ 5], 9);
-		x[ 1] ^= R(x[13]+x[ 9],13);  x[ 5] ^= R(x[ 1]+x[13],18);
-
-		x[14] ^= R(x[10]+x[ 6], 7);  x[ 2] ^= R(x[14]+x[10], 9);
-		x[ 6] ^= R(x[ 2]+x[14],13);  x[10] ^= R(x[ 6]+x[ 2],18);
-
-		x[ 3] ^= R(x[15]+x[11], 7);  x[ 7] ^= R(x[ 3]+x[15], 9);
-		x[11] ^= R(x[ 7]+x[ 3],13);  x[15] ^= R(x[11]+x[ 7],18);
-
-		/* Operate on rows. */
-		x[ 1] ^= R(x[ 0]+x[ 3], 7);  x[ 2] ^= R(x[ 1]+x[ 0], 9);
-		x[ 3] ^= R(x[ 2]+x[ 1],13);  x[ 0] ^= R(x[ 3]+x[ 2],18);
-
-		x[ 6] ^= R(x[ 5]+x[ 4], 7);  x[ 7] ^= R(x[ 6]+x[ 5], 9);
-		x[ 4] ^= R(x[ 7]+x[ 6],13);  x[ 5] ^= R(x[ 4]+x[ 7],18);
-
-		x[11] ^= R(x[10]+x[ 9], 7);  x[ 8] ^= R(x[11]+x[10], 9);
-		x[ 9] ^= R(x[ 8]+x[11],13);  x[10] ^= R(x[ 9]+x[ 8],18);
-
-		x[12] ^= R(x[15]+x[14], 7);  x[13] ^= R(x[12]+x[15], 9);
-		x[14] ^= R(x[13]+x[12],13);  x[15] ^= R(x[14]+x[13],18);
-#undef R
+		sx(x, 1, 0, 3, 7);  sx(x, 2, 1, 0, 9);
+		sx(x, 3, 2, 1,13);  sx(x, 0, 3, 2,18);
+		sx(x, 6, 5, 4, 7);  sx(x, 7, 6, 5, 9);
+		sx(x, 4, 7, 6,13);  sx(x, 5, 4, 7,18);
+		sx(x,11,10, 9, 7);  sx(x, 8,11,10, 9);
+		sx(x, 9, 8,11,13);  sx(x,10, 9, 8,18);
+		sx(x,12,15,14, 7);  sx(x,13,12,15, 9);
+		sx(x,14,13,12,13);  sx(x,15,14,13,18);
 	}
-	for (i = 0; i < 16; i++)
-		B[i] += x[i];
+
+	blkadd(B, x, 16);
 }
 
 static void blockmix(const uint32_t* Bin, uint32_t* Bout, uint32_t* X, size_t r)
 {
 	size_t i;
 
-	/* 1: X <-- B_{2r - 1} */
-	blkcpy(X, &Bin[(2 * r - 1) * 16], 64);
+	blkcpy(X, &Bin[(2*r - 1)*16], 16);
 
-	/* 2: for i = 0 to 2r - 1 do */
-	for (i = 0; i < 2 * r; i += 2) {
-		/* 3: X <-- H(X \xor B_i) */
-		blkxor(X, &Bin[i * 16], 64);
+	for (i = 0; i < 2*r; i += 2) {
+		blkxor(X, &Bin[i*16], 16);
 		salsa20_8(X);
-		/* 4: Y_i <-- X */
-		/* 6: B' <-- (Y_0, Y_2 ... Y_{2r-2}, Y_1, Y_3 ... Y_{2r-1}) */
-		blkcpy(&Bout[i * 8], X, 64);
-		/* 3: X <-- H(X \xor B_i) */
-		blkxor(X, &Bin[i * 16 + 16], 64);
+		blkcpy(&Bout[i*8], X, 16);
+		blkxor(X, &Bin[i*16 + 16], 16);
 		salsa20_8(X);
-		/* 4: Y_i <-- X */
-		/* 6: B' <-- (Y_0, Y_2 ... Y_{2r-2}, Y_1, Y_3 ... Y_{2r-1}) */
-		blkcpy(&Bout[i * 8 + r * 16], X, 64);
+		blkcpy(&Bout[i*8 + r*16], X, 16);
 	}
 }
 
-static uint64_t integerify(const void * B, size_t r)
+static uint64_t integerify(uint32_t* B, size_t r)
 {
-	const uint32_t * X = (const void *)(B + (2 * r - 1) * 64);
-
-	return (((uint64_t)(X[1]) << 32) + X[0]);
+	size_t i = (2*r - 1)*16;
+	uint64_t rh = B[i + 1];
+	uint64_t rl = B[i + 0];
+	return ((rh << 32) | rl);
 }
 
-static void salsamix(uint8_t* B, int r, int N, uint32_t* V, void* XY)
+static void salsamix(uint32_t* B, int r, int N, uint32_t* V, void* XY)
 {
 	uint32_t* X = XY;
 	uint32_t* Y = (XY + 128 * r);
 	uint32_t* Z = (XY + 256 * r);
 
-	int i;
-	int j;
+	int i, j;
 	long k;
 
-	/* 1: X <-- B */
 	for (k = 0; k < 32*r; k++)
-		X[k] = le32dec(&B[4*k]);
+		X[k] = swab(B[k]);
 
-	/* 2: for i = 0 to N - 1 do */
 	for (i = 0; i < N; i += 2) {
-		/* 3: V_i <-- X */
-		blkcpy(&V[i*(32*r)], X, 128*r);
-		/* 4: X <-- H(X) */
+		blkcpy(&V[i*(32*r)], X, 32*r);
 		blockmix(X, Y, Z, r);
-		/* 3: V_i <-- X */
-		blkcpy(&V[(i+1)*(32*r)], Y, 128*r);
-		/* 4: X <-- H(X) */
+		blkcpy(&V[(i+1)*(32*r)], Y, 32*r);
 		blockmix(Y, X, Z, r);
 	}
 
-	/* 6: for i = 0 to N - 1 do */
 	for (i = 0; i < N; i += 2) {
-		/* 7: j <-- Integerify(X) mod N */
 		j = integerify(X, r) & (N - 1);
-		/* 8: X <-- H(X \xor V_j) */
-		blkxor(X, &V[j*(32*r)], 128*r);
+		blkxor(X, &V[j*(32*r)], 32*r);
 		blockmix(X, Y, Z, r);
-		/* 7: j <-- Integerify(X) mod N */
 		j = integerify(Y, r) & (N - 1);
-		/* 8: X <-- H(X \xor V_j) */
-		blkxor(Y, &V[j*(32*r)], 128*r);
+		blkxor(Y, &V[j*(32*r)], 32*r);
 		blockmix(Y, X, Z, r);
 	}
 
-	/* 10: B' <-- X */
 	for (k = 0; k < 32*r; k++)
-		le32enc(&B[4*k], X[k]);
+		B[k] = swab(X[k]);
 }
 
-static void pbkdf(struct scrypt* sc, void* salt, int slen, void* dk, int dklen)
+static void spbkdf(struct scrypt* sc, void* salt, int slen, void* dk, int dklen)
 {
 	char* pass = sc->pass;
 	int plen = sc->passlen;
@@ -220,14 +221,14 @@ void scrypt_hash(struct scrypt* sc, void* dk, int dklen)
 	size_t B0size = 128*r*p;
 	size_t XYsize = 256*r + 64;
 
-	uint8_t* B = (sc->temp + 0);
+	uint32_t* B = (sc->temp + 0);
 	uint32_t* XY = (sc->temp + B0size);
 	uint32_t* V = (sc->temp + B0size + XYsize);
 
-	pbkdf(sc, sc->salt, sc->saltlen, B, p*128*r);
+	spbkdf(sc, sc->salt, sc->saltlen, B, 4*p*32*r);
 
 	for(i = 0; i < p; i++)
-		salsamix(&B[i*128*r], r, n, V, XY);
+		salsamix(&B[i*32*r], r, n, V, XY);
 
-	pbkdf(sc, B, p*128*r, dk, dklen);
+	spbkdf(sc, B, 4*p*32*r, dk, dklen);
 }
