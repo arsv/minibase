@@ -1,9 +1,8 @@
+/* Ref. RFC 3394 Advanced Encryption Standard (AES) Key Wrap Algorithm */
+
 #include <string.h>
 #include <endian.h>
-
 #include "aes128.h"
-
-/* Ref. RFC 3394 Advanced Encryption Standard (AES) Key Wrap Algorithm */
 
 static uint64_t wrapmask(int n)
 {

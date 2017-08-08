@@ -1,8 +1,7 @@
-#include <string.h>
-
-#include "sha1.h"
-
 /* Ref. RFC 2104 HMAC: Keyed-Hashing for Message Authentication */
+
+#include <string.h>
+#include "sha1.h"
 
 static void hmac_xor(uint8_t pad[64], uint8_t val)
 {

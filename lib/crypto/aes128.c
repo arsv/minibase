@@ -1,8 +1,3 @@
-#include <string.h>
-#include <endian.h>
-
-#include "aes128.h"
-
 /* Ref. FIPS publication 197 Annoucing the Advanced Encryption Standard (AES)
 
    This implementation is based on the sample code from the publication
@@ -10,6 +5,10 @@
 
    Decryption and encryption in a single file for now.
    Would be better to untangle them at some point. */
+
+#include <string.h>
+#include <endian.h>
+#include "aes128.h"
 
 static const int Nk = 4;
 static const int Nb = 4;
