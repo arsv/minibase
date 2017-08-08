@@ -1,5 +1,7 @@
 aes
 aes_wrap
 hmac_sha1
+hmac_sha256
 sha1
+sha256
 pbkdf
