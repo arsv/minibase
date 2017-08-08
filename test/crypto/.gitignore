@@ -5,3 +5,4 @@ hmac_sha256
 sha1
 sha256
 pbkdf
+scrypt
