@@ -6,7 +6,7 @@ char* fmtraw(char* p, char* e, void* data, int len);
 
 char* fmtchar(char* dst, char* end, char c);
 char* fmtbyte(char* dst, char* end, char c);
-char* fmtbytes(char* dst, char* end, void* data, int len);
+char* fmtbytes(char* dst, char* end, void* data, size_t len);
 
 char* fmti32(char* buf, char* end,  int32_t num);
 char* fmtu32(char* buf, char* end, uint32_t num);

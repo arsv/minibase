@@ -1,7 +1,7 @@
 #include <bits/ints.h>
 #include <format.h>
 
-char* fmtbytes(char* p, char* e, void* data, long len)
+char* fmtbytes(char* p, char* e, void* data, size_t len)
 {
 	uint8_t* val = data;
 	uint8_t* end = data + len;
