@@ -4,7 +4,7 @@
 
 /* Ref. RFC 2898 PKCS #5: Password-Based Cryptography Specification v.2 */
 
-#define HS 32 /* SHA-1 output size, bytes */
+#define HS 32 /* SHA-256 output size, bytes */
 
 static void F1(uint8_t* U, uint8_t* P, int Pn, uint8_t* S, int Sn, int i)
 {
