@@ -68,10 +68,14 @@ static void blkadd(uint32_t* dst, uint32_t* src, size_t n)
 		dst[i] += src[i];
 }
 
+static uint32_t rotl(uint32_t x, int n)
+{
+	return (x << n) | (x >> (32 - n));
+}
+
 static void sx(uint32_t* x, int k, int i, int j, int n)
 {
-	uint32_t z = x[i] + x[j];
-	x[k] ^= (z << n) | (z >> (32 - n));
+	x[k] ^= rotl(x[i] + x[j], n);
 }
 
 static void salsa20_8(uint32_t B[16])
