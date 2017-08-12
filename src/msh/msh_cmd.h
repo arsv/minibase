@@ -5,6 +5,7 @@
 CMD(cd)
 CMD(exec)
 CMD(exit)
+CMD(invoke)
 CMD(echo)
 CMD(warn)
 CMD(die)

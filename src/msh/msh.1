@@ -44,9 +44,12 @@ Write \fImessage\fR to stdout.
 Same, to stderr.
 .IP "\fBsleep\fR \fIseconds\fR" 4
 See \fBnanosleep\fR(2). Fractional values are supported.
-.IP "\fBexit\fR \fIvalue\fR" 4
+.IP "\fBexit\fR [\fIcode\fR]" 4
+Terminate current process.
 .IP "\fBexec\fR \fIcommand\fR \fIarg\fR \fIarg\fR ..." 4
 Replace current process with \fIcommand\fR. See \fBexecve\fR(2).
+.IP "\fBinvoke\fR \fIcommand\fR \fIarg\fR \fIarg\fR ..." 4
+Do like \fBexec\fR but also append arguments passed to \fBmsh\fR itself.
 .IP "\fBstdin\fR \fIfile\fR" 4
 .IP "\fBstdout\fR [\fB-ax\fR] \fIfile\fR" 4
 .IP "\fBstderr\fR [\fB-ax\fR] \fIfile\fR" 4

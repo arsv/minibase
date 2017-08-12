@@ -42,6 +42,26 @@ int cmd_exit(struct sh* ctx)
 	_exit(code);
 }
 
+int cmd_invoke(struct sh* ctx)
+{
+	int nargs = numleft(ctx);
+	int norig = ctx->topargc - ctx->topargp;
+
+	if(!nargs)
+		return error(ctx, "too few arguments", NULL, 0);
+
+	char** args = ctx->argv + ctx->argp;
+	char** orig = ctx->topargv + ctx->topargp;
+
+	char* argv[nargs + norig + 1];
+
+	memcpy(argv, args, nargs*sizeof(char*));
+	memcpy(argv + nargs, orig, norig*sizeof(char*));
+	argv[nargs+norig] = NULL;
+
+	return fchk(execvpe(*argv, argv, ctx->envp), ctx, *argv);
+}
+
 static int print(struct sh* ctx, int fd)
 {
 	char* msg;
