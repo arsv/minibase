@@ -1,0 +1,175 @@
+Disk encryption passphrase replaces traditional login prompt in minibase.
+The system boots (by whatever means) the kernel and initrd with the early
+userspace, which then
+
+    * locates the system drives,
+    * prompts the user for passphrase,
+    * sets up decryption keys,
+    * mounts the partitions.
+    
+Past that point, the user is assumed to be authenticated and in control
+of the device. No additional attempts to authenticate the user are made,
+except maybe for lightweight pin-like prompts when entering high-risk
+zones (root session / admin panel) or waking the device from sleep mode.
+
+
+Design and threat model
+~~~~~~~~~~~~~~~~~~~~~~~
+Bulk data on all system disks is encrypted with AES-XTS with high-entropy
+keys (DEKs), one per partition. NIST key wrap with a passphrase-derived
+key (KEK) is used to protect the DEKs. Wrapped DEKs, along with the kernel
+and the tools needed to unwrap and install them, are stored in initrd.
+
+There are two options as to where the kernel and the initrd come from.
+
+  B1. Unencrypted boot partition on the device itself is used to store both.
+
+  B2. Crankshaft boot -- a small external storage (SD card or a flash drive)
+     containing both is inserted to boot the device and removed immediately
+     afterwards.
+
+The goal of the whole system is to provide baseline protection of the bulk
+system drive data in case the device gets lost, stolen or taken away from
+the owner. Those who took possession of the device should not be able to
+casually read the contents of the drives. With the design outlined about,
+the threats to the system from most to least likely are these:
+
+  T0. The user forgoing encryption because it is too difficult to set up,
+     or hinders system operation otherwise, with the unencrypted data
+     ending up in attackers' hands.
+
+ *T1. The attackers procuring unwrapped DEKs and/or plaintext bulk data
+     from a running system.
+
+  T2. Dictionary attack on the passphrase followed by decryption of the
+     bulk data, in case the attackers obtained both the wrapped DEKs and
+     the data itself.
+
+  T3. Dictionary attack on the passphrase disclosing the passphrase and KEK.
+
+ *T4. Real-world attack on the user, uncovering plaintext bulk data via
+     non-cryptographical means.
+
+ *T5. Any sort of cryptographical attack on the bulk cipher.
+
+Threats marked with asterisk are considered out of the scope of this system,
+as in, that is not something bulk disk encryption should bother with.
+
+T1 is mostly about OS and hardware security. All we can do is assume that
+the OS is correct, is not compromised and is in control of the hardware.
+This assumption is very problematic, but cannot be deal with at the level
+of OS-based disk encryption. B2 paired with reasonably tamper-proof firmware
+provides some protection against evil maid attacks, but that's about it.
+
+T4 is mostly about security of the person who owns the device.
+
+T5, any entity capable of mounting a successful attack on AES128 can have
+the bulk data if they wish. Remember the whole thing is about baseline
+protection of the bulk data. Sensitive information should be wrapped *even*
+if stored on an encrypted drive since disk encryption does nothing to protect
+it from T1 class attacks, like being stolen by rogue process running within
+the same OS.
+
+The point of crankshaft boot is to reduce T2 to either T5 or T3 in most cases.
+If wrapped DEKs are kept separate from the encrypted data, it is much more
+likely that the attackers will get either of them but not both. T2 proper may
+happen with B1 setup (DEKs stored on the device) or in case the attackers 
+manage to get a hold on both the device and the crankshaft. If either happens,
+the security of the bulk data is reduced to that of the passphrase-derived KEK.
+
+For any scenario that allows an attack on the KEK, such attack will likely be
+the easiest to mount. Humans are notoriously bad at coming up with good keys.
+The passphrase should not be expected to contain much more than maybe 40 bits
+of entropy. Using a hard KDF (scrypt) mitigates the problem somewhat, but does
+not resolve it completely.
+
+The danger of T3 attacks is that they may disclose some patterns in the way
+the person chooses the passphrases, effectively reducing their already low
+entropy. That and the fact that T3 may be upgraded to T2 by getting a hold
+on the device later. Crankshafts are expected to be small and easy to lose,
+and by necessity carry device identification data on them.
+
+
+So why not LUKS?
+~~~~~~~~~~~~~~~~
+LUKS has unfortunately become a sort of de-facto standard in Linux disk
+encryption, so this question would have come up sooner or later. There
+are several issues with LUKS design which would also affect anything
+trying to be compatible with LUKS.
+
+There are two parts of LUKS compatibility:
+
+  * LUKS ad-hoc partition table, and
+  * LUKS key wrap aka their header format.
+
+The way LUKS places its header at the start of the encrypted partition, aside
+from having questionable security (see B1/T2 above) is also arguably a case
+of bad engineering. They effectively invent their own partition table and their
+own file system, the "partition" being the header and the data that follows it,
+and the "files" being the key slots. Supporting this requires lots of code,
+makes no sense whatsoever, and increases the risk of T0 because of the added
+complexity of making backups.
+
+Prepended keys make some sense when used on "password-protected" removable
+drives intended for data exchange, but that's a very different use case in
+itself. And even then, there are better options for key storage. For system
+drive encryption, the key storage problem is easily solved by putting the
+keys into initrd.
+
+The format of the header itself is way too complex for reasons that make no
+sense when used in a saner overall setup. Striping adds complexity in order
+to "hide" the keys on the drive to hinder key recovery -- but the same problem
+is much better solved by having the keys (along with the kernel) on cheap SD
+cards and setting compromised ones on fire, Said cards could also double as
+hardware key slots *and* as backup key storage.
+
+LUKS supports configurable cipher settings, adding complexity and increasing
+the chances of user errors. The choice of ciphers is one of the things that
+should not be left to the users. The rare use cases that could benefit from
+configurable ciphers are rare and would likely require dedicated tools anyway.
+
+Current implementation allows configuring hash functions for PBKDF2 instead
+of just picking one and sticking with it, but does *not* allow replacing
+PBKDF2 itself. So any compatible implementation would need to support
+something like 5 variants of PBKDF2 but not bcrypt or scrypt.
+
+The choice of defaults in LUKS is also questionable. They opt for slower
+AES256, lowering the already-low risk of T5 at the expense of raising the risk
+of T0, and that all while they still have PBKDF2 as the only choice for KDF
+and DEKs stored in a way that makes KEK their only protection.
+
+
+Mitigating the consequences of losing a crankshaft
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The default IV in NIST key wrap covers all 8 bytes, ensuring very low
+false-positive risk if the expected value is there after unwrapping it.
+This means T3 is doable for any attacker who gets the crankshaft alone,
+without the bulk data.
+
+It would be really good to make it so that the success of unwrapping
+the key could not be verified without the bulk data, making T3 a non-threat.
+One way to do it is to put a random IV onto the device, which is nearly always
+doable, but it would complicate key-handling a lot.
+
+A tricker option is to ramp up false-positive rate by e.g. only keeping
+fixing values in the first N bytes of IV and randomizing the rest.
+This should be enough to catch simple typos during passphrase entry,
+and attempt to mount the fs would further validate the key correctness.
+There would be a small chance of messing up the keyfile when adding/editing
+keys, but that's what key backups are for. The attacker presumably would not
+be able to recover the passphrase because of the false positives.
+
+However, it is not clear whether this would actually work, in the sense that
+a dictionary attack would be able to produce enough false positives with a
+matching IV to conceal the original passphrase if N is high enough to be of
+any use for filter out typos. Quick checks imply even N=1 works pretty well,
+but this needs further testing.
+
+
+Another issue with crankshafts is the possibility of disclosing device
+IDs used to locate the partitions to decrypt/mount (WWN, CID, whatever).
+This one is easy to address by storing HMACs instead of plaintext IDs,
+at the expense of making the mount tab file somewhat unreadable.
+
+It is not clear whether the risk and chances of leaking these IDs are
+large enought to bother.
