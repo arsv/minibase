@@ -210,7 +210,7 @@ static int checksize(struct file* f, uint64_t size)
 
 static int sendfile(struct file* dst, struct file* src, uint64_t size)
 {
-	uint64_t rd = 0;
+	long rd = 0;
 	uint64_t left = size;
 
 	if(!sizable(src))
@@ -235,7 +235,7 @@ static int sendfile(struct file* dst, struct file* src, uint64_t size)
 
 static int copymmap(struct file* dst, struct file* src, uint64_t size)
 {
-	uint64_t rd = 0;
+	long rd = 0;
 	uint64_t left = size;
 	uint64_t soff = src->off;
 	int sfd = src->fd;
