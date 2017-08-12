@@ -250,7 +250,6 @@ static const char* names[] = {
 	[KEY_RFKILL] = "rfkill",
 	[KEY_MICMUTE] = "mic-mute",
 
-	[BTN_MISC] = "BTN-misc",
 	[BTN_0] = "BTN-0",
 	[BTN_1] = "BTN-1",
 	[BTN_2] = "BTN-2",
@@ -262,7 +261,6 @@ static const char* names[] = {
 	[BTN_8] = "BTN-8",
 	[BTN_9] = "BTN-9",
 
-	[BTN_MOUSE] = "BTN-mouse",
 	[BTN_LEFT] = "BTN-left",
 	[BTN_RIGHT] = "BTN-right",
 	[BTN_MIDDLE] = "BTN-middle",
@@ -272,7 +270,6 @@ static const char* names[] = {
 	[BTN_BACK] = "BTN-back",
 	[BTN_TASK] = "BTN-task",
 
-	[BTN_JOYSTICK] = "BTN-joystick",
 	[BTN_TRIGGER] = "BTN-trigger",
 	[BTN_THUMB] = "BTN-thumb",
 	[BTN_THUMB2] = "BTN-thumb2",
@@ -287,7 +284,6 @@ static const char* names[] = {
 	[BTN_BASE6] = "BTN-base6",
 	[BTN_DEAD] = "BTN-dead",
 
-	[BTN_GAMEPAD] = "BTN-gamepad",
 	[BTN_SOUTH] = "BTN-south",
 	[BTN_EAST] = "BTN-east",
 	[BTN_NORTH] = "BTN-north",
@@ -303,7 +299,6 @@ static const char* names[] = {
 	[BTN_THUMBL] = "BTN-thumb-L",
 	[BTN_THUMBR] = "BTN-thumb-R",
 
-	[BTN_DIGI] = "BTN-digi",
 	[BTN_TOOL_PEN] = "BTN-tool-pen",
 	[BTN_TOOL_RUBBER] = "BTN-tool-rubber",
 	[BTN_TOOL_BRUSH] = "BTN-tool-brush",
@@ -320,7 +315,6 @@ static const char* names[] = {
 	[BTN_TOOL_TRIPLETAP] = "BTN-tool-triple-tap",
 	[BTN_TOOL_QUADTAP] = "BTN-tool-quad-tap",
 
-	[BTN_WHEEL] = "BTN-wheel",
 	[BTN_GEAR_DOWN] = "BTN-gear-down",
 	[BTN_GEAR_UP] = "BTN-gear-up",
 
