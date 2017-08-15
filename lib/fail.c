@@ -31,9 +31,10 @@ void warn(const char* msg, const char* obj, int err)
 	char* b = buf;
 	char* p = buf;
 
-	p = fmtstr(p, end, errtag);
-	p = fmtstr(p, end, ":");
-
+	if(errtag[0]) {
+		p = fmtstr(p, end, errtag);
+		p = fmtstr(p, end, ":");
+	}
 	if(msg) {
 		p = fmtstr(p, end, " ");
 		p = fmtstr(p, end, msg);
