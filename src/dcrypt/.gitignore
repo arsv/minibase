@@ -1,4 +1,7 @@
+etc/
+dev/
 create
 remove
 dektool
 dmcrypt
+blkid

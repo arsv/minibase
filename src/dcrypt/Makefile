@@ -2,7 +2,7 @@
 
 include $/config.mk
 
-bin = dektool dmcrypt
+bin = dektool dmcrypt blkid
 
 include $/common.mk
 
