@@ -1,5 +1,15 @@
 #include <bits/types.h>
 
+#define FMTBUF(p, e, buf, len) \
+	char buf[len];\
+	char* p = buf;\
+	char* e = buf + sizeof(buf) - 1;
+
+#define FMTEND(p) \
+	*p++ = '\0';
+#define FMTENL(p) \
+	*p++ = '\n';
+
 struct tm;
 
 char* fmtraw(char* p, char* e, void* data, int len);
