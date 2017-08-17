@@ -9,6 +9,7 @@
 #include <util.h>
 #include <fail.h>
 
+#include "config.h"
 #include "keytool.h"
 
 static const char testpad[] = { 0xA6,0xA6,0xA6,0xA6,0xA6,0xA6,0xA6,0xA6 };
@@ -36,9 +37,9 @@ int ask(char* tag, char* buf, int len)
 
 static int scrypt(void* D, int dlen, void* P, int plen, void* S, int slen)
 {
-	int n = 8192;
-	int r = 1;
-	int p = 1;
+	int n = SCRYPT_N;
+	int r = SCRYPT_P;
+	int p = SCRYPT_P;
 
 	struct scrypt sc;
 	void* brk = (void*)sys_brk(0);
