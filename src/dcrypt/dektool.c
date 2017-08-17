@@ -10,7 +10,6 @@
 #include <fail.h>
 
 #include "keytool.h"
-#include "keyfile.h"
 
 ERRTAG = "dektool";
 ERRLIST = {
