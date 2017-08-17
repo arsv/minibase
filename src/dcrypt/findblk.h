@@ -18,9 +18,9 @@ struct part {
 	int here;
 	char part[10];
 	char label[20];
-	int keyidx;
 	char fs[10];
 	char name[30];
+	int keyidx;
 };
 
 extern struct bdev bdevs[NBDEVS];
