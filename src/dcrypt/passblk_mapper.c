@@ -231,6 +231,7 @@ static int query_rdev_size(struct part* pt)
 		quit("ioctl BLKGETSIZE64", path, ret);
 
 	pt->rdev = st.rdev;
+	pt->fd = fd;
 
 	return 0;
 }

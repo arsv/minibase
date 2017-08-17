@@ -26,6 +26,7 @@ struct part {
 	uint64_t rdev;
 	uint64_t size;
 	int keyidx;
+	int fd;
 };
 
 extern struct keyfile keyfile;
@@ -61,7 +62,7 @@ void link_plain_partitions(void);
 
 void term_init(void);
 void term_fini(void);
-void quit(const char* msg, char* arg, int err);
+void quit(const char* msg, char* arg, int err) __attribute__((noreturn));
 void open_dm_control(void);
 
 int try_passphrase(char* phrase, int len);
