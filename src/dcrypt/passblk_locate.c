@@ -1,0 +1,177 @@
+#include <bits/socket/netlink.h>
+#include <sys/sockio.h>
+#include <sys/socket.h>
+#include <sys/dents.h>
+#include <sys/pid.h>
+#include <sys/file.h>
+
+#include <string.h>
+#include <format.h>
+#include <fail.h>
+
+#include "passblk.h"
+
+static int udev;
+
+void open_udev(void)
+{
+	int fd, ret;
+
+	int domain = PF_NETLINK;
+	int type = SOCK_DGRAM;
+	int proto = NETLINK_KOBJECT_UEVENT;
+
+	if((fd = sys_socket(domain, type, proto)) < 0)
+		fail("socket", "udev", fd);
+
+	struct sockaddr_nl addr = {
+		.family = AF_NETLINK,
+		.pid = sys_getpid(),
+		.groups = -1
+	};
+
+	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
+		fail("bind", "udev", ret);
+
+	udev = fd;
+}
+
+static char* restof(char* line, char* pref)
+{
+	int plen = strlen(pref);
+	int llen = strlen(line);
+
+	if(llen < plen)
+		return NULL;
+	if(strncmp(line, pref, plen))
+		return NULL;
+
+	return line + plen;
+}
+
+void recv_udev_event(void)
+{
+	int max = 1024;
+	char buf[max+2];
+	int rd;
+
+	if((rd = sys_recv(udev, buf, max, 0)) < 0)
+		fail("recv", "udev", rd);
+
+	buf[rd] = '\0';
+
+	char* p = buf;
+	char* e = buf + rd;
+
+	char* devtype = NULL;
+	char* devname = NULL;
+	char* r;
+
+	while(p < e) {
+		if((r = restof(p, "DEVTYPE=")))
+			devtype = r;
+		if((r = restof(p, "DEVNAME=")))
+			devname = r;
+
+		p += strlen(p) + 1;
+
+		if(devtype && devname)
+			break;
+	}
+
+	if(!devtype || !devname)
+		return;
+
+	if(!strcmp(devtype, "disk"))
+		match_dev(devname);
+	else if(!strcmp(devtype, "partition"))
+		match_part(devname);
+}
+
+void wait_udev(void)
+{
+	while(any_missing_devs())
+		recv_udev_event();
+}
+
+static void foreach_dir_in(char* dir, void (*func)(char*, char*), char* base);
+
+static void check_part_ent(char* name, char* base)
+{
+	if(strncmp(name, base, strlen(base)))
+		return;
+	
+	match_part(name);
+}
+
+static void check_dev_ent(char* name, char* _)
+{
+	if(!strncmp(name, "loop", 4))
+		return;
+
+	if(!match_dev(name))
+		return;
+
+	FMTBUF(p, e, path, 100);
+	p = fmtstr(p, e, "/sys/block/");
+	p = fmtstr(p, e, name);
+	FMTEND(p);
+
+	foreach_dir_in(path, check_part_ent, name);
+}
+
+static inline int dotddot(const char* p)
+{
+	if(!p[0])
+		return 1;
+	if(p[0] == '.' && !p[1])
+		return 1;
+	if(p[1] == '.' && !p[2])
+		return 1;
+	return 0;
+}
+
+static void foreach_dir_in(char* dir, void (*func)(char*, char*), char* base)
+{
+	int len = 1024;
+	char buf[len];
+	long fd, rd;
+
+	if((fd = sys_open(dir, O_DIRECTORY)) < 0)
+		fail("open", dir, fd);
+
+	while((rd = sys_getdents(fd, buf, len)) > 0) {
+		char* ptr = buf;
+		char* end = buf + rd;
+		while(ptr < end) {
+			struct dirent* de = (struct dirent*) ptr;
+
+			if(!de->reclen)
+				break;
+
+			ptr += de->reclen;
+
+			if(dotddot(de->name))
+				continue;
+			switch(de->type) {
+				case DT_UNKNOWN:
+				case DT_DIR:
+				case DT_LNK:
+					break;
+				default:
+					continue;
+			}
+
+			func(de->name, base);
+		}
+	} if(rd < 0) {
+		fail("getdents", dir, rd);
+	}
+
+	sys_close(fd);
+}
+
+void scan_devs(void)
+{
+	foreach_dir_in("/sys/block", check_dev_ent, NULL);
+}
