@@ -9,7 +9,7 @@
 #include <util.h>
 #include <fail.h>
 
-#include "askpass.h"
+#include "keytool.h"
 #include "keyfile.h"
 
 ERRTAG = "dektool";

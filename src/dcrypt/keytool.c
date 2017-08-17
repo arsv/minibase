@@ -1,7 +1,7 @@
 #include <sys/file.h>
 #include <string.h>
 #include <fail.h>
-#include "askpass.h"
+#include "keytool.h"
 
 int ask(char* tag, char* buf, int len)
 {
