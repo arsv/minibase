@@ -14,6 +14,8 @@ struct tm;
 
 char* fmtraw(char* p, char* e, void* data, int len);
 
+char* fmterr(char* buf, char* end, int err);
+
 char* fmtchar(char* dst, char* end, char c);
 char* fmtbyte(char* dst, char* end, char c);
 char* fmtbytes(char* dst, char* end, void* data, size_t len);

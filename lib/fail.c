@@ -1,28 +1,11 @@
 #include <sys/file.h>
 #include <format.h>
+#include <errtag.h>
 #include <fail.h>
 
 #define ERRBUF 512
 
 extern void _exit(int code) __attribute__((noreturn));
-
-extern ERRTAG;
-extern ERRLIST;
-
-static char* fmterr(char* buf, char* end, int err)
-{
-	const struct errcode* p;
-
-	err = -err;
-
-	for(p = errlist; p->code; p++)
-		if(p->code == err)
-			break;
-	if(p->code)
-		return fmtstr(buf, end, p->name);
-	else
-		return fmti32(buf, end, err);
-};
 
 void warn(const char* msg, const char* obj, int err)
 {
