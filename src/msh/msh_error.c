@@ -1,18 +1,13 @@
-#include <bits/errno.h>
-
 #include <string.h>
 #include <format.h>
+#include <errtag.h>
 #include <exit.h>
 #include <util.h>
 
 #include "msh.h"
 
-static const char tag[] = "msh";
-static const struct errcode {
-	short code;
-	char* name;
-} elist[] = {
-#define REPORT(e) { e, #e }
+ERRTAG = "msh";
+ERRLIST = {
 	REPORT(ENOENT), REPORT(ENOTDIR), REPORT(EISDIR), REPORT(EACCES),
 	REPORT(EPERM), REPORT(EFAULT), REPORT(EBADF), { 0, NULL }
 };
@@ -26,21 +21,6 @@ static int maybelen(const char* str)
 {
 	return str ? strlen(str) : 0;
 }
-
-static char* fmterr(char* buf, char* end, int err)
-{
-	const struct errcode* p;
-
-	err = -err;
-
-	for(p = elist; p->code; p++)
-		if(p->code == err)
-			break;
-	if(p->code)
-		return fmtstr(buf, end, p->name);
-	else
-		return fmti32(buf, end, err);
-};
 
 /* Cannot use heap here, unless halloc is changed to never cause
    or report errors. */
@@ -61,7 +41,7 @@ static void report(struct sh* ctx, const char* err, char* arg, long ret, int m)
 	char* e = buf + sizeof(buf);
 
 	if(m == TAGGED_SAVED) {
-		p = fmtstr(p, e, tag);
+		p = fmtstr(p, e, errtag);
 	} else {
 		p = fmtstr(p, e, file);
 		p = fmtstr(p, e, ":");
