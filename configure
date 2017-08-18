@@ -86,7 +86,7 @@ cat >> mini-cc <<END
 exec $cc -fno-strict-aliasing -fno-asynchronous-unwind-tables \\
 	-Wno-unused-command-line-argument -Wno-gnu -ffreestanding \\
 	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib \\
-	-no-pie -fno-stack-protector $cflags "\$@" \\
+	-nopie -fno-stack-protector $cflags "\$@" \\
 	-nostdlib \${needslib:+\$base/lib/all.a}
 END
 else
