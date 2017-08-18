@@ -1,0 +1,20 @@
+.TH passblk 8
+'''
+.SH NAME
+\fBpassblk\fR \- passphrase prompt and block device locator
+'''
+.SH DESCRIPTION
+This interactive tool unlocks encrypted partitions early during
+boot, and provides persistent names for the subsequent \fBmount\fR(8)
+commands.
+'''
+.SH USAGE
+This tool should be run from initrd after the modules have been loaded.
+'''
+.SH NOTES
+\fBpassblk\fR is unable to recognize a situation when a devices is present
+but some of its partitions are missing; it will keep waiting for the missing
+partitions.
+'''
+.SH SEE ALSO
+\fBfindblk\fR(8), \fBblktab\fR(5), \fBdektool\fR(1), \fBdmcrypt\fR(8).
