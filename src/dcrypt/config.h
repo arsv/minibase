@@ -1,4 +1,4 @@
-#define SCRYPT_N (1<<18)
+#define SCRYPT_N (1<<16)
 #define SCRYPT_R 8
 #define SCRYPT_P 1
 
