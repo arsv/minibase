@@ -6,7 +6,7 @@ to build the rest of the system on.
 
 The tools are written in raw syscalls, statically linked, and have
 no external dependencies, not even libc. They are easy to build,
-and once built can be used on any cpu-compatible Linux system.
+and once built can be used on any CPU-compatible Linux 3.x+ system.
 
 
 What's inside / Current status
@@ -14,13 +14,16 @@ What's inside / Current status
 The project is highly experimental and (at this point) incomplete.
 Some tools are missing, and some still need work.
 
-  * Simple non-interactive shell (msh) for scripting the boot
-    process and service startup [usable].
-  
-  * Early-stage boot utils (switchroot, kmod, mount, waitfor).
   * Small basic unix tools (cat, ls, du, df etc).
   * Several small linux-specific tools (systime, sync, dmesg etc).
-  - No FDE tooling yet.
+
+  * Simple non-interactive shell (msh) for scripting the boot
+    process and service startup [usable].
+  * Early-stage boot utils (switchroot, kmod, mount).
+
+  * Non-encrypting block device locator (findblk) [usable?]
+  * Block device locator and passphrase prompt tool (passblk) [partial]
+  * Support tooling for disc encryption (dektool, dmcrypt) [usable?]
   
   * Process supervisor suite (init, super, reboot, svc), split-stage
     implementation similar to daemontools or runit [usable].
@@ -36,7 +39,7 @@ Some tools are missing, and some still need work.
   * Wi-Fi scanner and connection manager (wimon), also capable of handling
     wired interfaces
   * Minimalistic wpa supplicant (wpa), WPA2-PSK only, CCMP/CCMP or CCMP/TKIP
-    [both usable but pending redesing]
+    [both usable but pending redesign]
 
   - No package manager / download tool yet.
 
@@ -54,11 +57,10 @@ What's the inteded hardware for this?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 minibase is being written primarily with a personal laptop in mind.
 
-This choice only affects certain tools (svcmon, wimon, vtmux) which
-either allow or expect some user interaction. For unattended or headless
-systems, it would be better to replace them with simplier and more
-autonomous equivalents. Which may get written at some point, but aren't
-a priority right now.
+This choice only affects certain tools (super, wimon, vtmux) which either
+allow or expect some user interaction. For unattended or headless systems,
+it would be better to replace them with simpler equivalents, which may get
+written at some point but are not a priority right now.
 
 
 How is it different from busybox?
@@ -67,24 +69,24 @@ Busybox aims to provide common POSIX tools in a package with the
 smallest total size, or something close to that. It is not very
 well suited for providing individual tools, only the whole package.
 
-Busybox typically stays in the memory after being loaded (cached) once,
-saving memory and time for repeated usage.
+Busybox typically stays in the memory after being loaded once, saving
+memory and time for repeated usage.
 
-Minibase aims to provide small *individual* tools, so that they could
-be combined freely, picked one at a time, and discarded once no longer
-needed. The scope of the tools provided by minibase is also quite different,
+Minibase aims to provide small individual tools which could be combined
+freely, picked one at a time, and discarded once no longer needed.
+The scope of the tools provided by minibase is also quite different,
 with much heavier focus on Linux-specific stuff.
 
 
 How is it different from common (GNU) tools?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 In a lot of ways really, but here's an easy trick that highlights
-the fundamental distinction well. Strace some simple tool from
+the fundamental distinction well. Run strace some simple tool from
 a common Linux distro:
 
 	strace echo Hello, world
 
-then repeat with the same tool from this package:
+Then repeat with the same tool from this package:
 
 	strace ./echo Hello, world
 
@@ -107,14 +109,14 @@ Note that due to the nature of the tools, most of the common GPL gripes
 do not apply to this package. You should not be linking against them
 or extending them anyhow. However, non-tivoization clause is still there.
 
-Limited closed-box use is allowed on different terms, see COPYING.alt.
+Limited closed-box license is planned but has not been written yet.
 
 The code in lib/sys, lib/bits and lib/arch constitutes the public interface
 of the Linux kernel. No claims are made for that code, and it should not be
 copyrightable anyway. If unsure, grab corresponding fragments from either
 the kernel sources (GPLv2) or the musl libc (MIT license).
 
-The code from lib/crypto is in public domain. See README there.
+The code in lib/crypto is mostly BSD-licensed. See README there.
 
 
 Credits
