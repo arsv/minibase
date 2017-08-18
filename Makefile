@@ -12,15 +12,12 @@ lib/all.a:
 	$(MAKE) -C lib
 
 build: lib/all.a
-	$(MAKE) -C src rec
+	$(MAKE) -C src
 
 install:
 	$(MAKE) -C src install
 
 clean: clean-lib clean-src clean-test
-
-clean-src:
-	$(MAKE) -C src clean-rec
 
 clean-%:
 	$(MAKE) -C $* clean

@@ -1,10 +1,8 @@
-/ = ../../
+bin = dektool dmcrypt blkid
 
-include $/config.mk
+sbin = findblk passblk
 
-bin = dektool dmcrypt blkid findblk passblk
-
-include $/common.mk
+include ../rules.mk
 
 dektool: dektool.o keytool.o
 dmcrypt: dmcrypt.o keytool.o

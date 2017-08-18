@@ -1,25 +1,25 @@
-/ = ../
-
-include $/config.mk
+# Running make in this directory will build everything recursively.
+# To build hello only, run "make hello".
 
 bin = hello
 
-include $/common.mk
+include rules.mk
 
-# Recursive stuff; single level atm, so here and not in ../common.mk
+# Recursive stuff; single level atm, so here and not in rules.mk
 
-subdirs = boot cmdops compat events init msh net user wifi
-makesub = $(patsubst %,sub-%,$(subdirs))
-cleansub = $(patsubst %,clean-%,$(subdirs))
+subdirs = boot cmdops compat dcrypt events init msh net user wifi
 
-rec: all subdirs
+define subcmd
+$1 = $$(patsubst %,$1-%,$$(subdirs))
 
-subdirs: $(makesub)
+$$($1): $1-%:
+	$$(MAKE) -C $$* $2
+endef
 
-$(makesub): sub-%:
-	$(MAKE) -C $*
+$(eval $(call subcmd,build))
+$(eval $(call subcmd,clean,clean))
+$(eval $(call subcmd,install,install))
 
-clean-rec: clean $(cleansub)
-
-$(cleansub): clean-%:
-	$(MAKE) -C $* clean
+all: $(build)
+clean: $(clean)
+install: $(install)

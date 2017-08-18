@@ -1,17 +1,40 @@
-/=../
+default: all.a
 
-include $/config.mk
-include $/libdir.mk
+include rules.mk
 
-all: all.a
+define depends
+$1: $2
+endef
 
-libso = $(patsubst %.s,%.o,$(wildcard arch/$(ARCH)/*.[cs])) \
-	$(patsubst %.c,%.o,$(wildcard *.c */*.c))
+define subdir
+srcs-$1 = $$(sort $(wildcard $2/*.$3))
+objs-$1 = $$(patsubst %.$3,%.o,$$(srcs-$1))
 
-all.a: $(libso)
-	$(AR) cr $@ $?
+$$(foreach file,$$(srcs-$1),\
+	$$(eval $$(call depends,$$(file:.$3=.o),$$(file))))
 
-clean: clean-sub
+$$(objs-$1):
+	$$(MAKE) -C $2
 
-clean-sub:
-	rm -f */*.o arch/$(ARCH)/*.o all.a
+objs += $$(objs-$1)
+clean += $1/*.o
+endef
+
+libdir = $(call subdir,$1,$1,c)
+archdir = $(call subdir,arch,arch/$1,s)
+
+$(eval $(call archdir,$(ARCH)))
+$(eval $(call libdir,crypto))
+$(eval $(call libdir,format))
+$(eval $(call libdir,netlink))
+$(eval $(call libdir,nlusctl))
+$(eval $(call libdir,output))
+$(eval $(call libdir,sigset))
+$(eval $(call libdir,string))
+$(eval $(call libdir,time))
+$(eval $(call libdir,util))
+
+all.a: $(objs)
+	$(AR) cr $@ $^
+
+clean += all.a

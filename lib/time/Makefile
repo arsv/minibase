@@ -1,4 +1,1 @@
-/=../../
-
-include $/config.mk
-include $/libdir.mk
+include ../rules.mk
