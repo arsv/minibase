@@ -29,10 +29,9 @@ static int child(struct sh* ctx, char* cmd)
 
 static int describe(struct sh* ctx, int status)
 {
-	char buf[20];
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
 	char* msg;
+
+	FMTBUF(p, e, buf, 20);
 
 	if(WTERMSIG(status)) {
 		msg = "command killed by signal";
@@ -40,7 +39,9 @@ static int describe(struct sh* ctx, int status)
 	} else {
 		msg = "command failed with code";
 		p = fmtint(p, e, WEXITSTATUS(status));
-	}; *p++ = '\0';
+	};
+
+	FMTEND(p);
 
 	return error(ctx, msg, buf, 0);
 }

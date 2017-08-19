@@ -36,9 +36,7 @@ static void report(struct sh* ctx, const char* err, char* arg, long ret, int m)
 	int len = maybelen(file) + maybelen(err) + maybelen(arg) + 50;
 	int fd;
 
-	char buf[len];
-	char* p = buf;
-	char* e = buf + sizeof(buf);
+	FMTBUF(p, e, buf, len);
 
 	if(m == TAGGED_SAVED) {
 		p = fmtstr(p, e, errtag);
@@ -59,7 +57,7 @@ static void report(struct sh* ctx, const char* err, char* arg, long ret, int m)
 		p = fmterr(p, e, ret);
 	}
 
-	*p++ = '\n';
+	FMTENL(p);
 
 	if(m == FILE_LINE_REDIR)
 		fd = STDERR;
