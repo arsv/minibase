@@ -17,7 +17,7 @@ uint8_t kek[16];
 
 static const char testpad[] = { 0xA6,0xA6,0xA6,0xA6,0xA6,0xA6,0xA6,0xA6 };
 
-static void load_keyfile(void)
+void load_keyfile(void)
 {
 	char* name = KEYFILE;
 
@@ -68,8 +68,6 @@ static int scrypt(void* D, int dlen, void* P, int plen, void* S, int slen)
 
 int try_passphrase(char* phrase, int phrlen)
 {
-	load_keyfile();
-
 	memcpy(kplain, keybuf, kflen);
 
 	char* salt = kplain;
@@ -93,7 +91,13 @@ int try_passphrase(char* phrase, int phrlen)
 
 int check_keyindex(int ki)
 {
-	return (ki > 0 && 16*(ki+1) <= kflen);
+	if(!kflen)
+		load_keyfile();
+
+	if(ki < 0 || 16*(ki + 1) > kflen)
+		return -ENOKEY;
+
+	return 0;
 }
 
 /* The index should always be correct here since all of them are passed

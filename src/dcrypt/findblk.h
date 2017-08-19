@@ -1,4 +1,10 @@
+#include <bits/ints.h>
+
+/* Common code for findblk and passblk.
+   Load config, locate listed devices. */
+
 #define MAX_CONFIG_SIZE 4092
+
 #define NBDEVS 10
 #define NPARTS 20
 
@@ -20,7 +26,10 @@ struct part {
 	char label[20];
 	char fs[10];
 	char name[30];
+	uint64_t rdev;
+	uint64_t size;
 	int keyidx;
+	int fd;
 };
 
 extern struct bdev bdevs[NBDEVS];
@@ -30,11 +39,20 @@ extern int nbdevs;
 extern int nparts;
 
 void load_config(void);
-void link_parts(void);
 
 void open_udev(void);
 void scan_devs(void);
 void wait_udev(void);
+int any_missing_devs(void);
+int any_encrypted_parts(void);
 
 int match_dev(char* name);
 void match_part(char* name);
+int check_partitions(void);
+void link_parts(void);
+
+/* These must be provided externally */
+
+int error(const char* msg, char* arg, int err) __attribute__((noreturn));
+int check_keyindex(int keyidx);
+void quit(const char* msg, char* arg, int err) __attribute__((noreturn));

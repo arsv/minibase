@@ -1,6 +1,2 @@
 Disk encryption stuff.
 See ../../doc/dcrypt.txt on this is expected to be used.
-
-
-Note findblk is a simplified version of passblk, with lots
-of code shared between the two. Beware of ctags jumping across.

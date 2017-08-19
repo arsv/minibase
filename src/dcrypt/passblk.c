@@ -16,43 +16,10 @@ ERRLIST = {
 	REPORT(ENODEV), RESTASNUMBERS
 };
 
-struct bdev bdevs[NBDEVS];
-struct part parts[NPARTS];
-
-int nbdevs;
-int nparts;
-
 void quit(const char* msg, char* arg, int err)
 {
 	term_fini();
 	fail(msg, arg, err);
-}
-
-int any_missing_devs(void)
-{
-	struct bdev* bd;
-	struct part* pt;
-	
-	for(bd = bdevs; bd < bdevs + nbdevs; bd++)
-		if(!bd->here)
-			return 1;
-
-	for(pt = parts; pt < parts + nparts; pt++)
-		if(!pt->here)
-			return 1;
-
-	return 0;
-}
-
-int any_encrypted_parts(void)
-{
-	struct part* pt;
-
-	for(pt = parts; pt < parts + nparts; pt++)
-		if(pt->keyidx)
-			return 1;
-
-	return 0;
 }
 
 static void ask_pass_setup_dm(void)
@@ -87,11 +54,11 @@ int main(int argc, char** argv)
 		fail("no arguments allowed", NULL, 0);
 
 	load_config();
-	open_udev();
 
 	if(any_encrypted_parts())
 		open_dm_control();
 
+	open_udev();
 	term_init();
 
 	status("Scanning available block devices");

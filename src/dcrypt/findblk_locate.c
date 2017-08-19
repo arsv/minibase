@@ -2,6 +2,8 @@
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/dents.h>
+#include <sys/fsnod.h>
+#include <sys/symlink.h>
 #include <sys/pid.h>
 #include <sys/file.h>
 
@@ -9,9 +11,12 @@
 #include <format.h>
 #include <fail.h>
 
-#include "passblk.h"
+#include "config.h"
+#include "findblk.h"
 
 static int udev;
+
+/* Wait for udev events */
 
 void open_udev(void)
 {
@@ -94,6 +99,8 @@ void wait_udev(void)
 		recv_udev_event();
 }
 
+/* Scan for existing devices */
+
 static void foreach_dir_in(char* dir, void (*func)(char*, char*), char* base);
 
 static void check_part_ent(char* name, char* base)
@@ -175,3 +182,61 @@ void scan_devs(void)
 {
 	foreach_dir_in("/sys/block", check_dev_ent, NULL);
 }
+
+/* Link simple (non-encrypted) partitions */
+
+static void link_part(char* name, char* label)
+{
+	FMTBUF(lp, le, link, 100);
+	lp = fmtstr(lp, le, MAPDIR);
+	lp = fmtstr(lp, le, "/");
+	lp = fmtstr(lp, le, label);
+	FMTEND(lp);
+
+	FMTBUF(pp, pe, path, 100);
+	pp = fmtstr(pp, pe, "/dev/");
+	pp = fmtstr(pp, pe, name);
+	FMTEND(pp);
+
+	sys_symlink(path, link);
+}
+
+void link_parts(void)
+{
+	struct part* pt;
+
+	sys_mkdir(MAPDIR, 0755);
+
+	for(pt = parts; pt < parts + nparts; pt++)
+		link_part(pt->name, pt->label);
+}
+
+/* Check current state */
+
+int any_missing_devs(void)
+{
+	struct bdev* bd;
+	struct part* pt;
+	
+	for(bd = bdevs; bd < bdevs + nbdevs; bd++)
+		if(!bd->here)
+			return 1;
+
+	for(pt = parts; pt < parts + nparts; pt++)
+		if(!pt->here)
+			return 1;
+
+	return 0;
+}
+
+int any_encrypted_parts(void)
+{
+	struct part* pt;
+
+	for(pt = parts; pt < parts + nparts; pt++)
+		if(pt->keyidx)
+			return 1;
+
+	return 0;
+}
+

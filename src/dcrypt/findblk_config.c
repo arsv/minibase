@@ -21,9 +21,15 @@ struct ctx {
 	int devidx;
 };
 
+struct bdev bdevs[NBDEVS];
+struct part parts[NPARTS];
+
+int nbdevs;
+int nparts;
+
 static char smallbuf[1024];
 
-static void error(struct ctx* ctx, const char* msg, char* arg)
+static void parse_error(struct ctx* ctx, const char* msg, char* arg)
 {
 	FMTBUF(p, e, buf, 100);
 
@@ -55,7 +61,7 @@ void copy_sized(struct ctx* ctx, char* buf, int blen, int i)
 	int vlen = strlen(val);
 
 	if(vlen > blen - 1)
-		error(ctx, "argument too long", NULL);
+		parse_error(ctx, "argument too long", NULL);
 
 	memcpy(buf, val, vlen);
 	buf[vlen] = '\0';
@@ -72,7 +78,7 @@ void parse_kidx(struct ctx* ctx, int* dst, int i)
 		return;
 
 	if(!(p = parseint(ctx->args[i], &v)) || *p)
-		error(ctx, "integer value required", NULL);
+		parse_error(ctx, "integer value required", NULL);
 
 	*dst = v;
 }
@@ -80,9 +86,9 @@ void parse_kidx(struct ctx* ctx, int* dst, int i)
 static void add_dev_match(struct ctx* ctx, int type)
 {
 	if(nbdevs >= NBDEVS)
-		error(ctx, "too many block dev entries", NULL);
+		parse_error(ctx, "too many block dev entries", NULL);
 	if(ctx->argc != 2)
-		error(ctx, "invalid arguments", NULL);
+		parse_error(ctx, "invalid arguments", NULL);
 
 	ctx->devidx = nbdevs;
 
@@ -107,10 +113,13 @@ static void key_cid(struct ctx* ctx)
 
 static void key_part(struct ctx* ctx)
 {
+	int keyidx = 0;
+	int ret;
+
 	if(nparts >= NPARTS)
-		error(ctx, "too many partitions", NULL);
+		parse_error(ctx, "too many partitions", NULL);
 	if(ctx->argc < 3)
-		error(ctx, "invalid part arguments", NULL);
+		parse_error(ctx, "invalid part arguments", NULL);
 
 	struct part* pt = &parts[nparts++];
 
@@ -119,11 +128,20 @@ static void key_part(struct ctx* ctx)
 	pt->devidx = ctx->devidx;
 	copy_sized(ctx, pt->part, sizeof(pt->part), 1);
 	copy_sized(ctx, pt->label, sizeof(pt->label), 2);
-	parse_kidx(ctx, &pt->keyidx, 3);
+	parse_kidx(ctx, &keyidx, 3);
 	copy_sized(ctx, pt->fs, sizeof(pt->fs), 4);
 
-	if(pt->keyidx)
-		error(ctx, "encrypted partition", NULL);
+	if(!keyidx)
+		return;
+
+	if((ret = check_keyindex(keyidx))) {
+		if(ret == -ENOKEY)
+			parse_error(ctx, "key index out of range", NULL);
+		else
+			parse_error(ctx, "encrypted partition", NULL);
+	}
+
+	pt->keyidx = keyidx;
 }
 
 static const struct kwd {
@@ -148,7 +166,7 @@ static void handle_conf(struct ctx* ctx)
 		if(!strncmp(key, p->key, sizeof(p->key)))
 			return p->call(ctx);
 
-	error(ctx, "unknown keyword", key);
+	parse_error(ctx, "unknown keyword", key);
 }
 
 static void* mmap_area(int need)

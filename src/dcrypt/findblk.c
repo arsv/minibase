@@ -10,36 +10,14 @@
 
 ERRTAG = "findblk";
 
-struct bdev bdevs[NBDEVS];
-struct part parts[NPARTS];
-
-int nbdevs;
-int nparts;
-
-static void link_part(char* name, char* label)
+void quit(const char* msg, char* arg, int err)
 {
-	FMTBUF(lp, le, link, 100);
-	lp = fmtstr(lp, le, MAPDIR);
-	lp = fmtstr(lp, le, "/");
-	lp = fmtstr(lp, le, label);
-	FMTEND(lp);
-
-	FMTBUF(pp, pe, path, 100);
-	pp = fmtstr(pp, pe, "/dev/");
-	pp = fmtstr(pp, pe, name);
-	FMTEND(pp);
-
-	sys_symlink(path, link);
+	fail(msg, arg, err);
 }
 
-void link_parts(void)
+int check_keyindex(int kidx)
 {
-	struct part* pt;
-
-	sys_mkdir(MAPDIR, 0755);
-
-	for(pt = parts; pt < parts + nparts; pt++)
-		link_part(pt->name, pt->label);
+	return -EINVAL;
 }
 
 int main(int argc, char** argv)

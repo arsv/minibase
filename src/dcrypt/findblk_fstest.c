@@ -4,7 +4,7 @@
 #include <format.h>
 #include <util.h>
 
-#include "passblk.h"
+#include "findblk.h"
 
 /* IV-based passphrase validity test may be positive even if
    if passphrase is incorrect, especially if the test IV is short.

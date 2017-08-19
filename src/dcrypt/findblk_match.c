@@ -98,14 +98,22 @@ static int match(int fd, struct bdev* bd, char* name)
 	}
 }
 
+static void set_dev_name(struct bdev* bd, char* name)
+{
+	int nlen = strlen(name);
+
+	if(nlen > sizeof(bd->name) - 1)
+		quit("device name too long:", name, 0);
+
+	bd->here = 1;
+	memcpy(bd->name, name, nlen);
+	bd->name[nlen] = '\0';
+}
+
 int match_dev(char* name)
 {
 	struct bdev* bd;
-	int nlen = strlen(name);
 	int fd;
-
-	if(nlen > sizeof(bd->name) - 1)
-		return 0;
 
 	if((fd = open_dev_dir(name)) < 0)
 		return 0;
@@ -116,9 +124,7 @@ int match_dev(char* name)
 		if(!match(fd, bd, name))
 			continue;
 
-		bd->here = 1;
-		memcpy(bd->name, name, nlen);
-		bd->name[nlen] = '\0';
+		set_dev_name(bd, name);
 		break;
 	}
 
@@ -150,14 +156,25 @@ static int is_named_part_of(char* dev, char* part, char* name)
 	return 1;
 }
 
+static void set_part_name(struct part* pt, char* name)
+{
+	int nlen = strlen(name);
+
+	if(nlen > sizeof(pt->name) - 1)
+		quit("part name too long:", name, 0);
+
+	if(pt->here)
+		return;
+
+	pt->here = 1;
+	memcpy(pt->name, name, nlen);
+	pt->name[nlen] = '\0';
+}
+
 void match_part(char* name)
 {
 	struct part* pt;
 	struct bdev* bd;
-	int nlen = strlen(name);
-
-	if(nlen > sizeof(pt->name) - 1)
-		return;
 
 	for(pt = parts; pt < parts + nparts; pt++) {
 		bd = &bdevs[pt->devidx];
@@ -167,9 +184,7 @@ void match_part(char* name)
 		if(!is_named_part_of(bd->name, pt->part, name))
 			continue;
 
-		pt->here = 1;
-		memcpy(pt->name, name, nlen);
-		pt->name[nlen] = '\0';
+		set_part_name(pt, name);
 		break;
 	}
 }
