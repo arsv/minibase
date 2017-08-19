@@ -10,17 +10,13 @@
 #include "keytool.h"
 
 ERRTAG = "dektool";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(ENOTDIR), REPORT(EPERM), REPORT(EACCES),
-	REPORT(ELOOP), REPORT(ENOMEM), REPORT(EFAULT), REPORT(EEXIST),
-	RESTASNUMBERS
-};
 
-#define OPTS "actp"
+#define OPTS "actpf"
 #define OPT_a (1<<0)
 #define OPT_c (1<<1)
 #define OPT_t (1<<2)
 #define OPT_p (1<<3)
+#define OPT_f (1<<4)
 
 struct top {
 	int opts;
@@ -180,15 +176,17 @@ static void create(void)
 	char* name = shift_arg();
 	int size = 16;
 	int count = 1;
-	int total = sizeof(kf->salt) + sizeof(kf->iv) + count*size;
+	int force = use_opt(OPT_f);
 
 	message("Creating new keyfile:", name);
 
-	check_not_exists(name);
-
+	if(!force)
+		check_not_exists(name);
 	if(count_args())
 		count = shift_uint();
 	no_other_options();
+
+	int total = sizeof(kf->salt) + sizeof(kf->iv) + count*size;
 
 	if(total > sizeof(kf->buf))
 		fail("keyring size too large", NULL, 0);
@@ -196,7 +194,10 @@ static void create(void)
 	fill_key_data(kf, total);
 	prep_passphrase(kf);
 
-	write_keyfile(kf, name, O_CREAT | O_EXCL);
+	if(force)
+		write_keyfile(kf, name, O_CREAT | O_TRUNC);
+	else
+		write_keyfile(kf, name, O_CREAT | O_EXCL);
 }
 
 static void addkey(void)
