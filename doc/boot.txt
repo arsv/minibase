@@ -3,22 +3,17 @@ Booting the system with minibase
 Happy path only. Note some of the tools are not ready at the time of writing.
 
 * The kernel loads initrd, starts /linuxrc (msh script)
-* linuxrc runs waitdev to find the root partition
-	* waitdev starts udev and waits until relevant /dev links appears
-	* udev listens for events and runs blkid on new block devices
-	* blkid does it work and creates relevant links in /dev
-	* once done, waitdev shuts down udev
-* linuxrc sets up decryption for the root partition if necessary
-	* runs mini UI to prompt for user secret and derive the key
-	* UI runs cryptsetup to pass the key to the kernel
-* linuxrc mounts the root partition
+* linuxrc runs findblk or passblk to find system partitions
+	* passblk (or findblk) waits for devices to appear if necessary
+	* passblk prompts for passphrase and sets up disk encryption
+* linuxrc calls mount on all system partitions
 * linuxrc execs into switchroot
 
-* switchroot replaces initrd / with the real root
+* switchroot replaces initrd root with the real root
 	* moves mounts onto the real root
 	* cleans up initrd
 	* pivots the root
-* switchroot execs into /sbin/init (on the real root partition)
+* switchroot execs into /sbin/init on the real root partition
 
 * init is a simple executable (../src/init/init.c)
 * init sets up basic process environment
@@ -29,17 +24,17 @@ Happy path only. Note some of the tools are not ready at the time of writing.
 		* hwclock
 		* loadkeys, setfonts if necessary
 		* possibly iptables
-* init execs into /sbin/svmon
+* init execs into /sbin/super
 
-* svmon runs as pid 1 for the whole time the system is up
-* svmon (re)spawns all long-running services
+* super runs as pid 1 for the whole time the system is up
+* super (re)spawns all long-running services
 	* udevd
 	* wimon
 	* vtmux
 	...
-* on SIGTERM/SIGINT/svctl request, svmon kills all spawned services
+* on SIGTERM/SIGINT/svc request, super kills all spawned services
   and waits for them to terminate
-* svmon execs into /sbin/reboot
+* super execs into /sbin/reboot
 
 * reboot syncs, umounts all mounted partitions and calls reboot(2)
 * that's all really, this part is not scripted in any way
