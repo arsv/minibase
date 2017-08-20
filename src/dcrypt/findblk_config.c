@@ -83,7 +83,7 @@ void parse_kidx(struct ctx* ctx, int* dst, int i)
 	*dst = v;
 }
 
-static void add_dev_match(struct ctx* ctx, int type)
+static struct bdev* add_dev_match(struct ctx* ctx, int type)
 {
 	if(nbdevs >= NBDEVS)
 		parse_error(ctx, "too many block dev entries", NULL);
@@ -98,22 +98,68 @@ static void add_dev_match(struct ctx* ctx, int type)
 
 	bd->type = type;
 
+	return bd;
+}
+
+static void add_text_id(struct ctx* ctx, int type)
+{
+	struct bdev* bd;
+
+	if(!(bd = add_dev_match(ctx, type)))
+		return;
+
 	copy_sized(ctx, bd->id, sizeof(bd->id), 1);
+}
+
+static void add_hex_id(struct ctx* ctx, int type, int len)
+{
+	struct bdev* bd;
+
+	if(!(bd = add_dev_match(ctx, type)))
+		return;
+
+	if(ctx->argc != 2)
+		parse_error(ctx, "single argument required", NULL);
+
+	char* q = ctx->args[1];
+
+	char* s = bd->id;
+	char* p = bd->id;
+	char* e = bd->id + sizeof(bd->id) - 1;
+
+	for(; *q && p < e; q++)
+		switch(*q) {
+			case '0' ... '9':
+			case 'A' ... 'F': *p++ = *q; break;
+			case 'a' ... 'f': *p++ = 'A' + (*q - 'a'); break;
+			case '-': if((p - s) % 2 == 0) break;
+			default: parse_error(ctx, "invalid hex value", NULL);
+		}
+
+	if(p - s != 2*len)
+		parse_error(ctx, "incorrect id length", NULL);
+
+	*p++ = '\0';
 }
 
 static void key_serial(struct ctx* ctx)
 {
-	add_dev_match(ctx, BY_PG80);
+	add_text_id(ctx, BY_PG80);
 }
 
 static void key_cid(struct ctx* ctx)
 {
-	add_dev_match(ctx, BY_CID);
+	add_text_id(ctx, BY_CID);
 }
 
 static void key_mbr(struct ctx* ctx)
 {
-	add_dev_match(ctx, BY_MBR);
+	add_hex_id(ctx, BY_MBR, 4);
+}
+
+static void key_gpt(struct ctx* ctx)
+{
+	add_hex_id(ctx, BY_GPT, 16);
 }
 
 static void key_part(struct ctx* ctx)
@@ -156,7 +202,8 @@ static const struct kwd {
 	{ "part",   key_part   },
 	{ "serial", key_serial },
 	{ "cid",    key_cid    },
-	{ "mbr",    key_mbr    }
+	{ "mbr",    key_mbr    },
+	{ "gpt",    key_gpt    }
 };
 
 static void handle_conf(struct ctx* ctx)

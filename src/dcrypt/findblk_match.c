@@ -1,4 +1,5 @@
 #include <sys/file.h>
+#include <sys/fcntl.h>
 
 #include <format.h>
 #include <string.h>
@@ -104,6 +105,8 @@ static int cmple4(void* got, char* req)
 	return strcmp(buf, req);
 }
 
+static const char mbrtag[] = { 0x55, 0xAA };
+
 static int has_mbr(char* dev, char* id)
 {
 	int fd, rd, ret = 0;
@@ -116,12 +119,94 @@ static int has_mbr(char* dev, char* id)
 	if(rd < sizeof(buf))
 		goto out;
 
-	if(memcmp(buf + 0x1FE, "\x55\xAA", 2))
+	if(memcmp(buf + 0x1FE, mbrtag, sizeof(mbrtag)))
 		goto out;
 	if(cmple4(buf + 0x1B8, id))
 		goto out;
 
 	ret = 1;
+out:
+	sys_close(fd);
+	return ret;
+}
+
+static const char efitag[] = "EFI PART";
+
+static int load_gpt_at(int fd, int off, void* buf, int size)
+{
+	int ret;
+
+	if((ret = sys_lseek(fd, off, SEEK_SET)) < 0)
+		return 0;
+	if((ret = sys_read(fd, buf, size)) < 0)
+		return 0;
+	if(ret < size)
+		return 0;
+
+	if(memcmp(buf, efitag, sizeof(efitag) - 1))
+		return 0;
+
+	return 1;
+}
+
+static char* fmtlei32(char* p, char* e, void* buf)
+{
+	uint8_t* v = buf;
+
+	p = fmtbyte(p, e, v[3]);
+	p = fmtbyte(p, e, v[2]);
+	p = fmtbyte(p, e, v[1]);
+	p = fmtbyte(p, e, v[0]);
+
+	return p;
+}
+
+static char* fmtlei16(char* p, char* e, void* buf)
+{
+	uint8_t* v = buf;
+
+	p = fmtbyte(p, e, v[1]);
+	p = fmtbyte(p, e, v[0]);
+
+	return p;
+}
+
+static int check_gpt_guid(void* buf, char* id)
+{
+	/* The first 4 bytes of GUID are stored as little-endian int32,
+	   the following 4 as two little-endian int16-s, and the rest is
+	   stored as is. Why? Because fuck you that's why! -- somebody
+	   at the GPT committee, probably.  */
+
+	FMTBUF(p, e, guid, 32 + 2);
+	p = fmtlei32(p, e, buf + 0x38 + 0);
+	p = fmtlei16(p, e, buf + 0x38 + 4);
+	p = fmtlei16(p, e, buf + 0x38 + 6);
+	p = fmtbytes(p, e, buf + 0x38 + 8, 8);
+	FMTEND(p);
+
+	return strncmp(guid, id, 32);
+}
+
+static int has_gpt(char* dev, char* id)
+{
+	int fd, ret = 0;
+	char buf[0x64];
+
+	if((fd = open_dev(dev)) < 0)
+		return 0;
+
+	if(load_gpt_at(fd, 512, buf, sizeof(buf)))
+		goto got;
+	if(load_gpt_at(fd, 4096, buf, sizeof(buf)))
+		goto got;
+	goto out;
+
+got:
+	if(check_gpt_guid(buf, id))
+		goto out;
+	ret = 1;
+
 out:
 	sys_close(fd);
 	return ret;
@@ -134,6 +219,7 @@ static int matches(struct bdev* bd, char* dev)
 		case BY_PG80: return has_pg80(dev, bd->id);
 		case BY_CID:  return has_cid(dev, bd->id);
 		case BY_MBR:  return has_mbr(dev, bd->id);
+		case BY_GPT:  return has_gpt(dev, bd->id);
 		default: return 0;
 	}
 }

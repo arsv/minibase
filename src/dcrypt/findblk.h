@@ -12,6 +12,7 @@
 #define BY_PG80 1
 #define BY_CID  2
 #define BY_MBR  3
+#define BY_GPT  4
 
 struct bdev {
 	int type;
