@@ -21,7 +21,7 @@ Some tools are missing, and some still need work.
     process and service startup [usable].
   * Early-stage boot utils (switchroot, kmod, mount).
 
-  * Non-encrypting block device locator (findblk) [usable?]
+  * Non-encrypted block device locator (findblk) [usable?]
   * Block device locator and passphrase prompt tool (passblk) [partial]
   * Support tooling for disc encryption (dektool, dmcrypt) [usable?]
   
