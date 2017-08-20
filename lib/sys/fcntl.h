@@ -2,6 +2,10 @@
 #include <bits/types.h>
 #include <bits/fcntl.h>
 
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 inline static long sys_fcntl(int fd, int cmd)
 {
 	return syscall2(__NR_fcntl, fd, cmd);
