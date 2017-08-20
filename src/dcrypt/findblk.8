@@ -1,13 +1,9 @@
 .TH findblk 8
 '''
 .SH NAME
-\fBfindblk\fR \- locate non-enrypted block devices
+\fBfindblk\fR \- locate block devices
 '''
 .SH DESCRIPTION
-Kernel device names for block devices are not persistent and may
-change across reboots. To get reliable mounts, identification data
-from the device itself must be used to locate the partitions to mount.
-.P
 \fBfindblk\fR reads \fBblktab\fR(5) and attempts to locate devices
 and partitions described there. Each partition named \fIlabel\fR in blktab
 then gets a symlink /dev/mapper/\fIlabel\fR pointing to its current kernel
@@ -15,18 +11,25 @@ devices (like say /dev/sda1). Subsequent \fBmount\fR(8) commands are
 expected to use these symlinks instead of the kernel names.
 .P
 \fBfindblk\fR scans devices already present in the system, and if necessary
-wait for devices to appear. If all partitions have been located, \fBfindblk\fR
+waits for devices to appear. If all partitions have been located, \fBfindblk\fR
 exits successfully and the system may proceed to mount them.
 '''
 .SH USAGE
-This tool should be run from initrd after the modules have been loaded.
+This tool should be run from initrd after the modules needed for the listed
+block devices have been loaded.
+'''
+.SH FILES
+.IP "/etc/blktab" 4
+List of block devices and partitions to locate.
+.P
+\fBfindblk\fR also needs /dev and /sys mounted.
 '''
 .SH NOTES
 \fBfindblk\fR is unable to recognize a situation when a devices is present
 but some of its partitions are missing; it will keep waiting for the missing
 partitions.
 .P
-\fBfindblk\fR cannot handle encrypted parititions. Use \fBpassblk\fR(8) instead.
+\fBfindblk\fR cannot handle encrypted partitions. Use \fBpassblk\fR(8) instead.
 '''
 .SH SEE ALSO
-\fBpassblk\fR(8), \fBblktab\fR(5)
+\fBpassblk\fR(8), \fBblktab\fR(5).

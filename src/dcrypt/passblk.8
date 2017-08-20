@@ -4,12 +4,32 @@
 \fBpassblk\fR \- passphrase prompt and block device locator
 '''
 .SH DESCRIPTION
-This interactive tool unlocks encrypted partitions early during
-boot, and provides persistent names for the subsequent \fBmount\fR(8)
-commands.
+\fBpassblk\fR reads \fBblktab\fR(5) and attempts to locate devices
+and partitions described there. Each partition named \fIlabel\fR in blktab
+then gets a symlink /dev/mapper/\fIlabel\fR pointing to its current kernel
+devices (like say /dev/sda1 or /dev/dm-1). Subsequent \fBmount\fR(8) commands
+are expected to use these symlinks instead of the kernel names.
+.P
+\fBpassblk\fR scans devices already present in the system, and if necessary
+waits for devices to appear. If all partitions have been located, \fBpassblk\fR
+exits successfully and the system may proceed to mount them.
+.P
+If any partitions are listed as encrypted, \fBpassblk\fR presents the user
+with a passphrase prompt. Once the correct passphrase has been entered
+and the keys unwrapped, \fBpassblk\fR sets up relevant dm-crypt devices so
+that /dev/mapper/\fIlabel\fR symlinks would be usable for mounting them.
 '''
 .SH USAGE
-This tool should be run from initrd after the modules have been loaded.
+This tool should be run from initrd after the modules needed for the listed
+block devices have been loaded.
+'''
+.SH FILES
+.IP "/etc/blktab" 4
+List of block devices and partitions to locate.
+.IP "/etc/dekeys" 4
+Disk encryption keys, NIST-wrapped. See \fBdektool\fR(1).
+.P
+\fBpassblk\fR also needs /dev and /sys mounted.
 '''
 .SH NOTES
 \fBpassblk\fR is unable to recognize a situation when a devices is present
@@ -17,4 +37,4 @@ but some of its partitions are missing; it will keep waiting for the missing
 partitions.
 '''
 .SH SEE ALSO
-\fBfindblk\fR(8), \fBblktab\fR(5), \fBdektool\fR(1), \fBdmcrypt\fR(8).
+\fBfindblk\fR(8), \fBblktab\fR(5), \fBdektool\fR(1).
