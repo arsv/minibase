@@ -64,7 +64,7 @@ static const struct fs {
 	{ "iso9660", test_iso9660 }
 };
 
-static int open_device(struct part* pt)
+static int open_part(struct part* pt)
 {
 	char* pref = "/dev/";
 	char* name = pt->name;
@@ -91,7 +91,7 @@ static int check_part(struct part* pt)
 	int fd;
 	const struct fs* p;
 	
-	fd = open_device(pt);
+	fd = open_part(pt);
 
 	for(p = tests; p < tests + ARRAY_SIZE(tests); p++)
 		if(!strncmp(p->name, pt->fs, sizeof(p->name)))

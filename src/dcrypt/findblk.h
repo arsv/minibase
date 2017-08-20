@@ -11,6 +11,7 @@
 #define BY_NAME 0
 #define BY_PG80 1
 #define BY_CID  2
+#define BY_MBR  3
 
 struct bdev {
 	int type;
@@ -50,8 +51,6 @@ int match_dev(char* name);
 void match_part(char* name);
 int check_partitions(void);
 void link_parts(void);
-
-/* These must be provided externally */
 
 int error(const char* msg, char* arg, int err) __attribute__((noreturn));
 int check_keyindex(int keyidx);

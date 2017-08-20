@@ -111,6 +111,11 @@ static void key_cid(struct ctx* ctx)
 	add_dev_match(ctx, BY_CID);
 }
 
+static void key_mbr(struct ctx* ctx)
+{
+	add_dev_match(ctx, BY_MBR);
+}
+
 static void key_part(struct ctx* ctx)
 {
 	int keyidx = 0;
@@ -150,7 +155,8 @@ static const struct kwd {
 } kwds[] = {
 	{ "part",   key_part   },
 	{ "serial", key_serial },
-	{ "cid",    key_cid    }
+	{ "cid",    key_cid    },
+	{ "mbr",    key_mbr    }
 };
 
 static void handle_conf(struct ctx* ctx)

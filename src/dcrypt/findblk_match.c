@@ -4,28 +4,30 @@
 #include <string.h>
 #include "findblk.h"
 
-static int open_dev_dir(char* name)
+static int open_dev(char* name)
 {
-	char* pref = "/sys/block/";
-	char* post = "/device";
-	int nlen = strlen(name);
+	char* pref = "/dev/";
 
-	FMTBUF(p, e, path, 30 + nlen);
-
-	if(pref) p = fmtstr(p, e, pref);
+	FMTBUF(p, e, path, strlen(pref) + strlen(name) + 4);
+	p = fmtstr(p, e, pref);
 	p = fmtstr(p, e, name);
-	if(post) p = fmtstr(p, e, post);
-
 	FMTEND(p);
 
-	return sys_open(path, O_DIRECTORY);
+	return sys_open(path, O_RDONLY);
 }
 
-static int read_entry(int at, const char* entry, char* buf, int len)
+static int read_entry(char* dev, const char* entry, char* buf, int len)
 {
 	int fd, rd;
 
-	if((fd = sys_openat(at, entry, O_RDONLY)) < 0)
+	FMTBUF(p, e, path, strlen(dev) + strlen(entry) + 50);
+	p = fmtstr(p, e, "/sys/block/");
+	p = fmtstr(p, e, dev);
+	p = fmtstr(p, e, "/device/");
+	p = fmtstr(p, e, entry);
+	FMTEND(p);
+
+	if((fd = sys_open(path, O_RDONLY)) < 0)
 		return fd;
 
 	rd = sys_read(fd, buf, len-1);
@@ -57,12 +59,12 @@ static char* trim(char* p)
 	return p;
 }
 
-static int compare_entry(int at, char* id, const char* ent, int off)
+static int compare_sys_entry(char* dev, char* id, const char* ent, int off)
 {
 	char buf[100];
 	int rd;
 	
-	if((rd = read_entry(at, ent, buf, sizeof(buf))) < 0)
+	if((rd = read_entry(dev, ent, buf, sizeof(buf))) < 0)
 		return 0;
 	if(rd < off)
 		return 0;
@@ -73,27 +75,65 @@ static int compare_entry(int at, char* id, const char* ent, int off)
 
 }
 
-static int by_name(char* id, char* name)
+static int is_named(char* dev, char* id)
 {
-	return !strcmp(id, name);
+	return !strcmp(dev, id);
 }
 
-static int by_pg80(int fd, char* id)
+static int has_pg80(char* dev, char* id)
 {
-	return compare_entry(fd, id, "vpd_pg80", 4);
+	return compare_sys_entry(dev, id, "vpd_pg80", 4);
 }
 
-static int by_cid(int fd, char* id)
+static int has_cid(char* dev, char* id)
 {
-	return compare_entry(fd, id, "cid", 0);
+	return compare_sys_entry(dev, id, "cid", 0);
 }
 
-static int match(int fd, struct bdev* bd, char* name)
+static int cmple4(void* got, char* req)
+{
+	uint8_t* bp = got;
+
+	FMTBUF(p, e, buf, 10);
+	p = fmtbyte(p, e, bp[3]);
+	p = fmtbyte(p, e, bp[2]);
+	p = fmtbyte(p, e, bp[1]);
+	p = fmtbyte(p, e, bp[0]);
+	FMTEND(p);
+
+	return strcmp(buf, req);
+}
+
+static int has_mbr(char* dev, char* id)
+{
+	int fd, rd, ret = 0;
+	char buf[0x200];
+
+	if((fd = open_dev(dev)) < 0)
+		return 0;
+	if((rd = sys_read(fd, buf, sizeof(buf))) < 0)
+		goto out;
+	if(rd < sizeof(buf))
+		goto out;
+
+	if(memcmp(buf + 0x1FE, "\x55\xAA", 2))
+		goto out;
+	if(cmple4(buf + 0x1B8, id))
+		goto out;
+
+	ret = 1;
+out:
+	sys_close(fd);
+	return ret;
+}
+
+static int matches(struct bdev* bd, char* dev)
 {
 	switch(bd->type) {
-		case BY_NAME: return by_name(bd->id, name);
-		case BY_PG80: return by_pg80(fd, bd->id);
-		case BY_CID:  return by_cid(fd, bd->id);
+		case BY_NAME: return is_named(dev, bd->id);
+		case BY_PG80: return has_pg80(dev, bd->id);
+		case BY_CID:  return has_cid(dev, bd->id);
+		case BY_MBR:  return has_mbr(dev, bd->id);
 		default: return 0;
 	}
 }
@@ -113,25 +153,24 @@ static void set_dev_name(struct bdev* bd, char* name)
 int match_dev(char* name)
 {
 	struct bdev* bd;
-	int fd;
-
-	if((fd = open_dev_dir(name)) < 0)
-		return 0;
 
 	for(bd = bdevs; bd < bdevs + nbdevs; bd++) {
 		if(bd->here)
 			continue;
-		if(!match(fd, bd, name))
+		if(!matches(bd, name))
 			continue;
-
 		set_dev_name(bd, name);
 		break;
 	}
 
-	sys_close(fd);
-
 	return (bd < bdevs + nbdevs) ? 1 : 0;
 }
+
+/* Partitions are only matched by their device name: when "sda1" appears
+   in the system, we check if there's a partition 1 entry on an pre-matched
+   device named "sda". No /sys check of any kind are performed. Filesystem
+   type is checked later, possibly after decrypting the devices, and that's
+   a fatal check, not a matching one. */
 
 static int isdigit(int c)
 {
