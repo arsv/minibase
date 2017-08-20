@@ -1,0 +1,61 @@
+.TH dmcrypt 8
+'''
+.SH NAME
+\fBdmcrypt\fR \- set up encryption layer for block devices
+'''
+.SH SYNOPSIS
+.IP "\fBdmcrypt\fR \fIkeyfile\fR \fIdevspec\fR \fIdevspec\fR ..." 4
+Add dm-crypt layer for each \fIdevspec\fR using keys from \fIkeyfile\fR.
+.IP "\fBdmcrypt\fR \fB-d\fR \fIdevice\fR \fIdevice\fR ..." 4
+Remove dm-crypt layer for given devices.
+.P
+Device label and key index may be specified along with device name in
+\fIdevspec\fR like this:
+.P
+.nf
+	[\fIK\fB:\fR]\fIdevice\fR[\fB:\fIlabel\fR]
+.fi
+.P
+Specifying plain device names \fIdev1\fR \fIdev2\fR \fIdev3\fR results
+in the label matching device base name and the keys from \fIkeyfile\fR
+being used sequentially.
+'''
+.SH DESCRIPTION
+Access to encrypted device is established by creating a virtual block
+device, specifically a device-mapper (i.e. a software raid) with a single
+dm-crypt target covering the whole base device. The new device typically
+gets /dev/dm-\fIN\fR node, and a symlink /dev/mapper/\fIlabel\fR pointing
+to it. Unless specified otherwise, the base device name is used for
+\fIlabel\fR, so that /dev/mapper/\fIsdb1\fR would be the access node for
+encrypted /dev/\fIsdb1\fR.
+.P
+Check \fBdektool\fR(8) on how to deal with \fIkeyfile\fR. The keys are always
+stored wrapped, and \fBdmcrypt\fR will ask for passphrase.
+'''
+.SH USAGE
+This tool should be used for initial setup of disk encryption. It is not meant
+for routine operation, see \fBpassblk\fR(8) for that. Typical sequence should
+look like this:
+.P
+.nf
+	# 1. Choose device(s) to set up, for instance sdb1 sdb2
+	# 2. Generate as many keys as needed, two in this case
+	\fBdektool\fR \fB-c\fR keyfile 2
+	# 3. Create dm-crypt devices
+	\fBdmcrypt\fR keyfile sdb1 sdb2
+	# 4. Create filesystems
+	\fBmkfs.ext4\fR /dev/mapper/sdb1
+	\fBmkfs.ext4\fR /dev/mapper/sdb2
+	# 5. Mount dm-crypt devices
+	\fBmkdir\fR /mnt/sdb1 /mnt/sdb2
+	\fBmount\fR /mnt/sdb1 /dev/mapper/sdb1 ext4
+	\fBmount\fR /mnt/sdb2 /dev/mapper/sdb2 ext4
+	# 6. Proceed to copy necessary files
+	# 7. Umount encrypted devices
+	\fBmount\fR \fB-u\fR /mnt/sdb1 /mnt/sdb2
+	\fBsync\fR
+	# 8. Add relevant entries to \fBblktab\fR(5) to mount sdb1
+.fi
+'''
+.SH SEE ALSO
+\fBdektool\fR(1), \fBmount\fR(8), \fBpassblk\fR(8), \fBblktab\fR(5).
