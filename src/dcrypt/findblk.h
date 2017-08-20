@@ -8,29 +8,36 @@
 #define NBDEVS 10
 #define NPARTS 20
 
+/* bdev.how */
 #define BY_NAME 0
 #define BY_PG80 1
 #define BY_CID  2
 #define BY_MBR  3
 #define BY_GPT  4
 
+/* bdev.mode */
+#define NONE    0
+#define PARTS   1
+#define WHOLE   2
+
 struct bdev {
-	int type;
-	int here;
+	short how;
+	short mode;
+	short here;
 	char id[50];
 	char name[30];
 };
 
 struct part {
-	int devidx;
-	int here;
+	short devidx;
+	short here;
 	char part[10];
 	char label[20];
+	short keyidx;
 	char fs[10];
 	char name[30];
 	uint64_t rdev;
 	uint64_t size;
-	int keyidx;
 	int fd;
 };
 

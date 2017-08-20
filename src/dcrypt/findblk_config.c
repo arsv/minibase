@@ -83,7 +83,7 @@ void parse_kidx(struct ctx* ctx, int* dst, int i)
 	*dst = v;
 }
 
-static struct bdev* add_dev_match(struct ctx* ctx, int type)
+static struct bdev* add_dev_match(struct ctx* ctx, int how)
 {
 	if(nbdevs >= NBDEVS)
 		parse_error(ctx, "too many block dev entries", NULL);
@@ -96,7 +96,7 @@ static struct bdev* add_dev_match(struct ctx* ctx, int type)
 
 	memzero(bd, sizeof(*bd));
 
-	bd->type = type;
+	bd->how = how;
 
 	return bd;
 }
@@ -162,25 +162,9 @@ static void key_gpt(struct ctx* ctx)
 	add_hex_id(ctx, BY_GPT, 16);
 }
 
-static void key_part(struct ctx* ctx)
+static void set_key_index(struct ctx* ctx, struct part* pt, int keyidx)
 {
-	int keyidx = 0;
 	int ret;
-
-	if(nparts >= NPARTS)
-		parse_error(ctx, "too many partitions", NULL);
-	if(ctx->argc < 3)
-		parse_error(ctx, "invalid part arguments", NULL);
-
-	struct part* pt = &parts[nparts++];
-
-	memzero(pt, sizeof(*pt));
-
-	pt->devidx = ctx->devidx;
-	copy_sized(ctx, pt->part, sizeof(pt->part), 1);
-	copy_sized(ctx, pt->label, sizeof(pt->label), 2);
-	parse_kidx(ctx, &keyidx, 3);
-	copy_sized(ctx, pt->fs, sizeof(pt->fs), 4);
 
 	if(!keyidx)
 		return;
@@ -195,11 +179,75 @@ static void key_part(struct ctx* ctx)
 	pt->keyidx = keyidx;
 }
 
+static struct part* add_part_entry(struct ctx* ctx, int mode)
+{
+	if(nparts >= NPARTS)
+		parse_error(ctx, "too many partitions", NULL);
+	if(ctx->devidx < 0)
+		parse_error(ctx, "partition without base device", NULL);
+
+	struct bdev* bd = &bdevs[ctx->devidx];
+
+	if(!bd->mode)
+		bd->mode = mode;
+	else if(bd->mode == PARTS && mode == PARTS)
+		; /* it's ok */
+	else if(mode == WHOLE)
+		parse_error(ctx, "duplicate whole device entry", NULL);
+	else
+		parse_error(ctx, "cannot mix parts and whole", NULL);
+
+	bd->mode = mode;
+
+	struct part* pt = &parts[nparts++];
+	memzero(pt, sizeof(*pt));
+
+	pt->devidx = ctx->devidx;
+
+	return pt;
+}
+
+static void key_part(struct ctx* ctx)
+{
+	int keyidx = 0;
+	struct part* pt;
+
+	if(!(pt = add_part_entry(ctx, PARTS)))
+		return;
+	if(ctx->argc < 3 || ctx->argc > 5)
+		parse_error(ctx, "invalid arguments", NULL);
+
+	copy_sized(ctx, pt->part, sizeof(pt->part), 1);
+	copy_sized(ctx, pt->label, sizeof(pt->label), 2);
+	parse_kidx(ctx, &keyidx, 3);
+	copy_sized(ctx, pt->fs, sizeof(pt->fs), 4);
+
+	set_key_index(ctx, pt, keyidx);
+}
+
+static void key_whole(struct ctx* ctx)
+{
+	int keyidx = 0;
+	struct part* pt;
+
+	if(!(pt = add_part_entry(ctx, WHOLE)))
+		return;
+	if(ctx->argc < 2 || ctx->argc > 4)
+		parse_error(ctx, "invalid arguments", NULL);
+
+	copy_sized(ctx, pt->label, sizeof(pt->label), 1);
+	parse_kidx(ctx, &keyidx, 2);
+	copy_sized(ctx, pt->fs, sizeof(pt->fs), 3);
+
+	set_key_index(ctx, pt, keyidx);
+}
+
 static const struct kwd {
 	char key[8];
 	void (*call)(struct ctx* ctx);
 } kwds[] = {
 	{ "part",   key_part   },
+	{ "whole",  key_whole  },
 	{ "serial", key_serial },
 	{ "cid",    key_cid    },
 	{ "mbr",    key_mbr    },

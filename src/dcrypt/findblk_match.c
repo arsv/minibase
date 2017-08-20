@@ -5,6 +5,70 @@
 #include <string.h>
 #include "findblk.h"
 
+/* Partitions are only matched by their device name: when "sda1" appears
+   in the system, we check if there's a partition 1 entry on an pre-matched
+   device named "sda". No /sys check of any kind are performed. Filesystem
+   type is checked later, possibly after decrypting the devices, and that's
+   a fatal check, not a matching one. */
+
+static int isdigit(int c)
+{
+	return (c >= '0' && c <= '9');
+}
+
+static int is_named_part_of(char* dev, char* part, char* name)
+{
+	int dl = strlen(dev);
+	int nl = strlen(name);
+
+	if(dl > nl)
+		return 0;
+	if(strncmp(name, dev, dl))
+		return 0;
+
+	if(isdigit(dev[dl-1]) && name[dl] == 'p')
+		dl++;
+	if(strcmp(name + dl, part))
+		return 0;
+
+	return 1;
+}
+
+static void set_part_name(struct part* pt, char* name)
+{
+	int nlen = strlen(name);
+
+	if(nlen > sizeof(pt->name) - 1)
+		quit("part name too long:", name, 0);
+
+	if(pt->here)
+		return;
+
+	pt->here = 1;
+	memcpy(pt->name, name, nlen);
+	pt->name[nlen] = '\0';
+}
+
+void match_part(char* name)
+{
+	struct part* pt;
+	struct bdev* bd;
+
+	for(pt = parts; pt < parts + nparts; pt++) {
+		bd = &bdevs[pt->devidx];
+
+		if(pt->here || !bd->here)
+			continue;
+		if(!is_named_part_of(bd->name, pt->part, name))
+			continue;
+
+		set_part_name(pt, name);
+		break;
+	}
+}
+
+/* The rest is device matching code */
+
 static int open_dev(char* name)
 {
 	char* pref = "/dev/";
@@ -214,7 +278,7 @@ out:
 
 static int matches(struct bdev* bd, char* dev)
 {
-	switch(bd->type) {
+	switch(bd->how) {
 		case BY_NAME: return is_named(dev, bd->id);
 		case BY_PG80: return has_pg80(dev, bd->id);
 		case BY_CID:  return has_cid(dev, bd->id);
@@ -236,6 +300,15 @@ static void set_dev_name(struct bdev* bd, char* name)
 	bd->name[nlen] = '\0';
 }
 
+static void set_whole(int devidx, char* name)
+{
+	struct part* pt;
+
+	for(pt = parts; pt < parts + nparts; pt++)
+		if(pt->devidx == devidx && !pt->name[0])
+			set_part_name(pt, name);
+}
+
 int match_dev(char* name)
 {
 	struct bdev* bd;
@@ -245,71 +318,14 @@ int match_dev(char* name)
 			continue;
 		if(!matches(bd, name))
 			continue;
+
 		set_dev_name(bd, name);
+
+		if(bd->mode == WHOLE)
+			set_whole(bd - bdevs, name);
+
 		break;
 	}
 
 	return (bd < bdevs + nbdevs) ? 1 : 0;
-}
-
-/* Partitions are only matched by their device name: when "sda1" appears
-   in the system, we check if there's a partition 1 entry on an pre-matched
-   device named "sda". No /sys check of any kind are performed. Filesystem
-   type is checked later, possibly after decrypting the devices, and that's
-   a fatal check, not a matching one. */
-
-static int isdigit(int c)
-{
-	return (c >= '0' && c <= '9');
-}
-
-static int is_named_part_of(char* dev, char* part, char* name)
-{
-	int dl = strlen(dev);
-	int nl = strlen(name);
-
-	if(dl > nl)
-		return 0;
-	if(strncmp(name, dev, dl))
-		return 0;
-
-	if(isdigit(dev[dl-1]) && name[dl] == 'p')
-		dl++;
-	if(strcmp(name + dl, part))
-		return 0;
-
-	return 1;
-}
-
-static void set_part_name(struct part* pt, char* name)
-{
-	int nlen = strlen(name);
-
-	if(nlen > sizeof(pt->name) - 1)
-		quit("part name too long:", name, 0);
-
-	if(pt->here)
-		return;
-
-	pt->here = 1;
-	memcpy(pt->name, name, nlen);
-	pt->name[nlen] = '\0';
-}
-
-void match_part(char* name)
-{
-	struct part* pt;
-	struct bdev* bd;
-
-	for(pt = parts; pt < parts + nparts; pt++) {
-		bd = &bdevs[pt->devidx];
-
-		if(pt->here || !bd->here)
-			continue;
-		if(!is_named_part_of(bd->name, pt->part, name))
-			continue;
-
-		set_part_name(pt, name);
-		break;
-	}
 }
