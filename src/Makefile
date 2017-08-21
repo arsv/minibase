@@ -12,6 +12,8 @@ subdirs = boot cmdops compat dcrypt events init msh net user wifi
 define subcmd
 $1 = $$(patsubst %,$1-%,$$(subdirs))
 
+.SILENT: $$(patsubst %,$1-%,$$(subdirs))
+
 $$($1): $1-%:
 	$$(MAKE) -C $$* $2
 endef

@@ -2,18 +2,18 @@ default: all.a
 
 include rules.mk
 
-define depends
-$1: $2
-endef
-
 define subdir
 srcs-$1 = $$(sort $(wildcard $2/*.$3))
 objs-$1 = $$(patsubst %.$3,%.o,$$(srcs-$1))
 
 $$(foreach file,$$(srcs-$1),\
-	$$(eval $$(call depends,$$(file:.$3=.o),$$(file))))
+	$$(eval $$(file:.$3=.o): $$(file)))
 
-$$(objs-$1):
+$$(objs-$1): build-$2
+
+.SILENT: build-$2
+
+build-$2: $$(srcs-$1)
 	$$(MAKE) -C $2
 
 objs += $$(objs-$1)
@@ -37,4 +37,4 @@ $(eval $(call libdir,util))
 all.a: $(objs)
 	$(AR) cr $@ $^
 
-clean += all.a
+clean += */stamp all.a

@@ -2,8 +2,6 @@
 
 include config.mk
 
-MAKEFLAGS += --no-print-directory
-
 all: libs build
 
 libs: lib/all.a
@@ -26,3 +24,4 @@ test:
 	$(MAKE) -C test run
 
 .PHONY: test
+.SILENT: build lib/all.a clean-lib clean-src clean-test
