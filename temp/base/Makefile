@@ -1,7 +1,3 @@
-/ = ../../
+also = auxvec dumpenv sigact
 
-include $/config.mk
-
-bin = auxvec dumpenv sigact
-
-include $/common.mk
+include ../rules.mk

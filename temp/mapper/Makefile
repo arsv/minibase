@@ -1,7 +1,3 @@
-/ = ../../
+also = create remove
 
-include $/config.mk
-
-bin = create remove
-
-include $/common.mk
+include ../rules.mk

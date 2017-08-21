@@ -1,4 +1,4 @@
-#include <bits/ioctl/tty.h>
+#include <bits/ioctl/vt.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 

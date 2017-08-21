@@ -1,5 +1,6 @@
 #include <crypto/sha1.h>
 #include <format.h>
+#include <printf.h>
 #include <string.h>
 
 /* PTK derivation playground */
@@ -41,12 +42,12 @@ void dump(char* tag, uint8_t* key, int len)
 {
 	int i;
 
-	eprintf("%s: ", tag);
+	tracef("%s: ", tag);
 
 	for(i = 0; i < len; i++)
-		eprintf("%02X ", key[i]);
+		tracef("%02X ", key[i]);
 
-	eprintf("\n");
+	tracef("\n");
 }
 
 void PRF384(uint8_t out[60], uint8_t key[32], char* str,
@@ -116,5 +117,5 @@ void pmk_to_ptk()
 int main(void)
 {
 	pmk_to_ptk();
-
+	return 0;
 }

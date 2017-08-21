@@ -1,7 +1,3 @@
-/ = ../../
+also = acpilog keys swts inpid
 
-include $/config.mk
-
-bin = acpilog keys swts inpid
-
-include $/common.mk
+include ../rules.mk

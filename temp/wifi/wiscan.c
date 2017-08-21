@@ -277,7 +277,7 @@ void request_scan(struct netlink* nl, int nl80211, int ifindex)
 	if(nl_send_recv_ack(nl))
 		fail("NL80211_CMD_TRIGGER_SCAN", NULL, nl->err);
 
-	while((msg = nl_recv_genl_nonseq(nl))) {
+	while((msg = nl_recv_genl(nl))) {
 		if(!(idx = nl_get_u32(msg, NL80211_ATTR_IFINDEX)))
 			continue;
 		if(*idx != ifindex)
