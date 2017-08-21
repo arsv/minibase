@@ -1,9 +1,9 @@
 #include <sys/file.h>
 
-/* Since we have the GNU Hello as a fine example of properly designed
-   GNU package, there's got to be this minibase equivalent.
+/* Since we have the GNU Hello as a fine example of a properly designed
+   GNU package, there's got to be a minibase equivalent.
  
-   This is how we do it in here. */
+   So this is how we do it in here. */
 
 int main(void)
 {
