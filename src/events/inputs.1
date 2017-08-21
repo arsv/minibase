@@ -4,23 +4,18 @@
 \fBinputs\fR \- list input devices
 '''
 .SH SYNOPSIS
-\fBinputs\fR [\fB-a\fR]
-.br
-\fBinputs\fR \fIeventN\fR \fIeventN\fR ...
-.br
-\fBinputs\fR \fB-r\fR \fIeventN\fR
+.IP "\fBinputs\fR [\fB-a\fR]" 4
+List all input devices [and their capabilities].
+.IP "\fBinputs\fR \fIeventN\fR \fIeventN\fR ..." 4
+List event capabilities for given devices.
+.IP "\fBinputs\fR \fB-r\fR \fIeventN\fR" 4
+Read and dump events from a given device.
 '''
 .SH DESCRIPTION
 This tool lists input event devices along with their human-readable names
 and the events each device can generate. Its purpose is figuring out how
 physical devices map onto Linux device nodes and which event codes get
 generated in response to certain actions.
-'''
-.SH OPTIONS
-.IP "\fB-a\fR" 4
-List events for all available devices.
-.IP "\fB-r\fR" 4
-Read and report events from a given device.
 '''
 .SH FILES
 .IP "/dev/input/event*" 4
