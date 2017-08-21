@@ -16,6 +16,8 @@
 
 static int udev;
 
+#define UDEV_MGRP_KERNEL   (1<<0)
+
 /* Wait for udev events */
 
 void open_udev(void)
@@ -32,7 +34,7 @@ void open_udev(void)
 	struct sockaddr_nl addr = {
 		.family = AF_NETLINK,
 		.pid = sys_getpid(),
-		.groups = -1
+		.groups = UDEV_MGRP_KERNEL
 	};
 
 	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
