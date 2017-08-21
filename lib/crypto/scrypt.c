@@ -1,4 +1,4 @@
-/* Colin Percival's code, modified to fit the minibase style.
+/* Based on Colin Percival's original code. Modified to fit the minibase style.
    In this version the caller is responsible for allocating memory.
    Original copyright notice follows: */
 /*-

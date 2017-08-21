@@ -75,8 +75,8 @@ static void maybe_init_env(struct sh* ctx)
 }
 
 /* This function makes little sense at the first glance because
-   it's just happens the common part of otherwise unrelated rebuild_envp()
-   and del_env_entry(). Basically just a loop over env entries. */
+   it just happens to be the common part of otherwise unrelated
+   rebuild_envp() and del_env_entry(). */
 
 typedef int (*envf)(struct sh* ctx, struct env* es, char* var);
 
