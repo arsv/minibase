@@ -40,6 +40,9 @@ created for the encrypted sdb3 partition.
 '''
 .SH KEYWORDS
 The following features may be used to identify devices:
+.IP "\fBname\fR \fImmcblk0\fR" 4
+Matches the kernel name of the device. Use only if the name is somehow
+guaranteed to be persistent.
 .IP "\fBserial\fR \fIABCD....\fR" 4
 Matches the data in /sys/block/\fIsdb\fR/device/vpd_pg80. The leading
 four bytes are skipped, leading and trailing spaces are trimmed.
@@ -48,7 +51,7 @@ Matches SD card ID found in /sys/block/\fImmcblk0\fR/device/cid,
 typically a long decimal number.
 .IP "\fBmbr\fR \fI0011FFEE\fR" 4
 Matches MBR signature; \fBfdisk\fR(1) reports it as "Disk identifier".
-This is always a 4-byte hex number.
+The signature is always a 4-byte hex number.
 .IP "\fBgpt\fR \fI00112233-4455-6789-ABCD-0123456789AB\fR" 4
 Matches GPT GUID; \fBgdisk\fR(1) reports it as "Disk identifier (GUID)".
 Always a 16-byte hex value, typically formatted as shown.
