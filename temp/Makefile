@@ -1,18 +1,17 @@
-include rules.mk
+subdirs := $(dir $(sort $(wildcard */Makefile)))
 
-subdirs = $(dir $(sort $(wildcard */Makefile)))
-
-define subcmd
-$1 = $$(patsubst %,$1-%,$$(subdirs))
-
-.SILENT: $$(patsubst %,$1-%,$$(subdirs))
-
-$$($1): $1-%:
-	$$(MAKE) -C $$* $2
-endef
-
-$(eval $(call subcmd,build))
-$(eval $(call subcmd,clean,clean))
+build := $(patsubst %,build-%,$(subdirs))
+clean := $(patsubst %,clean-%,$(subdirs))
 
 all: $(build)
 clean: $(clean)
+
+include rules.mk
+
+build-%:
+	$(MAKE) -C $*
+
+clean-%:
+	$(MAKE) -C $* clean
+
+.SILENT: $(build) $(clean)

@@ -2,37 +2,36 @@ default: all.a
 
 include rules.mk
 
+# The atrocity below makes sure directories are entered to build files
+# inside and each directory is only entered once.
+#
+# Listing */*.c from the top directory while also allowing to build them
+# from within each directory makes the build ambiguous, as the rules
+# aren't guaranteed to match, and requires special compiler commands since
+# gcc -c dir/file.c creates file.o instead of dir/file.o.
+
 define subdir
-srcs-$1 = $$(sort $(wildcard $2/*.$3))
-objs-$1 = $$(patsubst %.$3,%.o,$$(srcs-$1))
+srcs-$1 = $$(sort $(wildcard $1*.$2))
+objs-$1 = $$(patsubst %.$2,%.o,$$(srcs-$1))
 
 $$(foreach file,$$(srcs-$1),\
-	$$(eval $$(file:.$3=.o): $$(file)))
+	$$(eval $$(file:.$2=.o): $$(file)))
 
-$$(objs-$1): build-$2
+$$(objs-$1): build-$1
 
-.SILENT: build-$2
+.SILENT: build-$1
 
-build-$2: $$(srcs-$1)
-	$$(MAKE) -C $2
+build-$1: $$(srcs-$1)
+	$$(MAKE) -C $1
 
 objs += $$(objs-$1)
-clean += $1/*.o
+clean += $1*.o
 endef
 
-libdir = $(call subdir,$1,$1,c)
-archdir = $(call subdir,arch,arch/$1,s)
+subdirs = $(filter-out arch/, $(sort $(dir $(wildcard */Makefile))))
 
-$(eval $(call archdir,$(ARCH)))
-$(eval $(call libdir,crypto))
-$(eval $(call libdir,format))
-$(eval $(call libdir,netlink))
-$(eval $(call libdir,nlusctl))
-$(eval $(call libdir,output))
-$(eval $(call libdir,sigset))
-$(eval $(call libdir,string))
-$(eval $(call libdir,time))
-$(eval $(call libdir,util))
+$(eval $(call subdir,arch/$(ARCH)/,s))
+$(foreach d,$(subdirs),$(eval $(call subdir,$d,c)))
 
 all.a: $(objs)
 	$(AR) cr $@ $^

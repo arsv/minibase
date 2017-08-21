@@ -5,23 +5,23 @@ bin = hello
 
 include rules.mk
 
-# Recursive stuff; single level atm, so here and not in rules.mk
+subdirs = $(dir $(sort $(wildcard */Makefile)))
 
-subdirs = boot cmdops compat dcrypt events init msh net vtkms wifi
-
-define subcmd
-$1 = $$(patsubst %,$1-%,$$(subdirs))
-
-.SILENT: $$(patsubst %,$1-%,$$(subdirs))
-
-$$($1): $1-%:
-	$$(MAKE) -C $$* $2
-endef
-
-$(eval $(call subcmd,build))
-$(eval $(call subcmd,clean,clean))
-$(eval $(call subcmd,install,install))
+build := $(patsubst %,build-%,$(subdirs)) 
+clean := $(patsubst %,clean-%,$(subdirs))
+install := $(patsubst %,install-%,$(subdirs))
 
 all: $(build)
 clean: $(clean)
 install: $(install)
+
+build-%:
+	$(MAKE) -C $*
+
+clean-%:
+	$(MAKE) -C $* clean
+
+install-%:
+	$(MAKE) -C $* install
+
+.SILENT: $(build) $(clean) $(install)
