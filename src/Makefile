@@ -7,7 +7,7 @@ include rules.mk
 
 # Recursive stuff; single level atm, so here and not in rules.mk
 
-subdirs = boot cmdops compat dcrypt events init msh net user wifi
+subdirs = boot cmdops compat dcrypt events init msh net vtkms wifi
 
 define subcmd
 $1 = $$(patsubst %,$1-%,$$(subdirs))
