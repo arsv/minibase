@@ -13,6 +13,25 @@
 int rows;
 int cols;
 
+static const struct key {
+	short code;
+	char name[6];
+} keys[] = {
+	{ '\033', "ESC"   },
+	{ ' ',    "SPACE" },
+};
+
+static const char* keyname(int key)
+{
+	const struct key* k;
+
+	for(k = keys; k < keys + ARRAY_SIZE(keys); k++)
+		if(k->code == key)
+			return k->name;
+
+	return NULL;
+}
+
 static void output(char* s, int len)
 {
 	sys_write(STDOUT, s, len);
@@ -101,8 +120,17 @@ static void show_input(void* buf, int len)
 	for(i = 0; i < len; i++) {
 		char* p = out;
 		char* e = out + sizeof(out) - 1;
+		const char* name;
 
-		p = fmtint(p, e, v[i]);
+		if((name = keyname(v[i]))) {
+			p = fmtstr(p, e, (char*)name);
+		} else if(v[i] > 0x20 && v[i] < 0x7F) {
+			p = fmtchar(p, e, v[i]);
+		} else {
+			p = fmtstr(p, e, "0x");
+			p = fmtbyte(p, e, v[i]);
+		}
+
 		p = fmtstr(p, e, " ");
 
 		output(out, p - out);
