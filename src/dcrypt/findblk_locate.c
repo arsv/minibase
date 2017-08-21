@@ -72,6 +72,9 @@ void recv_udev_event(void)
 	char* devname = NULL;
 	char* r;
 
+	if(strncmp(p, "add@", 4))
+		return; /* ignore non-add events */
+
 	while(p < e) {
 		if((r = restof(p, "DEVTYPE=")))
 			devtype = r;
