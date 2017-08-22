@@ -39,6 +39,7 @@ int uc_recvmsg(int fd, struct urbuf* ur, struct ucbuf* uc, int block)
 
 	if(!block) flags |= MSG_DONTWAIT;
 
+	uc->ptr = uc->brk;
 	ur->msg = NULL;
 
 	if((ret = take_complete_msg(ur)) >= 0)
@@ -46,17 +47,29 @@ int uc_recvmsg(int fd, struct urbuf* ur, struct ucbuf* uc, int block)
 
 	shift_buf(ur);
 
+	struct iovec iov;
+	struct msghdr msg = {
+		.iov = &iov,
+		.iovlen = 1,
+		.control = uc->brk,
+		.controllen = uc->end - uc->brk
+	};
+
 	while(1) {
 		if((left = ur->end - ur->rptr) <= 0)
 			return -ENOBUFS;
 
-		if((rd = sys_recv(fd, ur->rptr, left, flags)) < 0)
+		iov.base = ur->rptr;
+		iov.len = left;
+
+		if((rd = sys_recvmsg(fd, &msg, flags)) < 0)
 			return rd;
 		else if(!rd)
 			break;
 
 		ur->rptr += rd;
 		total += rd;
+		uc->ptr = uc->brk + msg.controllen;
 
 		if((ret = take_complete_msg(ur)) >= 0)
 			return total;
