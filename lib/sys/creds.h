@@ -5,6 +5,11 @@ inline static long sys_getuid(void)
 	return syscall0(__NR_getuid);
 }
 
+inline static long sys_getgid(void)
+{
+	return syscall0(__NR_getgid);
+}
+
 inline static long sys_geteuid(void)
 {
 	return syscall0(__NR_geteuid);
