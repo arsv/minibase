@@ -14,10 +14,12 @@
 #define SOCK_CLOEXEC   (1<<19)
 
 #define SOL_SOCKET      1
+#define SO_PASSCRED     16
 #define SO_PEERCRED     17
 
 #define MSG_OOB            (1<<0)
 #define MSG_DONTWAIT       (1<<6)
+#define MSG_NOSIGNAL       (1<<14)
 #define MSG_CMSG_CLOEXEC   (1<<30)
 
 #endif
