@@ -49,3 +49,8 @@ inline static long sys_setsockopt(int fd, int lvl, int opt, void* val, int len)
 {
 	return syscall5(__NR_setsockopt, fd, lvl, opt, (long)val, len);
 }
+
+inline static long sys_setsockopti(int fd, int lvl, int opt, int val)
+{
+	return syscall5(__NR_setsockopt, fd, lvl, opt, (long)&val, sizeof(val));
+}
