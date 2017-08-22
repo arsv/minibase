@@ -78,3 +78,4 @@ int uc_paylen(struct ucattr* at);
 void uc_dump(struct ucmsg* msg);
 
 int uc_recv(int fd, struct urbuf* ur, int block);
+int uc_recvmsg(int fd, struct urbuf* ur, struct ucbuf* uc, int block);
