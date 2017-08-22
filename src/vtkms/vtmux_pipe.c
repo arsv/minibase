@@ -2,13 +2,13 @@
 #include <bits/errno.h>
 #include <bits/fcntl.h>
 #include <bits/major.h>
-#include <bits/cmsg.h>
 #include <sys/sockio.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 
 #include <format.h>
 #include <string.h>
+#include <cmsg.h>
 #include <fail.h>
 
 #include "vtmux.h"
@@ -59,17 +59,21 @@ static void reply_send_fd(struct term* cvt, int errno, int fdts)
 		.base = &errno,
 		.len = sizeof(errno)
 	};
-	struct cmsgfd fdm = {
-		.len = sizeof(struct cmsgfd),
+	struct {
+		struct cmsg cm;
+		int fd;
+		int pad;
+	} ancillary = { {
+		.len = sizeof(ancillary),
 		.level = SOL_SOCKET,
-		.type = SCM_RIGHTS,
-		.fd = fdts
+		.type = SCM_RIGHTS },
+		.fd = fdts, .pad = 0
 	};
 	struct msghdr msg = {
 		.iov = &iov,
 		.iovlen = 1,
-		.control = &fdm,
-		.controllen = sizeof(fdm)
+		.control = &ancillary,
+		.controllen = sizeof(ancillary)
 	};
 
 	if((ret = sys_sendmsg(cvt->ctlfd, &msg, 0)) < 0)
