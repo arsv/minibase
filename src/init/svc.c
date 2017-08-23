@@ -5,7 +5,6 @@
 #include <fail.h>
 #include <util.h>
 
-#include "config.h"
 #include "common.h"
 #include "svc.h"
 
@@ -163,7 +162,7 @@ static void cmd_pidof(CTX)
 
 	no_other_options(ctx);
 
-	start_request(ctx, CMD_GETPID, 1, NAMELEN);
+	start_request(ctx, CMD_GETPID, 1, strlen(name));
 	add_str_attr(ctx, ATTR_NAME, name);
 
 	send_request(ctx);
@@ -175,7 +174,7 @@ static void cmd_status(CTX)
 	char* name;
 
 	if((name = shift_arg(ctx))) {
-		start_request(ctx, CMD_STATUS, 1, NAMELEN);
+		start_request(ctx, CMD_STATUS, 1, strlen(name));
 		add_str_attr(ctx, ATTR_NAME, name);
 	} else {
 		start_request(ctx, CMD_LIST, 0, 0);

@@ -6,6 +6,7 @@
 #include <format.h>
 #include <util.h>
 
+#include "common.h"
 #include "super.h"
 
 char* confdir;

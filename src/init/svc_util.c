@@ -7,8 +7,10 @@
 #include <util.h>
 #include <fail.h>
 
-#include "config.h"
+#include "common.h"
 #include "svc.h"
+
+#define PAGE 4096
 
 void* heap_alloc(CTX, int size)
 {

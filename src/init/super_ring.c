@@ -4,7 +4,7 @@
 #include <string.h>
 #include <null.h>
 
-#include "config.h"
+#include "common.h"
 #include "super.h"
 
 /* Well-behaved services are expected to be silent and/or use syslog

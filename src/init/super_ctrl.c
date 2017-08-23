@@ -12,6 +12,7 @@
 #include <alloca.h>
 #include <util.h>
 
+#include "common.h"
 #include "super.h"
 
 int ctrlfd;
