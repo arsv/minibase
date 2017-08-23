@@ -1,5 +1,4 @@
 #include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/dents.h>
 
 #include <string.h>

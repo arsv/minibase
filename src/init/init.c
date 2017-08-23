@@ -1,11 +1,7 @@
 #include <bits/fcntl.h>
 #include <sys/file.h>
-#include <sys/exec.h>
-#include <sys/stat.h>
-#include <sys/fork.h>
-#include <sys/wait.h>
-#include <sys/fcntl.h>
-#include <sys/brk.h>
+#include <sys/proc.h>
+#include <sys/mman.h>
 
 #include <string.h>
 #include <alloca.h>

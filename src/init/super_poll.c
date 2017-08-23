@@ -1,9 +1,8 @@
-#include <bits/time.h>
 #include <sys/signal.h>
-#include <sys/clock.h>
-#include <sys/sleep.h>
-#include <sys/poll.h>
 #include <sys/file.h>
+#include <sys/time.h>
+#include <sys/sched.h>
+#include <sys/ppoll.h>
 
 #include <sigset.h>
 #include <format.h>

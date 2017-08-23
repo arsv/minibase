@@ -1,9 +1,7 @@
-#include <sys/fsnod.h>
-#include <sys/pid.h>
+#include <sys/creds.h>
+#include <sys/fpath.h>
 #include <sys/file.h>
-#include <sys/fork.h>
-#include <sys/wait.h>
-#include <sys/exec.h>
+#include <sys/proc.h>
 
 #include <format.h>
 #include <util.h>

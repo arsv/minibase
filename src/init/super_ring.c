@@ -1,5 +1,6 @@
-#include <sys/mmap.h>
+#include <sys/mman.h>
 #include <sys/file.h>
+
 #include <string.h>
 #include <null.h>
 

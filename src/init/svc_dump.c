@@ -1,4 +1,4 @@
-#include <sys/wait.h>
+#include <sys/proc.h>
 
 #include <string.h>
 #include <format.h>

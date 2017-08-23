@@ -1,10 +1,6 @@
-#include <sys/fork.h>
-#include <sys/exec.h>
-#include <sys/kill.h>
-#include <sys/pipe.h>
-#include <sys/fcntl.h>
+#include <sys/signal.h>
 #include <sys/file.h>
-#include <sys/wait.h>
+#include <sys/proc.h>
 
 #include <format.h>
 #include <string.h>
