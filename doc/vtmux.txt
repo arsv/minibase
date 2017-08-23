@@ -174,35 +174,26 @@ would probably be better for vtmux to leave standard fds as is.
 Why explicit keyboard input / VT_LOCKSWITCH?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 C-A-Fn key combos are usually handled within the kernel. During startup,
-vtmux disables this, opens all available keyboards, and starts reading
-keyevents looking for those same C-A-Fn combinations, duplicating kernel code
-is a rather awkward way. Why is that needed?
-Why can't we let the kernel do VT switching?
+vtmux disables this in-kernel handling, and waits to be commanded a VT
+switch via its control socket instead.
 
-Using some sort of post-factum switch notification, like polling VT_GETSTATE
-or reading /sys/class/tty/tty0/active, means the synchronous actions
-the multiplexer must take will always be late. Say, VT 5 is already active
-but inputs and DRIs are engaged for the client on VT 4. There is apparently
-no way to stall VT switch from the multiplexer process. There is VT_RELDISP
-but it is tricky to use and will likely not work with clients that rely on it
-as well.
+There are several reasons for this, the primary being that it makes the
+switching code within vtmux somewhat saner. When the command comes from
+within vtmux, the sequence is clear: disengage current client, switch VT,
+engage new client. This would also work exactly the same way on a pure KMS
+kernel with no VT support.
 
-Doing all the switching entirely in userspace allows (in theory) to do it
-reliably and synchronously, ensuring that the managed devices can only be
-engaged to the active client at any given time.
+With the switching completely controlled by vtmux, we can also decide
+whether we want to switch or not, effectively implementing disabled VTs.
 
-In practice, in mixed KMS/VT environments, it's a bit more complicated.
-We can't deactivate VT without activating another one, at least not without
-some dirty tricks, which means inputs and DRIs are always engaged a bit too
-late. The client being activated is likely to see itself active (as in, get
-acqsig, see VT_GETMODE) before getting DRI master, for instance, which may
-or may not be a problem. But at least we can ensure disengagement is always
-on time, so there's never a situation with a background client that still has
-DRI master messing up the output of a newly-activated VT.
+Conventional method of doing the switch is reactive in nature and depends
+heavily on the in-kernel VT subsystem. The kernel informs us that it wants
+to switch, we disengage current client and report that to the kernel, the
+kernel switches and informs up, we engage another client.
 
-The problem disappears in all-KMS setups, where the clients should not care
-about VTs at all. But neither should vtmux, which again means userspace input
-handling.
+Both options imply gross abuse of ioctls originally designed for a very
+different switching model (X server controlling the VT directly). With the
+VT subsystem in place, neither is particularly cleaner than the other.
 
 
 Starting new sessions / what is greeter?
