@@ -3,6 +3,8 @@
 
 /* Some of these are arch-dependent */
 
+#define PAGE 4096
+
 #define PROT_READ       (1<<0)
 #define PROT_WRITE      (1<<1)
 #define PROT_EXEC       (1<<2)
