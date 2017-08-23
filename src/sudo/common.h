@@ -3,13 +3,12 @@
 #define CONFDIR ETCDIR "/sudo"
 #define CONTROL RUNDIR "/suhub"
 
-#define SU 0x53550000 /* 'S', 'U', \0, \0 */
+#define SH(c) TAGGED('S', 'H', c)
 
-#define CMD_EXEC     SU+1
-#define CMD_KILL     SU+2
+#define CMD_EXEC  SH(1)
+#define CMD_KILL  SH(2)
+#define REP_DEAD  SH(3)
 
-#define REP_DEAD     SU+3
-
-#define ATTR_ARGV      1
-#define ATTR_SIGNAL    2
-#define ATTR_STATUS    3
+#define ATTR_ARGV     1
+#define ATTR_SIGNAL   2
+#define ATTR_STATUS   3
