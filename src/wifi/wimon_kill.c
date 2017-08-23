@@ -1,7 +1,7 @@
 #include <bits/ints.h>
 #include <bits/rfkill.h>
+
 #include <sys/file.h>
-#include <sys/stat.h>
 
 #include <null.h>
 #include <format.h>

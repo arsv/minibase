@@ -1,7 +1,6 @@
-#include <sys/wait.h>
-#include <sys/exec.h>
-#include <sys/fork.h>
-#include <sys/kill.h>
+#include <sys/proc.h>
+#include <sys/signal.h>
+
 #include <format.h>
 #include <string.h>
 #include <util.h>

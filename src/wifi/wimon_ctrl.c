@@ -1,9 +1,9 @@
 #include <bits/socket/unix.h>
+
 #include <sys/file.h>
+#include <sys/fpath.h>
 #include <sys/socket.h>
-#include <sys/sockio.h>
-#include <sys/fsnod.h>
-#include <sys/itimer.h>
+#include <sys/sched.h>
 
 #include <nlusctl.h>
 #include <string.h>

@@ -1,7 +1,8 @@
 #include <bits/errno.h>
+
 #include <sys/signal.h>
-#include <sys/itimer.h>
-#include <sys/poll.h>
+#include <sys/sched.h>
+#include <sys/ppoll.h>
 
 #include <sigset.h>
 #include <string.h>

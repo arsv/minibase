@@ -1,5 +1,5 @@
 #include <sys/file.h>
-#include <sys/brk.h>
+#include <sys/mman.h>
 
 #include <format.h>
 #include <nlusctl.h>

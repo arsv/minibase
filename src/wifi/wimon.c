@@ -1,7 +1,6 @@
-#include <bits/errno.h>
-#include <sys/fsnod.h>
 #include <sys/file.h>
-#include <sys/poll.h>
+#include <sys/fpath.h>
+#include <sys/ppoll.h>
 #include <sys/signal.h>
 
 #include <netlink.h>
