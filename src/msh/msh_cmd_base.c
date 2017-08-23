@@ -1,5 +1,5 @@
-#include <sys/cwd.h>
 #include <sys/file.h>
+#include <sys/fpath.h>
 
 #include <string.h>
 #include <exit.h>

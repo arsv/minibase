@@ -1,13 +1,12 @@
 #include <bits/stdio.h>
 #include <bits/ioctl/tty.h>
 
-#include <sys/cwd.h>
-#include <sys/umask.h>
+#include <sys/fpath.h>
+#include <sys/creds.h>
+#include <sys/sched.h>
 #include <sys/rlimit.h>
 #include <sys/seccomp.h>
-#include <sys/pgrp.h>
 #include <sys/ioctl.h>
-#include <sys/priority.h>
 
 #include <string.h>
 #include <format.h>

@@ -1,4 +1,4 @@
-#include <sys/pid.h>
+#include <sys/creds.h>
 
 #include <format.h>
 #include <string.h>

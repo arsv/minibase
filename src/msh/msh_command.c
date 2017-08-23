@@ -1,6 +1,5 @@
-#include <sys/fork.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
+#include <sys/file.h>
+#include <sys/proc.h>
 
 #include <string.h>
 #include <format.h>

@@ -1,5 +1,5 @@
 #include <sys/file.h>
-#include <sys/mmap.h>
+#include <sys/mman.h>
 #include <sys/creds.h>
 
 #include <string.h>

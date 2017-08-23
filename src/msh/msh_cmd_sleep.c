@@ -1,4 +1,4 @@
-#include <sys/sleep.h>
+#include <sys/sched.h>
 
 #include <format.h>
 #include <null.h>
