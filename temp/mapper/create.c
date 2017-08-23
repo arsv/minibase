@@ -1,7 +1,7 @@
 #include <bits/ioctl/block.h>
 #include <bits/ioctl/mapper.h>
 #include <bits/major.h>
-#include <sys/stat.h>
+
 #include <sys/file.h>
 #include <sys/ioctl.h>
 

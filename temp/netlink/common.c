@@ -1,7 +1,5 @@
 #include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/mmap.h>
-#include <sys/brk.h>
+#include <sys/mman.h>
 
 #include <null.h>
 #include <fail.h>

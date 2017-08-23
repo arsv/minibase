@@ -1,9 +1,7 @@
 #include <sys/socket.h>
-#include <sys/sockio.h>
-#include <sys/pid.h>
+#include <sys/creds.h>
+#include <sys/sched.h>
 #include <sys/file.h>
-#include <sys/alarm.h>
-#include <sys/stat.h>
 
 #include <string.h>
 #include <format.h>

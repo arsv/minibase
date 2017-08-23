@@ -1,6 +1,5 @@
 #include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/mmap.h>
+#include <sys/mman.h>
 
 #include <netlink.h>
 #include <netlink/rtnl/mgrp.h>

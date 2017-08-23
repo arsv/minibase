@@ -1,6 +1,5 @@
-#include <sys/stat.h>
 #include <sys/file.h>
-#include <sys/mmap.h>
+#include <sys/mman.h>
 
 #include <netlink.h>
 #include <netlink/genl/ctrl.h>

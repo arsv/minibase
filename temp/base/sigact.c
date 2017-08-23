@@ -1,7 +1,6 @@
 #include <sys/signal.h>
-#include <sys/kill.h>
 #include <sys/file.h>
-#include <sys/pid.h>
+#include <sys/creds.h>
 
 #include <format.h>
 #include <null.h>
