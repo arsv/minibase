@@ -1,11 +1,6 @@
 #include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/mmap.h>
-#include <sys/pipe.h>
-#include <sys/fcntl.h>
-#include <sys/fork.h>
-#include <sys/exec.h>
-#include <sys/wait.h>
+#include <sys/mman.h>
+#include <sys/proc.h>
 
 #include <exit.h>
 #include <fail.h>

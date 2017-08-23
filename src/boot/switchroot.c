@@ -1,16 +1,12 @@
 #include <bits/magic.h>
-#include <bits/stmode.h>
 
-#include <sys/cwd.h>
-#include <sys/exec.h>
-#include <sys/stat.h>
-#include <sys/statfs.h>
 #include <sys/file.h>
-#include <sys/fcntl.h>
-#include <sys/fsnod.h>
+#include <sys/proc.h>
+#include <sys/fpath.h>
 #include <sys/dents.h>
-#include <sys/pid.h>
+#include <sys/creds.h>
 #include <sys/mount.h>
+#include <sys/statfs.h>
 
 #include <format.h>
 #include <string.h>

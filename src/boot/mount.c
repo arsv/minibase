@@ -1,5 +1,4 @@
 #include <sys/mount.h>
-#include <sys/fsnod.h>
 #include <string.h>
 #include <fail.h>
 

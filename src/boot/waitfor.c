@@ -1,6 +1,5 @@
 #include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/alarm.h>
+#include <sys/sched.h>
 #include <sys/inotify.h>
 
 #include <string.h>
