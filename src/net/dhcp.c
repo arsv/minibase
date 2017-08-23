@@ -5,10 +5,9 @@
 #include <bits/auxvec.h>
 
 #include <sys/socket.h>
-#include <sys/sockio.h>
 #include <sys/ioctl.h>
-#include <sys/alarm.h>
-#include <sys/poll.h>
+#include <sys/sched.h>
+#include <sys/ppoll.h>
 #include <sys/signal.h>
 
 #include <format.h>
