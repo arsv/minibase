@@ -20,3 +20,8 @@ inline static long sys_sigprocmask(int how, const sigset_t *set, sigset_t *oldse
 {
 	return syscall4(__NR_rt_sigprocmask, how, (long)set, (long)oldset, sizeof(*set));
 }
+
+inline static long sys_kill(int pid, int sig)
+{
+	return syscall2(__NR_kill, pid, sig);
+}

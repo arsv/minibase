@@ -1,11 +1,29 @@
-#include <syscall.h>
+#include <bits/errno.h>
 #include <bits/fcntl.h>
 #include <bits/time.h>
+#include <syscall.h>
 
-/* uapi/linux/fs.h */
-#define RENAME_NOREPLACE  (1<<0)
-#define RENAME_EXCHANGE   (1<<1)
-#define RENAME_WHITEOUT   (1<<2)
+/* File path ops, stuff that mostly deals with directories. */
+
+inline static long sys_chdir(const char* path)
+{
+	return syscall1(__NR_chdir, (long)path);
+}
+
+inline static long sys_fchdir(int fd)
+{
+	return syscall1(__NR_fchdir, fd);
+}
+
+inline static long sys_getcwd(char* buf, size_t size)
+{
+	return syscall2(__NR_getcwd, (long)buf, size);
+}
+
+inline static long sys_chroot(const char* dir)
+{
+	return syscall1(__NR_chroot, (long)dir);
+}
 
 inline static long sys_mkdir(const char* path, int mode)
 {
@@ -46,6 +64,39 @@ inline static long sys_unlinkat(int at, const char* name, int flags)
 {
 	return syscall3(__NR_unlinkat, at, (long)name, flags);
 }
+
+inline static long sys_symlink(const char *target, const char *path)
+{
+	return syscall3(__NR_symlinkat, (long)target, AT_FDCWD, (long)path);
+}
+
+inline static long sys_symlinkat(const char *target, int at, const char *path)
+{
+	return syscall3(__NR_symlinkat, (long)target, at, (long)path);
+}
+
+inline static long sys_readlink(const char* path, char* buf, long len)
+{
+#ifdef __NR_readlinkat
+	return syscall4(__NR_readlinkat, AT_FDCWD, (long)path, (long)buf, len);
+#else
+	return syscall3(__NR_readlink, (long)path, (long)buf, len);
+#endif
+}
+
+inline static long sys_readlinkat(int at, const char* path, char* buf, long len)
+{
+#ifdef __NR_readlinkat
+	return syscall4(__NR_readlinkat, AT_FDCWD, (long)path, (long)buf, len);
+#else
+	return -ENOSYS;
+#endif
+}
+
+/* uapi/linux/fs.h */
+#define RENAME_NOREPLACE  (1<<0)
+#define RENAME_EXCHANGE   (1<<1)
+#define RENAME_WHITEOUT   (1<<2)
 
 inline static long sys_rename(const char* oldpath, const char* newpath)
 {

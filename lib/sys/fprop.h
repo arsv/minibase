@@ -2,6 +2,8 @@
 #include <bits/fcntl.h>
 #include <bits/time.h>
 
+/* File properties (mode and times). The opposite of *stat(). */
+
 #define R_OK  4
 #define W_OK  2
 #define X_OK  1
@@ -42,4 +44,24 @@ inline static long sys_utimensat(int at, char* path,
 inline static long sys_utimes(int fd, const struct timespec times[2])
 {
 	return syscall4(__NR_utimensat, fd, 0, (long)times, 0);
+}
+
+#define FALLOC_FL_KEEP_SIZE        1
+#define FALLOC_FL_PUNCH_HOLE       2
+#define FALLOC_FL_COLLAPSE_RANGE   8
+#define FALLOC_FL_ZERO_RANGE      16
+
+inline static long sys_fallocate(int fd, int mode, uint64_t offset, uint64_t len)
+{
+	return syscall4(__NR_fallocate, fd, mode, offset, len);
+}
+
+inline static long sys_truncate(const char* path, uint64_t size)
+{
+	return syscall2(__NR_truncate, (long)path, size);
+}
+
+inline static long sys_ftruncate(int fd, uint64_t size)
+{
+	return syscall2(__NR_ftruncate, fd, size);
 }

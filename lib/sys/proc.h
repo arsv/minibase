@@ -1,3 +1,4 @@
+#include <bits/signal.h>
 #include <syscall.h>
 
 #define	WNOHANG		1	/* Don't block waiting.  */
@@ -11,6 +12,16 @@
 #define WIFSIGNALED(status)	(!WIFSTOPPED(status) && !WIFEXITED(status))
 #define WIFSTOPPED(status)	(((status) & 0xFF) == 0x7F)
 #define WIFCONTINUED(status)	((status) == 0xFFFF)
+
+inline static long sys_fork(void)
+{
+	return syscall5(__NR_clone, SIGCHLD, 0, 0, 0, 0);
+}
+
+inline static long sys_execve(const char* exe, char** argv, char** envp)
+{
+	return syscall3(__NR_execve, (long)exe, (long)argv, (long)envp);
+}
 
 inline static long sys_waitpid(int pid, int* status, int flags)
 {

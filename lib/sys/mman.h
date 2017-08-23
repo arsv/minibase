@@ -2,6 +2,11 @@
 #include <bits/types.h>
 #include <bits/mman.h>
 
+inline static long sys_brk(void* ptr)
+{
+	return syscall1(__NR_brk, (long)ptr);
+}
+
 inline static int mmap_error(long ret)
 {
 	return (ret < 0 && ret > -2048);

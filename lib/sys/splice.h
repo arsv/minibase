@@ -18,3 +18,8 @@ inline static long sys_tee(int fdin, int fdout, size_t len, unsigned flags)
 {
 	return syscall4(__NR_tee, fdin, fdout, len, flags);
 }
+
+inline static long sys_sendfile(int ofd, int ifd, uint64_t* offset, size_t count)
+{
+	return syscall4(__NR_sendfile, ofd, ifd, (long)offset, count);
+}
