@@ -1,4 +1,5 @@
-#include <sys/brk.h>
+#include <sys/mman.h>
+
 #include <crypto/scrypt.h>
 #include <printf.h>
 #include <string.h>
