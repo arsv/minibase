@@ -1,4 +1,9 @@
-default: all.a
+# This is slightly incorrect, but works well enough. If we let all.a
+# alone be the default target, make may scan the objects and decide
+# all.a is up to date *before* entering subdirectories are re-building
+# those very objects. So just make sure to enter subdirectories first.
+
+default: build all.a
 
 include rules.mk
 
@@ -23,6 +28,8 @@ $$(objs-$1): build-$1
 
 build-$1: $$(srcs-$1)
 	$$(MAKE) -C $1
+
+build: build-$1
 
 objs += $$(objs-$1)
 clean += $1*.o
