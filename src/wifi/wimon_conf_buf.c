@@ -6,7 +6,7 @@
 #include <fail.h>
 #include <util.h>
 
-#include "config.h"
+#include "common.h"
 #include "wimon.h"
 
 /* Mini text editor for the config file. The config looks something like this:

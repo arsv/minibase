@@ -7,7 +7,7 @@
 #include <heap.h>
 #include <fail.h>
 
-#include "config.h"
+#include "common.h"
 #include "wictl.h"
 
 /* Socket init is split in two parts: socket() call is performed early so

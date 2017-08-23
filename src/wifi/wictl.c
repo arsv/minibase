@@ -7,7 +7,6 @@
 #include <util.h>
 #include <fail.h>
 
-#include "config.h"
 #include "common.h"
 #include "wictl.h"
 

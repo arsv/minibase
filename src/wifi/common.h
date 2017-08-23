@@ -1,13 +1,18 @@
-/* Protocol constants used between wimon and wictl */
+#include <dirs.h>
 
-#define CMD_STATUS       1
-#define CMD_NEUTRAL      2
-#define CMD_WIRED        3
-#define CMD_SCAN         4
-#define CMD_ROAMING      5
-#define CMD_FIXEDAP      6
-#define CMD_SETPRIO      7
-#define CMD_NOTOUCH      8
+#define WICTL RUNDIR "/wimon"
+#define WICFG VARDIR "/wimon.state"
+
+#define WI 0x57490000 /* 'W', 'I', \0, \0 */
+
+#define CMD_STATUS     WI+1
+#define CMD_NEUTRAL    WI+2
+#define CMD_WIRED      WI+3
+#define CMD_SCAN       WI+4
+#define CMD_ROAMING    WI+5
+#define CMD_FIXEDAP    WI+6
+#define CMD_SETPRIO    WI+7
+#define CMD_NOTOUCH    WI+8
 
 #define ATTR_LINK        1
 #define ATTR_WIFI        2
