@@ -7,7 +7,7 @@
 #include <exit.h>
 #include <fail.h>
 
-#include "config.h"
+#include "common.h"
 #include "keymon.h"
 
 #define MAX_CONFIG_SIZE 0x10000

@@ -13,7 +13,7 @@
 #include <exit.h>
 #include <fail.h>
 
-#include "config.h"
+#include "common.h"
 #include "keymon.h"
 
 /* The kernel only report press/release events, so modifier state
