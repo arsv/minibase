@@ -1,8 +1,6 @@
 #include <sys/socket.h>
-#include <sys/sockio.h>
-#include <sys/itimer.h>
 #include <sys/signal.h>
-#include <sys/kill.h>
+#include <sys/sched.h>
 #include <sys/file.h>
 
 #include <nlusctl.h>

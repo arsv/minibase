@@ -1,11 +1,9 @@
 #include <bits/socket/unix.h>
-#include <bits/errno.h>
+
 #include <sys/socket.h>
-#include <sys/sockio.h>
 #include <sys/signal.h>
-#include <sys/pid.h>
-#include <sys/file.h>
 #include <sys/creds.h>
+#include <sys/file.h>
 
 #include <nlusctl.h>
 #include <sigset.h>

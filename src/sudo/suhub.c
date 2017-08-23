@@ -1,12 +1,11 @@
 #include <bits/socket/unix.h>
+
 #include <sys/socket.h>
-#include <sys/sockio.h>
 #include <sys/file.h>
-#include <sys/wait.h>
-#include <sys/poll.h>
-#include <sys/kill.h>
-#include <sys/fsnod.h>
+#include <sys/proc.h>
+#include <sys/ppoll.h>
 #include <sys/signal.h>
+#include <sys/fpath.h>
 
 #include <sigset.h>
 #include <fail.h>

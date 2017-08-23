@@ -1,9 +1,8 @@
-#include <sys/fork.h>
-#include <sys/exec.h>
+#include <sys/proc.h>
+#include <sys/file.h>
 #include <sys/creds.h>
-#include <sys/cwd.h>
-#include <sys/fcntl.h>
-#include <sys/access.h>
+#include <sys/fprop.h>
+#include <sys/fpath.h>
 
 #include <cmsg.h>
 #include <format.h>
