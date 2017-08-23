@@ -127,8 +127,6 @@ static void start_command(int fd, char* cmd, int argn, char** args)
 		.controllen = anlen
 	};
 
-	uc_dump((struct ucmsg*)txbuf);
-
 	if((ret = sys_sendmsg(fd, &msg, MSG_NOSIGNAL)) < 0)
 		fail("send", NULL, ret);
 }
