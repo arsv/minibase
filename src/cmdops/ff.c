@@ -1,7 +1,6 @@
 #include <sys/file.h>
-#include <sys/mmap.h>
+#include <sys/mman.h>
 #include <sys/dents.h>
-#include <sys/brk.h>
 
 #include <string.h>
 #include <format.h>

@@ -1,5 +1,4 @@
-#include <sys/fork.h>
-#include <sys/wait.h>
+#include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/rusage.h>
 

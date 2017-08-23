@@ -1,6 +1,5 @@
-#include <sys/cwd.h>
 #include <sys/file.h>
-#include <sys/symlink.h>
+#include <sys/fpath.h>
 
 #include <string.h>
 #include <util.h>

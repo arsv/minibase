@@ -1,6 +1,5 @@
 #include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/fsnod.h>
+#include <sys/fpath.h>
 #include <sys/dents.h>
 
 #include <string.h>

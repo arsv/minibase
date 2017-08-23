@@ -1,10 +1,8 @@
 #include <bits/ioctl/block.h>
 #include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/mmap.h>
-#include <sys/fcntl.h>
-#include <sys/truncate.h>
-#include <sys/sendfile.h>
+#include <sys/mman.h>
+#include <sys/fprop.h>
+#include <sys/splice.h>
 #include <sys/ioctl.h>
 
 #include <string.h>

@@ -1,6 +1,5 @@
 #include <bits/major.h>
 #include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/statfs.h>
 
 #include <string.h>

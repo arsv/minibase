@@ -1,7 +1,5 @@
-#include <bits/stmode.h>
 #include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/mmap.h>
+#include <sys/mman.h>
 
 #include <string.h>
 #include <format.h>

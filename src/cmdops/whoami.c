@@ -1,7 +1,6 @@
 #include <sys/creds.h>
-#include <sys/stat.h>
 #include <sys/file.h>
-#include <sys/mmap.h>
+#include <sys/mman.h>
 
 #include <format.h>
 #include <string.h>

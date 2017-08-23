@@ -1,5 +1,5 @@
 #include <sys/klog.h>
-#include <sys/mmap.h>
+#include <sys/mman.h>
 
 #include <alloca.h>
 #include <string.h>

@@ -1,9 +1,7 @@
 #include <sys/file.h>
 #include <sys/dents.h>
-#include <sys/access.h>
-#include <sys/stat.h>
-#include <sys/fsnod.h>
-#include <sys/umask.h>
+#include <sys/fprop.h>
+#include <sys/creds.h>
 
 #include <string.h>
 #include <format.h>
