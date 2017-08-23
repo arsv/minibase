@@ -1,8 +1,8 @@
 #include <bits/ioctl/vt.h>
 
 #include <sys/file.h>
-#include <sys/kill.h>
-#include <sys/wait.h>
+#include <sys/proc.h>
+#include <sys/signal.h>
 
 #include <format.h>
 #include <string.h>

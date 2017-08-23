@@ -2,15 +2,14 @@
 #include <bits/ioctl/tty.h>
 #include <bits/socket/unix.h>
 
-#include <sys/access.h>
 #include <sys/file.h>
-#include <sys/kill.h>
-#include <sys/fork.h>
-#include <sys/fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/pgrp.h>
-#include <sys/exec.h>
+#include <sys/fpath.h>
+#include <sys/fprop.h>
+#include <sys/signal.h>
 #include <sys/socket.h>
+#include <sys/proc.h>
+#include <sys/ioctl.h>
+#include <sys/creds.h>
 
 #include <string.h>
 #include <format.h>

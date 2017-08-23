@@ -3,9 +3,9 @@
 #include <bits/ioctl/vt.h>
 #include <bits/major.h>
 
-#include <sys/itimer.h>
-#include <sys/signal.h>
 #include <sys/file.h>
+#include <sys/sched.h>
+#include <sys/signal.h>
 #include <sys/ioctl.h>
 
 #include <sigset.h>

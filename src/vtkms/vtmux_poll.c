@@ -1,8 +1,7 @@
 #include <sys/file.h>
-#include <sys/poll.h>
-#include <sys/kill.h>
+#include <sys/fpath.h>
+#include <sys/ppoll.h>
 #include <sys/signal.h>
-#include <sys/fsnod.h>
 
 #include <format.h>
 #include <string.h>

@@ -1,10 +1,9 @@
 #include <bits/ioctl/vt.h>
-#include <bits/errno.h>
 #include <bits/fcntl.h>
 #include <bits/major.h>
-#include <sys/sockio.h>
+
+#include <sys/socket.h>
 #include <sys/file.h>
-#include <sys/stat.h>
 
 #include <format.h>
 #include <string.h>

@@ -1,8 +1,8 @@
 #include <bits/socket/unix.h>
-#include <sys/brk.h>
+
+#include <sys/mman.h>
 #include <sys/file.h>
 #include <sys/socket.h>
-#include <sys/sockio.h>
 
 #include <string.h>
 #include <util.h>

@@ -1,6 +1,7 @@
 #include <bits/ioctl/vt.h>
+
 #include <sys/file.h>
-#include <sys/poll.h>
+#include <sys/ppoll.h>
 #include <sys/ioctl.h>
 
 #include <format.h>

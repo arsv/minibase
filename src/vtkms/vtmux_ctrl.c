@@ -1,10 +1,11 @@
 #include <bits/socket.h>
 #include <bits/socket/unix.h>
+
 #include <sys/socket.h>
 #include <sys/file.h>
-#include <sys/kill.h>
-#include <sys/fsnod.h>
-#include <sys/itimer.h>
+#include <sys/fpath.h>
+#include <sys/signal.h>
+#include <sys/sched.h>
 
 #include <nlusctl.h>
 #include <string.h>
