@@ -1,5 +1,4 @@
-#include <bits/errno.h>
-#include <sys/sockio.h>
+#include <sys/socket.h>
 #include <string.h>
 
 #include "../nlusctl.h"

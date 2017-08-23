@@ -1,4 +1,4 @@
-#include <sys/brk.h>
+#include <sys/mman.h>
 #include <fail.h>
 #include <heap.h>
 

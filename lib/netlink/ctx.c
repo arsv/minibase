@@ -1,6 +1,5 @@
-#include <sys/pid.h>
+#include <sys/creds.h>
 #include <sys/socket.h>
-#include <sys/sockio.h>
 
 #include <string.h>
 

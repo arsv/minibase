@@ -1,5 +1,5 @@
-#include <sys/kill.h>
-#include <sys/pid.h>
+#include <sys/signal.h>
+#include <sys/creds.h>
 
 /* libgcc relies on this function in some cases */
 /* (ARM: signal FPE on divide by zero) */

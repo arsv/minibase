@@ -29,6 +29,24 @@
 #define	S_IFIFO		0010000	/* FIFO.  */
 #define	S_IFLNK		0120000	/* Symbolic link.  */
 #define	S_IFSOCK	0140000	/* Socket.  */
+#define S_ISUID         0004000
+#define S_ISGID         0002000
+#define S_ISVTX         0001000
+
+#define S_IRWXU         0000700
+#define S_IRUSR         0000400
+#define S_IWUSR         0000200
+#define S_IXUSR         0000100
+
+#define S_IRWXG         0000070
+#define S_IRGRP         0000040
+#define S_IWGRP         0000020
+#define S_IXGRP         0000010
+
+#define S_IRWXO         0000007
+#define S_IROTH         0000004
+#define S_IWOTH         0000002
+#define S_IXOTH         0000001
 
 #define AT_FDCWD		-100
 #define AT_REMOVEDIR		0x200

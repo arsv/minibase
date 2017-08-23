@@ -1,4 +1,4 @@
-#include <sys/exec.h>
+#include <sys/proc.h>
 #include <string.h>
 #include <util.h>
 
