@@ -8,7 +8,7 @@
 #include <util.h>
 #include <fail.h>
 
-#include "config.h"
+#include "common.h"
 #include "keytool.h"
 
 static const char testpad[] = { 0xA6,0xA6,0xA6,0xA6,0xA6,0xA6,0xA6,0xA6 };

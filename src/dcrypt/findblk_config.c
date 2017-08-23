@@ -7,7 +7,7 @@
 #include <exit.h>
 #include <fail.h>
 
-#include "config.h"
+#include "common.h"
 #include "findblk.h"
 
 #define PAGE 4096

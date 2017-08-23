@@ -9,7 +9,7 @@
 #include <format.h>
 #include <fail.h>
 
-#include "config.h"
+#include "common.h"
 #include "findblk.h"
 
 static int udev;

@@ -6,7 +6,7 @@
 #include <string.h>
 #include <fail.h>
 
-#include "config.h"
+#include "common.h"
 #include "passblk.h"
 
 int kflen;
