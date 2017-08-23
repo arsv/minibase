@@ -1,6 +1,6 @@
-#include <sys/signal.h>
 #include <sys/file.h>
-#include <sys/poll.h>
+#include <sys/ppoll.h>
+#include <sys/signal.h>
 
 #include <string.h>
 #include <sigset.h>

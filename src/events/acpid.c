@@ -1,7 +1,5 @@
 #include <bits/errno.h>
-#include <sys/fork.h>
-#include <sys/wait.h>
-#include <sys/exec.h>
+#include <sys/proc.h>
 
 #include <netlink.h>
 #include <netlink/genl.h>

@@ -2,7 +2,6 @@
 #include <bits/major.h>
 
 #include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/dents.h>
 #include <sys/inotify.h>

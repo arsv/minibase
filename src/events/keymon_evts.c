@@ -3,11 +3,8 @@
 #include <bits/input/key.h>
 
 #include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/kill.h>
-#include <sys/fork.h>
-#include <sys/wait.h>
-#include <sys/exec.h>
+#include <sys/signal.h>
+#include <sys/proc.h>
 #include <sys/ioctl.h>
 #include <sys/dents.h>
 

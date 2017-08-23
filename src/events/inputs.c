@@ -1,8 +1,8 @@
 #include <bits/ioctl/input.h>
 #include <bits/errno.h>
 #include <bits/major.h>
+
 #include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
 
 #include <output.h>

@@ -3,7 +3,6 @@
 #include <bits/input/key.h>
 
 #include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/dents.h>
 
