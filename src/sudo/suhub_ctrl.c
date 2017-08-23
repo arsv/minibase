@@ -8,8 +8,8 @@
 #include <fail.h>
 #include <util.h>
 
-#include "suhub.h"
 #include "common.h"
+#include "suhub.h"
 
 char rxbuf[1024];
 char txbuf[16];

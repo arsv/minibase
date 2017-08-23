@@ -10,7 +10,7 @@
 #include <fail.h>
 #include <exit.h>
 
-#include "config.h"
+#include "common.h"
 #include "suhub.h"
 
 /* This is the only piece here that runs in the context of the child process.

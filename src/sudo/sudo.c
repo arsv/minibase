@@ -14,7 +14,6 @@
 #include <util.h>
 #include <exit.h>
 
-#include "config.h"
 #include "common.h"
 
 ERRTAG = "sudo";
@@ -127,6 +126,8 @@ static void start_command(int fd, char* cmd, int argn, char** args)
 		.control = &ancillary,
 		.controllen = anlen
 	};
+
+	uc_dump((struct ucmsg*)txbuf);
 
 	if((ret = sys_sendmsg(fd, &msg, MSG_NOSIGNAL)) < 0)
 		fail("send", NULL, ret);
