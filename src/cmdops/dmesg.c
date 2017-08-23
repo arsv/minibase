@@ -224,11 +224,10 @@ static int numlen(long num)
 
    I would much rather prefer something like "n seconds ago" as a timing
    format for a ring buffer, but alas, it just does not work.
-   The tool started doing exactly that, diffing the stamps against
-   CLOCK_MONOTONIC, but that's unreliable and will only confuse users.
+   The tool originally did exactly that, diffing the stamps against
+   CLOCK_MONOTONIC, but that turned out to be unreliable.
 
-   For the same reason there are no attempt to implement -T option
-   (human-readable wall clock times).
+   For the same reason there's no -T option (human-readable wall clock times).
 
    The attempts to do something with the timestamps is the only reason
    for parsing them there. As it is now, it would actually be easier
