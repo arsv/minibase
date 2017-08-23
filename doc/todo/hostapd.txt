@@ -1,0 +1,24 @@
+The server (authenticator) part of the wpa exchange. Preferably done
+in a way that would allow running it just like 'wpa' from wimon, to
+mimic Android's hotspot config.
+
+At this point it sholdn't even be that much harder to do than wpa or wimon.
+Some netlink exchange, and then the key exchange over the interface.
+All this multiplexed over several clients and timed for retries.
+
+With reasonably maleable hostapd in place, the next step is clearly
+a better key exchnage for client-AP connections in a form suitable
+for general usage. ECDHE, either with PSK as a drop-in wpa replacement,
+or with some asymmetric auth scheme.
+Unclear atm: SAE/Dragonfly for client-AP usage.
+
+
+Another "neat" idea: transmit IPs in the last key exchange message,
+eliminating the need for DHCP. Makes lots of sense for wifi connections,
+but requires tight co-operation between hostapd and (presumably) dhcpd
+on the AP side if wired and wireless clients share the same address space.
+
+OTOH, no way to transmit the other data that normally goes with DHCP,
+like the DNS addresses. Or captive portal addresses were they done the
+right way. On yet another hand, only DNS field sees any actual usage
+and there are lots of reasons to get rid of that.
