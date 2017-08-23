@@ -1,0 +1,59 @@
+.TH suhub 8
+'''
+.SH NAME
+\fBsuhub\fR \- process hub (server) for \fBsudo\fR(1)
+'''
+.SH DESCRIPTION
+\fBsuhub\fR recieves commands to run from \fBsudo\fR and becomes the parent
+of the spawned processes.
+.P
+Running \fBsudo\fR \fIcommand\fR results in \fBsuhub\fR trying to exec a file
+named /etc/sudo/\fIcommand\fR, making sure \fIcommand\fR does not contain any
+slashes and thus cannot escape the directory.
+.P
+Each \fIcommand\fR gets spawned with effective uid:gid 0 and all capabilities
+the \fBsuhub\fR process has, and in the context of the \fBsuhub\fR process.
+However, real uid:gid, current directory, and the standard fds are passed over
+from \fBsudo\fR.
+'''
+.SH USAGE
+\fBsuhub\fR itself is a long-running service process that should be started
+under the system supervisor, see \fBsuper\fR(8).
+.P
+The allowed commands are configured by dropping executable files, or symlinks
+to them, into /etc/sudo/.
+.P
+For commands that only need certain capabilities, the executable file in
+/etc/sudo may be a \fBmsh\fR(1) script that would drop unneeded caps and
+invoke the real executable.
+.P
+Commands that have any sort of per-user or per-group permissions must check
+their real uid or gid and make decisions based on that. Same goes for any
+cases where the decision depends on the arguments passed. In such cases,
+a chain-loading stub (more complex than an \fBmsh\fR script) may be necessary.
+'''
+.SH NOTES
+Placing (or symlinking) a regular executable into /etc/sudo/ to be called
+via \fBsudo\fR is nearly equivalent to making that executable suid root,
+but does not make use of the suid bit. The same way, an \fBmsh\fR script
+setting caps and invoking some executable is nearly equivalent to setting
+file capabilities on that executable without actually using file capabilities.
+.P
+These tricks allow running a system with suid bits and file capabilities
+completely disabled (either by kernel configuration or by setting relevant
+securebits early during boot, see \fBcapabilities\fR(7)) while still retaining
+the ability to selectively raise privileges for certain commands.
+'''
+.SH FILES
+.IP "/run/suhub" 4
+Socket for \fBsudo\fR(1) to connect to.
+.IP "/etc/sudo/" 4
+Directory containing the allowed commands.
+.P
+\fBWarning\fR: /etc/sudo/ and the files within must be treated with all the
+respect reserved for suid root executables. Recommended permissions for
+this directory are 0700 root:root.
+'''
+.SH SEE ALSO
+\fBsudo\fR(1); \fBcredentials\fR(7), \fBcapabilities\fR(7), and \fBmsh\fR(1)
+commands dealing with credentails and capabilities.
