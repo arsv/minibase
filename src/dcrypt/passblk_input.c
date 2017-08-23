@@ -1,5 +1,6 @@
 #include <sys/file.h>
-#include <sys/sleep.h>
+#include <sys/sched.h>
+
 #include <string.h>
 
 #include "passblk.h"

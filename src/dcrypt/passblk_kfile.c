@@ -1,6 +1,5 @@
 #include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/brk.h>
+#include <sys/mman.h>
 
 #include <crypto/aes128.h>
 #include <crypto/scrypt.h>

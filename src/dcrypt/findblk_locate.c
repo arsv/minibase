@@ -1,11 +1,9 @@
 #include <bits/socket/netlink.h>
-#include <sys/sockio.h>
+#include <sys/file.h>
 #include <sys/socket.h>
 #include <sys/dents.h>
-#include <sys/fsnod.h>
-#include <sys/symlink.h>
-#include <sys/pid.h>
-#include <sys/file.h>
+#include <sys/fpath.h>
+#include <sys/creds.h>
 
 #include <string.h>
 #include <format.h>

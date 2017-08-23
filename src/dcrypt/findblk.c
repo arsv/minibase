@@ -1,6 +1,5 @@
 #include <sys/file.h>
-#include <sys/fsnod.h>
-#include <sys/symlink.h>
+#include <sys/fpath.h>
 
 #include <format.h>
 #include <fail.h>

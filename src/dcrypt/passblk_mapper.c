@@ -1,12 +1,11 @@
 #include <bits/ioctl/mapper.h>
 #include <bits/ioctl/block.h>
 #include <bits/major.h>
-#include <sys/symlink.h>
+
+#include <sys/fpath.h>
 #include <sys/ioctl.h>
-#include <sys/fsnod.h>
 #include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/brk.h>
+#include <sys/mman.h>
 
 #include <string.h>
 #include <format.h>

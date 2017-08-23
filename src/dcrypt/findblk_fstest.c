@@ -1,5 +1,5 @@
-#include <sys/fcntl.h>
 #include <sys/file.h>
+
 #include <string.h>
 #include <format.h>
 #include <util.h>

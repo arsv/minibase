@@ -1,5 +1,4 @@
 #include <sys/file.h>
-#include <sys/stat.h>
 
 #include <format.h>
 #include <string.h>
