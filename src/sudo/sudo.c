@@ -66,7 +66,7 @@ int init_socket(void)
 	return fd;
 }
 
-static int prep_message(int argc, char** args)
+static int prep_message(char* cmd, int argn, char** args)
 {
 	struct ucbuf uc = {
 		.brk = txbuf,
@@ -76,7 +76,9 @@ static int prep_message(int argc, char** args)
 
 	uc_put_hdr(&uc, CMD_EXEC);
 
-	for(int i = 0; i < argc; i++)
+	uc_put_str(&uc, ATTR_ARGV, cmd);
+
+	for(int i = 0; i < argn; i++)
 		uc_put_str(&uc, ATTR_ARGV, args[i]);
 
 	uc_put_end(&uc);
@@ -109,11 +111,11 @@ static int prep_ancillary(void)
 	return p - ancillary;
 }
 
-static void start_command(int fd, int argc, char** args)
+static void start_command(int fd, char* cmd, int argn, char** args)
 {
 	int ret;
 	
-	int txlen = prep_message(argc, args);
+	int txlen = prep_message(cmd, argn, args);
 	int anlen = prep_ancillary();
 
 	struct iovec iov = {
@@ -231,21 +233,23 @@ static void wait_listen(int fd, char* command)
 int main(int argc, char** argv)
 {
 	int i = 0;
-	char* cmd = (char*)basename(argv[i]);
+	char* cmd = (char*)basename(argv[i++]);
 
-	if(!strcmp(errtag, cmd))
-		cmd = argv[++i];
-
-	if(argc - i < 1)
+	if(strcmp(errtag, cmd))
+		; /* called via a named symlink */
+	else if(argc < 2)
 		fail("command name required", NULL, 0);
-	if(argv[i][0] == '-')
+	else
+		cmd = (char*)basename(argv[i++]);
+
+	if(*cmd == '-')
 		fail("no options allowed", NULL, 0);
 
 	setup_signals();
 
 	int fd = init_socket();
 
-	start_command(fd, argc - i, argv + i);
+	start_command(fd, cmd, argc - i, argv + i);
 
 	wait_listen(fd, cmd);
 
