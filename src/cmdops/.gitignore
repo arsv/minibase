@@ -8,14 +8,11 @@ del
 df
 dmesg
 du
-errno
 ff
 fn
-hexdump
 ls
 ren
 stat
-strings
 symlink
 sysinfo
 time
