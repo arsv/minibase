@@ -1,5 +1,6 @@
-#include <sys/cwd.h>
 #include <sys/file.h>
+#include <sys/fpath.h>
+
 #include <fail.h>
 
 #define MAXCWD 2048

@@ -1,5 +1,5 @@
 #include <sys/file.h>
-#include <sys/access.h>
+#include <sys/fprop.h>
 
 #include <util.h>
 #include <fail.h>

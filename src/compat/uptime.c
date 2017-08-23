@@ -1,4 +1,3 @@
-#include <sys/clock.h>
 #include <sys/time.h>
 
 #include <format.h>

@@ -1,4 +1,4 @@
-#include <sys/fsnod.h>
+#include <sys/fpath.h>
 #include <fail.h>
 
 /* This tool is pointless, rm -d should be used instead */

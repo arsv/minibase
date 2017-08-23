@@ -1,4 +1,5 @@
-#include <sys/fsnod.h>
+#include <sys/fpath.h>
+
 #include <string.h>
 #include <fail.h>
 

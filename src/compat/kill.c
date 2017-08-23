@@ -1,4 +1,4 @@
-#include <sys/kill.h>
+#include <sys/signal.h>
 
 #include <string.h>
 #include <format.h>

@@ -1,8 +1,6 @@
-#include <sys/access.h>
 #include <sys/file.h>
-#include <sys/fork.h>
-#include <sys/exec.h>
-#include <sys/wait.h>
+#include <sys/proc.h>
+#include <sys/fprop.h>
 
 #include <string.h>
 #include <util.h>
