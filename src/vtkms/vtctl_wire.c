@@ -8,7 +8,7 @@
 #include <util.h>
 #include <fail.h>
 
-#include "config.h"
+#include "common.h"
 #include "vtctl.h"
 
 /* Socket init is split in two parts: socket() call is performed early so

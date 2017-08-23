@@ -1,6 +1,13 @@
-#define CMD_STATUS   1
-#define CMD_SWITCH   2
-#define CMD_SPAWN    3
+#include <dirs.h>
+
+#define CONFDIR ETCDIR "/vts"
+#define CONTROL RUNDIR "/vtmux"
+
+#define VT(c) TAGGED('V', 'T', c)
+
+#define CMD_STATUS   VT(1)
+#define CMD_SWITCH   VT(2)
+#define CMD_SPAWN    VT(3)
 
 #define ATTR_VT      1
 #define ATTR_TTY    10

@@ -1,4 +1,8 @@
-#include "config.h"
+#define CMDSIZE 20
+
+#define NTERMS 12
+#define NCONNS 10
+#define NMDEVS 60
 
 /* disable() arguments */
 #define TEMPORARILY 0

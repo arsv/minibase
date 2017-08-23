@@ -17,6 +17,7 @@
 #include <fail.h>
 
 #include "vtmux.h"
+#include "common.h"
 
 int pinmask;
 
