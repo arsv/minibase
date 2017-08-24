@@ -162,8 +162,9 @@ static void dump_header(struct ucmsg* msg)
 			p = fmtstr(p, e, " ");
 			p = fmtchar(p, e, c1);
 			p = fmtchar(p, e, c2);
-			p = fmtstr(p, e, "+");
+			p = fmtstr(p, e, "(");
 			p = fmtint(p, e, cmd & 0xFFFF);
+			p = fmtstr(p, e, ")");
 		} else {
 			p = fmtstr(p, e, " cmd=");
 			p = fmtint(p, e, cmd);
