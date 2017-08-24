@@ -13,12 +13,12 @@ of \fBcapabilities\fR(7) unrelated to (and potentially higher than) those
 of the \fBsudo\fR process itself. See \fBsuhub\fR(8) on which \fIcommands\fR
 are allowed and how their privilege level is set.
 .P
-The spawned \fIcommand\fR gets current directory, the standard file descriptors
-and the real uid:gid of the \fBsudo\fR process, but not its environment or any
+The spawned \fIcommand\fR gets current directory, standard file descriptors
+and real uid:gid of the \fBsudo\fR process, but not its environment or any
 other properties. \fBsudo\fR waits until the spawned process exits before
 exiting itself, and attempts to relay any SIGINT, SIGTERM and SIGHUB it gets
 to the spawned process. Killing \fBsudo\fR prompts \fBsuhub\fR to terminate
-the corresponding privileged process as well.
+the corresponding privileged process.
 '''
 .SH USAGE
 For the most part, \fBsudo\fR \fIcommand\fR should work just like running
