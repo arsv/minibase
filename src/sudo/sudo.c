@@ -136,7 +136,7 @@ static int report_signal(char* command, int sig)
 	FMTBUF(p, e, buf, 50);
 	p = fmtstr(p, e, "killed by signal ");
 	p = fmtint(p, e, sig);
-	FMTEND(p);
+	FMTEND(p, e);
 
 	fail(command, buf, 0);
 }

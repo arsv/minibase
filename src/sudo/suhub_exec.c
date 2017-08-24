@@ -64,7 +64,7 @@ int spawn(int* cpid, char** argv, int* fds, struct ucred* cr)
 	p = fmtstr(p, e, pref);
 	p = fmtstr(p, e, "/");
 	p = fmtstr(p, e, *argv);
-	FMTEND(p);
+	FMTEND(p, e);
 
 	if((ret = sys_access(path, X_OK)) < 0)
 		return ret;
