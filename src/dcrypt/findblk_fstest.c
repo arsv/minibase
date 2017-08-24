@@ -76,7 +76,7 @@ static int open_part(struct part* pt)
 	FMTBUF(p, e, path, strlen(pref) + strlen(name) + 4);
 	p = fmtstr(p, e, pref);
 	p = fmtstr(p, e, name);
-	FMTEND(p);
+	FMTEND(p, e);
 
 	if((fd = sys_open(path, O_RDONLY)) < 0)
 		quit("open", path, fd);

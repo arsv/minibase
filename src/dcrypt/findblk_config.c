@@ -45,7 +45,7 @@ static void parse_error(struct ctx* ctx, const char* msg, char* arg)
 		p = fmtstr(p, e, arg);
 	}
 
-	FMTENL(p);
+	FMTENL(p, e);
 
 	sys_write(STDERR, buf, p - buf);
 	_exit(-1);

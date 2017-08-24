@@ -127,7 +127,7 @@ static int dm_crypt(struct part* pt, char* cipher, void* key, int keylen)
 	p = fmtstr(p, e, ":");
 	p = fmtlong(p, e, minor(pt->rdev));
 	p = fmtstr(p, e, " 0 1 allow_discards");
-	FMTEND(p);
+	FMTEND(p, e);
 
 	return dm_single(pt->label, pt->size, "crypt", buf);
 }
@@ -220,7 +220,7 @@ static int query_rdev_size(struct part* pt)
 	FMTBUF(p, e, path, strlen(pref) + strlen(name) + 4);
 	p = fmtstr(p, e, pref);
 	p = fmtstr(p, e, name);
-	FMTEND(p);
+	FMTEND(p, e);
 
 	if((fd = sys_open(path, O_RDONLY)) < 0)
 		quit("open", path, fd);
@@ -264,12 +264,12 @@ static void link_part(char* name, char* label)
 	lp = fmtstr(lp, le, MAPDIR);
 	lp = fmtstr(lp, le, "/");
 	lp = fmtstr(lp, le, label);
-	FMTEND(lp);
+	FMTEND(lp, le);
 
 	FMTBUF(pp, pe, path, 100);
 	pp = fmtstr(pp, pe, "/dev/");
 	pp = fmtstr(pp, pe, name);
-	FMTEND(pp);
+	FMTEND(pp, pe);
 
 	sys_symlink(path, link);
 }

@@ -125,7 +125,7 @@ static void check_dev_ent(char* name, char* _)
 	FMTBUF(p, e, path, 100);
 	p = fmtstr(p, e, "/sys/block/");
 	p = fmtstr(p, e, name);
-	FMTEND(p);
+	FMTEND(p, e);
 
 	foreach_dir_in(path, check_part_ent, name);
 }
@@ -194,12 +194,12 @@ static void link_part(char* name, char* label)
 	lp = fmtstr(lp, le, MAPDIR);
 	lp = fmtstr(lp, le, "/");
 	lp = fmtstr(lp, le, label);
-	FMTEND(lp);
+	FMTEND(lp, le);
 
 	FMTBUF(pp, pe, path, 100);
 	pp = fmtstr(pp, pe, "/dev/");
 	pp = fmtstr(pp, pe, name);
-	FMTEND(pp);
+	FMTEND(pp, pe);
 
 	sys_symlink(path, link);
 }

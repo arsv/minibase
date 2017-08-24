@@ -75,7 +75,7 @@ static int open_dev(char* name)
 	FMTBUF(p, e, path, strlen(pref) + strlen(name) + 4);
 	p = fmtstr(p, e, pref);
 	p = fmtstr(p, e, name);
-	FMTEND(p);
+	FMTEND(p, e);
 
 	return sys_open(path, O_RDONLY);
 }
@@ -89,7 +89,7 @@ static int read_entry(char* dev, const char* entry, char* buf, int len)
 	p = fmtstr(p, e, dev);
 	p = fmtstr(p, e, "/device/");
 	p = fmtstr(p, e, entry);
-	FMTEND(p);
+	FMTEND(p, e);
 
 	if((fd = sys_open(path, O_RDONLY)) < 0)
 		return fd;
@@ -163,7 +163,7 @@ static int cmple4(void* got, char* req)
 	p = fmtbyte(p, e, bp[2]);
 	p = fmtbyte(p, e, bp[1]);
 	p = fmtbyte(p, e, bp[0]);
-	FMTEND(p);
+	FMTEND(p, e);
 
 	return strcmp(buf, req);
 }
@@ -246,7 +246,7 @@ static int check_gpt_guid(void* buf, char* id)
 	p = fmtlei16(p, e, buf + 0x38 + 4);
 	p = fmtlei16(p, e, buf + 0x38 + 6);
 	p = fmtbytes(p, e, buf + 0x38 + 8, 8);
-	FMTEND(p);
+	FMTEND(p, e);
 
 	return strncmp(guid, id, 32);
 }
