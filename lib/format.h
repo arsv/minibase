@@ -1,14 +1,15 @@
 #include <bits/types.h>
 
 #define FMTBUF(p, e, buf, len) \
-	char buf[len];\
+	char buf[len+2];\
 	char* p = buf;\
-	char* e = buf + sizeof(buf) - 1;
+	char* e = buf + sizeof(buf) - 2;
 
-#define FMTEND(p) \
-	*p++ = '\0';
-#define FMTENL(p) \
-	*p++ = '\n';
+#define FMTEND(p, e) \
+	*p = '\0'
+#define FMTENL(p, e) \
+	if(p < e) *p++ = '\n'; \
+	*p = '\0'
 
 struct tm;
 
