@@ -12,7 +12,7 @@ static void dump_rec(char* pref, struct ucattr* bt)
 	FMTBUF(p, e, npf, strlen(pref) + 10);
 	p = fmtstr(p, e, "  ");
 	p = fmtstr(p, e, pref);
-	FMTEND(p);
+	FMTEND(p, e);
 
 	for(at = uc_sub_0(bt); at; at = uc_sub_n(bt, at))
 		dump_attr(npf, at);
@@ -27,9 +27,9 @@ static char* tag(char* p, char* e, char* pref, struct ucattr* at, char* type)
 	return p;
 }
 
-static void output(char* buf, char* p)
+static void output(char* p, char* e, char* buf)
 {
-	FMTENL(p);
+	FMTENL(p, e);
 	writeall(STDERR, buf, p - buf);
 }
 
@@ -37,14 +37,14 @@ void at_empty(char* pref, struct ucattr* at)
 {
 	FMTBUF(p, e, buf, 50);
 	p = tag(p, e, pref, at, " empty");
-	output(buf, p);
+	output(p, e, buf);
 }
 
 void at_nest(char* pref, struct ucattr* at)
 {
 	FMTBUF(p, e, buf, 50);
 	p = tag(p, e, pref, at, " nest");
-	output(buf, p);
+	output(p, e, buf);
 
 	dump_rec(pref, at);
 }
@@ -56,7 +56,7 @@ void at_string(char* pref, struct ucattr* at, char* str)
 	p = fmtstr(p, e, "\"");
 	p = fmtstr(p, e, str);
 	p = fmtstr(p, e, "\"");
-	output(buf, p);
+	output(p, e, buf);
 }
 
 void at_int(char* pref, struct ucattr* at, int* val)
@@ -64,7 +64,7 @@ void at_int(char* pref, struct ucattr* at, int* val)
 	FMTBUF(p, e, buf, 50);
 	p = tag(p, e, pref, at, " int ");
 	p = fmtint(p, e, *val);
-	output(buf, p);
+	output(p, e, buf);
 }
 
 void at_raw(char* pref, struct ucattr* at, void* data, int dlen)
@@ -80,7 +80,7 @@ void at_raw(char* pref, struct ucattr* at, void* data, int dlen)
 		p = fmtbyte(p, e, q[i]);
 	}
 
-	output(buf, p);
+	output(p, e, buf);
 }
 
 void at_trash(char* pref, struct ucattr* at, void* data, int dlen)
@@ -93,7 +93,7 @@ void at_trash(char* pref, struct ucattr* at, void* data, int dlen)
 
 	for(i = 0; i < dlen; i++) {
 		if(i % 16 == 0) {
-			output(buf, p);
+			output(p, e, buf);
 			p = buf;
 			p = fmtstr(p, e, pref);
 			p = fmtstr(p, e, " ");
@@ -102,7 +102,7 @@ void at_trash(char* pref, struct ucattr* at, void* data, int dlen)
 		p = fmtbyte(p, e, q[i]);
 	}
 
-	output(buf, p);
+	output(p, e, buf);
 }
 
 static void dump_attr(char* pref, struct ucattr* at)
@@ -176,7 +176,7 @@ static void dump_header(struct ucmsg* msg)
 		p = fmtint(p, e, paylen);
 	};
 
-	FMTENL(p);
+	FMTENL(p, e);
 
 	writeall(STDERR, buf, p - buf);
 }
