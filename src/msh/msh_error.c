@@ -57,7 +57,7 @@ static void report(struct sh* ctx, const char* err, char* arg, long ret, int m)
 		p = fmterr(p, e, ret);
 	}
 
-	FMTENL(p);
+	FMTENL(p, e);
 
 	if(m == FILE_LINE_REDIR)
 		fd = STDERR;

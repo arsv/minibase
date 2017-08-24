@@ -40,7 +40,7 @@ static int describe(struct sh* ctx, int status)
 		p = fmtint(p, e, WEXITSTATUS(status));
 	};
 
-	FMTEND(p);
+	FMTEND(p, e);
 
 	return error(ctx, msg, buf, 0);
 }
