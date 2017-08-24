@@ -1,3 +1,4 @@
+bin = logcat
 sbin = syslogd
 also = logger
 
