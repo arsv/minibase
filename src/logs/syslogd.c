@@ -116,23 +116,67 @@ static void store_line(struct top* ctx, char* buf, char* end)
 	maybe_rotate(ctx);
 }
 
+/* From the HEADER field (see RFC3164), we pick priority but
+   ignore timestamp. Client's timestamps are unreliable and
+   there's no point in supplying or using them, syslogd can
+   it just as well.
+
+   There's no way to remove the HOSTNAME part reliably, but luckily
+   no-one apparently does this nonsense anymore. Well at least musl
+   syslog() and logger from util-linux don't.
+
+   There's also RFC5424 but no-one apparently uses it either,
+   which is probably for the best. */
+
+static int isdigit(int c)
+{
+	return (c >= '0' && c <= '9');
+}
+
+static int isdigsp(int c)
+{
+	return (c >= '0' && c <= '9') || (c == ' ');
+}
+
+static int looks_like_time(char* p)
+{
+	/* 17:31:21 */
+	/* 01234567 */
+
+	if(p[2] != ':' || p[5] != ':')
+		return 0;
+	if(!isdigit(p[1]) || !isdigit(p[4]) || !isdigit(p[7]))
+		return 0;
+	if(!isdigsp(p[0]) || !isdigsp(p[3]) || !isdigsp(p[6]))
+		return 0;
+
+	return 1;
+}
+
 static char* parse_header(char* p, int len, int* prio)
 {
 	char* r = p;
-	char old = p[len];
+	char* e = p + len;
+	char old = *e;
 
 	if(*p++ != '<')
 		goto out;
 
-	p[len] = '\0';
+	*e = '\0';
 
 	if(!(p = parseint(p, prio)))
 		goto out; 
 
-	p[len] = old;
+	*e = old;
 
 	if(*p++ != '>')
 		goto out;
+
+	/* Aug 24 17:31:21 */
+	/* 012345678901234 */
+	if(e - p > 15 && looks_like_time(p + 7))
+		p += 15;
+
 	if(*p == ' ') p++;
 
 	r = p;
