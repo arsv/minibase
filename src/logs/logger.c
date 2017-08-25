@@ -1,13 +1,14 @@
 #include <bits/socket/unix.h>
 #include <sys/socket.h>
 
+#include <errtag.h>
 #include <format.h>
 #include <string.h>
-#include <fail.h>
+#include <util.h>
 
 #include "common.h"
 
-ERRTAG = "logger";
+ERRTAG("logger");
 
 static int parse_mode(char* mode)
 {

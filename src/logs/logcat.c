@@ -1,14 +1,16 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <output.h>
 #include <time.h>
 #include <util.h>
-#include <fail.h>
 
 #include "common.h"
+
+ERRTAG("logcat");
 
 #define TAGSPACE 13
 

@@ -5,14 +5,15 @@
 #include <sys/time.h>
 #include <sys/signal.h>
 
+#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <sigset.h>
-#include <fail.h>
 #include <util.h>
-#include <exit.h>
 
 #include "common.h"
+
+ERRTAG("syslogd");
 
 #define THRESHOLD (1<<20) /* 1MB */
 #define TAGSPACE 13 /* see description of storage format below */
