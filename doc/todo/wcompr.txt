@@ -1,0 +1,22 @@
+A simple, no-deps, CPU only Wayland compositor capable of both direct and
+managed KMS modes (privileged/non-privileged, without/with vtmux).
+
+This will likely be a curcial tool for doing graphical versions of early-boot
+utils like passblk. It may sound like a good idea to have those do direct KMS,
+but direct KMS tool are a PITA to test and develop, while Wayland clients are
+about as easy to work on as VT tools.
+
+It could also be very useful as a default/fallback option for the managed
+user UI that would not require usable Mesa libs. Mesa is kind of messy as
+a dependency and only makes sense if it's GPU-backed, otherwise it's a lot
+of complexity for little benefit in a simple composing WM. This gets especially
+bad on ARM systems with unsupported GPUs, or on anything with questionable GPUs.
+
+
+Unclear point at this moment: how much of WM featurs are necessary.
+Window switching, window moving, key bindings and such. Fallback UI use
+would require quite a lot, while early-boot tools should require almost
+none.
+
+Side note: graphical firmware config tools (aka BIOS config) sometimes
+come with proper WMs capable of moving and resizing windows.
