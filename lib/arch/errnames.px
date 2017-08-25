@@ -1,0 +1,21 @@
+#!/usr/bin/perl
+
+foreach $arch (@ARGV) {
+	open(NAMES, '>', "$arch/errnames.h") || die;
+	open(ERRNO, '<', "$arch/bits/errno.h") || die;
+	select(NAMES);
+
+	while(<ERRNO>) {
+		if(m!#define\s+(E[A-Z]+)\s+(E[A-Z]+)!) {
+			print "#define N$1 N$2\n";
+			next;
+		}
+
+		next unless m!#define\s+(E\S+)\s+(\d+)!;
+
+		$err = $1;
+		$hex = sprintf("\\x%02X", $2);
+		$pad = ' ' x (15 - length($err));
+		print "#define N$err$pad \"$hex\" \"$err\"$pad \"\\0\"\n";
+	}
+}
