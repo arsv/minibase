@@ -3,7 +3,6 @@
 #include <string.h>
 #include <format.h>
 #include <output.h>
-#include <fail.h>
 #include <util.h>
 
 #include "common.h"

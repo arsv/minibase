@@ -6,7 +6,6 @@
 
 #include <string.h>
 #include <util.h>
-#include <fail.h>
 
 #include "common.h"
 #include "vtctl.h"

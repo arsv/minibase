@@ -10,8 +10,7 @@
 
 #include <sigset.h>
 #include <string.h>
-#include <null.h>
-#include <fail.h>
+#include <util.h>
 
 #include "vtmux.h"
 

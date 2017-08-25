@@ -13,8 +13,7 @@
 
 #include <string.h>
 #include <format.h>
-#include <exit.h>
-#include <fail.h>
+#include <util.h>
 
 #include "vtmux.h"
 #include "common.h"

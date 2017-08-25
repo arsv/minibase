@@ -1,19 +1,14 @@
-#include <bits/errno.h>
+#include <errtag.h>
 #include <string.h>
 #include <format.h>
-#include <fail.h>
 #include <util.h>
 
 #include "common.h"
 #include "vtctl.h"
 
-ERRTAG = "vtctl";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(ECONNREFUSED), REPORT(ELOOP), REPORT(ENFILE),
-	REPORT(EMFILE), REPORT(EINTR), REPORT(EINVAL), REPORT(EACCES),
-	REPORT(EPERM), REPORT(EIO), REPORT(EFAULT), REPORT(ENOSYS),
-	RESTASNUMBERS
-};
+ERRTAG("vtctl");
+ERRLIST(NENOENT NECONNREFUSED NELOOP NENFILE NEMFILE NEINTR
+	NEINVAL NEACCES NEPERM NEIO NEFAULT NENOSYS);
 
 #define OPTS "s"
 #define OPT_s (1<<0)

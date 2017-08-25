@@ -12,7 +12,6 @@
 #include <format.h>
 #include <alloca.h>
 #include <util.h>
-#include <fail.h>
 
 #include "common.h"
 #include "vtmux.h"

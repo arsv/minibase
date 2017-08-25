@@ -1,12 +1,11 @@
 #include <bits/ioctl/vt.h>
 #include <sys/ioctl.h>
-#include <fail.h>
 
-ERRTAG = "unlock";
-ERRLIST = {
-	REPORT(EINVAL), REPORT(ENXIO), REPORT(EPERM), REPORT(ENOENT),
-	REPORT(EACCES), REPORT(EIO), REPORT(EAGAIN), RESTASNUMBERS
-};
+#include <errtag.h>
+#include <util.h>
+
+ERRTAG("unlock");
+ERRLIST(NEINVAL NENXIO NEPERM NENOENT NEACCES NEIO NEAGAIN);
 
 int main(void)
 {

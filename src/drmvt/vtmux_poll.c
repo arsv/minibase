@@ -6,7 +6,7 @@
 #include <format.h>
 #include <string.h>
 #include <sigset.h>
-#include <fail.h>
+#include <util.h>
 
 #include "vtmux.h"
 

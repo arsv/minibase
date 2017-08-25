@@ -4,9 +4,9 @@
 #include <sys/ppoll.h>
 #include <sys/ioctl.h>
 
+#include <errtag.h>
 #include <format.h>
-#include <fail.h>
-#include <exit.h>
+#include <util.h>
 
 #include "vtmux.h"
 
@@ -17,14 +17,7 @@ int primarytty;
 int greetertty;
 int activetty;
 
-ERRTAG = "vtmux";
-ERRLIST = {
-	REPORT(EINVAL), REPORT(ENOENT), REPORT(ENOTDIR), REPORT(EFAULT),
-	REPORT(ENOTTY), REPORT(EINTR), REPORT(ENOSYS), REPORT(EIO),
-	REPORT(EPERM), REPORT(EACCES), REPORT(ENOTSOCK), REPORT(EADDRINUSE),
-	REPORT(EBADF),
-	RESTASNUMBERS
-};
+ERRTAG("vtmux");
 
 static int intarg(char* arg)
 {
