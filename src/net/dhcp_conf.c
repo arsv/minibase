@@ -5,7 +5,7 @@
 #include <netlink/rtnl/route.h>
 
 #include <endian.h>
-#include <fail.h>
+#include <util.h>
 
 #include "dhcp.h"
 

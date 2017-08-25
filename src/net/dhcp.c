@@ -10,12 +10,12 @@
 #include <sys/ppoll.h>
 #include <sys/signal.h>
 
+#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <endian.h>
 #include <sigset.h>
 #include <util.h>
-#include <fail.h>
 
 #include "dhcp.h"
 #include "dhcp_udp.h"
@@ -23,15 +23,7 @@
 #define ARPHRD_NETROM  0
 #define ETH_P_IP  0x0800
 
-ERRTAG = "dhcp";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EPERM), REPORT(EAFNOSUPPORT),
-	REPORT(EINVAL), REPORT(ENFILE), REPORT(EMFILE),
-	REPORT(ENOBUFS), REPORT(ENOMEM), REPORT(EPROTONOSUPPORT),
-	REPORT(EADDRINUSE), REPORT(EBADF), REPORT(ENOTSOCK),
-	REPORT(EADDRNOTAVAIL), REPORT(EFAULT), REPORT(ENODEV),
-	REPORT(ENETDOWN), REPORT(ETIMEDOUT), RESTASNUMBERS
-};
+ERRTAG("dhcp");
 
 /* DHCP packets are sent via raw sockets, so full ip and udp headers here. */
 

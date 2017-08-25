@@ -7,12 +7,12 @@
 #include <netlink/rtnl/route.h>
 #include <netlink/dump.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <output.h>
 #include <format.h>
 #include <heap.h>
 #include <util.h>
-#include <fail.h>
 
 /* Dumping ip stack state has almost nothing in common with configuring it,
    so this is not a part of ip4cfg, at least for now.
@@ -23,15 +23,7 @@
    a nice overview of the configuration, even if it requires combining data
    from multiple RTNL requests. */
 
-ERRTAG = "ip4info";
-ERRLIST = {
-	REPORT(EPERM), REPORT(EBUSY), REPORT(ENOENT), REPORT(EBADF),
-	REPORT(ENETDOWN), REPORT(EEXIST), REPORT(EOPNOTSUPP),
-	REPORT(ECONNREFUSED), REPORT(EFAULT), REPORT(EINTR), REPORT(EINVAL),
-	REPORT(ENOMEM), REPORT(ENOTCONN), REPORT(ENOTSOCK), REPORT(EBADMSG),
-	REPORT(EAFNOSUPPORT), REPORT(ENOBUFS), REPORT(EPROTONOSUPPORT),
-	RESTASNUMBERS
-};
+ERRTAG("ip4info");
 
 /* Link and IP lists are cached in the heap, because we need freely
    accessible to format links and routes properly. Route data is not

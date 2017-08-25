@@ -6,20 +6,12 @@
 #include <netlink/rtnl/link.h>
 #include <netlink/rtnl/route.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
-#include <fail.h>
 
-ERRTAG = "ip4cfg";
-ERRLIST = {
-	REPORT(EPERM), REPORT(EBUSY), REPORT(ENOENT), REPORT(EBADF),
-	REPORT(ENETDOWN), REPORT(EEXIST), REPORT(EOPNOTSUPP),
-	REPORT(ECONNREFUSED), REPORT(EFAULT), REPORT(EINTR), REPORT(EINVAL),
-	REPORT(ENOMEM), REPORT(ENOTCONN), REPORT(ENOTSOCK), REPORT(EBADMSG),
-	REPORT(EAFNOSUPPORT), REPORT(ENOBUFS), REPORT(EPROTONOSUPPORT),
-	RESTASNUMBERS
-};
+ERRTAG("ip4cfg");
 
 #define OPTS "d"
 #define OPT_d (1<<0)

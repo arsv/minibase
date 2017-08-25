@@ -3,7 +3,6 @@
 #include <format.h>
 #include <endian.h>
 #include <util.h>
-#include <fail.h>
 
 #include "dhcp.h"
 #include "dhcp_udp.h"
