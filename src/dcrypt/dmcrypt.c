@@ -5,19 +5,15 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
-#include <fail.h>
 
 #include "keytool.h"
 
-ERRTAG = "dmcrypt";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(ENOTDIR), REPORT(EPERM), REPORT(EACCES),
-	REPORT(ELOOP), REPORT(ENOMEM), REPORT(EFAULT), REPORT(EEXIST),
-	RESTASNUMBERS
-};
+ERRTAG("dmcrypt");
+ERRLIST(NENOENT NENOTDIR NEPERM NEACCES NELOOP NENOMEM NEFAULT NEEXIST);
 
 #define OPTS "d"
 #define OPT_d (1<<0)

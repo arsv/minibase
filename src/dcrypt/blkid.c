@@ -1,13 +1,12 @@
 #include <sys/file.h>
 
+#include <errtag.h>
 #include <format.h>
 #include <string.h>
-#include <fail.h>
+#include <util.h>
 
-ERRTAG = "blkid";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(EINVAL), RESTASNUMBERS
-};
+ERRTAG("blkid");
+ERRLIST(NENOENT NEINVAL);
 
 static int open_dev_dir(char* name)
 {

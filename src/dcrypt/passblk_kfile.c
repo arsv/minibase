@@ -4,7 +4,7 @@
 #include <crypto/aes128.h>
 #include <crypto/scrypt.h>
 #include <string.h>
-#include <fail.h>
+#include <util.h>
 
 #include "common.h"
 #include "passblk.h"

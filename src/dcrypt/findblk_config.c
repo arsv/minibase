@@ -4,8 +4,6 @@
 #include <string.h>
 #include <format.h>
 #include <util.h>
-#include <exit.h>
-#include <fail.h>
 
 #include "common.h"
 #include "findblk.h"

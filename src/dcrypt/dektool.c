@@ -1,14 +1,14 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
-#include <fail.h>
 
 #include "keytool.h"
 
-ERRTAG = "dektool";
+ERRTAG("dektool");
 
 #define OPTS "actpf"
 #define OPT_a (1<<0)

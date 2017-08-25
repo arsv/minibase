@@ -7,7 +7,7 @@
 
 #include <string.h>
 #include <format.h>
-#include <fail.h>
+#include <util.h>
 
 #include "common.h"
 #include "findblk.h"

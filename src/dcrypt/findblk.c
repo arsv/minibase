@@ -2,12 +2,13 @@
 #include <sys/fpath.h>
 
 #include <format.h>
-#include <fail.h>
+#include <errtag.h>
+#include <util.h>
 
 #include "common.h"
 #include "findblk.h"
 
-ERRTAG = "findblk";
+ERRTAG("findblk");
 
 void quit(const char* msg, char* arg, int err)
 {

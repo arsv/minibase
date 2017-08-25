@@ -1,19 +1,16 @@
 #include <sys/file.h>
 
+#include <errtag.h>
 #include <printf.h>
 #include <format.h>
 #include <string.h>
-#include <fail.h>
 #include <util.h>
 
 #include "common.h"
 #include "passblk.h"
 
-ERRTAG = "passblk";
-ERRLIST = {
-	REPORT(EINVAL), REPORT(ENOENT), REPORT(ENOTTY), REPORT(EFAULT),
-	REPORT(ENODEV), RESTASNUMBERS
-};
+ERRTAG("passblk");
+ERRLIST(NEINVAL NENOENT NENOTTY NEFAULT NENODEV);
 
 void quit(const char* msg, char* arg, int err)
 {
