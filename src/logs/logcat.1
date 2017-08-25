@@ -1,0 +1,27 @@
+.TH logcat 1
+'''
+.SH NAME
+\fBlogcat\fR \- show entries from the system log
+'''
+.SH SYNOPSIS
+.IP "\fBlogcat\fR [\fB-cbf\fR] [\fItag\fR]" 4
+'''
+.SH OPTIONS
+.IP "\fB-c\fR" 4
+Disable colors.
+.IP "\fB-b\fR" 4
+Use both current and old (rotated) logfile.
+.IP "\fB-f\fR" 4
+Follow the log.
+'''
+.SH NOTES
+Log entry is considered tagged if it starts with "\fItag\fB:\fR".
+'''
+.SH FILES
+.IP "/var/log/syslog" 4
+Primary log file.
+.IP "/var/log/sysold" 4
+Rotated log file.
+'''
+.SH SEE ALSO
+\fBsyslogd\fR(8), \fBlogger\fR(1).

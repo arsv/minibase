@@ -1,0 +1,19 @@
+.TH syslogd 8
+'''
+.SH NAME
+\fBsyslogd\fR \- system log daemon
+'''
+.SH DESCRIPTION
+\fBsyslogd\fR listens for incoming messages from various system services
+and stores to a file. Once the file gets too large \fBsyslogd\fR rotates it.
+'''
+.SH FILES
+.IP "/dev/log" 4
+Socket for incoming messages.
+.IP "/var/log/syslog" 4
+Primary log file.
+.IP "/var/log/sysold" 4
+Rotated log file.
+'''
+.SH SEE ALSO
+\fBlogcat\fR(1), \fBlogger\fR(1), RFC 3164.
