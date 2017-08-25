@@ -1,5 +1,4 @@
 #include <util.h>
-#include <fail.h>
 
 /* A lot of tool are ok with first-argument-only, squashed options, as in
 

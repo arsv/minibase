@@ -1,7 +1,7 @@
 #ifndef __OUTPUT_H__
 #define __OUTPUT_H__
 
-#include <null.h>
+#include <bits/null.h>
 #include <bits/stdio.h>
 
 /* Buffered output. Allocating the buffer itself is caller's duty

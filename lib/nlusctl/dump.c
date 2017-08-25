@@ -1,7 +1,7 @@
+#include <nlusctl.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
-#include <nlusctl.h>
 
 static void dump_attr(char* pref, struct ucattr* at);
 

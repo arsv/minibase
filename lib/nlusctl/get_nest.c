@@ -1,4 +1,4 @@
-#include <null.h>
+#include <bits/null.h>
 #include "../nlusctl.h"
 
 static int extend_to_4bytes(int n)

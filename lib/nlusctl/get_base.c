@@ -1,4 +1,4 @@
-#include <null.h>
+#include <bits/null.h>
 #include "../nlusctl.h"
 
 static int is_zstr(char* buf, int len)

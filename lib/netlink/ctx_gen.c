@@ -1,6 +1,6 @@
 #include <bits/errno.h>
 #include <bits/types.h>
-#include <null.h>
+#include <bits/null.h>
 
 #include "base.h"
 #include "attr.h"

@@ -1,4 +1,4 @@
-#include <null.h>
+#include <bits/null.h>
 #include "../nlusctl.h"
 
 static struct ucmsg* uc_msg_hdr(char* buf, int len)

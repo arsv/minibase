@@ -1,5 +1,5 @@
+#include <bits/null.h>
 #include <format.h>
-#include <null.h>
 
 static int hexdigit(char c)
 {
