@@ -1,22 +1,18 @@
 #include <bits/errno.h>
 
+#include <errtag.h>
 #include <nlusctl.h>
 #include <format.h>
 #include <string.h>
 #include <heap.h>
 #include <util.h>
-#include <fail.h>
 
 #include "common.h"
 #include "wictl.h"
 
-ERRTAG = "wictl";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(EINVAL), REPORT(ENOSYS), REPORT(ENOENT),
-	REPORT(EACCES), REPORT(EPERM), REPORT(EBUSY), REPORT(EALREADY),
-	REPORT(ENETDOWN), REPORT(ENOKEY), REPORT(ENOTCONN), REPORT(ENODEV),
-	REPORT(ETIMEDOUT), RESTASNUMBERS
-};
+ERRTAG("wictl");
+ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
+	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT);
 
 #define OPTS "abcdepswxz"
 #define OPT_a (1<<0)

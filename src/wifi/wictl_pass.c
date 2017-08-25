@@ -6,7 +6,6 @@
 #include <format.h>
 #include <heap.h>
 #include <util.h>
-#include <fail.h>
 
 #include "common.h"
 #include "wictl.h"

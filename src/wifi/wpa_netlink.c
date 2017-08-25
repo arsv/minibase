@@ -6,9 +6,7 @@
 #include <netlink/genl/nl80211.h>
 
 #include <string.h>
-#include <fail.h>
 #include <util.h>
-#include <exit.h>
 
 #include "wpa.h"
 

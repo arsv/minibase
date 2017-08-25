@@ -1,9 +1,8 @@
+#include <bits/null.h>
 #include <bits/ints.h>
 #include <bits/rfkill.h>
-
 #include <sys/file.h>
 
-#include <null.h>
 #include <format.h>
 
 #include "wimon.h"

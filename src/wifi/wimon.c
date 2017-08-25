@@ -3,21 +3,16 @@
 #include <sys/ppoll.h>
 #include <sys/signal.h>
 
+#include <errtag.h>
 #include <netlink.h>
 #include <sigset.h>
 #include <string.h>
-#include <fail.h>
+#include <util.h>
 
 #include "common.h"
 #include "wimon.h"
 
-ERRTAG = "wimon";
-ERRLIST = {
-	REPORT(ENOMEM), REPORT(EINVAL), REPORT(ENOBUFS), REPORT(EFAULT),
-	REPORT(EINTR), REPORT(ENOENT), REPORT(EBUSY), REPORT(EADDRNOTAVAIL),
-	REPORT(ENETDOWN),
-	RESTASNUMBERS
-};
+ERRTAG("wimon");
 
 char** environ;
 int envcount;

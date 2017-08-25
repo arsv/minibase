@@ -4,9 +4,6 @@
 #include <format.h>
 #include <string.h>
 #include <util.h>
-#include <null.h>
-#include <fail.h>
-#include <exit.h>
 
 #include "wimon.h"
 

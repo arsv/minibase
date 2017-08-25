@@ -5,7 +5,6 @@
 #include <nlusctl.h>
 #include <util.h>
 #include <heap.h>
-#include <fail.h>
 
 #include "common.h"
 #include "wictl.h"

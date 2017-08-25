@@ -9,7 +9,7 @@
 #include <netlink/rtnl/mgrp.h>
 
 #include <string.h>
-#include <fail.h>
+#include <util.h>
 
 #include "wimon.h"
 

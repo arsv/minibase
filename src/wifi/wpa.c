@@ -4,11 +4,10 @@
 #include <sys/sched.h>
 #include <sys/ppoll.h>
 
+#include <errtag.h>
 #include <sigset.h>
 #include <string.h>
 #include <format.h>
-#include <fail.h>
-#include <exit.h>
 #include <util.h>
 
 #include "wpa.h"
@@ -22,14 +21,10 @@ char* ssid;
 int signalled;
 int tkipgroup;
 
-ERRTAG = "wpa";
-ERRLIST = {
-	REPORT(EINVAL), REPORT(EBUSY), REPORT(ENOENT), REPORT(EPERM),
-	REPORT(EFAULT), REPORT(EINTR), REPORT(EINPROGRESS), REPORT(EFAULT),
-	REPORT(ENOBUFS), REPORT(ENOLINK), REPORT(ENOTCONN), REPORT(EOPNOTSUPP),
-	REPORT(ENETDOWN), REPORT(EALREADY), REPORT(EMSGSIZE), REPORT(EPROTO),
-	REPORT(ERANGE), RESTASNUMBERS
-};
+ERRTAG("wpa");
+ERRLIST(NEINVAL NEBUSY NENOENT NEPERM NEFAULT NEINTR NEINPROGRESS NEFAULT
+	NENOBUFS NENOLINK NENOTCONN NEOPNOTSUPP NENETDOWN NEALREADY NEMSGSIZE
+	NEPROTO NERANGE);
 
 /* Ref. IEEE 802.11-2012 8.4.2.27 RSNE */
 

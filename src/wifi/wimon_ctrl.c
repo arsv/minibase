@@ -7,7 +7,7 @@
 
 #include <nlusctl.h>
 #include <string.h>
-#include <fail.h>
+#include <util.h>
 
 #include "common.h"
 #include "wimon.h"

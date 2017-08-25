@@ -1,6 +1,6 @@
+#include <bits/null.h>
 #include <string.h>
 #include <format.h>
-#include <null.h>
 
 #include "wimon.h"
 
