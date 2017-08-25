@@ -5,19 +5,16 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
+#include <errtag.h>
 #include <output.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
-#include <fail.h>
 
 #include "inputs.h"
 
-ERRTAG = "inputs";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EPERM), REPORT(ENOTTY), REPORT(ENODEV),
-	REPORT(ENOTDIR), REPORT(EINVAL), RESTASNUMBERS
-};
+ERRTAG("inputs");
+ERRLIST(NEACCES NEPERM NENOTTY NENODEV NENOTDIR NEINVAL);
 
 #define OPTS "ar"
 #define OPT_a (1<<0)

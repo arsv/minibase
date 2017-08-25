@@ -5,20 +5,12 @@
 #include <netlink/genl.h>
 #include <netlink/dump.h>
 
+#include <errtag.h>
 #include <format.h>
 #include <string.h>
-#include <fail.h>
 #include <util.h>
-#include <exit.h>
 
-ERRTAG = "acpid";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EFAULT), REPORT(E2BIG), REPORT(EAGAIN),
-	REPORT(EINVAL), REPORT(EIO), REPORT(EISDIR), REPORT(ELIBBAD),
-	REPORT(ELOOP), REPORT(EMFILE), REPORT(ENFILE), REPORT(ENOEXEC),
-	REPORT(ENOMEM), REPORT(EPERM), REPORT(ETXTBSY), REPORT(ENOENT),
-	RESTASNUMBERS
-};
+ERRTAG("acpid");
 
 static const char confdir[] = "/etc/acpi";
 

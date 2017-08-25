@@ -2,21 +2,16 @@
 #include <sys/ppoll.h>
 #include <sys/signal.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <sigset.h>
-#include <null.h>
-#include <fail.h>
+#include <util.h>
 
 #include "keymon.h"
 
-ERRTAG = "keymon";
-ERRLIST = {
-	REPORT(EPERM), REPORT(ENOENT), REPORT(ENOTDIR), REPORT(EACCES),
-	REPORT(ENOTTY), REPORT(EFAULT), REPORT(EINVAL), REPORT(EISDIR),
-	REPORT(ELIBBAD), REPORT(ELOOP), REPORT(EMFILE), REPORT(ENFILE),
-	REPORT(ENOEXEC), REPORT(ENOMEM), REPORT(ETXTBSY),
-	RESTASNUMBERS
-};
+ERRTAG("keymon");
+ERRLIST(NEPERM NENOENT NENOTDIR NEACCES NENOTTY NEFAULT NEINVAL NEISDIR
+	NELIBBAD NELOOP NEMFILE NENFILE NENOEXEC NENOMEM NETXTBSY);
 
 #define PFDS (1 + NDEVICES)
 

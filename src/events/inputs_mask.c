@@ -1,9 +1,9 @@
 #include <bits/input.h>
+#include <bits/null.h>
 #include <sys/ioctl.h>
 #include <string.h>
 #include <format.h>
 #include <output.h>
-#include <null.h>
 
 #include "inputs.h"
 

@@ -10,8 +10,7 @@
 
 #include <string.h>
 #include <format.h>
-#include <exit.h>
-#include <fail.h>
+#include <util.h>
 
 #include "common.h"
 #include "keymon.h"

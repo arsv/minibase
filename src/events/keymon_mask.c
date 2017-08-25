@@ -8,8 +8,7 @@
 
 #include <string.h>
 #include <format.h>
-#include <exit.h>
-#include <fail.h>
+#include <util.h>
 
 #include "keymon.h"
 

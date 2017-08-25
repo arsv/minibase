@@ -5,7 +5,6 @@
 #include <format.h>
 #include <string.h>
 #include <util.h>
-#include <fail.h>
 #include <heap.h>
 
 #include "inputs.h"
