@@ -288,13 +288,7 @@ static int start_inotify(struct tail* ta)
 	ta->in = fd;
 	ta->inf = ret;
 
-	int len = strlen(name);
-	char dir[len+1];
-
-	memcpy(dir, name, len+1);
-	char* p = dir + len - 1;
-	while(p > dir && *p != '/') p--;
-	*p = '\0';
+	char* dir = LOGDIR;
 
 	if((ret = sys_inotify_add_watch(fd, dir, IN_CREATE)) < 0)
 		fail("inotify-add", dir, ret);
