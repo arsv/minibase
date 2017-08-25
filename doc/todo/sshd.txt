@@ -1,0 +1,13 @@
+Minimalistic SSH server; key-only auth with a single supported
+key type (say Ed25519), and probably no advanced features like
+port forwarding.
+
+This would be a base-line remote access implementation, for cases
+where building/installing a proper sshd is just too much and telnet
+gets used instead. Also would be nice to have just to make minibase
+only systems viable for SBCs.
+
+This should not depend on dnresd at all.
+
+Critical point: dropbear (with modifications to simplify build)
+possibly makes this tool pointless.

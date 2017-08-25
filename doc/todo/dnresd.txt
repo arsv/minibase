@@ -11,11 +11,15 @@ that good. Lacking that, something really static like 8.8.8.8, but
 again that's Google so not good either. Querying 192.168.1.1 in home
 network should be an option too.
 
-So most likely same as with sntpd, servers in command line, and
-startup script to pull them from whatever place necessary.
-
-Relying on DHCP is tricky. DHCP to write to some pre-defined location
-(like /run/dhcp.conf) and the startup script to pick it there?
+Relying on DHCP is tricky. Including the question on whether to rely
+on DHCP-supplied data at all.
 
 
 References: musl gethostbyname
+
+
+Alternative approach: a service that would take a hostname and return
+an open socket fd. This would make it relatively easy to handle transport
+protocols including TLS and TOR in a sane way from the application
+perspective, but it is not clear whether all necessary tools can be
+re-implemented to use such a service.
