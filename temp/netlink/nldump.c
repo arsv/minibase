@@ -1,11 +1,13 @@
 #include <netlink.h>
 #include <netlink/dump.h>
 #include <sys/file.h>
-#include <fail.h>
+
+#include <errtag.h>
+#include <util.h>
 
 #include "common.h"
 
-ERRTAG = "nldump";
+ERRTAG("nldump");
 
 int align4(int n) { return n + (4 - n % 4) % 4; }
 

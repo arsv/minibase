@@ -3,11 +3,10 @@
 #include <sys/sched.h>
 #include <sys/file.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
-#include <fail.h>
-#include <exit.h>
 
 #include <netlink.h>
 #include <netlink/genl/ctrl.h>
@@ -17,15 +16,7 @@
    Mostly a netlink.h test atm, not really meant to be a permanent part
    of minitools. */
 
-ERRTAG = "wiscan";
-ERRLIST = {
-	REPORT(EPERM), REPORT(EBUSY), REPORT(ENOENT), REPORT(EBADF),
-	REPORT(ENETDOWN), 
-	REPORT(ECONNREFUSED), REPORT(EFAULT), REPORT(EINTR), REPORT(EINVAL),
-	REPORT(ENOMEM), REPORT(ENOTCONN), REPORT(ENOTSOCK),
-	REPORT(EAFNOSUPPORT), REPORT(ENOBUFS), REPORT(EPROTONOSUPPORT),
-	RESTASNUMBERS
-};
+ERRTAG("wiscan");
 
 /* All commands this tool sends are small (50 bytes or less), the output
    lines are formed and printed individually, but incoming packets may be

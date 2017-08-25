@@ -1,12 +1,13 @@
 #include <sys/file.h>
 
+#include <errtag.h>
 #include <netlink.h>
 #include <netlink/dump.h>
-#include <fail.h>
+#include <util.h>
 
 #include "common.h"
 
-ERRTAG = "rtdump";
+ERRTAG("rtdump");
 
 int align4(int n) { return n + (4 - n % 4) % 4; }
 

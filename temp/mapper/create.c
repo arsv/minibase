@@ -5,15 +5,13 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
+#include <errtag.h>
 #include <format.h>
 #include <string.h>
-#include <fail.h>
+#include <util.h>
 
-ERRTAG = "create";
-ERRLIST = {
-	REPORT(EINVAL), REPORT(EPERM), REPORT(EACCES), REPORT(EBUSY),
-	RESTASNUMBERS
-};
+ERRTAG("create");
+ERRLIST(NEINVAL NEPERM NEACCES NEBUSY);
 
 struct device {
 	uint64_t rdev;

@@ -1,9 +1,9 @@
+#include <bits/null.h>
 #include <sys/signal.h>
 #include <sys/file.h>
 #include <sys/creds.h>
 
 #include <format.h>
-#include <null.h>
 
 /* Signal handling, minibase way.
    Should not segfault. See ../../doc/signals.txt on this. */

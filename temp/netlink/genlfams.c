@@ -1,21 +1,17 @@
 #include <bits/errno.h>
 
+#include <errtag.h>
 #include <netlink.h>
 #include <netlink/genl/ctrl.h>
 #include <netlink/dump.h>
 #include <string.h>
 #include <format.h>
 #include <output.h>
-
-#include <fail.h>
+#include <util.h>
 
 /* The tool queries available GENL families and their multicast groups. */
 
-ERRTAG = "genlfams";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(EINVAL), REPORT(EPERM), REPORT(EFAULT),
-	REPORT(ENOBUFS), RESTASNUMBERS
-};
+ERRTAG("genlfams");
 
 char rxbuf[4096];
 

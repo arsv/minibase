@@ -3,15 +3,14 @@
 #include <netlink/genl.h>
 #include <netlink/dump.h>
 
+#include <errtag.h>
 #include <format.h>
 #include <string.h>
-#include <fail.h>
 #include <util.h>
 
 #define CTX struct top* ctx
 
-ERRTAG = "acpilog";
-ERRLIST = { REPORT(ENOENT), RESTASNUMBERS };
+ERRTAG("acpilog");
 
 struct top {
 	struct netlink nl;

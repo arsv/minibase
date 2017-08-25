@@ -2,7 +2,6 @@
 #include <sys/ioctl.h>
 
 #include <printf.h>
-#include <fail.h>
 #include <util.h>
 
 struct dict {

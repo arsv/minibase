@@ -1,13 +1,13 @@
 #include <bits/input.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
+
+#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
-#include <fail.h>
 
-ERRTAG = "keys";
-ERRLIST = { RESTASNUMBERS };
+ERRTAG("keys");
 
 static const char* keydesc[] = {
 	[0] = "RESERVED",

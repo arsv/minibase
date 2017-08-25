@@ -2,12 +2,12 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
+#include <errtag.h>
 #include <printf.h>
 #include <format.h>
-#include <fail.h>
+#include <util.h>
 
-ERRTAG = "ttyinfo";
-ERRLIST = { RESTASNUMBERS };
+ERRTAG("ttyinfo");
 
 int open_tty_device(int tty)
 {

@@ -1,13 +1,13 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
+#include <errtag.h>
 #include <netlink.h>
 #include <netlink/rtnl/mgrp.h>
 #include <netlink/dump.h>
-#include <fail.h>
+#include <util.h>
 
-ERRTAG = "rtevents";
-ERRLIST = { RESTASNUMBERS };
+ERRTAG("rtevents");
 
 char TX[1*1024];
 char RX[7*1024];

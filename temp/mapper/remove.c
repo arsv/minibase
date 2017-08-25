@@ -2,15 +2,13 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
+#include <errtag.h>
 #include <format.h>
 #include <string.h>
-#include <fail.h>
+#include <util.h>
 
-ERRTAG = "remove";
-ERRLIST = {
-	REPORT(EINVAL), REPORT(EPERM), REPORT(EACCES), REPORT(EBUSY),
-	REPORT(ENODEV), REPORT(ENXIO), RESTASNUMBERS
-};
+ERRTAG("remove");
+ERRLIST(NEINVAL NEPERM NEACCES NEBUSY NENODEV NENXIO);
 
 static int dm_open_control(void)
 {

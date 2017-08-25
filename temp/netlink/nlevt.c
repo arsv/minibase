@@ -5,11 +5,11 @@
 #include <netlink/genl/ctrl.h>
 #include <netlink/dump.h>
 
+#include <errtag.h>
 #include <string.h>
-#include <fail.h>
+#include <util.h>
 
-ERRTAG = "gnevents";
-ERRLIST = { RESTASNUMBERS };
+ERRTAG("gnevents");
 
 char TX[1*1024];
 char RX[15*1024];

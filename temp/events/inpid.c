@@ -1,13 +1,13 @@
 #include <bits/input.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
+
+#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
-#include <fail.h>
 
-ERRTAG = "inpid";
-ERRLIST = { RESTASNUMBERS };
+ERRTAG("inpid");
 
 static void list_keys(int fd)
 {

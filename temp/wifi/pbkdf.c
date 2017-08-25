@@ -4,7 +4,7 @@
 
 #include <format.h>
 #include <string.h>
-#include <exit.h>
+#include <util.h>
 
 /* For development use only! Takes passphrase as argument,
    likely leaving it in shell history. */

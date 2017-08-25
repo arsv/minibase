@@ -1,19 +1,12 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
-#include <null.h>
-#include <fail.h>
+#include <util.h>
 
 #include "common.h"
 
 #define PAGE 4096
 #define MAX_FILE_SIZE 0x50000
-
-ERRLIST = {
-	REPORT(ENOENT), REPORT(ENOMEM), REPORT(EACCES), REPORT(EPERM),
-	REPORT(ENOTDIR), REPORT(EISDIR), REPORT(EINVAL), REPORT(EFAULT),
-	RESTASNUMBERS
-};
 
 void* mmapwhole(const char* name, long* len)
 {
