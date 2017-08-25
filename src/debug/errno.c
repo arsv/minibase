@@ -3,7 +3,6 @@
 
 #include <string.h>
 #include <format.h>
-#include <null.h>
 
 #define TAG "errno"
 #define ESUCCESS 0

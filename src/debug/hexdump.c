@@ -2,27 +2,16 @@
 
 #include <string.h>
 #include <format.h>
-#include <fail.h>
+#include <errtag.h>
+#include <util.h>
 
 #define RDBUF (1<<12)
 #define WRBUF (1<<14)
 #define HEXLINE 16
 #define OUTLINE 160
 
-ERRTAG = "hexdump";
-ERRLIST = { RESTASNUMBERS };
-
-static void writeall(int fd, char* buf, long size)
-{
-	long wr = 0;
-
-	while(size > 0 && (wr = sys_write(fd, buf, size)) > 0) {
-		buf += wr;
-		size -= wr;
-	} if(wr < 0) {
-		fail("write failed", NULL, wr);
-	}
-}
+ERRTAG("hexdump");
+ERRLIST(NEBADF);
 
 /* The values between 0x20 and 0x7E should be safe to print on pretty
    much any terminal. Everything else is shown as ".", and we do not

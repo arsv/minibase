@@ -1,21 +1,14 @@
 #include <sys/file.h>
 
+#include <errtag.h>
 #include <output.h>
 #include <util.h>
-#include <fail.h>
 
 #define OPTS "nx"
 #define OPT_n (1<<0)	/* minimal seq length */
 #define OPT_x (1<<1)	/* do not print offsets */
 
-ERRTAG = "strings";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(EINVAL), REPORT(ENOSYS), REPORT(EACCES),
-	REPORT(EFAULT), REPORT(EFBIG), REPORT(EINTR), REPORT(ELOOP),
-	REPORT(EISDIR), REPORT(EMFILE), REPORT(ENFILE), REPORT(ENODEV),
-	REPORT(ENOMEM), REPORT(ENOSPC), REPORT(EPERM), REPORT(EIO),
-	RESTASNUMBERS
-};
+ERRTAG("strings");
 
 #define PAGE 4096
 
