@@ -16,10 +16,10 @@ ERRTAG("logcat");
 #define TAGSPACE 13
 
 #define OPTS "cbf"
-#define OPT_c (1<<0)
-#define OPT_b (1<<1)
-#define OPT_f (1<<2)
-#define SET_i (1<<10)
+#define OPT_c (1<<0)	/* no color */
+#define OPT_b (1<<1)	/* both current and old (rotated) log */
+#define OPT_f (1<<2)	/* follow */
+#define SET_i (1<<10)	/* ignore errors */
 
 struct mbuf {
 	char* ptr;
