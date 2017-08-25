@@ -5,18 +5,17 @@
 #include <sys/creds.h>
 #include <sys/file.h>
 
+#include <errtag.h>
 #include <nlusctl.h>
 #include <sigset.h>
 #include <cmsg.h>
 #include <string.h>
 #include <format.h>
-#include <fail.h>
 #include <util.h>
-#include <exit.h>
 
 #include "common.h"
 
-ERRTAG = "sudo";
+ERRTAG("sudo");
 
 char txbuf[3072];
 char rxbuf[32];

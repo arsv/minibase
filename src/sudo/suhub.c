@@ -7,14 +7,14 @@
 #include <sys/signal.h>
 #include <sys/fpath.h>
 
+#include <errtag.h>
 #include <sigset.h>
-#include <fail.h>
-#include <exit.h>
+#include <util.h>
 
 #include "common.h"
 #include "suhub.h"
 
-ERRTAG = "suhub";
+ERRTAG("suhub");
 
 char** environ;
 

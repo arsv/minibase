@@ -5,7 +5,6 @@
 
 #include <nlusctl.h>
 #include <cmsg.h>
-#include <fail.h>
 #include <util.h>
 
 #include "common.h"

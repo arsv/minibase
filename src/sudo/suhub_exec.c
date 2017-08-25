@@ -7,8 +7,7 @@
 #include <cmsg.h>
 #include <format.h>
 #include <string.h>
-#include <fail.h>
-#include <exit.h>
+#include <util.h>
 
 #include "common.h"
 #include "suhub.h"
