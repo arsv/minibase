@@ -1,6 +1,4 @@
-/* Simple generic no-free heap. Pops up here and there. */
-
-#define PAGE 4096
+#include <bits/mman.h>
 
 struct heap {
 	void* brk;

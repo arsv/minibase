@@ -1,11 +1,11 @@
 #include <sys/file.h>
-#include <format.h>
 #include <errtag.h>
-#include <fail.h>
+#include <format.h>
+#include <util.h>
 
 #define ERRBUF 512
 
-extern void _exit(int code) __attribute__((noreturn));
+const char errtag[] __attribute__((weak)) = "";
 
 void warn(const char* msg, const char* obj, int err)
 {

@@ -1,8 +1,6 @@
 #include <sys/mman.h>
-#include <fail.h>
 #include <heap.h>
-
-#define PAGE 4096
+#include <util.h>
 
 static long align(long size)
 {
