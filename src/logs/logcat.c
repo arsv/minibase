@@ -158,17 +158,27 @@ static void format(uint64_t ts, int prio, char* ls, char* le, int opts)
 	writeout("\n", 1);
 }
 
+/* (ls, le) pair is *not* 0-terminated!
+   parseu64 however expects a 0-terminated string.
+
+   le points to \n if we're lucky, or past the end of buffer if not.
+
+   The lines look like this:
+
+       1503700695 6 foo: some text goes here
+
+   Our goal here is to grab timestamp and priority to format them later.
+   Current syslogd should always leave exactly TAGSPACE characters before
+   the "foo: ..." part but we allow for less. */
+
 void process(char* ls, char* le, int opts)
 {
 	int ln = le - ls;
-	int tl = TAGSPACE;
+	int tl = ln < TAGSPACE ? ln : TAGSPACE;
 	int prio;
 	char pref[tl+1];
 	uint64_t ts;
 	char* p;
-
-	if(ln < TAGSPACE)
-		return;
 
 	memcpy(pref, ls, tl);
 	pref[tl] = '\0';
@@ -178,9 +188,14 @@ void process(char* ls, char* le, int opts)
 	if(*p < '0' || *p > '9')
 		return;
 
-	prio = *p - '0';
+	prio = *p++ - '0';
 
-	format(ts, prio, ls + tl, le, opts);
+	if(*p++ != ' ')
+		return;
+
+	int plen = p - pref;
+
+	format(ts, prio, ls + plen, le, opts);
 }
 
 /* Grep mode. For simplicity, mmap the whole file into memory.
