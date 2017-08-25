@@ -1,17 +1,15 @@
+#include <string.h>
 #include <format.h>
 #include <errtag.h>
 
-char* fmterr(char* buf, char* end, int err)
+char* fmterr(char* p, char* e, int err)
 {
-	const struct errcode* p;
-
+	const char* q;
 	err = -err;
 
-	for(p = errlist; p->code; p++)
-		if(p->code == err)
-			break;
-	if(p->code)
-		return fmtstr(buf, end, p->name);
-	else
-		return fmti32(buf, end, err);
+	for(q = errlist; *q; q += strlen(q) + 1)
+		if(*((unsigned char*) q) == err)
+			return fmtstr(p, e, q + 1);
+
+	return fmtint(p, e, err);
 };
