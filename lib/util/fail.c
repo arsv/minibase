@@ -7,7 +7,7 @@
 
 const char errtag[] __attribute__((weak)) = "";
 
-void warn(const char* msg, const char* obj, int err)
+void warn(const char* msg, const char* obj, int ret)
 {
 	char buf[ERRBUF];
 	char* end = buf + sizeof(buf) - 1;
@@ -24,19 +24,19 @@ void warn(const char* msg, const char* obj, int err)
 	} if(obj) {
 		p = fmtstr(p, end, " ");
 		p = fmtstr(p, end, obj);
-	} if(err && (msg || obj)) {
+	} if(ret && (msg || obj)) {
 		p = fmtstr(p, end, ":");
-	} if(err) {
+	} if(ret) {
 		p = fmtstr(p, end, " ");
-		p = fmterr(p, end, err);
+		p = fmterr(p, end, -ret);
 	}
 
 	*p++ = '\n';
 	sys_write(2, b, p - b);
 }
 
-void fail(const char* msg, const char* obj, int err)
+void fail(const char* msg, const char* obj, int ret)
 {
-	warn(msg, obj, err);
+	warn(msg, obj, ret);
 	_exit(-1);
 }

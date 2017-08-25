@@ -5,7 +5,6 @@
 char* fmterr(char* p, char* e, int err)
 {
 	const char* q;
-	err = -err;
 
 	for(q = errlist; *q; q += strlen(q) + 1)
 		if(*((unsigned char*) q) == err)
