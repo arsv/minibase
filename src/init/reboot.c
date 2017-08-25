@@ -3,10 +3,10 @@
 #include <sys/mount.h>
 #include <sys/reboot.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <util.h>
 #include <heap.h>
-#include <fail.h>
 
 /* This tool is based on the assumption that a clean system shutdown
    after stopping all the services is exactly
@@ -26,13 +26,9 @@
 #define OPT_h (1<<1)	/* halt */
 #define OPT_r (1<<2)	/* reboot, default */
 
-ERRTAG = "reboot";
-ERRLIST = {
-	REPORT(EPERM), REPORT(ENOENT), REPORT(EBADF), REPORT(EFAULT),
-	REPORT(ELOOP), REPORT(ENOMEM), REPORT(ENOTDIR), REPORT(EOVERFLOW),
-	REPORT(EINTR), REPORT(EIO), REPORT(ENOSYS), REPORT(EISDIR),
-	REPORT(EMFILE), REPORT(ENFILE), REPORT(EBUSY), RESTASNUMBERS
-};
+ERRTAG("reboot");
+ERRLIST(NEPERM NENOENT NEBADF NEFAULT NELOOP NENOMEM NENOTDIR NEOVERFLOW
+	NEINTR NEIO NENOSYS NEISDIR NEMFILE NENFILE NEBUSY);
 
 /* A line from mountinfo looks like this:
 

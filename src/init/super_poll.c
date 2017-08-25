@@ -7,8 +7,7 @@
 #include <sigset.h>
 #include <format.h>
 #include <string.h>
-#include <null.h>
-#include <exit.h>
+#include <util.h>
 
 #include "super.h"
 

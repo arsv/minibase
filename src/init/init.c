@@ -3,10 +3,10 @@
 #include <sys/proc.h>
 #include <sys/mman.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <alloca.h>
-#include <exit.h>
-#include <fail.h>
+#include <util.h>
 
 /* This tiny executable gets spawned as PID 1, either by the kernel
    or by switchroot if the system boots with initrd. Its task is
@@ -19,13 +19,9 @@
 
 #define PAGE 4096
 
-ERRTAG = "init";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(EACCES), REPORT(EINVAL), REPORT(EBADF),
-	REPORT(ESRCH), REPORT(EFAULT), REPORT(EPERM), REPORT(EMFILE),
-	REPORT(ENFILE), REPORT(EISDIR), REPORT(ENOTDIR), REPORT(ELOOP),
-	RESTASNUMBERS
-};
+ERRTAG("init");
+ERRLIST(NENOENT NEACCES NEINVAL NEBADF NESRCH NEFAULT NEPERM NEMFILE
+	NENFILE NEISDIR NENOTDIR NELOOP);
 
 static void set_std_fds(void)
 {

@@ -3,8 +3,7 @@
 #include <sys/signal.h>
 
 #include <format.h>
-#include <exit.h>
-#include <null.h>
+#include <util.h>
 
 /* Signal trap, to be used as a stub for service scripts in ./rc
    Trapping signals (normally sent by init) makes it clear

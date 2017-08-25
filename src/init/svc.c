@@ -1,20 +1,16 @@
-#include <bits/errno.h>
 #include <sys/reboot.h>
+
+#include <errtag.h>
 #include <string.h>
 #include <format.h>
-#include <fail.h>
 #include <util.h>
 
 #include "common.h"
 #include "svc.h"
 
-ERRTAG = "svc";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(ECONNREFUSED), REPORT(ELOOP), REPORT(ENFILE),
-	REPORT(EMFILE), REPORT(EINTR), REPORT(EINVAL), REPORT(EACCES),
-	REPORT(EPERM), REPORT(EIO), REPORT(EFAULT), REPORT(ENOSYS),
-	RESTASNUMBERS
-};
+ERRTAG("svc");
+ERRLIST(NENOENT NECONNREFUSED NELOOP NENFILE NEMFILE NEINTR NEINVAL NEACCES
+	NEPERM NEIO NEFAULT NENOSYS);
 
 #define OPTS "fhiprstwqxz"
 #define OPT_f (1<<0)
