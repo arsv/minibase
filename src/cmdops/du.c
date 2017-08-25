@@ -5,8 +5,8 @@
 #include <string.h>
 #include <format.h>
 #include <output.h>
+#include <errtag.h>
 #include <util.h>
-#include <fail.h>
 
 #define PAGE 4096
 
@@ -21,13 +21,7 @@
 
 #define SET_cwd (1<<8)
 
-ERRTAG = "du";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EFBIG), REPORT(EINTR), REPORT(EINVAL),
-	REPORT(EISDIR), REPORT(ENOTDIR), REPORT(ELOOP), REPORT(EMFILE),
-	REPORT(ENFILE), REPORT(ENOMEM), REPORT(ENODEV), REPORT(EPERM),
-	REPORT(EBADF), RESTASNUMBERS
-};
+ERRTAG("du");
 
 struct entsize {
 	uint64_t size;

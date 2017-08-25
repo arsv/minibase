@@ -1,8 +1,8 @@
 #include <sys/fpath.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <util.h>
-#include <fail.h>
 
 #define OPTS "ftwx"
 #define OPT_f (1<<0)   /* no overwrites */
@@ -10,14 +10,9 @@
 #define OPT_w (1<<2)   /* whiteout */
 #define OPT_x (1<<3)   /* exchange atomically */
 
-ERRTAG = "ren";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EBUSY), REPORT(EDQUOT), REPORT(EFAULT),
-	REPORT(EINVAL), REPORT(EISDIR), REPORT(ELOOP), REPORT(EMLINK),
-	REPORT(ENOENT), REPORT(ENOMEM), REPORT(ENOSPC), REPORT(ENOTDIR),
-	REPORT(ENOTEMPTY), REPORT(EEXIST), REPORT(EPERM), REPORT(EROFS),
-	REPORT(EXDEV), RESTASNUMBERS
-};
+ERRTAG("ren");
+ERRLIST(NEACCES NEBUSY NEDQUOT NEFAULT NEINVAL NEISDIR NELOOP NEMLINK NENOENT
+	NENOMEM NENOSPC NENOTDIR NENOTEMPTY NEEXIST NEPERM NEROFS NEXDEV);
 
 static void rename(char* src, char* dst, int flags)
 {

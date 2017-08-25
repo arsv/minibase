@@ -1,9 +1,9 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <util.h>
-#include <fail.h>
 
 /* Simple symlinking tool, follows the kernel syscall */
 
@@ -13,13 +13,9 @@
 #define OPT_t (1<<2)
 #define OPT_m (1<<3)
 
-ERRTAG = "symlink";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EDQUOT), REPORT(EEXIST), REPORT(EFAULT),
-	REPORT(EIO), REPORT(ELOOP), REPORT(ENOENT), REPORT(ENOMEM),
-	REPORT(ENOSPC), REPORT(ENOTDIR), REPORT(EPERM), REPORT(EROFS),
-	REPORT(EBADF), RESTASNUMBERS
-};
+ERRTAG("symlink");
+ERRLIST(NEACCES NEDQUOT NEEXIST NEFAULT NEIO NELOOP NENOENT NENOMEM
+	NENOSPC NENOTDIR NEPERM NEROFS NEBADF);
 
 static int issymlink(char* file)
 {

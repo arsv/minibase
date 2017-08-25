@@ -1,17 +1,13 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <util.h>
-#include <fail.h>
 
-ERRTAG = "fn";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EFAULT), REPORT(EINVAL),
-	REPORT(ENAMETOOLONG), REPORT(ENOMEM), REPORT(ENOENT),
-	REPORT(ERANGE), REPORT(EIO), REPORT(ELOOP), REPORT(ENOENT),
-	REPORT(ENOTDIR), RESTASNUMBERS
-};
+ERRTAG("fn");
+ERRLIST(NEACCES NEFAULT NEINVAL NENAMETOOLONG NENOMEM NENOENT
+	NERANGE NEIO NELOOP NENOENT NENOTDIR);
 
 #define OPTS "abcdr"
 #define OPT_a (1<<0)	/* absolutize */

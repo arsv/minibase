@@ -5,9 +5,8 @@
 
 #include <string.h>
 #include <format.h>
-#include <exit.h>
+#include <errtag.h>
 #include <util.h>
-#include <fail.h>
 
 #define OPTS "rfdngu"
 #define OPT_r (1<<0)
@@ -26,13 +25,9 @@
    That's because there shouldn't be chmod or chown (or chgrp),
    it should be a single tool to modify inode props. */
 
-ERRTAG = "chown";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EBUSY), REPORT(EFAULT), REPORT(EIO),
-	REPORT(EISDIR), REPORT(ELOOP), REPORT(ENOENT), REPORT(ENOMEM),
-	REPORT(ENOTDIR), REPORT(EPERM), REPORT(EROFS), REPORT(EOVERFLOW),
-	REPORT(ENOSYS), REPORT(EBADF), REPORT(EINVAL), RESTASNUMBERS
-};
+ERRTAG("chown");
+ERRLIST(NEACCES NEBUSY NEFAULT NEIO NEISDIR NELOOP NENOENT NENOMEM
+	NENOTDIR NEPERM NEROFS NEOVERFLOW NENOSYS NEBADF NEINVAL);
 
 struct chown {
 	int uid;

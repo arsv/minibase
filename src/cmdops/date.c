@@ -22,19 +22,13 @@
 #include <string.h>
 #include <format.h>
 #include <output.h>
+#include <errtag.h>
 #include <time.h>
 #include <util.h>
-#include <fail.h>
 
 #include "date.h"
 
-ERRTAG = "date";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(EPERM), REPORT(EACCES), REPORT(EFAULT),
-	REPORT(EINVAL), REPORT(EISDIR), REPORT(ELOOP), REPORT(EMFILE),
-	REPORT(ENFILE), REPORT(ENODEV), REPORT(ENOMEM), REPORT(ENOTDIR),
-	REPORT(EOVERFLOW), REPORT(EAGAIN), REPORT(EBADF), RESTASNUMBERS
-};
+ERRTAG("date");
 
 #define OPTS "uftdq"
 #define OPT_u (1<<0)

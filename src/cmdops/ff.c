@@ -5,8 +5,8 @@
 #include <string.h>
 #include <format.h>
 #include <output.h>
+#include <errtag.h>
 #include <util.h>
-#include <fail.h>
 
 /* This tool expects the search to return much less than complete subtree
    list, and preferably with fast output start. This sets it apart from
@@ -20,12 +20,7 @@
    as we have to stat() all entries, but the only way around it
    is to drop sorting. */
 
-ERRTAG = "ff";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(EISDIR), REPORT(ENOTDIR), REPORT(EFAULT),
-	REPORT(ENOMEM), REPORT(EINVAL), REPORT(EBADF), REPORT(EPERM),
-	REPORT(EACCES), RESTASNUMBERS
-};
+ERRTAG("ff");
 
 /* Algo overview: make a mixed list of matching entries and all subdirs
    in a given directory

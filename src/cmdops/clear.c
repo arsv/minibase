@@ -2,15 +2,15 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
+#include <errtag.h>
 #include <util.h>
-#include <fail.h>
 
 #define TCSETSW 0x5403
 
 #define ctrl(c) ((c) & 0x1F)
 
-ERRTAG = "clear";
-ERRLIST = { REPORT(EINVAL), REPORT(EBADF), RESTASNUMBERS };
+ERRTAG("clear");
+ERRLIST(NEINVAL NEBADF NENOTTY);
 
 static const struct termios sane = {
 	.iflag = BRKINT | ICRNL | IMAXBEL | IUTF8,

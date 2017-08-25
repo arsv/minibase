@@ -2,18 +2,13 @@
 #include <sys/time.h>
 #include <sys/rusage.h>
 
+#include <errtag.h>
 #include <format.h>
 #include <output.h>
 #include <util.h>
-#include <fail.h>
 
-ERRTAG = "time";
-ERRLIST = {
-	REPORT(EINVAL), REPORT(EFAULT), REPORT(EAGAIN), REPORT(ENOMEM),
-	REPORT(ENOSYS), REPORT(ECHILD), REPORT(EINTR), RESTASNUMBERS
-};
-
-extern void _exit(int) __attribute__((noreturn));
+ERRTAG("time");
+ERRLIST(NEINVAL NEFAULT NEAGAIN NENOMEM NENOSYS NECHILD NEINTR);
 
 static void spawn(char** argv, char** envp)
 {

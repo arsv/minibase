@@ -2,22 +2,12 @@
 #include <sys/dents.h>
 #include <sys/mman.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <output.h>
 #include <util.h>
-#include <fail.h>
 
-ERRTAG = "ls";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EDQUOT), REPORT(EEXIST), REPORT(EFAULT),
-	REPORT(EFBIG), REPORT(EINTR), REPORT(EINVAL), REPORT(EISDIR),
-	REPORT(ELOOP), REPORT(EMFILE), REPORT(ENFILE), REPORT(ENAMETOOLONG),
-	REPORT(ENODEV), REPORT(ENOENT), REPORT(ENOTDIR), REPORT(EOVERFLOW),
-	REPORT(EPERM), REPORT(EBADF), REPORT(ENOMEM),
-	RESTASNUMBERS
-};
-
-#define PAGE 4096
+ERRTAG("ls");
 
 #define MAYBEDIR  0
 #define MUSTBEDIR 1

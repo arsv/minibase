@@ -1,15 +1,12 @@
 #include <sys/file.h>
 #include <sys/info.h>
 
+#include <errtag.h>
 #include <format.h>
 #include <util.h>
-#include <fail.h>
 
-ERRTAG = "sysinfo";
-ERRLIST = {
-	REPORT(EFAULT), REPORT(EINVAL), REPORT(ENOSYS),
-	RESTASNUMBERS
-};
+ERRTAG("sysinfo");
+ERRLIST(NEFAULT NEINVAL NENOSYS);
 
 static char* fmtpart(char* p, char* e, long n, char* unit)
 {

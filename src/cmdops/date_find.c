@@ -4,7 +4,7 @@
 #include <alloca.h>
 #include <string.h>
 #include <format.h>
-#include <fail.h>
+#include <util.h>
 
 #include "date.h"
 

@@ -3,10 +3,10 @@
 
 #include <string.h>
 #include <format.h>
-#include <exit.h>
-#include <null.h>
 
 #define TAG "which"
+
+extern void _exit(int) __attribute__((noreturn));
 
 static void warn(const char* obj, const char* msg)
 {

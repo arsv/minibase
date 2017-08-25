@@ -1,6 +1,6 @@
 #include <string.h>
 #include <time.h>
-#include <fail.h>
+#include <util.h>
 #include "date.h"
 
 /* So here we've got user-supplied time description in zt,

@@ -1,11 +1,11 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
 #include <time.h>
-#include <fail.h>
 
 #define STATBUF 1024
 
@@ -26,12 +26,9 @@
 #define OPT_n (1<<13)  /* numeric output */
 #define SET_1 (1<<30)
 
-ERRTAG = "stat";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(EACCES), REPORT(ELOOP), REPORT(EFAULT),
-	REPORT(EBADF), REPORT(ENAMETOOLONG), REPORT(ENOENT), REPORT(ENOMEM),
-	REPORT(ENOTDIR), REPORT(EOVERFLOW), RESTASNUMBERS
-};
+ERRTAG("stat");
+ERRLIST(NENOENT NEACCES NELOOP NEFAULT NEBADF NENAMETOOLONG NENOENT NENOMEM
+	NENOTDIR NEOVERFLOW);
 
 /* fmtall is a human-readable form, so it should take "readable" over "complete"
    or "lossless" whenever possible. In case e.g. the exact size of the file 

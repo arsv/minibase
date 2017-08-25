@@ -2,16 +2,13 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
+#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
-#include <fail.h>
 
-ERRTAG = "whoami";
-ERRLIST = {
-	REPORT(ENOSYS), REPORT(ENOENT), REPORT(ENOTDIR), REPORT(ENOMEM),
-	RESTASNUMBERS
-};
+ERRTAG("whoami");
+ERRLIST(NENOSYS NENOENT NENOTDIR NENOMEM);
 
 static char* mapfile(const char* name, int* size)
 {

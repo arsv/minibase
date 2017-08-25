@@ -5,8 +5,8 @@
 #include <string.h>
 #include <format.h>
 #include <output.h>
+#include <errtag.h>
 #include <util.h>
-#include <fail.h>
 
 /* This is a simple dmesg utility, right?
    Well nope. It's not that simple, and there's a lot of uncertainity
@@ -31,11 +31,8 @@
 #define MINLOGBUF (16*1024)
 #define MAXLOGBUF (16*1024*1024)
 
-ERRTAG = "dmesg";
-ERRLIST = {
-	REPORT(EINVAL), REPORT(EFAULT), REPORT(ENOSYS), REPORT(EPERM),
-	RESTASNUMBERS
-};
+ERRTAG("dmesg");
+ERRLIST(NEINVAL NEFAULT NENOSYS NEPERM);
 
 /* We could have put logbuf and outbuf to .bss and it would work
    well given MAXLOGBUF is known, but only for MMU systems.
