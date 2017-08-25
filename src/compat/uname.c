@@ -2,14 +2,11 @@
 #include <sys/info.h>
 
 #include <format.h>
+#include <errtag.h>
 #include <util.h>
-#include <fail.h>
 
-ERRTAG = "uname";
-ERRLIST = {
-	REPORT(EFAULT), REPORT(EINVAL), REPORT(ENOSYS),
-	REPORT(EBADF), REPORT(EPIPE), RESTASNUMBERS
-};
+ERRTAG("uname");
+ERRLIST(NEFAULT NEINVAL NENOSYS NEBADF NEPIPE);
 
 /* All opts select individual fields from struct utsname. */
 #define OPTS "asnrvmpio"

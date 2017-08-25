@@ -1,12 +1,13 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
 
-#include <fail.h>
+#include <errtag.h>
+#include <util.h>
 
 #define MAXCWD 2048
 
-ERRTAG = "pwd";
-ERRLIST = { REPORT(EINVAL), REPORT(ENOSYS), RESTASNUMBERS };
+ERRTAG("pwd");
+ERRLIST(NEINVAL NENOSYS);
 
 int main(int argc, char** argv)
 {

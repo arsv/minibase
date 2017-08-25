@@ -1,14 +1,12 @@
 #include <sys/signal.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <format.h>
-#include <fail.h>
+#include <util.h>
 
-ERRTAG = "kill";
-ERRLIST = {
-	REPORT(EINVAL), REPORT(EPERM), REPORT(ESRCH), REPORT(ENOSYS),
-	RESTASNUMBERS
-};
+ERRTAG("kill");
+ERRLIST(NEINVAL NEPERM NESRCH NENOSYS);
 
 static const struct signame {
 	int sig;

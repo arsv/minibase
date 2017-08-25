@@ -1,10 +1,10 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
-#include <fail.h>
 
 #define BUFSIZE 16*4096
 #define MAPSIZE 0x80000000
@@ -16,14 +16,9 @@
 /* non-option bits in opts */
 #define SET_pad (1<<16)	/* to align output for several files */
 
-ERRTAG = "wc";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(EACCES), REPORT(EFAULT), REPORT(EFBIG),
-	REPORT(EINTR), REPORT(EPIPE), REPORT(EINVAL), REPORT(EISDIR),
-	REPORT(ELOOP), REPORT(EMFILE), REPORT(ENFILE), REPORT(ENODEV),
-	REPORT(ENOMEM), REPORT(ENOTDIR), REPORT(EOVERFLOW), REPORT(EBADF),
-	RESTASNUMBERS
-};
+ERRTAG("wc");
+ERRLIST(NENOENT NEACCES NEFAULT NEFBIG NEINTR NEPIPE NEINVAL NEISDIR
+	NELOOP NEMFILE NENFILE NENODEV NENOMEM NENOTDIR NEOVERFLOW NEBADF);
 
 struct wc {
 	uint64_t lines;

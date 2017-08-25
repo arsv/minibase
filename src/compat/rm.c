@@ -4,9 +4,8 @@
 
 #include <string.h>
 #include <format.h>
-#include <exit.h>
+#include <errtag.h>
 #include <util.h>
-#include <fail.h>
 
 #define OPTS "rfndZ"
 #define OPT_r (1<<0)	/* recursively */
@@ -20,13 +19,9 @@
 /* Slightly modified copy of ../del.c, with -n replacing -x
    because POSIX default is to cross boundaries apparently. */
 
-ERRTAG = "rm";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EBUSY), REPORT(EFAULT), REPORT(EIO),
-	REPORT(EISDIR), REPORT(ELOOP), REPORT(ENOENT), REPORT(ENOMEM),
-	REPORT(ENOTDIR), REPORT(EPERM), REPORT(EROFS), REPORT(EOVERFLOW),
-	REPORT(ENOSYS), REPORT(EBADF), REPORT(EINVAL), RESTASNUMBERS
-};
+ERRTAG("rm");
+ERRLIST(NEACCES NEBUSY NEFAULT NEIO NEISDIR NELOOP NENOENT NENOMEM
+	NENOTDIR NEPERM NEROFS NEOVERFLOW NENOSYS NEBADF NEINVAL);
 
 static void mfail(int opts, const char* msg, const char* obj, int err)
 {

@@ -1,8 +1,8 @@
 #include <sys/file.h>
 #include <sys/fprop.h>
 
+#include <errtag.h>
 #include <util.h>
-#include <fail.h>
 
 /* Ten times out of ten touch is used to (safely) create an empty file.
    In exceptional cases, I think it might be used to update timestamps
@@ -17,15 +17,10 @@
 #define OPT_a (1<<0)
 #define OPT_m (1<<1)
 
-ERRTAG = "touch";
-ERRLIST = {
-	REPORT(EACCES), REPORT(ENOENT), REPORT(EPERM), REPORT(EINVAL),
-	REPORT(EDQUOT), REPORT(EFAULT), REPORT(EINTR), REPORT(EISDIR),
-	REPORT(ELOOP), REPORT(EMFILE), REPORT(ENFILE), REPORT(ENODEV),
-	REPORT(ENOMEM), REPORT(ENOSPC), REPORT(ENOTDIR), REPORT(ENXIO),
-	REPORT(EOVERFLOW), REPORT(EPERM), REPORT(EROFS), REPORT(ETXTBSY),
-	RESTASNUMBERS
-};
+ERRTAG("touch");
+ERRLIST(NEACCES NENOENT NEPERM NEINVAL NEDQUOT NEFAULT NEINTR NEISDIR
+	NELOOP NEMFILE NENFILE NENODEV NENOMEM NENOSPC NENOTDIR NENXIO
+	NEOVERFLOW NEPERM NEROFS NETXTBSY);
 
 static void touch(char* path, struct timespec* times)
 {

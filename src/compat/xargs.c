@@ -2,24 +2,19 @@
 #include <sys/proc.h>
 #include <sys/fprop.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <util.h>
-#include <fail.h>
 
 #define OPTS "01a"
 #define OPT_0 (1<<0)	/* 0-terminated */
 #define OPT_1 (1<<1)	/* one argument per command */
 #define OPT_a (1<<2)	/* read arguments from a file */
 
-ERRTAG = "xargs";
-ERRLIST = {
-	REPORT(EAGAIN), REPORT(ENOMEM), REPORT(ENOSYS), REPORT(E2BIG),
-	REPORT(EACCES), REPORT(EFAULT), REPORT(EIO), REPORT(EISDIR),
-	REPORT(ELIBBAD), REPORT(ELOOP), REPORT(ENFILE), REPORT(EMFILE),
-	REPORT(ENOEXEC), REPORT(ENOTDIR), REPORT(EPERM), REPORT(ETXTBSY),
-	REPORT(EFBIG), REPORT(EINTR), REPORT(EINVAL), REPORT(ENOENT),
-	REPORT(EBADF), RESTASNUMBERS
-};
+ERRTAG("xargs");
+ERRLIST(NEAGAIN NENOMEM NENOSYS NE2BIG NEACCES NEFAULT NEIO NEISDIR
+	NELIBBAD NELOOP NENFILE NEMFILE NENOEXEC NENOTDIR NEPERM NETXTBSY
+	NEFBIG NEINTR NEINVAL NENOENT NEBADF);
 
 #define MAXARGS 64	/* arguments to pass to a single spawned command */
 

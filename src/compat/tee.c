@@ -1,16 +1,14 @@
 #include <sys/file.h>
-#include <fail.h>
+
+#include <errtag.h>
+#include <util.h>
 
 /* XXX: GNU coreutils allow writing to several files at once.
    Is that useful for anything? */
 
-ERRTAG = "tee";
-ERRLIST = {
-	REPORT(EAGAIN), REPORT(EBADF), REPORT(EFAULT), REPORT(EINTR),
-	REPORT(EINVAL), REPORT(EIO), REPORT(EISDIR), REPORT(EDQUOT),
-	REPORT(EFBIG), REPORT(ENOSPC), REPORT(EPERM), REPORT(EPIPE),
-	REPORT(EEXIST), RESTASNUMBERS
-};
+ERRTAG("tee");
+ERRLIST(NEAGAIN NEBADF NEFAULT NEINTR NEINVAL NEIO NEISDIR NEDQUOT
+	NEFBIG NENOSPC NEPERM NEPIPE NEEXIST);
 
 static char buf[4*4096];
 

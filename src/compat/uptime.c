@@ -1,15 +1,12 @@
 #include <sys/time.h>
 
+#include <errtag.h>
 #include <format.h>
 #include <util.h>
-#include <fail.h>
 #include <time.h>
 
-ERRTAG = "uptime";
-ERRLIST = {
-	REPORT(EINVAL), REPORT(ENOSYS), REPORT(EPIPE),
-	REPORT(EBADFD), RESTASNUMBERS
-};
+ERRTAG("uptime");
+ERRLIST(NEINVAL NENOSYS NEPIPE NEBADFD);
 
 static long gettime(int clkid)
 {

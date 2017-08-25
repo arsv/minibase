@@ -1,18 +1,15 @@
 #include <sys/fpath.h>
 
+#include <errtag.h>
 #include <string.h>
-#include <fail.h>
+#include <util.h>
 
 #define PARENTS (1<<0)
 #define SETMODE (1<<1)
 
-ERRTAG = "mkdir";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EDQUOT), REPORT(EEXIST), REPORT(EFAULT),
-	REPORT(ELOOP), REPORT(EMLINK), REPORT(ENOENT), REPORT(ENOMEM),
-	REPORT(ENOSPC), REPORT(ENOSPC), REPORT(ENOTDIR), REPORT(EPERM),
-	REPORT(EROFS), RESTASNUMBERS
-};
+ERRTAG("mkdir");
+ERRLIST(NEACCES NEDQUOT NEEXIST NEFAULT NELOOP NEMLINK NENOENT NENOMEM
+	NENOSPC NENOSPC NENOTDIR NEPERM NEROFS);
 
 static int parseopts(const char* opts)
 {

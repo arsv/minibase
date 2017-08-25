@@ -1,10 +1,10 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
-#include <fail.h>
 
 #define KDGKBTYPE	0x4B33
 #define VT_ACTIVATE	0x5606
@@ -14,14 +14,9 @@
 #define OPTS "d"
 #define OPT_d (1<<0)
 
-ERRTAG = "chvt";
-ERRLIST = { 
-	REPORT(EBADF), REPORT(EFAULT), REPORT(EINVAL), REPORT(ENOTTY),
-	REPORT(EACCES), REPORT(EISDIR), REPORT(ELOOP), REPORT(EMFILE),
-	REPORT(ENFILE), REPORT(ENODEV), REPORT(ENOENT), REPORT(ENOMEM),
-	REPORT(ENOTDIR), REPORT(EPERM), REPORT(EROFS), REPORT(EBUSY),
-	RESTASNUMBERS
-};
+ERRTAG("chvt");
+ERRLIST(NEBADF NEFAULT NEINVAL NENOTTY NEACCES NEISDIR NELOOP NEMFILE
+	NENFILE NENODEV NENOENT NENOMEM NENOTDIR NEPERM NEROFS NEBUSY);
 
 static long openconsole(const char* name)
 {

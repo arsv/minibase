@@ -2,7 +2,7 @@
 #include <sys/sched.h>
 
 #include <string.h>
-#include <exit.h>
+#include <util.h>
 
 #define NANOFRAC 1000000000 /* nanoseconds in a second */
 

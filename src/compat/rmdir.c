@@ -1,14 +1,13 @@
 #include <sys/fpath.h>
-#include <fail.h>
+
+#include <errtag.h>
+#include <util.h>
 
 /* This tool is pointless, rm -d should be used instead */
 
-ERRTAG = "rmdir";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EBUSY), REPORT(EFAULT), REPORT(EINVAL),
-	REPORT(ELOOP), REPORT(ENOENT), REPORT(ENOMEM), REPORT(ENOTDIR),
-	REPORT(ENOTEMPTY), REPORT(EPERM), REPORT(EROFS), RESTASNUMBERS
-};
+ERRTAG("rmdir");
+ERRLIST(NEACCES NEBUSY NEFAULT NEINVAL NELOOP NENOENT NENOMEM NENOTDIR
+	NENOTEMPTY NEPERM NEROFS);
 
 int main(int argc, char** argv)
 {
