@@ -10,7 +10,7 @@
 
 #include <string.h>
 #include <format.h>
-#include <exit.h>
+#include <util.h>
 
 #include "msh.h"
 #include "msh_cmd.h"

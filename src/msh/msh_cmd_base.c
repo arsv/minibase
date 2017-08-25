@@ -2,7 +2,6 @@
 #include <sys/fpath.h>
 
 #include <string.h>
-#include <exit.h>
 #include <util.h>
 
 #include "msh.h"

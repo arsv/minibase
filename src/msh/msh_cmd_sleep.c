@@ -1,7 +1,7 @@
+#include <bits/null.h>
 #include <sys/sched.h>
 
 #include <format.h>
-#include <null.h>
 
 #include "msh.h"
 #include "msh_cmd.h"

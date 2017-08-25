@@ -3,8 +3,6 @@
 
 #include <string.h>
 #include <format.h>
-#include <exit.h>
-#include <null.h>
 #include <util.h>
 
 #include "msh.h"
@@ -35,7 +33,7 @@ void* halloc(struct sh* ctx, int len)
 	ctx->hend = (void*)sys_brk(ctx->hend + spc);
 
 	if(ctx->hptr + len < ctx->hend)
-		fail(ctx, "cannot allocate memory", NULL, 0);
+		quit(ctx, "cannot allocate memory", NULL, 0);
 ptr:
 	ctx->hptr += len;
 

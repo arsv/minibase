@@ -1,18 +1,13 @@
 #include <string.h>
 #include <format.h>
 #include <errtag.h>
-#include <exit.h>
 #include <util.h>
 
 #include "msh.h"
 
-ERRTAG = "msh";
-ERRLIST = {
-	REPORT(ENOENT), REPORT(ENOTDIR), REPORT(EISDIR), REPORT(EACCES),
-	REPORT(EPERM), REPORT(EFAULT), REPORT(EBADF), { 0, NULL }
-};
+ERRTAG("msh");
 
-/* Common fail() and warn() are not very well suited for msh,
+/* Common quit() and warn() are not very well suited for msh,
    which should preferably use script name and line much more
    often than generic msh: tag, and sometimes maybe even
    impersonate built-in commands. */
@@ -67,7 +62,7 @@ static void report(struct sh* ctx, const char* err, char* arg, long ret, int m)
 	writeall(fd, buf, p - buf);
 }
 
-void fail(struct sh* ctx, const char* err, char* arg, long ret)
+void quit(struct sh* ctx, const char* err, char* arg, long ret)
 {
 	report(ctx, err, arg, ret, TAGGED_SAVED);
 	_exit(0xFF);

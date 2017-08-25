@@ -12,7 +12,7 @@ static void parsefd(struct sh* ctx, int fd)
 	while((rd = sys_read(fd, inbuf, sizeof(inbuf))) > 0) {
 		parse(ctx, inbuf, rd);
 	} if(rd < 0) {
-		fail(ctx, "read", NULL, rd);
+		quit(ctx, "read", NULL, rd);
 	};
 }
 
@@ -26,7 +26,7 @@ static int openfile(struct sh* ctx, char* name)
 	int fd;
 
 	if((fd = sys_open(name, O_RDONLY)) < 0)
-		fail(ctx, "open", name, fd);
+		quit(ctx, "open", name, fd);
 
 	if(!ctx->file) {
 		ctx->file = name;

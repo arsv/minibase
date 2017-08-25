@@ -92,7 +92,7 @@ int export(struct sh* ctx, char* var);
 void command(struct sh* ctx);
 
 #define NR __attribute__((noreturn))
-void fail(struct sh* ctx, const char* err, char* arg, long ret) NR;
+void quit(struct sh* ctx, const char* err, char* arg, long ret) NR;
 int error(struct sh* ctx, const char* err, char* arg, long ret);
 void fatal(struct sh* ctx, const char* err, char* arg) NR;
 int fchk(long ret, struct sh* ctx, char* arg);
