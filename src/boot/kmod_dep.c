@@ -2,7 +2,7 @@
 
 #include <format.h>
 #include <string.h>
-#include <fail.h>
+#include <util.h>
 
 #include "kmod.h"
 

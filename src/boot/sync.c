@@ -3,22 +3,17 @@
 #include <sys/ioctl.h>
 #include <sys/sync.h>
 
+#include <errtag.h>
 #include <util.h>
-#include <fail.h>
 
 #define OPTS "fdt"
 #define OPT_f (1<<0) /* syncfs */
 #define OPT_d (1<<1) /* datasync */
 #define OPT_t (1<<2) /* fstrim */
 
-ERRTAG = "sync";
-ERRLIST = {
-	REPORT(EBADF), REPORT(EIO), REPORT(EROFS), REPORT(EINVAL),
-	REPORT(EACCES), REPORT(ENOENT), REPORT(EFAULT), REPORT(EFBIG),
-	REPORT(EINTR), REPORT(ELOOP), REPORT(ENFILE), REPORT(EMFILE),
-	REPORT(ENODEV), REPORT(ENOMEM), REPORT(ENOTDIR), REPORT(EPERM),
-	REPORT(EWOULDBLOCK), RESTASNUMBERS
-};
+ERRTAG("sync");
+ERRLIST(NEBADF NEIO NEROFS NEINVAL NEACCES NENOENT NEFAULT NEFBIG NEINTR
+	NELOOP NENFILE NEMFILE NENODEV NENOMEM NENOTDIR NEPERM NEWOULDBLOCK);
 
 static int open_ref(char* name)
 {

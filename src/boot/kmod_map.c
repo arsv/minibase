@@ -2,10 +2,7 @@
 #include <sys/mman.h>
 #include <sys/proc.h>
 
-#include <exit.h>
-#include <fail.h>
 #include <util.h>
-
 #include "kmod.h"
 
 /* The module must be loaded to process memory prior to init_module call.

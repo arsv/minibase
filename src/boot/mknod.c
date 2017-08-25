@@ -1,7 +1,8 @@
 #include <sys/fpath.h>
 
 #include <format.h>
-#include <fail.h>
+#include <errtag.h>
+#include <util.h>
 
 #define make_dev(x,y) ( \
         (((x)&0xfffff000ULL) << 32) | \
@@ -9,13 +10,9 @@
         (((y)&0xffffff00ULL) << 12) | \
 	(((y)&0x000000ffULL)) )
 
-ERRTAG = "mknod";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EDQUOT), REPORT(EEXIST), REPORT(EFAULT),
-	REPORT(EINVAL), REPORT(ELOOP), REPORT(ENOENT), REPORT(ENOMEM),
-	REPORT(ENOSPC), REPORT(ENOTDIR), REPORT(EPERM), REPORT(EROFS),
-	RESTASNUMBERS
-};
+ERRTAG("mknod");
+ERRLIST(NEACCES NEDQUOT NEEXIST NEFAULT NEINVAL NELOOP NENOENT NENOMEM
+	NENOSPC NENOTDIR NEPERM NEROFS);
 
 static int parse_mode(const char* mode)
 {

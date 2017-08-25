@@ -10,20 +10,16 @@
 
 #include <format.h>
 #include <string.h>
-#include <fail.h>
+#include <errtag.h>
+#include <util.h>
 
 /* Note this *may* happen to run with empty fds 0-2, but since it never
    opens anything r/w itself it's ok. At worst it will try to write its
    errors into a read-only fd pointing to a directory, failing silently. */
 
-ERRTAG = "switchroot";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EBADF), REPORT(EFAULT), REPORT(EINTR),
-	REPORT(EIO), REPORT(ELOOP), REPORT(ENOENT), REPORT(ENOMEM),
-	REPORT(ENOSYS), REPORT(ENOTDIR), REPORT(EINVAL), REPORT(ENOTDIR),
-	REPORT(EBUSY), REPORT(EISDIR), REPORT(ENOMEM), REPORT(EPERM),
-	REPORT(EROFS), RESTASNUMBERS
-};
+ERRTAG("switchroot");
+ERRLIST(NEACCES NEBADF NEFAULT NEINTR NEIO NELOOP NENOENT NENOMEM
+	NENOSYS NENOTDIR NEINVAL NENOTDIR NEBUSY NEISDIR NEPERM NEROFS);
 
 #define DEBUFSIZE 2000
 

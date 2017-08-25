@@ -1,14 +1,12 @@
 #include <sys/mount.h>
-#include <string.h>
-#include <fail.h>
 
-ERRTAG = "mount";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EINVAL), REPORT(EBUSY), REPORT(EFAULT),
-	REPORT(ELOOP), REPORT(EMFILE), REPORT(ENODEV), REPORT(ENOENT),
-	REPORT(ENOMEM), REPORT(ENOTBLK), REPORT(ENOTDIR), REPORT(ENXIO),
-	REPORT(EPERM), REPORT(EROFS), RESTASNUMBERS
-};
+#include <errtag.h>
+#include <string.h>
+#include <util.h>
+
+ERRTAG("mount");
+ERRLIST(NEACCES NEINVAL NEBUSY NEFAULT NELOOP NEMFILE NENODEV NENOENT
+	NENOMEM NENOTBLK NENOTDIR NENXIO NEPERM NEROFS);
 
 /* Pre-defined virtual filesystems. Most of the time these are mounted
    at exactly the same locations, with exactly the same options, so no
