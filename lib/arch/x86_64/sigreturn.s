@@ -3,7 +3,7 @@
 .globl sigreturn
 
 sigreturn:
-	movl	$NR_rt_sigreturn, %eax
+	movq    $NR_rt_sigreturn, %rax
 	syscall
 
 .type sigreturn,@function

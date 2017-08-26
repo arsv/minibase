@@ -1,3 +1,5 @@
+.equ NR_exit, 93
+
 .text
 .align 4
 
@@ -5,20 +7,19 @@
 .global _exit
 
 _start:
-	mov	x30, #0			/* LR */
-	mov	x29, sp			/* FP */
+	mov     x30, 0              /* LR */
+	mov     x29, sp             /* FP */
 
-	ldr	x0, [sp]		/* argc */
-	add	x1, sp, #8		/* argv */
+	ldr     x0, [sp]            /* argc */
+	add     x1, sp, 8           /* argv */
 
-	add	x2, x1, x0, lsl #3	/* &argv[argc] */
-	add	x2, x2, #8		/* envp	*/
+	add     x2, x1, x0, lsl 3   /* &argv[argc] */
+	add     x2, x2, 8           /* envp */
 
-	bl	main
-
+	bl      main
 _exit:
-	mov	x8, #93			/* __NR_exit */
-	svc	0			/* never returns */
+	mov     x8, NR_exit
+	svc     0
 
 .type _start,function
 .size _start,_exit-_start
