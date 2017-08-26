@@ -2,6 +2,8 @@
 
 include config.mk
 
+.SUFFIXES:
+
 all: libs build
 
 libs: lib/all.a
@@ -25,3 +27,9 @@ test:
 
 .PHONY: test
 .SILENT: build lib/all.a clean-lib clean-src clean-test
+
+# Allow building files from the top dir
+# Usefule for :make in vim
+
+src/%.o lib/%.o temp/%.o test/%.o:
+	$(MAKE) -C $(dir $@) $(notdir $@)
