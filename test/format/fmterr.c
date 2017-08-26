@@ -9,7 +9,7 @@ ERRLIST(NENOENT NEINTR NEINVAL);
 static int test(char* file, int line, int err, char* exp)
 {
 	FMTBUF(p, e, buf, 30);
-	p = fmterr(p, e, -err);
+	p = fmterr(p, e, err);
 	FMTEND(p, e);
 
 	if(!strcmp(buf, exp)) {
