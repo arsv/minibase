@@ -43,6 +43,8 @@ if [ -z "$arch" ]; then
 	arch=${mach%%-*}
 	case "$arch" in
 		aarch64) arch=arm64 ;;
+		riscv64) arch=riscv ;;
+		riscv32) die "RV32 is not supported" ;;
 	esac
 	test -n "$arch" || die "Cannot determine target arch"
 	test -d "lib/arch/$arch" || die "Unsupported arch $arch"
