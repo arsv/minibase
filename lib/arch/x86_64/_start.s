@@ -1,21 +1,22 @@
+.equ NR_exit, 60
+
 .text
 .global _start
 .global _exit
 
 _start:
-	popq	%rdi			/* %rdi = argc */
-	movq	%rsp,%rsi		/* %rsi = argv */
-	leaq	8(%rsi,%rdi,8),%rdx	/* %rdx = envp = (8*rdi)+%rsi+8 */
-	
-	call	main
+	movq 0(%rsp),%rdi            /* %rdi = argc */
+	leaq 8(%rsp),%rsi            /* %rsi = argv */
+	leaq 8(%rsi,%rdi,8),%rdx     /* %rdx = envp = (8*rdi)+%rsi+8 */
 
-	movq	%rax, %rdi
+	call main
 
-_exit:	mov	$0x3C, %ax		/* call _exit */
-	movzwl	%ax, %eax
-	mov	%rcx, %r10
+	movq %rax, %rdi
+_exit:
+	movq $NR_exit, %rax
+	movq %rcx, %r10
 	syscall
-	hlt				/* catch fire and die */
+	hlt
 
 .type _exit,@function
 .size _exit,.-_exit
