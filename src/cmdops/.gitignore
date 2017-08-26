@@ -15,6 +15,7 @@ ren
 stat
 symlink
 sysinfo
+tail
 time
 which
 whoami
