@@ -7,7 +7,7 @@
 #define TAG "errno"
 #define ESUCCESS 0
 
-static const struct err {
+static const struct error {
 	short code;
 	char* name;
 	char* message;
@@ -147,9 +147,9 @@ static const struct err {
 	{ 0, "", NULL }
 };
 
-static const struct err* findbyname(const char* name)
+static const struct error* findbyname(const char* name)
 {
-	const struct err* e;
+	const struct error* e;
 
 	for(e = errors; e->message; e++)
 		if(!strcmp(e->name, name))
@@ -158,9 +158,9 @@ static const struct err* findbyname(const char* name)
 	return NULL;
 }
 
-static const struct err* findbycode(int code)
+static const struct error* findbycode(int code)
 {
-	const struct err* e;
+	const struct error* e;
 
 	for(e = errors; e->message; e++)
 		if(e->code == code)
@@ -171,61 +171,62 @@ static const struct err* findbycode(int code)
 
 static void unknown(const char* obj)
 {
-	char buf[100];
-	char* end = buf + sizeof(buf) - 1; 
-	char* p = buf;
+	FMTBUF(p, e, buf, 100);
+	p = fmtstr(p, e, TAG ": unknown error ");
+	p = fmtstr(p, e, obj);
+	FMTENL(p, e);
 
-	p = fmtstr(p, end, TAG ": unknown error ");
-	p = fmtstr(p, end, obj);
-	*p++ = '\n';
-
-	sys_write(2, buf, p - buf);
+	sys_write(STDERR, buf, p - buf);
 }
 
-static void writeline(const char* msg)
+static void writeline(const struct error* er, int code)
 {
-	int len = strlen(msg);
-	char buf[len + 2];
+	FMTBUF(p, e, buf, strlen(er->message) + 20);
 
-	memcpy(buf, msg, len);
-	buf[len+0] = '\n';
-	buf[len+1] = '\0';
+	p = fmtstr(p, e, er->message);
 
-	sys_write(1, buf, len+1);
+	p = fmtstr(p, e, " (");
+
+	if(code)
+		p = fmtstr(p, e, er->name);
+	else
+		p = fmtint(p, e, er->code);
+
+	p = fmtstr(p, e, ")");
+
+	FMTENL(p, e);
+
+	sys_write(STDOUT, buf, p - buf);
 };
 
 /* Unlike other tools, strerror does not use fail() with its
    ERRLIST, which makes bringing in any kind of error-checking
    xatoi implementation problematic. */
 
-static int atoerr(const char* a)
+static int atoerr(char* a)
 {
-	int d, err = 0;
-
-	for(; *a; a++) {
-		if(*a >= '0' && ((d = *a - '0') <= 9))
-			err = (err*10) + d;
-		else
-			return -1;
-		if(err >= 2048)
-			return -1;
-	}
+	int err;
+	char* p;
+	
+	if(!(p = parseint(a, &err)) || *p)
+		return -1;
 
 	return err;
 }
 
-static void reporterror(const char* arg)
+static void reporterror(char* arg)
 {
-	const struct err* e = NULL;
+	const struct error* er = NULL;
+	int code = 0;
 
 	if(*arg == 'E')
-		e = findbyname(arg);
+		er = findbyname(arg);
 	else if(*arg >= '0' && *arg <= '9')
-		e = findbycode(atoerr(arg));
-	if(e)
-		writeline(e->message);
-	else
+		er = findbycode(code = atoerr(arg));
+	if(!er)
 		unknown(arg);
+
+	writeline(er, code);
 }
 
 int main(int argc, char** argv)
