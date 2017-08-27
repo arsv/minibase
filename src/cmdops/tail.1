@@ -1,0 +1,28 @@
+.TH tail 1
+'''
+.SH NAME
+\fBtail\fR \- output last lines from a file or a stream
+'''
+.SH SYNOPSIS
+\fBtail\fR [\fB-\fIN\fBfh\fR] [\fIfile\fR]
+'''
+.SH OPTIONS
+.IP "\fB-\fIN\fR" 4
+Output \fIN\fR lines instead of the default 10.
+.IP "\fB-f\fR" 4
+Follow the file and output anything that gets appended.
+.IP "\fB-h\fR" 4
+Head mode: output the first lines not the last.
+'''
+.SH NOTES
+\fBtail\fR is not a precise text manipulation tool. It is meant mostly
+for reading log files, and makes certain assumptions based on that.
+The output may be less than \fIN\fR lines if the input lines happen to be
+overly long.
+.P
+The behavior of \fBtail -f \fIfile\fR only makes sense if \fIfile\fR is log.
+The tool will try to re-wind it if the file gets truncated, and attempt to
+re-open it if something resembling log rotation is detected.
+'''
+.SH SEE ALSO
+\fBlogcat\fR(1)
