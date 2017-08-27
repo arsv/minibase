@@ -3,6 +3,7 @@
 #include <sys/inotify.h>
 
 #include <errtag.h>
+#include <string.h>
 #include <util.h>
 
 ERRTAG("tail");
@@ -17,23 +18,108 @@ struct top {
 	int fd;
 	char* buf;
 	int len;
+
+	int inofd; /* inotify fd */
+	int inowd; /* for the file itself */
 };
 
-static int start_inotify(char* name)
+static void dirname(char* path, char* buf, int len)
 {
-	int fd = xchk(sys_inotify_init(), "inotify-init", NULL);
+	char* p = buf;
+	char* e = buf + len - 1;
+	char *q, *sp = NULL;
 
-	xchk(sys_inotify_add_watch(fd, name, IN_MODIFY), "inotify-add", name);
+	for(q = path; *q; q++) {
+		if(p >= e) break;
 
-	return fd;
+		*p++ = *q;
+
+		if(*q == '/') sp = p;
+	}
+
+	if(sp) {
+		*sp = '\0';
+	} else {
+		/* assuming len >= 2 */
+		buf[0] = '.';
+		buf[1] = '\0';
+	}
 }
 
-static void wait_inotify(int fd)
+static void start_inotify(struct top* ctx)
 {
-	char buf[500];
-	int len = sizeof(buf);
+	char* name = ctx->name;
+	int fd, ret;
 
-	xchk(sys_read(fd, buf, len), "inotify", NULL);
+	if((fd = sys_inotify_init()) < 0)
+		fail("inotify-init", NULL, fd);
+
+	ctx->inofd = fd;
+
+	if((ret = sys_inotify_add_watch(fd, name, IN_MODIFY)) < 0)
+		fail("inotify-add", name, ret);
+
+	ctx->inowd = ret;
+
+	char dir[strlen(name)+1];
+	dirname(name, dir, sizeof(dir));
+
+	if((ret = sys_inotify_add_watch(fd, dir, IN_CREATE)) < 0)
+		fail("inotify-add", dir, ret);
+}
+
+static int wait_inotify(struct top* ctx, char* base)
+{
+	int fd = ctx->inofd;
+	char buf[500];
+	int newfile = 0;
+	int rd;
+
+	if((rd = sys_read(fd, buf, sizeof(buf))) < 0)
+		fail("inotify", NULL, rd);
+
+	void* p = buf;
+	void* e = buf + rd;
+
+	while(p < e) {
+		struct inotify_event* evt = p;
+
+		if(evt->mask != IN_CREATE)
+			;
+		else if(!strcmp(evt->name, base))
+			newfile = 1;
+
+		p += sizeof(*evt) + evt->len;
+	}
+
+	return newfile;
+}
+
+static void reopen_file(struct top* ctx)
+{
+	int fd = ctx->fd;
+	char* name = ctx->name;
+
+	warn("reopening", name, 0);
+
+	sys_close(fd);
+
+	if((fd = sys_open(name, O_RDONLY)) < 0)
+		fail("open", name, fd);
+
+	ctx->fd = fd;
+
+	int inofd = ctx->inofd;
+	int inowd = ctx->inowd;
+	int ret;
+
+	if((ret = sys_inotify_rm_watch(inofd, inowd)) < 0)
+		fail("inotify-rm", name, ret);
+
+	if((ret = sys_inotify_add_watch(inofd, name, IN_MODIFY)) < 0)
+		fail("inotify-add", name, ret);
+
+	ctx->inowd = ret;
 }
 
 void allocate_tail_buf(struct top* ctx, int len)
@@ -83,11 +169,18 @@ static int count_newlines(struct top* ctx, int fd)
 static void follow_tail(struct top* ctx)
 {
 	char* name = ctx->name;
-	int in = start_inotify(name);
+	char* base = (char*)basename(name);
+
+	start_inotify(ctx);
 
 	while(1) {
 		slurp_tail(ctx);
-		wait_inotify(in);
+
+		if(!wait_inotify(ctx, base))
+			continue;
+
+		slurp_tail(ctx);
+		reopen_file(ctx);
 	};
 }
 
