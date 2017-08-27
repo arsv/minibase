@@ -8,8 +8,9 @@
 
 ERRTAG("tail");
 
-#define OPTS "f"
+#define OPTS "fh"
 #define OPT_f (1<<0)
+#define OPT_h (1<<1)
 
 struct top {
 	int count;
@@ -296,7 +297,7 @@ int skip_nlines(char* buf, char* ptr, char* end, int full, int skip)
 static void skip_file_tail(struct top* ctx)
 {
 	int count = ctx->count;
-	
+
 	allocate_tail_buf(ctx, 2*120*count);
 
 	char* buf = ctx->buf;
@@ -376,6 +377,31 @@ static void seek_file_tail(struct top* ctx)
 	read_skipping_first(ctx, skip);
 }
 
+void skip_file_head(struct top* ctx)
+{
+	int fd = ctx->fd;
+	char* buf = ctx->buf;
+	int len = ctx->len;
+	int count = ctx->count;
+	int rd, seen = 0;
+
+	while((rd = sys_read(fd, buf, len))) {
+		char* p = buf;
+
+		while(p < buf + rd)
+			if(*p++ != '\n')
+				continue;
+			else if(++seen >= count)
+				break;
+
+		if(p > buf)
+			output(buf, p - buf);
+		if(p < buf + rd)
+			break;
+
+	} if(rd < 0) fail(NULL, ctx->name, rd);
+}
+
 static void run_file(int count, int opts, char* name)
 {
 	struct top context = {
@@ -408,6 +434,33 @@ static void run_pipe(int count, int opts)
 	skip_file_tail(ctx);
 }
 
+static void run_head(int count, int opts, char* name)
+{
+	struct top context = {
+		.count = count,
+		.opts = opts,
+		.name = name
+	}, *ctx = &context;
+
+	if(opts & OPT_f)
+		fail("-f cannot be used with -h", NULL, 0);
+
+	int fd;
+
+	if(!name)
+		fd = STDIN;
+	else if((fd = sys_open(name, O_RDONLY)) < 0)
+		fail("open", name, fd);
+
+	ctx->fd = fd;
+
+	int est = 120*count;
+
+	allocate_tail_buf(ctx, est);
+
+	skip_file_head(ctx);
+}
+
 static int isdigit(int c)
 {
 	return (c >= '0' && c <= '9');
@@ -436,8 +489,12 @@ int main(int argc, char** argv)
 	if(i < argc - 1)
 		fail("too many arguments", NULL, 0);
 
-	if(i < argc)
-		run_file(count, opts, argv[i]);
+	char* name = i < argc ? argv[i] : NULL;
+
+	if(opts & OPT_h)
+		run_head(count, opts, name);
+	else if(name)
+		run_file(count, opts, name);
 	else
 		run_pipe(count, opts);
 
