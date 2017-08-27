@@ -72,7 +72,7 @@ static void start_inotify(struct top* ctx)
 
 	ctx->inowd = ret;
 
-	char dir[strlen(name)+1];
+	char dir[strlen(name)+2];
 	dirname(name, dir, sizeof(dir));
 
 	if((ret = sys_inotify_add_watch(fd, dir, IN_CREATE)) < 0)
@@ -106,6 +106,16 @@ static int wait_inotify(struct top* ctx, char* base)
 	return newfile;
 }
 
+static int open_file(char* name)
+{
+	int fd;
+
+	if((fd = sys_open(name, O_RDONLY)) < 0)
+		fail(NULL, name, fd);
+
+	return fd;
+}
+
 static void reopen_file(struct top* ctx)
 {
 	int fd = ctx->fd;
@@ -115,10 +125,7 @@ static void reopen_file(struct top* ctx)
 
 	sys_close(fd);
 
-	if((fd = sys_open(name, O_RDONLY)) < 0)
-		fail("open", name, fd);
-
-	ctx->fd = fd;
+	ctx->fd = open_file(name);
 	ctx->size = 0;
 
 	int inofd = ctx->inofd;
@@ -160,7 +167,10 @@ void allocate_tail_buf(struct top* ctx, int len)
 
 static void output(char* buf, int len)
 {
-	sys_write(STDOUT, buf, len);
+	int wr;
+
+	if((wr = writeall(STDOUT, buf, len)) < 0)
+		fail("write", "STDOUT", wr);
 }
 
 /* Fun fact: if we read() till the end of file, wait until it grows,
@@ -241,8 +251,8 @@ static void follow_tail(struct top* ctx)
    (ptr:end) + (buf:ptr). Processing is then done in two steps, (ptr:end)
    first and then (buf:ptr).
  
-   Like in seekable case, we count the lines in the buf, skip the leading
-   M - N lines, note the offset, and start dumping the buf contents from
+   First tail counts the lines in the buf (say M), then it skip the leading
+   M - N lines noting the offset, and start dumping the buf contents from
    that offset. */
 
 static void dump_from_offset(char* buf, char* ptr, char* end, int full, int off)
@@ -356,9 +366,10 @@ static void skip_file_tail(struct top* ctx)
    There are better ways to do it, but this approach is simple and if N
    is small it should work well. And N should always be small. */
 
-static int count_tail_lines(struct top* ctx, int fd)
+static int count_tail_lines(struct top* ctx)
 {
 	int rd;
+	int fd = ctx->fd;
 	char* buf = ctx->buf;
 	int len = ctx->len;
 	char* p;
@@ -400,16 +411,23 @@ static int is_regular_file(struct stat* st)
 	return ((st->mode & S_IFMT) == S_IFREG);
 }
 
+static void seek_file(struct top* ctx, int off, int whence)
+{
+	int ret;
+
+	if((ret = sys_lseek(ctx->fd, off, whence)) < 0)
+		fail("seek", ctx->name, ret);
+}
+
 static void seek_file_tail(struct top* ctx)
 {
-	int fd = ctx->fd;
-	char* name = ctx->name;
 	int count = ctx->count;
-
 	int est = estimate_size(count);
 	struct stat st;
+	int ret;
 
-	xchk(sys_fstat(fd, &st), "stat", name);
+	if((ret = sys_fstat(ctx->fd, &st)) < 0)
+		fail("stat", ctx->name, ret);
 
 	if(!is_regular_file(&st) || !st.size)
 		return skip_file_tail(ctx);
@@ -419,15 +437,15 @@ static void seek_file_tail(struct top* ctx)
 	allocate_tail_buf(ctx, buflen);
 
 	if(est < st.size)
-		xchk(sys_lseek(fd, -est, SEEK_END), "seek", name);
+		seek_file(ctx, -est, SEEK_END);
 
-	int cnt = count_tail_lines(ctx, fd);
+	int cnt = count_tail_lines(ctx);
 	int skip = cnt > count ? cnt - count : 0;
 
 	if(est < st.size)
-		xchk(sys_lseek(fd, -est, SEEK_END), "seek", name);
+		seek_file(ctx, -est, SEEK_END);
 	else
-		xchk(sys_lseek(fd, 0, SEEK_SET), "seek", name);
+		seek_file(ctx, 0, SEEK_SET);
 
 	read_skipping_first(ctx, skip);
 }
@@ -468,9 +486,10 @@ static void run_file(int count, int opts, char* name)
 		.count = count,
 		.opts = opts,
 		.name = name,
-		.size = 0,
-		.fd = xchk(sys_open(name, O_RDONLY), NULL, name)
+		.size = 0
 	}, *ctx = &context;
+
+	ctx->fd = open_file(name);
 
 	seek_file_tail(ctx);
 
@@ -505,14 +524,7 @@ static void run_head(int count, int opts, char* name)
 	if(opts & OPT_f)
 		fail("-f cannot be used with -h", NULL, 0);
 
-	int fd;
-
-	if(!name)
-		fd = STDIN;
-	else if((fd = sys_open(name, O_RDONLY)) < 0)
-		fail("open", name, fd);
-
-	ctx->fd = fd;
+	ctx->fd = name ? open_file(name) : STDIN;
 
 	int est = estimate_size(count);
 
