@@ -21,6 +21,8 @@ struct top {
 
 	int inofd; /* inotify fd */
 	int inowd; /* for the file itself */
+
+	uint64_t size;
 };
 
 static void dirname(char* path, char* buf, int len)
@@ -108,6 +110,7 @@ static void reopen_file(struct top* ctx)
 		fail("open", name, fd);
 
 	ctx->fd = fd;
+	ctx->size = 0;
 
 	int inofd = ctx->inofd;
 	int inowd = ctx->inowd;
@@ -150,7 +153,7 @@ static void slurp_tail(struct top* ctx)
 		output(buf, rd);
 }
 
-static int count_newlines(struct top* ctx, int fd)
+static int count_tail_lines(struct top* ctx, int fd)
 {
 	int rd;
 	char* buf = ctx->buf;
@@ -166,6 +169,31 @@ static int count_newlines(struct top* ctx, int fd)
 	return count;
 }
 
+static int check_truncation(struct top* ctx)
+{
+	int fd = ctx->fd;
+	struct stat st;
+	int ret;
+
+	if((ret = sys_fstat(fd, &st)) < 0)
+		return ret;
+
+	if(st.size < ctx->size) {
+		warn("rewinding", ctx->name, 0);
+
+		if((ret = sys_lseek(fd, 0, SEEK_SET)) < 0)
+			fail("seek", ctx->name, ret);
+
+		ctx->size = 0;
+
+		return 1;
+	}
+
+	ctx->size = st.size;
+
+	return 0;
+}
+
 static void follow_tail(struct top* ctx)
 {
 	char* name = ctx->name;
@@ -176,6 +204,8 @@ static void follow_tail(struct top* ctx)
 	while(1) {
 		slurp_tail(ctx);
 
+		if(check_truncation(ctx))
+			continue;
 		if(!wait_inotify(ctx, base))
 			continue;
 
@@ -332,7 +362,7 @@ static void seek_file_tail(struct top* ctx)
 	if(est < st.size)
 		xchk(sys_lseek(fd, -est, SEEK_END), "seek", name);
 
-	int cnt = count_newlines(ctx, fd);
+	int cnt = count_tail_lines(ctx, fd);
 	int skip = cnt > count ? cnt - count : 0;
 
 	if(est < st.size)
@@ -349,9 +379,9 @@ static void run_file(int count, int opts, char* name)
 		.count = count,
 		.opts = opts,
 		.name = name,
+		.size = 0,
 		.fd = xchk(sys_open(name, O_RDONLY), NULL, name)
 	}, *ctx = &context;
-
 
 	seek_file_tail(ctx);
 
