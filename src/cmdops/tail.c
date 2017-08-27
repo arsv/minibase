@@ -17,6 +17,7 @@ struct top {
 	int opts;
 	char* name;
 	int fd;
+
 	char* buf;
 	int len;
 
@@ -25,6 +26,13 @@ struct top {
 
 	uint64_t size;
 };
+
+/* tail -f sets up inotify for the file itself and for the directory it
+   resides in. Directory events are needed to catch log rotation: if inotify
+   reports IN_CREATE with the same name as the file we're monitoring, we drop
+   the old one and open the newly created file.
+   
+   This only makes sense for logs. */
 
 static void dirname(char* path, char* buf, int len)
 {
@@ -126,6 +134,18 @@ static void reopen_file(struct top* ctx)
 	ctx->inowd = ret;
 }
 
+/* tail estimates the size (in bytes) the requested number of strings should
+   take up at most, and then reads about that much data. If there are more
+   than N strings there, the extra ones are skipped, otherwise the output
+   will be less than N strings. Which isn't the worst options by the way,
+   as it limits the about of garbage the users would get if the file happens
+   to be non-text. */
+
+int estimate_size(int count)
+{
+	return 120*count;
+}
+
 void allocate_tail_buf(struct top* ctx, int len)
 {
 	void* brk = (void*)sys_brk(0);
@@ -143,6 +163,9 @@ static void output(char* buf, int len)
 	sys_write(STDOUT, buf, len);
 }
 
+/* Fun fact: if we read() till the end of file, wait until it grows,
+   and read() again, we'll get the appended data. No seeks needed. */
+
 static void slurp_tail(struct top* ctx)
 {
 	int fd = ctx->fd;
@@ -154,21 +177,13 @@ static void slurp_tail(struct top* ctx)
 		output(buf, rd);
 }
 
-static int count_tail_lines(struct top* ctx, int fd)
-{
-	int rd;
-	char* buf = ctx->buf;
-	int len = ctx->len;
-	char* p;
-	int count = 0;
+/* Logs may get truncated during e.g. a daemon restart. This gets detected
+   with a stat() that should(*) show the size decreasing. If this happens,
+   tail rewinds the file and starts reading from the beginning. This only
+   makes sense for logs.
 
-	while((rd = sys_read(fd, buf, len)) > 0)
-		for(p = buf; p < buf + rd; p++)
-			if(*p == '\n')
-				count++;
-
-	return count;
-}
+   * actually it may not if the new file gets larger than the old one
+   fast enough. This part is inherently racy. Again, logs only. */
 
 static int check_truncation(struct top* ctx)
 {
@@ -215,10 +230,20 @@ static void follow_tail(struct top* ctx)
 	};
 }
 
-static int is_regular_file(struct stat* st)
-{
-	return ((st->mode & S_IFMT) == S_IFREG);
-}
+/* To get the last N lines from a stream (or a non-seekable file), we read
+   it into a ring buffer of estimated size until EOF and dump the last N
+   lines from the buffer.
+
+   The buffer layout is very simple, it's just buf[est] and we call read()
+   to fill it completely over and over again. If the last pass filled it
+   up to ptr (buf < ptr < end) and there was and the buffer has been filled
+   completely at least once, then the est bytes at the end of the file are
+   (ptr:end) + (buf:ptr). Processing is then done in two steps, (ptr:end)
+   first and then (buf:ptr).
+ 
+   Like in seekable case, we count the lines in the buf, skip the leading
+   M - N lines, note the offset, and start dumping the buf contents from
+   that offset. */
 
 static void dump_from_offset(char* buf, char* ptr, char* end, int full, int off)
 {
@@ -298,7 +323,7 @@ static void skip_file_tail(struct top* ctx)
 {
 	int count = ctx->count;
 
-	allocate_tail_buf(ctx, 2*120*count);
+	allocate_tail_buf(ctx, estimate_size(count));
 
 	char* buf = ctx->buf;
 	char* end = buf + ctx->len;
@@ -320,6 +345,31 @@ static void skip_file_tail(struct top* ctx)
 	int off = skip_nlines(buf, ptr, end, full, skip);
 
 	dump_from_offset(buf, ptr, end, full, off);
+}
+
+/* Here's how seekable files are treated: tail reads the high estimate
+   of data at the end of the file and counts the lines there. If there
+   are M > N lines there, it seeks back to the same position and repeats
+   the read, but only starts writing them out after skipping the initial
+   M - N lines.
+
+   There are better ways to do it, but this approach is simple and if N
+   is small it should work well. And N should always be small. */
+
+static int count_tail_lines(struct top* ctx, int fd)
+{
+	int rd;
+	char* buf = ctx->buf;
+	int len = ctx->len;
+	char* p;
+	int count = 0;
+
+	while((rd = sys_read(fd, buf, len)) > 0)
+		for(p = buf; p < buf + rd; p++)
+			if(*p == '\n')
+				count++;
+
+	return count;
 }
 
 void read_skipping_first(struct top* ctx, int cnt)
@@ -345,13 +395,18 @@ void read_skipping_first(struct top* ctx, int cnt)
 	}
 }
 
+static int is_regular_file(struct stat* st)
+{
+	return ((st->mode & S_IFMT) == S_IFREG);
+}
+
 static void seek_file_tail(struct top* ctx)
 {
 	int fd = ctx->fd;
 	char* name = ctx->name;
 	int count = ctx->count;
 
-	int est = 120*count;
+	int est = estimate_size(count);
 	struct stat st;
 
 	xchk(sys_fstat(fd, &st), "stat", name);
@@ -377,6 +432,9 @@ static void seek_file_tail(struct top* ctx)
 	read_skipping_first(ctx, skip);
 }
 
+/* Head mode, because head is too small to be a standalone tool.
+   Only shares the memory allocation with the tail code here. */
+
 void skip_file_head(struct top* ctx)
 {
 	int fd = ctx->fd;
@@ -401,6 +459,8 @@ void skip_file_head(struct top* ctx)
 
 	} if(rd < 0) fail(NULL, ctx->name, rd);
 }
+
+/* Options parsing and context setup. */
 
 static void run_file(int count, int opts, char* name)
 {
@@ -454,7 +514,7 @@ static void run_head(int count, int opts, char* name)
 
 	ctx->fd = fd;
 
-	int est = 120*count;
+	int est = estimate_size(count);
 
 	allocate_tail_buf(ctx, est);
 
