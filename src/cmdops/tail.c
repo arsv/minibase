@@ -275,6 +275,9 @@ int skip_nlines(char* buf, char* ptr, char* end, int full, int skip)
 	long off = 0;
 	long ret;
 
+	if(!skip)
+		return 0;
+
 	if(full && ptr < end) {
 		if((ret = skip_nlines_in(ptr, end, off, skip, &lines)))
 			return ret;
