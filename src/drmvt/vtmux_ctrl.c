@@ -215,34 +215,31 @@ void accept_ctrl(void)
 
 void setup_ctrl(void)
 {
-	int fd;
+	int fd, ret;
+	int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
 	struct sockaddr_un addr = {
 		.family = AF_UNIX,
 		.path = CONTROL
 	};
-	const int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
 
 	if((fd = sys_socket(AF_UNIX, flags, 0)) < 0)
-		return fail("socket", "AF_UNIX", fd);
-
-	long ret;
-	char* name = addr.path;
+		fail("socket", "AF_UNIX", fd);
+	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
+		fail("bind", addr.path, ret);
+	if((ret = sys_listen(fd, 1)))
+		quit("listen", addr.path, ret);
 
 	ctrlfd = fd;
 	pollset = 0;
-
-	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
-		fail("bind", name, ret);
-	else if((ret = sys_listen(fd, 1)))
-		fail("listen", name, ret);
-	else
-		return;
-
-	ctrlfd = -1;
-	sys_close(fd);
 }
 
 void clear_ctrl(void)
 {
 	sys_unlink(CONTROL);
+}
+
+void quit(const char* msg, char* arg, int err)
+{
+	clear_ctrl();
+	fail(msg, arg, err);
 }

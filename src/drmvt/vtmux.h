@@ -110,3 +110,5 @@ void flush_mdevs(void);
 
 void switch_sigalrm(void);
 void switch_sigusr1(void);
+
+void quit(const char* msg, char* arg, int err) __attribute__((noreturn));
