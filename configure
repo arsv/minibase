@@ -7,9 +7,8 @@ unset cc ar strip tp
 
 bindir=/bin
 sbindir=/sbin
-mandir=/usr/share/man
-man1dir=$mandir/man1
-man8dir=$mandir/man8
+man1dir=/man1
+man8dir=/man8
 cflags=-Os
 
 die() { echo "$@" >&2; exit 1; }
