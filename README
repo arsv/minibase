@@ -35,7 +35,7 @@ Some tools are missing, and some still need work.
   
   - No udevd yet.
   - No unprivileged mount daemon yet.
-  - No controlled privilege escalation daemon (sud/sudo) yet.
+  * Controlled privilege escalation tool (sudo) [usable].
 
   * DHCP client (dhcp) [usable].
   * manual interface setup tools (ip4cfg, ip4info) [incomplete].
