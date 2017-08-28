@@ -1,0 +1,12 @@
+.TH klogd 8
+'''
+.SH NAME
+\fBklogd\fR \- kernel log daemon
+'''
+.SH DESCRIPTION
+\fBklogd\fR reads messages from the kernel ring buffer and passes them
+to syslog. This way messages normally lost during reboot or because the
+buffer got filled remain available for later analysis.
+'''
+.SH SEE ALSO
+\fBsyslog\fR(2), \fBsyslogd\fR(8)

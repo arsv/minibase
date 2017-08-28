@@ -1,5 +1,5 @@
 bin = logcat logger
-sbin = syslogd
+sbin = syslogd klogd
 
 man1 = logcat logger
 man8 = syslogd
