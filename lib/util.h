@@ -13,7 +13,7 @@ int argbits(const char* key, const char* arg);
 int argsumlen(int argc, char** argv);
 char* argsmerge(char* buf, char* end, int argc, char** argv);
 
-const char* basename(const char* path);
+char* basename(char* path);
 char* getenv(char** envp, const char* key);
 
 typedef int (*qcmp)(const void* a, const void* b, long p);

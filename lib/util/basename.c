@@ -1,9 +1,9 @@
 #include <util.h>
 
-const char* basename(const char* path)
+char* basename(char* path)
 {
-	const char* p = path;
-	const char* q = path;
+	char* p = path;
+	char* q = path;
 
 	while(*p) if(*p++ == '/') q = p;
 
