@@ -1,6 +1,8 @@
-sbin = kmod mknod mount switchroot sync systime waitfor
+bin = waitfor
+sbin = kmod mknod mount switchroot systime
 
-man1 = kmod.8 mount.8 switchroot.8 sync.8 systime.8 waitfor.1
+man1 = waitfor.1
+man8 = kmod.8 mount.8 switchroot.8 systime.8
 
 include ../rules.mk
 

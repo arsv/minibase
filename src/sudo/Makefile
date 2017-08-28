@@ -1,7 +1,7 @@
 sbin = suhub sudo
 
-man1 = sudo
-man8 = suhub
+man1 = sudo.1
+man8 = suhub.8
 
 include ../rules.mk
 

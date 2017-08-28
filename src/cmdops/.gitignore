@@ -13,6 +13,7 @@ fn
 ls
 ren
 stat
+sync
 symlink
 sysinfo
 tail
