@@ -1,53 +1,48 @@
-#include <sys/open.h>
-#include <sys/fstat.h>
-#include <sys/mmap.h>
-#include <sys/initmodule.h>
+#include <sys/file.h>
+#include <sys/mman.h>
+#include <sys/module.h>
 
+#include <errtag.h>
 #include <alloca.h>
 #include <string.h>
 #include <util.h>
-#include <fail.h>
 
-ERRTAG = "insmod";
-ERRLIST = {
-	REPORT(EACCES), REPORT(EAGAIN), REPORT(EBADF), REPORT(EINVAL),
-	REPORT(ENFILE), REPORT(ENODEV), REPORT(ENOMEM), REPORT(EPERM),
-	REPORT(ETXTBSY), REPORT(EOVERFLOW), REPORT(EBADMSG), REPORT(EBUSY),
-	REPORT(EFAULT), REPORT(ENOKEY), REPORT(EEXIST), REPORT(ENOEXEC),
-	RESTASNUMBERS
-};
+ERRTAG("insmod");
+ERRLIST(NEACCES NEAGAIN NEBADF NEINVAL NENFILE NENODEV NENOMEM NEPERM
+	NETXTBSY NEOVERFLOW NEBADMSG NEBUSY NEFAULT NENOKEY NEEXIST
+	NENOEXEC);
 
-static void* mmapmodule(const char* name, unsigned long* len)
+static void* mmap_module(const char* name, unsigned long* len)
 {
 	int fd;
 	long ret;
 	struct stat st;
 
-	if((fd = sysopen(name, O_RDONLY)) < 0)
+	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail("cannot open", name, fd);
 
-	if((ret = sysfstat(fd, &st)) < 0)
+	if((ret = sys_fstat(fd, &st)) < 0)
 		fail("cannot stat", name, ret);
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
-	ret = sysmmap(NULL, st.st_size, prot, flags, fd, 0);
+	ret = sys_mmap(NULL, st.size, prot, flags, fd, 0);
 
-	if(MMAPERROR(ret))
+	if(mmap_error(ret))
 		fail("cannot mmap", name, ret);
 
-	*len = st.st_size;
+	*len = st.size;
 	return (void*) ret;
 }
 
-static int loadmodule(const char* name, const char* pars)
+static int load_module(char* name, char* pars)
 {
-	const char* base = basename(name);
+	char* base = basename(name);
 
 	unsigned long len;
-	void* mod = mmapmodule(name, &len);
+	void* mod = mmap_module(name, &len);
 
-	long ret = sysinitmodule(mod, len, pars);
+	long ret = sys_init_module(mod, len, pars);
 
 	if(ret < 0)
 		fail("kernel rejects", base, ret);
@@ -70,5 +65,5 @@ int main(int argc, char** argv)
 	char* pend = argsmerge(pars, pars + parlen, argc, argv);
 	*pend = '\0';
 
-	return loadmodule(name, pars);
+	return load_module(name, pars);
 }

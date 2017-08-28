@@ -9,6 +9,7 @@ echo
 false
 head
 kill
+insmod
 mkdir
 pwd
 rm
