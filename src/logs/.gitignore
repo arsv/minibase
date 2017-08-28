@@ -2,3 +2,4 @@ logger
 syslogd
 logcat
 klogd
+sysklogd
