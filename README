@@ -5,8 +5,13 @@ boot the system and provide a lightweight but reliable foundation
 to build the rest of the system on.
 
 The tools are written in raw syscalls, statically linked, and have
-no external dependencies, not even libc. They are easy to build,
-and once built can be used on any CPU-compatible Linux 3.x+ system.
+no external dependencies, not even libc. Any reasonably recent gcc
+or clang toolchain targeting the right CPU architecture can be used
+to build the package. Once built, the executables should run on any
+CPU-compatible Linux system providing the right syscalls (for most
+tools, that means kernel version 3.x and above).
+
+Currently supported targets: x86_64 arm arm64 rv64
 
 
 What's inside / Current status
@@ -22,7 +27,7 @@ Some tools are missing, and some still need work.
   * Early-stage boot utils (switchroot, kmod, mount).
 
   * Non-encrypted block device locator (findblk) [usable?]
-  * Block device locator and passphrase prompt tool (passblk) [partial]
+  * Block device locator and passphrase prompt tool (passblk) [usable?]
   * Support tooling for disc encryption (dektool, dmcrypt) [usable?]
   
   * Process supervisor suite (init, super, reboot, svc), split-stage
