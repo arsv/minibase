@@ -1,13 +1,16 @@
 #ifdef DEVEL
-# define HERE "."
+# define DEVDIR "dev"
+# define ETCDIR "etc"
+# define RUNDIR "run"
+# define VARDIR "var"
+# define NLCDIR "run"
 #else
-# define HERE
+# define DEVDIR "/dev"
+# define ETCDIR "/etc"
+# define RUNDIR "/run"
+# define VARDIR "/var"
+# define NLCDIR "/run/ctrl"
 #endif
-
-#define DEVDIR HERE "/dev"
-#define ETCDIR HERE "/etc"
-#define RUNDIR HERE "/run"
-#define VARDIR HERE "/var"
 
 /* For nlusctl commands; (a,b) are two chars identifyint the service. */
 

@@ -1,6 +1,6 @@
 #include <dirs.h>
 
-#define WICTL RUNDIR "/wimon"
+#define WICTL NLCDIR "/wimon"
 #define WICFG VARDIR "/wimon.state"
 
 #define WI(c) TAGGED('W', 'I', c)
