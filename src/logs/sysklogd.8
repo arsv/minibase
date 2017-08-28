@@ -1,0 +1,24 @@
+.TH sysklogd 8
+'''
+.SH NAME
+\fBsysklogd\fR \- system and kernel log daemon
+'''
+.SH DESCRIPTION
+\fBsysklogd\fR listens for incoming messages from various system services
+and stores to a file. Once the file gets too large \fBsysklogd\fR rotates it.
+.P
+\fBsysklogd\fR also pulls messages from the kernel ring buffer into
+the same file.
+'''
+.SH FILES
+.IP "/dev/log" 4
+Socket for incoming messages.
+.IP "/proc/kmsg" 4
+Source of the kernel messages.
+.IP "/var/log/syslog" 4
+Primary log file.
+.IP "/var/log/sysold" 4
+Rotated log file.
+'''
+.SH SEE ALSO
+\fBlogcat\fR(1), \fBlogger\fR(1), RFC 3164.
