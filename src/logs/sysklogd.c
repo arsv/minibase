@@ -17,15 +17,22 @@
 
 ERRTAG("sysklogd");
 
-#define THRESHOLD (1<<20) /* 1MB */
+/* This deamon is made of two distinct parts: syslogd, receiving RFC 3164
+   messages on /dev/log socket, and klogd, pulling kernel logs from /proc/kmsg.
+   Both sources are piped to the same common log file.
+
+   While it is possible to write standalone klogd, it has to be so much
+   dependent on syslogd that it hardly makes any sense. */
+
+#define THRESHOLD (1<<20) /* 1MB, log rotations */
 #define TAGSPACE 14 /* see description of storage format below */
 
 struct top {
-	int sockfd;
-	int logfd;
-	int klogfd;
+	int sockfd;      /* /dev/log          */
+	int logfd;       /* /var/log/syslog   */
+	int klogfd;      /* /proc/kmsg        */
 	int late;
-	uint64_t size;   /* of the logfile */
+	uint64_t size;   /* of the logfile    */
 	uint64_t ts;     /* current timestamp */
 };
 
@@ -153,17 +160,16 @@ static void set_log_time(struct top* ctx)
 	ctx->ts = tv.sec;
 }
 
-/* From the HEADER field (see RFC3164), we pick priority but
-   ignore timestamp. Client's timestamps are unreliable and
-   there's no point in supplying or using them, syslogd can
-   it just as well.
+/* Syslog part. From the HEADER field, we pick priority but ignore
+   timestamp. Client's timestamps are unreliable and there's no point
+   in supplying or using them, syslogd can do it just as well.
 
    There's no way to remove the HOSTNAME part reliably, but luckily
    no-one apparently does this nonsense anymore. Well at least musl
-   syslog() and logger from util-linux don't.
+   syslog() and the logger from util-linux don't.
 
-   There's also RFC5424 but no-one apparently uses it either,
-   which is probably for the best. */
+   Note there's also RFC5424 with its own timestamp format but no-one
+   apparently uses it, which is probably for the best. */
 
 static int isdigit(int c)
 {
@@ -230,13 +236,13 @@ static const char fakeys[] = {
 	[5] = 'L',	/* logs */
 	[6] = 'P',	/* printer? */
 	[7] = 'N',	/* nntp? */
-	[8] = '?',	/* uucp? */
+	[8] = 'X',	/* uucp? */
 	[9] = 'C',	/* clock */
 	[10] = 'A',	/* auth-private */
 	[11] = 'F',	/* ftp? */
 	[12] = 'T',	/* ntp */
-	[13] = '?',	/* log audit */
-	[14] = '?',	/* log alert */
+	[13] = 'X',	/* log audit */
+	[14] = 'X',	/* log alert */
 	[15] = 'C',	/* clock */
 	[16] = '0',	/* private use 0 */
 	[17] = '1',
@@ -289,12 +295,12 @@ static void remove_controls(char* p, char* e)
    at the front for the header, remove the protocol header, and put
    the storage header into its place:
 
-       .-- buf                             .-- p                  q --.
-       v                                   v                          v
-       ...............<262>Aug 24 14:01:12 foo: some message goes here...
-       ......................1503571442 U6 foo: some message goes here...
-                             ^
-                             t
+       buf           rbuf                 p = msg                    e = end
+       v             v                    v                          v
+       ..............<262>Aug 24 14:01:12 foo: some message goes here...
+       .....................1503571442 U6 foo: some message goes here...
+       ^^^^^^^^^^^^^^       ^
+          TAGSPACE          s = msg - TAGSPACE
 
    The protocol prefix may be shorter than that, it may even be missing.
    Either way, there must be at least TAGSPACE bytes in *front* of msg
@@ -317,11 +323,11 @@ static char* format_tag(struct top* ctx, int prio, char* msg)
 
 static void send_to_log(struct top* ctx, int prio, char* p, char* e)
 {
-	char* t = format_tag(ctx, prio, p);
+	char* s = format_tag(ctx, prio, p);
 
 	remove_controls(p, e);
 
-	store_line(ctx, t, e);
+	store_line(ctx, s, e);
 }
 
 static void recv_syslog(struct top* ctx)
@@ -346,7 +352,11 @@ static void recv_syslog(struct top* ctx)
 	send_to_log(ctx, prio, msg, end);
 }
 
-/* klogd part */
+/* Klogd part. /proc/kmsg acts just like klogctl(SYSLOG_ACTION_READ)
+   but the fd for that file can be ppoll'ed. See syslog(2).
+
+   Unlike syslog socket, this fd may spew several messages at once.
+   However, like klogctl, it always reads complete messages. */
 
 int timestamp_is_zero_seconds(char* ts)
 {
@@ -384,6 +394,17 @@ static void maybe_report_boot(struct top* ctx, char* ts)
 
 	send_to_log(ctx, prio, msg, end);
 }
+
+/* klog lines look like this:
+
+       <6>[642493.137018] mmcblk0: mmc0:0007 SD8GB 7.42 GiB
+
+   We ignore the [timestamp] field completely. It is in seconds
+   relative to something but it is not clear what is that something.
+   Neither boottime nor monotonic clocks yield reliable results.
+
+   Instead, the time recorded is the time when sysklogd gets
+   the message. */
 
 static void process_klog_line(struct top* ctx, char* ls, char* le)
 {
@@ -444,6 +465,8 @@ static void recv_klog(struct top* ctx)
 		p = q + 1;
 	}
 }
+
+/* The rest is just polling between the syslog socket fd and the klog fd. */
 
 static void set_poll_fd(struct pollfd* pf, int fd)
 {
