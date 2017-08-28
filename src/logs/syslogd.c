@@ -16,7 +16,7 @@
 ERRTAG("syslogd");
 
 #define THRESHOLD (1<<20) /* 1MB */
-#define TAGSPACE 13 /* see description of storage format below */
+#define TAGSPACE 14 /* see description of storage format below */
 
 struct top {
 	int sockfd;
@@ -185,11 +185,50 @@ out:
 	return r;
 }
 
-static char* fmt_prio(char* p, char* e, int prio)
+static const char fakeys[] = {
+	[0] = 'K',	/* kernel */
+	[1] = 'U',	/* user */
+	[2] = 'M',	/* mail? */
+	[3] = 'D',	/* daemon */
+	[4] = 'A',	/* auth */
+	[5] = 'L',	/* logs */
+	[6] = 'P',	/* printer? */
+	[7] = 'N',	/* nntp? */
+	[8] = '?',	/* uucp? */
+	[9] = 'C',	/* clock */
+	[10] = 'A',	/* auth-private */
+	[11] = 'F',	/* ftp? */
+	[12] = 'T',	/* ntp */
+	[13] = '?',	/* log audit */
+	[14] = '?',	/* log alert */
+	[15] = 'C',	/* clock */
+	[16] = '0',	/* private use 0 */
+	[17] = '1',
+	[18] = '2',
+	[19] = '3',
+	[20] = '4',
+	[21] = '5',
+	[22] = '6',
+	[23] = '7'	/* private use 7 */
+};
+
+static char* fmtprio(char* p, char* e, int prio)
 {
+	int facility = prio >> 3;
 	int severity = prio & 7;
 
-	return fmtchar(p, e, '0' + severity);
+	char fc;
+	char pc = '0' + severity;
+
+	if(facility >= 0 && facility < sizeof(fakeys))
+		fc = fakeys[facility];
+	else
+		fc = '?';
+
+	p = fmtchar(p, e, fc);
+	p = fmtchar(p, e, pc);
+
+	return p;
 }
 
 static void remove_controls(char* p, char* e)
@@ -204,11 +243,11 @@ static void remove_controls(char* p, char* e)
 
    and gets stored like this:
 
-       0123456789012345678901234567890123456789    <-- ruler
+       01234567890123456789012345678901234567890    <-- ruler
 
-       1503571442 I foo: some message goes here    <-- stored line
+       1503571442 D6 foo: some message goes here    <-- stored line
 
-       ^^^^^^^^^^^^^                               <-- TAGSPACE
+       ^^^^^^^^^^^^^^                               <-- TAGSPACE
 
    so we recv the original message into a buffer with 14 free bytes
    at the front for the header, remove the protocol header, and put
@@ -217,7 +256,7 @@ static void remove_controls(char* p, char* e)
        .-- buf                             .-- p                  q --.
        v                                   v                          v
        ...............<262>Aug 24 14:01:12 foo: some message goes here...
-       ......................1503571442 UI foo: some message goes here...
+       ......................1503571442 U6 foo: some message goes here...
                              ^
                              t
 
@@ -231,7 +270,7 @@ static char* format_tag(struct timeval* tv, int prio, char* e)
 
 	p = fmtpad0(p, e, 10, fmtu64(p, e, tv->sec));
 	p = fmtchar(p, e, ' ');
-	p = fmt_prio(p, e, prio);
+	p = fmtprio(p, e, prio);
 
 	while(p < e) *p++ = ' ';
 

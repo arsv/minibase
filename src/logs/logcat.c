@@ -13,7 +13,7 @@
 
 ERRTAG("logcat");
 
-#define TAGSPACE 13
+#define TAGSPACE 14
 
 #define OPTS "cbf"
 #define OPT_c (1<<0)	/* no color */
@@ -185,6 +185,9 @@ void process(char* ls, char* le, int opts)
 
 	if(!(p = parseu64(pref, &ts)) || *p++ != ' ')
 		return;
+
+	p++; /* skip facility */
+
 	if(*p < '0' || *p > '9')
 		return;
 

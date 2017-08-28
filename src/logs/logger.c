@@ -77,7 +77,7 @@ static void send_message(int prio, char* msg, int ap)
 int main(int argc, char** argv)
 {
 	int i = 1;
-	int prio = (1<<8); /* user-level message */
+	int prio = (1<<3); /* user-level message */
 
 	if(i < argc && argv[i][0] == '-')
 		prio |= parse_mode(argv[i++] + 1);
