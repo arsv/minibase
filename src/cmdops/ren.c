@@ -26,7 +26,7 @@ static void movetodir(char* dir, int argc, char** argv, int flags)
 	int dlen = strlen(dir);
 
 	for(i = 0; i < argc; i++) {
-		char* base = (char*)basename(argv[i]);
+		char* base = basename(argv[i]);
 		int blen = strlen(base);
 
 		char fullname[dlen+blen+2];

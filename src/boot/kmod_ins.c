@@ -20,7 +20,7 @@ static int check_strip_suffix(char* name, int nlen, char* suffix)
 
 void insmod(char* path, char* pars, char** envp)
 {
-	char* base = (char*)basename(path);
+	char* base = basename(path);
 	int blen = strlen(base);
 	char name[blen+1];
 

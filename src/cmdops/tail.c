@@ -223,7 +223,7 @@ static int check_truncation(struct top* ctx)
 static void follow_tail(struct top* ctx)
 {
 	char* name = ctx->name;
-	char* base = (char*)basename(name);
+	char* base = basename(name);
 
 	start_inotify(ctx);
 

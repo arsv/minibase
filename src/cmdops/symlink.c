@@ -51,7 +51,7 @@ static void symlinkto(char* dir, int argc, char** argv, int opts)
 
 	for(i = 0; i < argc; i++) {
 		char* target = argv[i];
-		char* base = (char*)basename(target);
+		char* base = basename(target);
 		int blen = strlen(base);
 
 		char linkname[dlen+blen+2];
@@ -69,7 +69,7 @@ static void symlinkmt(char* dir, char* target, int argc, char** argv, int opts)
 	int dlen = strlen(dir);
 
 	for(i = 0; i < argc; i++) {
-		char* base = (char*)basename(argv[i]);
+		char* base = basename(argv[i]);
 		int blen = strlen(base);
 
 		char linkname[dlen+blen+2];
