@@ -24,43 +24,146 @@
 
 #define PRINTFBUF 512
 
-static int skiptofmt(const char* s)
+struct spec {
+	char c;
+	short flags;
+	short width;
+	short prec;
+};
+
+static char* skip_to_fmt(char* s)
 {
-	const char* p;
-	for(p = s; *p && *p != '%'; p++);
-	return p - s;
+	while(*s && *s != '%')
+		s++;
+	return s;
 }
 
-char* fmtpadr(char* p, char* e, int num, char* q)
+static char* fmt_s(char* p, char* e, struct spec* sp, va_list ap)
 {
-	int len = q - p;
+	char* str = va_arg(ap, char*);
 
-	while(len++ < num)
-		q = fmtchar(q, e, ' ');
+	if(!str)
+		str = "(null)";
+
+	if(sp->flags & Fd)
+		return fmtstrn(p, e, str, sp->prec);
+	else
+		return fmtstr(p, e, str);
+}
+
+static char* fmt_c(char* p, char* e, struct spec* sp, va_list ap)
+{
+	return fmtchar(p, e, va_arg(ap, unsigned));
+}
+
+static char* fmt_i(char* p, char* e, struct spec* sp, va_list ap)
+{
+	if(sp->flags & Fl)
+		return fmtlong(p, e, va_arg(ap, long));
+	else
+		return fmtint(p, e, va_arg(ap, int));
+}
+
+static char* fmt_u(char* p, char* e, struct spec* sp, va_list ap)
+{
+	if(sp->flags & Fl)
+		return fmtulong(p, e, va_arg(ap, unsigned long));
+	else
+		return fmtuint(p, e, va_arg(ap, unsigned));
+}
+
+static char* fmt_x(char* p, char* e, struct spec* sp, va_list ap)
+{
+	if(sp->flags & Fl)
+		return fmtxlong(p, e, va_arg(ap, unsigned long));
+	else
+		return fmtxlong(p, e, va_arg(ap, unsigned));
+}
+
+static char* fmt_p(char* p, char* e, struct spec* sp, va_list ap)
+{
+	p = fmtstr(p, e, "0x");
+	p = fmtxlong(p, e, (long)va_arg(ap, void*));
+
+	return p;
+}
+
+static char* dispatch(char* p, char* e, struct spec* sp, va_list ap)
+{
+	switch(sp->c) {
+		case 's': return fmt_s(p, e, sp, ap);
+		case 'c': return fmt_c(p, e, sp, ap);
+		case 'i': return fmt_i(p, e, sp, ap);
+		case 'u': return fmt_u(p, e, sp, ap);
+		case 'X':
+		case 'x': return fmt_x(p, e, sp, ap);
+		case 'p': return fmt_p(p, e, sp, ap);
+		default: return NULL;
+	}
+}
+
+static char* format(char* p, char* e, struct spec* sp, va_list ap)
+{
+	char* q;
+
+	if(!(q = dispatch(p, e, sp, ap)))
+		return q;
+
+	int width = sp->width;
+	int flags = sp->flags;
+
+	if(q - p >= width)
+		return q;
+	if(flags & F0)
+		return fmtpad0(p, e, width, q);
+	if(flags & Fm)
+		return fmtpadr(p, e, width, q);
+	else
+		return fmtpad(p, e, width, q);
 
 	return q;
 }
 
-char* fmtfpad(char* p, char* e, char* q, int flags, int num)
+static char* intpart(char* q, short* dst, va_list ap)
 {
-	if(!num)
-		return q;
-	if(flags & F0)
-		return fmtpad0(p, e, num, q);
-	if(flags & Fm)
-		return fmtpadr(p, e, num, q);
-	else
-		return fmtpad(p, e, num, q);
+	if(*q >= '0' && *q <= '9') {
+		int num = 0;
+
+		while(*q >= '0' && *q <= '9')
+			num = num*10 + (*q++ - '0');
+
+		*dst = num;
+	} else if(*q == '*') {
+		q++;
+		*dst = va_arg(ap, int);
+	} else {
+		*dst = 0;
+	}
+
+	return q;
 }
 
-static char* fmtstr_(char* p, char* e, char* str, int width, int flags)
+static char* parse(char* q, struct spec* sp, va_list ap)
 {
-	if(!str)
-		str = "(null)";
-	if(flags & Fd)
-		return fmtstrn(p, e, str, width);
-	else
-		return fmtstr(p, e, str);
+	short flags = 0;
+
+	q++; /* skip % */
+
+	if(*q == '-') { flags |= Fm; q++; }
+	if(*q == '0') { flags |= F0; q++; }
+
+	q = intpart(q, &sp->width, ap);
+
+	if(*q == '.') { flags |= Fd; q++; }
+
+	if(flags & Fd) q = intpart(q, &sp->prec, ap);
+
+	if(*q == 'l') { flags |= Fl; q++; }
+
+	sp->c = *q++;
+	sp->flags = flags;
+
+	return q;
 }
 
 int vfdprintf(int fd, const char* fmt, va_list ap)
@@ -69,70 +172,23 @@ int vfdprintf(int fd, const char* fmt, va_list ap)
 	int bufsize = sizeof(buf);
 	char* p = buf;
 	char* e = buf + bufsize;
-	char* q;
 
-	while(*fmt) {
-		if(*fmt != '%') {
-			int len = skiptofmt((char*)fmt);
-			p = fmtstrn(p, e, fmt, len);
-			fmt += len;
-			continue;
+	char* f = (char*)fmt;
+	struct spec sp;
+
+	while(*f) {
+		if(*f == '%') {
+			if(!(f = parse(f, &sp, ap)))
+				break;
+			if(!(p = format(p, e, &sp, ap)))
+				break;
+		} else {
+			char* t = f;
+			f = skip_to_fmt(f);
+			p = fmtraw(p, e, t, f - t);
 		}
-
-		fmt++;
-		
-		int num = 0, flags = 0;
-
-		if(*fmt == '-') { flags |= Fm; fmt++; }
-		if(*fmt == '.') { flags |= Fd; fmt++; }
-
-		if(*fmt == '*') {
-			num = va_arg(ap, int);
-			fmt++;
-		} else while(*fmt >= '0' && *fmt <= '9') {
-			if(!num && *fmt == '0')
-				flags |= F0;
-			num = num*10 + (*fmt++ - '0');
-		}
-
-		if(*fmt == '*' && !num) { fmt++; num = va_arg(ap, int); }
-
-		if(*fmt == 'l') { flags |= Fl; fmt++; }
-
-		switch(*fmt++) {
-		case 's':
-			q = fmtstr_(p, e, va_arg(ap, char*), num, flags);
-			break;
-		case 'c':
-			q = fmtchar(p, e, va_arg(ap, unsigned));
-			break;
-		case 'i':
-			if(flags & Fl)
-				q = fmtlong(p, e, va_arg(ap, long));
-			else
-				q = fmtint(p, e, va_arg(ap, int));
-			break;
-		case 'u':
-			if(flags & Fl)
-				q = fmtlong(p, e, va_arg(ap, unsigned long));
-			else
-				q = fmtint(p, e, va_arg(ap, unsigned));
-			break;
-		case 'X':
-			if(flags & Fl)
-				q = fmtxlong(p, e, va_arg(ap, unsigned long));
-			else
-				q = fmtxlong(p, e, va_arg(ap, unsigned));
-			break;
-		case 'p':
-			q = fmtxlong(p, e, (long)va_arg(ap, void*));
-			break;
-		default: goto out;
-		};
-
-		p = fmtfpad(p, e, q, flags, num);
 	}
-out:
+
 	return writeall(fd, buf, p - buf);
 }
 
