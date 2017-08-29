@@ -103,9 +103,9 @@ In contrast, nlusctl uses top-level multi-keys for this purpose:
 	[ ATTR_SOMETHING, value ],
 	[ ATTR_SOMETHING, value ]
 
-The trick GENL uses, aside of an extra header, breaks the assumption that
-the key defines the attribute payload, because the enumeration keys they use
-may happen to match (and often do match) unrelated ATTR_* constants.
+The trick GENL uses needs an extra header and breaks key => type-of-payload
+relation since the enumeration keys may happen to match (and often do match)
+unrelated ATTR_* constants.
 
 Otherwise the format of the attributes is the same in GENL, RTNL and nlusct.
 This was done intentionally to share as much parsing code as possible.
