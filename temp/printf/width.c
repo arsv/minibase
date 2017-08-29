@@ -2,10 +2,12 @@
 
 int main(void)
 {
-	char str[] = "abcdef";
+	char str[] = "abc";
 
-	printf(">%.3s<\n", str);
-	printf(">%.*s<\n", 3, str);
+	printf("R  >%10s<\n", str);
+	printf("L  >%-10s<\n", str);
+	printf("R* >%*s<\n", 10, str);
+	printf("L* >%-*s<\n", 10, str);
 
 	return 0;
 }
