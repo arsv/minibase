@@ -2,7 +2,8 @@
    printf implementation for printf-debugging. Not meant to be used
    in any other way. Non-debug code should use fmt* functions instead.
 
-   Only fd 1 output, and a minimalistic format support:
+   Only stdout (printf) or stderr (tracef) output, with very limited
+   format support:
 
                %Ni %0NX %s %p %m
 
@@ -16,9 +17,10 @@
 #include <printf.h>
 #include <util.h>
 
-#define F0 (1<<0)
-#define Fm (1<<1)
-#define Fl (1<<2)
+#define F0 (1<<0) /* got leading 0 in width field */
+#define Fm (1<<1) /* got - (minus) in format spec */
+#define Fl (1<<2) /* got l (long) prefix */
+#define Fd (1<<3) /* got . (dot) */
 
 #define PRINTFBUF 512
 
@@ -51,10 +53,14 @@ char* fmtfpad(char* p, char* e, char* q, int flags, int num)
 		return fmtpad(p, e, num, q);
 }
 
-static char* fmtstr_(char* p, char* e, char* str)
+static char* fmtstr_(char* p, char* e, char* str, int width, int flags)
 {
-	if(!str) str = "(null)";
-	return fmtstr(p, e, str);
+	if(!str)
+		str = "(null)";
+	if(flags & Fd)
+		return fmtstrn(p, e, str, width);
+	else
+		return fmtstr(p, e, str);
 }
 
 int vfdprintf(int fd, const char* fmt, va_list ap)
@@ -78,17 +84,24 @@ int vfdprintf(int fd, const char* fmt, va_list ap)
 		int num = 0, flags = 0;
 
 		if(*fmt == '-') { flags |= Fm; fmt++; }
+		if(*fmt == '.') { flags |= Fd; fmt++; }
 
-		while(*fmt >= '0' && *fmt <= '9') {
-			if(!num && *fmt == '0') flags |= F0;
+		if(*fmt == '*') {
+			num = va_arg(ap, int);
+			fmt++;
+		} else while(*fmt >= '0' && *fmt <= '9') {
+			if(!num && *fmt == '0')
+				flags |= F0;
 			num = num*10 + (*fmt++ - '0');
 		}
+
+		if(*fmt == '*' && !num) { fmt++; num = va_arg(ap, int); }
 
 		if(*fmt == 'l') { flags |= Fl; fmt++; }
 
 		switch(*fmt++) {
 		case 's':
-			q = fmtstr_(p, e, va_arg(ap, char*));
+			q = fmtstr_(p, e, va_arg(ap, char*), num, flags);
 			break;
 		case 'c':
 			q = fmtchar(p, e, va_arg(ap, unsigned));
