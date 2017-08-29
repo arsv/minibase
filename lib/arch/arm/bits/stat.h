@@ -12,16 +12,16 @@ struct stat {
 	uint32_t uid;
 	uint32_t gid;
 	uint64_t rdev;
-	uint64_t __pad1;
+	uint64_t __1;
 	 int64_t size;
 	 int32_t blksize;
-	 int32_t __pad2;
+	 int32_t __2;
 	 int64_t blocks;
 	struct timespec atime;
 	struct timespec mtime;
 	struct timespec ctime;
-	uint32_t __unused4;
-	uint32_t __unused5;
+	uint32_t __4;
+	uint32_t __5;
 };
 
 #endif
