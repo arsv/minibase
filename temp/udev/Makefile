@@ -1,3 +1,3 @@
-also = udevdump
+all = udevdump
 
 include ../rules.mk

@@ -2,6 +2,8 @@
 
 include config.mk
 
+DESTDIR ?= ./out
+
 .SUFFIXES:
 
 all: libs build
@@ -14,8 +16,8 @@ lib/all.a:
 build: lib/all.a
 	$(MAKE) -C src
 
-install:
-	$(MAKE) -C src install
+install: libs
+	$(MAKE) -C src DESTDIR=$(abspath $(DESTDIR)) install
 
 clean: clean-lib clean-src clean-test clean-temp clean-test
 

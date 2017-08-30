@@ -5,29 +5,75 @@
 
 include $/config.mk
 
+DESTDIR ?= ./out
+clean = *.o
+
 %.o: %.c
 	$(CC)$(if $(CFLAGS), $(CFLAGS)) -c $<
 
 %: %.o
 	$(LD) -o $@ $(filter %.o,$^) $(LIBS)
 
-all: $(bin) $(sbin) $(also)
+# Quick explanation assuming bin = ls echo:
+#
+#   dstdir-bin := ./out/bin
+#   target-bin := ./out/bin/ls ./out/bin/echo
+#   mkdirs += ./out/bin
+#
+#   ./out/bin/{ls,echo}: ./out/bin/%: % | ./out/bin
+#       strip -o $@ $<
+#
+#   ./out/bin:
+#       mkdir -p $@
+#
+# In actual runs DESTDIR is always an absolute path.
 
-clean:
-	rm -f *.o $(bin) $(sbin) $(also)
+define bin-rules
+dstdir-$1 := $$(DESTDIR)$$($1dir)
+target-$1 := $$(patsubst %,$$(dstdir-$1)/%,$$($1))
+mkdirs += $$(dstdir-$1)
+clean += $$($1)
 
-$(DESTDIR)/bin $(DESTDIR)/sbin:
+all: all-$1
+
+all-$1: $$($1)
+
+install: install-$1
+
+install-$1: $$(target-$1) | $$(dstdir-$1)
+
+$$(target-$1): $$(dstdir-$1)/%: % | $$(dstdir-$1)
+	$$(STRIP) -o $$@ $$(notdir $$@)
+
+.PHONY: $$(target-$1)
+endef
+
+$(foreach _,bin sbin,$(if $($_),$(eval $(call bin-rules,$_))))
+
+define man-rules
+dstdir-$1 := $$(DESTDIR)$$($1dir)
+target-$1 := $$(patsubst %,$$(dstdir-$1)/%,$$($1))
+mkdirs += $$(dstdir-$1)
+
+install: install-$1
+
+install-man: install-$1
+
+install-$1: $$(target-$1)
+
+$$(target-$1): $$(dstdir-$1)/%: % | $$(dstdir-$1)
+	cp -t $$(dir $$@) $$(notdir $$@)
+
+.PHONY: $$(target-$1)
+endef
+
+$(foreach _, 1 5 8, $(eval man$_ := $(sort $(wildcard *.$_))))
+$(foreach _, 1 5 8, $(if $(man$_),$(eval $(call man-rules,man$_,$_))))
+
+$(sort $(mkdirs)): %:
 	mkdir -p $@
 
-install = $(foreach _, bin sbin man1 man8, $(if $($_),install-$_))
-install: $(install)
-install-man: $(filter install-man%,$(install))
+all: $(also)
 
-install-bin install-sbin: install-%:
-	  mkdir -p $(DESTDIR)$($*dir)
-	  cp -a $($*) $(DESTDIR)$($*dir)
-	  $(STRIP) $(patsubst %,$(DESTDIR)$($*dir)/%,$($*))
-
-install-man%:
-	mkdir -p $(DESTDIR)$(man$*dir)
-	cp $(man$*) $(DESTDIR)$(man$*dir)
+clean:
+	rm -f $(clean)

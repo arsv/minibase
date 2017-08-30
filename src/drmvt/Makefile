@@ -1,7 +1,5 @@
 bin = vtmux vtctl unlock
 
-man1 =
-
 include ../rules.mk
 
 vtmux: vtmux.o vtmux_pipe.o vtmux_exec.o vtmux_poll.o vtmux_slot.o \

@@ -2,9 +2,6 @@ bin = dektool dmcrypt blkid
 
 sbin = findblk passblk
 
-man5 = blktab.5
-man8 = blkid.8 findblk.8 passblk.8 dektool.8 dmcrypt.8
-
 include ../rules.mk
 
 dektool: dektool.o keytool.o

@@ -1,3 +1,3 @@
-also = create remove
+all = create remove
 
 include ../rules.mk

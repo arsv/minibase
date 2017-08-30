@@ -1,3 +1,3 @@
-also = dump
+all = dump
 
 include ../rules.mk

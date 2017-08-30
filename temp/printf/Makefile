@@ -1,3 +1,3 @@
-also = base prec width
+all = base prec width
 
 include ../rules.mk

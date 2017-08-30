@@ -1,4 +1,3 @@
-sbin = syslogd klogd
-man8 = syslogd.8 klogd.8
+all = syslogd klogd
 
 include ../rules.mk

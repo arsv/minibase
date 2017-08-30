@@ -1,8 +1,5 @@
 bin = inputs
-
 sbin = acpid keymon
-
-man8 = acpid.8 keymon.8
 
 include ../rules.mk
 

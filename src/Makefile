@@ -15,7 +15,7 @@ install := $(patsubst %,install-%,$(subdirs))
 
 all: hello $(build)
 clean: $(clean)
-install: $(install)
+install: $(if $(DESTDIR),$(install),no-destdir-install)
 
 build-%:
 	$(MAKE) -C $*
@@ -24,7 +24,7 @@ clean-%:
 	$(MAKE) -C $* clean
 
 install-%:
-	$(MAKE) -C $* install
+	$(MAKE) -C $* DESTDIR=$(abspath $(DESTDIR)) install
 
 .SILENT: $(build) $(clean) $(install)
 

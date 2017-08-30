@@ -8,6 +8,7 @@ unset cc ar strip tp
 bindir=/bin
 sbindir=/sbin
 man1dir=/man1
+man5dir=/man5
 man8dir=/man8
 cflags=-Os
 
@@ -61,6 +62,7 @@ STRIP = $strip
 bindir = $bindir
 sbindir = $sbindir
 man1dir = $man1dir
+man5dir = $man5dir
 man8dir = $man8dir
 END
 

@@ -1,3 +1,3 @@
-also = ttyinfo
+all = ttyinfo
 
 include ../rules.mk

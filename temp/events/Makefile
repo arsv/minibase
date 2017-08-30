@@ -1,3 +1,3 @@
-also = acpilog keys swts inpid
+all = acpilog keys swts inpid
 
 include ../rules.mk

@@ -1,3 +1,3 @@
-also = keys tcattr
+all = keys tcattr
 
 include ../rules.mk

@@ -1,4 +1,4 @@
-also = nldump rtdump rtevt nlevt genlfams
+all = nldump rtdump rtevt nlevt genlfams
 
 include ../rules.mk
 

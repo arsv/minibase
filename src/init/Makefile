@@ -1,8 +1,5 @@
 sbin = init reboot super svc
-
 also = trap tick
-
-man1 =
 
 include ../rules.mk
 

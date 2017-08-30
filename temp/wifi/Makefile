@@ -1,3 +1,3 @@
-also = wiscan pbkdf ptk
+all = wiscan pbkdf ptk
 
 include ../rules.mk

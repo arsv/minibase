@@ -1,3 +1,3 @@
-also = auxvec dumpenv sigact
+all = auxvec dumpenv sigact
 
 include ../rules.mk

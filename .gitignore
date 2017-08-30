@@ -1,4 +1,4 @@
-work
+out/
 *.a
 *.o
 config.mk

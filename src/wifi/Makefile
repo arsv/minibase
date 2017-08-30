@@ -1,8 +1,5 @@
 bin = wimon wpa wictl
 
-man1 = wictl.1
-man8 = wimon.8 wpa.8
-
 include ../rules.mk
 
 wimon: wimon.o wimon_rtnl.o wimon_genl.o wimon_proc.o wimon_slot.o \
