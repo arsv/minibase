@@ -1,5 +1,6 @@
 #include <bits/ints.h>
 
+#define LOOP_MAJOR    7
 #define INPUT_MAJOR  13
 #define DRI_MAJOR   226
 
