@@ -422,10 +422,9 @@ static void process_klog_line(struct top* ctx, char* ls, char* le)
 
 	maybe_report_boot(ctx, ls + 4);
 
-	/*                  v-- p             */
-	/*  <6>[000000.000] some message here */
-	/*  ............<6> some message here */
-	/*    (p - 4) --^                     */
+	/*                  v-- p              */
+	/*  <6>[000000.000] some message here  */
+	/*   ^-- ls[1]                  le --^ */
 
 	int prio = ls[1] - '0';
 

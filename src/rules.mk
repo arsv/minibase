@@ -14,7 +14,7 @@ clean = *.o
 %: %.o
 	$(LD) -o $@ $(filter %.o,$^) $(LIBS)
 
-# Quick explanation assuming bin = ls echo:
+# Quick explanation, say for bin="ls echo":
 #
 #   dstdir-bin := ./out/bin
 #   target-bin := ./out/bin/ls ./out/bin/echo
@@ -23,7 +23,7 @@ clean = *.o
 #   ./out/bin/{ls,echo}: ./out/bin/%: % | ./out/bin
 #       strip -o $@ $<
 #
-#   ./out/bin:
+#   ./out/bin:         # <-- actually via $(mkdirs)
 #       mkdir -p $@
 #
 # In actual runs DESTDIR is always an absolute path.

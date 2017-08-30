@@ -101,14 +101,10 @@ How is it different from systemd?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Smaller, simpler and less inter-dependent tools.
 Less invasive in respect to the system atop. Easier to build.
-
-No D-bus. IPC via unix sockets.
+No D-bus, or any bus for that matter, only p2p IPC via unix sockets.
 
 Different approach to system security. Minibase is meant for personal
 computing devices while systemd apparently targets mainframes.
-
-Also different set of tools. Minibase overlaps some parts of systemd
-and some parts of busybox (or GNU tools) not covered by systemd.
 
 
 Compatibility
