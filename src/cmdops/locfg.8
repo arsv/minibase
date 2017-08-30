@@ -1,0 +1,17 @@
+.TH locfg 8
+'''
+.SH NAME
+\fBlocfg\fR \- configure loopback block devices
+'''
+.SH SYNOPSIS
+.IP "\fBlocfg\fR \fIfile\fR [\fIoffset\fR [\fIsizelimit\fR]]" 4
+Set up a loop device bound to \fIfile\fR.
+.br
+Outputs the name of the configured device, "/dev/loop\fIN\fR".
+.IP "\fBlocfg\fR \fB-d\fR \fIN\fR" 4
+Detach loop device /dev/loop\fIN\fR.
+.IP "\fBlocfg\fR \fB-i\fR \fIN\fR" 4
+Query status of /dev/loop\fIN\fR.
+'''
+.SH SEE ALSO
+\fBloop\fR(4)
