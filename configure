@@ -84,19 +84,32 @@ done
 
 END
 
+# GCC may be configured to produce PIEs without explicit -pie options,
+# and it would do so even if given -ffreestanding -static. This is not
+# acceptable for minibase, so the code below tries to force non-PIE mode.
+#
+# Current gcc versions also generate GOT relocations no matter what.
+# No idea how to disable them atm. It's mostly harmless, but adds one
+# dirty page for executables that would not need it otherwise.
+#
+# clang does it right and produces nice static executables with no GOT.
+
 if [ -n "$clang" ]; then
 cat >> mini-cc <<END
 exec $cc -fno-strict-aliasing -fno-asynchronous-unwind-tables \\
 	-Wno-unused-command-line-argument -Wno-gnu -ffreestanding \\
-	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib \\
-	-nopie -fno-vectorize -fno-stack-protector $cflags "\$@" \\
+	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib -static \\
+	-nopie -fno-pic -fno-plt -fno-vectorize -fno-stack-protector \\
+	$cflags "\$@" \\
 	-nostdlib \${needslib:+\$base/lib/all.a}
 END
 else
 cat >> mini-cc <<END
 exec $cc -fno-strict-aliasing -fno-asynchronous-unwind-tables \\
 	-ffreestanding -nostdinc -I\$base/lib/arch/$arch -I\$base/lib \\
-	-no-pie -fno-stack-protector $cflags "\$@" \\
+	-no-pie -fno-pie -fno-PIE -fno-pic -fno-PIC -fno-plt \\
+	-fno-stack-protector \\
+	$cflags "\$@" \\
 	-nostdlib -Wl,-\\( \${needslib:+\$base/lib/all.a -lgcc} -Wl,-\\)
 END
 fi
