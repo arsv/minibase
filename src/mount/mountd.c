@@ -8,6 +8,7 @@
 #include <sys/fpath.h>
 
 #include <errtag.h>
+#include <string.h>
 #include <sigset.h>
 #include <cmsg.h>
 #include <util.h>
@@ -17,10 +18,14 @@
 
 ERRTAG("mountd");
 
-static sigset_t defsigset;
-struct pollfd pfds[NCONNS+1];
-int nconns;
-int sigterm;
+struct top {
+	sigset_t defsigset;
+	struct pollfd pfds[NCONNS+1];
+	int nconns;
+	int sigterm;
+};
+
+#define CTX struct top* ctx
 
 void quit(const char* msg, char* arg, int err)
 {
@@ -46,7 +51,12 @@ static void sigaction(int sig, struct sigaction* sa, char* tag)
 	xchk(sys_sigaction(sig, sa, NULL), "sigaction", tag);
 }
 
-static void setup_signals(void)
+static void sigprocmask(int how, sigset_t* mask, sigset_t* save)
+{
+	xchk(sys_sigprocmask(how, mask, save), "sigprocmask", NULL);
+}
+
+static void setup_signals(CTX)
 {
 	struct sigaction sa = {
 		.handler = sighandler,
@@ -55,8 +65,10 @@ static void setup_signals(void)
 	};
 
 	sigset_t* mask = &sa.mask;
-
 	sigemptyset(mask);
+
+	sigprocmask(SIG_BLOCK, &sa.mask, &ctx->defsigset);
+
 	sigaddset(mask, SIGINT);
 	sigaddset(mask, SIGTERM);
 	sigaddset(mask, SIGALRM);
@@ -66,15 +78,17 @@ static void setup_signals(void)
 	sigaction(SIGALRM, &sa, NULL);
 }
 
-static void accept_connection(int sfd)
+static void accept_connection(CTX, int sfd)
 {
+	struct pollfd* pfds = ctx->pfds;
+
 	int cfd;
 	struct sockaddr_un addr;
 	int addrlen = sizeof(addr);
 
 	while((cfd = sys_accept(sfd, &addr, &addrlen)) >= 0) {
-		if(nconns < NCONNS) {
-			int i = nconns++;
+		if(ctx->nconns < NCONNS) {
+			int i = ctx->nconns++;
 			pfds[i+1].fd = cfd;
 			pfds[i+1].events = POLLIN;
 		} else {
@@ -84,26 +98,26 @@ static void accept_connection(int sfd)
 	}
 }
 
-static void retract_nconns(void)
+static void retract_nconns(CTX)
 {
-	int i;
+	int i = ctx->nconns;
 
-	for(i = nconns; i > 0; i--)
-		if(pfds[i-1].fd >= 0)
+	for(; i > 0; i--)
+		if(ctx->pfds[i-1].fd >= 0)
 			break;
 
-	nconns = i;
+	ctx->nconns = i;
 }
 
-static void check_listening(struct pollfd* pf)
+static void check_listening(CTX, struct pollfd* pf)
 {
 	if(pf->revents & POLLIN)
-		accept_connection(pf->fd);
+		accept_connection(ctx, pf->fd);
 	if(pf->revents & ~POLLIN)
 		quit("control socket lost", NULL, 0);
 }
 
-static void check_client(struct pollfd* pf)
+static void check_client(CTX, struct pollfd* pf)
 {
 	if(pf->revents & POLLIN)
 		handle(pf->fd);
@@ -111,21 +125,23 @@ static void check_client(struct pollfd* pf)
 	if(pf->revents & ~POLLIN) {
 		sys_close(pf->fd);
 		pf->fd = -1;
-		retract_nconns();
+		retract_nconns(ctx);
 	}
 }
 
-static void check_polled_fds(void)
+static void check_polled_fds(CTX)
 {
+	int nconns = ctx->nconns;
+	struct pollfd* pfds = ctx->pfds;
 	int i;
 
 	for(i = 1; i < nconns + 1; i++)
-		check_client(&pfds[i]);
+		check_client(ctx, &pfds[i]);
 
-	check_listening(&pfds[0]);
+	check_listening(ctx, &pfds[0]);
 }
 
-static void setup_ctrl(void)
+static void setup_ctrl(CTX)
 {
 	int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
 	struct sockaddr_un addr = {
@@ -143,24 +159,33 @@ static void setup_ctrl(void)
 	if((ret = sys_listen(fd, 1)))
 		fail("listen", addr.path, ret);
 
-	pfds[0].fd = fd;
-	pfds[0].events = POLLIN;
+	ctx->pfds[0].fd = fd;
+	ctx->pfds[0].events = POLLIN;
 }
 
 int main(int argc, char** argv)
 {
+	struct top context, *ctx = &context;
+
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);
 
-	setup_ctrl();
-	setup_signals();
+	memzero(ctx, sizeof(*ctx));
+
+	setup_ctrl(ctx);
+	setup_signals(ctx);
+
+	sigset_t* mask = &ctx->defsigset;
 
 	while(1) {
-		int ret = sys_ppoll(pfds, nconns+1, NULL, &defsigset);
+		int nconns = ctx->nconns;
+		struct pollfd* pfds = ctx->pfds;
+
+		int ret = sys_ppoll(pfds, nconns+1, NULL, mask);
 
 		if(ret < 0)
 			quit("ppoll", NULL, ret);
 		if(ret > 0)
-			check_polled_fds();
+			check_polled_fds(ctx);
 	}
 }
