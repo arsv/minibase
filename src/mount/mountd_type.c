@@ -85,6 +85,13 @@ const char* fs_type_string(int fst)
 	return "unknown";
 }
 
+/* Sticky bit is used to protect system devices; mountd will not touch
+   anything with the bit set. It's up to the boot tools to set it.
+ 
+   The original pmount tries to check for removable flag in sysfs instead,
+   but that turns out to be very unreliable. MMC devices may be marked
+   non-removable when they are and removable when they aren't. */
+
 static int isblock(int fd)
 {
 	int ret;
@@ -94,6 +101,8 @@ static int isblock(int fd)
 		return ret;
 	if((st.mode & S_IFMT) != S_IFBLK)
 		return -ENOTBLK;
+	if((st.mode & S_ISVTX))
+		return -EPERM;
 
 	return 0;
 }
