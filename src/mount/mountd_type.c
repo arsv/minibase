@@ -1,7 +1,9 @@
 #include <sys/file.h>
 
 #include <nlusctl.h>
+#include <cmsg.h>
 #include <string.h>
+#include <format.h>
 #include <util.h>
 
 #include "common.h"
@@ -54,12 +56,34 @@ static int test_iso9660(int fd)
 	return memcmp(buf + 1, test, sizeof(test));
 }
 
+static int test_vfat(int fd)
+{
+	char buf[512];
+	char magic[] = { 0x55, 0xAA };
+	char fat16[] = "FAT16";
+	char fat32[] = "FAT32";
+	int ret;
+
+	if((ret = read_at_off(fd, 0, buf, sizeof(buf))) < 0)
+		return ret;
+	if(memcmp(buf + 510, magic, sizeof(magic)))
+		return -1;
+
+	if(!memcmp(buf + 82, fat32, 5))
+		return 0;
+	if(!memcmp(buf + 54, fat16, 5))
+		return 0;
+
+	return -1;
+}
+
 static const struct fstest {
 	int type;
 	char name[8];
 	int (*check)(int fd);
 } tests[] = {
 	{ FS_EXT4,    "ext4",    test_ext_fs  },
+	{ FS_VFAT,    "vfat",    test_vfat    },
 	{ FS_ISO9660, "iso9660", test_iso9660 }
 };
 
@@ -130,8 +154,33 @@ int check_blkdev(char* name, char* path, int isloop)
    The user may also want to supply some options, which then have to
    be checked, but this is not allowed yet. */
 
-int prep_fs_options(char* buf, int len, int fstype, struct ucbuf* uc)
+static int prep_vfat_opts(char* buf, int len, struct ucred* uc)
 {
+	char* p = buf;
+	char* e = buf + len - 1;
+
+	p = fmtstr(p, e, "discard");
+
+	p = fmtstr(p, e, ",");
+	p = fmtstr(p, e, "uid=");
+	p = fmtint(p, e, uc->uid);
+
+	p = fmtstr(p, e, ",");
+	p = fmtstr(p, e, "gid=");
+	p = fmtint(p, e, uc->gid);
+
+	p = fmtstr(p, e, ",umask=0117");
+	p = fmtstr(p, e, ",dmask=0006");
+	p = fmtstr(p, e, ",tz=UTC");
+
+	return 0;
+}
+
+int prep_fs_options(char* buf, int len, int fstype, struct ucred* uc)
+{
+	if(fstype == FS_VFAT)
+		return prep_vfat_opts(buf, len, uc);
+
 	*buf = '\0';
 	return 0;
 }

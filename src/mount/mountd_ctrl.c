@@ -83,12 +83,7 @@ static void make_path(char* buf, int len, char* pref, char* name)
 
 static int make_mount_point(char* path)
 {
-	int ret;
-
-	if((ret = sys_mkdir(path, 0700)) == -EEXIST)
-		return -EALREADY;
-	else
-		return ret;
+	return sys_mkdir(path, 0700);
 }
 
 static int has_slashes(char* name)
@@ -114,7 +109,7 @@ static char* get_attr_name(struct ucmsg* msg)
 	return name;
 }
 
-static int mount(int fd, char* name, int flags, struct ucbuf* uc, int isloop)
+static int mount(int fd, char* name, int flags, struct ucred* uc, int isloop)
 {
 	int ret;
 	int fst;
@@ -155,12 +150,15 @@ fail:
 	return ret;
 }
 
-static int cmd_mount_dev(int fd, struct ucmsg* msg, struct ucbuf* uc)
+static int cmd_mount_dev(int fd, struct ucmsg* msg, struct ucbuf* ub)
 {
 	char* name;
 	int flags = MS_NODEV | MS_NOSUID | MS_SILENT | MS_RELATIME;
+	struct ucred* uc;
 
 	if(!(name = get_attr_name(msg)))
+		return -EINVAL;
+	if(!(uc = get_scm(ub, SCM_CREDENTIALS, sizeof(*uc))))
 		return -EINVAL;
 	if(uc_get(msg, ATTR_RDONLY))
 		flags |= MS_RDONLY;
@@ -168,16 +166,19 @@ static int cmd_mount_dev(int fd, struct ucmsg* msg, struct ucbuf* uc)
 	return mount(fd, name, flags, uc, 0);
 }
 
-static int cmd_mount_fd(int fd, struct ucmsg* msg, struct ucbuf* uc)
+static int cmd_mount_fd(int fd, struct ucmsg* msg, struct ucbuf* ub)
 {
 	int* ffd;
 	int idx;
 	int flags = MS_NODEV | MS_NOSUID | MS_SILENT | MS_RELATIME;
 	char* base;
+	struct ucred* uc;
 
 	if(!(base = get_attr_name(msg)))
 		return -EINVAL;
-	if(!(ffd = get_scm(uc, SCM_RIGHTS, sizeof(int))))
+	if(!(uc = get_scm(ub, SCM_CREDENTIALS, sizeof(*uc))))
+		return -EINVAL;
+	if(!(ffd = get_scm(ub, SCM_RIGHTS, sizeof(int))))
 		return -EINVAL;
 	if((idx = setup_loopback(*ffd, base)) < 0)
 		return idx;
