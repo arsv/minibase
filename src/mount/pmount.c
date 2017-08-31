@@ -119,33 +119,7 @@ err:
 	fail(NULL, name, fd);
 }
 
-static void mount_file(char* name)
-{
-	int nlen = strlen(name);
-	int ffd = open_rw_or_ro(name);
-	int sfd = init_socket();
-
-	char txbuf[20];
-	struct ucbuf uc = {
-		.brk = txbuf,
-		.ptr = txbuf,
-		.end = txbuf + sizeof(txbuf)
-	};
-
-	uc_put_hdr(&uc, CMD_MOUNT_FD);
-	uc_put_end(&uc);
-
-	int txlen = uc.ptr - uc.brk;
-
-	char ancillary[32];
-	int anlen = put_cmsg_fd(ancillary, sizeof(ancillary), ffd);
-
-	send_with_anc(sfd, txbuf, txlen, ancillary, anlen);
-
-	return recv_reply(sfd, nlen);
-}
-
-static void cmd_with_name(int cmd, char* name)
+static void cmd_name_fd(int cmd, char* name, int ffd)
 {
 	int nlen = strlen(name);
 	int sfd = init_socket();
@@ -158,22 +132,38 @@ static void cmd_with_name(int cmd, char* name)
 	};
 
 	uc_put_hdr(&uc, cmd);
-	uc_put_str(&uc, ATTR_NAME, name);
+	uc_put_str(&uc, ATTR_NAME, basename(name));
 	uc_put_end(&uc);
 
-	send_simple(sfd, uc.brk, uc.ptr - uc.brk);
+	int txlen = uc.ptr - uc.brk;
 
-	return recv_reply(sfd, nlen);
+	if(ffd < 0) {
+		send_simple(sfd, uc.brk, uc.ptr - uc.brk);
+	} else {
+		char ancillary[32];
+		int anlen = put_cmsg_fd(ancillary, sizeof(ancillary), ffd);
+
+		send_with_anc(sfd, txbuf, txlen, ancillary, anlen);
+	}
+
+	recv_reply(sfd, nlen);
+}
+
+static void mount_file(char* name)
+{
+	int fd = open_rw_or_ro(name);
+
+	cmd_name_fd(CMD_MOUNT_FD, name, fd);
 }
 
 static void mount_dev(char* name)
 {
-	return cmd_with_name(CMD_MOUNT_DEV, name);
+	cmd_name_fd(CMD_MOUNT_DEV, name, -1);
 }
 
 static void umount(char* name)
 {
-	return cmd_with_name(CMD_UMOUNT, name);
+	cmd_name_fd(CMD_UMOUNT, name, -1);
 }
 
 int main(int argc, char** argv)

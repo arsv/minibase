@@ -173,10 +173,13 @@ static int cmd_mount_fd(int fd, struct ucmsg* msg, struct ucbuf* uc)
 	int* ffd;
 	int idx;
 	int flags = MS_NODEV | MS_NOSUID | MS_SILENT | MS_RELATIME;
+	char* base;
 
+	if(!(base = get_attr_name(msg)))
+		return -EINVAL;
 	if(!(ffd = get_scm(uc, SCM_RIGHTS, sizeof(int))))
 		return -EINVAL;
-	if((idx = setup_loopback(*ffd)) < 0)
+	if((idx = setup_loopback(*ffd, base)) < 0)
 		return idx;
 
 	FMTBUF(p, e, name, 16);
@@ -189,6 +192,19 @@ static int cmd_mount_fd(int fd, struct ucmsg* msg, struct ucbuf* uc)
 	if(ret < 0) unset_loopback(idx);
 
 	return ret;
+}
+
+static void maybe_clear_loop_device(char* name)
+{
+	int idx;
+	char* p;
+
+	if(strncmp(name, "loop", 4))
+		return;
+	if(!(p = parseint(name + 4, &idx)) || *p)
+		return;
+
+	unset_loopback(idx);
 }
 
 static int cmd_umount(int fd, struct ucmsg* msg, struct ucbuf* uc)
@@ -210,6 +226,8 @@ static int cmd_umount(int fd, struct ucmsg* msg, struct ucbuf* uc)
 			return ret;
 	if((ret = sys_rmdir(mntpath)))
 		return ret;
+
+	maybe_clear_loop_device(name);
 
 	return 0;
 }
