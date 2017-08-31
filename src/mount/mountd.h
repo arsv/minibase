@@ -17,5 +17,6 @@ int check_blkdev(char* name, char* path, int isloop);
 int prep_fs_options(char* buf, int len, int fstype, struct ucred* uc);
 const char* fs_type_string(int fst);
 
+int check_if_loop_mount(char* mntpoint);
 int setup_loopback(int fd, char* name);
 int unset_loopback(int idx);

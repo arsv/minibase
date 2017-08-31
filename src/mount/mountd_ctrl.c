@@ -1,5 +1,3 @@
-#include <bits/major.h>
-
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <sys/sched.h>
@@ -37,7 +35,7 @@
    with lots of checks in-between.
 
    In case of file (fd) mounts, /dev/loopN is set up before
-   doing the mount, the same GNU make does it with -o loop. */
+   doing the mount, the same way GNU make does it with -o loop. */
 
 int reply(int fd, int rep, int attr, char* value)
 {
@@ -135,16 +133,15 @@ static int mount(int fd, char* name, int flags, struct ucred* uc, int isloop)
 
 	const char* fstype = fs_type_string(fst);
 
-	ret = sys_mount(devpath, mntpath, fstype, flags, data);
-
-	if(ret >= 0) goto done;
-	if(ret != -EACCES) goto fail;
+	if((ret = sys_mount(devpath, mntpath, fstype, flags, data)) >= 0)
+		goto done;
+	else if(ret != -EACCES)
+		goto fail;
 
 	flags |= MS_RDONLY;
 
-	ret = sys_mount(devpath, mntpath, fstype, flags, data);
-
-	if(ret < 0) goto fail;
+	if((ret = sys_mount(devpath, mntpath, fstype, flags, data)) < 0)
+		goto fail;
 done:
 	return reply(fd, 0, ATTR_PATH, mntpath);
 fail:
@@ -197,19 +194,6 @@ static int cmd_mount_fd(int fd, struct ucmsg* msg, struct ucbuf* ub)
 	return ret;
 }
 
-static int check_if_loop_mount(char* mntpoint)
-{
-	int ret;
-	struct stat st;
-
-	if((ret = sys_stat(mntpoint, &st)) < 0)
-		return ret;
-	if(major(st.dev) != LOOP_MAJOR)
-		return -EINVAL;
-
-	return minor(st.dev);
-}
-
 static int cmd_umount(int fd, struct ucmsg* msg, struct ucbuf* uc)
 {
 	int ret;
@@ -247,23 +231,6 @@ static const struct cmd {
 	{ CMD_UMOUNT,    cmd_umount    }
 };
 
-static void dispatch_cmd(int fd, struct ucmsg* msg, struct ucbuf* uc)
-{
-	const struct cmd* p = cmds;
-	const struct cmd* e = cmds + ARRAY_SIZE(cmds);
-	int ret = -ENOSYS;
-
-	for(; p < e; p++)
-		if(p->cmd == msg->cmd) {
-			ret = p->call(fd, msg, uc);
-			break;
-		}
-
-	if(ret <= 0)
-		reply(fd, ret, 0, NULL);
-	/* else it's REPLIED */
-}
-
 static void close_all_cmsg_fds(struct ucbuf* uc)
 {
 	struct cmsg* cm;
@@ -284,40 +251,74 @@ static void close_all_cmsg_fds(struct ucbuf* uc)
 	}
 }
 
+static void dispatch_cmd(int fd, struct ucmsg* msg, struct ucbuf* uc)
+{
+	const struct cmd* p = cmds;
+	const struct cmd* e = cmds + ARRAY_SIZE(cmds);
+	int ret = -ENOSYS;
+
+	for(; p < e; p++)
+		if(p->cmd == msg->cmd) {
+			ret = p->call(fd, msg, uc);
+			break;
+		}
+
+	if(ret <= 0)
+		reply(fd, ret, 0, NULL);
+	/* else it's REPLIED */
+
+	close_all_cmsg_fds(uc);
+}
+
+static void set_timer(struct itimerval* old, int sec)
+{
+	struct itimerval itv = {
+		.interval = { 0, 0 },
+		.value = { sec, 0 }
+	};
+
+	sys_setitimer(0, &itv, old);
+}
+
+static void clr_timer(struct itimerval* old)
+{
+	sys_setitimer(0, old, NULL);
+}
+
+static void set_urbuf(struct urbuf* ur, void* buf, int len)
+{
+	ur->buf = buf;
+	ur->mptr = buf;
+	ur->rptr = buf;
+	ur->end = buf + len;
+}
+
+static void set_ucbuf(struct ucbuf* uc, void* buf, int len)
+{
+	uc->brk = buf;
+	uc->ptr = buf;
+	uc->end = buf + len;
+}
+
 void handle(int fd)
 {
-	int ret;
-
 	char rxbuf[200];
 	char control[64];
+	struct itimerval itv;
+	struct urbuf ur;
+	struct ucbuf uc;
+	int ret;
 
-	struct urbuf ur = {
-		.buf = rxbuf,
-		.mptr = rxbuf,
-		.rptr = rxbuf,
-		.end = rxbuf + sizeof(rxbuf)
-	};
-	struct ucbuf uc = {
-		.brk = control,
-		.ptr = control,
-		.end = control + sizeof(control)
-	};
-	struct itimerval old, itv = {
-		.interval = { 0, 0 },
-		.value = { 1, 0 }
-	};
+	set_urbuf(&ur, rxbuf, sizeof(rxbuf));
+	set_ucbuf(&uc, control, sizeof(control));
 
-	sys_setitimer(0, &itv, &old);
+	set_timer(&itv, 1);
 
-	while(1) {
-		if((ret = uc_recvmsg(fd, &ur, &uc, 0)) < 0)
-			break;
+	while((ret = uc_recvmsg(fd, &ur, &uc, 0)) > 0)
 		dispatch_cmd(fd, ur.msg, &uc);
-		close_all_cmsg_fds(&uc);
-	}
 
 	if(ret < 0 && ret != -EBADF && ret != -EAGAIN)
 		sys_shutdown(fd, SHUT_RDWR);
 
-	sys_setitimer(0, &old, NULL);
+	clr_timer(&itv);
 }

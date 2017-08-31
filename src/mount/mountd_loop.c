@@ -1,4 +1,6 @@
+#include <bits/major.h>
 #include <bits/ioctl/loop.h>
+
 #include <sys/ioctl.h>
 #include <sys/file.h>
 
@@ -101,4 +103,17 @@ int unset_loopback(int idx)
 	sys_close(fd);
 
 	return ret;
+}
+
+int check_if_loop_mount(char* mntpoint)
+{
+	int ret;
+	struct stat st;
+
+	if((ret = sys_stat(mntpoint, &st)) < 0)
+		return ret;
+	if(major(st.dev) != LOOP_MAJOR)
+		return -EINVAL;
+
+	return minor(st.dev);
 }
