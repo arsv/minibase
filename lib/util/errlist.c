@@ -5,7 +5,7 @@
    a custom one. This should include common error for
    common syscalls. */
 
-const char errlist[] __attribute__((weak)) = {
+const char errlist[] = {
 	NE2BIG
 	NEACCES
 	NEADDRINUSE
