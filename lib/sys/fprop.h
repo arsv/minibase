@@ -35,6 +35,17 @@ inline static long sys_chown(const char* path, int uid, int gid)
 #endif
 }
 
+inline static long sys_fchown(int fd, int uid, int gid)
+{
+#ifdef __NR_fchownat
+	char* empty = "";
+	int flags = AT_EMPTY_PATH;
+	return syscall5(__NR_fchownat, fd, (long)empty, uid, gid, flags);
+#else
+	return syscall3(__NR_fchown, fd, uid, gid);
+#endif
+}
+
 inline static long sys_utimensat(int at, char* path,
                                  const struct timespec times[2], int flags)
 {
