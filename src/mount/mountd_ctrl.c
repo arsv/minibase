@@ -1,3 +1,5 @@
+#include <bits/major.h>
+
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <sys/sched.h>
@@ -21,7 +23,7 @@
    for mounting system volumes. In most cases, the user will
    not be able to write to the filesystem *even* with full
    write access to the underlying file.
- 
+
    The code below does basically
 
        mkdir /mnt/$name
@@ -35,7 +37,7 @@
    with lots of checks in-between.
 
    In case of file (fd) mounts, /dev/loopN is set up before
-   doing the mount, the same GNU make does it with -o loop. */ 
+   doing the mount, the same GNU make does it with -o loop. */
 
 int reply(int fd, int rep, int attr, char* value)
 {
@@ -77,7 +79,7 @@ static void make_path(char* buf, int len, char* pref, char* name)
 
 	p = fmtstr(p, e, pref);
 	p = fmtstr(p, e, name);
-	
+
 	*p = '\0';
 }
 
@@ -195,17 +197,17 @@ static int cmd_mount_fd(int fd, struct ucmsg* msg, struct ucbuf* ub)
 	return ret;
 }
 
-static void maybe_clear_loop_device(char* name)
+static int check_if_loop_mount(char* mntpoint)
 {
-	int idx;
-	char* p;
+	int ret;
+	struct stat st;
 
-	if(strncmp(name, "loop", 4))
-		return;
-	if(!(p = parseint(name + 4, &idx)) || *p)
-		return;
+	if((ret = sys_stat(mntpoint, &st)) < 0)
+		return ret;
+	if(major(st.dev) != LOOP_MAJOR)
+		return -EINVAL;
 
-	unset_loopback(idx);
+	return minor(st.dev);
 }
 
 static int cmd_umount(int fd, struct ucmsg* msg, struct ucbuf* uc)
@@ -222,13 +224,16 @@ static int cmd_umount(int fd, struct ucmsg* msg, struct ucbuf* uc)
 
 	make_path(mntpath, sizeof(mntpath), "/mnt/", name);
 
+	int idx = check_if_loop_mount(mntpath);
+
 	if((ret = sys_umount(mntpath, flags)) < 0)
 		if(ret != -EINVAL)
 			return ret;
 	if((ret = sys_rmdir(mntpath)))
 		return ret;
 
-	maybe_clear_loop_device(name);
+	if(idx >= 0)
+		unset_loopback(idx);
 
 	return 0;
 }

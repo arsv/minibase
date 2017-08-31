@@ -91,10 +91,14 @@ int setup_loopback(int pfd, char* base)
 
 int unset_loopback(int idx)
 {
-	int fd;
+	int fd, ret;
 
 	if((fd = open_loop_dev(idx)) < 0)
 		return fd;
 
-	return sys_ioctli(fd, LOOP_CLR_FD, 0);
+	ret = sys_ioctli(fd, LOOP_CLR_FD, 0);
+
+	sys_close(fd);
+
+	return ret;
 }
