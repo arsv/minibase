@@ -1,22 +1,23 @@
 .TH mount 8
 '''
 .SH NAME
-mount \- attach filesystem tree to a given directory
+\fBmount\fR \- attach filesystem tree to a given directory
 '''
 .SH SYNOPSIS
-mount [\fB-rtdxusy\fR] \fItarget\fR \fIsource\fR [\fIfstype\fR [\fIdata\fR]]
-.br
-mount \fB-n\fR[\fBrtdxusy\fR] \fItarget\fR \fIfstype\fR [\fIdata\fR]
-.br
-mount \fB-b\fR \fItarget\fR \fIsource\fR
-.br
-mount \fB-m\fR \fItarget\fR \fIsource\fR
-.br
-mount \fB-e\fR[\fBrdxuy\fR] \fItarget\fR \fIdata\fR
-.br
-mount \fB-u\fR[\fBfdxn\fR] \fItarget\fR \fItarget\fR ...
-.br
-mount \fB-v\fR \fItarget\fR \fItarget\fR ...
+.IP "\fBmount\fR [\fB-rtdxusy\fR] \fItarget\fR \fIsource\fR [\fIfstype\fR [\fIdata\fR]]" 4
+Mount block device \fIsource\fR onto \fItarget\fR directory.
+.IP "\fBmount\fR \fB-n\fR[\fBrtdxusy\fR] \fItarget\fR \fIfstype\fR [\fIdata\fR]" 4
+Mount virtual filesystem \fIfstype\fR onto \fItarget\fR.
+.IP "\fBmount\fR \fB-b\fR \fItarget\fR \fIsource\fR" 4
+Bind mount: attach \fIsource\fR directory onto \fItarget\fR (MS_BIND).
+.IP "\fBmount\fR \fB-m\fR \fItarget\fR \fIsource\fR" 4
+Move mount: detach \fIsource\fR and attach it at \fItarget\fR (MS_MOVE).
+.IP "\fBmount\fR \fB-e\fR[\fBrdxuy\fR] \fItarget\fR \fIdata\fR" 4
+Remount \fItarget\fR, possibly changing its mount options (MS_REMOUNT).
+.IP "\fBmount\fR \fB-u\fR[\fBfdxn\fR] \fItarget\fR \fItarget\fR ..." 4
+Unmount each \fItarget\fR.
+.IP "\fBmount\fR \fB-v\fR \fItarget\fR \fItarget\fR ..." 4
+Mount pre-defined virtual filesystems at given locations.
 '''
 .SH DESCRIPTION
 mount replaces visible contents of \fItarget\fR directory with some other
@@ -29,25 +30,11 @@ at different locations, and change mount options for already-mounted
 filesystems. 
 '''
 .SH OPTIONS
-Any combination of the options below must be squashed into a single argument:
-\fB-rdx\fR is accepted but \fB-r -d -x\fR is not.
-.IP "\fB-u\fR" 4
-Detach each \fItarget\fR by calling \fBumount\fR(2). If used, this must be
-the first option, as it changes the way the following options are interpreted.
-.IP "\fB-v\fR" 4
-Mount common virtual file systems for each given \fItarget\fR. See list below
-for possible targets. If used, must be the first option.
-.P
-Without \fB-u\fR, the options set bits in \fBmountflags\fR argument for
-\fBmount\fR(2). These flags are common for all filesystems; any filesystem-specific
-settings are passed via \fIdata\fR which is a comma-separated list of keys
-or \fIkey\fR=\fIvalue\fR pairs.
-.IP "\fB-b\fR" 4
-Perform a bind mount, making \fIsource\fR subtree visible at a different
-location \fItarget\fR (MS_BIND).
-.IP "\fB-m\fR" 4
-Move existing mount point \fIsource\fR to a different location \fItarget\fR
-(MS_MOVE).
+The following apply if \fB-u\fR is not used. All options set bits in
+\fBmountflags\fR argument for \fBmount\fR(2). These flags are common
+for all filesystems; any filesystem-specific settings are passed via
+\fIdata\fR which is a comma-separated list of keys or \fIkey\fB=\fIvalue\fR
+pairs.
 .IP "\fB-r\fR" 4
 Mount \fIsource\fR read-only (MS_RDONLY).
 .IP "\fB-t\fR" 4
@@ -59,14 +46,10 @@ Do not allow programs to be executed from this filesystem (MS_NOEXEC).
 .IP "\fB-s\fR" 4
 Do not honor set-user-ID and set-group-ID bits when executing programs
 from this filesystem (MS_NOSUID).
-.IP "\fB-e\fR" 4
-Remount \fItarget\fR, possibly changing its mount options (MS_REMOUNT).
 .IP "\fB-i\fR" 4
 Suppress the display of certain messages in the kernel log (MS_SILENT).
 .IP "\fB-y\fR" 4
 Make writes on this filesystem synchronous (MS_SYNCHRONOUS).
-.IP "\fB-n\fR" 4
-Mount virtual file system (\fIsource\fR=NULL).
 .P
 With \fB-u\fR, the options set flags for \fBumount\fR(2):
 .IP "\fB-f\fR" 4
@@ -107,4 +90,4 @@ Pre-defined mountpoints that can be mounted with using \fB-v\fR:
 /sys/kernel/debug/tracing
 '''
 .SH SEE ALSO
-\fBmount\fR(2), \fBmountvfs\fR(8).
+\fBmount\fR(2).
