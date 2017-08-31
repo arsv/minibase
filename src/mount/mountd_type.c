@@ -1,4 +1,5 @@
 #include <sys/file.h>
+#include <sys/fprop.h>
 
 #include <nlusctl.h>
 #include <cmsg.h>
@@ -128,6 +129,11 @@ static int isblock(int fd)
 	if((st.mode & S_ISVTX))
 		return -EPERM;
 
+	if(!(st.mode & 0777))
+		return -EBUSY; /* mounted */
+	if(st.uid)
+		return -EBUSY; /* grabbed */
+
 	return 0;
 }
 
@@ -142,6 +148,41 @@ int check_blkdev(char* name, char* path, int isloop)
 		return ret;
 
 	ret = guess_fs_type(fd);
+
+	sys_close(fd);
+
+	return ret;
+}
+
+int grab_blkdev(char* path, struct ucred* uc)
+{
+	int fd, ret;
+
+	if((fd = sys_open(path, O_RDONLY)) < 0)
+		return fd;
+	if((ret = isblock(fd)) < 0)
+		return ret;
+
+	ret = sys_fchown(fd, uc->uid, 0);
+
+	sys_close(fd);
+
+	return ret;
+}
+
+int release_blkdev(char* path, struct ucred* uc)
+{
+	int fd, ret;
+	struct stat st;
+
+	if((fd = sys_open(path, O_RDONLY)) < 0)
+		return fd;
+	if((ret = sys_fstat(fd, &st)) < 0)
+		return ret;
+	if(st.uid != uc->uid)
+		return -EPERM;
+
+	ret = sys_fchown(fd, 0, 0);
 
 	sys_close(fd);
 

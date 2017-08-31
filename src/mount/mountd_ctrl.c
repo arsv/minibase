@@ -3,6 +3,7 @@
 #include <sys/sched.h>
 #include <sys/mount.h>
 #include <sys/file.h>
+#include <sys/fprop.h>
 #include <sys/fpath.h>
 
 #include <nlusctl.h>
@@ -168,14 +169,16 @@ static int mount(RCT, char* name, int flags, struct ucred* uc, int isloop)
 
 	if((ret = sys_mount(devpath, mntpath, fstype, flags, data)) < 0)
 		goto fail;
+
 done:
+	sys_chmod(devpath, 0000);
 	return reply(rct, 0, ATTR_PATH, mntpath);
 fail:
 	sys_rmdir(mntpath);
 	return ret;
 }
 
-static int cmd_mount_dev(RCT)
+static int cmd_mount(RCT)
 {
 	char* name;
 	int flags = MS_NODEV | MS_NOSUID | MS_SILENT | MS_RELATIME;
@@ -231,7 +234,9 @@ static int cmd_umount(RCT)
 
 	int nlen = strlen(name);
 	char mntpath[10+nlen];
+	char devpath[10+nlen];
 
+	make_path(devpath, sizeof(devpath), "/dev/", name);
 	make_path(mntpath, sizeof(mntpath), "/mnt/", name);
 
 	int idx = check_if_loop_mount(mntpath);
@@ -245,16 +250,64 @@ static int cmd_umount(RCT)
 	if(idx >= 0)
 		unset_loopback(idx);
 
+	sys_chmod(devpath, 0600);
+
 	return 0;
+}
+
+static int cmd_grab(RCT)
+{
+	char* name;
+	struct ucred* uc;
+	int ret;
+
+	if(!(name = get_attr_name(rct)))
+		return -EINVAL;
+	if(!(uc = get_scm_creds(rct)))
+		return -EINVAL;
+
+	int nlen = strlen(name);
+	char devpath[10+nlen];
+
+	make_path(devpath, sizeof(devpath), "/dev/", name);
+
+	if((ret = grab_blkdev(devpath, uc)) < 0)
+		return ret;
+
+	return reply(rct, 0, ATTR_PATH, devpath);
+}
+
+static int cmd_release(RCT)
+{
+	char* name;
+	struct ucred* uc;
+	int ret;
+
+	if(!(name = get_attr_name(rct)))
+		return -EINVAL;
+	if(!(uc = get_scm_creds(rct)))
+		return -EINVAL;
+
+	int nlen = strlen(name);
+	char devpath[10+nlen];
+
+	make_path(devpath, sizeof(devpath), "/dev/", name);
+
+	if((ret = release_blkdev(devpath, uc)) < 0)
+		return ret;
+
+	return reply(rct, 0, 0, NULL);
 }
 
 static const struct cmd {
 	int cmd;
 	int (*call)(RCT);
 } cmds[] = {
-	{ CMD_MOUNT_DEV, cmd_mount_dev },
+	{ CMD_MOUNT,     cmd_mount     },
 	{ CMD_MOUNT_FD,  cmd_mount_fd  },
-	{ CMD_UMOUNT,    cmd_umount    }
+	{ CMD_UMOUNT,    cmd_umount    },
+	{ CMD_GRAB,      cmd_grab      },
+	{ CMD_RELEASE,   cmd_release   }
 };
 
 static void close_all_cmsg_fds(struct ucbuf* uc)

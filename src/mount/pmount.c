@@ -17,9 +17,11 @@
 
 ERRTAG("pmount");
 
-#define OPTS "fu"
+#define OPTS "fugr"
 #define OPT_f (1<<0)
 #define OPT_u (1<<1)
+#define OPT_g (1<<2)
+#define OPT_r (1<<3)
 
 char txbuf[3072];
 char rxbuf[32];
@@ -158,12 +160,22 @@ static void mount_file(char* name)
 
 static void mount_dev(char* name)
 {
-	cmd_name_fd(CMD_MOUNT_DEV, name, -1);
+	cmd_name_fd(CMD_MOUNT, name, -1);
 }
 
 static void umount(char* name)
 {
 	cmd_name_fd(CMD_UMOUNT, name, -1);
+}
+
+static void grab_dev(char* name)
+{
+	cmd_name_fd(CMD_GRAB, name, -1);
+}
+
+static void release(char* name)
+{
+	cmd_name_fd(CMD_RELEASE, name, -1);
 }
 
 int main(int argc, char** argv)
@@ -180,7 +192,11 @@ int main(int argc, char** argv)
 
 	char* name = argv[i];
 
-	if(opts & OPT_u)
+	if(opts & OPT_g)
+		grab_dev(name);
+	else if(opts & OPT_r)
+		release(name);
+	else if(opts & OPT_u)
 		umount(name);
 	else if(opts & OPT_f)
 		mount_file(name);
