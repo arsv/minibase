@@ -154,11 +154,8 @@ int check_blkdev(char* name, char* path, int isloop)
    The user may also want to supply some options, which then have to
    be checked, but this is not allowed yet. */
 
-static int prep_vfat_opts(char* buf, int len, struct ucred* uc)
+static char* prep_vfat_opts(char* p, char* e, struct ucred* uc)
 {
-	char* p = buf;
-	char* e = buf + len - 1;
-
 	p = fmtstr(p, e, "discard");
 
 	p = fmtstr(p, e, ",");
@@ -173,14 +170,19 @@ static int prep_vfat_opts(char* buf, int len, struct ucred* uc)
 	p = fmtstr(p, e, ",dmask=0006");
 	p = fmtstr(p, e, ",tz=UTC");
 
-	return 0;
+	return p;
 }
 
 int prep_fs_options(char* buf, int len, int fstype, struct ucred* uc)
 {
-	if(fstype == FS_VFAT)
-		return prep_vfat_opts(buf, len, uc);
+	char* p = buf;
+	char* e = buf + len - 1;
 
-	*buf = '\0';
+	if(fstype == FS_VFAT)
+		p = prep_vfat_opts(p, e, uc);
+
+	if(!p) return -1;
+
+	*p = '\0';
 	return 0;
 }
