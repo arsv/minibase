@@ -6,7 +6,6 @@ clear
 date
 del
 df
-dmesg
 du
 ff
 fn

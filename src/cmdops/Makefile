@@ -1,4 +1,4 @@
-bin = bcp cat chmod chown clear date del df dmesg du ff fn \
+bin = bcp cat chmod chown clear date del df du ff fn \
 	ls ren stat sync symlink sysinfo time which whoami tail
 
 include ../rules.mk
