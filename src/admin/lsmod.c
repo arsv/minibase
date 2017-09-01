@@ -15,6 +15,11 @@ struct strptr {
 	char* end;
 };
 
+struct lineidx {
+	int n;
+	char** s;
+};
+
 static void nomem(void)
 {
 	fail("cannot allocate memory", NULL, 0);
@@ -25,14 +30,14 @@ static void nomem(void)
    is to provide a buffer large enough for most reasonable cases
    to have a single read() call, with subsequent brk() being
    a kind of undesired fallback scenario.
- 
+
    Moderately bloated Intel laptop running 4.2.5 has /proc/modules
    about 6KB large, so take 16KB as an upper estimate for sane systems. */
 
 static char* read_whole(struct strptr* mods, const char* fname)
 {
 	int fd;
-	
+
 	if((fd = sys_open(fname, O_RDONLY)) < 0)
 		fail(NULL, fname, fd);
 
@@ -58,6 +63,82 @@ static char* read_whole(struct strptr* mods, const char* fname)
 
 	return brk;
 }
+
+/* The lines in /proc/modules are not ordered, at least not in any
+   useful sense. For the sake of general sanity, let's sort the lines.
+   Most users will be looking for a particular module anyway, having
+   them sorted would simplify that. */
+
+static int count_lines(char* buf, char* end)
+{
+	char* p;
+	int nl = 1, n = 0;
+
+	for(p = buf; p < end; p++) {
+		if(nl) { n++; nl = 0; }
+		if(!*p || *p == '\n') { nl = 1; }
+	}
+
+	return n;
+}
+
+static void set_line_ptrs(char* buf, char* end, char** idx, int n)
+{
+	char* p;
+	int nl = 1, i = 0;
+
+	for(p = buf; p < end; p++) {
+		if(nl) { idx[i++] = p; nl = 0; }
+		if(!*p || *p == '\n') { *p = '\0'; nl = 1; }
+	}
+
+	idx[i] = p;
+}
+
+static char** alloc_index(int n)
+{
+	void* brk = (void*)sys_brk(NULL);
+	void* req = brk + (n+1)*sizeof(char*);
+	void* end = (void*)sys_brk(req);
+
+	if(end < req) nomem();
+
+	return (char**)brk;
+}
+
+static int cmp(const void* a, const void* b, long _)
+{
+	char* sa = *((char**)a);
+	char* sb = *((char**)b);
+	return strcmp(sa, sb);
+}
+
+static void index_lines(struct lineidx* lx, struct strptr* mods)
+{
+	char* buf = mods->ptr;
+	char* end = mods->end;
+	int n = count_lines(buf, end);
+
+	char** idx = alloc_index(n);
+
+	set_line_ptrs(buf, end, idx, n);
+
+	qsort(idx, n, sizeof(char*), cmp, 0);
+
+	lx->s = idx;
+	lx->n = n;
+}
+
+/* A line from /proc/modules looks like this:
+
+     scsi_mod 147456 4 uas,usb_storage,sd_mod,libata, Live 0xffffffffa0217000
+
+   We only need fields #0 module name and #3 used-by, so that our output
+   would be
+
+     scsi_mod (uas,usb_storage,sd_mod,libata)
+
+   Non-empty used-by list has a trailing comma, and empty list is "-". */
 
 static int isspace(int c)
 {
@@ -98,30 +179,17 @@ static void writestr(struct strptr* str)
 	writeout(str->ptr, strplen(str));
 }
 
-/* A line from /proc/modules looks like this:
-
-     scsi_mod 147456 4 uas,usb_storage,sd_mod,libata, Live 0xffffffffa0217000
-
-   We only need fields #0 module name and #3 used-by, so that our output
-   would be
-
-     scsi_mod (uas,usb_storage,sd_mod,libata)
-
-   Non-empty used-by list has a trailing comma, and empty list is "-". */
-
 static void list_mods(struct strptr* mods)
 {
-	int n;
+	struct lineidx lx;
 
-	char* buf = mods->ptr;
-	char* end = mods->end;
+	index_lines(&lx, mods);
 
-	char* ls;
-	char* le;
-
-	for(ls = buf; ls < end; ls = le + 1) {
-		le = strecbrk(ls, end, '\n');
+	for(int i = 0; i < lx.n; i++) {
+		char* ls = lx.s[i];
+		char* le = lx.s[i+1];
 		struct strptr parts[5];
+		int n;
 
 		if((n = split(ls, le, parts, 5) < 4))
 			continue;
