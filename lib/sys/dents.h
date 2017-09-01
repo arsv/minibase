@@ -25,5 +25,5 @@ struct dirent {
 
 inline static long sys_getdents(int fd, void* dp, int count)
 {
-	return syscall3(__NR_getdents64, fd, (long)dp, count);
+	return syscall3(NR_getdents64, fd, (long)dp, count);
 }

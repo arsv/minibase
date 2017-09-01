@@ -33,11 +33,11 @@
 inline static long sys_mount(const char* source, const char* target,
                              const char* fstype, long flags, const void* data)
 {
-	return syscall5(__NR_mount, (long)source, (long)target,
+	return syscall5(NR_mount, (long)source, (long)target,
                                     (long)fstype, flags, (long)data);
 }
 
 inline static long sys_umount(const char* target, int flags)
 {
-	return syscall2(__NR_umount2, (long)target, flags);
+	return syscall2(NR_umount2, (long)target, flags);
 }

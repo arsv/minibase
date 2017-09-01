@@ -7,15 +7,15 @@
 
 inline static long sys_init_module(void* buf, size_t len, const char* params)
 {
-	return syscall3(__NR_init_module, (long)buf, len, (long)params);
+	return syscall3(NR_init_module, (long)buf, len, (long)params);
 }
 
 inline static long sys_finit_module(int fd, const char* params, int flags)
 {
-	return syscall3(__NR_finit_module, fd, (long)params, flags);
+	return syscall3(NR_finit_module, fd, (long)params, flags);
 }
 
 inline static long sys_delete_module(const char* name, int flags)
 {
-	return syscall2(__NR_delete_module, (long)name, flags);
+	return syscall2(NR_delete_module, (long)name, flags);
 }

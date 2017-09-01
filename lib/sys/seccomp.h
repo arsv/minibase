@@ -10,5 +10,5 @@ struct seccomp {
 
 inline static long sys_seccomp(int cmd, int flags, void* ptr)
 {
-	return syscall3(__NR_seccomp, cmd, flags, (long)ptr);
+	return syscall3(NR_seccomp, cmd, flags, (long)ptr);
 }

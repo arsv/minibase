@@ -87,5 +87,5 @@
 
 inline static long sys_prctl(int opt, long a2, long a3, long a4, long a5)
 {
-	return syscall5(__NR_prctl, opt, a2, a3, a4, a5);
+	return syscall5(NR_prctl, opt, a2, a3, a4, a5);
 }

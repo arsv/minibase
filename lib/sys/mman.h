@@ -4,7 +4,7 @@
 
 inline static long sys_brk(void* ptr)
 {
-	return syscall1(__NR_brk, (long)ptr);
+	return syscall1(NR_brk, (long)ptr);
 }
 
 inline static int mmap_error(long ret)
@@ -15,15 +15,15 @@ inline static int mmap_error(long ret)
 inline static long sys_mmap(void* addr, size_t length, int prot, int flags,
                             int fd, size_t offset)
 {
-	return syscall6(__NR_mmap, (long)addr, length, prot, flags, fd, offset);
+	return syscall6(NR_mmap, (long)addr, length, prot, flags, fd, offset);
 }
 
 inline static long sys_mremap(void* old, size_t oldsize, size_t newsize, int flags)
 {
-	return syscall4(__NR_mremap, (long)old, oldsize, newsize, flags);
+	return syscall4(NR_mremap, (long)old, oldsize, newsize, flags);
 }
 
 inline static long sys_munmap(void* ptr, unsigned long len)
 {
-	return syscall2(__NR_munmap, (long)ptr, len);
+	return syscall2(NR_munmap, (long)ptr, len);
 }

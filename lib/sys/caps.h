@@ -18,10 +18,10 @@ struct cap_data {
 
 inline static long sys_capset(struct cap_header* ch, const struct cap_data* cd)
 {
-	return syscall2(__NR_capset, (long)ch, (long)cd);
+	return syscall2(NR_capset, (long)ch, (long)cd);
 }
 
 inline static long sys_capget(struct cap_header* ch, struct cap_data* cd)
 {
-	return syscall2(__NR_capget, (long)ch, (long)cd);
+	return syscall2(NR_capget, (long)ch, (long)cd);
 }

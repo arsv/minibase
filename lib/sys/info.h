@@ -27,10 +27,10 @@ struct sysinfo {
 
 inline static long sys_uname(struct utsname* buf)
 {
-	return syscall1(__NR_uname, (long)buf);
+	return syscall1(NR_uname, (long)buf);
 }
 
 inline static long sys_info(struct sysinfo* buf)
 {
-	return syscall1(__NR_sysinfo, (long)buf);
+	return syscall1(NR_sysinfo, (long)buf);
 }

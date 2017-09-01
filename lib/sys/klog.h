@@ -14,5 +14,5 @@
 
 inline static long sys_klogctl(int op, char* buf, long len)
 {
-	return syscall3(__NR_syslog, op, (long)buf, len);
+	return syscall3(NR_syslog, op, (long)buf, len);
 }

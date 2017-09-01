@@ -17,6 +17,6 @@ struct pollfd {
 inline static long sys_ppoll(struct pollfd* fds, long nfds,
                              const struct timespec* ts, sigset_t* sigmask)
 {
-	return syscall5(__NR_ppoll, (long)fds, nfds, (long)ts,
+	return syscall5(NR_ppoll, (long)fds, nfds, (long)ts,
                                     (long)sigmask, sizeof(*sigmask));
 }

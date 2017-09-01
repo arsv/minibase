@@ -10,16 +10,16 @@
 inline static long sys_splice(int fdin, uint64_t* offin, int fdout,
                               uint64_t* offout, size_t len, unsigned flags)
 {
-	return syscall6(__NR_splice, fdin, (long)offin, fdout, (long)offout,
+	return syscall6(NR_splice, fdin, (long)offin, fdout, (long)offout,
                                                                    len, flags);
 }
 
 inline static long sys_tee(int fdin, int fdout, size_t len, unsigned flags)
 {
-	return syscall4(__NR_tee, fdin, fdout, len, flags);
+	return syscall4(NR_tee, fdin, fdout, len, flags);
 }
 
 inline static long sys_sendfile(int ofd, int ifd, uint64_t* offset, size_t count)
 {
-	return syscall4(__NR_sendfile, ofd, ifd, (long)offset, count);
+	return syscall4(NR_sendfile, ofd, ifd, (long)offset, count);
 }

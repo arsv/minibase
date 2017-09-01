@@ -43,20 +43,20 @@ struct inotify_event {
 
 inline static long sys_inotify_init(void)
 {
-	return syscall1(__NR_inotify_init1, 0);
+	return syscall1(NR_inotify_init1, 0);
 }
 
 inline static long sys_inotify_init1(int flags)
 {
-	return syscall1(__NR_inotify_init1, flags);
+	return syscall1(NR_inotify_init1, flags);
 }
 
 inline static long sys_inotify_add_watch(int fd, const char* path, unsigned mask)
 {
-	return syscall3(__NR_inotify_add_watch, fd, (long)path, mask);
+	return syscall3(NR_inotify_add_watch, fd, (long)path, mask);
 }
 
 inline static long sys_inotify_rm_watch(int fd, int wd)
 {
-	return syscall2(__NR_inotify_rm_watch, fd, wd);
+	return syscall2(NR_inotify_rm_watch, fd, wd);
 }

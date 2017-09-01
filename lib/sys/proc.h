@@ -15,15 +15,15 @@
 
 inline static long sys_fork(void)
 {
-	return syscall5(__NR_clone, SIGCHLD, 0, 0, 0, 0);
+	return syscall5(NR_clone, SIGCHLD, 0, 0, 0, 0);
 }
 
 inline static long sys_execve(const char* exe, char** argv, char** envp)
 {
-	return syscall3(__NR_execve, (long)exe, (long)argv, (long)envp);
+	return syscall3(NR_execve, (long)exe, (long)argv, (long)envp);
 }
 
 inline static long sys_waitpid(int pid, int* status, int flags)
 {
-	return syscall4(__NR_wait4, pid, (long)status, flags, 0);
+	return syscall4(NR_wait4, pid, (long)status, flags, 0);
 }

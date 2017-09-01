@@ -17,5 +17,5 @@ struct statfs {
 
 inline static long sys_statfs(const char* path, struct statfs* st)
 {
-	return syscall2(__NR_statfs, (long)path, (long)st);
+	return syscall2(NR_statfs, (long)path, (long)st);
 }

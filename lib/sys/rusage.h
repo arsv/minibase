@@ -26,5 +26,5 @@ struct rusage {
 
 inline static long getrusage(int who, struct rusage* usage)
 {
-	return syscall2(__NR_getrusage, who, (long)usage);
+	return syscall2(NR_getrusage, who, (long)usage);
 }

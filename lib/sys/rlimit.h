@@ -27,5 +27,5 @@ struct rlimit {
 inline static long sys_prlimit(int pid, int key, const struct rlimit* set,
                                                        struct rlimit* get)
 {
-	return syscall4(__NR_prlimit64, pid, key, (long)set, (long)get);
+	return syscall4(NR_prlimit64, pid, key, (long)set, (long)get);
 }
