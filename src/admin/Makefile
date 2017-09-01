@@ -1,4 +1,4 @@
-bin = waitfor
+bin = waitfor lsmod
 sbin = kmod switchroot systime
 
 include ../rules.mk
