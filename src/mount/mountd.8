@@ -1,0 +1,33 @@
+.TH mountd 8
+'''
+.SH NAME
+\fBmountd\fR \- daemon serving non-privileged mount requests
+'''
+.SH DESCRIPTION
+\fBmountd\fR is a privileged process that takes requests from \fBpmount\fR(1),
+performs necessary checks and calls \fBmount\fR(2).
+'''
+.SH USAGE
+\fBmountd\fR should be run with enough privileges to perform \fBmount\fR(2)
+and \fBchown\fR(2) calls.
+.P
+Block devices not intended to be accessible to non-privileged users, like
+those containing parts of the system, should be marked with sticky bit.
+\fBmount\fR will refuse any mount or grab requests for device nodes with
+sticky bit set.
+'''
+.SH FILES
+.IP "/run/ctrl/mount" 8
+Control socket.
+.IP "/dev" 8
+Block device location.
+.IP "/mnt" 8
+Base directory for mount points.
+'''
+.SH NOTES
+While it is running, \fBmountd\fR should be the only process doing mounts
+on the devices it is allowed to touch. \fBmount\fR(2) takes a file name
+instead of a file descriptor, which makes it somewhat racy.
+'''
+.SH SEE ALSO
+\fBpmount\fR(1), \fBmount\fR(8)
