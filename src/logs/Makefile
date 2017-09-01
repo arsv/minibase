@@ -1,4 +1,4 @@
-bin = logcat logger dmesg
-sbin = sysklogd
+bin = logcat logger
+sbin = sysklogd dmesg
 
 include ../rules.mk
