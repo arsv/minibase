@@ -1,6 +1,4 @@
 bin = basename chvt dirname echo false head kill mkdir pwd rm rmdir \
       sleep tee touch true uname uptime wc xargs yes
 
-sbin = insmod
-
 include ../rules.mk

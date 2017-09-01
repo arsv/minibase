@@ -1,11 +1,10 @@
-#include <sys/deletemodule.h>
-#include <fail.h>
+#include <sys/module.h>
 
-ERRTAG = "rmmod";
-ERRLIST = {
-	REPORT(EBUSY), REPORT(EFAULT), REPORT(ENOENT),
-	REPORT(EPERM), REPORT(EWOULDBLOCK), RESTASNUMBERS
-};
+#include <errtag.h>
+#include <util.h>
+
+ERRTAG("rmmod");
+ERRLIST(NEBUSY NEFAULT NENOENT NEPERM NEWOULDBLOCK);
 
 static int applyopts(int flags, const char* keys)
 {
@@ -26,6 +25,7 @@ static int applyopts(int flags, const char* keys)
 
 int main(int argc, char** argv)
 {
+	int ret;
 	int flags = O_NONBLOCK;
 	int i = 1;
 
@@ -36,8 +36,8 @@ int main(int argc, char** argv)
 		fail("module name required", NULL, 0);
 
 	for(; i < argc; i++)
-		xchk( sysdeletemodule(argv[i], flags),
-			"cannot remove", argv[i] );
+		if((ret = sys_delete_module(argv[i], flags)) < 0)
+			fail("cannot remove", argv[i], ret);
 
 	return 0;
 }
