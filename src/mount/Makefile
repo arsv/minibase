@@ -1,5 +1,5 @@
 bin = pmount
-sbin = mountd locfg
+sbin = mount mountd locfg
 
 include ../rules.mk
 

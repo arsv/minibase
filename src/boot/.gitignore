@@ -1,7 +1,5 @@
 kmod
 mknod
-mount
-mountvfs
 switchroot
 systime
 waitfor
