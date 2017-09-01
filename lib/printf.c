@@ -17,10 +17,10 @@
 #include <printf.h>
 #include <util.h>
 
-#define F0 (1<<0) /* got leading 0 in width field */
-#define Fm (1<<1) /* got - (minus) in format spec */
-#define Fl (1<<2) /* got l (long) prefix */
-#define Fd (1<<3) /* got . (dot) */
+#define F0 (1<<0) /* leading 0 */
+#define Fm (1<<1) /* - (minus) */
+#define Fl (1<<2) /* l (long)  */
+#define Fd (1<<3) /* . (dot)   */
 
 #define PRINTFBUF 512
 
@@ -156,7 +156,7 @@ static char* parse(char* q, struct spec* sp, va_list ap)
 
 	if(*q == '.') { flags |= Fd; q++; }
 
-	if(flags & Fd) q = intpart(q, &sp->prec, ap);
+	q = intpart(q, &sp->prec, ap);
 
 	if(*q == 'l') { flags |= Fl; q++; }
 
