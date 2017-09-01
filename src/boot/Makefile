@@ -1,5 +1,5 @@
 bin = waitfor
-sbin = kmod mknod switchroot systime
+sbin = kmod switchroot systime
 
 include ../rules.mk
 

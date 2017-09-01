@@ -10,6 +10,7 @@ false
 head
 kill
 mkdir
+mknod
 pwd
 rm
 rmdir

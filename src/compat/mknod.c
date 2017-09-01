@@ -1,14 +1,9 @@
+#include <bits/major.h>
 #include <sys/fpath.h>
 
-#include <format.h>
 #include <errtag.h>
+#include <format.h>
 #include <util.h>
-
-#define make_dev(x,y) ( \
-        (((x)&0xfffff000ULL) << 32) | \
-	(((x)&0x00000fffULL) << 8) | \
-        (((y)&0xffffff00ULL) << 12) | \
-	(((y)&0x000000ffULL)) )
 
 ERRTAG("mknod");
 ERRLIST(NEACCES NEDQUOT NEEXIST NEFAULT NEINVAL NELOOP NENOENT NENOMEM
@@ -90,7 +85,7 @@ int main(int argc, char** argv)
 		minor = xparseint(argv[i++]);
 	}
 
-	long dev = make_dev(major, minor);
+	long dev = makedev(major, minor);
 	long ret = sys_mknod(name, mode | type, dev);
 
 	if(ret < 0)
