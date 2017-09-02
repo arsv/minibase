@@ -105,8 +105,8 @@ static int cmd_kill(int* cpid, struct ucmsg* msg, struct ucbuf* uc)
 
 	if(*cpid <= 0)
 		return -ESRCH;
-	else
-		return sys_kill(*cpid, sig);
+
+	return sys_kill(*cpid, sig);
 }
 
 static const struct cmd {

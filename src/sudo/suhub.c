@@ -119,10 +119,10 @@ static void check_polled_fds(void)
 {
 	int i, np = nprocs;
 
-	check_listening(&pfds[0]); /* may modify nprocs! */
-
 	for(i = 1; i < np + 1; i++)
 		check_client(&pfds[i], &pids[i-1]);
+
+	check_listening(&pfds[0]);
 }
 
 static void sighandler(int sig)
