@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <sys/dents.h>
 #include <sys/fpath.h>
+#include <sys/fprop.h>
 #include <sys/creds.h>
 
 #include <string.h>
@@ -186,10 +187,22 @@ void scan_devs(void)
 	foreach_dir_in("/sys/block", check_dev_ent, NULL);
 }
 
+/* All devices located by findblk are assumed to be system devices.
+   Sticky bit will prevent mountd from letting regular users access
+   them. */
+
+static void set_sticky(char* name)
+{
+	sys_chmod(name, 01000);
+}
+
 /* Link simple (non-encrypted) partitions */
 
-static void link_part(char* name, char* label)
+static void link_part(struct part* pt)
 {
+	char* name = pt->name;
+	char* label = pt->label;
+
 	FMTBUF(lp, le, link, 100);
 	lp = fmtstr(lp, le, MAPDIR);
 	lp = fmtstr(lp, le, "/");
@@ -202,16 +215,35 @@ static void link_part(char* name, char* label)
 	FMTEND(pp, pe);
 
 	sys_symlink(path, link);
+
+	set_sticky(path);
+}
+
+static void mark_bdev(struct bdev* bd)
+{
+	if(bd->mode == WHOLE)
+		return;
+
+	FMTBUF(pp, pe, path, 100);
+	pp = fmtstr(pp, pe, "/dev/");
+	pp = fmtstr(pp, pe, bd->name);
+	FMTEND(pp, pe);
+
+	set_sticky(path);
 }
 
 void link_parts(void)
 {
 	struct part* pt;
+	struct bdev* bd;
 
 	sys_mkdir(MAPDIR, 0755);
 
 	for(pt = parts; pt < parts + nparts; pt++)
-		link_part(pt->name, pt->label);
+		link_part(pt);
+
+	for(bd = bdevs; bd < bdevs + nbdevs; bd++)
+		mark_bdev(bd);
 }
 
 /* Check current state */
