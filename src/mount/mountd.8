@@ -28,6 +28,11 @@ Base directory for mount points.
 While it is running, \fBmountd\fR should be the only process doing mounts
 on the devices it is allowed to touch. \fBmount\fR(2) takes a file name
 instead of a file descriptor, which makes it somewhat racy.
+.P
+\fBWarning:\fR make sure all system partitions are protected with sticky
+bits before running \fBmountd\fR with user-accessible control socket.
+Failure to do so allows any user with access to \fBmountd\fR socket to become
+root.
 '''
 .SH SEE ALSO
 \fBpmount\fR(1), \fBmount\fR(8)
