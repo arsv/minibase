@@ -11,7 +11,8 @@
 #define OUTLINE 160
 
 ERRTAG("hexdump");
-ERRLIST(NEBADF);
+ERRLIST(NENOENT NEACCES NENOTDIR NELOOP NEISDIR NEFAULT NEINVAL NENOMEM
+        NEBADF NEOVERFLOW);
 
 /* The values between 0x20 and 0x7E should be safe to print on pretty
    much any terminal. Everything else is shown as ".", and we do not
