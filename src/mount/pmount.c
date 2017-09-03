@@ -310,10 +310,10 @@ static int check_dev(char* name)
 	p = fmtstr(p, e, name);
 	FMTEND(p, e);
 
-	if(major(st.rdev) == LOOP_MAJOR)
+	if((ret = sys_stat(path, &st)) < 0)
 		return -1;
 
-	if((ret = sys_stat(path, &st)) < 0)
+	if(major(st.rdev) == LOOP_MAJOR)
 		return -1;
 
 	if(st.mode & S_ISVTX)
