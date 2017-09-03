@@ -322,6 +322,49 @@ static int check_dev(char* name)
 	return 0;
 }
 
+static int isdigit(int c)
+{
+	return (c >= '0' && c <= '9');
+}
+
+/* In most cases when block devices with partitions are involved,
+   the users should only be interested in the partitions and not
+   the whole devices. To make output somewhat more clean, let's
+   filter out the base devices.
+
+   This is a simple string comparison logic, no point in going
+   through /sys for this. Some false positives are ok. Also this
+   only affects the listing, attempts to mount or grab skipped
+   devices may still succeed. */
+
+static int dev_with_parts(char* dev, char* part)
+{
+	if(!part)
+		return 0;
+
+	int dlen = strlen(dev);
+	int plen = strlen(part);
+
+	if(dlen < 2)
+		return 0;
+	if(plen <= dlen)
+		return 0;
+
+	if(strncmp(dev, part, dlen))
+		return 0;
+
+	char* p = part + dlen;
+
+	if(isdigit(dev[dlen-1]) && *p == 'p')
+		p++;
+
+	for(; *p; p++)
+		if(!isdigit(*p))
+			return 0;
+
+	return 1;
+}
+
 static void dump_list(struct heap* hp, char** devs)
 {
 	int first = 1;
@@ -335,6 +378,8 @@ static void dump_list(struct heap* hp, char** devs)
 	for(char** p = devs; *p; p++) {
 		char* name = *p;
 
+		if(dev_with_parts(p[0], p[1]))
+			continue;
 		if(check_dev(name))
 			continue;
 
