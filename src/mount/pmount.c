@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <sys/creds.h>
+#include <sys/dents.h>
 #include <sys/file.h>
 
 #include <errtag.h>
@@ -11,7 +12,9 @@
 #include <cmsg.h>
 #include <string.h>
 #include <format.h>
+#include <output.h>
 #include <util.h>
+#include <heap.h>
 
 #include "common.h"
 
@@ -27,6 +30,15 @@ char txbuf[3072];
 char rxbuf[32];
 char ancillary[128];
 int signal;
+
+struct top {
+	int argc;
+	char** argv;
+	int argi;
+	int opts;
+};
+
+#define CTX struct top* ctx
 
 int init_socket(void)
 {
@@ -151,57 +163,227 @@ static void cmd_name_fd(int cmd, char* name, int ffd)
 	recv_reply(sfd, nlen);
 }
 
-static void mount_file(char* name)
+static int got_args(CTX)
 {
+	return (ctx->argi < ctx->argc);
+}
+
+static int use_opt(CTX, int opt)
+{
+	if(!(ctx->opts & opt))
+		return 0;
+
+	ctx->opts &= ~opt;
+
+	return 1;
+}
+
+static char* single_arg(CTX)
+{
+	if(!got_args(ctx))
+		fail("too few arguments", NULL, 0);
+
+	char* arg = ctx->argv[ctx->argi++];
+
+	if(got_args(ctx))
+		fail("too many arguments", NULL, 0);
+	if(ctx->opts)
+		fail("extra options", NULL, 0);
+
+	return arg;
+}
+
+static void mount_file(CTX)
+{
+	char* name = single_arg(ctx);
 	int fd = open_rw_or_ro(name);
 
 	cmd_name_fd(CMD_MOUNT_FD, name, fd);
 }
 
-static void mount_dev(char* name)
+static void mount_dev(CTX)
 {
-	cmd_name_fd(CMD_MOUNT, name, -1);
+	cmd_name_fd(CMD_MOUNT, single_arg(ctx), -1);
 }
 
-static void umount(char* name)
+static void umount(CTX)
 {
-	cmd_name_fd(CMD_UMOUNT, name, -1);
+	cmd_name_fd(CMD_UMOUNT, single_arg(ctx), -1);
 }
 
-static void grab_dev(char* name)
+static void grab_dev(CTX)
 {
-	cmd_name_fd(CMD_GRAB, name, -1);
+	cmd_name_fd(CMD_GRAB, single_arg(ctx), -1);
 }
 
-static void release(char* name)
+static void release(CTX)
 {
-	cmd_name_fd(CMD_RELEASE, name, -1);
+	cmd_name_fd(CMD_RELEASE, single_arg(ctx), -1);
 }
 
-int main(int argc, char** argv)
+static int cmp(const void* a, const void* b, long _)
+{
+	char* sa = *((char**)a);
+	char* sb = *((char**)b);
+	return strcmp(sa, sb);
+}
+
+static char** index_devs(struct heap* hp, char* dss, char* dse, int nd)
+{
+	char** idx = halloc(hp, (nd+1)*sizeof(char*));
+	int i = 0;
+
+	for(char* p = dss; p < dse; p += strlen(p) + 1)
+		idx[i++] = p;
+
+	idx[i] = NULL;
+
+	return idx;
+}
+
+static int dotddot(char* p)
+{
+	if(p[0] != '.') return 0;
+	if(p[1] == '\0') return 1;
+	if(p[1] != '.') return 0;
+	if(p[2] == '\0') return 1;
+	return 0;
+}
+
+static void foreach_devs(struct heap* hp, void (*call)(struct heap* hp, char**))
+{
+	int fd, rd;
+	char* scb = "/sys/class/block";
+	char buf[1024];
+	int ndevs = 0;
+
+	if((fd = sys_open(scb, O_DIRECTORY)) < 0)
+		fail(NULL, scb, fd);
+
+	char* dss = hp->ptr; /* dev strings start */
+
+	while((rd = sys_getdents(fd, buf, sizeof(buf))) > 0) {
+		char* p = buf;
+		char* e = buf + rd;
+
+		while(p < e) {
+			struct dirent* de = (struct dirent*) p;
+			p += de->reclen;
+
+			char* name = de->name;
+
+			if(dotddot(name))
+				continue;
+
+			int len = strlen(name);
+			char* dn = halloc(hp, len + 1);
+			memcpy(dn, name, len + 1);
+
+			ndevs++;
+		}
+	}
+
+	char* dse = hp->ptr; /* dev strings end */
+
+	char** idx = index_devs(hp, dss, dse, ndevs);
+
+	qsort(idx, ndevs, sizeof(char*), cmp, 0);
+
+	return call(hp, idx);
+}
+
+static int check_dev(char* name)
+{
+	struct stat st;
+	int ret;
+
+	if(!strncmp(name, "loop", 4))
+		return -1;
+
+	FMTBUF(p, e, path, strlen(name) + 10);
+	p = fmtstr(p, e, "/dev/");
+	p = fmtstr(p, e, name);
+	FMTEND(p, e);
+
+	if((ret = sys_stat(path, &st)) < 0)
+		return -1;
+
+	if(st.mode & S_ISVTX)
+		return -1;
+
+	return 0;
+}
+
+static void dump_list(struct heap* hp, char** devs)
+{
+	int first = 1;
+	struct bufout bo = {
+		.fd = STDOUT,
+		.len = 1024,
+		.ptr = 0,
+		.buf = halloc(hp, 1024)
+	};
+
+	for(char** p = devs; *p; p++) {
+		char* name = *p;
+
+		if(check_dev(name))
+			continue;
+
+		if(first)
+			first = 0;
+		else
+			bufout(&bo, " ", 1);
+
+		bufout(&bo, name, strlen(name));
+	}
+
+	if(!first)
+		bufout(&bo, "\n", 1);
+
+	bufoutflush(&bo);
+}
+
+static void list_devs(CTX)
+{
+	struct heap hp;
+
+	hinit(&hp, PAGE);
+
+	foreach_devs(&hp, dump_list);
+}
+
+static void prep_opts(CTX, int argc, char** argv)
 {
 	int i = 1, opts = 0;
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
-	if(i >= argc)
-		fail("too few arguments", NULL, 0);
-	if(i < argc - 1)
-		fail("too many arguments", NULL, 0);
+	ctx->argc = argc;
+	ctx->argv = argv;
+	ctx->argi = i;
+	ctx->opts = opts;
+}
 
-	char* name = argv[i];
+int main(int argc, char** argv)
+{
+	struct top context, *ctx = &context;
 
-	if(opts & OPT_g)
-		grab_dev(name);
-	else if(opts & OPT_r)
-		release(name);
-	else if(opts & OPT_u)
-		umount(name);
-	else if(opts & OPT_f)
-		mount_file(name);
+	prep_opts(ctx, argc, argv);
+
+	if(use_opt(ctx, OPT_g))
+		grab_dev(ctx);
+	else if(use_opt(ctx, OPT_r))
+		release(ctx);
+	else if(use_opt(ctx, OPT_u))
+		umount(ctx);
+	else if(use_opt(ctx, OPT_f))
+		mount_file(ctx);
+	else if(got_args(ctx))
+		mount_dev(ctx);
 	else
-		mount_dev(name);
+		list_devs(ctx);
 
 	return 0;
 }
