@@ -1,4 +1,5 @@
 #include <bits/socket/unix.h>
+#include <bits/major.h>
 
 #include <sys/socket.h>
 #include <sys/signal.h>
@@ -304,6 +305,9 @@ static int check_dev(char* name)
 	p = fmtstr(p, e, "/dev/");
 	p = fmtstr(p, e, name);
 	FMTEND(p, e);
+
+	if(major(st.rdev) == LOOP_MAJOR)
+		return -1;
 
 	if((ret = sys_stat(path, &st)) < 0)
 		return -1;
