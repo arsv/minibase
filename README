@@ -34,7 +34,7 @@ Some tools are missing, and some still need work.
     implementation similar to daemontools or runit [usable].
   
   - No udevd yet.
-  - No unprivileged mount daemon yet.
+  * Unprivileged mount tooling (mountd, pmount) [usable].
   * Controlled privilege escalation tool (sudo) [usable].
 
   * DHCP client (dhcp) [usable].
