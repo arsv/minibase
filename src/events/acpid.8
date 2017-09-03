@@ -17,9 +17,7 @@ Sleep button pressed.
 Power button pressed.
 '''
 .SH NOTES
-There are apparently no APCI event for low battery level.
+There are apparently no ACPI events for low battery levels.
 .P
-Power and sleep buttons are also reported via input event devices.
-Lid switch may not generate any ACPI events at all even if it shows up
-as an input device. Unless some handling is needed for \fBacpower\fR or
-\fBbattery\fR events, there is probably no point in running \fBacpid\fR.
+Power and Sleep button events may also be available via the input
+subsystem; see \fBinputs\fR(1) and \fBkeymon\fR(8).
