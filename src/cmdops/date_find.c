@@ -39,8 +39,6 @@ struct zoneabbr {
 	{ "CET",  UTC( +1,00) }, /* Central European Time */
 	{ "EEST", UTC( +3,00) }, /* Eastern European Summer Time */
 	{ "EET",  UTC( +2,00) }, /* Eastern European Time */
-	{ "MET",  UTC( +1,00) }, /* Middle European Time = CET */
-	{ "MEST", UTC( +2,00) }, /* Middle European Summer Time = CEST */
 	/* North America */
 	{ "ADT",  UTC( -3,00) },  /* Atlantic Daylight Time */
 	{ "AST",  UTC( -4,00) },  /* Atlantic Standard Time */
