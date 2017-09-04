@@ -194,13 +194,13 @@ static int open_short_zone(struct zonefile* zf, const char* zone)
 static void make_zone_name(char* buf, int len, int baselen, int zonelen,
                            const char* zone)
 {
-	char* end = buf + len - 1;
-	char* p = buf;
+	FMTUSE(p, e, buf, len);
 
-	p = fmtstrn(p, end, zonebase, baselen);
-	p = fmtstrn(p, end, "/", 1);
-	p = fmtstrn(p, end, zone, zonelen);
-	*p = '\0';
+	p = fmtstrn(p, e, zonebase, baselen);
+	p = fmtstrn(p, e, "/", 1);
+	p = fmtstrn(p, e, zone, zonelen);
+
+	FMTEND(p, e);
 }
 
 /* The entry point to the whole timezone-handling module owns path

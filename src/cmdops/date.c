@@ -229,26 +229,25 @@ static char* fmtwday(char* p, char* end, int wday)
 
 static void show_time(struct timedesc* zt, const char* format)
 {
-	char buf[200];
-	char* end = buf + sizeof(buf) - 1;
-	char* p = buf;
 	const char* c;
 	struct tm* tm = &zt->tm;
 
+	FMTBUF(p, e, buf, 200);
+
 	for(c = format; *c; c++) switch(*c) {
-		case 'Y': p = fmtint0(p, end, 1900 + tm->year, 4); break;
-		case 'M': p = fmtint0(p, end, tm->mon+1, 2); break;
-		case 'D': p = fmtint0(p, end, tm->mday, 2); break;
-		case 'h': p = fmtint0(p, end, tm->hour, 2); break;
-		case 'm': p = fmtint0(p, end, tm->min, 2); break;
-		case 's': p = fmtint0(p, end, tm->sec, 2); break;
-		case 'w': p = fmtwday(p, end, tm->wday); break;
-		case 'u': p = fmtlong(p, end, zt->tv.sec); break;
-		case 'z': p = fmtzone(p, end, zt->offset); break;
-		default: p = fmtchar(p, end, *c);
+		case 'Y': p = fmtint0(p, e, 1900 + tm->year, 4); break;
+		case 'M': p = fmtint0(p, e, tm->mon+1, 2); break;
+		case 'D': p = fmtint0(p, e, tm->mday, 2); break;
+		case 'h': p = fmtint0(p, e, tm->hour, 2); break;
+		case 'm': p = fmtint0(p, e, tm->min, 2); break;
+		case 's': p = fmtint0(p, e, tm->sec, 2); break;
+		case 'w': p = fmtwday(p, e, tm->wday); break;
+		case 'u': p = fmtlong(p, e, zt->tv.sec); break;
+		case 'z': p = fmtzone(p, e, zt->offset); break;
+		default: p = fmtchar(p, e, *c);
 	}
 
-	*p++ = '\n';
+	FMTENL(p, e);
 
 	writeall(STDOUT, buf, p - buf);
 }
