@@ -75,5 +75,7 @@ $(sort $(mkdirs)): %:
 
 all: $(also)
 
+clean += $(also)
+
 clean:
 	rm -f $(clean)
