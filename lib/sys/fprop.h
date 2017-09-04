@@ -26,6 +26,11 @@ inline static long sys_chmod(const char* path, int mode)
 #endif
 }
 
+inline static long sys_fchmodat(int at, char* path, int mode, int flags)
+{
+	return syscall4(NR_fchmodat, at, (long)path, mode, flags);
+}
+
 inline static long sys_chown(const char* path, int uid, int gid)
 {
 #ifdef NR_fchownat
@@ -44,6 +49,11 @@ inline static long sys_fchown(int fd, int uid, int gid)
 #else
 	return syscall3(NR_fchown, fd, uid, gid);
 #endif
+}
+
+inline static long sys_fchownat(int at, char* name, int uid, int gid, int flags)
+{
+	return syscall5(NR_fchownat, at, (long)name, uid, gid, flags);
 }
 
 inline static long sys_utimensat(int at, char* path,
