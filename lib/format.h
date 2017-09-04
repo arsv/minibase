@@ -1,15 +1,20 @@
 #include <bits/types.h>
 
+#define FMTUSE(p, e, buf, len) \
+	char* p = buf; \
+	char* e = buf + len - 1;
+
 #define FMTBUF(p, e, buf, len) \
-	char buf[len+2];\
+	char buf[len+1];\
 	char* p = buf;\
-	char* e = buf + sizeof(buf) - 2;
+	char* e = buf + sizeof(buf) - 1;
 
 #define FMTEND(p, e) \
-	*p = '\0'
+	*p = '\0';
 #define FMTENL(p, e) \
-	if(p < e) *p++ = '\n'; \
-	*p = '\0'
+	*p++ = '\n';
+/* Note FMTENL is used to produce a buffer suitable for
+   write()-ing to STDOUT, *not* a 0-terminated string. */
 
 struct tm;
 
