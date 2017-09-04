@@ -202,15 +202,6 @@ static void sortidx(struct idxent* idx, int nument, int opts)
 	qsort(idx, nument, sizeof(*idx), (qcmp)cmpidx, opts);
 }
 
-static int dotddot(const char* name)
-{
-	if(name[0] != '.') return 0;
-	if(name[1] == '\0') return 1;
-	if(name[1] != '.') return 0;
-	if(name[2] == '\0') return 1;
-	return 0;
-}
-
 static void list(struct topctx* tc, const char* realpath, const char* showpath, int strict);
 
 static void recurse(struct topctx* tc, struct dirctx* dc,

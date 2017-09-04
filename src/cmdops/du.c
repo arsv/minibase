@@ -81,17 +81,6 @@ static void dump(uint64_t count, char* tag, int opts)
 	writeout(q, p - q);
 }
 
-static inline int dotddot(const char* p)
-{
-	if(!p[0])
-		return 1;
-	if(p[0] == '.' && !p[1])
-		return 1;
-	if(p[1] == '.' && !p[2])
-		return 1;
-	return 0;
-}
-
 typedef void (*scanner)(char* dir, char* name, void* ptr, int arg);
 
 static void for_each_in(char* path, scanner sc, void* ptr, int arg);

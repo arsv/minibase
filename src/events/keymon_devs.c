@@ -114,17 +114,6 @@ close:
 	sys_close(fd);
 }
 
-static int dotddot(char* p)
-{
-	if(!p[0])
-		return 1;
-	if(p[0] == '.' && !p[1])
-		return 1;
-	if(p[1] == '.' && !p[2])
-		return 1;
-	return 0;
-}
-
 static void setwatch(char* dir)
 {
 	long fd, wd;

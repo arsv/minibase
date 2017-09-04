@@ -29,17 +29,6 @@ static void mfail(int opts, const char* msg, const char* obj, int err)
 	if(!(opts & OPT_f)) _exit(-1);
 }
 
-static inline int dotddot(const char* p)
-{
-	if(!p[0])
-		return 1;
-	if(p[0] == '.' && !p[1])
-		return 1;
-	if(p[1] == '.' && !p[2])
-		return 1;
-	return 0;
-}
-
 static int samefs(const char* dirname, int dirfd, long rootdev)
 {
 	struct stat st;

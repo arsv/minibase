@@ -131,17 +131,6 @@ static void check_dev_ent(char* name, char* _)
 	foreach_dir_in(path, check_part_ent, name);
 }
 
-static inline int dotddot(const char* p)
-{
-	if(!p[0])
-		return 1;
-	if(p[0] == '.' && !p[1])
-		return 1;
-	if(p[1] == '.' && !p[2])
-		return 1;
-	return 0;
-}
-
 static void foreach_dir_in(char* dir, void (*func)(char*, char*), char* base)
 {
 	int len = 1024;

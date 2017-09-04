@@ -183,15 +183,6 @@ static void checkdent(struct dirctx* dc, struct dirent* de)
 		checkfile(dc, name);
 }
 
-static int dotddot(const char* name)
-{
-	if(name[0] != '.') return 0;
-	if(name[1] == '\0') return 1;
-	if(name[1] != '.') return 0;
-	if(name[2] == '\0') return 1;
-	return 0;
-}
-
 static void readscan(struct dirctx* dc, int fd)
 {
 	char* dir = dc->dir;

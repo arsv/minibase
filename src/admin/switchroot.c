@@ -30,15 +30,6 @@ struct root {
 	int newrlen;
 };
 
-static inline int dotddot(const char* p)
-{
-	if(p[0] == '.' && !p[1])
-		return 1;
-	if(p[1] == '.' && !p[2])
-		return 1;
-	return 0;
-}
-
 static void delete_ent(struct root* ctx, char* dir, int dirfd, struct dirent* de);
 
 /* Directory tree recursion is done here in (atfd, path) mode.

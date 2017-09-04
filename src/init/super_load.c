@@ -6,17 +6,6 @@
 
 #include "super.h"
 
-static inline int dotddot(const char* p)
-{
-	if(!p[0])
-		return 1;
-	if(p[0] == '.' && !p[1])
-		return 1;
-	if(p[1] == '.' && !p[2])
-		return 1;
-	return 0;
-}
-
 static void addfile(char* base, int blen)
 {
 	struct proc* rc;

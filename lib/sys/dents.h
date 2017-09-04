@@ -23,6 +23,18 @@ struct dirent {
 	char name[];
 };
 
+/* The syscall is almost impossible to use without this little helper func. */
+
+inline static int dotddot(char* p)
+{
+	if(!*p) return 0;
+	if(*p++ != '.') return 0;
+	if(!*p) return 1; /* . */
+	if(*p++ != '.') return 0;
+	if(!*p) return 1; /* .. */
+	return 0;
+}
+
 inline static long sys_getdents(int fd, void* dp, int count)
 {
 	return syscall3(NR_getdents64, fd, (long)dp, count);

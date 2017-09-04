@@ -40,17 +40,6 @@ static void mfail(long ret, struct chmod* ch, const char* msg, const char* obj)
 	_exit(-1);
 }
 
-static inline int dotddot(const char* p)
-{
-	if(!p[0])
-		return 1;
-	if(p[0] == '.' && !p[1])
-		return 1;
-	if(p[1] == '.' && !p[2])
-		return 1;
-	return 0;
-}
-
 static void recurse(const char* dirname, struct chmod* ch)
 {
 	char debuf[DEBUFSIZE];

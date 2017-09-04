@@ -246,15 +246,6 @@ static char** index_devs(struct heap* hp, char* dss, char* dse, int nd)
 	return idx;
 }
 
-static int dotddot(char* p)
-{
-	if(p[0] != '.') return 0;
-	if(p[1] == '\0') return 1;
-	if(p[1] != '.') return 0;
-	if(p[2] == '\0') return 1;
-	return 0;
-}
-
 static void foreach_devs(struct heap* hp, void (*call)(struct heap* hp, char**))
 {
 	int fd, rd;
