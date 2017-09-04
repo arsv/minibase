@@ -4,20 +4,16 @@
 date \- show local time and convert time between time zones
 '''
 .SH SYNOPSIS
-date [\fItimezone\fR]
-.br
-date [\fItimezone\fR] \fItimestamp\fR
-.br
-date [\fItimezone\fR] [\fIY\fB-\fIM\fB-\fID\fR] \fIhh\fB:\fImm\fR[:\fIss\fR] [\fItimezone\fR]
+.IP "\fBdate\fR [\fItimezone\fR]" 4
+Show current local time, or current time in \fItimezone\fR.
+.IP "\fBdate\fR [\fItimezone\fR] \fItimestamp\fR" 4
+Show \fItimestamp\fR in local or specified \fItimezone\fR.
+.IP "\fBdate\fR [\fItimezone\fR] [\fIY\fB-\fIM\fB-\fID\fR] \fIhh\fB:\fImm\fR[:\fIss\fR] [\fItz\fR]" 4
+Convert specified time to \fItimezone\fR.
 '''
-.SH USAGE
-No-arguments call shows current system time in local time zone.
-With \fItimezone\fR, shows current system time in that zone.
-Given time specification, either in human-readable format or as a Unix timestamp,
-converts that into local or specified time zone.
-.P
-Timezones may be given as an abbreviation (PDT, EEST, UTC-5 and so on)
-or as a \fBtzdata\fR zone name (US/Pacific).
+.SH NOTES
+Timezones may be given as abbreviations (PDT, EEST, UTC-5) or as
+\fBtzdata\fR zone names (US/Pacific).
 '''
 .SH FILES
 Zone definitions are usually provided by \fBtzdata\fR package.
