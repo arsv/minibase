@@ -56,7 +56,7 @@ struct cct {
 
 #define noreturn __attribute__((noreturn))
 
-static void copy(CCT, char* dstname, char* srcname);
+static void copy(CCT, char* dstname, char* srcname, int type);
 static void failat(const char* msg, char* dir, char* name, int err) noreturn;
 
 /* Utils for dealing with at-dirs. This tool always uses (at, name) pairs
@@ -104,12 +104,10 @@ static void failat(const char* msg, char* dir, char* name, int err)
 
 /* Contents trasfer for regular files */
 
-static int sendfile(CCT, DST, SRC, struct stat* st)
+static int sendfile(CCT, DST, SRC, uint64_t* size)
 {
-	return -1;
-
 	uint64_t done = 0;
-	uint64_t need = st->size;
+	uint64_t need = *size;
 	long ret = 0;
 	long run = 0x7ffff000;
 
@@ -145,13 +143,13 @@ static void alloc_rw_buf(CTX)
 	ctx->len = end - buf;
 }
 
-static void readwrite(CCT, DST, SRC, struct stat* st)
+static void readwrite(CCT, DST, SRC, uint64_t* size)
 {
 	struct top* ctx = cct->top;
 
 	alloc_rw_buf(ctx);
 
-	uint64_t need = st->size;
+	uint64_t need = *size;
 	uint64_t done = 0;
 
 	char* buf = ctx->buf;
@@ -175,17 +173,17 @@ static void readwrite(CCT, DST, SRC, struct stat* st)
 	}
 }
 
-static void transfer(CCT, DST, SRC, struct stat* st)
+static void transfer(CCT, DST, SRC, uint64_t* size)
 {
 	if(!cct->nosf)
 		goto rw;
 
-	if(sendfile(cct, dst, src, st) >= 0)
+	if(sendfile(cct, dst, src, size) >= 0)
 		return;
 rw:
 	cct->nosf = 1;
 
-	readwrite(cct, dst, src, st);
+	readwrite(cct, dst, src, size);
 }
 
 /* Tree walking routines (the core of the tool) */
@@ -207,7 +205,7 @@ static void scan_directory(CCT)
 			if(dotddot(de->name))
 				continue;
 
-			copy(cct, de->name, de->name);
+			copy(cct, de->name, de->name, de->type);
 		}
 	}
 }
@@ -270,21 +268,46 @@ static void directory(CCT, char* dstname, char* srcname, struct stat* st)
 	sys_close(dstfd);
 }
 
-static void open_atfd(struct atfd* ff, int flags, int mode)
+static void open_atfd(struct atfd* ff, struct stat* st, int flags, int mode)
 {
-	int fd;
+	int fd, ret;
 	int at = ff->at;
 	char* dir = ff->dir;
 	char* name = ff->name;
 
+	int stf = AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW;
+
 	if((fd = sys_openat4(at, name, flags, mode)) < 0)
 		failat(NULL, dir, name, fd);
+	if((ret = sys_fstatat(fd, "", st, stf)) < 0)
+		failat("stat", dir, name, ret);
 
 	ff->fd = fd;
 }
 
+static void prep_file_pair(DST, SRC, uint64_t* size)
+{
+	struct stat srcst;
+	struct stat dstst;
+
+	int sflags = O_RDONLY;
+	int dflags = O_WRONLY | O_CREAT | O_TRUNC;
+
+	open_atfd(src, &srcst, sflags, 0);
+	open_atfd(dst, &dstst, dflags, srcst.mode);
+
+	if(srcst.dev == dstst.dev && srcst.ino == dstst.ino)
+		failat("copy into self:", src->dir, src->name, 0);
+
+	*size = srcst.size;
+}
+
 static void regular(CCT, char* dstname, char* srcname, struct stat* st)
 {
+	/* We do *not* use st here, and to save an extra stat() call it
+	   may not even be initialized. Regular files get open()ed anyway,
+	   so we do fstat(fd) instead to get their properties. */
+
 	struct atfd src = {
 		.at = cct->src.at,
 		.dir = cct->src.dir,
@@ -297,10 +320,11 @@ static void regular(CCT, char* dstname, char* srcname, struct stat* st)
 		.name = dstname
 	};
 
-	open_atfd(&src, O_RDONLY, 0);
-	open_atfd(&dst, O_WRONLY | O_CREAT | O_TRUNC, st->mode);
+	uint64_t size;
 
-	transfer(cct, &dst, &src, st);
+	prep_file_pair(&dst, &src, &size);
+
+	transfer(cct, &dst, &src, &size);
 
 	sys_close(dst.fd);
 	sys_close(src.fd);
@@ -338,7 +362,17 @@ err:
 	failat("symlink", dstdir, dstname, ret);
 }
 
-static void copy(CCT, char* dstname, char* srcname)
+static int stifmt_to_dt(struct stat* st)
+{
+	switch(st->mode & S_IFMT) {
+		case S_IFREG: return DT_REG;
+		case S_IFDIR: return DT_DIR;
+		case S_IFLNK: return DT_LNK;
+		default: return DT_UNKNOWN;
+	}
+}
+
+static void copy(CCT, char* dstname, char* srcname, int type)
 {
 	int srcat = cct->src.at;
 	char* srcdir = cct->src.dir;
@@ -347,13 +381,17 @@ static void copy(CCT, char* dstname, char* srcname)
 	int ret;
 	struct stat st;
 
-	if((ret = sys_fstatat(srcat, srcname, &st, flags)) < 0)
+	if(type == DT_REG)
+		memzero(&st, sizeof(st));
+	else if((ret = sys_fstatat(srcat, srcname, &st, flags)) < 0)
 		failat(NULL, srcdir, srcname, ret);
+	else
+		type = stifmt_to_dt(&st);
 
-	switch(st.mode & S_IFMT) {
-		case S_IFDIR: return directory(cct, dstname, srcname, &st);
-		case S_IFREG: return regular(cct, dstname, srcname, &st);
-		case S_IFLNK: return symlink(cct, dstname, srcname, &st);
+	switch(type) {
+		case DT_DIR: return directory(cct, dstname, srcname, &st);
+		case DT_REG: return regular(cct, dstname, srcname, &st);
+		case DT_LNK: return symlink(cct, dstname, srcname, &st);
 	}
 
 	warnat("ignoring", srcdir, srcname, 0);
@@ -394,7 +432,7 @@ static void copy_over(CTX, CCT)
 	if(!strcmp(dst, src))
 		fail("already here:", src, 0);
 
-	copy(cct, dst, src);
+	copy(cct, dst, src, DT_UNKNOWN);
 }
 
 static void copy_many(CTX, CCT)
@@ -408,7 +446,7 @@ static void copy_many(CTX, CCT)
 		if(src == dst)
 			fail("already here:", src, 0);
 
-		copy(cct, dst, src);
+		copy(cct, dst, src, DT_UNKNOWN);
 	}
 }
 
