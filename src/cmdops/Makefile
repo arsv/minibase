@@ -4,3 +4,5 @@ bin = bcp cat chmod chown clear cpy date del df du ff fn \
 include ../rules.mk
 
 date: date.o date_find.o date_time.o
+
+cpy: cpy.o cpy_tree.o cpy_file.o
