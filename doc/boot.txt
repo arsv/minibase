@@ -42,21 +42,21 @@ Happy path only. Note some of the tools are not ready at the time of writing.
 
 User session startup sequence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-* vtmux makes decision to start a new session based on its inputs
-  (keyboard events, greeter commands, or autonomously)
+* vtmux gets a command to start a new session
 * vtmux spawns /etc/vts/$name with all fds directed to /dev/ttyN
 * $name is a host-specific msh script
 * $name changes its credentials (uid, gid, groups, maybe also caps)
 * $name execs into appropriate interactive shell (xinit, weston, bash etc)
 * vtmux reaps the process once it dies
 
-The script itself is a part of host configuration, replacing the rightmost
-fields in conventional /etc/passwd and the 3rd field in /etc/groups.
+The /etc/vtx/$name script itself is a part of host configuration,
+replacing the rightmost fields in conventional /etc/passwd and
+the 3rd field in /etc/group.
 
 
 Service startup sequence
 ~~~~~~~~~~~~~~~~~~~~~~~~
-* svmon spawns /etc/rc/$name which is a msh script
+* super spawns /etc/rc/$name which is a msh script
 * $name sets up process environment, uids, gids and so on
 * $name execs into the actual service executable
 
@@ -65,12 +65,17 @@ The script itself is a part of host configuration.
 
 Implementation notes
 ~~~~~~~~~~~~~~~~~~~~
-The purpose of init (the small executable that bootstraps svmon) is to handle
+The purpose of init (the small executable that bootstraps super) is to handle
 possible failures in /etc/sysinit. If that one fails, init execs directly into
 /sbin/reboot in attempt to bring the system down. Doing this nicely is just
 slightly above msh scripting abilities at this moment. Maybe at some point
 it should become a script. Maybe not.
 
-Same logic applies to linuxrc, but it's simpler and less likely to require
-proper termination. Root should be probably be mounted read-only at that point,
-with remounting later in /etc/sysinit.
+Same logic applies to linuxrc (the initrd entry point), but it's simpler
+and less likely to require proper termination. Root should be probably be
+mounted read-only at that point, with remounting later in /etc/sysinit.
+With that in mind, linuxrc may be just a plain msh script that exits if
+anything goes wrong, causing kernel panic and system halt.
+
+When/if it will become clear how to handle initrd failures, something better
+than msh script may get written.

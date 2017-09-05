@@ -15,7 +15,7 @@ of compatibility needed varies, but more often than not it's much less
 than "full POSIX".
 
 Full compatibility does not come for free either. The standard mandates a lot
-of stuff that is rarely used, unnecessary complex or outright detrimential
+of stuff that is rarely used, unnecessary complex or outright detrimental
 for building small and reliable systems. Yet that stuff is necessary to call
 the system "POSIX compatible". POSIX compatibility sets a lower limit on how
 bloated the resulting system may be, and that limit turns out to be pretty high.
@@ -24,3 +24,7 @@ The question should never be "is it POSIX compatible?".
 The right question is "does it support these commands?", in particular
 use cases and with particular options. And if not, will fail destructively,
 or does it provide some replacements for unsupported commands.
+
+Minibase generally tries to provide replacement commands while also avoiding
+destructive name clashes (like say "cat" command that deletes its arguments). 
+Non-destructive clashes are considered acceptable.
