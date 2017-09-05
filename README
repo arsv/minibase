@@ -29,6 +29,7 @@ Some tools are missing, and some still need work.
   * Non-encrypted block device locator (findblk) [usable?]
   * Encrypted device locator and passphrase prompt tool (passblk) [usable?]
   * Support tooling for disc encryption (dektool, dmcrypt) [usable]
+  - No fsck for any fs yet.
   
   * Process supervisor suite (init, super, reboot, svc), split-stage
     implementation similar to daemontools or runit [usable].
