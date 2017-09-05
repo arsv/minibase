@@ -87,7 +87,7 @@ inline static long sys_readlink(const char* path, char* buf, long len)
 inline static long sys_readlinkat(int at, const char* path, char* buf, long len)
 {
 #ifdef NR_readlinkat
-	return syscall4(NR_readlinkat, AT_FDCWD, (long)path, (long)buf, len);
+	return syscall4(NR_readlinkat, at, (long)path, (long)buf, len);
 #else
 	return -ENOSYS;
 #endif
