@@ -13,6 +13,18 @@ Make a copy of \fIsrc\fR named \fIdst\fR.
 .IP "\fBcpy\fR \fB-o\fR \fIdst\fR \fIsrc\fR" 4
 Copy \fIsrc\fR over \fIdst\fR.
 '''
+.SH OPTIONS
+.IP "\fB-h\fR" 4
+Copy here; destination is the current directory.
+.IP "\fB-m\fR" 4
+Move files instead of copying them.
+.IP "\fB-n\fR" 4
+Do not overwrite anything.
+.IP "\fB-o\fR" 4
+Copy over, silently overwriting existing files.
+.IP "\fB-t\fR" 4
+Copy to; destination directory is the first argument.
+'''
 .SH NOTES
 \fBcpy\fR never follows symlinks, and copies them as if they were plain text
 files. Other special files are silently ignored.
