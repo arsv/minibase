@@ -59,6 +59,8 @@ inline static long sys_dup2(int fda, int fdb)
 #define SEEK_SET 0
 #define SEEK_CUR 1
 #define SEEK_END 2
+#define SEEK_DATA 3
+#define SEEK_HOLE 4
 
 inline static long sys_lseek(int fd, uint64_t off, int whence)
 {
