@@ -21,6 +21,11 @@ inline static long sys_openat(int at, const char* path, int flags)
 	return syscall3(NR_openat, at, (long)path, flags);
 }
 
+inline static long sys_openat4(int at, const char* path, int flags, int mode)
+{
+	return syscall4(NR_openat, at, (long)path, flags, mode);
+}
+
 inline static long sys_close(int fd)
 {
 	return syscall1(NR_close, fd);
