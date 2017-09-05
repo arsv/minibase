@@ -48,11 +48,12 @@ struct cct {
 #define DST struct atfd* dst
 #define CCT struct cct* cct
 
-#define OPTS "ntho"
+#define OPTS "nthom"
 #define OPT_n (1<<0)
 #define OPT_t (1<<1)
 #define OPT_h (1<<2)
 #define OPT_o (1<<3)
+#define OPT_m (1<<4)
 
 #define noreturn __attribute__((noreturn))
 
@@ -186,6 +187,47 @@ rw:
 	readwrite(cct, dst, src, size);
 }
 
+/* Utils for move/rename mode */
+
+static int movemove(CCT)
+{
+	return cct->top->opts & OPT_m;
+}
+
+static int rename(CCT, char* dstname, char* srcname)
+{
+	int srcat = cct->src.at;
+	int dstat = cct->dst.at;
+	char* srcdir = cct->src.dir;
+	int ret;
+
+	if((ret = sys_renameat2(srcat, srcname, dstat, dstname, 0)) >= 0)
+		return 1;
+
+	if(ret == -EXDEV)
+		return 0;
+
+	failat("rename", srcdir, srcname, ret);
+}
+
+static void delete(CCT, char* srcname)
+{
+	int ret;
+	int at = cct->src.at;
+	char* dir = cct->src.dir;
+
+	if((ret = sys_unlinkat(at, srcname, 0)) < 0)
+		failat("unlink", dir, srcname, ret);
+}
+
+static void rmdir(int at, char* dir, char* name)
+{
+	int ret;
+
+	if((ret = sys_unlinkat(at, name, AT_REMOVEDIR)) < 0)
+		failat("rmdir", dir, name, ret);
+}
+
 /* Tree walking routines (the core of the tool) */
 
 static void scan_directory(CCT)
@@ -238,6 +280,11 @@ err:
 
 static void directory(CCT, char* dstname, char* srcname, struct stat* st)
 {
+	int move = movemove(cct);
+
+	if(move && rename(cct, dstname, srcname))
+		return;
+
 	int srcat = cct->src.at;
 	int dstat = cct->dst.at;
 
@@ -266,6 +313,8 @@ static void directory(CCT, char* dstname, char* srcname, struct stat* st)
 
 	sys_close(srcfd);
 	sys_close(dstfd);
+
+	if(move) rmdir(srcat, srcdir, srcname);
 }
 
 static void open_atfd(struct atfd* ff, struct stat* st, int flags, int mode)
@@ -302,12 +351,8 @@ static void prep_file_pair(DST, SRC, uint64_t* size)
 	*size = srcst.size;
 }
 
-static void regular(CCT, char* dstname, char* srcname, struct stat* st)
+static void copydata(CCT, char* dstname, char* srcname)
 {
-	/* We do *not* use st here, and to save an extra stat() call it
-	   may not even be initialized. Regular files get open()ed anyway,
-	   so we do fstat(fd) instead to get their properties. */
-
 	struct atfd src = {
 		.at = cct->src.at,
 		.dir = cct->src.dir,
@@ -330,8 +375,22 @@ static void regular(CCT, char* dstname, char* srcname, struct stat* st)
 	sys_close(src.fd);
 }
 
+static void regular(CCT, char* dstname, char* srcname)
+{
+	int move = movemove(cct);
+
+	if(move && rename(cct, dstname, srcname))
+		return;
+
+	copydata(cct, dstname, srcname);
+
+	if(move) delete(cct, srcname);
+}
+
 static void symlink(CCT, char* dstname, char* srcname, struct stat* srcst)
 {
+	int move = movemove(cct);
+
 	int srcat = cct->src.at;
 	int dstat = cct->dst.at;
 
@@ -351,15 +410,17 @@ static void symlink(CCT, char* dstname, char* srcname, struct stat* srcst)
 	buf[ret] = '\0';
 
 	if((ret = sys_symlinkat(buf, dstat, dstname)) >= 0)
-		return;
+		goto got;
 	if(ret != -EEXIST)
 		goto err;
 	if((ret = sys_unlinkat(dstat, dstname, 0)) < 0)
 		failat("unlink", dstdir, dstname, ret);
 	if((ret = sys_symlinkat(buf, dstat, dstname)) >= 0)
-		return;
+		goto got;
 err:
 	failat("symlink", dstdir, dstname, ret);
+got:
+	if(move) delete(cct, srcname);
 }
 
 static int stifmt_to_dt(struct stat* st)
@@ -390,7 +451,7 @@ static void copy(CCT, char* dstname, char* srcname, int type)
 
 	switch(type) {
 		case DT_DIR: return directory(cct, dstname, srcname, &st);
-		case DT_REG: return regular(cct, dstname, srcname, &st);
+		case DT_REG: return regular(cct, dstname, srcname);
 		case DT_LNK: return symlink(cct, dstname, srcname, &st);
 	}
 
