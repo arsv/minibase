@@ -2,6 +2,7 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
 #include <sys/fprop.h>
+#include <sys/mman.h>
 #include <sys/splice.h>
 
 #include <errtag.h>
@@ -11,11 +12,16 @@
 
 ERRTAG("cpy");
 
+#define RWBUFSIZE 1024*1024
+
 struct top {
 	int argc;
 	char** argv;
 	int argi;
 	int opts;
+
+	char* buf;
+	long len;
 };
 
 struct atfd {
@@ -25,12 +31,16 @@ struct atfd {
 	int fd;
 };
 
+struct atdir {
+	int at;
+	char* dir;
+};
+
 struct cct {
 	struct top* top;
-	struct {
-		int at;
-		char* dir;
-	} src, dst;
+	struct atdir dst;
+	struct atdir src;
+	int nosf;
 };
 
 #define CTX struct top* ctx
@@ -94,10 +104,12 @@ static void failat(const char* msg, char* dir, char* name, int err)
 
 /* Contents trasfer for regular files */
 
-static void transfer(CCT, DST, SRC, struct stat* srcst)
+static int sendfile(CCT, DST, SRC, struct stat* st)
 {
+	return -1;
+
 	uint64_t done = 0;
-	uint64_t need = srcst->size;
+	uint64_t need = st->size;
 	long ret = 0;
 	long run = 0x7ffff000;
 
@@ -111,8 +123,69 @@ static void transfer(CCT, DST, SRC, struct stat* srcst)
 		if((ret = sys_sendfile(outfd, infd, NULL, run)) <= 0)
 			break;
 		done += ret;
-	} if(ret < 0)
-		failat("sendfile", dst->dir, dst->name, ret);
+	};
+
+	if(ret >= 0)
+		return 0;
+	if(!done && ret == -EINVAL)
+		return -1;
+
+	failat("sendfile", dst->dir, dst->name, ret);
+}
+
+static void alloc_rw_buf(CTX)
+{
+	if(ctx->buf)
+		return;
+
+	char* buf = (char*)sys_brk(0);
+	char* end = (char*)sys_brk(buf + RWBUFSIZE);
+
+	ctx->buf = buf;
+	ctx->len = end - buf;
+}
+
+static void readwrite(CCT, DST, SRC, struct stat* st)
+{
+	struct top* ctx = cct->top;
+
+	alloc_rw_buf(ctx);
+
+	uint64_t need = st->size;
+	uint64_t done = 0;
+
+	char* buf = ctx->buf;
+	long len = ctx->len;
+
+	if(len > need)
+		len = need;
+
+	int rd = 0, wr;
+	int rfd = src->fd;
+	int wfd = dst->fd;
+
+	while(done < need) {
+		if((rd = sys_read(rfd, buf, len)) <= 0)
+			break;
+		if((wr = writeall(wfd, buf, rd)) < 0)
+			failat("write", dst->dir, dst->name, wr);
+		done += rd;
+	} if(rd < 0) {
+		failat("read", src->dir, src->name, rd);
+	}
+}
+
+static void transfer(CCT, DST, SRC, struct stat* st)
+{
+	if(!cct->nosf)
+		goto rw;
+
+	if(sendfile(cct, dst, src, st) >= 0)
+		return;
+rw:
+	cct->nosf = 1;
+
+	readwrite(cct, dst, src, st);
 }
 
 /* Tree walking routines (the core of the tool) */
