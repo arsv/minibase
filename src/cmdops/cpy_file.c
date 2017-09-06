@@ -94,10 +94,10 @@ static void readwrite(CCT, DST, SRC, uint64_t* size)
 }
 
 /* Sendfile may not work on a given pair of descriptors for various reasons.
-   If this happens, we fall back to read/write calls.
+   If this happens, fall back to read/write calls.
 
-   Generally the reasons depend on directory (and the underlying fs) so if
-   sendfile fails for one file we stop using it for the whole directory. */
+   Generally the reasons depend on directory (and the underlying fs), so if
+   sendfile fails for one file stop using it for the whole directory. */
 
 static void moveblock(CCT, DST, SRC, uint64_t* size)
 {
@@ -116,28 +116,36 @@ static void moveblock(CCT, DST, SRC, uint64_t* size)
    only write data-filled blocks.
 
    Non-sparse files contain one block spanning the whole file and no holes,
-   so a single call to moveblock is enough. */
+   so a single call to moveblock is enough.
 
-void transfer(CCT, DST, SRC, uint64_t* size)
+   Sparse files are rare, and it would be really great to skip most of this
+   code as fast as possible. Sadly the best we can do is to check the block
+   count. */
+
+void transfer(CCT, DST, SRC, struct stat* st)
 {
 	int rfd = src->fd;
 	int wfd = dst->fd;
 
+	if(512*st->blocks >= st->size)
+		goto plain;
+
+	uint64_t size = st->size;
 	int64_t ds;
 	int64_t de;
 	uint64_t blk;
 
 	ds = sys_lseek(rfd, 0, SEEK_DATA);
 
-	if(ds == -EINVAL || ds >= *size)
+	if(ds == -EINVAL || ds >= size)
 		goto plain;
 
 	de = sys_lseek(rfd, ds, SEEK_HOLE);
 
-	if(de < 0 || de >= *size)
+	if(de < 0 || de >= size)
 		goto plain;
 
-	sys_ftruncate(wfd, *size);
+	sys_ftruncate(wfd, size);
 
 	while(1) {
 		sys_lseek(wfd, ds, SEEK_SET);
@@ -146,7 +154,7 @@ void transfer(CCT, DST, SRC, uint64_t* size)
 		if((blk = de - ds) > 0)
 			moveblock(cct, dst, src, &blk);
 
-		if(de >= *size)
+		if(de >= size)
 			break;
 
 		ds = sys_lseek(rfd, de, SEEK_DATA);
@@ -159,5 +167,5 @@ void transfer(CCT, DST, SRC, uint64_t* size)
 	return;
 
 plain:
-	moveblock(cct, dst, src, size);
+	moveblock(cct, dst, src, &st->size);
 }

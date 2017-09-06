@@ -34,7 +34,7 @@ struct cct {
 #define DST struct atfd* dst
 #define CCT struct cct* cct
 
-void transfer(CCT, DST, SRC, uint64_t* size);
+void transfer(CCT, DST, SRC, struct stat* st);
 
 #define noreturn __attribute__((noreturn))
 

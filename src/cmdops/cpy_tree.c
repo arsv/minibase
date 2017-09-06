@@ -297,7 +297,7 @@ static void copydata(CCT, char* dstname, char* srcname, struct stat* st)
 	open_prep_destination(&dst, &src, st);
 
 	if(dst.fd >= 0 && st->size)
-		transfer(cct, &dst, &src, &st->size);
+		transfer(cct, &dst, &src, st);
 
 	if(dst.fd >= 0)
 		sys_close(dst.fd);
