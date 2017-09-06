@@ -9,6 +9,10 @@ struct top {
 
 	int move;
 	int newc;
+	int user;
+
+	int uid;
+	int gid;
 };
 
 struct atfd {
@@ -38,5 +42,8 @@ struct cct {
 #define noreturn __attribute__((noreturn))
 
 void failat(const char* msg, char* dir, char* name, int err) noreturn;
+void warnat(const char* msg, char* dir, char* name, int err);
+
 void runrec(CCT, char* dstname, char* srcname, int type);
 void copyfile(CCT, char* dstname, char* srcname, struct stat* st);
+void apply_props(CCT, char* dir, char* name, int fd, struct stat* st);

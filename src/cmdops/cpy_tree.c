@@ -12,10 +12,7 @@
 
 #include "cpy.h"
 
-/* Tree-walking and direntry-level stuff.
-
-   This tool uses at-functions internally, but needs full paths
-   to report errors. */
+/* Tree-walking and direntry-level stuff. */
 
 static int pathlen(char* dir, char* name)
 {
@@ -41,7 +38,7 @@ static void makepath(char* buf, int size, char* dir, char* name)
 	*p = '\0';
 }
 
-static void warnat(const char* msg, char* dir, char* name, int err)
+void warnat(const char* msg, char* dir, char* name, int err)
 {
 	int plen = pathlen(dir, name);
 	char path[plen];
@@ -55,6 +52,20 @@ void failat(const char* msg, char* dir, char* name, int err)
 {
 	warnat(msg, dir, name, err);
 	_exit(-1);
+}
+
+void apply_props(CCT, char* dir, char* name, int fd, struct stat* st)
+{
+	int ret;
+
+	if(!cct->top->user)
+		;
+	else if(st->uid == cct->top->uid && st->gid == cct->top->gid)
+		;
+	else if((ret = sys_fchown(fd, st->uid, st->gid)) < 0)
+		failat("chown", dir, name, ret);
+
+	/* todo: utimens */
 }
 
 /* Utils for move/rename mode */
@@ -147,11 +158,6 @@ static int creat_dir(CCT, int at, char* dir, char* name, struct stat* sst)
 	if(st.dev == sst->dev && st.ino == sst->ino)
 		return -EALREADY; /* copy into self */
 
-	if(st.mode == sst->mode)
-		;
-	else if((ret = sys_fchmod(fd, sst->mode)) < 0)
-		goto fail;
-
 	return fd;
 
 make:
@@ -159,6 +165,8 @@ make:
 		goto fail;
 	if((fd = ret = sys_openat(at, name, O_DIRECTORY)) < 0)
 		goto fail;
+
+	apply_props(cct, dir, name, fd, sst);
 
 	return fd;
 

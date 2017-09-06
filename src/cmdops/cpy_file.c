@@ -240,6 +240,8 @@ open:
 	if((fd = sys_openat4(dst->at, dst->name, creat, mode)) < 0)
 		failat(NULL, dst->dir, dst->name, fd);
 
+	apply_props(cct, dst->dir, dst->name, fd, sst);
+
 	dst->fd = fd;
 }
 

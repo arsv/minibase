@@ -3,6 +3,7 @@
 #include <sys/fpath.h>
 #include <sys/fprop.h>
 #include <sys/mman.h>
+#include <sys/creds.h>
 #include <sys/splice.h>
 
 #include <errtag.h>
@@ -14,12 +15,13 @@
 
 ERRTAG("cpy");
 
-#define OPTS "nthom"
+#define OPTS "nthomu"
 #define OPT_n (1<<0)
 #define OPT_t (1<<1)
 #define OPT_h (1<<2)
 #define OPT_o (1<<3)
 #define OPT_m (1<<4)
+#define OPT_u (1<<5)
 
 /* Arguments parsing and tree walker invocation */
 
@@ -84,6 +86,8 @@ static int prep_opts(CTX, int argc, char** argv)
 {
 	int i = 1, opts = 0;
 
+	memzero(ctx, sizeof(*ctx));
+
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
@@ -94,6 +98,12 @@ static int prep_opts(CTX, int argc, char** argv)
 
 	ctx->move = opts & OPT_m;
 	ctx->newc = opts & OPT_n;
+	ctx->user = opts & OPT_u;
+
+	if(ctx->user) {
+		ctx->uid = sys_getuid();
+		ctx->gid = sys_getgid();
+	}
 
 	return opts;
 }
