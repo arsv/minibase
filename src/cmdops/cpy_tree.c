@@ -59,11 +59,6 @@ void failat(const char* msg, char* dir, char* name, int err)
 
 /* Utils for move/rename mode */
 
-static int movemove(CCT)
-{
-	return cct->top->move;
-}
-
 static int rename(CCT, char* dstname, char* srcname)
 {
 	int srcat = cct->src.at;
@@ -134,36 +129,46 @@ static int open_directory(int at, char* dir, char* name, struct stat* st)
 	return fd;
 }
 
-static int open_creat_dir(int at, char* dir, char* name, int mode)
+static int creat_dir(CCT, int at, char* dir, char* name, struct stat* sst)
 {
-	int ret;
-
-	if((ret = sys_openat(at, name, O_DIRECTORY)) >= 0)
-		return ret;
-	else if(ret != -ENOENT)
-		goto err;
-	if((ret = sys_mkdirat(at, name, mode)) < 0)
-		goto err;
-	if((ret = sys_openat(at, name, O_DIRECTORY)) >= 0)
-		return ret;
-err:
-	failat(NULL, dir, name, ret);
-}
-
-static int same_dir(int fd, char* dir, char* name, struct stat* sst)
-{
+	int fd, ret;
 	struct stat st;
-	int ret;
+
+	if((fd = ret = sys_openat(at, name, O_DIRECTORY)) == -ENOENT)
+		goto make;
+	else if(ret < 0)
+		goto fail;
+	else if(cct->top->newc)
+		failat(NULL, dir, name, -EEXIST);
 
 	if((ret = sys_fstat(fd, &st)) < 0)
-		failat("stat", dir, name, ret);
+		goto fail;
 
-	return (st.dev == sst->dev && st.ino == sst->ino);
+	if(st.dev == sst->dev && st.ino == sst->ino)
+		return -EALREADY; /* copy into self */
+
+	if(st.mode == sst->mode)
+		;
+	else if((ret = sys_fchmod(fd, sst->mode)) < 0)
+		goto fail;
+
+	return fd;
+
+make:
+	if((ret = sys_mkdirat(at, name, sst->mode)) < 0)
+		goto fail;
+	if((fd = ret = sys_openat(at, name, O_DIRECTORY)) < 0)
+		goto fail;
+
+	return fd;
+
+fail:
+	failat(NULL, dir, name, ret);
 }
 
 static void directory(CCT, char* dstname, char* srcname, struct stat* st)
 {
-	int move = movemove(cct);
+	int move = cct->top->move;
 
 	if(move && rename(cct, dstname, srcname))
 		return;
@@ -175,16 +180,18 @@ static void directory(CCT, char* dstname, char* srcname, struct stat* st)
 	char* dstdir = cct->dst.dir;
 
 	int srcfd = open_directory(srcat, srcdir, srcname, st);
-	int dstfd = open_creat_dir(dstat, dstdir, dstname, st->mode);
+	int dstfd = creat_dir(cct, dstat, dstdir, dstname, st);
+
+	if(dstfd == -EALREADY) {
+		sys_close(srcfd);
+		return;
+	}
 
 	int srclen = pathlen(srcdir, srcname);
 	int dstlen = pathlen(dstdir, dstname);
 
 	char srcpath[srclen];
 	char dstpath[dstlen];
-
-	if(same_dir(dstfd, dstdir, dstname, st))
-		goto out;
 
 	makepath(srcpath, sizeof(srcpath), srcdir, srcname);
 	makepath(dstpath, sizeof(dstpath), dstdir, dstname);
@@ -198,14 +205,14 @@ static void directory(CCT, char* dstname, char* srcname, struct stat* st)
 	scan_directory(&next);
 
 	if(move) rmdir(srcat, srcdir, srcname);
-out:
+
 	sys_close(srcfd);
 	sys_close(dstfd);
 }
 
 static void regular(CCT, char* dstname, char* srcname, struct stat* st)
 {
-	int move = movemove(cct);
+	int move = cct->top->move;
 
 	if(move && rename(cct, dstname, srcname))
 		return;
@@ -221,7 +228,7 @@ static void regular(CCT, char* dstname, char* srcname, struct stat* st)
 
 static void symlink(CCT, char* dstname, char* srcname, struct stat* srcst)
 {
-	int move = movemove(cct);
+	int move = cct->top->move;
 
 	int srcat = cct->src.at;
 	int dstat = cct->dst.at;
@@ -243,7 +250,7 @@ static void symlink(CCT, char* dstname, char* srcname, struct stat* srcst)
 
 	if((ret = sys_symlinkat(buf, dstat, dstname)) >= 0)
 		goto got;
-	if(ret != -EEXIST)
+	if(ret != -EEXIST || cct->top->newc)
 		goto err;
 	if((ret = sys_unlinkat(dstat, dstname, 0)) < 0)
 		failat("unlink", dstdir, dstname, ret);

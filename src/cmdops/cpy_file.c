@@ -210,7 +210,7 @@ static void open_stat_source(SRC, struct stat* st)
    It is probably possible to avoid it, but it's going to be tricky
    and doing so because of a single extra syscall hardly makes sense. */
 
-static void open_prep_destination(DST, SRC, struct stat* sst)
+static void open_prep_destination(CCT, DST, SRC, struct stat* sst)
 {
 	int fd, ret;
 	int creat = O_WRONLY | O_CREAT | O_EXCL;
@@ -218,11 +218,11 @@ static void open_prep_destination(DST, SRC, struct stat* sst)
 	int mode = sst->mode;
 	struct stat st;
 
-	if((ret = sys_fstatat(dst->at, dst->name, &st, flags)) >= 0)
-		;
-	else if(ret == -ENOENT)
+	if((ret = sys_fstatat(dst->at, dst->name, &st, flags)) == -ENOENT)
 		goto open;
-	else
+	else if(ret >= 0 && cct->top->newc)
+		failat(NULL, dst->dir, dst->name, ret);
+	else if(ret < 0)
 		failat("stat", dst->dir, dst->name, ret);
 
 	if((st.mode & S_IFMT) == S_IFDIR)
@@ -261,7 +261,7 @@ void copyfile(CCT, char* dstname, char* srcname, struct stat* st)
 	};
 
 	open_stat_source(&src, st);
-	open_prep_destination(&dst, &src, st);
+	open_prep_destination(cct, &dst, &src, st);
 
 	if(dst.fd >= 0 && st->size)
 		transfer(cct, &dst, &src, st);

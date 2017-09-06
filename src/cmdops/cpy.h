@@ -8,6 +8,7 @@ struct top {
 	long len;
 
 	int move;
+	int newc;
 };
 
 struct atfd {

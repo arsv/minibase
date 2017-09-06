@@ -93,6 +93,7 @@ static int prep_opts(CTX, int argc, char** argv)
 	ctx->opts = opts;
 
 	ctx->move = opts & OPT_m;
+	ctx->newc = opts & OPT_n;
 
 	return opts;
 }
