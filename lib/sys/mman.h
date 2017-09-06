@@ -9,6 +9,18 @@ inline static int mmap_error(void* ptr)
 	return (ret < 0 && ret > -2048);
 }
 
+inline static int brk_error(void* brk, void* end)
+{
+	if(mmap_error(brk))
+		return 1;
+	if(mmap_error(end))
+		return 1;
+	if(end <= brk)
+		return 1;
+
+	return 0;
+}
+
 inline static void* sys_brk(void* ptr)
 {
 	return (void*)syscall1(NR_brk, (long)ptr);
