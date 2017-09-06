@@ -45,6 +45,7 @@ int main(int argc, char** argv)
 	fill(fd, 5*PAGE, rn);
 	skip(fd, 20*PAGE);
 	fill(fd, 15*PAGE, rn);
+	skip(fd, 1*PAGE);
 
 	return 0;
 }
