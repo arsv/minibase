@@ -29,7 +29,7 @@ void* heap_alloc(CTX, int size)
 		hp->end = sys_brk(hp->end + need);
 	}
 
-	if(new > hp->end)
+	if(mmap_error(hp->end) || new > hp->end)
 		fail("cannot allocate heap", NULL, 0);
 
 	hp->ptr = new;

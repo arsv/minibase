@@ -13,12 +13,17 @@
 
 void hinit(struct sh* ctx)
 {
-	void* heap = sys_brk(0);
-	ctx->heap = heap;
+	void* brk = sys_brk(0);
+	void* end = sys_brk(brk + 4096);
+
+	if(brk_error(brk, end))
+		quit(ctx, "heap init failed", NULL, 0);
+
+	ctx->heap = brk;
 	ctx->esep = NULL;
-	ctx->csep = heap;
-	ctx->hptr = heap;
-	ctx->hend = sys_brk(heap + 4096);
+	ctx->csep = brk;
+	ctx->hptr = brk;
+	ctx->hend = end;
 }
 
 void* halloc(struct sh* ctx, int len)
@@ -32,7 +37,7 @@ void* halloc(struct sh* ctx, int len)
 	spc += (PAGE - spc % PAGE) % PAGE;
 	ctx->hend = sys_brk(ctx->hend + spc);
 
-	if(ctx->hptr + len < ctx->hend)
+	if(mmap_error(ctx->hend))
 		quit(ctx, "cannot allocate memory", NULL, 0);
 ptr:
 	ctx->hptr += len;

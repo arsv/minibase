@@ -55,8 +55,8 @@ static int scrypt(void* D, int dlen, void* P, int plen, void* S, int slen)
 	long mem = scrypt_init(&sc, n, r, p);
 	void* end = sys_brk(brk + mem);
 
-	if(end < brk + n)
-		fail("brk", NULL, ENOMEM);
+	if(brk_error(brk, end))
+		fail("brk", NULL, -ENOMEM);
 
 	scrypt_temp(&sc, brk, end - brk);
 	scrypt_data(&sc, P, plen, S, slen);

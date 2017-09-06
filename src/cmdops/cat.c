@@ -48,10 +48,10 @@ static void prepbuf(struct cbuf* cb)
 	if(cb->brk)
 		return;
 
-	void* brk = (void*) sys_brk(0);
-	void* end = (void*) sys_brk(brk + CATBUF);
+	void* brk = sys_brk(0);
+	void* end = sys_brk(brk + CATBUF);
 
-	if(end <= brk)
+	if(brk_error(brk, end))
 		fail("cannot allocate memory", NULL, 0);
 
 	cb->brk = brk;

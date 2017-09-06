@@ -39,7 +39,7 @@ static void dump_contents(int clear)
 	char* buf = sys_brk(0);
 	char* end = sys_brk(buf + size + 1);
 
-	if(end - buf < size)
+	if(brk_error(buf, end))
 		fail("cannot allocate memory", NULL, 0);
 
 	if((len = sys_klogctl(act, buf, size)) < 0)

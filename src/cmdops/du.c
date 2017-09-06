@@ -206,7 +206,7 @@ void init_heap(struct heap* ctx, int size)
 	ctx->end = sys_brk(ctx->brk + size);
 	ctx->ptr = ctx->brk;
 
-	if(ctx->end <= ctx->brk)
+	if(brk_error(ctx->brk, ctx->end))
 		fail("cannot init heap", NULL, 0);
 
 	ctx->count = 0;
@@ -224,7 +224,7 @@ void* alloc(struct heap* ctx, int len)
 		char* req = ctx->end + need;
 		char* new = sys_brk(req);
 
-		if(new < req)
+		if(mmap_error(new))
 			fail("cannot allocate memory", NULL, 0);
 
 		ctx->end = new;

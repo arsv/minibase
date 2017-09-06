@@ -82,9 +82,7 @@ static void* setbrk(void* old, int incr)
 {
 	void* ptr = sys_brk(old + incr);
 
-	if(mmap_error(ptr))
-		fail("brk", NULL, (long)ptr);
-	if(old && ptr == old)
+	if(brk_error(old, ptr))
 		fail("out of memory", NULL, 0);
 
 	return ptr;

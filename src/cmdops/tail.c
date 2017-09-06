@@ -158,7 +158,7 @@ void allocate_tail_buf(struct top* ctx, int len)
 	void* brk = sys_brk(0);
 	void* end = sys_brk(brk + len);
 
-	if(end - brk < len)
+	if(brk_error(brk, end))
 		fail("cannot allocate memory", NULL, 0);
 
 	ctx->buf = brk;

@@ -332,7 +332,7 @@ static void alloc_tail_buf(struct tail* ta, int size)
 	char* brk = sys_brk(0);
 	char* end = sys_brk(brk + size);
 
-	if(end <= brk)
+	if(brk_error(brk, end))
 		fail("cannot allocate memory", NULL, 0);
 
 	ta->brk = brk;

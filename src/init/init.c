@@ -148,7 +148,7 @@ static int extend(char* brk, int curr, int len)
 
 	char* end = sys_brk(brk + alloc);
 
-	if(end < brk + alloc) {
+	if(brk_error(brk, end)) {
 		warn("out of memory", NULL, 0);
 		return -1;
 	}

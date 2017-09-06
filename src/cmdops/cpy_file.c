@@ -52,6 +52,9 @@ static void alloc_rw_buf(CTX)
 	char* buf = sys_brk(0);
 	char* end = sys_brk(buf + RWBUFSIZE);
 
+	if(brk_error(buf, end))
+		fail("cannot allocate memory", NULL, 0);
+
 	ctx->buf = buf;
 	ctx->len = end - buf;
 }

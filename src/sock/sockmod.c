@@ -68,6 +68,9 @@ static void init_heap(CTX)
 {
 	void* brk = sys_brk(0);
 
+	if(mmap_error(brk))
+		fail("cannot allocate memory", NULL, 0);
+
 	ctx->brk = brk;
 	ctx->ptr = brk;
 	ctx->end = brk;
@@ -82,9 +85,7 @@ static void* heap_alloc(CTX, long size)
 	void* req = ptr + size;
 	void* end = ctx->end;
 
-	if(req > end)
-		end = sys_brk(req);
-	if(req > end)
+	if(req > end && mmap_error(end = sys_brk(req)))
 		fail("cannot allocate memory", NULL, 0);
 
 	ctx->end = end;
@@ -372,7 +373,10 @@ static void drop_file_bufs(CTX)
 {
 	void* brk = ctx->brk;
 
-	sys_brk(brk);
+	brk = sys_brk(brk);
+
+	if(mmap_error(brk))
+		fail("cannot shrink heap", NULL, 0);
 
 	ctx->ptr = brk;
 	ctx->end = brk;
