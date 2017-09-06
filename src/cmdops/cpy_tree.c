@@ -122,12 +122,14 @@ static void scan_directory(CCT)
 	}
 }
 
-static int open_directory(int at, char* dir, char* name)
+static int open_directory(int at, char* dir, char* name, struct stat* st)
 {
-	int fd;
+	int fd, ret;
 
 	if((fd = sys_openat(at, name, O_DIRECTORY)) < 0)
 		failat(NULL, dir, name, fd);
+	if((ret = sys_fstat(fd, st)) < 0)
+		failat("stat", dir, name, ret);
 
 	return fd;
 }
@@ -148,6 +150,17 @@ err:
 	failat(NULL, dir, name, ret);
 }
 
+static int same_dir(int fd, char* dir, char* name, struct stat* sst)
+{
+	struct stat st;
+	int ret;
+
+	if((ret = sys_fstat(fd, &st)) < 0)
+		failat("stat", dir, name, ret);
+
+	return (st.dev == sst->dev && st.ino == sst->ino);
+}
+
 static void directory(CCT, char* dstname, char* srcname, struct stat* st)
 {
 	int move = movemove(cct);
@@ -161,7 +174,7 @@ static void directory(CCT, char* dstname, char* srcname, struct stat* st)
 	char* srcdir = cct->src.dir;
 	char* dstdir = cct->dst.dir;
 
-	int srcfd = open_directory(srcat, srcdir, srcname);
+	int srcfd = open_directory(srcat, srcdir, srcname, st);
 	int dstfd = open_creat_dir(dstat, dstdir, dstname, st->mode);
 
 	int srclen = pathlen(srcdir, srcname);
@@ -169,6 +182,9 @@ static void directory(CCT, char* dstname, char* srcname, struct stat* st)
 
 	char srcpath[srclen];
 	char dstpath[dstlen];
+
+	if(same_dir(dstfd, dstdir, dstname, st))
+		goto out;
 
 	makepath(srcpath, sizeof(srcpath), srcdir, srcname);
 	makepath(dstpath, sizeof(dstpath), dstdir, dstname);
@@ -181,10 +197,10 @@ static void directory(CCT, char* dstname, char* srcname, struct stat* st)
 
 	scan_directory(&next);
 
+	if(move) rmdir(srcat, srcdir, srcname);
+out:
 	sys_close(srcfd);
 	sys_close(dstfd);
-
-	if(move) rmdir(srcat, srcdir, srcname);
 }
 
 /* The source tree is supposed to be static while cpy works.
@@ -260,7 +276,9 @@ open:
 	dst->fd = fd;
 }
 
-static void copydata(CCT, char* dstname, char* srcname)
+/* Directory-level st is only used here as a storage space. */
+
+static void copydata(CCT, char* dstname, char* srcname, struct stat* st)
 {
 	struct atfd src = {
 		.at = cct->src.at,
@@ -275,13 +293,11 @@ static void copydata(CCT, char* dstname, char* srcname)
 		.fd = -1
 	};
 
-	struct stat st;
+	open_stat_source(&src, st);
+	open_prep_destination(&dst, &src, st);
 
-	open_stat_source(&src, &st);
-	open_prep_destination(&dst, &src, &st);
-
-	if(dst.fd >= 0 && st.size)
-		transfer(cct, &dst, &src, &st.size);
+	if(dst.fd >= 0 && st->size)
+		transfer(cct, &dst, &src, &st->size);
 
 	if(dst.fd >= 0)
 		sys_close(dst.fd);
@@ -289,14 +305,14 @@ static void copydata(CCT, char* dstname, char* srcname)
 	sys_close(src.fd);
 }
 
-static void regular(CCT, char* dstname, char* srcname)
+static void regular(CCT, char* dstname, char* srcname, struct stat* st)
 {
 	int move = movemove(cct);
 
 	if(move && rename(cct, dstname, srcname))
 		return;
 
-	copydata(cct, dstname, srcname);
+	copydata(cct, dstname, srcname, st);
 
 	if(move) delete(cct, srcname);
 }
@@ -377,7 +393,7 @@ void runrec(CCT, char* dstname, char* srcname, int type)
 
 	switch(type) {
 		case DT_DIR: return directory(cct, dstname, srcname, &st);
-		case DT_REG: return regular(cct, dstname, srcname);
+		case DT_REG: return regular(cct, dstname, srcname, &st);
 		case DT_LNK: return symlink(cct, dstname, srcname, &st);
 	}
 

@@ -53,9 +53,6 @@ static void copy_over(CTX, CCT)
 	char* src = shift_arg(ctx);
 	no_more_args(ctx);
 
-	if(!strcmp(dst, src))
-		fail("already here:", src, 0);
-
 	runrec(cct, dst, src, DT_UNKNOWN);
 }
 
@@ -66,9 +63,6 @@ static void copy_many(CTX, CCT)
 	while(got_args(ctx)) {
 		char* src = shift_arg(ctx);
 		char* dst = basename(src);
-
-		if(src == dst)
-			fail("already here:", src, 0);
 
 		runrec(cct, dst, src, DT_UNKNOWN);
 	}
