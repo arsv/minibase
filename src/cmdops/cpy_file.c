@@ -122,7 +122,7 @@ static void moveblock(CCT, DST, SRC, uint64_t* size)
    code as fast as possible. Sadly the best we can do is to check the block
    count. */
 
-void transfer(CCT, DST, SRC, struct stat* st)
+static void transfer(CCT, DST, SRC, struct stat* st)
 {
 	int rfd = src->fd;
 	int wfd = dst->fd;
@@ -168,4 +168,106 @@ void transfer(CCT, DST, SRC, struct stat* st)
 
 plain:
 	moveblock(cct, dst, src, &st->size);
+}
+
+/* The source tree is supposed to be static while cpy works.
+   It may no be however, so there's a small chance that getdents()
+   reports a regular file but subsequent fstat() suddenly shows
+   something non-regular. Even if unlikely, it's probably better
+   to check it.
+
+   Same problem arises at the destination, but there unlink() is
+   much less sensitive, anything is ok as long as it's not a dir.
+
+   The primary point in calling stat() here is to get file mode
+   for the new file. Having its size is nice but not crucial. */
+
+static void open_stat_source(SRC, struct stat* st)
+{
+	int rdonly = O_RDONLY;
+	int flags = AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW;
+	int fd, ret;
+
+	if((fd = sys_openat(src->at, src->name, rdonly)) < 0)
+		failat(NULL, src->dir, src->name, fd);
+	if((ret = sys_fstatat(fd, "", st, flags)) < 0)
+		failat("stat", src->dir, src->name, ret);
+
+	src->fd = fd;
+}
+
+/* The straight path for the destination is to (try to) unlink
+   whatever's there, create a new file, and pipe the data there.
+   The existing entry may happen to be a dir, then we just fail.
+   If cpy gets interrupted mid-transfer, we lose the old dst file
+   (which we would any, so no big deal) but src remains intact.
+
+   This gets much more complicated in case dst == src by whatever
+   means. If cpy unlinks it and gets killed mid-transfer, chances
+   are *src* will be lost. To ment this, we do an extra lstat call
+   on dst->name to exclude that particular case.
+
+   It is probably possible to avoid it, but it's going to be tricky
+   and doing so because of a single extra syscall hardly makes sense. */
+
+static void open_prep_destination(DST, SRC, struct stat* sst)
+{
+	int fd, ret;
+	int creat = O_WRONLY | O_CREAT | O_EXCL;
+	int flags = AT_SYMLINK_NOFOLLOW;
+	int mode = sst->mode;
+	struct stat st;
+
+	if((ret = sys_fstatat(dst->at, dst->name, &st, flags)) >= 0)
+		;
+	else if(ret == -ENOENT)
+		goto open;
+	else
+		failat("stat", dst->dir, dst->name, ret);
+
+	if((st.mode & S_IFMT) == S_IFDIR)
+		failat(NULL, dst->dir, dst->name, -EISDIR);
+
+	if(st.dev == sst->dev && st.ino == sst->ino)
+		return; /* same file */
+
+	if((ret = sys_unlinkat(dst->at, dst->name, 0)) >= 0)
+		;
+	else if(ret == -ENOENT)
+		;
+	else failat("unlink", dst->dir, dst->name, ret);
+open:
+	if((fd = sys_openat4(dst->at, dst->name, creat, mode)) < 0)
+		failat(NULL, dst->dir, dst->name, fd);
+
+	dst->fd = fd;
+}
+
+/* Directory-level st is only used here as a storage space. */
+
+void copyfile(CCT, char* dstname, char* srcname, struct stat* st)
+{
+	struct atfd src = {
+		.at = cct->src.at,
+		.dir = cct->src.dir,
+		.name = srcname
+	};
+
+	struct atfd dst = {
+		.at = cct->dst.at,
+		.dir = cct->dst.dir,
+		.name = dstname,
+		.fd = -1
+	};
+
+	open_stat_source(&src, st);
+	open_prep_destination(&dst, &src, st);
+
+	if(dst.fd >= 0 && st->size)
+		transfer(cct, &dst, &src, st);
+
+	if(dst.fd >= 0)
+		sys_close(dst.fd);
+
+	sys_close(src.fd);
 }

@@ -34,9 +34,8 @@ struct cct {
 #define DST struct atfd* dst
 #define CCT struct cct* cct
 
-void transfer(CCT, DST, SRC, struct stat* st);
-
 #define noreturn __attribute__((noreturn))
 
-void runrec(CCT, char* dstname, char* srcname, int type);
 void failat(const char* msg, char* dir, char* name, int err) noreturn;
+void runrec(CCT, char* dstname, char* srcname, int type);
+void copyfile(CCT, char* dstname, char* srcname, struct stat* st);
