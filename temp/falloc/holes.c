@@ -19,9 +19,9 @@ static uint64_t lseek(int fd, uint64_t off, int whence)
 static void report(char* tag, uint64_t from, uint64_t to)
 {
 	FMTBUF(p, e, buf, 100);
-	p = fmtpad0(p, e, 8, fmtxlong(p, e, from));
+	p = fmtpad0(p, e, 8, fmtlong(p, e, from));
 	p = fmtstr(p, e, " ");
-	p = fmtpad0(p, e, 8, fmtxlong(p, e, to));
+	p = fmtpad0(p, e, 8, fmtlong(p, e, to));
 	p = fmtstr(p, e, " ");
 	p = fmtstr(p, e, tag);
 	p = fmtstr(p, e, " len ");
