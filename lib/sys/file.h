@@ -62,10 +62,25 @@ inline static long sys_dup2(int fda, int fdb)
 #define SEEK_DATA 3
 #define SEEK_HOLE 4
 
+#ifdef NR__llseek
+inline static uint64_t sys_lseek(int fd, uint64_t off, int whence)
+{
+	uint64_t pos;
+	uint32_t hi = (off >> 32);
+	uint32_t lo = off;
+	long ret;
+
+	if((ret = syscall(NR__llseek, fd, hi, lo, &pos, whence)) < 0)
+		return ret;
+
+	return pos;
+}
+#else
 inline static long sys_lseek(int fd, uint64_t off, int whence)
 {
 	return syscall3(NR_lseek, fd, off, whence);
 }
+#endif
 
 #ifndef NR_fstatat
 #define NR_fstatat NR_newfstatat
