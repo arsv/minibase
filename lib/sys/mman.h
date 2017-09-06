@@ -2,25 +2,26 @@
 #include <bits/types.h>
 #include <bits/mman.h>
 
-inline static long sys_brk(void* ptr)
+inline static int mmap_error(void* ptr)
 {
-	return syscall1(NR_brk, (long)ptr);
-}
+	long ret = (long)ptr;
 
-inline static int mmap_error(long ret)
-{
 	return (ret < 0 && ret > -2048);
 }
 
-inline static long sys_mmap(void* addr, size_t length, int prot, int flags,
-                            int fd, size_t offset)
+inline static void* sys_brk(void* ptr)
 {
-	return syscall6(NR_mmap, (long)addr, length, prot, flags, fd, offset);
+	return (void*)syscall1(NR_brk, (long)ptr);
 }
 
-inline static long sys_mremap(void* old, size_t oldsize, size_t newsize, int flags)
+inline static void* sys_mmap(void* addr, size_t length, int prot, int flags, int fd, size_t offset)
 {
-	return syscall4(NR_mremap, (long)old, oldsize, newsize, flags);
+	return (void*)syscall6(NR_mmap, (long)addr, length, prot, flags, fd, offset);
+}
+
+inline static void* sys_mremap(void* old, size_t oldsize, size_t newsize, int flags)
+{
+	return (void*)syscall4(NR_mremap, (long)old, oldsize, newsize, flags);
 }
 
 inline static long sys_munmap(void* ptr, unsigned long len)
