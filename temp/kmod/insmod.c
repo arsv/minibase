@@ -24,15 +24,13 @@ static void* mmap_module(const char* name, unsigned long* len)
 	if((ret = sys_fstat(fd, &st)) < 0)
 		fail("cannot stat", name, ret);
 
-	const int prot = PROT_READ;
-	const int flags = MAP_SHARED;
-	ret = sys_mmap(NULL, st.size, prot, flags, fd, 0);
+	void* ptr = sys_mmap(NULL, st.size, PROT_READ, MAP_SHARED, fd, 0);
 
-	if(mmap_error(ret))
-		fail("cannot mmap", name, ret);
+	if(mmap_error(ptr))
+		fail("cannot mmap", name, (long)ptr);
 
 	*len = st.size;
-	return (void*) ret;
+	return ptr;
 }
 
 static int load_module(char* name, char* pars)
