@@ -26,6 +26,11 @@ inline static long sys_chmod(const char* path, int mode)
 #endif
 }
 
+inline static long sys_fchmod(int fd, int mode)
+{
+	return syscall2(NR_fchmod, fd, mode);
+}
+
 inline static long sys_fchmodat(int at, char* path, int mode, int flags)
 {
 	return syscall4(NR_fchmodat, at, (long)path, mode, flags);
