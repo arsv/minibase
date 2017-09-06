@@ -114,9 +114,7 @@ int main(int argc, char** argv)
 		.dst = { AT_FDCWD, NULL }
 	};
 
-	if(opts & OPT_h)
-		;
-	else if(opts & OPT_t)
+	if(opts & OPT_t)
 		open_target_dir(ctx, &cct);
 
 	if(opts & (OPT_t | OPT_h))
