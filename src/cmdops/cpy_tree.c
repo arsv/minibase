@@ -13,7 +13,7 @@
 #include "cpy.h"
 
 /* Tree-walking and direntry-level stuff.
-   
+
    This tool uses at-functions internally, but needs full paths
    to report errors. */
 
@@ -187,38 +187,77 @@ static void directory(CCT, char* dstname, char* srcname, struct stat* st)
 	if(move) rmdir(srcat, srcdir, srcname);
 }
 
-static void open_atfd(struct atfd* ff, struct stat* st, int flags, int mode)
+/* The source tree is supposed to be static while cpy works.
+   It may no be however, so there's a small chance that getdents()
+   reports a regular file but subsequent fstat() suddenly shows
+   something non-regular. Even if unlikely, it's probably better
+   to check it.
+
+   Same problem arises at the destination, but there unlink() is
+   much less sensitive, anything is ok as long as it's not a dir.
+
+   The primary point in calling stat() here is to get file mode
+   for the new file. Having its size is nice but not crucial. */
+
+static void open_stat_source(SRC, struct stat* st)
 {
+	int rdonly = O_RDONLY;
+	int flags = AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW;
 	int fd, ret;
-	int at = ff->at;
-	char* dir = ff->dir;
-	char* name = ff->name;
 
-	int stf = AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW;
+	if((fd = sys_openat(src->at, src->name, rdonly)) < 0)
+		failat(NULL, src->dir, src->name, fd);
+	if((ret = sys_fstatat(fd, "", st, flags)) < 0)
+		failat("stat", src->dir, src->name, ret);
 
-	if((fd = sys_openat4(at, name, flags, mode)) < 0)
-		failat(NULL, dir, name, fd);
-	if((ret = sys_fstatat(fd, "", st, stf)) < 0)
-		failat("stat", dir, name, ret);
-
-	ff->fd = fd;
+	src->fd = fd;
 }
 
-static void prep_file_pair(DST, SRC, uint64_t* size)
+/* The straight path for the destination is to (try to) unlink
+   whatever's there, create a new file, and pipe the data there.
+   The existing entry may happen to be a dir, then we just fail.
+   If cpy gets interrupted mid-transfer, we lose the old dst file
+   (which we would any, so no big deal) but src remains intact.
+
+   This gets much more complicated in case dst == src by whatever
+   means. If cpy unlinks it and gets killed mid-transfer, chances
+   are *src* will be lost. To ment this, we do an extra lstat call
+   on dst->name to exclude that particular case.
+
+   It is probably possible to avoid it, but it's going to be tricky
+   and doing so because of a single extra syscall hardly makes sense. */
+
+static void open_prep_destination(DST, SRC, struct stat* sst)
 {
-	struct stat srcst;
-	struct stat dstst;
+	int fd, ret;
+	int creat = O_WRONLY | O_CREAT | O_EXCL;
+	int flags = AT_SYMLINK_NOFOLLOW;
+	int mode = sst->mode;
+	struct stat st;
 
-	int sflags = O_RDONLY;
-	int dflags = O_WRONLY | O_CREAT | O_TRUNC;
+	if((ret = sys_fstatat(dst->at, dst->name, &st, flags)) >= 0)
+		;
+	else if(ret == -ENOENT)
+		goto open;
+	else
+		failat("stat", dst->dir, dst->name, ret);
 
-	open_atfd(src, &srcst, sflags, 0);
-	open_atfd(dst, &dstst, dflags, srcst.mode);
+	if((st.mode & S_IFMT) == S_IFDIR)
+		failat(NULL, dst->dir, dst->name, -EISDIR);
 
-	if(srcst.dev == dstst.dev && srcst.ino == dstst.ino)
-		failat("copy into self:", src->dir, src->name, 0);
+	if(st.dev == sst->dev && st.ino == sst->ino)
+		return; /* same file */
 
-	*size = srcst.size;
+	if((ret = sys_unlinkat(dst->at, dst->name, 0)) >= 0)
+		;
+	else if(ret == -ENOENT)
+		;
+	else failat("unlink", dst->dir, dst->name, ret);
+open:
+	if((fd = sys_openat4(dst->at, dst->name, creat, mode)) < 0)
+		failat(NULL, dst->dir, dst->name, fd);
+
+	dst->fd = fd;
 }
 
 static void copydata(CCT, char* dstname, char* srcname)
@@ -232,16 +271,21 @@ static void copydata(CCT, char* dstname, char* srcname)
 	struct atfd dst = {
 		.at = cct->dst.at,
 		.dir = cct->dst.dir,
-		.name = dstname
+		.name = dstname,
+		.fd = -1
 	};
 
-	uint64_t size;
+	struct stat st;
 
-	prep_file_pair(&dst, &src, &size);
+	open_stat_source(&src, &st);
+	open_prep_destination(&dst, &src, &st);
 
-	transfer(cct, &dst, &src, &size);
+	if(dst.fd >= 0 && st.size)
+		transfer(cct, &dst, &src, &st.size);
 
-	sys_close(dst.fd);
+	if(dst.fd >= 0)
+		sys_close(dst.fd);
+
 	sys_close(src.fd);
 }
 
@@ -256,6 +300,10 @@ static void regular(CCT, char* dstname, char* srcname)
 
 	if(move) delete(cct, srcname);
 }
+
+/* Symlinks are "copied" as symlinks, retaining the contents.
+   Current code does not attempt to translate them from src to dst,
+   although at some point it may be nice to have. */
 
 static void symlink(CCT, char* dstname, char* srcname, struct stat* srcst)
 {
@@ -292,6 +340,14 @@ err:
 got:
 	if(move) delete(cct, srcname);
 }
+
+/* We need to know the type of the source file to decide what to do
+   about it, *before* attempting to open it. Normally getdents provides
+   enough information, but it may return DT_UNKNOWN and we must be ready
+   to stat the file instead to get its type.
+
+   The code tries not to do stat() on regular files which will be opened
+   anyway, allowing fstat() on an open fd. */
 
 static int stifmt_to_dt(struct stat* st)
 {
