@@ -66,7 +66,7 @@ static void set_alarm(CTX)
 
 static void init_heap(CTX)
 {
-	void* brk = (void*)sys_brk(0);
+	void* brk = sys_brk(0);
 
 	ctx->brk = brk;
 	ctx->ptr = brk;
@@ -83,7 +83,7 @@ static void* heap_alloc(CTX, long size)
 	void* end = ctx->end;
 
 	if(req > end)
-		end = (void*)sys_brk(req);
+		end = sys_brk(req);
 	if(req > end)
 		fail("cannot allocate memory", NULL, 0);
 
@@ -372,7 +372,7 @@ static void drop_file_bufs(CTX)
 {
 	void* brk = ctx->brk;
 
-	(void)sys_brk(brk);
+	sys_brk(brk);
 
 	ctx->ptr = brk;
 	ctx->end = brk;

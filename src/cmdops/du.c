@@ -202,8 +202,8 @@ static void scan_each(uint64_t* total, int argc, char** argv, int opts)
 
 void init_heap(struct heap* ctx, int size)
 {
-	ctx->brk = (char*)sys_brk(0);
-	ctx->end = (char*)sys_brk(ctx->brk + size);
+	ctx->brk = sys_brk(0);
+	ctx->end = sys_brk(ctx->brk + size);
 	ctx->ptr = ctx->brk;
 
 	if(ctx->end <= ctx->brk)
@@ -222,7 +222,7 @@ void* alloc(struct heap* ctx, int len)
 		long need = len - avail;
 		need += (PAGE - need % PAGE) % PAGE;
 		char* req = ctx->end + need;
-		char* new = (char*)sys_brk(req);
+		char* new = sys_brk(req);
 
 		if(new < req)
 			fail("cannot allocate memory", NULL, 0);

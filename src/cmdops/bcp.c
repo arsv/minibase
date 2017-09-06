@@ -134,12 +134,12 @@ static void parseopts(struct bcp* ctx, int argc, char** argv)
 
 static char* mmapempty(long size)
 {
-	long ret = sys_mmap(NULL, size, PROT_READ, MAP_ANONYMOUS, -1, 0);	
+	void* ptr = sys_mmap(NULL, size, PROT_READ, MAP_ANONYMOUS, -1, 0);
 
-	if(mmap_error(ret))
-		fail("mmap", NULL, ret);
+	if(mmap_error(ptr))
+		fail("mmap", NULL, (long)ptr);
 
-	return (char*)ret;
+	return ptr;
 }
 
 /* Struct file utils */
@@ -242,11 +242,10 @@ static int copymmap(struct file* dst, struct file* src, uint64_t size)
 	while(left > 0) {
 		long part = left > MAXRUN ? MAXRUN : left;
 
-		long addr = sys_mmap(NULL, part, prot, flags, sfd, soff);
-		void* buf = (void*)addr;
+		void* buf = sys_mmap(NULL, part, prot, flags, sfd, soff);
 
-		if(mmap_error(addr))
-			fail("mmap", src->name, addr);
+		if(mmap_error(buf))
+			fail("mmap", src->name, (long)buf);
 
 		if((rd = writeall(dst->fd, buf, part)) < 0)
 			fail("write", dst->name, rd);
@@ -384,7 +383,7 @@ static void zerommap(struct file* dst, uint64_t size)
 		long run = size > MAXRUN ? MAXRUN : size;
 
 		long wrt = sys_write(dst->fd, zeroes, run);
-			
+
 		if(wrt <= 0) /* 0 is not ok here */
 			fail("cannot write to", dst->name, wrt);
 
@@ -446,7 +445,7 @@ static void zrmode(struct bcp* ctx)
 	int setsize = opts & SET_size;
 
 	openstat(dst, O_WRONLY);
-	
+
 	uint64_t size = setsize ? ctx->size : dst->size - dst->off;
 
 	if(!regular(dst))

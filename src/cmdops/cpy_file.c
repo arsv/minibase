@@ -49,8 +49,8 @@ static void alloc_rw_buf(CTX)
 	if(ctx->buf)
 		return;
 
-	char* buf = (char*)sys_brk(0);
-	char* end = (char*)sys_brk(buf + RWBUFSIZE);
+	char* buf = sys_brk(0);
+	char* end = sys_brk(buf + RWBUFSIZE);
 
 	ctx->buf = buf;
 	ctx->len = end - buf;

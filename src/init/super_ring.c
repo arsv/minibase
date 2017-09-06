@@ -41,7 +41,7 @@ static int extend_ring_area(void)
 	int rflags = MREMAP_MAYMOVE;
 
 	int size = ringlength + PAGE;
-	long new;
+	void* new;
 
 	if(ringarea)
 		new = sys_mremap(ringarea, ringlength, size, rflags);
@@ -49,11 +49,11 @@ static int extend_ring_area(void)
 		new = sys_mmap(NULL, size, prot, mflags, -1, 0);
 
 	if(mmap_error(new)) {
-		report("mmap failed", NULL, new);
-		return new;
+		report("mmap failed", NULL, (long)new);
+		return (long)new;
 	}
 
-	ringarea = (char*)new;
+	ringarea = new;
 	ringlength = size;
 
 	return 0;
@@ -185,12 +185,12 @@ static void remap_ring_area(int count)
 		return;
 
 	int size = needpages * PAGE;
-	long new = sys_mremap(ringarea, ringlength, size, 0);
+	void* new = sys_mremap(ringarea, ringlength, size, 0);
 
 	if(mmap_error(new))
 		return;
 
-	ringarea = (char*)new;
+	ringarea = new;
 	ringlength = size;
 }
 

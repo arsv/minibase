@@ -50,12 +50,12 @@ static int estimate_status(void)
 
 static void prep_heap(struct heap* hp, int size)
 {
-	hp->brk = (void*)sys_brk(NULL);
+	hp->brk = sys_brk(NULL);
 
 	size += (PAGE - size % PAGE) % PAGE;
 
 	hp->ptr = hp->brk;
-	hp->end = (void*)sys_brk(hp->brk + size);
+	hp->end = sys_brk(hp->brk + size);
 }
 
 static void free_heap(struct heap* hp)

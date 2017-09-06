@@ -68,12 +68,10 @@ static void read_whole(struct mbuf* mb, char* name)
 
 	int prot = PROT_READ | PROT_WRITE;
 	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
-	ret = sys_mmap(NULL, full, prot, flags, fd, 0);
+	void* buf = sys_mmap(NULL, full, prot, flags, fd, 0);
 
-	if(mmap_error(ret))
-		fail("cannot mmap", name, ret);
-
-	void* buf = (void*) ret;
+	if(mmap_error(buf))
+		fail("cannot mmap", name, (long)buf);
 
 	if((ret = sys_read(fd, buf, len)) < 0)
 		fail("read", name, ret);

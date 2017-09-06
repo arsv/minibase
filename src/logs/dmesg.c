@@ -36,8 +36,8 @@ static void dump_contents(int clear)
 	int act = clear ? SYSLOG_ACTION_READ_CLEAR : SYSLOG_ACTION_READ_ALL;
 	char* actname = clear ? "READ_CLEAR" : "READ_ALL";
 
-	char* buf = (char*)sys_brk(0);
-	char* end = (char*)sys_brk(buf + size + 1);
+	char* buf = sys_brk(0);
+	char* end = sys_brk(buf + size + 1);
 
 	if(end - buf < size)
 		fail("cannot allocate memory", NULL, 0);

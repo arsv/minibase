@@ -17,22 +17,22 @@ static char* mmapanon(long size)
 	int prot = PROT_READ | PROT_WRITE;
 	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
 
-	long ret = sys_mmap(NULL, size, prot, flags, -1, 0);
+	char* ret = sys_mmap(NULL, size, prot, flags, -1, 0);
 
 	if(mmap_error(ret))
-		fail("mmap", NULL, ret);
+		fail("mmap", NULL, (long)ret);
 
-	return (char*)ret;
+	return ret;
 }
 
 static char* mextend(char* buf, long size, long newsize)
 {
-	long ret = sys_mremap(buf, size, newsize, MREMAP_MAYMOVE);
+	char* ret = sys_mremap(buf, size, newsize, MREMAP_MAYMOVE);
 
 	if(mmap_error(ret))
-		fail("mremap", NULL, ret);
+		fail("mremap", NULL, (long)ret);
 
-	return (char*)ret;
+	return ret;
 }
 
 static int child(int fds[2], char* cmd, char* path, char** envp)
@@ -104,15 +104,15 @@ void mmapwhole(struct mbuf* mb, char* name)
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
-	ret = sys_mmap(NULL, st.size, prot, flags, fd, 0);
+	char* ptr = sys_mmap(NULL, st.size, prot, flags, fd, 0);
 
-	if(mmap_error(ret))
-		fail("cannot mmap", name, ret);
+	if(mmap_error(ptr))
+		fail("cannot mmap", name, (long)ptr);
 
 	if(st.size > MAX_FILE_SIZE)
-		fail("file too large:", name, ret);
+		fail("file too large:", name, 0);
 
-	mb->buf = (char*)ret;
+	mb->buf = ptr;
 	mb->len = mb->full = st.size;
 }
 

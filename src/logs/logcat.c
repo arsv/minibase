@@ -219,13 +219,13 @@ static int mmap_whole(struct mbuf* mb, char* name)
 
 	uint64_t size = st.size;
 
-	long ptr = sys_mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
+	void* ptr = sys_mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
 
 	if(mmap_error(ptr))
-		fail("mmap", name, ptr);
+		fail("mmap", name, (long)ptr);
 
-	mb->ptr = (void*)ptr;
-	mb->end = mb->ptr + size;
+	mb->ptr = ptr;
+	mb->end = ptr + size;
 
 	return 0;
 }
@@ -329,8 +329,8 @@ static int wait_inotify(struct tail* ta)
 
 static void alloc_tail_buf(struct tail* ta, int size)
 {
-	char* brk = (void*)sys_brk(0);
-	char* end = (void*)sys_brk(brk + size);
+	char* brk = sys_brk(0);
+	char* end = sys_brk(brk + size);
 
 	if(end <= brk)
 		fail("cannot allocate memory", NULL, 0);

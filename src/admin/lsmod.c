@@ -41,8 +41,8 @@ static char* read_whole(struct strptr* mods, const char* fname)
 	if((fd = sys_open(fname, O_RDONLY)) < 0)
 		fail(NULL, fname, fd);
 
-	char* brk = (char*)sys_brk(0);
-	char* end = (char*)sys_brk(brk + 4*PAGE);
+	char* brk = sys_brk(0);
+	char* end = sys_brk(brk + 4*PAGE);
 
 	if(end <= brk) nomem();
 
@@ -52,7 +52,7 @@ static char* read_whole(struct strptr* mods, const char* fname)
 	while((rd = sys_read(fd, ptr, end - ptr)) > 0) {
 		ptr += rd;
 		if(ptr < end) continue;
-		end = (char*)sys_brk(end + 2*PAGE);
+		end = sys_brk(end + 2*PAGE);
 		if(ptr >= end) nomem();
 	} if(rd < 0) {
 		fail("read", fname, rd);
@@ -97,9 +97,9 @@ static void set_line_ptrs(char* buf, char* end, char** idx, int n)
 
 static char** alloc_index(int n)
 {
-	void* brk = (void*)sys_brk(NULL);
+	void* brk = sys_brk(NULL);
 	void* req = brk + (n+1)*sizeof(char*);
-	void* end = (void*)sys_brk(req);
+	void* end = sys_brk(req);
 
 	if(end < req) nomem();
 

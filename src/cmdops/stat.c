@@ -156,11 +156,11 @@ static char* mmapfile(const char* fname, long* size)
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
-	long mr = sys_mmap(NULL, st.size, prot, flags, fd, 0);
+	void* mr = sys_mmap(NULL, st.size, prot, flags, fd, 0);
 	if(mmap_error(mr)) return NULL;
 
 	*size = st.size;
-	return (char*)mr;
+	return mr;
 }
 
 static char* idname(char* name, char* nend, int id, const char* dictname)

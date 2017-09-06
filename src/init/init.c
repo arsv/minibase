@@ -146,7 +146,7 @@ static int extend(char* brk, int curr, int len)
 	if(len <= curr)
 		return curr;
 
-	char* end = (char*)sys_brk(brk + alloc);
+	char* end = sys_brk(brk + alloc);
 
 	if(end < brk + alloc) {
 		warn("out of memory", NULL, 0);
@@ -186,7 +186,7 @@ static char** load_env_file(const char* name)
 	if((fd = open_stat(name, &len)) < 0)
 		return NULL;
 
-	char* brk = (char*)sys_brk(NULL);
+	char* brk = sys_brk(NULL);
 
 	/* rough guess on avg envline size */
 	if((alloc = extend(brk, 0, len + sizeof(char*)*len/10)) < 0)

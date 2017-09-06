@@ -80,14 +80,14 @@ static char dirbuf[2*PAGE];
 
 static void* setbrk(void* old, int incr)
 {
-	long addr = sys_brk(old + incr);
+	void* ptr = sys_brk(old + incr);
 
-	if(addr < 0 && addr >= -2048)
-		fail("brk", NULL, addr);
-	if(old && (addr == (long)old))
+	if(mmap_error(ptr))
+		fail("brk", NULL, (long)ptr);
+	if(old && ptr == old)
 		fail("out of memory", NULL, 0);
 
-	return (void*)addr;
+	return ptr;
 }
 
 static void* extend(struct topctx* tc, int size)

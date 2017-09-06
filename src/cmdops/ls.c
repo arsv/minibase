@@ -51,8 +51,8 @@ char output[PAGE];
 
 static void init(struct topctx* tc, int opts)
 {
-	void* brk = (void*)xchk(sys_brk(0), "brk", NULL);
-	void* end = (void*)xchk(sys_brk(brk + PAGE), "brk", NULL);
+	void* brk = sys_brk(0);
+	void* end = sys_brk(brk + PAGE);
 
 	if(brk >= end)
 		fail("cannot initialize heap", NULL, 0);
@@ -92,7 +92,7 @@ static void prepspace(struct dataseg* ds, long ext)
 		ext += PAGE - (ext % PAGE);
 
 	void* old = ds->end;
-	void* brk = (void*)xchk(sys_brk(ds->end + ext), "brk", NULL);
+	void* brk = sys_brk(ds->end + ext);
 
 	if(brk <= old)
 		fail("brk", NULL, 0);

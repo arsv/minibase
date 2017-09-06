@@ -13,12 +13,12 @@
 
 void hinit(struct sh* ctx)
 {
-	void* heap = (void*)sys_brk(0);
+	void* heap = sys_brk(0);
 	ctx->heap = heap;
 	ctx->esep = NULL;
 	ctx->csep = heap;
 	ctx->hptr = heap;
-	ctx->hend = (void*)sys_brk(heap + 4096);
+	ctx->hend = sys_brk(heap + 4096);
 }
 
 void* halloc(struct sh* ctx, int len)
@@ -30,7 +30,7 @@ void* halloc(struct sh* ctx, int len)
 
 	int spc = ctx->hend - ctx->hptr - len;
 	spc += (PAGE - spc % PAGE) % PAGE;
-	ctx->hend = (void*)sys_brk(ctx->hend + spc);
+	ctx->hend = sys_brk(ctx->hend + spc);
 
 	if(ctx->hptr + len < ctx->hend)
 		quit(ctx, "cannot allocate memory", NULL, 0);
@@ -81,16 +81,15 @@ int mmapfile(struct mbuf* mb, char* name)
 		goto out;
 	}
 
-	const int prot = PROT_READ;
-	const int flags = MAP_SHARED;
+	void* ptr = sys_mmap(NULL, st.size, PROT_READ, MAP_SHARED, fd, 0);
 
-	ret = sys_mmap(NULL, st.size, prot, flags, fd, 0);
-
-	if(mmap_error(ret))
+	if(mmap_error(ptr)) {
+		ret = (long)ptr;
 		goto out;
+	}
 
 	mb->len = st.size;
-	mb->buf = (char*)ret;
+	mb->buf = ptr;
 	ret = 0;
 out:
 	sys_close(fd);

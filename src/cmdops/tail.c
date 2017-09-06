@@ -155,8 +155,8 @@ int estimate_size(int count)
 
 void allocate_tail_buf(struct top* ctx, int len)
 {
-	void* brk = (void*)sys_brk(0);
-	void* end = (void*)sys_brk(brk + len);
+	void* brk = sys_brk(0);
+	void* end = sys_brk(brk + len);
 
 	if(end - brk < len)
 		fail("cannot allocate memory", NULL, 0);

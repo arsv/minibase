@@ -273,12 +273,12 @@ static void* mmap_area(int need)
 
 	int prot = PROT_READ | PROT_WRITE;
 	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
-	long ret = sys_mmap(NULL, full, prot, flags, -1, 0);
+	void* ptr = sys_mmap(NULL, full, prot, flags, -1, 0);
 
-	if(mmap_error(ret))
-		fail("mmap", NULL, ret);
+	if(mmap_error(ptr))
+		fail("mmap", NULL, (long)ptr);
 
-	return (void*)ret;
+	return ptr;
 }
 
 static int isspace(int c)

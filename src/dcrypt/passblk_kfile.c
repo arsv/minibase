@@ -51,9 +51,9 @@ static int scrypt(void* D, int dlen, void* P, int plen, void* S, int slen)
 	int p = SCRYPT_P;
 
 	struct scrypt sc;
-	void* brk = (void*)sys_brk(0);
+	void* brk = sys_brk(0);
 	long mem = scrypt_init(&sc, n, r, p);
-	void* end = (void*)sys_brk(brk + mem);
+	void* end = sys_brk(brk + mem);
 
 	if(end < brk + n)
 		fail("brk", NULL, ENOMEM);

@@ -14,7 +14,7 @@ void* heap_alloc(CTX, int size)
 	struct heap* hp = &ctx->hp;
 
 	if(!hp->ptr) {
-		void* brk = (void*)sys_brk(NULL);
+		void* brk = sys_brk(NULL);
 		hp->brk = brk;
 		hp->ptr = brk;
 		hp->end = brk;
@@ -26,7 +26,7 @@ void* heap_alloc(CTX, int size)
 	if(new > hp->end) {
 		int need = new - hp->end;
 		need += (PAGE - need) % PAGE;
-		hp->end = (void*)sys_brk(hp->end + need);
+		hp->end = sys_brk(hp->end + need);
 	}
 
 	if(new > hp->end)

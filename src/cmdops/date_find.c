@@ -163,13 +163,13 @@ static void open_zone_file(struct zonefile* zf, const char* name)
 
 	int prot = PROT_READ;
 	int flags = MAP_SHARED;
-	long addr = sys_mmap(NULL, st.size, prot, flags, fd, 0);
+	void* ptr = sys_mmap(NULL, st.size, prot, flags, fd, 0);
 
-	if(mmap_error(addr))
-		fail("mmap", name, addr);
+	if(mmap_error(ptr))
+		fail("mmap", name, (long)ptr);
 
 	zf->name = name;
-	zf->data = (void*)addr;
+	zf->data = ptr;
 	zf->len = st.size;
 }
 

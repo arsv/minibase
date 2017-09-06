@@ -153,13 +153,13 @@ static char* mapfile(const char* name, int* size)
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
-	long ret = sys_mmap(NULL, st.size, prot, flags, fd, 0);
+	void* ptr = sys_mmap(NULL, st.size, prot, flags, fd, 0);
 
-	if(mmap_error(ret))
-		fail("cannot mmap", name, ret);
+	if(mmap_error(ptr))
+		fail("cannot mmap", name, (long)ptr);
 
 	*size = st.size;
-	return (char*)ret;
+	return ptr;
 }
 
 /* We do not close fd and never unmap the area explicitly.

@@ -135,14 +135,13 @@ static void countstdin(struct wc* cnts)
 	const int prot = PROT_READ | PROT_WRITE;
 	const int flags = MAP_PRIVATE;
 
-	long ret = sys_mmap(NULL, len, prot, flags, -1, 0);
+	char* buf = sys_mmap(NULL, len, prot, flags, -1, 0);
 
-	if(mmap_error(ret))
-		fail("mmap", NULL, ret);
-
-	char* buf = (char*)ret;
+	if(mmap_error(buf))
+		fail("mmap", NULL, (long)buf);
 
 	unsigned long rd;
+
 	while((rd = sys_read(STDIN, buf, len)) > 0)
 		count(cnts, buf, rd);
 }
@@ -164,12 +163,11 @@ static void countfile(struct wc* cnts, const char* fname, int last)
 	while(off < st.size) {
 		map = rem > MAPSIZE ? MAPSIZE : rem;
 
-		long ret = sys_mmap(buf, map, prot, flags, fd, off);
+		buf = sys_mmap(buf, map, prot, flags, fd, off);
 
-		if(mmap_error(ret))
-			fail("mmap", fname, ret);
+		if(mmap_error(buf))
+			fail("mmap", fname, (long)buf);
 
-		buf = (char*)ret;
 		off += map;
 		rem -= map;
 

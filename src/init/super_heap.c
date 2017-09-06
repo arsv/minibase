@@ -12,7 +12,7 @@ static void* end;
 
 void setup_heap(void)
 {
-	brk = (void*)sys_brk(NULL);
+	brk = sys_brk(NULL);
 	ptr = end = brk;
 }
 
@@ -28,7 +28,7 @@ void* heap_alloc(int len)
 	void* req = old + alignto(len, PAGE);
 
 	if(new > end)
-		end = (char*)sys_brk(req);
+		end = sys_brk(req);
 	if(new > end)
 		return NULL;
 
@@ -52,5 +52,5 @@ void flush_heap(void)
 	else if(end == brk)
 		return;
 	else
-		end = (void*)sys_brk(brk);
+		end = sys_brk(brk);
 }

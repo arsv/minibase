@@ -109,12 +109,12 @@ static int mmap_config_buf(int filesize)
 	int prot = PROT_READ | PROT_WRITE;
 	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
 
-	long ret = sys_mmap(NULL, size, prot, flags, -1, 0);
+	void* ptr = sys_mmap(NULL, size, prot, flags, -1, 0);
 
-	if(mmap_error(ret))
-		return ret;
+	if(mmap_error(ptr))
+		return (long)ptr;
 
-	config = (char*)ret;
+	config = ptr;
 	blocklen = size;
 	datalen = 0;
 	modified = 0;
@@ -274,14 +274,13 @@ static int remap_config(int len)
 {
 	int lenaligned = len + (PAGE - len % PAGE) % PAGE;
 	int newblocklen = blocklen + lenaligned;
-	long ret;
 
-	ret = sys_mremap(config, blocklen, newblocklen, MREMAP_MAYMOVE);
+	void* ptr = sys_mremap(config, blocklen, newblocklen, MREMAP_MAYMOVE);
 
-	if(mmap_error(ret))
-		return ret;
+	if(mmap_error(ptr))
+		return (long)ptr;
 
-	config = (char*)ret;
+	config = ptr;
 	blocklen = len;
 
 	return 0;
