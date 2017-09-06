@@ -188,6 +188,10 @@ static int group2gid(CTX, char* grp)
 	struct line ln;
 	struct fbuf* groups = &ctx->groups;
 	int gid;
+	char* z;
+
+	if((z = parseint(grp, &gid)) && !*z)
+		return gid;
 
 	read_file(ctx, groups, ETCDIR "/group");
 
