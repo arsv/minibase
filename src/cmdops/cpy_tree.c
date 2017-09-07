@@ -14,102 +14,169 @@
 
 /* Tree-walking and direntry-level stuff. */
 
-static int pathlen(char* dir, char* name)
-{
-	int len = strlen(name);
+static void runrec(CCT, char* dname, char* sname, int type);
+static void dryrec(CCT, char* dname, char* sname, int type);
+static void dryerr(CCT, struct atf* dd, int ret);
 
+static int pathlen(struct atf* dd)
+{
+	char* name = dd->name;
+	char* dir = dd->dir;
+	int len = 0;
+
+	if(name)
+		len += strlen(name);
 	if(dir && dir[0] != '/')
 		len += strlen(dir) + 1;
 
 	return len + 1;
 }
 
-static void makepath(char* buf, int size, char* dir, char* name)
+static void makepath(char* buf, int size, struct atf* dd)
 {
 	char* p = buf;
 	char* e = buf + size - 1;
+	char* dir = dd->dir;
+	char* name = dd->name;
 
 	if(dir && dir[0] != '/') {
 		p = fmtstr(p, e, dir);
 		p = fmtstr(p, e, "/");
+	} if(name) {
+		p = fmtstr(p, e, name);
 	}
 
-	p = fmtstr(p, e, name);
 	*p = '\0';
 }
 
-void warnat(const char* msg, char* dir, char* name, int err)
+void warnat(const char* msg, struct atf* dd, int err)
 {
-	int plen = pathlen(dir, name);
-	char path[plen];
+	char path[pathlen(dd)];
 
-	makepath(path, sizeof(path), dir, name);
+	makepath(path, sizeof(path), dd);
 
 	warn(msg, path, err);
 }
 
-void failat(const char* msg, char* dir, char* name, int err)
+void failat(const char* msg, struct atf* dd, int err)
 {
-	warnat(msg, dir, name, err);
+	warnat(msg, dd, err);
 	_exit(-1);
 }
 
-void apply_props(CCT, char* dir, char* name, int fd, struct stat* st)
+static void set_new_file(struct atf* dd, char* name)
 {
+	dd->name = name;
+
+	if(dd->fd >= 0)
+		sys_close(dd->fd);
+
+	dd->fd = -1;
+}
+
+static void start_file_pair(CCT, char* dstname, char* srcname)
+{
+	set_new_file(&cct->dst, dstname);
+	set_new_file(&cct->src, srcname);
+	memzero(&cct->st, sizeof(cct->st));
+}
+
+void trychown(CCT)
+{
+	struct atf* dst = &cct->dst;
+	struct stat* st = &cct->st;
 	int ret;
 
 	if(!cct->top->user)
-		;
-	else if(st->uid == cct->top->uid && st->gid == cct->top->gid)
-		;
-	else if((ret = sys_fchown(fd, st->uid, st->gid)) < 0)
-		failat("chown", dir, name, ret);
+		return;
+
+	int uid = st->uid;
+	int gid = st->gid;
+
+	if(uid == cct->top->uid && gid == cct->top->gid)
+		return;
+	if((ret = sys_fchown(dst->fd, uid, gid)) < 0)
+		failat("chown", dst, ret);
 
 	/* todo: utimens */
 }
 
 /* Utils for move/rename mode */
 
-static int rename(CCT, char* dstname, char* srcname)
+static int rename(CCT)
 {
-	int srcat = cct->src.at;
-	int dstat = cct->dst.at;
-	char* srcdir = cct->src.dir;
+	struct atf* src = &cct->src;
+	struct atf* dst = &cct->dst;
 	int ret;
 
-	if((ret = sys_renameat2(srcat, srcname, dstat, dstname, 0)) >= 0)
+	if(!(ret = sys_renameat2(AT(src), AT(dst), 0)))
 		return 1;
-
 	if(ret == -EXDEV)
 		return 0;
 
-	failat("rename", srcdir, srcname, ret);
+	failat("rename", src, ret);
 }
 
-static void delete(CCT, char* srcname)
+static void delete(CCT)
 {
+	struct atf* src = &cct->src;
 	int ret;
-	int at = cct->src.at;
-	char* dir = cct->src.dir;
 
-	if((ret = sys_unlinkat(at, srcname, 0)) < 0)
-		failat("unlink", dir, srcname, ret);
+	if((ret = sys_unlinkat(AT(src), 0)) < 0)
+		failat("unlink", src, ret);
 }
 
-static void rmdir(int at, char* dir, char* name)
+static void rmdir(CCT)
 {
+	struct atf* src = &cct->src;
 	int ret;
 
-	if((ret = sys_unlinkat(at, name, AT_REMOVEDIR)) < 0)
-		failat("rmdir", dir, name, ret);
+	if((ret = sys_unlinkat(AT(src), AT_REMOVEDIR)) < 0)
+		failat("rmdir", src, ret);
+}
+
+static int writable(int at, char* name)
+{
+	int flags = AT_EACCESS | AT_SYMLINK_NOFOLLOW;
+
+	return sys_faccessat(at, ".", W_OK | X_OK, flags);
+}
+
+static void check_writable_at(CCT)
+{
+	int ret;
+	struct atf* dst = &cct->dst;
+
+	if(cct->wrchecked)
+		return;
+
+	cct->wrchecked = 1;
+
+	if((ret = writable(AT(dst))) >= 0)
+		return;
+
+	/* Report the at-dir here, not the file the dir is being checked for. */
+	char* name = dst->name;
+
+	dst->name = NULL;
+	dryerr(cct, dst, ret);
+	dst->name = name;
 }
 
 /* Tree walking routines */
 
 static void scan_directory(CCT)
 {
+	int dryrun = cct->top->dryrun;
 	int rd, fd = cct->src.at;
 	char buf[1024];
+
+	void (*rec)(CCT, char*, char*, int);
+
+	if(dryrun)
+		rec = dryrec;
+	else
+		rec = runrec;
 
 	while((rd = sys_getdents(fd, buf, sizeof(buf))) > 0) {
 		char* p = buf;
@@ -123,151 +190,149 @@ static void scan_directory(CCT)
 			if(dotddot(de->name))
 				continue;
 
-			runrec(cct, de->name, de->name, de->type);
+			rec(cct, de->name, de->name, de->type);
 		}
 	}
 }
 
-static int open_directory(int at, char* dir, char* name, struct stat* st)
+static void open_src_dir(CCT)
 {
+	struct atf* src = &cct->src;
+	struct stat* st = &cct->st;
 	int fd, ret;
 
-	if((fd = sys_openat(at, name, O_DIRECTORY)) < 0)
-		failat(NULL, dir, name, fd);
-	if((ret = sys_fstat(fd, st)) < 0)
-		failat("stat", dir, name, ret);
+	if((fd = sys_openat(AT(src), O_DIRECTORY)) < 0)
+		failat(NULL, src, fd);
 
-	return fd;
+	if(cct->top->dryrun)
+		; /* no mkdir during dryrun, no need to re-stat it */
+	else if((ret = sys_fstat(fd, st)) < 0)
+		failat("stat", src, ret);
+
+	src->fd = fd;
 }
 
-static int creat_dir(CCT, int at, char* dir, char* name, struct stat* sst)
+static int open_dst_dir(CCT)
 {
-	int fd, ret;
-	struct stat st;
+	struct atf* dst = &cct->dst;
+	struct stat* st = &cct->st;
+	int dryrun = cct->top->dryrun;
 
-	if((fd = ret = sys_openat(at, name, O_DIRECTORY)) == -ENOENT)
+	struct stat ds;
+	int fd, ret;
+
+	if((fd = ret = sys_openat(dst->at, dst->name, O_DIRECTORY)) == -ENOENT)
 		goto make;
 	else if(ret < 0)
 		goto fail;
 	else if(cct->top->newc)
-		failat(NULL, dir, name, -EEXIST);
+		failat(NULL, dst, -EEXIST);
 
-	if((ret = sys_fstat(fd, &st)) < 0)
+	if((ret = sys_fstat(fd, &ds)) < 0)
 		goto fail;
 
-	if(st.dev == sst->dev && st.ino == sst->ino)
-		return -EALREADY; /* copy into self */
+	if(ds.dev == st->dev && ds.ino == st->ino)
+		return -1;
 
-	return fd;
+	goto done;
 
 make:
-	if((ret = sys_mkdirat(at, name, sst->mode)) < 0)
-		goto fail;
-	if((fd = ret = sys_openat(at, name, O_DIRECTORY)) < 0)
-		goto fail;
-
-	apply_props(cct, dir, name, fd, sst);
-
-	return fd;
-
-fail:
-	failat(NULL, dir, name, ret);
-}
-
-static void directory(CCT, char* dstname, char* srcname, struct stat* st)
-{
-	int move = cct->top->move;
-
-	if(move && rename(cct, dstname, srcname))
-		return;
-
-	int srcat = cct->src.at;
-	int dstat = cct->dst.at;
-
-	char* srcdir = cct->src.dir;
-	char* dstdir = cct->dst.dir;
-
-	int srcfd = open_directory(srcat, srcdir, srcname, st);
-	int dstfd = creat_dir(cct, dstat, dstdir, dstname, st);
-
-	if(dstfd == -EALREADY) {
-		sys_close(srcfd);
-		return;
+	if(dryrun) {
+		check_writable_at(cct);
+		return -1;
 	}
 
-	int srclen = pathlen(srcdir, srcname);
-	int dstlen = pathlen(dstdir, dstname);
+	if((ret = sys_mkdirat(dst->at, dst->name, st->mode)) < 0)
+		goto fail;
+	if((fd = ret = sys_openat(dst->at, dst->name, O_DIRECTORY)) < 0)
+		goto fail;
 
-	char srcpath[srclen];
-	char dstpath[dstlen];
+done:
+	dst->fd = fd;
+	trychown(cct);
 
-	makepath(srcpath, sizeof(srcpath), srcdir, srcname);
-	makepath(dstpath, sizeof(dstpath), dstdir, dstname);
+	return 0;
+fail:
+	failat(NULL, dst, ret);
+}
+
+static void directory(CCT)
+{
+	struct atf* src = &cct->src;
+	struct atf* dst = &cct->dst;
+	int move = cct->top->move;
+
+	if(move && rename(cct))
+		return;
+
+	open_src_dir(cct);
+
+	if(open_dst_dir(cct))
+		return;
+
+	char spath[pathlen(src)];
+	char dpath[pathlen(dst)];
+
+	makepath(spath, sizeof(spath), src);
+	makepath(dpath, sizeof(dpath), dst);
 
 	struct cct next = {
 		.top = cct->top,
-		.src = { srcfd, srcpath },
-		.dst = { dstfd, dstpath }
+		.src = { src->fd, spath, NULL, -1 },
+		.dst = { dst->fd, dpath, NULL, -1 }
 	};
 
 	scan_directory(&next);
 
-	if(move) rmdir(srcat, srcdir, srcname);
-
-	sys_close(srcfd);
-	sys_close(dstfd);
+	if(move) rmdir(cct);
 }
 
-static void regular(CCT, char* dstname, char* srcname, struct stat* st)
+static void regular(CCT)
 {
 	int move = cct->top->move;
 
-	if(move && rename(cct, dstname, srcname))
+	if(move && rename(cct))
 		return;
 
-	copyfile(cct, dstname, srcname, st);
+	copyfile(cct);
 
-	if(move) delete(cct, srcname);
+	if(move) delete(cct);
 }
 
 /* Symlinks are "copied" as symlinks, retaining the contents.
    Current code does not attempt to translate them from src to dst,
    although at some point it may be nice to have. */
 
-static void symlink(CCT, char* dstname, char* srcname, struct stat* srcst)
+static void symlink(CCT)
 {
-	int move = cct->top->move;
+	struct atf* src = &cct->src;
+	struct atf* dst = &cct->dst;
+	struct stat* st = &cct->st;
 
-	int srcat = cct->src.at;
-	int dstat = cct->dst.at;
+	if(st->size <= 0 || st->size > 4096)
+		failat(NULL, src, -EINVAL);
 
-	char* srcdir = cct->src.dir;
-	char* dstdir = cct->dst.dir;
-
-	if(srcst->size <= 0 || srcst->size > 4096)
-		failat(NULL, srcdir, srcname, -EINVAL);
-
-	long len = srcst->size + 5;
+	long len = st->size + 5;
 	char buf[len];
 	int ret;
 
-	if((ret = sys_readlinkat(srcat, srcname, buf, len)) < 0)
-		failat("readlink", srcdir, srcname, ret);
+	if((ret = sys_readlinkat(src->at, src->name, buf, len)) < 0)
+		failat("readlink", src, ret);
 
 	buf[ret] = '\0';
 
-	if((ret = sys_symlinkat(buf, dstat, dstname)) >= 0)
+	if((ret = sys_symlinkat(buf, dst->at, dst->name)) >= 0)
 		goto got;
 	if(ret != -EEXIST || cct->top->newc)
 		goto err;
-	if((ret = sys_unlinkat(dstat, dstname, 0)) < 0)
-		failat("unlink", dstdir, dstname, ret);
-	if((ret = sys_symlinkat(buf, dstat, dstname)) >= 0)
+	if((ret = sys_unlinkat(dst->at, dst->name, 0)) < 0)
+		failat("unlink", dst, ret);
+	if((ret = sys_symlinkat(buf, dst->at, dst->name)) >= 0)
 		goto got;
 err:
-	failat("symlink", dstdir, dstname, ret);
+	failat("symlink", dst, ret);
 got:
-	if(move) delete(cct, srcname);
+	delete(cct);
 }
 
 /* We need to know the type of the source file to decide what to do
@@ -288,27 +353,88 @@ static int stifmt_to_dt(struct stat* st)
 	}
 }
 
-void runrec(CCT, char* dstname, char* srcname, int type)
+void runrec(CCT, char* dname, char* sname, int type)
 {
-	int srcat = cct->src.at;
-	char* srcdir = cct->src.dir;
+	struct atf* src = &cct->src;
+	struct stat* st = &cct->st;
 	int flags = AT_SYMLINK_NOFOLLOW;
-
 	int ret;
-	struct stat st;
+
+	start_file_pair(cct, dname, sname);
 
 	if(type == DT_REG)
-		memzero(&st, sizeof(st));
-	else if((ret = sys_fstatat(srcat, srcname, &st, flags)) < 0)
-		failat(NULL, srcdir, srcname, ret);
+		;
+	else if((ret = sys_fstatat(src->at, src->name, st, flags)) < 0)
+		failat(NULL, src, ret);
 	else
-		type = stifmt_to_dt(&st);
+		type = stifmt_to_dt(st);
 
 	switch(type) {
-		case DT_DIR: return directory(cct, dstname, srcname, &st);
-		case DT_REG: return regular(cct, dstname, srcname, &st);
-		case DT_LNK: return symlink(cct, dstname, srcname, &st);
+		case DT_DIR: return directory(cct);
+		case DT_REG: return regular(cct);
+		case DT_LNK: return symlink(cct);
 	}
+}
 
-	warnat("ignoring", srcdir, srcname, 0);
+/* Dry run routines */
+
+static void dryerr(CCT, struct atf* dd, int ret)
+{
+	warnat(NULL, dd, ret);
+
+	if(cct->top->errors++ < 10) return;
+
+	fail("too many errors", NULL, 0);
+}
+
+static int stat_check_dir(struct atf* dd, struct stat* st)
+{
+	int flags = AT_SYMLINK_NOFOLLOW;
+	int ret;
+
+	if((ret = sys_fstatat(AT(dd), st, flags)) < 0)
+		return ret;
+
+	return ((st->mode & S_IFMT) == S_IFDIR ? 1 : 0);
+}
+
+void dryrec(CCT, char* dname, char* sname, int type)
+{
+	struct atf* src = &cct->src;
+	struct atf* dst = &cct->dst;
+	struct stat* st = &cct->st;
+	struct stat ds;
+	int sdir, ddir;
+
+	start_file_pair(cct, dname, sname);
+
+	if((sdir = stat_check_dir(src, st)) < 0)
+		return dryerr(cct, src, sdir);
+	if((ddir = stat_check_dir(dst, &ds)) < 0)
+		return;
+
+	if(sdir && !ddir)
+		return dryerr(cct, dst, -ENOTDIR);
+	if(!sdir && ddir)
+		return dryerr(cct, dst, -EISDIR);
+
+	if(sdir)
+		directory(cct);
+	else
+		check_writable_at(cct);
+}
+
+void dryrun(CCT, char* dname, char* sname, int type)
+{
+	dryrec(cct, dname, sname, type);
+}
+
+void run(CTX, CCT, char* dst, char* src)
+{
+	int type = DT_UNKNOWN;
+
+	if(ctx->dryrun)
+		dryrun(cct, dst, src, type);
+	else
+		runrec(cct, dst, src, type);
 }

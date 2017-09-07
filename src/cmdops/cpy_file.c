@@ -17,14 +17,17 @@
 
 #define RWBUFSIZE 1024*1024
 
-static int sendfile(CCT, DST, SRC, uint64_t* size)
+static int sendfile(CCT, uint64_t* size)
 {
+	struct atf* dst = &cct->dst;
+	struct atf* src = &cct->src;
+
+	int sfd = src->fd;
+	int dfd = dst->fd;
+
 	uint64_t done = 0;
 	long ret = 0;
 	long run = 0x7ffff000;
-
-	int outfd = dst->fd;
-	int infd = src->fd;
 
 	if(*size < run)
 		run = *size;
@@ -32,7 +35,7 @@ static int sendfile(CCT, DST, SRC, uint64_t* size)
 	while(1) {
 		if(done >= *size)
 			break;
-		if((ret = sys_sendfile(outfd, infd, NULL, run)) <= 0)
+		if((ret = sys_sendfile(dfd, sfd, NULL, run)) <= 0)
 			break;
 		done += ret;
 	};
@@ -42,14 +45,11 @@ static int sendfile(CCT, DST, SRC, uint64_t* size)
 	if(!done && ret == -EINVAL)
 		return -1;
 
-	failat("sendfile", dst->dir, dst->name, ret);
+	failat("sendfile", dst, ret);
 }
 
 static void alloc_rw_buf(CTX)
 {
-	if(ctx->buf)
-		return;
-
 	long len = RWBUFSIZE;
 	int prot = PROT_READ | PROT_WRITE;
 	int flags = MAP_ANONYMOUS;
@@ -62,11 +62,14 @@ static void alloc_rw_buf(CTX)
 	ctx->len = len;
 }
 
-static void readwrite(CCT, DST, SRC, uint64_t* size)
+static void readwrite(CCT, uint64_t* size)
 {
+	struct atf* dst = &cct->dst;
+	struct atf* src = &cct->src;
 	struct top* ctx = cct->top;
 
-	alloc_rw_buf(ctx);
+	if(!ctx->buf)
+		alloc_rw_buf(ctx);
 
 	uint64_t done = 0;
 
@@ -77,19 +80,19 @@ static void readwrite(CCT, DST, SRC, uint64_t* size)
 		len = *size;
 
 	int rd = 0, wr;
-	int rfd = src->fd;
-	int wfd = dst->fd;
+	int sfd = src->fd;
+	int dfd = dst->fd;
 
 	while(1) {
 		if(done >= *size)
 			break;
-		if((rd = sys_read(rfd, buf, len)) <= 0)
+		if((rd = sys_read(sfd, buf, len)) <= 0)
 			break;
-		if((wr = writeall(wfd, buf, rd)) < 0)
-			failat("write", dst->dir, dst->name, wr);
+		if((wr = writeall(dfd, buf, rd)) < 0)
+			failat("write", dst, wr);
 		done += rd;
 	} if(rd < 0) {
-		failat("read", src->dir, src->name, rd);
+		failat("read", src, rd);
 	}
 }
 
@@ -99,16 +102,16 @@ static void readwrite(CCT, DST, SRC, uint64_t* size)
    Generally the reasons depend on directory (and the underlying fs), so if
    sendfile fails for one file stop using it for the whole directory. */
 
-static void moveblock(CCT, DST, SRC, uint64_t* size)
+static void moveblock(CCT, uint64_t* size)
 {
 	if(cct->nosf)
 		;
-	else if(sendfile(cct, dst, src, size) >= 0)
+	else if(sendfile(cct, size) >= 0)
 		return;
 	else
 		cct->nosf = 1;
 
-	readwrite(cct, dst, src, size);
+	readwrite(cct, size);
 }
 
 /* Except for the last line, the code below is only there to deal with sparse
@@ -122,10 +125,11 @@ static void moveblock(CCT, DST, SRC, uint64_t* size)
    code as fast as possible. Sadly the best we can do is to check the block
    count. */
 
-static void transfer(CCT, DST, SRC, struct stat* st)
+static void transfer(CCT)
 {
-	int rfd = src->fd;
-	int wfd = dst->fd;
+	struct stat* st = &cct->st;
+	int rfd = cct->src.fd;
+	int wfd = cct->dst.fd;
 
 	if(512*st->blocks >= st->size)
 		goto plain;
@@ -152,7 +156,7 @@ static void transfer(CCT, DST, SRC, struct stat* st)
 		sys_lseek(rfd, ds, SEEK_SET);
 
 		if((blk = de - ds) > 0)
-			moveblock(cct, dst, src, &blk);
+			moveblock(cct, &blk);
 
 		if(de >= size)
 			break;
@@ -167,7 +171,7 @@ static void transfer(CCT, DST, SRC, struct stat* st)
 	return;
 
 plain:
-	moveblock(cct, dst, src, &st->size);
+	moveblock(cct, &st->size);
 }
 
 /* The source tree is supposed to be static while cpy works.
@@ -182,94 +186,86 @@ plain:
    The primary point in calling stat() here is to get file mode
    for the new file. Having its size is nice but not crucial. */
 
-static void open_stat_source(SRC, struct stat* st)
+static void open_src(CCT)
 {
-	int rdonly = O_RDONLY;
+	struct atf* src = &cct->src;
+	struct stat* st = &cct->st;
+
 	int flags = AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW;
 	int fd, ret;
 
-	if((fd = sys_openat(src->at, src->name, rdonly)) < 0)
-		failat(NULL, src->dir, src->name, fd);
+	if((fd = sys_openat(AT(src), O_RDONLY)) < 0)
+		failat(NULL, src, fd);
 	if((ret = sys_fstatat(fd, "", st, flags)) < 0)
-		failat("stat", src->dir, src->name, ret);
+		failat("stat", src, ret);
 
 	src->fd = fd;
 }
 
-/* The straight path for the destination is to (try to) unlink
-   whatever's there, create a new file, and pipe the data there.
-   The existing entry may happen to be a dir, then we just fail.
-   If cpy gets interrupted mid-transfer, we lose the old dst file
-   (which we would any, so no big deal) but src remains intact.
+/* The straight path for the destination is to (try to) unlink whatever's
+   there, create a new file, and pipe the data. If the existing entry happens
+   to be a dir, then unlink just fails. Then if cpy gets interrupted
+   mid-transfer, we lose the old dst file (which we would any, so no big deal)
+   but src remains intact.
 
-   This gets much more complicated in case dst == src by whatever
-   means. If cpy unlinks it and gets killed mid-transfer, chances
-   are *src* will be lost. To ment this, we do an extra lstat call
-   on dst->name to exclude that particular case.
+   This gets much more complicated in case dst == src by whatever means.
+   If cpy unlinks it and gets killed mid-transfer, chances are *src* will
+   be lost. To mend this, we do an extra lstat call on dst->name to exclude
+   that particular case.
 
-   It is probably possible to avoid it, but it's going to be tricky
-   and doing so because of a single extra syscall hardly makes sense. */
+   It is probably possible to avoid lstat, but it's going to be tricky
+   and risking that because of a single extra syscall hardly makes sense. */
 
-static void open_prep_destination(CCT, DST, SRC, struct stat* sst)
+static void open_dst(CCT)
 {
+	struct atf* dst = &cct->dst;
+	struct stat* st = &cct->st;
+	struct stat ds;
+
 	int fd, ret;
 	int creat = O_WRONLY | O_CREAT | O_EXCL;
 	int flags = AT_SYMLINK_NOFOLLOW;
-	int mode = sst->mode;
-	struct stat st;
+	int mode = st->mode;
 
-	if((ret = sys_fstatat(dst->at, dst->name, &st, flags)) == -ENOENT)
+	if((ret = sys_fstatat(AT(dst), &ds, flags)) == -ENOENT)
 		goto open;
 	else if(ret >= 0 && cct->top->newc)
-		failat(NULL, dst->dir, dst->name, ret);
+		failat(NULL, dst, ret);
 	else if(ret < 0)
-		failat("stat", dst->dir, dst->name, ret);
+		failat("stat", dst, ret);
 
-	if((st.mode & S_IFMT) == S_IFDIR)
-		failat(NULL, dst->dir, dst->name, -EISDIR);
+	if((ds.mode & S_IFMT) == S_IFDIR)
+		failat(NULL, dst, -EISDIR);
 
-	if(st.dev == sst->dev && st.ino == sst->ino)
+	if(ds.dev == st->dev && ds.ino == st->ino)
 		return; /* same file */
 
-	if((ret = sys_unlinkat(dst->at, dst->name, 0)) >= 0)
+	if((ret = sys_unlinkat(AT(dst), 0)) >= 0)
 		;
 	else if(ret == -ENOENT)
 		;
-	else failat("unlink", dst->dir, dst->name, ret);
+	else failat("unlink", dst, ret);
 open:
-	if((fd = sys_openat4(dst->at, dst->name, creat, mode)) < 0)
-		failat(NULL, dst->dir, dst->name, fd);
-
-	apply_props(cct, dst->dir, dst->name, fd, sst);
+	if((fd = sys_openat4(AT(dst), creat, mode)) < 0)
+		failat(NULL, dst, fd);
 
 	dst->fd = fd;
+
+	trychown(cct);
 }
 
-/* Directory-level st is only used here as a storage space. */
-
-void copyfile(CCT, char* dstname, char* srcname, struct stat* st)
+void copyfile(CCT)
 {
-	struct atfd src = {
-		.at = cct->src.at,
-		.dir = cct->src.dir,
-		.name = srcname
-	};
+	struct atf* dst = &cct->dst;
+	struct stat* st = &cct->st;
 
-	struct atfd dst = {
-		.at = cct->dst.at,
-		.dir = cct->dst.dir,
-		.name = dstname,
-		.fd = -1
-	};
+	open_src(cct);
+	open_dst(cct);
 
-	open_stat_source(&src, st);
-	open_prep_destination(cct, &dst, &src, st);
+	if(dst->fd < 0)
+		return;
+	if(!st->size)
+		return;
 
-	if(dst.fd >= 0 && st->size)
-		transfer(cct, &dst, &src, st);
-
-	if(dst.fd >= 0)
-		sys_close(dst.fd);
-
-	sys_close(src.fd);
+	transfer(cct);
 }

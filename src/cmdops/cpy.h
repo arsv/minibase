@@ -4,6 +4,9 @@ struct top {
 	int argi;
 	int opts;
 
+	int dryrun;
+	int errors;
+
 	char* buf;
 	long len;
 
@@ -15,35 +18,32 @@ struct top {
 	int gid;
 };
 
-struct atfd {
+struct atf {
 	int at;
 	char* dir;
 	char* name;
 	int fd;
 };
 
-struct atdir {
-	int at;
-	char* dir;
-};
-
 struct cct {
 	struct top* top;
-	struct atdir dst;
-	struct atdir src;
+	struct atf dst;
+	struct atf src;
+	struct stat st;
+	int wrchecked;
 	int nosf;
 };
 
 #define CTX struct top* ctx
-#define SRC struct atfd* src
-#define DST struct atfd* dst
 #define CCT struct cct* cct
+#define AT(dd) dd->at, dd->name
 
 #define noreturn __attribute__((noreturn))
 
-void failat(const char* msg, char* dir, char* name, int err) noreturn;
-void warnat(const char* msg, char* dir, char* name, int err);
+void warnat(const char* msg, struct atf* dd, int err);
+void failat(const char* msg, struct atf* dd, int err) noreturn;
 
-void runrec(CCT, char* dstname, char* srcname, int type);
-void copyfile(CCT, char* dstname, char* srcname, struct stat* st);
-void apply_props(CCT, char* dir, char* name, int fd, struct stat* st);
+void run(CTX, CCT, char* dst, char* src);
+
+void copyfile(CCT);
+void trychown(CCT);

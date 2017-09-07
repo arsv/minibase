@@ -55,7 +55,7 @@ static void copy_over(CTX, CCT)
 	char* src = shift_arg(ctx);
 	no_more_args(ctx);
 
-	runrec(cct, dst, src, DT_UNKNOWN);
+	run(ctx, cct, dst, src);
 }
 
 static void copy_many(CTX, CCT)
@@ -66,7 +66,7 @@ static void copy_many(CTX, CCT)
 		char* src = shift_arg(ctx);
 		char* dst = basename(src);
 
-		runrec(cct, dst, src, DT_UNKNOWN);
+		run(ctx, cct, dst, src);
 	}
 }
 
@@ -108,24 +108,41 @@ static int prep_opts(CTX, int argc, char** argv)
 	return opts;
 }
 
+static void tryrun(void (*run)(CTX, CCT), CTX, CCT)
+{
+	int argi = ctx->argi;
+
+	ctx->dryrun = 1;
+
+	run(ctx, cct);
+
+	if(ctx->errors)
+		fail("aborting with no files copied", NULL, 0);
+
+	ctx->dryrun = 0;
+	ctx->argi = argi;
+
+	run(ctx, cct);
+}
+
 int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
 	int opts = prep_opts(ctx, argc, argv);
 
-	struct cct cct  = {
+	struct cct cct = {
 		.top = ctx,
-		.src = { AT_FDCWD, NULL },
-		.dst = { AT_FDCWD, NULL }
+		.src = { AT_FDCWD, NULL, NULL, -1 },
+		.dst = { AT_FDCWD, NULL, NULL, -1 }
 	};
 
 	if(opts & OPT_t)
 		open_target_dir(ctx, &cct);
 
 	if(opts & (OPT_t | OPT_h))
-		copy_many(ctx, &cct);
+		tryrun(copy_many, ctx, &cct);
 	else if(opts & (OPT_n | OPT_o))
-		copy_over(ctx, &cct);
+		tryrun(copy_over, ctx, &cct);
 	else
 		fail("no mode specified", NULL, 0);
 
