@@ -16,6 +16,10 @@ struct top {
 
 	int uid;
 	int gid;
+
+	void* brk;
+	void* ptr;
+	void* end;
 };
 
 struct atf {
@@ -31,7 +35,18 @@ struct cct {
 	struct atf src;
 	struct stat st;
 	int wrchecked;
-	int nosf;
+	int nosendfile;
+	int dstatdup;
+};
+
+struct link {
+	int len;
+	int at;
+	uint64_t sdev;
+	uint64_t sino;
+	uint64_t ddev;
+	uint64_t dino;
+	char name[];
 };
 
 #define CTX struct top* ctx
@@ -47,3 +62,7 @@ void run(CTX, CCT, char* dst, char* src);
 
 void copyfile(CCT);
 void trychown(CCT);
+
+void note_ino(CCT);
+
+int link_dst(CCT);

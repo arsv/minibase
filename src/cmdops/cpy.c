@@ -139,12 +139,15 @@ int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
 	int opts = prep_opts(ctx, argc, argv);
+	struct cct cct;
 
-	struct cct cct = {
-		.top = ctx,
-		.src = { AT_FDCWD, NULL, NULL, -1 },
-		.dst = { AT_FDCWD, NULL, NULL, -1 }
-	};
+	memzero(&cct, sizeof(cct));
+
+	cct.top = ctx;
+	cct.src.at = AT_FDCWD;
+	cct.dst.at = AT_FDCWD;
+	cct.src.fd = -1;
+	cct.dst.fd = -1;
 
 	if(opts & OPT_t)
 		open_target_dir(ctx, &cct);

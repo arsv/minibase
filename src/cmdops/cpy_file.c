@@ -104,12 +104,12 @@ static void readwrite(CCT, uint64_t* size)
 
 static void moveblock(CCT, uint64_t* size)
 {
-	if(cct->nosf)
+	if(cct->nosendfile)
 		;
 	else if(sendfile(cct, size) >= 0)
 		return;
 	else
-		cct->nosf = 1;
+		cct->nosendfile = 1;
 
 	readwrite(cct, size);
 }
@@ -202,50 +202,15 @@ static void open_src(CCT)
 	src->fd = fd;
 }
 
-/* The straight path for the destination is to (try to) unlink whatever's
-   there, create a new file, and pipe the data. If the existing entry happens
-   to be a dir, then unlink just fails. Then if cpy gets interrupted
-   mid-transfer, we lose the old dst file (which we would any, so no big deal)
-   but src remains intact.
-
-   This gets much more complicated in case dst == src by whatever means.
-   If cpy unlinks it and gets killed mid-transfer, chances are *src* will
-   be lost. To mend this, we do an extra lstat call on dst->name to exclude
-   that particular case.
-
-   It is probably possible to avoid lstat, but it's going to be tricky
-   and risking that because of a single extra syscall hardly makes sense. */
-
 static void open_dst(CCT)
 {
 	struct atf* dst = &cct->dst;
 	struct stat* st = &cct->st;
-	struct stat ds;
 
-	int fd, ret;
+	int fd;
 	int creat = O_WRONLY | O_CREAT | O_EXCL;
-	int flags = AT_SYMLINK_NOFOLLOW;
 	int mode = st->mode;
 
-	if((ret = sys_fstatat(AT(dst), &ds, flags)) == -ENOENT)
-		goto open;
-	else if(ret >= 0 && cct->top->newc)
-		failat(NULL, dst, ret);
-	else if(ret < 0)
-		failat("stat", dst, ret);
-
-	if((ds.mode & S_IFMT) == S_IFDIR)
-		failat(NULL, dst, -EISDIR);
-
-	if(ds.dev == st->dev && ds.ino == st->ino)
-		return; /* same file */
-
-	if((ret = sys_unlinkat(AT(dst), 0)) >= 0)
-		;
-	else if(ret == -ENOENT)
-		;
-	else failat("unlink", dst, ret);
-open:
 	if((fd = sys_openat4(AT(dst), creat, mode)) < 0)
 		failat(NULL, dst, fd);
 
@@ -254,12 +219,159 @@ open:
 	trychown(cct);
 }
 
+/* Hard-linking for multilink files. This should have been a nice and clean
+   piece of code in cpy_file.c but it turns out linkat(..., AT_EMPTY_PATH)
+   is a *privileged* call in Linux for some reason and we have to do it with
+   file names instead.
+
+   The idea here is that src/a and src/b are the same file, then the same
+   should hold for dst/a and dst/b, but dst/a should still refer to a copy
+   of src/a.
+
+   To achieve this, we remember destination (at,name) and source (dev:ino)
+   the first time we copy a file with nlink > 1, and try to link to that
+   first copy when we encounter the same source (dev:ino) again.
+
+   Directory handle $at must remain open way long than it would otherwise,
+   so we just dup() it and let the original be closed as usual. Keeping the
+   original one open would mess up the tree-walking code a lot for no good
+   reason. Hard links are rare and not worth it. */
+
+static struct link* find_link(CCT)
+{
+	struct top* ctx = cct->top;
+	struct stat* st = &cct->st;
+
+	if(!ctx->brk)
+		return NULL;
+
+	char* p = ctx->brk;
+	char* e = ctx->ptr;
+
+	while(p < e) {
+		struct link* ln = (struct link*) p;
+
+		if(ln->sdev == st->dev && ln->sino == st->ino)
+			return ln;
+
+		p += ln->len;
+	}
+
+	return NULL;
+}
+
+static struct link* alloc_link(CCT, int len)
+{
+	struct top* ctx = cct->top;
+
+	if(!ctx->brk) {
+		void* brk = sys_brk(0);
+		void* new = sys_brk(brk + PAGE);
+
+		if(brk_error(brk, new))
+			return NULL;
+
+		ctx->brk = brk;
+		ctx->ptr = brk;
+		ctx->end = new;
+	}
+
+	int rlen = sizeof(struct link) + len + 1;
+	int alen = rlen + (4 - rlen%4) % 4;
+	void* ptr = ctx->ptr;
+	void* req = ptr + alen;
+
+	if(req > ctx->end) {
+		void* end = ctx->end;
+		void* new = sys_brk(end + PAGE);
+
+		if(brk_error(end, new))
+			return NULL;
+
+		ctx->end = new;
+	}
+
+	ctx->ptr = req;
+
+	return ptr;
+}
+
+void note_ino(CCT)
+{
+	struct atf* dst = &cct->dst;
+	struct stat* st = &cct->st;
+	struct stat ds;
+	struct link* ln;
+	int ret;
+
+	char* name = dst->name;
+	int len = strlen(name);
+
+	if(!(ln = alloc_link(cct, len)))
+		return;
+	if((ret = sys_fstat(dst->fd, &ds)) < 0)
+		goto drop;
+	if(cct->dstatdup)
+		ln->at = cct->dstatdup;
+	else if((ret = sys_dup(dst->at)) < 0)
+		goto drop;
+	else
+		ln->at = cct->dstatdup = ret;
+
+	ln->sdev = st->dev;
+	ln->sino = st->ino;
+	ln->ddev = ds.dev;
+	ln->dino = ds.ino;
+
+	memcpy(ln->name, name, len + 1);
+
+	return;
+drop:
+	cct->top->ptr = ln;
+}
+
+int link_dst(CCT)
+{
+	struct atf* dst = &cct->dst;
+	struct link* ln;
+	struct stat ds;
+	int ret;
+
+	if(!(ln = find_link(cct)))
+		return 0;
+
+	if((ret = sys_unlinkat(AT(dst), 0)) >= 0)
+		;
+	else if(ret != -ENOENT)
+		return 0;
+
+	if((ret = sys_linkat(AT(ln), AT(dst), 0)) < 0)
+		return 0;
+
+	/* Check for mis-linking, fall back to copy if it happens.
+	   The copy code will unlink dst so need to worry here. */
+	if((ret = sys_fstatat(AT(dst), &ds, AT_SYMLINK_NOFOLLOW)) < 0)
+		return 0;
+	if(ds.dev != ln->ddev || ds.ino != ln->dino)
+		return 0;
+
+	return 1;
+}
+
+/* Entry point for all the stuff above */
+
 void copyfile(CCT)
 {
 	struct atf* dst = &cct->dst;
 	struct stat* st = &cct->st;
 
 	open_src(cct);
+
+	if(st->nlink < 2)
+		;
+	else if(link_dst(cct))
+		return;
+
 	open_dst(cct);
 
 	if(dst->fd < 0)
@@ -268,4 +380,9 @@ void copyfile(CCT)
 		return;
 
 	transfer(cct);
+
+	if(st->nlink < 2)
+		return;
+
+	note_ino(cct);
 }

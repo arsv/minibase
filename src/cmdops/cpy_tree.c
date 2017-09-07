@@ -101,12 +101,14 @@ void trychown(CCT)
 
 /* Utils for move/rename mode */
 
-static int rename(CCT)
+static int maybe_rename(CCT)
 {
 	struct atf* src = &cct->src;
 	struct atf* dst = &cct->dst;
 	int ret;
 
+	if(!cct->top->move)
+		return 0;
 	if(!(ret = sys_renameat2(AT(src), AT(dst), 0)))
 		return 1;
 	if(ret == -EXDEV)
@@ -115,10 +117,13 @@ static int rename(CCT)
 	failat("rename", src, ret);
 }
 
-static void delete(CCT)
+static void maybe_unlink_src(CCT)
 {
 	struct atf* src = &cct->src;
 	int ret;
+
+	if(!cct->top->move)
+		return;
 
 	if((ret = sys_unlinkat(AT(src), 0)) < 0)
 		failat("unlink", src, ret);
@@ -328,7 +333,7 @@ static void directory(CCT)
 	struct atf* dst = &cct->dst;
 	int move = cct->top->move;
 
-	if(move && rename(cct))
+	if(maybe_rename(cct))
 		return;
 
 	if(open_src_dir(cct))
@@ -342,30 +347,46 @@ static void directory(CCT)
 	makepath(spath, sizeof(spath), src);
 	makepath(dpath, sizeof(dpath), dst);
 
-	struct cct next = {
-		.top = cct->top,
-		.src = { src->fd, spath, NULL, -1 },
-		.dst = { dst->fd, dpath, NULL, -1 }
-	};
+	struct cct next;
+	memzero(&next, sizeof(next));
+
+	next.top = cct->top;
+	next.dst.at = dst->fd; next.dst.name = dpath;
+	next.src.at = src->fd; next.src.name = spath;
+	next.src.fd = -1;
+	next.dst.fd = -1;
 
 	scan_directory(&next);
 
 	if(move) rmdir(cct);
 }
 
+static void unlink_dst(CCT)
+{
+	struct atf* dst = &cct->dst;
+	int ret;
+
+	if((ret = sys_unlinkat(AT(dst), 0)) >= 0)
+		return;
+	if(ret == -ENOENT)
+		return;
+
+	failat("unlink", dst, ret);
+}
+
 static void regular(CCT)
 {
-	int move = cct->top->move;
-
 	if(cct->top->dryrun)
 		return check_src_dst(cct);
 
-	if(move && rename(cct))
+	if(maybe_rename(cct))
 		return;
+
+	unlink_dst(cct);
 
 	copyfile(cct);
 
-	if(move) delete(cct);
+	maybe_unlink_src(cct);
 }
 
 /* Symlinks are "copied" as symlinks, retaining the contents.
@@ -393,18 +414,12 @@ static void symlink(CCT)
 
 	buf[ret] = '\0';
 
-	if((ret = sys_symlinkat(buf, dst->at, dst->name)) >= 0)
-		goto got;
-	if(ret != -EEXIST || cct->top->newc)
-		goto err;
-	if((ret = sys_unlinkat(dst->at, dst->name, 0)) < 0)
-		failat("unlink", dst, ret);
-	if((ret = sys_symlinkat(buf, dst->at, dst->name)) >= 0)
-		goto got;
-err:
-	failat("symlink", dst, ret);
-got:
-	delete(cct);
+	unlink_dst(cct);
+
+	if((ret = sys_symlinkat(buf, dst->at, dst->name)) < 0)
+		failat("symlink", dst, ret);
+
+	maybe_unlink_src(cct);
 }
 
 static void special(CCT)
