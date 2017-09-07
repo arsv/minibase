@@ -26,7 +26,17 @@ Copy over, silently overwriting existing files.
 Copy to; destination directory is the first argument.
 .IP "\fB-u\fR" 4
 Transfer file ownership (uid/gid) to the copies.
+.IP "\fB-q\fR" 4
+Dry run, check for errors but do not copy anything.
+.IP "\fB-y\fR" 4
+Do not check for errors, start copying right away.
+.IP "\fB-v\fR" 4
+Verbose mode, print names of the files being copied.
 '''
 .SH NOTES
 \fBcpy\fR never follows symlinks, and copies them as if they were plain text
 files. Other special files are silently ignored.
+.P
+Unless \fB-y\fR is given, \fBcpy\fR performs a dry to verify that there are
+no obvious problems with the files being copied. If any issues are found,
+\fBcpy\fR exits without copying anything.
