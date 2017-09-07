@@ -80,20 +80,11 @@ static void annouce(CCT)
 	writeall(STDERR, path, len + 1);
 }
 
-static void set_new_file(struct atf* dd, char* name)
-{
-	dd->name = name;
-
-	if(dd->fd >= 0)
-		sys_close(dd->fd);
-
-	dd->fd = -1;
-}
-
 static void start_file_pair(CCT, char* dstname, char* srcname)
 {
-	set_new_file(&cct->dst, dstname);
-	set_new_file(&cct->src, srcname);
+	cct->dst.name = dstname;
+	cct->src.name = srcname;
+
 	memzero(&cct->st, sizeof(cct->st));
 
 	if(set(cct, DRY))
@@ -102,6 +93,22 @@ static void start_file_pair(CCT, char* dstname, char* srcname)
 		return;
 
 	annouce(cct);
+}
+
+static void end_file_pair(CCT)
+{
+	int fd;
+
+	if((fd = cct->dst.fd) >= 0)
+		sys_close(fd);
+	if((fd = cct->src.fd) >= 0)
+		sys_close(fd);
+
+	cct->src.fd = -1;
+	cct->dst.fd = -1;
+
+	cct->dst.name = NULL;
+	cct->src.name = NULL;
 }
 
 void trychown(CCT)
@@ -495,11 +502,13 @@ void runrec(CCT, char* dname, char* sname, int type)
 		type = stifmt_to_dt(st);
 
 	switch(type) {
-		case DT_DIR: return directory(cct);
-		case DT_REG: return regular(cct);
-		case DT_LNK: return symlink(cct);
-		default: return special(cct);
+		case DT_DIR: directory(cct); break;
+		case DT_REG: regular(cct); break;
+		case DT_LNK: symlink(cct); break;
+		default: special(cct); break;
 	}
+
+	end_file_pair(cct);
 }
 
 void run(CTX, CCT, char* dname, char* sname)
