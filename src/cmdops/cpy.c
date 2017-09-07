@@ -15,7 +15,7 @@
 
 ERRTAG("cpy");
 
-#define OPTS "nthomuqy"
+#define OPTS "nthomuqyv"
 #define OPT_n (1<<0)     /* new copy, no overwriting */
 #define OPT_t (1<<1)     /* copy to */
 #define OPT_h (1<<2)     /* copy here */
@@ -24,6 +24,7 @@ ERRTAG("cpy");
 #define OPT_u (1<<5)     /* keep file ownership */
 #define OPT_q (1<<6)     /* query, dry run only */
 #define OPT_y (1<<7)     /* yolo mode, skip dry run */
+#define OPT_v (1<<8)     /* verbose */
 
 /* Arguments parsing and tree walker invocation */
 
@@ -98,10 +99,12 @@ static int prep_opts(CTX, int argc, char** argv)
 	ctx->argi = i;
 	ctx->opts = opts;
 
+	/* xxx: the point in using argbits here?.. */
 	ctx->move = opts & OPT_m;
 	ctx->newc = opts & OPT_n;
 	ctx->user = opts & OPT_u;
 	ctx->query = opts & OPT_q;
+	ctx->verbose = opts & OPT_v;
 
 	if(ctx->user) {
 		ctx->uid = sys_getuid();

@@ -62,6 +62,19 @@ void failat(const char* msg, struct atf* dd, int err)
 	_exit(-1);
 }
 
+static void annouce(CCT)
+{
+	struct atf* dst = &cct->dst;
+
+	char path[pathlen(dst)+1];
+	makepath(path, sizeof(path), dst);
+
+	int len = strlen(path);
+	path[len] = '\n';
+
+	writeall(STDERR, path, len + 1);
+}
+
 static void set_new_file(struct atf* dd, char* name)
 {
 	dd->name = name;
@@ -77,6 +90,13 @@ static void start_file_pair(CCT, char* dstname, char* srcname)
 	set_new_file(&cct->dst, dstname);
 	set_new_file(&cct->src, srcname);
 	memzero(&cct->st, sizeof(cct->st));
+
+	if(cct->top->dryrun)
+		return;
+	if(!cct->top->verbose)
+		return;
+
+	annouce(cct);
 }
 
 void trychown(CCT)
@@ -353,8 +373,8 @@ static void directory(CCT)
 	memzero(&next, sizeof(next));
 
 	next.top = cct->top;
-	next.dst.at = dst->fd; next.dst.name = dpath;
-	next.src.at = src->fd; next.src.name = spath;
+	next.dst.at = dst->fd; next.dst.dir = dpath;
+	next.src.at = src->fd; next.src.dir = spath;
 	next.src.fd = -1;
 	next.dst.fd = -1;
 
