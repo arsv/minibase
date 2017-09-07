@@ -51,6 +51,11 @@ inline static long sys_fcntl3(int fd, int cmd, int arg)
 	return syscall3(NR_fcntl, fd, cmd, arg);
 }
 
+inline static long sys_dup(int fd)
+{
+	return syscall1(NR_dup, fd);
+}
+
 inline static long sys_dup2(int fda, int fdb)
 {
 	return syscall3(NR_dup3, fda, fdb, 0);
