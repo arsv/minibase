@@ -1,20 +1,25 @@
+#define OPTS "nthomuqyv"
+
+#define OPT_n (1<<0)     /* new copy, no overwriting */
+#define OPT_t (1<<1)     /* copy to */
+#define OPT_h (1<<2)     /* copy here */
+#define OPT_o (1<<3)     /* copy over, do overwrite */
+#define OPT_m (1<<4)     /* move */
+#define OPT_u (1<<5)     /* keep file ownership */
+#define OPT_q (1<<6)     /* query, dry run only */
+#define OPT_y (1<<7)     /* yolo mode, skip dry run */
+#define OPT_v (1<<8)     /* verbose */
+
+#define DRY (1<<16)    /* dry run */
+
 struct top {
 	int argc;
 	char** argv;
 	int argi;
 	int opts;
 
-	int dryrun;
-	int errors;
-	int query;
-	int verbose;
-
 	char* buf;
 	long len;
-
-	int move;
-	int newc;
-	int user;
 
 	int uid;
 	int gid;
@@ -22,6 +27,8 @@ struct top {
 	void* brk;
 	void* ptr;
 	void* end;
+
+	int errors;
 };
 
 struct atf {

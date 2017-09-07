@@ -16,6 +16,11 @@
 
 static void runrec(CCT, char* dname, char* sname, int type);
 
+static int set(CCT, int opt)
+{
+	return cct->top->opts & opt;
+}
+
 static int pathlen(struct atf* dd)
 {
 	char* name = dd->name;
@@ -91,9 +96,9 @@ static void start_file_pair(CCT, char* dstname, char* srcname)
 	set_new_file(&cct->src, srcname);
 	memzero(&cct->st, sizeof(cct->st));
 
-	if(cct->top->dryrun)
+	if(set(cct, DRY))
 		return;
-	if(!cct->top->verbose)
+	if(!set(cct, OPT_v))
 		return;
 
 	annouce(cct);
@@ -105,7 +110,7 @@ void trychown(CCT)
 	struct stat* st = &cct->st;
 	int ret;
 
-	if(!cct->top->user)
+	if(!set(cct, OPT_u))
 		return;
 
 	int uid = st->uid;
@@ -127,7 +132,9 @@ static int maybe_rename(CCT)
 	struct atf* dst = &cct->dst;
 	int ret;
 
-	if(!cct->top->move)
+	if(set(cct, DRY))
+		return 0;
+	if(!set(cct, OPT_m))
 		return 0;
 	if(!(ret = sys_renameat2(AT(src), AT(dst), 0)))
 		return 1;
@@ -142,17 +149,22 @@ static void maybe_unlink_src(CCT)
 	struct atf* src = &cct->src;
 	int ret;
 
-	if(!cct->top->move)
+	if(!set(cct, OPT_m))
 		return;
 
 	if((ret = sys_unlinkat(AT(src), 0)) < 0)
 		failat("unlink", src, ret);
 }
 
-static void rmdir(CCT)
+static void maybe_rmdir_src(CCT)
 {
 	struct atf* src = &cct->src;
 	int ret;
+
+	if(set(cct, DRY))
+		return;
+	if(!set(cct, OPT_m))
+		return;
 
 	if((ret = sys_unlinkat(AT(src), AT_REMOVEDIR)) < 0)
 		failat("rmdir", src, ret);
@@ -172,9 +184,9 @@ static void dryerr(CCT, struct atf* dd, int ret)
 {
 	warnat(NULL, dd, ret);
 
-	if(!cct->top->dryrun)
+	if(!set(cct, DRY))
 		_exit(-1);
-	if(cct->top->query)
+	if(set(cct, OPT_q))
 		return;
 	if(cct->top->errors++ < 10)
 		return;
@@ -288,14 +300,14 @@ static int open_src_dir(CCT)
 	if((fd = sys_openat(AT(src), O_DIRECTORY)) < 0)
 		goto fail;
 
-	if(cct->top->dryrun)
+	if(set(cct, DRY))
 		; /* no mkdir during dryrun, no need to re-stat it */
 	else if((ret = sys_fstat(fd, st)) < 0)
 		goto fail;
 
 	src->fd = fd;
 
-	if(!cct->top->dryrun)
+	if(!set(cct, DRY))
 		;
 	else if((ret = access(fd, ".", X_OK | R_OK)) < 0)
 		goto fail;
@@ -310,7 +322,6 @@ static int open_dst_dir(CCT)
 {
 	struct atf* dst = &cct->dst;
 	struct stat* st = &cct->st;
-	int dryrun = cct->top->dryrun;
 
 	struct stat ds;
 	int fd, ret;
@@ -319,7 +330,7 @@ static int open_dst_dir(CCT)
 		goto make;
 	else if(ret < 0)
 		goto fail;
-	if(cct->top->newc) {
+	if(set(cct, OPT_n)) {
 		ret = -EEXIST;
 		goto fail;
 	}
@@ -331,7 +342,7 @@ static int open_dst_dir(CCT)
 
 	goto done;
 make:
-	if(dryrun) {
+	if(set(cct, DRY)) {
 		check_dst_dir(cct);
 		return -1;
 	}
@@ -353,7 +364,6 @@ static void directory(CCT)
 {
 	struct atf* src = &cct->src;
 	struct atf* dst = &cct->dst;
-	int move = cct->top->move;
 
 	if(maybe_rename(cct))
 		return;
@@ -380,7 +390,7 @@ static void directory(CCT)
 
 	scan_directory(&next);
 
-	if(move) rmdir(cct);
+	maybe_rmdir_src(cct);
 }
 
 static void unlink_dst(CCT)
@@ -398,7 +408,7 @@ static void unlink_dst(CCT)
 
 static void regular(CCT)
 {
-	if(cct->top->dryrun)
+	if(set(cct, DRY))
 		return check_src_dst(cct);
 
 	if(maybe_rename(cct))
@@ -421,7 +431,7 @@ static void symlink(CCT)
 	struct atf* dst = &cct->dst;
 	struct stat* st = &cct->st;
 
-	if(cct->top->dryrun)
+	if(set(cct, DRY))
 		return check_dst_dir(cct);
 
 	if(st->size <= 0 || st->size > 4096)
@@ -471,7 +481,7 @@ void runrec(CCT, char* dname, char* sname, int type)
 {
 	struct atf* src = &cct->src;
 	struct stat* st = &cct->st;
-	int dryrun = cct->top->dryrun;
+	int dryrun = set(cct, DRY);
 	int flags = AT_SYMLINK_NOFOLLOW;
 	int ret;
 
@@ -496,7 +506,7 @@ void run(CTX, CCT, char* dname, char* sname)
 {
 	int type = DT_UNKNOWN;
 
-	if(ctx->dryrun && check_top_dst(cct, dname))
+	if(set(cct, DRY) && check_top_dst(cct, dname))
 		return;
 
 	runrec(cct, dname, sname, type);

@@ -15,17 +15,6 @@
 
 ERRTAG("cpy");
 
-#define OPTS "nthomuqyv"
-#define OPT_n (1<<0)     /* new copy, no overwriting */
-#define OPT_t (1<<1)     /* copy to */
-#define OPT_h (1<<2)     /* copy here */
-#define OPT_o (1<<3)     /* copy over, do overwrite */
-#define OPT_m (1<<4)     /* move */
-#define OPT_u (1<<5)     /* keep file ownership */
-#define OPT_q (1<<6)     /* query, dry run only */
-#define OPT_y (1<<7)     /* yolo mode, skip dry run */
-#define OPT_v (1<<8)     /* verbose */
-
 /* Arguments parsing and tree walker invocation */
 
 static int got_args(CTX)
@@ -99,14 +88,7 @@ static int prep_opts(CTX, int argc, char** argv)
 	ctx->argi = i;
 	ctx->opts = opts;
 
-	/* xxx: the point in using argbits here?.. */
-	ctx->move = opts & OPT_m;
-	ctx->newc = opts & OPT_n;
-	ctx->user = opts & OPT_u;
-	ctx->query = opts & OPT_q;
-	ctx->verbose = opts & OPT_v;
-
-	if(ctx->user) {
+	if(ctx->opts & OPT_u) {
 		ctx->uid = sys_getuid();
 		ctx->gid = sys_getgid();
 	}
@@ -132,7 +114,7 @@ static void tryrun(void (*run)(CTX, CCT), CTX, CCT)
 	if(opts & OPT_y)
 		goto real;
 
-	ctx->dryrun = 1;
+	ctx->opts |= DRY;
 	run(ctx, cct);
 
 	if(opts & OPT_q)
@@ -140,7 +122,7 @@ static void tryrun(void (*run)(CTX, CCT), CTX, CCT)
 	if(ctx->errors)
 		fail("aborting with no files copied", NULL, 0);
 
-	ctx->dryrun = 0;
+	ctx->opts &= ~DRY;
 	ctx->argi = argi;
 real:
 	run(ctx, cct);
