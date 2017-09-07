@@ -15,13 +15,15 @@
 
 ERRTAG("cpy");
 
-#define OPTS "nthomu"
-#define OPT_n (1<<0)
-#define OPT_t (1<<1)
-#define OPT_h (1<<2)
-#define OPT_o (1<<3)
-#define OPT_m (1<<4)
-#define OPT_u (1<<5)
+#define OPTS "nthomuqy"
+#define OPT_n (1<<0)     /* new copy, no overwriting */
+#define OPT_t (1<<1)     /* copy to */
+#define OPT_h (1<<2)     /* copy here */
+#define OPT_o (1<<3)     /* copy over, do overwrite */
+#define OPT_m (1<<4)     /* move */
+#define OPT_u (1<<5)     /* keep file ownership */
+#define OPT_q (1<<6)     /* query, dry run only */
+#define OPT_y (1<<7)     /* yolo mode, skip dry run */
 
 /* Arguments parsing and tree walker invocation */
 
@@ -99,6 +101,7 @@ static int prep_opts(CTX, int argc, char** argv)
 	ctx->move = opts & OPT_m;
 	ctx->newc = opts & OPT_n;
 	ctx->user = opts & OPT_u;
+	ctx->query = opts & OPT_q;
 
 	if(ctx->user) {
 		ctx->uid = sys_getuid();
@@ -121,17 +124,22 @@ static int prep_opts(CTX, int argc, char** argv)
 static void tryrun(void (*run)(CTX, CCT), CTX, CCT)
 {
 	int argi = ctx->argi;
+	int opts = ctx->opts;
+
+	if(opts & OPT_y)
+		goto real;
 
 	ctx->dryrun = 1;
-
 	run(ctx, cct);
 
+	if(opts & OPT_q)
+		_exit(ctx->errors ? -1 : 0);
 	if(ctx->errors)
 		fail("aborting with no files copied", NULL, 0);
 
 	ctx->dryrun = 0;
 	ctx->argi = argi;
-
+real:
 	run(ctx, cct);
 }
 

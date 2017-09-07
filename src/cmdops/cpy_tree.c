@@ -154,6 +154,8 @@ static void dryerr(CCT, struct atf* dd, int ret)
 
 	if(!cct->top->dryrun)
 		_exit(-1);
+	if(cct->top->query)
+		return;
 	if(cct->top->errors++ < 10)
 		return;
 

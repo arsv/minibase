@@ -6,6 +6,7 @@ struct top {
 
 	int dryrun;
 	int errors;
+	int query;
 
 	char* buf;
 	long len;
