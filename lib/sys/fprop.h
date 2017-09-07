@@ -17,6 +17,11 @@ inline static long sys_access(const char* path, int mode)
 	return syscall4(NR_faccessat, AT_FDCWD, (long)path, mode, 0);
 }
 
+inline static long sys_faccessat(int at, const char* path, int mode, int flags)
+{
+	return syscall4(NR_faccessat, at, (long)path, mode, flags);
+}
+
 inline static long sys_chmod(const char* path, int mode)
 {
 #ifdef NR_fchmodat
