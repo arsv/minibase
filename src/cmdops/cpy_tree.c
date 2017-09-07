@@ -15,8 +15,6 @@
 /* Tree-walking and direntry-level stuff. */
 
 static void runrec(CCT, char* dname, char* sname, int type);
-static void dryrec(CCT, char* dname, char* sname, int type);
-static void dryerr(CCT, struct atf* dd, int ret);
 
 static int pathlen(struct atf* dd)
 {
@@ -135,48 +133,104 @@ static void rmdir(CCT)
 		failat("rmdir", src, ret);
 }
 
-static int writable(int at, char* name)
+/* Dry run errors are reported as warning, up to 10 of them.
+   This allows for a nice final message, and gives the user
+   a better idea of the real situation.
+
+   Past the dry run, cpy dies on the first error.
+
+   Note dryerr *may* be called with dryrun off (i.e. when
+   actually copying stuff). It's way easier to skip to fail()
+   here than to mess with reporting at the call point. */
+
+static void dryerr(CCT, struct atf* dd, int ret)
+{
+	warnat(NULL, dd, ret);
+
+	if(!cct->top->dryrun)
+		_exit(-1);
+	if(cct->top->errors++ < 10)
+		return;
+
+	fail("aborting early due to multiple errors", NULL, 0);
+}
+
+/* Dryrun only. We need to know whether we can enter the source
+   directories, read the files, and write into the destination dir. */
+
+static int access(int at, char* name, int how)
 {
 	int flags = AT_EACCESS | AT_SYMLINK_NOFOLLOW;
 
-	return sys_faccessat(at, ".", W_OK | X_OK, flags);
+	return sys_faccessat(at, name, how, flags);
 }
 
-static void check_writable_at(CCT)
+static void check_dst_dir(CCT)
 {
-	int ret;
 	struct atf* dst = &cct->dst;
+	int ret;
 
 	if(cct->wrchecked)
 		return;
 
-	cct->wrchecked = 1;
+	if((ret = access(dst->at, ".", X_OK | W_OK)) >= 0) {
+		ret = 1;
+	} else {
+		/* Report the at-dir here, not the file
+		   the dir is being checked for. */
+		char* name = dst->name;
 
-	if((ret = writable(AT(dst))) >= 0)
-		return;
+		dst->name = NULL;
+		dryerr(cct, dst, ret);
+		dst->name = name;
+	}
 
-	/* Report the at-dir here, not the file the dir is being checked for. */
-	char* name = dst->name;
-
-	dst->name = NULL;
-	dryerr(cct, dst, ret);
-	dst->name = name;
+	cct->wrchecked = ret;
 }
 
-/* Tree walking routines */
+/* The source (always a regular file here) must be readable
+   and the destination directory must be writable. */
+
+static void check_src_dst(CCT)
+{
+	struct atf* src = &cct->src;
+	int ret;
+
+	if((ret = access(AT(src), R_OK)) < 0)
+		dryerr(cct, src, ret);
+
+	check_dst_dir(cct);
+}
+
+/* At the top level, and *only* at the top level, we may get dst=(at, path)
+   with $path not being a basename. It this case access(at, ".") won't cut it
+   so we have to figure out what's the real directory is. */
+
+static int check_top_dst(CCT, char* name)
+{
+	struct atf* dst = &cct->dst;
+	char* base = basename(name);
+
+	FMTBUF(p, e, dir, base - name + 4);
+
+	if(name == base)
+		p = fmtstr(p, e, ".");
+	else
+		p = fmtraw(p, e, name, base - name);
+
+	FMTEND(p, e);
+
+	return access(dst->at, dir, X_OK | W_OK);
+}
+
+/* Tree walking routines. These are shared between the dry and the real runs,
+   and it's leaf calls for specific file types (regular, symlink, directory)
+   that have to check for or perform the action. */
 
 static void scan_directory(CCT)
 {
-	int dryrun = cct->top->dryrun;
 	int rd, fd = cct->src.at;
 	char buf[1024];
-
-	void (*rec)(CCT, char*, char*, int);
-
-	if(dryrun)
-		rec = dryrec;
-	else
-		rec = runrec;
 
 	while((rd = sys_getdents(fd, buf, sizeof(buf))) > 0) {
 		char* p = buf;
@@ -190,26 +244,39 @@ static void scan_directory(CCT)
 			if(dotddot(de->name))
 				continue;
 
-			rec(cct, de->name, de->name, de->type);
+			runrec(cct, de->name, de->name, de->type);
+
+			if(cct->wrchecked < 0)
+				return; /* abort early during dryrun */
 		}
 	}
 }
 
-static void open_src_dir(CCT)
+static int open_src_dir(CCT)
 {
 	struct atf* src = &cct->src;
 	struct stat* st = &cct->st;
 	int fd, ret;
 
 	if((fd = sys_openat(AT(src), O_DIRECTORY)) < 0)
-		failat(NULL, src, fd);
+		goto fail;
 
 	if(cct->top->dryrun)
 		; /* no mkdir during dryrun, no need to re-stat it */
 	else if((ret = sys_fstat(fd, st)) < 0)
-		failat("stat", src, ret);
+		goto fail;
 
 	src->fd = fd;
+
+	if(!cct->top->dryrun)
+		;
+	else if((ret = access(fd, ".", X_OK | R_OK)) < 0)
+		goto fail;
+
+	return 0;
+fail:
+	dryerr(cct, src, ret);
+	return -1;
 }
 
 static int open_dst_dir(CCT)
@@ -225,9 +292,10 @@ static int open_dst_dir(CCT)
 		goto make;
 	else if(ret < 0)
 		goto fail;
-	else if(cct->top->newc)
-		failat(NULL, dst, -EEXIST);
-
+	if(cct->top->newc) {
+		ret = -EEXIST;
+		goto fail;
+	}
 	if((ret = sys_fstat(fd, &ds)) < 0)
 		goto fail;
 
@@ -235,25 +303,23 @@ static int open_dst_dir(CCT)
 		return -1;
 
 	goto done;
-
 make:
 	if(dryrun) {
-		check_writable_at(cct);
+		check_dst_dir(cct);
 		return -1;
 	}
-
 	if((ret = sys_mkdirat(dst->at, dst->name, st->mode)) < 0)
 		goto fail;
 	if((fd = ret = sys_openat(dst->at, dst->name, O_DIRECTORY)) < 0)
 		goto fail;
-
 done:
 	dst->fd = fd;
 	trychown(cct);
 
 	return 0;
 fail:
-	failat(NULL, dst, ret);
+	dryerr(cct, dst, ret);
+	return -1; /* skip this directory */
 }
 
 static void directory(CCT)
@@ -265,8 +331,8 @@ static void directory(CCT)
 	if(move && rename(cct))
 		return;
 
-	open_src_dir(cct);
-
+	if(open_src_dir(cct))
+		return;
 	if(open_dst_dir(cct))
 		return;
 
@@ -291,6 +357,9 @@ static void regular(CCT)
 {
 	int move = cct->top->move;
 
+	if(cct->top->dryrun)
+		return check_src_dst(cct);
+
 	if(move && rename(cct))
 		return;
 
@@ -308,6 +377,9 @@ static void symlink(CCT)
 	struct atf* src = &cct->src;
 	struct atf* dst = &cct->dst;
 	struct stat* st = &cct->st;
+
+	if(cct->top->dryrun)
+		return check_dst_dir(cct);
 
 	if(st->size <= 0 || st->size > 4096)
 		failat(NULL, src, -EINVAL);
@@ -335,6 +407,11 @@ got:
 	delete(cct);
 }
 
+static void special(CCT)
+{
+	warnat("ignoring", &cct->src, 0);
+}
+
 /* We need to know the type of the source file to decide what to do
    about it, *before* attempting to open it. Normally getdents provides
    enough information, but it may return DT_UNKNOWN and we must be ready
@@ -357,13 +434,14 @@ void runrec(CCT, char* dname, char* sname, int type)
 {
 	struct atf* src = &cct->src;
 	struct stat* st = &cct->st;
+	int dryrun = cct->top->dryrun;
 	int flags = AT_SYMLINK_NOFOLLOW;
 	int ret;
 
 	start_file_pair(cct, dname, sname);
 
-	if(type == DT_REG)
-		;
+	if(type == DT_REG || (dryrun && type != DT_UNKNOWN))
+		memzero(st, sizeof(*st));
 	else if((ret = sys_fstatat(src->at, src->name, st, flags)) < 0)
 		failat(NULL, src, ret);
 	else
@@ -373,68 +451,16 @@ void runrec(CCT, char* dname, char* sname, int type)
 		case DT_DIR: return directory(cct);
 		case DT_REG: return regular(cct);
 		case DT_LNK: return symlink(cct);
+		default: return special(cct);
 	}
 }
 
-/* Dry run routines */
-
-static void dryerr(CCT, struct atf* dd, int ret)
-{
-	warnat(NULL, dd, ret);
-
-	if(cct->top->errors++ < 10) return;
-
-	fail("too many errors", NULL, 0);
-}
-
-static int stat_check_dir(struct atf* dd, struct stat* st)
-{
-	int flags = AT_SYMLINK_NOFOLLOW;
-	int ret;
-
-	if((ret = sys_fstatat(AT(dd), st, flags)) < 0)
-		return ret;
-
-	return ((st->mode & S_IFMT) == S_IFDIR ? 1 : 0);
-}
-
-void dryrec(CCT, char* dname, char* sname, int type)
-{
-	struct atf* src = &cct->src;
-	struct atf* dst = &cct->dst;
-	struct stat* st = &cct->st;
-	struct stat ds;
-	int sdir, ddir;
-
-	start_file_pair(cct, dname, sname);
-
-	if((sdir = stat_check_dir(src, st)) < 0)
-		return dryerr(cct, src, sdir);
-	if((ddir = stat_check_dir(dst, &ds)) < 0)
-		return;
-
-	if(sdir && !ddir)
-		return dryerr(cct, dst, -ENOTDIR);
-	if(!sdir && ddir)
-		return dryerr(cct, dst, -EISDIR);
-
-	if(sdir)
-		directory(cct);
-	else
-		check_writable_at(cct);
-}
-
-void dryrun(CCT, char* dname, char* sname, int type)
-{
-	dryrec(cct, dname, sname, type);
-}
-
-void run(CTX, CCT, char* dst, char* src)
+void run(CTX, CCT, char* dname, char* sname)
 {
 	int type = DT_UNKNOWN;
 
-	if(ctx->dryrun)
-		dryrun(cct, dst, src, type);
-	else
-		runrec(cct, dst, src, type);
+	if(ctx->dryrun && check_top_dst(cct, dname))
+		return;
+
+	runrec(cct, dname, sname, type);
 }

@@ -108,6 +108,16 @@ static int prep_opts(CTX, int argc, char** argv)
 	return opts;
 }
 
+/* Straightforward copy implementation would fail() on the first error
+   encountered, potentially after spending some time to copy half of
+   the files requested. That's not good. To mend this, we do a dry run
+   first, trying to catch obvious errors like non-readable files or
+   non-enterable directories, and only then start to copy the files.
+
+   Dry run results are not reliable, their purpose is to warn the user
+   early and save some time/trouble if possible. The real run will still
+   check for errors and may fail at any point. */
+
 static void tryrun(void (*run)(CTX, CCT), CTX, CCT)
 {
 	int argi = ctx->argi;
