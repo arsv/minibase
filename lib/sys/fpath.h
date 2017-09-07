@@ -101,12 +101,19 @@ inline static long sys_readlinkat(int at, const char* path, char* buf, long len)
 inline static long sys_rename(const char* oldpath, const char* newpath)
 {
 	return syscall5(NR_renameat2, AT_FDCWD, (long)oldpath,
-                                        AT_FDCWD, (long)newpath, 0);
+	                              AT_FDCWD, (long)newpath, 0);
 }
 
 inline static long sys_renameat2(int oldat, const char* oldpath,
                                  int newat, const char* newpath, int flags)
 {
 	return syscall5(NR_renameat2, oldat, (long)oldpath,
-                                        newat, (long)newpath, flags);
+	                              newat, (long)newpath, flags);
+}
+
+inline static long sys_linkat(int oldat, const char* oldpath,
+                              int newat, const char* newpath, int flags)
+{
+	return syscall5(NR_linkat, oldat, (long)oldpath,
+	                           newat, (long)newpath, flags);
 }
