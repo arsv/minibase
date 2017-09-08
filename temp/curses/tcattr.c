@@ -1,8 +1,11 @@
 #include <bits/ioctl/tty.h>
 #include <sys/ioctl.h>
 
+#include <errtag.h>
 #include <printf.h>
 #include <util.h>
+
+ERRTAG("keys");
 
 struct dict {
 	char* name;

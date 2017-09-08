@@ -2,10 +2,13 @@
 #include <sys/ioctl.h>
 #include <sys/file.h>
 
+#include <errtag.h>
 #include <printf.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
+
+ERRTAG("keys");
 
 #define CSI "\033["
 
