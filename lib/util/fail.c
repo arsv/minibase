@@ -5,8 +5,6 @@
 
 #define ERRBUF 512
 
-const char errtag[] __attribute__((weak)) = "";
-
 void warn(const char* msg, const char* obj, int ret)
 {
 	char buf[ERRBUF];
