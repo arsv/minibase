@@ -5,7 +5,6 @@
 #include <errtag.h>
 #include <string.h>
 #include <format.h>
-#include <output.h>
 #include <time.h>
 #include <util.h>
 
@@ -15,23 +14,29 @@ ERRTAG("logcat");
 
 #define TAGSPACE 14
 
-#define OPTS "cbf"
+#define OPTS "cbfa"
 #define OPT_c (1<<0)	/* no color */
 #define OPT_b (1<<1)	/* both current and old (rotated) log */
 #define OPT_f (1<<2)	/* follow */
+#define OPT_a (1<<3)	/* all lines, not just N last */
 #define SET_i (1<<10)	/* ignore errors */
 
-struct mbuf {
+struct buf {
+	char* brk;
 	char* ptr;
 	char* end;
 };
 
-struct tail {
+struct top {
+	int opts;
+	char* tag;
+	int tlen;
+
 	int fd;
-	char* brk;
-	char* ptr;
-	char* end;
-	int len;
+	struct buf buf;
+	struct buf out;
+	int over;
+
 	char* name;
 	char* base;
 
@@ -40,18 +45,76 @@ struct tail {
 	int ind;
 };
 
-struct grep {
-	char* tag;
-	int tlen;
-	int opts;
-};
+#define CTX struct top* ctx
+
+/* Buffered output (may be a circular buffer depending on opts) */
+
+static void write(char* buf, char* end)
+{
+	if(buf >= end) return;
+	writeall(STDOUT, buf, end - buf);
+}
+
+static void output(CTX, char* str, int len)
+{
+	char* brk = ctx->out.brk;
+	char* ptr = ctx->out.ptr;
+	char* end = ctx->out.end;
+	int all = ctx->opts & OPT_a;
+
+	while(len > 0) {
+		int left = end - ptr;
+		int run = len < left ? len : left;
+
+		if(!run) break;
+
+		memcpy(ptr, str, run);
+		str += run;
+		len -= run;
+
+		ptr += run;
+
+		if(ptr < end) break;
+
+		if(all)
+			write(brk, ptr);
+		else
+			ctx->over = 1;
+
+		ptr = brk;
+	}
+
+	ctx->out.ptr = ptr;
+}
+
+static void flushout(CTX)
+{
+	char* brk = ctx->out.brk;
+	char* ptr = ctx->out.ptr;
+	char* end = ctx->out.end;
+	char* e;
+
+	if(ctx->over) {
+		if((e = strecbrk(ptr, end, '\n')) < end) {
+			write(e + 1, end);
+			write(brk, ptr);
+		} else if((e = strecbrk(brk, ptr, '\n')) < ptr) {
+			write(e + 1, ptr);
+		}
+	} else {
+		write(brk, ptr);
+	}
+
+	ctx->out.ptr = brk;
+	ctx->over = 0;
+}
 
 /* Formatting routines */
 
-static int tagged(char* ls, char* le, struct grep* gr)
+static int tagged(CTX, char* ls, char* le)
 {
-	char* tag = gr->tag;
-	int tlen = gr->tlen;
+	char* tag = ctx->tag;
+	int tlen = ctx->tlen;
 
 	if(!tag)
 		return 1;
@@ -90,22 +153,24 @@ static char* reset(char* p, char* e, int opts)
 	return p;
 }
 
-static void outcolor(int opts, int a, int b)
+static void outcolor(CTX, int a, int b)
 {
+	int opts = ctx->opts;
+
 	if(opts & OPT_c) return;
 
 	FMTBUF(p, e, buf, 10);
 	p = color(p, e, opts, a, b);
 	FMTEND(p, e);
 
-	writeout(buf, p - buf);
+	output(ctx, buf, p - buf);
 }
 
-static void outreset(int opts)
+static void outreset(CTX)
 {
-	if(opts & OPT_c) return;
+	if(ctx->opts & OPT_c) return;
 
-	writeout("\033[0m", 4);
+	output(ctx, "\033[0m", 4);
 }
 
 static char* skip_prefix(char* ls, char* le)
@@ -121,41 +186,42 @@ static char* skip_prefix(char* ls, char* le)
 	return NULL;
 }
 
-static void format(uint64_t ts, int prio, char* ls, char* le, int opts)
+static void format(CTX, uint64_t ts, int prio, char* ls, char* le)
 {
+	int opts = ctx->opts;
 	struct timeval tv = { ts, 0 };
 	struct tm tm;
 	char* sep;
 
 	tv2tm(&tv, &tm);
 
-	FMTBUF(p, e, buf, 50);
+	FMTBUF(p, e, buf, 50 + le - ls + 50);
 	p = color(p, e, opts, 0, 32);
 	p = fmttm(p, e, &tm);
 	p = reset(p, e, opts);
 	p = fmtstr(p, e, opts & OPT_c ? "  " : " ");
 	FMTEND(p, e);
 
-	writeout(buf, p - buf);
+	output(ctx, buf, p - buf);
 
 	if((sep = skip_prefix(ls, le))) {
-		outcolor(opts, 0, 33);
-		writeout(ls, sep - ls);
-		outreset(opts);
+		outcolor(ctx, 0, 33);
+		output(ctx, ls, sep - ls);
+		outreset(ctx);
 		ls = sep;
 	}
 
 	if(prio < 2)
-		outcolor(opts, 1, 31);
+		outcolor(ctx, 1, 31);
 	else if(prio < 4)
-		outcolor(opts, 1, 37);
+		outcolor(ctx, 1, 37);
 
-	writeout(ls, le - ls);
+	output(ctx, ls, le - ls);
 
 	if(prio < 4)
-		outreset(opts);
+		outreset(ctx);
 
-	writeout("\n", 1);
+	output(ctx, "\n", 1);
 }
 
 /* (ls, le) pair is *not* 0-terminated!
@@ -171,7 +237,7 @@ static void format(uint64_t ts, int prio, char* ls, char* le, int opts)
    Current syslogd should always leave exactly TAGSPACE characters before
    the "foo: ..." part but we allow for less. */
 
-void process(char* ls, char* le, int opts)
+void process(CTX, char* ls, char* le)
 {
 	int ln = le - ls;
 	int tl = ln < TAGSPACE ? ln : TAGSPACE;
@@ -198,7 +264,7 @@ void process(char* ls, char* le, int opts)
 
 	int plen = p - pref;
 
-	format(ts, prio, ls + plen, le, opts);
+	format(ctx, ts, prio, ls + plen, le);
 }
 
 /* Grep mode. For simplicity, mmap the whole file into memory.
@@ -207,7 +273,7 @@ void process(char* ls, char* le, int opts)
    we do the equivalent of "grep tag sysold syslog" instead of just
    "grep tag syslog". */
 
-static int mmap_whole(struct mbuf* mb, char* name)
+static int mmap_whole(CTX, char* name)
 {
 	int fd, ret;
 	struct stat st;
@@ -224,46 +290,51 @@ static int mmap_whole(struct mbuf* mb, char* name)
 	if(mmap_error(ptr))
 		fail("mmap", name, (long)ptr);
 
-	mb->ptr = ptr;
-	mb->end = ptr + size;
+	ctx->buf.brk = ptr;
+	ctx->buf.ptr = ptr + size;
+	ctx->buf.end = ptr + size;
+
+	ctx->name = name;
+	ctx->base = NULL;
 
 	return 0;
 }
 
-void dump_logfile(char* name, char* tag, int opts)
+void dump_logfile(CTX, char* name)
 {
-	struct grep gr = {
-		.tag = tag,
-		.tlen = tag ? strlen(tag) : 0,
-		.opts = opts
-	};
-
-	struct mbuf mb;
+	int opts = ctx->opts;
 	char *ls, *le;
 	int ret;
 
-	if((ret = mmap_whole(&mb, name)) < 0) {
+	if((ret = mmap_whole(ctx, name)) < 0) {
 		if(opts & SET_i)
 			return;
 		fail(NULL, name, ret);
 	}
 
-	for(ls = mb.ptr; ls < mb.end; ls = le + 1) {
-		le = strecbrk(ls, mb.end, '\n');
+	char* buf = ctx->buf.brk;
+	char* end = ctx->buf.ptr;
 
-		if(!tagged(ls, le, &gr))
+	for(ls = buf; ls < end; ls = le + 1) {
+		le = strecbrk(ls, end, '\n');
+
+		if(!tagged(ctx, ls, le))
 			continue;
 
-		process(ls, le, opts);
+		process(ctx, ls, le);
 	}
 }
 
-static void dump_logs(char* tag, int opts)
+static void dump_logs(CTX)
 {
-	if(opts & OPT_b)
-		dump_logfile(OLDLOG, tag, opts | SET_i);
+	if(!(ctx->opts & OPT_b))
+		goto curr;
 
-	dump_logfile(VARLOG, tag, opts);
+	ctx->opts |= SET_i;
+	dump_logfile(ctx, OLDLOG);
+	ctx->opts &= ~SET_i;
+curr:
+	dump_logfile(ctx, VARLOG);
 }
 
 /* Follow mode, uses inotify to watch /var/log/syslog for updates.
@@ -275,12 +346,10 @@ static void dump_logs(char* tag, int opts)
    The whole thing reeks of race conditions, but there's apparently no
    inotify_add_fd call or anything resembling it. */
 
-static int start_inotify(struct tail* ta)
+static int start_inotify(CTX)
 {
 	int fd, ret;
-	char* name = ta->name;
-
-	ta->base = (char*)basename(name);
+	char* name = ctx->name;
 
 	if((fd = sys_inotify_init()) < 0)
 		fail("inotify-start", NULL, fd);
@@ -288,26 +357,26 @@ static int start_inotify(struct tail* ta)
 	if((ret = sys_inotify_add_watch(fd, name, IN_MODIFY)) < 0)
 		fail("inotify-add", name, ret);
 
-	ta->in = fd;
-	ta->inf = ret;
+	ctx->in = fd;
+	ctx->inf = ret;
 
 	char* dir = LOGDIR;
 
 	if((ret = sys_inotify_add_watch(fd, dir, IN_CREATE)) < 0)
 		fail("inotify-add", dir, ret);
 
-	ta->ind = ret;
+	ctx->ind = ret;
 
 	return fd;
 }
 
-static int wait_inotify(struct tail* ta)
+static int wait_inotify(CTX)
 {
 	char buf[500];
 	int newfile = 0;
 	int rd;
 
-	if((rd = sys_read(ta->in, buf, sizeof(buf))) < 0)
+	if((rd = sys_read(ctx->in, buf, sizeof(buf))) < 0)
 		fail("inotify", NULL, rd);
 
 	void* p = buf;
@@ -318,7 +387,7 @@ static int wait_inotify(struct tail* ta)
 
 		if(evt->mask != IN_CREATE)
 			;
-		else if(!strcmp(evt->name, ta->base))
+		else if(!strcmp(evt->name, ctx->base))
 			newfile = 1;
 
 		p += sizeof(*evt) + evt->len;
@@ -327,172 +396,193 @@ static int wait_inotify(struct tail* ta)
 	return newfile;
 }
 
-static void alloc_tail_buf(struct tail* ta, int size)
+static void alloc_bufs(CTX)
 {
+	const int outlen = PAGE;
+	const int buflen = 2*PAGE;
+
+	int tail = ctx->opts & OPT_f;
+	int size = tail ? outlen + buflen : outlen;
+
 	char* brk = sys_brk(0);
 	char* end = sys_brk(brk + size);
 
 	if(brk_error(brk, end))
 		fail("cannot allocate memory", NULL, 0);
 
-	ta->brk = brk;
-	ta->ptr = brk;
-	ta->end = end;
+	ctx->out.brk = brk;
+	ctx->out.ptr = brk;
+	ctx->out.end = brk + outlen;
+
+	if(!tail) return;
+
+	brk += outlen;
+	ctx->buf.brk = brk;
+	ctx->buf.ptr = brk;
+	ctx->buf.end = end;
 }
 
-static void open_logfile(struct tail* ta, char* name)
+static void open_logfile(CTX, char* name)
 {
 	int fd;
 
 	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail(NULL, name, fd);
 
-	ta->fd = fd;
-	ta->name = name;
+	ctx->fd = fd;
+	ctx->name = name;
+	ctx->base = basename(name);
 }
 
-static void reopen_logfile(struct tail* ta)
+static void reopen_logfile(CTX)
 {
 	int ret;
-	char* name = ta->name;
-	int in = ta->in;
+	char* name = ctx->name;
+	int in = ctx->in;
+	int inf = ctx->inf;
+	int fd = ctx->fd;
 
-	sys_inotify_rm_watch(in, ta->inf);
+	sys_inotify_rm_watch(in, inf);
 
-	sys_close(ta->fd);
-	open_logfile(ta, name);
+	sys_close(fd);
+	open_logfile(ctx, name);
 
 	if((ret = sys_inotify_add_watch(in, name, IN_MODIFY)) < 0)
 		fail("inotify-add", name, ret);
 
-	ta->inf = ret;
+	ctx->inf = ret;
 }
 
-static char* find_line_end(struct tail* ta, char* from)
+static char* find_line_end(CTX, char* from)
 {
-	char* p;
+	char* p = from;
+	char* e = ctx->buf.ptr;
 
-	for(p = from; p < ta->ptr; p++)
+	for(; p < e; p++)
 		if(*p == '\n')
 			return p;
 
 	return NULL;
 }
 
-static int read_chunk(struct tail* ta)
+static int read_chunk(CTX)
 {
-	long left = ta->end - ta->ptr;
-	char* ptr = ta->ptr;
-	int rd;
+	char* end = ctx->buf.end;
+	char* ptr = ctx->buf.ptr;
+	long left = end - ptr;
+	int rd, fd = ctx->fd;
 
-	if((rd = sys_read(ta->fd, ptr, left)) < 0)
-		fail("read", ta->name, rd);
+	if((rd = sys_read(fd, ptr, left)) < 0)
+		fail("read", ctx->name, rd);
 
-	ta->ptr += rd;
+	ctx->buf.ptr += rd;
 
 	return rd;
 }
 
-static void shift_chunk(struct tail* ta, char* p)
+static void shift_chunk(CTX, char* p)
 {
-	if(p < ta->brk || p > ta->ptr)
+	char* brk = ctx->buf.brk;
+	char* ptr = ctx->buf.ptr;
+	char* end = ctx->buf.end;
+
+	if(p < brk || p > ptr)
 		return;
 
-	long left = ta->ptr - p;
+	long left = ptr - p;
 
-	memmove(ta->brk, p, left);
-	ta->ptr = ta->brk + left;
+	memmove(brk, p, left);
+	ctx->buf.ptr = brk + left;
 
-	if(ta->ptr < ta->end)
-		*(ta->ptr) = '\0'; /* for debugging convenience */
+	if(ptr < end) *ptr = '\0'; /* for debugging convenience */
 }
 
-static void seek_to_start_of_line(struct tail* ta)
+static void seek_to_start_of_line(CTX)
 {
 	struct stat st;
-	int ret, fd = ta->fd;
-	long chunk = ta->end - ta->ptr;
+	int ret, fd = ctx->fd;
+	char* end = ctx->buf.end;
+	char* ptr = ctx->buf.ptr;
+	long chunk = end - ptr;
 	char* ls;
 
 	if((ret = sys_fstat(fd, &st)) < 0)
-		fail("stat", ta->name, ret);
+		fail("stat", ctx->name, ret);
 
 	if(!st.size)
 		return;
 	if(st.size < chunk)
 		;
 	else if((ret = sys_lseek(fd, st.size - chunk, SEEK_SET)) < 0)
-		fail("seek", ta->name, ret);
+		fail("seek", ctx->name, ret);
 
-	read_chunk(ta);
+	read_chunk(ctx);
 
-	if(!(ls = find_line_end(ta, ta->brk)))
+	if(!(ls = find_line_end(ctx, ctx->buf.brk)))
 		fail("corrupt logfile", NULL, 0);
 
-	shift_chunk(ta, ls + 1);
+	shift_chunk(ctx, ls + 1);
 }
 
-static void process_chunk(struct tail* ta, struct grep* gr)
+static void process_chunk(CTX)
 {
-	char* brk = ta->brk;
+	char* buf = ctx->buf.brk;
 	char *ls, *le;
 
-	for(ls = brk; (le = find_line_end(ta, ls)); ls = le + 1) {
+	for(ls = buf; (le = find_line_end(ctx, ls)); ls = le + 1) {
 		if(le - ls < TAGSPACE)
 			continue;
-		if(!tagged(ls, le, gr))
+		if(!tagged(ctx, ls, le))
 			continue;
 
-		process(ls, le, gr->opts);
+		process(ctx, ls, le);
 	}
 
-	shift_chunk(ta, ls);
+	shift_chunk(ctx, ls);
 }
 
-static void slurp_tail(struct tail* ta, struct grep* gr)
+static void slurp_tail(CTX)
 {
 	int rd;
 
-	while((rd = read_chunk(ta)))
-		process_chunk(ta, gr);
+	while((rd = read_chunk(ctx)))
+		process_chunk(ctx);
 }
 
-static void flush_buf(struct tail* ta)
+static void flushbuf(CTX)
 {
 	/* silently drop partial line that may be there */
-	ta->ptr = ta->brk;
+	ctx->buf.ptr = ctx->buf.brk;
 }
 
-static void follow_log(char* tag, int opts)
+static void follow_log(CTX)
 {
-	struct grep gr = {
-		.tag = tag,
-		.tlen = tag ? strlen(tag) : 0,
-		.opts = opts
-	};
-
 	char* name = VARLOG;
-	struct tail tl, *ta = &tl;
+	int opts = ctx->opts;
 
-	alloc_tail_buf(ta, 2*PAGE);
-	open_logfile(ta, name);
-	start_inotify(ta);
+	open_logfile(ctx, name);
+	start_inotify(ctx);
 
-	seek_to_start_of_line(ta);
-	process_chunk(ta, &gr);
+	if(!(opts & OPT_a)) {
+		seek_to_start_of_line(ctx);
+		process_chunk(ctx);
+	} else {
+		slurp_tail(ctx);
+		ctx->opts &= ~OPT_a; /* suppress output wrap */
+	}
 
 	while(1) {
-		flushout();
+		flushout(ctx);
 
-		int nf = wait_inotify(ta);
+		int nf = wait_inotify(ctx);
 
-		slurp_tail(ta, &gr);
+		slurp_tail(ctx);
 
 		if(!nf) continue;
 
-		flush_buf(ta);
-		reopen_logfile(ta);
-		slurp_tail(ta, &gr);
+		flushbuf(ctx);
+		reopen_logfile(ctx);
+		slurp_tail(ctx);
 	}
 }
 
@@ -511,12 +601,21 @@ int main(int argc, char** argv)
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
-	if(opts & OPT_f)
-		follow_log(tag, opts);
-	else
-		dump_logs(tag, opts);
+	struct top ctx;
+	memzero(&ctx, sizeof(ctx));
 
-	flushout();
+	ctx.opts = opts;
+	ctx.tag = tag;
+	ctx.tlen = tag ? strlen(tag) : 0;
+
+	alloc_bufs(&ctx);
+
+	if(opts & OPT_f)
+		follow_log(&ctx);
+	else
+		dump_logs(&ctx);
+
+	flushout(&ctx);
 
 	return 0;
 }
