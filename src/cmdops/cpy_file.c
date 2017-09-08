@@ -220,9 +220,8 @@ static void open_dst(CCT)
 }
 
 /* Hard-linking for multilink files. This should have been a nice and clean
-   piece of code in cpy_file.c but it turns out linkat(..., AT_EMPTY_PATH)
-   is a *privileged* call in Linux for some reason and we have to do it with
-   file names instead.
+   piece of code but it turns out linkat(..., AT_EMPTY_PATH) is a *privileged*
+   call in Linux for some reason and we have to do it with file names instead.
 
    The idea here is that src/a and src/b are the same file, then the same
    should hold for dst/a and dst/b, but dst/a should still refer to a copy
@@ -235,7 +234,10 @@ static void open_dst(CCT)
    Directory handle $at must remain open way long than it would otherwise,
    so we just dup() it and let the original be closed as usual. Keeping the
    original one open would mess up the tree-walking code a lot for no good
-   reason. Hard links are rare and not worth it. */
+   reason. Hard links are rare and not worth it.
+
+   This wastes 1 fd for each directory with multi-linked files in it. Typical
+   open file limit in Linux is around 1024, so we should be good. */
 
 static struct link* find_link(CCT)
 {
