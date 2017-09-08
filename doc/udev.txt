@@ -2,153 +2,87 @@ What's the purpose of udevd?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The answer is surprisingly not simple. Current kernels run with devtmpfs,
 create device nodes themselves, and load firmware without userspace helpers.
-Originally that was the bulk of the work udevd did.
+That's the bulk of what a userspace device daemon is supposed to do.
 
-Another common udevd task is chowning/chmodding newly created device nodes.
-There are very few nodes that require chowning however. ALSA is perhaps the
-only common example.
+Another issue is that udev is generally assumed to be a single tool to manage
+all kinds of devices. Current Linux environment seems to favor separate tools
+handling specific device classes, one for block devices, another one for
+inputs and so on, all listening to udev events at some point but doing wildly
+different things otherwise.
 
-So what really remains for udevd is this:
-
-	* naming nodes based on userspace device identification
-	* chowning/chmodding nodes that need it
-	* running userspace tools for devices that need it
-
-Only identification applies to sizable fraction of device nodes. The other
-two should only be needed for small number of unusual in some sense devices.
+It is not clear yet if there's any reason to have some sort of "udev" in
+minibase, and what kind of tool it should be. The following text outlines
+some thoughts on the possible tasks for such a tool.
 
 
-Autoplug, new device announcements, and libudev
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Watching for new devices
+~~~~~~~~~~~~~~~~~~~~~~~~
 Some applications may want to pick up new devices immediately as they appear.
-Common examples: vtmux and display managers are expected to pick up new inputs
-immediately without explicit command to do so.
+Common examples: keymon and display managers are expected to pick up new inputs
+immediately without an explicit command to do so.
 
 In mainline udevd-based (and later systemd-based) setups the application are
 expected to listen to udev events to figure out when a device gets added to
-the system, and pick devices on their own based on /sys data. This approach
-leads to pervasive libudev dependency, since fetching userspace-relevant
-information from either udev events or /sys is non-trivial task.
+the system, and make their decisions based on the contents of udev message
+and the stuff in /sys.
 
-Another problem is synchronization issues. The application gets the kernel
-events at about the same time udevd does, and thus may get to act before
-udevd is done with the device. The application may wait for udevd events,
-but those are not guaranteed to come. Handling this all adds even more
-weight to libudev, and makes it harder to avoid.
+Note the above does not involve udevd in any form. The application only needs
+to listen to the (kernel-generated) udev events. In fact, trying to stick
+udevd in immediately leads to synchronization issues, as the application may
+pick up the device before udevd has a chance to do its thing.
 
-The approach minibase takes here is different. The applications are only
-expected to watch for device nodes (or more often, symlinks) with pre-defined
-names to appear, and only in exceptional cases check relevant /sys entries.
-Most of device identification work is done in udev. This way, instead of
-parsing udev events the applications mostly deal with inotify instead, which
-is easier to handle, are not specific to device handling, and require no
-dedicated library support.
+Applications may avoid udev altogether by using inotify on /dev.
 
 
-Device identification workflow
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-In mainline udev device identification and renaming is implemented as
-a two-way communication between udevd and the identification tool:
-udevd spawns the identification tool, the tool does its job and outputs
-results to stdout, udevd parses the results and renames the nodes.
-See IMPORT and typical ENV usage.
+Sane device naming scheme
+~~~~~~~~~~~~~~~~~~~~~~~~~
+In current Linux device names are unreliable and often meaningless.
+One has to sift through /sys or even probe the device to figure out what
+exactly say /dev/input/event19 refers to. An application watching for new
+keyboards will have to open the device just to figure out it's not a keyboard
+at all, and close it (if possible that is, note that weston-launch protocol
+lacks "close" command and there are good reasons for that).
 
-This is in part necessary because mainline udevd is capable of doing
-some identification without spawning any tools. See KERNEL, ATTRS --
-in fact, any condition that is not ENV following IMPORT.
+It would be better to name devices in meaningful name, say /dev/input/ptr-stick
+instead of nondescript /dev/input/event19, and /dev/input/keyboard instead of
+/dev/input/event0. This way, the naming and identification of devices could be
+left to udevd, and the applications could then rely solely on device names
+to decide whether to pick them or not.
 
-In minibase a much simpler scheme is used. The spawned tool does all
-/dev changes on its own, without issuing commands up to its parent.
-This removes most of the parsing and formatting code, in a way similar
-to how netlink-talking dhcp removes the need to have if-up scripts.
-The downsize is less scriptability -- which, like in the case of dhcp,
-is mostly pointless anyway.
+Implementing this idea well seems to be *impossible* in Linux.
 
+There are essentially two way to do it: renaming the devices when they appear
+in /dev, and symlinking reliable names to kernel-generated unreliable ones.
+Renaming breaks both /dev <-> /sys relation (because /sys nodes will keep their
+kernel names) and devtmpfs ability to unlink removed devices. Symlinking is
+ugly in itself, and requires very ugly code to remove symlinks when the device
+gets removed.
 
-udevd/udevh split
-~~~~~~~~~~~~~~~~~
-Mainline udevd is a long-running process that does a lot of parsing
-with pretty involved memory management. Device events are rare,
-and with the changes in workflow described above there's strong
-incentive to separate the long-running, NETLINK_UDEV socket-listening part
-from the code that parses configs and modifies /dev state. Effectively
-this means moving *all* /dev-modifying code into a chain of tools similar
-to blkid, let's call it udevh, and spawning it on each device event.
-
-This is similar to how busybox mdev is indended to be used, except with
-a userspace listening tool (udevd) in place of /proc/sys/kernel/hotplug.
-This udevd could serialize the events and avoid annoying concurrency issues
-describe in mdev docs.
-
-The cons of implementing udev this way is that it will spawn a lot more
-processes than necessary. As described above, the fraction of devices
-requiring any changes in /dev tree is small. This may point out than the
-long-running udevd needs to do some event filtering, maybe configure or
-maybe not. There are clearly lots of devices than could be safely ignored
-by udev because no-one should ever want to chown or rename them.
-
-Standalone udevh (and udevtrigger) also become external dependencies for
-udevd, so from this position alone it may be better to merge them.
+At this moment, the decision is to stick with the kernel names and use /sys
+if necessary for device identification.
 
 
-Startup, restarts, initial pass
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The events udevd gets from the socket are the events that happen after
-the socket connection has been made. Devices created before udevd started
-need some additional effort to get identified/chowned/etc. The common way
-to handle this is by traversing /sys and triggering "create" events for
-all devices that need it once udevd is ready and listening.
+User-accessible devices
+~~~~~~~~~~~~~~~~~~~~~~~
+Some devices should be left fully accessible for non-privileged users of the
+system. One particular case is ALSA devices, unless some sort of audio service
+is used that accepts non-privileged connections and forwards the data to the
+devices. It is not clear whether such a service is really necessary.
 
-	echo add > /sys/devices/pci0000:00/0000:00:02.0/drm/card0/uevent
-
-The problem is how to find which devices need the events triggered.
-There's no need to re-process devices that have already been handled by udevd.
-Even if that was another instance of udevd, and it has been restarted since.
-
-Listing all devices is relatively simple:
-
-	/sys/dev/char/*
-	/sys/dev/block/*
-
-Their device nodes can be found in
-
-	/dev/char/
-	/dev/block/
-
-What's left is marking "seen" devices somehow. /sys does not allow arbitrary
-writes but /dev does, so makes sense to use that. Device nodes generally ignore 
-the sticky bit, so we can just use that to mark seen nodes. Would be great
-to set the bit on symlinks in /dev/{char,block}/* but apparently Linux does
-not support (f)chmod(at) on symlinks currently.
-
-Which process should mark and check the sticky bits? Very likely the socket
-listening udevd process itself, with the code like this:
-
-	while((event = recv(socket))) {
-		if(!(dev = get_device_node_for(event)))
-			continue;
-		if(has_sticky_bit_set(dev))
-			continue;
-		set_sticky_bit(dev);
-		...
-	}
-
-The reasoning for early setting and early checks is that udevd has no idea
-what's in the kernel queue for the socket, so it may trigger events despite
-kernel-generated ones for the same devices already being queued.
+Without a dedicated audio service, this clearly calls for udevd capable of
+chmod'ing and/or chown'ing device nodes meeting certain criteria.
 
 
-Handling non-uniform devices
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Events with no MAJOR/MINOR numbers should probably be ignored by udevd.
-XXX: check what kind of events this actually applies to.
-See busybox/util-linux/mdev.c comments.
+Devices requiring initialization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Some printers need their firmware uploaded on startup with userspace tools.
 
-Netdevs are not devices in Linux.
+Now this is clearly not how firmware loading is supposed to work in Linux,
+and devices that need this are really rare. Not clear how to handle it yet.
+Udevd capable of running arbitrary commands when certain device appears
+could be a solution.
 
-Linked devices are problematic. That's when several nodes are connected
-physically but each generates its own event, like partitions of a drive,
-or multiple USB endpoints in a single device. Because of the way blkid
-will supposedly work, there's a strong incentive to drop partition events
-completely. It may be beneficial to time-buffer events and only run udevh
-once, with multiple arguments, saving some extra exec() calls.
+
+Containers and multiseat configurations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Likely requires a dedicated tool, not a general-purpose udevd.
