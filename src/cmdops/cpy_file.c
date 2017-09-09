@@ -121,9 +121,8 @@ static void moveblock(CCT, uint64_t* size)
    Non-sparse files contain one block spanning the whole file and no holes,
    so a single call to moveblock is enough.
 
-   Sparse files are rare, and it would be really great to skip most of this
-   code as fast as possible. Sadly the best we can do is to check the block
-   count. */
+   Sparse files are rare, so we try to skip hole-managing code as soon as
+   it becomes clear there are likely no holes in the source file. */
 
 static void transfer(CCT)
 {
@@ -234,10 +233,10 @@ static void open_dst(CCT)
    Directory handle $at must remain open way long than it would otherwise,
    so we just dup() it and let the original be closed as usual. Keeping the
    original one open would mess up the tree-walking code a lot for no good
-   reason. Hard links are rare and not worth it.
+   reason. Hard links are presumably rare.
 
-   This wastes 1 fd for each directory with multi-linked files in it. Typical
-   open file limit in Linux is around 1024, so we should be good. */
+   This wastes one fd for each directory with multi-linked files in it.
+   Typical open file limit in Linux is around 1024, so we should be good. */
 
 static struct link* find_link(CCT)
 {
