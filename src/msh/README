@@ -1,0 +1,3 @@
+Mini-shell, a dumb batch command runner and process env setup tool.
+
+See ../../doc/shells.txt regarding its design.
