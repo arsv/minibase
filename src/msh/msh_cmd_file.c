@@ -162,16 +162,23 @@ int cmd_write(struct sh* ctx)
 int cmd_unlink(struct sh* ctx)
 {
 	char* name;
+	int ret;
 
 	if(noneleft(ctx))
 		return -1;
+
 	while((name = shift(ctx)))
-		if(fchk(sys_unlink(name), ctx, name))
-			return -1;
+		if((ret = sys_unlink(name)) >= 0)
+			continue;
+		else if(ret == -ENOENT)
+			continue;
+		else return error(ctx, *ctx->argv, name, ret);
 
 	return 0;
-
 }
+
+/* This works like POSIX "mkdir -p": try to create path components,
+   and do not complain if the target already exists. */
 
 static int mkdirs(char* name, int mode)
 {
@@ -182,9 +189,12 @@ static int mkdirs(char* name, int mode)
 
 	if(!namelen)
 		return -EINVAL;
-	if((ret = sys_mkdir(name, mode)) >= 0 || ret == -EEXIST)
+
+	if((ret = sys_mkdir(name, mode)) >= 0)
 		return 0;
-	if(ret != -ENOENT)
+	else if(ret == -EEXIST)
+		return 0;
+	else if(ret < 0)
 		goto out;
 
 	q = e - 1;
