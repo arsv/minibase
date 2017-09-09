@@ -5,7 +5,7 @@
 #include "msh.h"
 #include "msh_cmd.h"
 
-/* Ref. capabilities(7).
+/* See capabilities(7).
    Preferably with some booze at hand, ain't gonna be easy. */
 
 static const struct cap {
