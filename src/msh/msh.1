@@ -1,19 +1,19 @@
 .TH msh 1
 '''
 .SH NAME
-msh \- mini shell
+\fBmsh\fR \- mini-shell, a non-interactive batch command runner
 '''
 .SH SYNOPSIS
-msh \fIscript\fR \fIarguments\fR ...
+\fBmsh\fR \fIscript\fR \fIarguments\fR ...
 .br
-msh -c \fIcommands\fR \fIarguments\fR ...
+\fBmsh -c\fR \fIcommands\fR \fIarguments\fR ...
 '''
 .SH DESCRIPTION
-msh is a non-interactive command interpreter capable of running simple
-command sequences and setting up process environment. It is indended
-to be used in place of (much larger) POSIX shell for system and service
-startup scripts that make no use of advanced scripting features but
-could benefit from smaller interpreter and specific builtins.
+A non-interactive command interpreter capable of running simple command
+sequences and setting up process environment. It is indended to be used
+in place of (much larger) POSIX shell for system and service startup scripts
+that make no use of advanced scripting features but could benefit from
+smaller interpreter and specific builtins.
 '''
 .SH EXAMPLE
 .nf
@@ -93,16 +93,15 @@ See \fBcapabilities\fR(7). \fIKey\fR for \fBCAP_DAC_OVERRIDE\fR is
 '''
 .SH ENVIRONMENT
 .IP "PATH" 8
-Colon-separated list of directories to look for commands,
-see \fBexecvp\fR(3).
+Colon-separated list of directories to look for commands, see \fBexecvp\fR(3).
 '''
 .SH NOTES
 Common POSIX shell features not supported in msh: redirections (>file),
 pipes (|cmd), globbing (*), background execution (&), jobs, control flow
 (while, case), advanced variable substituion (${var...}), backticks.
 .P
-Like make but unlike POSIX shell, msh aborts on the first failed command.
-Prefix the command with \fB-\fR to proceed over failure.
+Like \fBmake\fR but unlike POSIX shell, msh aborts on the first failed
+command. Prefix the command with \fB-\fR to proceed over failure.
 .P
 Variable references ($var) in msh are always treated as a single token
 regardless of the stored value, more like "$var" works in POSIX shell.
@@ -114,14 +113,14 @@ To run a child with non-priviledged uid but with some capabilities set,
 use the following sequence:
 .P
 .nf
-	secbits keepcaps
-	setuid \fIuser\fR
-	setcaps \fIcap\fR \fIcap\fR ...
-	exec \fIcommand\fR ...
+	\fBsecbits\fR keepcaps
+	\fBsetuid\fR \fIuser\fR
+	\fBsetcaps\fR \fIcap\fR \fIcap\fR ...
+	\fBexec\fR \fIcommand\fR ...
 .fi
 .P
-Capability-aware \fIcommands\fR normally should only need \fI-i\fR
-or \fI-ib\fR, but may require \fB-a\fR. Refer to \fBcapabilities\fR(7).
+Capability-aware \fIcommands\fR normally should only need \fB-i\fR
+or \fB-ib\fR, but may require \fB-a\fR. Refer to \fBcapabilities\fR(7).
 '''
 .SH SEE ALSO
 \fBsh\fR(1), \fBexecvp\fR(3)
