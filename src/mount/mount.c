@@ -30,6 +30,7 @@ static const struct vfs {
 	{ "sys",     "sysfs",      SDX,  "/sys",                      },
 	{ "run",     "tmpfs",      SD,   "/run",                      },
 	{ "tmp",     "tmpfs",      SD,   "/tmp",                      },
+	{ "mnt",     "tmpfs",      SD,   "/mnt",                      },
 	{ "config",  "configfs",   0,    "/sys/kernel/config",        },
 	{ "debug",   "debugfs",    0,    "/sys/kernel/debug",         },
 	{ "trace",   "tracefs",    0,    "/sys/kernel/debug/tracing", },
