@@ -100,7 +100,7 @@ static void readwrite(CCT, uint64_t* size)
    If this happens, fall back to read/write calls.
 
    Generally the reasons depend on directory (and the underlying fs), so if
-   sendfile fails for one file stop using it for the whole directory. */
+   sendfile fails for one file we stop using it for the whole directory. */
 
 static void moveblock(CCT, uint64_t* size)
 {
@@ -121,7 +121,7 @@ static void moveblock(CCT, uint64_t* size)
    Non-sparse files contain one block spanning the whole file and no holes,
    so a single call to moveblock is enough.
 
-   Sparse files are rare, so we try to skip hole-managing code as soon as
+   Sparse files are rare, so we try to skip hole-hopping code as soon as
    it becomes clear there are likely no holes in the source file. */
 
 static void transfer(CCT)
@@ -173,17 +173,17 @@ plain:
 	moveblock(cct, &st->size);
 }
 
-/* The source tree is supposed to be static while cpy works.
-   It may no be however, so there's a small chance that getdents()
-   reports a regular file but subsequent fstat() suddenly shows
-   something non-regular. Even if unlikely, it's probably better
-   to check it.
+/* The source tree is supposed to be static while cpy works. It may no be
+   however, so there's a small chance that getdents() reports a regular
+   file but subsequent fstat() suddenly shows something non-regular.
+   Even if unlikely, it's probably better to check it.
 
-   Same problem arises at the destination, but there unlink() is
-   much less sensitive, anything is ok as long as it's not a dir.
+   Same problem arises at the destination, but unlink() there is much less
+   sensitive and will happily nuke anything that's not a directory.
 
-   The primary point in calling stat() here is to get file mode
-   for the new file. Having its size is nice but not crucial. */
+   The primary point in calling stat() here is to get the mode (and possibly
+   uids/gids and times) to be used later for the new file. Having the size
+   is nice but not crucial. */
 
 static void open_src(CCT)
 {
