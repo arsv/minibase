@@ -4,24 +4,18 @@
 sync \- synchronize cached writes to persistent storage
 '''
 .SH SYNOPSIS
-sync [\fB-d\fR] [\fIfile\fR ...]
-.br
-sync \fB-f\fR \fIfile\fR
-.br
-sync \fB-t\fR \fIfile\fR [\fIminsize\fR [\fIfrom\fR \fIto\fR]]
+.IP "\fBsync\fR" 4
+Call \fBsync\fR(2).
+.IP "\fBsync\fR \fIfile\fR \fIfile\fR ..." 4
+Call \fBfsync\fR(2) on each file.
+.IP "\fBsync\fR \fB-d\fR \fIfile\fR \fIfile\fR ..." 4
+Call \fBfdatasync\fR(2) on each file.
+.IP "\fBsync\fR \fB-f\fR \fIfile\fR" 4
+Call \fBsyncfs\fR(2) to sync the file system containing \fIfile\fR.
+.IP "\fBsync\fR \fB-t\fR \fIfile\fR [\fIminsize\fR [\fIfrom\fR \fIto\fR]]" 4
+Do \fBFITRIM\fR ioctl on the file system containing \fIfile\fR.
 '''
 .SH DESCRIPTION
-The tool provides a very thing interface to several related system
-calls. Refer to syscall description for more info on what they
-actually do.
+The tool is a very thin wrapper around the four *sync system calls.
+Refer to syscall description for more info on what they actually do.
 '''
-.IP "sync (no arguments)" 4
-Call \fBsync\fR(2).
-.IP "sync \fIfile\fR \fIfile\fR ..." 4
-Call \fBfsync\fR(2) on each file.
-.IP "sync \fB-d\fR \fIfile\fR \fIfile\fR ..." 4
-Call \fBfdatasync\fR(2) on each file.
-.IP "sync \fB-f\fR \fIfile\fR" 4
-Call \fBsyncfs\fR(2) to sync the file system containing \fIfile\fR.
-.IP "sync \fB-t\fR \fIfile\fR" 4
-Do \fBFITRIM\fR ioctl on the file system containing \fIfile\fR.
