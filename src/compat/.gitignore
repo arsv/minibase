@@ -1,9 +1,8 @@
-rm
-rmdir
-pwd
-dirname
 basename
+chown
+chmod
 chvt
+dirname
 dirname
 echo
 false
@@ -12,7 +11,10 @@ kill
 mkdir
 mknod
 pwd
+pwd
 rm
+rm
+rmdir
 rmdir
 sleep
 tee
