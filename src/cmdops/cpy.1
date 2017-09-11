@@ -34,9 +34,9 @@ Do not check for errors, start copying right away.
 Verbose mode, print names of the files being copied.
 '''
 .SH NOTES
-\fBcpy\fR never follows symlinks, and copies them as if they were plain text
-files. Other special files are silently ignored.
+\fBcpy\fR never follows symlinks. A copy of symlink is a symlink with the same
+contents. Other special files are silently ignored.
 .P
-Unless \fB-y\fR is given, \fBcpy\fR performs a dry to verify that there are
-no obvious problems with the files being copied. If any issues are found,
-\fBcpy\fR exits without copying anything.
+Normally \fBcpy\fR performs a dry run to verify that there are no obvious
+problems with the files being copied, and proceeds to copy any data only
+if no issues are found. This may be changed with \fB-y\fR and \fB-q\fR.
