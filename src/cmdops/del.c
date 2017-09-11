@@ -3,178 +3,218 @@
 #include <sys/dents.h>
 
 #include <string.h>
+#include <printf.h>
 #include <format.h>
 #include <errtag.h>
 #include <util.h>
 
-#define OPTS "rfxdZ"
-#define OPT_r (1<<0)	/* recursively */
-#define OPT_f (1<<1)	/* force */
-#define OPT_x (1<<2)	/* cross fs boundaries */
-#define OPT_d (1<<3)	/* rmdir */
-#define OPT_Z (1<<4)	/* no-keep-root */
+#define OPTS "nfxdZ"
+#define OPT_n (1<<0)    /* non-recursively */
+#define OPT_f (1<<1)    /* force */
+#define OPT_x (1<<2)    /* cross fs boundaries */
+#define OPT_d (1<<3)    /* rmdir */
+#define OPT_Z (1<<4)    /* no-keep-root */
 
-#define DEBUFSIZE 2000
+#define DEBUFSIZE 2048
 
 ERRTAG("del");
+ERRLIST(NEACCES NEBUSY NEFAULT NEIO NEISDIR NELOOP NENAMETOOLONG NENOENT
+	NENOMEM NENOTDIR NEPERM NEROFS NEINVAL NENOTEMPTY);
 
-static void mfail(int opts, const char* msg, const char* obj, int err)
+struct top {
+	int opts;
+	int root;
+
+	uint64_t rdev; /* root */
+	uint64_t rino;
+
+	uint64_t sdev; /* starting dir */
+};
+
+struct rfn {
+	int at;
+	char* dir;
+	char* name;
+};
+
+#define CTX struct top* ctx
+#define FN struct rfn* fn
+
+#define AT(dd) dd->at, dd->name
+
+static void delete(CTX, FN, int asdir);
+
+static int pathlen(FN)
 {
-	warn(msg, obj, err);
-	if(!(opts & OPT_f)) _exit(-1);
+	int len = strlen(fn->name);
+
+	if(fn->dir && fn->name[0] != '/')
+		len += strlen(fn->dir) + 1;
+
+	return len + 1;
 }
 
-static int samefs(const char* dirname, int dirfd, long rootdev)
+static void makepath(char* buf, int len, FN)
 {
+	char* p = buf;
+	char* e = buf + len - 1;
+
+	if(fn->dir && fn->name[0] != '/') {
+		p = fmtstr(p, e, fn->dir);
+		p = fmtstr(p, e, "/");
+	};
+
+	p = fmtstr(p, e, fn->name);
+	*p = '\0';
+}
+
+static void failat(CTX, FN, int err)
+{
+	int opts = ctx->opts;
+
+	char path[pathlen(fn)];
+	makepath(path, sizeof(path), fn);
+
+	warn(NULL, path, err);
+
+	if(opts & OPT_f) return;
+
+	_exit(-1);
+}
+
+static void stat_root(CTX)
+{
+	int ret;
 	struct stat st;
+	int at = AT_FDCWD;
+	int flags = AT_SYMLINK_NOFOLLOW;
 
-	long ret = sys_fstat(dirfd, &st);
+	if((ret = sys_fstatat(at, "/", &st, flags) < 0))
+		fail("cannot stat", "/", ret);
 
-	if(ret < 0)
-		warn("cannot stat", dirname, ret);
-
-	/* err on the safe side */
-	return (ret >= 0 && st.dev == rootdev);
+	ctx->rdev = st.dev;
+	ctx->rino = st.ino;
+	ctx->root = 1;
 }
 
-static void removeany(const char* name, int type, long rootdev, int opts);
-static void removedep(const char* dirname, struct dirent* dep,
-		long rootdev, int opts);
-
-static void removedir(const char* dirname, long rootdev, int opts)
+static int check_xdev(CTX, FN, int fd)
 {
-	char debuf[DEBUFSIZE];
-	const int delen = sizeof(debuf);
-	long dirfd, rd;
+	int opts = ctx->opts;
+	int flags = AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH;
+	int at = fn->at;
+	struct stat st;
+	int ret;
 
-	if((dirfd = sys_open(dirname, O_DIRECTORY)) < 0)
-		return mfail(opts, "cannot open", dirname, dirfd);
+	if((opts & OPT_Z) && (opts & OPT_x) && at != AT_FDCWD)
+		return 0; /* no point in checking the dir */
 
-	if((opts & OPT_x) && !samefs(dirname, dirfd, rootdev))
+	if(!ctx->root && !(opts & OPT_Z))
+		stat_root(ctx);
+
+	if((ret = sys_fstatat(fd, "", &st, flags)) < 0) {
+		failat(ctx, fn, ret);
+		return -1; /* better safe than sorry */
+	}
+
+	if(opts & OPT_Z)
+		;
+	else if(st.dev == ctx->rdev && st.ino == ctx->rino)
+		fail("refusing to delete root", NULL, 0);
+
+	if(at == AT_FDCWD) /* top-level invocation */
+		ctx->sdev = st.dev;
+	else if(opts & OPT_x)
+		return 0; /* can cross dev boundaries */
+	else if(ctx->sdev != st.dev)
+		return -1; /* no crossing */
+
+	return 0;
+}
+
+static void enter(CTX, FN)
+{
+	int len = DEBUFSIZE;
+	char buf[len];
+	int fd, rd;
+
+	if((fd = sys_openat(AT(fn), O_DIRECTORY)) < 0)
+		return failat(ctx, fn, fd);
+
+	char path[pathlen(fn)];
+	makepath(path, sizeof(path), fn);
+	struct rfn next = { fd, path, NULL };
+
+	if(check_xdev(ctx, fn, fd))
 		goto out;
 
-	while((rd = sys_getdents(dirfd, (struct dirent*)debuf, delen)) > 0)
-	{
-		char* ptr = debuf;
-		char* end = debuf + rd;
+	while((rd = sys_getdents(fd, buf, len)) > 0) {
+		char* p = buf;
+		char* e = buf + rd;
 
-		while(ptr < end)
-		{
-			struct dirent* dep = (struct dirent*) ptr;
+		while(p < e) {
+			struct dirent* de = (struct dirent*) p;
+			p += de->reclen;
 
-			if(!dotddot(dep->name))
-				removedep(dirname, dep, rootdev, opts);
-			if(!dep->reclen)
+			if(!de->reclen)
 				break;
+			if(dotddot(de->name))
+				continue;
 
-			ptr += dep->reclen;
+			next.name = de->name;
+
+			delete(ctx, &next, de->type);
 		}
 	};
 out:
-	sys_close(dirfd);
+	sys_close(fd);
 };
 
-static void removedep(const char* dirname, struct dirent* dep,
-		long rootdev, int opts)
+static void delete(CTX, FN, int type)
 {
-	int dirnlen = strlen(dirname);
-	int depnlen = strlen(dep->name);
-	char fullname[dirnlen + depnlen + 2];
+	int ret;
+	int opts = ctx->opts;
 
-	char* p = fullname;
-	char* e = fullname + sizeof(fullname) - 1;
-
-	p = fmtstr(p, e, dirname);
-	p = fmtchar(p, e, '/');
-	p = fmtstr(p, e, dep->name);
-	*p++ = '\0';
-
-	removeany(fullname, dep->type, rootdev, opts);
-}
-
-/* This gets called for any node within the tree, including directories.
-   To unlink the node properly, we need to know whether it's a file
-   or a dir. Now instead of stat()ing it to tell that, we go on and try
-   to unlink() it as a regular file. If that fails with EISDIR, we know
-   it's a directory.
-
-   In case getdents64() was kind enough to tell us node type, and it
-   happens to be a directory, the check is skipped. */
-
-static void removeany(const char* name, int type, long rootdev, int opts)
-{
-	long ret;
-
+	if(opts & OPT_d)
+		goto rmd;
 	if(type == DT_DIR)
 		goto dir;
 
-	ret = sys_unlink(name);
-
-	if(ret >= 0)
+	if((ret = sys_unlinkat(AT(fn), 0)) >= 0)
 		return;
-	if(!(opts & OPT_r) || ret != -EISDIR)
-		goto err;
+	if(ret != -EISDIR)
+		goto fail;
 dir:
-	removedir(name, rootdev, opts);
+	if(opts & OPT_n)
+		goto rmd;
 
-	ret = sys_rmdir(name);
-
-	if(ret >= 0)
+	enter(ctx, fn);
+rmd:
+	if((ret = sys_unlinkat(AT(fn), AT_REMOVEDIR)) >= 0)
 		return;
-err:
-	mfail(opts, "cannot unlink", name, ret);
-}
-
-static int samefile(struct stat* a, struct stat* b)
-{
-	return ((a->dev == b->dev) && (a->ino == b->ino));
-}
-
-/* This function handles top-level rm arguments only.
-   When runnig without -x option, top-level arguments are stat'ed
-   for dev value, which is then used to limit cross-device recursion. */
-
-static void remove(const char* name, int opts, struct stat* rst)
-{
-	long ret = 0;
-	long dev = 0;
-
-	if(opts & OPT_r) {
-		/* make extra sure we're doing the right thing with -r */
-		struct stat st;
-
-		if((ret = sys_lstat(name, &st)) < 0)
-			return mfail(opts, "cannot stat", name, ret);
-
-		if(!(opts & OPT_Z) && samefile(&st, rst))
-			return mfail(opts, "refusing to delete root", NULL, 0);
-
-		if(!(opts & OPT_x))
-			dev = st.dev;
-	}
-
-	/* if we are called with -d, force directory handling */
-	const int type = (opts & OPT_d ? DT_DIR : DT_UNKNOWN);
-
-	removeany(name, type, dev, opts);
+fail:
+	failat(ctx, fn, ret);
 }
 
 int main(int argc, char** argv)
 {
 	int opts = 0, i = 1;
-	struct stat st;
+	struct top ctx;
+
+	memzero(&ctx, sizeof(ctx));
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
-
-	if((opts & (OPT_r | OPT_Z)) == OPT_r)
-		xchk(sys_lstat("/", &st), "cannot stat", "/");
-
 	if(i >= argc)
-		fail("need file names to remove", NULL, 0);
+		fail("too few arguments", NULL, 0);
 
-	while(i < argc)
-		remove(argv[i++], opts, &st);
+	ctx.opts = opts;
+
+	while(i < argc) {
+		char* name = argv[i++];
+		struct rfn fn = { AT_FDCWD, NULL, name };
+
+		delete(&ctx, &fn, DT_UNKNOWN);
+	}
 
 	return 0;
 }

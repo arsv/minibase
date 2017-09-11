@@ -1,30 +1,25 @@
-.TH del 8
+.TH del 1
 '''
 .SH NAME
-del \- delete files or directories
+\fBdel\fR \- delete files and directories
 '''
 .SH SYNOPSIS
-del [\fB-frdxZ\fR] \fIfile\fR \fIfile\fR ...
-'''
-.SH DESCRIPTION
-del deletes specified files.
-.P
-Unless \fB-x\fR is given, del does not cross filesystem boundaries.
-Any entries removed recursively under each of the \fIfile\fR argument
-must have the same st_dev per \fBstat\fr(2) as the \fIfile\fR argument
-itself.
+\fBdel\fR [\fB-fndxZ\fR] \fIfile\fR \fIfile\fR ...
 '''
 .SH OPTIONS
-.IP "\fB-r\fR" 4
-Remove directories recursively.
+.IP "\fB-n\fR" 4
+Remove named files only / do not enter directories.
 .IP "\fB-f\fR" 4
 Continue as far as possible regardless of errors.
 .IP "\fB-d\fR" 4
-Assume \fIfile\fRs are in fact directories, and call \fBrmdir\fR(2).
+Call \fBrmdir\fR(2) for each specified \fIfile\fR.
 .IP "\fB-x\fR" 4
 Do cross filesystem boundaries.
 .IP "\fB-Z\fR" 4
 Do remove / (the root node) if asked to.
 '''
+.SH NOTES
+Unless \fB-x\fR is given, \fBdel\fR does not cross filesystem boundaries.
+'''
 .SH SEE ALSO
-\fBunlink\fR(2), \fBrmdir\fR(2), \fBstat\fR(2).
+\fBunlinkat\fR(2)
