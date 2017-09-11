@@ -6,21 +6,34 @@
 #include <util.h>
 
 ERRTAG("cat");
-ERRLIST(NEAGAIN NEBADF NEFAULT NEINTR NEINVAL NEIO NEISDIR NEDQUOT
-	NEFBIG NENOSPC NEPERM NEPIPE);
+ERRLIST(NENOENT NEAGAIN NEBADF NEFAULT NEINTR NEINVAL NEIO NEISDIR NEDQUOT
+        NENOSPC NEDQUOT NENOTDIR NEACCES NEPERM NEFBIG NENOSPC NEPERM NEPIPE);
 
-/* cat is just too simple to tolerate as is, so here's a twist:
-   this version uses sendfile(2) if possible, falling back to
-   read/write cycle if that fails.
+/* In addition to what the tradition cat does, this version also
+   handles writing to files. In POSIX it would be done with output
+   redirection, "cat > file", but minibase opts for "cat -o file".
 
-   sendfile is tricky and may refuse transfer if it does not like
-   either input or output fds. If so, it fails immediately on the
-   first call with EINVAL.
+   There's a certain overlap between cat, msh write builtin, cpy
+   and bcp, all of which send data between files. In particulear,
+   the following two do almost the same thing:
 
-   Because of sendfile attempt, cat wastes something like 3 syscalls
-   whenever it fails. Probably no big deal. */
+       cat -o output input
+       cpy -o output input
 
-struct cbuf {
+   The difference is minute but may be important: cat overwrites
+   the *contents* of output, leaving the inode data intact, while
+   cpy replaces the *inode* with a new one. */
+
+#define OPTS "oa"
+#define OPT_o (1<<0)
+#define OPT_a (1<<1)
+
+struct top {
+	int ofd;
+	int ifd;
+	char* oname;
+	char* iname;
+
 	void* brk;
 	long len;
 };
@@ -28,59 +41,55 @@ struct cbuf {
 #define CATBUF 1024*1024      /* r/w block 1MB    */
 #define SENDSIZE 0x7ffff000   /* from sendfile(2) */
 
-static long dump(char* buf, long len)
+static void prep_rwbuf(struct top* ctx)
 {
-	long wr;
-
-	while(len > 0) {
-		if((wr = sys_write(STDOUT, buf, len)) < 0)
-			return wr;
-
-		buf += wr;
-		len -= wr;
-	}
-
-	return 0;
-}
-
-static void prepbuf(struct cbuf* cb)
-{
-	if(cb->brk)
-		return;
-
 	void* brk = sys_brk(0);
 	void* end = sys_brk(brk + CATBUF);
 
 	if(brk_error(brk, end))
 		fail("cannot allocate memory", NULL, 0);
 
-	cb->brk = brk;
-	cb->len = end - brk;
+	ctx->brk = brk;
+	ctx->len = end - brk;
 }
 
-static void readwrite(struct cbuf* cb, char* name, int fd)
+/* sendfile is tricky and may refuse transfer if it does not like
+   either input or output fds. If so, it fails immediately on the
+   first call with EINVAL.
+
+   Because of sendfile attempt, cat wastes something like 3 syscalls
+   whenever it fails. Probably no big deal. */
+
+static void readwrite(struct top* ctx)
 {
+	int ifd = ctx->ifd;
+	int ofd = ctx->ofd;
+
 	long rd, wr;
 
-	prepbuf(cb);
+	if(!ctx->brk)
+		prep_rwbuf(ctx);
 
-	void* buf = cb->brk;
-	long len = cb->len;
+	void* buf = ctx->brk;
+	long len = ctx->len;
 
-	while((rd = sys_read(fd, buf, len)) > 0)
-		if((wr = dump(buf, rd)) < 0)
-			fail("write", "stdout", wr);
+	while((rd = sys_read(ifd, buf, len)) > 0)
+		if((wr = writeall(ofd, buf, rd)) < 0)
+			fail("write", ctx->oname, wr);
 	if(rd < 0)
-		fail("read", name, rd);
+		fail("read", ctx->iname, rd);
 }
 
-static int sendfile(char* name, int fd)
+static int sendfile(struct top* ctx)
 {
+	int ifd = ctx->ifd;
+	int ofd = ctx->ofd;
+
 	long ret;
 	long len = SENDSIZE;
 	int first = 1;
 
-	while((ret = sys_sendfile(STDOUT, fd, NULL, len)) > 0)
+	while((ret = sys_sendfile(ofd, ifd, NULL, len)) > 0)
 		first = 0;
 
 	if(ret >= 0)
@@ -88,31 +97,73 @@ static int sendfile(char* name, int fd)
 	if(first && ret == -EINVAL)
 		return ret;
 	
-	fail("sendfile", name, ret);
+	fail("sendfile", ctx->iname, ret);
 }
 
-static void cat(struct cbuf* cb, char* name, int fd)
+static void cat(struct top* ctx)
 {
-	if(sendfile(name, fd) >= 0)
+	if(sendfile(ctx) >= 0)
 		return;
 	else
-		readwrite(cb, name, fd);
+		readwrite(ctx);
 }
 
-static int xopen(const char* name)
+static void open_output(struct top* ctx, char* name, int opts)
 {
-	return xchk(sys_open(name, O_RDONLY), NULL, name);
+	int fd;
+	int flags = O_WRONLY;
+
+	if(opts & OPT_a)
+		flags |= O_APPEND;
+	else
+		flags |= O_TRUNC | O_CREAT;
+
+	if((fd = sys_open3(name, flags, 0666)) < 0)
+		fail(NULL, name, fd);
+
+	ctx->ofd = fd;
+	ctx->oname = name;
+}
+
+static void open_input(struct top* ctx, char* name)
+{
+	int fd;
+
+	if((fd = sys_open(name, O_RDONLY)) < 0)
+		fail(NULL, name, fd);
+
+	ctx->ifd = fd;
+	ctx->iname = name;
 }
 
 int main(int argc, char** argv)
 {
-	int i;
-	struct cbuf cb = { NULL, 0 };
+	int i = 1, opts = 0;
 
-	if(argc < 2)
-		cat(&cb, "stdin", 0);
-	else for(i = 1; i < argc; i++)
-		cat(&cb, argv[i], xopen(argv[i]));
+	struct top ctx = {
+		.ofd = STDOUT,
+		.oname = "<stdout>",
+		.ifd = STDIN,
+		.iname = "<stdin>",
+		.brk = NULL,
+		.len = 0
+	};
+
+	if(i < argc && argv[i][0] == '-')
+		opts = argbits(OPTS, argv[i++] + 1);
+
+	if(opts & (OPT_o | OPT_a)) {
+		if(i >= argc)
+			fail("argument required", NULL, 0);
+		open_output(&ctx, argv[i++], opts);
+	}
+
+	if(i >= argc) {
+		cat(&ctx);
+	} else while(i < argc) {
+		open_input(&ctx, argv[i++]);
+		cat(&ctx);
+	}
 
 	return 0;
 }
