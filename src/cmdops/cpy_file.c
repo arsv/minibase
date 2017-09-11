@@ -252,6 +252,8 @@ static struct link* find_link(CCT)
 	while(p < e) {
 		struct link* ln = (struct link*) p;
 
+		if(!ln->len)
+			break; /* wtf */
 		if(ln->sdev == st->dev && ln->sino == st->ino)
 			return ln;
 
@@ -259,6 +261,16 @@ static struct link* find_link(CCT)
 	}
 
 	return NULL;
+}
+
+static int linklen(int slen)
+{
+	return sizeof(struct link) + slen + 1;
+}
+
+static int align4(int len)
+{
+	return len + (4 - len%4) % 4;
 }
 
 static struct link* alloc_link(CCT, int len)
@@ -277,10 +289,8 @@ static struct link* alloc_link(CCT, int len)
 		ctx->end = new;
 	}
 
-	int rlen = sizeof(struct link) + len + 1;
-	int alen = rlen + (4 - rlen%4) % 4;
 	void* ptr = ctx->ptr;
-	void* req = ptr + alen;
+	void* req = ptr + len;
 
 	if(req > ctx->end) {
 		void* end = ctx->end;
@@ -306,9 +316,10 @@ void note_ino(CCT)
 	int ret;
 
 	char* name = dst->name;
-	int len = strlen(name);
+	int slen = strlen(name);
+	int alen = align4(linklen(slen));
 
-	if(!(ln = alloc_link(cct, len)))
+	if(!(ln = alloc_link(cct, alen)))
 		return;
 	if((ret = sys_fstat(dst->fd, &ds)) < 0)
 		goto drop;
@@ -324,7 +335,8 @@ void note_ino(CCT)
 	ln->ddev = ds.dev;
 	ln->dino = ds.ino;
 
-	memcpy(ln->name, name, len + 1);
+	memcpy(ln->name, name, slen + 1);
+	ln->len = alen;
 
 	return;
 drop:
