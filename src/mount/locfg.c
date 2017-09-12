@@ -59,13 +59,32 @@ static char* shift_arg(CTX)
 	return ctx->argv[ctx->argi++];
 }
 
-static void shift_int(CTX, int* val)
+static char* prefixed(char* str, char* pref)
+{
+	int slen = strlen(str);
+	int plen = strlen(pref);
+
+	if(plen >= slen)
+		return NULL;
+	if(strncmp(str, pref, plen))
+		return NULL;
+
+	return str + plen;
+}
+
+static void shift_idx(CTX, int* val)
 {
 	char* arg = shift_arg(ctx);
 	char* p;
 
+	if((p = prefixed(arg, "/dev/loop")))
+		arg = p;
+	else if((p = prefixed(arg, "loop")))
+		arg = p;
+
 	if(!(p = parseint(arg, val)) || *p)
-		fail("integer argument required:", arg, 0);
+		fail("bad loop dev specification", NULL, 0);
+
 }
 
 static void shift_u64(CTX, uint64_t* val)
@@ -170,7 +189,7 @@ static void detach(CTX)
 {
 	int idx;
 
-	shift_int(ctx, &idx);
+	shift_idx(ctx, &idx);
 	no_more_arguments(ctx);
 
 	int fd = open_loop_dev(idx);
@@ -247,7 +266,7 @@ static void showinfo(CTX)
 {
 	int idx, ret;
 
-	shift_int(ctx, &idx);
+	shift_idx(ctx, &idx);
 	no_more_arguments(ctx);
 
 	struct loop_info64 info;
