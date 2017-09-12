@@ -229,7 +229,8 @@ void link_parts(void)
 	sys_mkdir(MAPDIR, 0755);
 
 	for(pt = parts; pt < parts + nparts; pt++)
-		link_part(pt);
+		if(!pt->keyidx)
+			link_part(pt);
 
 	for(bd = bdevs; bd < bdevs + nbdevs; bd++)
 		mark_bdev(bd);

@@ -248,13 +248,16 @@ void setup_devices(void)
 	int ret = 0;
 
 	for(pt = parts; pt < parts + nparts; pt++)
-		if((ret = create_dm_crypt(pt)) < 0)
+		if(!pt->keyidx)
+			continue;
+		else if((ret = create_dm_crypt(pt)) < 0)
 			break;
 	if(!ret)
 		return;
 
 	for(pt--; pt >= parts; pt--)
-		remove_dm_crypt(pt->label);
+		if(pt->keyidx)
+			remove_dm_crypt(pt->label);
 }
 
 static void link_part(char* name, char* label)
@@ -280,5 +283,6 @@ void link_plain_partitions(void)
 	sys_mkdir(MAPDIR, 0755);
 
 	for(pt = parts; pt < parts + nparts; pt++)
-		link_part(pt->name, pt->label);
+		if(!pt->keyidx)
+			link_part(pt->name, pt->label);
 }
