@@ -15,8 +15,9 @@
 ERRTAG("dmcrypt");
 ERRLIST(NENOENT NENOTDIR NEPERM NEACCES NELOOP NENOMEM NEFAULT NEEXIST);
 
-#define OPTS "d"
+#define OPTS "df"
 #define OPT_d (1<<0)
+#define OPT_f (1<<1)
 
 struct device {
 	char* name;
@@ -258,17 +259,20 @@ out:
 	return ret;
 }
 
-static void remove_dm_crypt(char* name)
+static void remove_dm_crypt(char* name, int opts)
 {
-	dm_single(name, 512, "error", "");
-	dm_suspend(name, 0);
+	if(opts & OPT_f) {
+		dm_single(name, 512, "error", "");
+		dm_suspend(name, 0);
+	}
+
 	dm_remove(name);
 }
 
-static void remove_devices(int n, char** args)
+static void remove_devices(int n, char** args, int opts)
 {
 	for(int i = 0; i < n; i++)
-		remove_dm_crypt(args[i]);
+		remove_dm_crypt(args[i], opts);
 }
 
 static void prepare_device(struct device* dev, char* arg, int* ki)
@@ -306,7 +310,7 @@ static void prepare_device(struct device* dev, char* arg, int* ki)
 	query_dev_inode(dev);
 }
 
-static void setup_devices(int n, char** reqs)
+static void setup_devices(int n, char** reqs, int opts)
 {
 	struct device devs[n];
 	int ret, i, kidx = 1;
@@ -323,7 +327,7 @@ static void setup_devices(int n, char** reqs)
 		return;
 
 	for(i--; i >= 0; i--)
-		remove_dm_crypt(devs[i].name);
+		remove_dm_crypt(devs[i].name, opts);
 }
 
 static void load_keyfile(char* name)
@@ -350,10 +354,10 @@ int main(int argc, char** argv)
 	dmfd = dm_open_control();
 
 	if(opts & OPT_d) {
-		remove_devices(argc - i, argv + i);
+		remove_devices(argc - i, argv + i, opts);
 	} else {
 		load_keyfile(argv[i++]);
-		setup_devices(argc - i, argv + i);
+		setup_devices(argc - i, argv + i, opts);
 	}
 
 	return 0;
