@@ -1,4 +1,5 @@
 #include <bits/fcntl.h>
+#include <sys/sched.h>
 #include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/mman.h>
@@ -247,6 +248,13 @@ static int single_mode_requested(int argc, char** argv)
 	return 0;
 }
 
+static void sleep(int sec)
+{
+	struct timespec ts = { sec, 0 };
+
+	sys_nanosleep(&ts, NULL);
+}
+
 int main(int argc, char** argv, char** envp)
 {
 	char** newenv;
@@ -268,7 +276,8 @@ int main(int argc, char** argv, char** envp)
 		exec_into("/sbin/super", newenv);
 	}
 
-	warn("startup failed, going for reboot", NULL, 0);
+	warn("startup failed, rebooting in 5 seconds", NULL, 0);
+	sleep(5);
 	exec_into("/sbin/reboot", newenv);
 
 	return -1;
