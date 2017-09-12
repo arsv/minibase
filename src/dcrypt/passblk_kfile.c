@@ -83,7 +83,6 @@ int try_passphrase(char* phrase, int phrlen)
 	int ret = memcmp(wrapped, testpad, sizeof(testpad));
 
 	memzero(kek, sizeof(kek));
-	memzero(kplain, kflen);
 
 	return ret;
 }
@@ -105,4 +104,9 @@ int check_keyindex(int ki)
 void* get_key(int ki)
 {
 	return kplain + 16*ki;
+}
+
+void wipe_keyfile(void)
+{
+	memzero(kplain, kflen);
 }

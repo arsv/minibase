@@ -44,9 +44,10 @@ static void putstr(char* buf, char* src, int len)
 	buf[len] = '\0';
 }
 
-static void dm_create(char* name)
+static void dm_create(struct part* pt)
 {
-	int nlen = strlen(name);
+	char* label = pt->label;
+	int nlen = strlen(label);
 	int ret;
 
 	struct dm_ioctl dmi = {
@@ -56,12 +57,14 @@ static void dm_create(char* name)
 	};
 
 	if(nlen > sizeof(dmi.name) - 1)
-		quit(NULL, name, ENAMETOOLONG);
+		quit(NULL, label, ENAMETOOLONG);
 
-	putstr(dmi.name, name, nlen);
+	putstr(dmi.name, label, nlen);
 
 	if((ret = sys_ioctl(dmfd, DM_DEV_CREATE, &dmi)) < 0)
 		quit("ioctl", "DM_DEV_CREATE", ret);
+
+	pt->dmi = minor(dmi.dev);
 }
 
 static int dm_single(char* name, uint64_t size, char* targ, char* opts)
@@ -186,7 +189,7 @@ static int create_dm_crypt(struct part* pt)
 	memcpy(xtskey + 16, key, 16);
 	int xtslen = 32;
 
-	dm_create(label);
+	dm_create(pt);
 
 	if((ret = dm_crypt(pt, cipher, xtskey, xtslen)))
 		goto out;
@@ -229,7 +232,8 @@ static int query_rdev_size(struct part* pt)
 		quit("ioctl BLKGETSIZE64", path, ret);
 
 	pt->rdev = st.rdev;
-	pt->fd = fd;
+
+	sys_close(fd);
 
 	return 0;
 }
@@ -252,7 +256,7 @@ void setup_devices(void)
 			continue;
 		else if((ret = create_dm_crypt(pt)) < 0)
 			break;
-	if(!ret)
+	if(ret >= 0)
 		return;
 
 	for(pt--; pt >= parts; pt--)
@@ -260,29 +264,11 @@ void setup_devices(void)
 			remove_dm_crypt(pt->label);
 }
 
-static void link_part(char* name, char* label)
-{
-	FMTBUF(lp, le, link, 100);
-	lp = fmtstr(lp, le, MAPDIR);
-	lp = fmtstr(lp, le, "/");
-	lp = fmtstr(lp, le, label);
-	FMTEND(lp, le);
-
-	FMTBUF(pp, pe, path, 100);
-	pp = fmtstr(pp, pe, "/dev/");
-	pp = fmtstr(pp, pe, name);
-	FMTEND(pp, pe);
-
-	sys_symlink(path, link);
-}
-
-void link_plain_partitions(void)
+void unset_devices(void)
 {
 	struct part* pt;
 
-	sys_mkdir(MAPDIR, 0755);
-
 	for(pt = parts; pt < parts + nparts; pt++)
-		if(!pt->keyidx)
-			link_part(pt->name, pt->label);
+		if(pt->keyidx)
+			remove_dm_crypt(pt->label);
 }

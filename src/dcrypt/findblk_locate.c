@@ -185,8 +185,6 @@ static void set_sticky(char* name)
 	sys_chmod(name, 01000);
 }
 
-/* Link simple (non-encrypted) partitions */
-
 static void link_part(struct part* pt)
 {
 	char* name = pt->name;
@@ -203,7 +201,18 @@ static void link_part(struct part* pt)
 	pp = fmtstr(pp, pe, name);
 	FMTEND(pp, pe);
 
-	sys_symlink(path, link);
+	if(pt->keyidx) {
+		FMTBUF(dp, de, dmdev, 100);
+		dp = fmtstr(dp, de, "/dev/");
+		dp = fmtstr(dp, de, "dm-");
+		dp = fmtint(dp, de, pt->dmi);
+		FMTEND(dp, de);
+
+		sys_symlink(dmdev, link);
+		set_sticky(dmdev);
+	} else {
+		sys_symlink(path, link);
+	}
 
 	set_sticky(path);
 }
@@ -229,8 +238,7 @@ void link_parts(void)
 	sys_mkdir(MAPDIR, 0755);
 
 	for(pt = parts; pt < parts + nparts; pt++)
-		if(!pt->keyidx)
-			link_part(pt);
+		link_part(pt);
 
 	for(bd = bdevs; bd < bdevs + nbdevs; bd++)
 		mark_bdev(bd);

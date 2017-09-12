@@ -1,7 +1,6 @@
 #include <sys/file.h>
 
 #include <errtag.h>
-#include <printf.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
@@ -15,6 +14,7 @@ ERRLIST(NEINVAL NENOENT NENOTTY NEFAULT NENODEV);
 void quit(const char* msg, char* arg, int err)
 {
 	term_fini();
+	wipe_keyfile();
 	fail(msg, arg, err);
 }
 
@@ -40,8 +40,11 @@ again:
 	if(check_partitions()) {
 		term_back();
 		message("Bad passphrase or corrupt storage", 1000);
+		unset_devices();
 		goto again;
 	}
+
+	wipe_keyfile();
 }
 
 int main(int argc, char** argv)
@@ -67,15 +70,13 @@ int main(int argc, char** argv)
 
 	query_part_inodes();
 
-	status("Linking unencrypted partitions");
-	link_plain_partitions();
-
 	if(any_encrypted_parts()) {
 		status("Setting up encrypted partitions");
 		ask_pass_setup_dm();
 	}
 
 	term_fini();
+	link_parts();
 
 	return 0;
 }

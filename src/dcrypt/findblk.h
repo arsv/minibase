@@ -38,7 +38,7 @@ struct part {
 	char name[30];
 	uint64_t rdev;
 	uint64_t size;
-	int fd;
+	int dmi;
 };
 
 extern struct bdev bdevs[NBDEVS];
@@ -54,6 +54,7 @@ void scan_devs(void);
 void wait_udev(void);
 int any_missing_devs(void);
 int any_encrypted_parts(void);
+void link_parts(void);
 
 int match_dev(char* name);
 void match_part(char* name);

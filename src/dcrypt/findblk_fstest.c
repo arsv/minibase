@@ -20,7 +20,7 @@ static int read_at_off(int fd, long off, char* buf, int size)
 {
 	int ret;
 
-	if((ret = sys_lseek(fd, off, 0)) < 0)
+	if((ret = sys_lseek(fd, off, SEEK_SET)) < 0)
 		return ret;
 	if((ret = sys_read(fd, buf, size)) < 0)
 		return ret;
@@ -66,38 +66,44 @@ static const struct fs {
 
 static int open_part(struct part* pt)
 {
-	char* pref = "/dev/";
-	char* name = pt->name;
 	int fd;
 
-	if(pt->fd > 0)
-		return pt->fd;
+	FMTBUF(p, e, path, strlen(pt->name) + 30);
 
-	FMTBUF(p, e, path, strlen(pref) + strlen(name) + 4);
-	p = fmtstr(p, e, pref);
-	p = fmtstr(p, e, name);
+	if(pt->keyidx) {
+		p = fmtstr(p, e, "/dev/dm-");
+		p = fmtint(p, e, pt->dmi);
+	} else {
+		p = fmtstr(p, e, "/dev/");
+		p = fmtstr(p, e, pt->name);
+	}
+
 	FMTEND(p, e);
 
 	if((fd = sys_open(path, O_RDONLY)) < 0)
 		quit("open", path, fd);
 
-	pt->fd = fd;
-	
 	return fd;
 }
 
 static int check_part(struct part* pt)
 {
-	int fd;
+	int fd, ret;
 	const struct fs* p;
-	
+
 	fd = open_part(pt);
 
 	for(p = tests; p < tests + ARRAY_SIZE(tests); p++)
 		if(!strncmp(p->name, pt->fs, sizeof(p->name)))
-			return p->check(fd);
-	
+			goto got;
+
 	quit("cannot test for filesystem named", pt->fs, 0);
+got:
+	ret = p->check(fd);
+
+	sys_close(fd);
+
+	return ret;
 }
 
 int check_partitions(void)
@@ -108,8 +114,8 @@ int check_partitions(void)
 	for(pt = parts; pt < parts + nparts; pt++)
 		if(!(pt->fs[0]))
 			continue;
-		else if((ret = check_part(pt)) < 0)
+		else if((ret = check_part(pt)))
 			break;
 
-	return ret;
+	return !!ret;
 }
