@@ -78,8 +78,12 @@ int load_dir_ents(void)
 
 			if(dotddot(de->name))
 				continue;
-			if(de->type != DT_UNKNOWN && de->type != DT_REG)
-				continue;
+			switch(de->type) {
+				case DT_UNKNOWN:
+				case DT_REG:
+				case DT_LNK: break;
+				default: continue;
+			}
 
 			tryfile(dir, de->name);
 		}
