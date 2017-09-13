@@ -135,9 +135,9 @@ static long parse_flags(struct flag* table, char* str)
 			if(f->key == *p)
 				break;
 		if(!f->key)
-			flags |= f->val;
-		else
 			goto bad;
+
+		flags |= f->val;
 	}
 
 	return flags;
