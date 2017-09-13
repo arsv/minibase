@@ -59,6 +59,7 @@ static const char* parsesuffixed(uint64_t* u, const char* n, long unit)
 		case 'M': tmp *= 1024*1024; p++; break;
 		case 'k':
 		case 'K': tmp *= 1024; p++; break;
+		case 'h': tmp *= 512; p++; break;
 		case 'b':
 		case 'B': p++; break;
 		default: tmp *= unit;
@@ -391,7 +392,7 @@ static void zerommap(struct file* dst, uint64_t size)
 	}
 }
 
-/* Plain -z mode: create a new zero-filled file of a given size */
+/* Plain -z mode: create a zero-filled file of a given size */
 
 static void zmode(struct bcp* ctx)
 {
@@ -400,7 +401,7 @@ static void zmode(struct bcp* ctx)
 	if(!(ctx->opts & SET_size))
 		fail("size must be specified with -z", NULL, 0);
 
-	dst->fd = xchk(sys_open3(dst->name, O_WRONLY | O_CREAT | O_EXCL, 0666),
+	dst->fd = xchk(sys_open3(dst->name, O_WRONLY | O_CREAT, 0666),
 			"cannot create", dst->name);
 
 	truncate(dst, ctx->size);
