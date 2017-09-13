@@ -1,6 +1,6 @@
 #include <dirs.h>
 
-#define CONFDIR ETCDIR "/sudo"
+#define CONFDIR ETCDIR "/suhub"
 #define CONTROL NLCDIR "/suhub"
 
 #define SH(c) TAGGED('S', 'H', c)

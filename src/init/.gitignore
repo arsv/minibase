@@ -1,5 +1,6 @@
 svc
 super
+!etc/super
 trap
 tick
 init

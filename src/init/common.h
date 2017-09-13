@@ -1,6 +1,6 @@
 #include <dirs.h>
 
-#define CONFDIR ETCDIR "/rc"
+#define CONFDIR ETCDIR "/super"
 #define CONTROL NLCDIR "/super"
 
 #define SS(c) TAGGED('S', 'S', c)

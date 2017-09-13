@@ -1,6 +1,6 @@
 #include <dirs.h>
 
-#define CONFDIR ETCDIR "/vts"
+#define CONFDIR ETCDIR "/vtmux"
 #define CONTROL NLCDIR "/vtmux"
 
 #define VT(c) TAGGED('V', 'T', c)
