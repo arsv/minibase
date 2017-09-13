@@ -1,10 +1,11 @@
-bin = dektool dmcrypt blkid
+bin = dektool dmcrypt blkid deitool
 
 sbin = findblk passblk
 
 include ../rules.mk
 
 dektool: dektool.o keytool.o
+deitool: deitool.o keytool.o
 dmcrypt: dmcrypt.o keytool.o
 
 findblk: findblk.o findblk_config.o findblk_locate.o \
