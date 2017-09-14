@@ -1,25 +1,25 @@
-.TH svc 8
+.TH svctl 8
 '''
 .SH NAME
-\fBsvc\fR \- supervisor control tool.
+\fBsvctl\fR \- supervisor control tool.
 '''
 .SH DESCRIPTION
 This tool sends commands to \fBsuper\fR(8) and pretty-prints the responses.
 '''
 .SH USAGE
-.IP "\fBsvc\fR\ " 4
+.IP "\fBsvctl\fR\ " 4
 List supervised processes.
-.IP "\fBsvc \fIname\fR" 4
+.IP "\fBsvctl \fIname\fR" 4
 Show status of a given service.
-.IP "\fBsvc \fB-\fR[\fBstr\fR] \fIname\fR \fIname\fR ..." 4
+.IP "\fBsvctl \fB-\fR[\fBstr\fR] \fIname\fR \fIname\fR ..." 4
 \fBS\fRtart, s\fBt\fRop or \fBr\fRestart given services.
-.IP "\fBsvc \fB-\fR[\fBuw\fR] \fIname\fR \fIname\fR ..." 4
+.IP "\fBsvctl \fB-\fR[\fBuw\fR] \fIname\fR \fIname\fR ..." 4
 S\fBu\fRspend or resume (\fBw\fRake up) given services.
-.IP "\fBsvc \fB-\fR\fBh\fR \fIname\fR \fIname\fR ..." 4
+.IP "\fBsvctl \fB-\fR\fBh\fR \fIname\fR \fIname\fR ..." 4
 Send SIGHUP to given services.
-.IP "\fBsvc \fB-q\fR" 4
+.IP "\fBsvctl \fB-q\fR" 4
 Re-scan directory / reload services list.
-.IP "\fBsvc \fB-x\fR {\fBreboot\fR|\fBshutdown\fR|\fBpoweroff\fR}" 4
+.IP "\fBsvctl \fB-x\fR {\fBreboot\fR|\fBshutdown\fR|\fBpoweroff\fR}" 4
 Stop all services and call \fBreboot\fR(8).
 '''
 .SH FILES

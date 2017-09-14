@@ -5,7 +5,7 @@
 #include <util.h>
 
 #include "common.h"
-#include "svc.h"
+#include "svctl.h"
 
 static int cmp_str(attr at, attr bt, int key)
 {

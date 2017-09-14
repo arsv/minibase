@@ -6,7 +6,7 @@
 #include <util.h>
 
 #include "common.h"
-#include "svc.h"
+#include "svctl.h"
 
 ERRTAG("svc");
 ERRLIST(NENOENT NECONNREFUSED NELOOP NENFILE NEMFILE NEINTR NEINVAL NEACCES

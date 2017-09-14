@@ -7,7 +7,7 @@
 #include <util.h>
 
 #include "common.h"
-#include "svc.h"
+#include "svctl.h"
 
 void* heap_alloc(CTX, int size)
 {
