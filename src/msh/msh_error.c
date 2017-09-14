@@ -35,10 +35,12 @@ static void report(struct sh* ctx, const char* err, char* arg, long ret, int m)
 
 	if(m == TAGGED_SAVED) {
 		p = fmtstr(p, e, errtag);
-	} else {
+	} else if(file) {
 		p = fmtstr(p, e, file);
 		p = fmtstr(p, e, ":");
 		p = fmtint(p, e, line);
+	} else {
+		p = fmtstr(p, e, errtag);
 	}
 
 	p = fmtstr(p, e, ": ");
