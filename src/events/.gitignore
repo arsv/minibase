@@ -1,4 +1,5 @@
 acpid
 keymon
+lindevd
 !etc/keymon
 inputs
