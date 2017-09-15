@@ -15,8 +15,8 @@
 
    If everything goes well, it execs into the supervisor.
 
-   Despite the traditional role of /sbin/init, this one is normally
-   a short-lived process that does not do any supervision itself. */
+   Unlike the traditional /sbin/init, this one is a short-lived process
+   that does not do any supervision itself. */
 
 #define PAGE 4096
 
@@ -237,17 +237,6 @@ static void spawn_if_exists(char* cmd, char** envp)
 	}
 }
 
-static int single_mode_requested(int argc, char** argv)
-{
-	int i;
-
-	for(i = 1; i < argc; i++)
-		if(!strcmp(argv[i], "single"))
-			return 1;
-
-	return 0;
-}
-
 static void sleep(int sec)
 {
 	struct timespec ts = { sec, 0 };
@@ -268,17 +257,12 @@ int main(int argc, char** argv, char** envp)
 		set_new_env(newenv, ncnt, envp);
 	}
 
-	if(single_mode_requested(argc, argv)) {
-		warn("dropping you to recovery shell", NULL, 0);
-		exec_into("/bin/sh", newenv);
-	} else {
-		spawn_if_exists("/etc/sysinit", newenv);
-		exec_into("/sbin/super", newenv);
-	}
+	spawn_if_exists("/etc/sysinit", newenv);
+	exec_into("/sbin/system/super", newenv);
 
 	warn("startup failed, rebooting in 5 seconds", NULL, 0);
 	sleep(5);
-	exec_into("/sbin/reboot", newenv);
+	exec_into("/sbin/system/reboot", newenv);
 
 	return -1;
 }

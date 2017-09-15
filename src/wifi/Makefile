@@ -1,4 +1,5 @@
-bin = wimon wpa wictl
+service = wimon
+command = wictl wpa
 
 include ../rules.mk
 

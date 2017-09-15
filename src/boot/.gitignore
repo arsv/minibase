@@ -1,5 +1,4 @@
+insmod
 kmod
 lsmod
 switchroot
-systime
-waitfor

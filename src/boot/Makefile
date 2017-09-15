@@ -1,5 +1,5 @@
-bin = waitfor lsmod
-sbin = kmod switchroot systime
+initrd = insmod switchroot
+command = kmod lsmod
 
 include ../rules.mk
 

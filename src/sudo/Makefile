@@ -1,4 +1,5 @@
-sbin = suhub sudo
+service = suhub
+command = sudo
 
 include ../rules.mk
 

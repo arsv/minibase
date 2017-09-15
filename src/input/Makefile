@@ -1,5 +1,5 @@
-bin = inputs
-sbin = acpid keymon lindevd
+command = inputs
+service = acpid keymon lindevd
 
 include ../rules.mk
 

@@ -1,4 +1,4 @@
-sbin = sockmod
-also = tserv
+service = sockmod
+other = tserv
 
 include ../rules.mk

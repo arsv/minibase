@@ -1,5 +1,6 @@
-sbin = init reboot super svctl
-also = trap tick
+system = start super reboot
+command = svctl
+other = trap tick
 
 include ../rules.mk
 

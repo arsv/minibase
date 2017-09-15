@@ -1,5 +1,5 @@
-bin = bcp cat clear cpy date del df du ff fn ls ren stat sync symlink \
-      sysinfo time which whoami tail
+command = bcp cat clear cpy date del df du ff fn ls ren \
+	stat sync symlink sysinfo time which whoami tail
 
 include ../rules.mk
 

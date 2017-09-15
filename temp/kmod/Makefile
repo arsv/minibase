@@ -1,3 +1,3 @@
-all = insmod rmmod
+all = rmmod
 
 include ../rules.mk

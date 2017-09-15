@@ -1,4 +1,4 @@
-bin = msh
+command = msh
 
 include ../rules.mk
 

@@ -1,7 +1,7 @@
+start
+reboot
 svctl
 super
 !etc/super
 trap
 tick
-init
-reboot

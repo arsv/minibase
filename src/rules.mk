@@ -8,6 +8,8 @@ include $/config.mk
 DESTDIR ?= ./out
 clean = *.o
 
+all:
+
 %.o: %.c
 	$(CC)$(if $(CFLAGS), $(CFLAGS)) -c $<
 
@@ -48,7 +50,9 @@ $$(target-$1): $$(dstdir-$1)/%: % | $$(dstdir-$1)
 .PHONY: $$(target-$1)
 endef
 
-$(foreach _,bin sbin,$(if $($_),$(eval $(call bin-rules,$_))))
+targets = command service system initrd
+
+$(foreach _,$(targets),$(if $($_),$(eval $(call bin-rules,$_))))
 
 define man-rules
 dstdir-$1 := $$(DESTDIR)$$($1dir)
@@ -73,9 +77,9 @@ $(foreach _, 1 5 8, $(if $(man$_),$(eval $(call man-rules,man$_,$_))))
 $(sort $(mkdirs)): %:
 	mkdir -p $@
 
-all: $(also)
+all: $(other)
 
-clean += $(also)
+clean += $(other)
 
 clean:
 	rm -f $(clean)

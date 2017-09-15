@@ -1,4 +1,6 @@
-bin = vtmux vtctl unlock
+service = vtmux
+command = vtctl
+other = unlock
 
 include ../rules.mk
 

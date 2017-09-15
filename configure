@@ -5,11 +5,15 @@ cross=
 
 unset cc ar strip tp lto
 
-bindir=/bin
-sbindir=/sbin
-man1dir=/man1
-man5dir=/man5
-man8dir=/man8
+commanddir=/sbin/
+servicedir=/sbin/service
+systemdir=/sbin/system
+initrddir=/boot/bin
+
+man1dir=/usr/share/man1
+man5dir=/usr/share/man5
+man8dir=/usr/share/man8
+
 cflags=-Os
 
 die() { echo "$@" >&2; exit 1; }
@@ -60,8 +64,11 @@ LD = \$(CC)
 AS = \$(CC)
 STRIP = $strip
 
-bindir = $bindir
-sbindir = $sbindir
+commanddir = $commanddir
+servicedir = $servicedir
+systemdir = $systemdir
+initrddir = $initrddir
+
 man1dir = $man1dir
 man5dir = $man5dir
 man8dir = $man8dir

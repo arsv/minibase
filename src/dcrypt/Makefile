@@ -1,6 +1,5 @@
-bin = dektool dmcrypt blkid deitool
-
-sbin = findblk passblk
+initrd = findblk passblk 
+command = dektool dmcrypt blkid deitool
 
 include ../rules.mk
 

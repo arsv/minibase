@@ -1,4 +1,4 @@
-bin = ip4cfg ip4info dhcp
+command = ip4cfg ip4info dhcp
 
 include ../rules.mk
 
