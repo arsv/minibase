@@ -48,6 +48,13 @@ static int child(int fd, char** envp)
 	fail(NULL, *argv, ret);
 }
 
+static void sleep(int sec)
+{
+	struct timespec ts = { sec, 0 };
+
+	sys_nanosleep(&ts, NULL);
+}
+
 static void spawn_shell(int fd, char** envp)
 {
 	int pid, ret, status;
@@ -59,6 +66,8 @@ static void spawn_shell(int fd, char** envp)
 
 	if((ret = sys_waitpid(pid, &status, 0)) < 0)
 		fail("waitpid", NULL, ret);
+
+	sleep(1);
 }
 
 int main(int argc, char** argv, char** envp)
