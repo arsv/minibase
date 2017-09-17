@@ -25,7 +25,7 @@ static int openfile(struct sh* ctx, char* name)
 {
 	int fd;
 
-	if((fd = sys_open(name, O_RDONLY)) < 0)
+	if((fd = sys_open(name, O_RDONLY | O_CLOEXEC)) < 0)
 		quit(ctx, "open", name, fd);
 
 	if(!ctx->file) {
