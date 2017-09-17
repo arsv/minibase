@@ -34,6 +34,8 @@ struct vt_stat {
 
 #define KDSETMODE	0x4B3A
 #define KDGETMODE	0x4B3B
+#define		KD_TEXT		0x00
+#define		KD_GRAPHICS	0x01
 
 #define		K_RAW		0x00
 #define		K_XLATE		0x01
