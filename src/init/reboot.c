@@ -2,6 +2,7 @@
 #include <sys/sync.h>
 #include <sys/mount.h>
 #include <sys/reboot.h>
+#include <sys/sched.h>
 
 #include <errtag.h>
 #include <string.h>
@@ -80,7 +81,12 @@ static void add_mountpoint(struct heap* hp, char* mp)
 static int scan_mountpoints(struct heap* hp)
 {
 	const char* mountinfo = "/proc/self/mountinfo";
-	long fd = xchk(sys_open(mountinfo, O_RDONLY), "cannot open", mountinfo);
+	int fd;
+
+	if((fd = sys_open(mountinfo, O_RDONLY)) < 0) {
+		warn(NULL, mountinfo, fd);
+		return 0;
+	}
 
 	long rd;
 	long of = 0;
@@ -188,11 +194,17 @@ static void umountall(void)
 		if(!done[i]) umount2(mps[i]);
 }
 
+static void sleep(int sec)
+{
+	struct timespec ts = { sec, 0 };
+
+	sys_nanosleep(&ts, NULL);
+}
+
 int main(int argc, char** argv)
 {
-	int mode;
-	int opts = 0;
-	int i = 1;
+	int mode = RB_AUTOBOOT;
+	int i = 1, opts = 0, ret;
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
@@ -201,16 +213,21 @@ int main(int argc, char** argv)
 		mode = RB_POWER_OFF;
 	else if(opts == OPT_h)
 		mode = RB_HALT_SYSTEM;
-	else if(opts == OPT_r || !opts)
+	else if(opts == OPT_r)
 		mode = RB_AUTOBOOT;
-	else
+	else if(opts)
 		fail("cannot use -phr together", NULL, 0);
 
-	xchk(sys_sync(), "sync", NULL);
+	if((ret = sys_sync()) < 0)
+		warn("sync", NULL, ret);
 
 	umountall();
 
-	xchk(sys_reboot(mode), "reboot", NULL);
+	if((ret = sys_reboot(mode)) >= 0)
+		return 0;
 
-	return 0;
+	warn("reboot", NULL, ret);
+	sleep(5);
+
+	return -1; /* kernel panic here */
 }
