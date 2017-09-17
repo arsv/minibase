@@ -2,6 +2,7 @@
 #include <sys/file.h>
 #include <sys/proc.h>
 
+#include <sigset.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
@@ -22,21 +23,24 @@ static int wait_needed(time_t* last, time_t wait)
 	}
 }
 
+/* Child inherits parent's sigmask, which at this point is [ SIGCHLD ].
+   We need to reset it (unblock SIGCHLD) as the spawned processes expect
+   an empty initial mask. */
+
 static int child(struct proc* rc)
 {
 	char* dir = confdir;
-	int dlen = strlen(dir);
-	char* base = rc->name;
-	char blen = strlen(base);
+	char* name = rc->name;
 
-	char path[dlen+blen+2];
-	char* p = path;
-	char* e = path + sizeof(path) - 1;
-
+	FMTBUF(p, e, path, strlen(dir) + strlen(name) + 2);
 	p = fmtstr(p, e, dir);
 	p = fmtstr(p, e, "/");
-	p = fmtstr(p, e, base);
-	*p = '\0';
+	p = fmtstr(p, e, name);
+	FMTEND(p, e);
+
+	sigset_t mask = EMPTYSIGSET;
+
+	sys_sigprocmask(SIG_SETMASK, &mask, NULL);
 
 	char* argv[] = { path, NULL };
 
