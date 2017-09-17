@@ -16,10 +16,10 @@
 #define O_DIRECTORY	(1<<16)
 #define O_NOFOLLOW	(1<<17)
 #define O_NOATIME	(1<<18)
+#define O_CLOEXEC	(1<<19)
 #define O_FSYNC		(1<<20)
 #define O_SYNC		(O_FSYNC | O_DSYNC)
 #define O_PATH		(1<<21)
-#define O_CLOEXEC	(1<<25)
 
 #define S_IFMT		0170000 /* Mask */
 #define	S_IFDIR		0040000	/* Directory.  */
