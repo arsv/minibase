@@ -55,11 +55,6 @@ static void check_keyact(struct action* ka, char* bits, char* need, int size)
 		return;
 
 	setcode(need, size, ka->code);
-
-	if(ka->mode & MODE_CTRL)
-		setcode(need, size, KEY_LEFTCTRL);
-	if(ka->mode & MODE_ALT)
-		setcode(need, size, KEY_LEFTALT);
 }
 
 static void check_swact(struct action* sa, char* bits, char* need, int size)
@@ -115,6 +110,15 @@ static void check_all_keyacts(char* bits, char* need, int size)
 	for(ka = actions; ka < actions + nactions; ka++)
 		if(ka->code > 0)
 			check_keyact(ka, bits, need, size);
+
+	if(!nonzero(need, size))
+		return;
+
+	/* We must know the exact state of all modifiers to avoid
+	   triggering say C-F1 on C-A-F1. */
+
+	setcode(need, size, KEY_LEFTCTRL);
+	setcode(need, size, KEY_LEFTALT);
 }
 
 static void check_all_swacts(char* bits, char* need, int size)
