@@ -118,7 +118,7 @@ static void setwatch(char* dir)
 {
 	long fd, wd;
 
-	if((fd = sys_inotify_init()) < 0)
+	if((fd = sys_inotify_init1(IN_NONBLOCK | IN_CLOEXEC)) < 0)
 		fail("inotify_init", NULL, fd);
 
 	if((wd = sys_inotify_add_watch(fd, dir, IN_CREATE)) < 0)
