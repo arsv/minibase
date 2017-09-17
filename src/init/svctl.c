@@ -12,7 +12,7 @@ ERRTAG("svc");
 ERRLIST(NENOENT NECONNREFUSED NELOOP NENFILE NEMFILE NEINTR NEINVAL NEACCES
 	NEPERM NEIO NEFAULT NENOSYS);
 
-#define OPTS "fhiprstwqxz"
+#define OPTS "fhiprstwqzRHP"
 #define OPT_f (1<<0)
 #define OPT_h (1<<1)
 #define OPT_i (1<<2)
@@ -22,8 +22,10 @@ ERRLIST(NENOENT NECONNREFUSED NELOOP NENFILE NEMFILE NEINTR NEINVAL NEACCES
 #define OPT_t (1<<6)
 #define OPT_w (1<<7)
 #define OPT_q (1<<8)
-#define OPT_x (1<<9)
-#define OPT_z (1<<10)
+#define OPT_z (1<<9)
+#define OPT_R (1<<10)
+#define OPT_H (1<<11)
+#define OPT_P (1<<12)
 
 static void no_other_options(CTX)
 {
@@ -193,36 +195,28 @@ static void cmd_reload(CTX)
 	recv_empty(ctx);
 }
 
-static const struct rbcode {
-	char name[12];
-	int cmd;
-} rbcodes[] = {
-	{ "reboot",   CMD_REBOOT   },
-	{ "shutdown", CMD_SHUTDOWN },
-	{ "poweroff", CMD_POWEROFF },
-	{ "",         0            }
-};
+static void shutdown(CTX, int cmd)
+{
+	no_other_options(ctx);
+
+	start_request(ctx, cmd, 0, 0);
+	send_request(ctx);
+	recv_empty(ctx);
+}
+
+static void cmd_reboot(CTX)
+{
+	shutdown(ctx, CMD_REBOOT);
+}
 
 static void cmd_shutdown(CTX)
 {
-	char* mode;
-	const struct rbcode* rc;
+	shutdown(ctx, CMD_SHUTDOWN);
+}
 
-	if(!(mode = shift_arg(ctx)))
-		fail("argument required", NULL, 0);
-
-	for(rc = rbcodes; rc->cmd; rc++)
-		if(!strcmp(rc->name, mode))
-			break;
-	if(!rc->cmd)
-		fail("unknown mode", mode, 0);
-
-	no_other_options(ctx);
-
-	start_request(ctx, rc->cmd, 0, 0);
-	send_request(ctx);
-
-	recv_empty(ctx);
+static void cmd_poweroff(CTX)
+{
+	shutdown(ctx, CMD_POWEROFF);
 }
 
 static const struct cmdrec {
@@ -238,7 +232,9 @@ static const struct cmdrec {
 	{ OPT_f, cmd_flush    },
 	{ OPT_w, cmd_resume   },
 	{ OPT_q, cmd_reload   },
-	{ OPT_x, cmd_shutdown },
+	{ OPT_R, cmd_reboot   },
+	{ OPT_H, cmd_shutdown },
+	{ OPT_P, cmd_poweroff },
 	{     0, cmd_status   }
 };
 
