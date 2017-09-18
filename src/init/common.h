@@ -3,6 +3,8 @@
 #define CONFDIR ETCDIR "/super"
 #define CONTROL NLCDIR "/super"
 
+#define REBOOT "/sbin/system/reboot"
+
 #define SS(c) TAGGED('S', 'S', c)
 
 #define CMD_RESET     SS(0)

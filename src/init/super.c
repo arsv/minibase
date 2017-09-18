@@ -21,7 +21,7 @@ static int spawn_reboot(void)
 
 	if(pid == 0) {
 		char arg[] = { '-', rbcode, '\0' };
-		char* argv[] = { "/sbin/reboot", arg, NULL };
+		char* argv[] = { REBOOT, arg, NULL };
 		sys_execve(*argv, argv, environ);
 	} else if(pid > 0) {
 		int status;
