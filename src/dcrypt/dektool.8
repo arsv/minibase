@@ -14,14 +14,14 @@ Test passphrase.
 Change passphrase.
 '''
 .SH DESCRIPTION
-The tool works with NIST-wrapped keyfiles containing one or more keys
+The tool works with AES-wrapped keyfiles containing one or more keys
 indended for disk encryption. The key material in the file is encrypted
 with a passphrase-derived key. To apply any changes, the existing data in
 the file must be decrypted first, and then the updated data must be encrypted
 again. The tool never leaves the file unencrypted.
 .P
-The keys themselves are just 16-byte chunks of data from /dev/urandom.
+The keys are 16-byte (128-bit) chunks of random data from /dev/urandom.
 There should be one key for each partition being encrypted.
 '''
 .SH SEE ALSO
-\fBdmcrypt\fR(8)
+\fBdmcrypt\fR(8), NIST AES Key Wrap Specification.

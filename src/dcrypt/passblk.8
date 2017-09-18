@@ -27,7 +27,7 @@ block devices have been loaded.
 .IP "/etc/blktab" 4
 List of block devices and partitions to locate.
 .IP "/etc/dekeys" 4
-Disk encryption keys, NIST-wrapped. See \fBdektool\fR(8).
+Disk encryption keys, AES-wrapped. See \fBdektool\fR(8).
 .P
 \fBpassblk\fR also needs /dev and /sys mounted.
 '''
@@ -35,6 +35,8 @@ Disk encryption keys, NIST-wrapped. See \fBdektool\fR(8).
 \fBpassblk\fR is unable to recognize a situation when a devices is present
 but some of its partitions are missing; it will keep waiting for the missing
 partitions.
+.P
+The encryption algorithm is single-key XTS-AES128.
 '''
 .SH SEE ALSO
 \fBfindblk\fR(8), \fBblktab\fR(5), \fBdektool\fR(8).
