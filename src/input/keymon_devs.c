@@ -177,7 +177,7 @@ void handle_inotify(int fd)
 
 			check_dir_ent(dir, ino->name);
 		}
-	} if(rd < 0) {
+	} if(rd < 0 && rd != -EAGAIN) {
 		warn("inotify-read", dir, rd);
 	}
 }
