@@ -259,22 +259,16 @@ void switch_sigusr1(void)
 	ioctli(vt->ttyfd, VT_RELDISP, 1, "VT_RELDISP");
 }
 
-static void prep_switch_masks(sigset_t* smask, sigset_t* tmask)
+static void set_switch_timer(struct itimerval* old)
 {
-	sigemptyset(smask);
-	sigaddset(smask, SIGUSR1);
-	sigaddset(smask, SIGUSR2);
+	struct itimerval itv = { .interval = { 0, 0 }, .value = { 1, 0 } };
 
-	sigemptyset(tmask);
-	sigaddset(smask, SIGUSR1);
-	sigaddset(smask, SIGUSR2);
-	sigaddset(smask, SIGALRM);
+	sys_setitimer(ITIMER_REAL, &itv, old);
 }
 
-static void prep_switch_timer(struct itimerval* itv)
+static void clr_switch_timer(struct itimerval* old)
 {
-	memzero(itv, sizeof(*itv));
-	itv->value.sec = 1;
+	sys_setitimer(ITIMER_REAL, old, NULL);
 }
 
 /* OMG WTF. The problem here: VT_WAITACTIVE is blocking and non-restartable.
@@ -298,13 +292,9 @@ static void prep_switch_timer(struct itimerval* itv)
 static int switch_wait(int tty)
 {
 	int ret;
-	sigset_t smask, tmask, origmask;
-	struct itimerval old, itv;
-	prep_switch_masks(&smask, &tmask);
-	prep_switch_timer(&itv);
+	struct itimerval old;
 
-	sys_setitimer(0, &itv, &old);
-	sys_sigprocmask(SIG_UNBLOCK, &smask, &origmask);
+	set_switch_timer(&old);
 
 	switching = 1;
 
@@ -312,24 +302,20 @@ static int switch_wait(int tty)
 		goto out;
 
 	while(1) {
-		if((ret = sys_ioctli(0, VT_WAITACTIVE, tty)) >= 0)
+		ret = sys_ioctli(0, VT_WAITACTIVE, tty);
+
+		if((ret) >= 0)
 			break;
 		else if(ret != -EINTR)
 			break;
 
-		sys_sigprocmask(SIG_BLOCK, &tmask, NULL);
-
 		if(switching == -1) /* timeout */
 			break;
-
-		sys_sigprocmask(SIG_UNBLOCK, &tmask, NULL);
 	}
 out:
-	sys_sigprocmask(SIG_SETMASK, &origmask, NULL);
-	sys_setitimer(0, &old, NULL);
+	switching = 0;
 
-	if(switching)
-		switching = 0;
+	clr_switch_timer(&old);
 
 	return ret;
 }

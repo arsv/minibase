@@ -4,6 +4,7 @@
 
 #include <sys/socket.h>
 #include <sys/file.h>
+#include <sys/signal.h>
 
 #include <format.h>
 #include <string.h>
@@ -146,13 +147,41 @@ static int check_for_duplicate(struct mdev* md, int dev, int tty)
 	return 0;
 }
 
+/* Switching between text and KMS clients only works if the text ones
+   are (VT_AUTO, KD_TEXT) and the graphic ones are (VT_PROCESS, KD_GRAPHICS).
+   All clients are assumed to be text clients until a DRI device request
+   come in, at which point the client becomes a graphic (KMS) one. This code
+   handles VT modes completely, so purely KMS clients do not even need to know
+   VTs exist.
+
+   Note vtmux itself does not need VT_PROCESS, it only complicates the code.
+   It was originally meant for a very different, non-KMS use model involving
+   Xfree86. However, within the kernel, there are (somewhat artificial) checks
+   that break switching unless the modes are set exactly like that, so we have
+   to set VT_PROCESS and endure the signal dance during VT_WAITACTIVE.
+
+   The VT will get reset back to KD_TEXT in reset_tty_modes(). */
+
 static void set_tty_graph_mode(struct term* vt)
 {
-	if(!vt->graph) return;
+	if(vt->graph)
+		return;
 
-	ioctli(vt->ttyfd, KDSETMODE, 1, "KDSETMODE GRAPHICS");
+	int ttyfd = vt->ttyfd;
 
 	vt->graph = 1;
+
+        ioctli(ttyfd, KDSKBMODE, K_OFF, "KDSKBMODE K_OFF");
+	ioctli(ttyfd, KDSETMODE, KD_GRAPHICS, "KDSETMODE KD_GRAPHICS");
+
+	struct vt_mode vtm = {
+		.mode = VT_PROCESS,
+		.waitv = 0,
+		.relsig = SIGUSR1,
+		.acqsig = SIGUSR2
+	};
+
+	ioctl(ttyfd, VT_SETMODE, &vtm, "VT_SETMODE VT_PROCESS");
 }
 
 static int open_managed_dev(char* path, int mode, struct term* vt)

@@ -55,8 +55,13 @@ static void report_cause(int fd, int status)
 		warn("write", NULL, ret);
 }
 
-static void reset_tty_modes(int ttyfd)
+static void reset_tty_modes(struct term* vt)
 {
+	if(!vt->graph)
+		return;
+
+	int ttyfd = vt->ttyfd;
+
 	struct vt_mode vtm = {
 		.mode = VT_AUTO,
 		.waitv = 0,
@@ -65,7 +70,8 @@ static void reset_tty_modes(int ttyfd)
 	};
 
 	ioctl(ttyfd, VT_SETMODE, &vtm, "VT_SETMODE AUTO");
-	ioctli(ttyfd, KDSETMODE, 0, "KDSETMODE TEXT");
+	ioctli(ttyfd, KDSETMODE, KD_TEXT, "KDSETMODE TEXT");
+	ioctli(ttyfd, KDSKBMODE, K_UNICODE, "KDSKBMODE K_UNICODE");
 }
 
 /* When the session master exits, ttyfd become unusable, returning
@@ -90,7 +96,7 @@ static void wipe_dead(struct term* vt, int status)
 
 	disable_all_devs_for(tty);
 
-	reset_tty_modes(ttyfd);
+	reset_tty_modes(vt);
 	report_cause(ttyfd, status);
 
 	if(tty == greetertty)

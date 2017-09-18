@@ -85,18 +85,6 @@ static int child_proc(int ttyfd, int ctlfd, char* path)
 	return 0;
 }
 
-static int set_process_mode(int tty, int ttyfd)
-{
-	struct vt_mode vtm = {
-		.mode = VT_PROCESS,
-		.waitv = 0,
-		.relsig = SIGUSR1,
-		.acqsig = SIGUSR2
-	};
-
-	return ioctl(ttyfd, VT_SETMODE, &vtm, "VT_SETMODE PROCESS");
-}
-
 /* This runs with $tty already active. */
 
 static int start_cmd_on(struct term* cvt, int tty, char* path)
@@ -110,8 +98,6 @@ static int start_cmd_on(struct term* cvt, int tty, char* path)
 
 	if((ttyfd = open_tty_device(tty)) < 0)
 		return ttyfd;
-	if((ret = set_process_mode(tty, ttyfd)) < 0)
-		goto out1;
 	if((ret = sys_socketpair(domain, type, proto, sk)) < 0)
 		goto out1;
 

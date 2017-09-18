@@ -46,17 +46,16 @@ void setup_signals(void)
 {
 	struct sigaction sa = {
 		.handler = sighandler,
-		.flags = SA_RESTART | SA_RESTORER,
+		.flags = SA_RESTORER,
 		.restorer = sigreturn
 	};
 	sigset_t* mask = &sa.mask;
 
 	sigemptyset(mask);
+	sigemptyset(&defsigset);
 	sigaddset(mask, SIGCHLD);
-	sigaction(SIGUSR1, &sa, NULL);
-	sigaction(SIGUSR2, &sa, NULL);
 
-	sigprocmask(SIG_BLOCK, mask, &defsigset);
+	sigprocmask(SIG_BLOCK, mask, NULL);
 
 	/* avoid cross-invoking these */
 	sigaddset(mask, SIGUSR1);
@@ -67,10 +66,8 @@ void setup_signals(void)
 	sigaction(SIGTERM, &sa, NULL);
 	sigaction(SIGHUP,  &sa, NULL);
 	sigaction(SIGALRM, &sa, NULL);
-
-	/* SIGCHLD is only allowed to arrive in ppoll,
-	   so SA_RESTART just does not make sense. */
-	sa.flags &= ~SA_RESTART;
+	sigaction(SIGUSR1, &sa, NULL);
+	sigaction(SIGUSR2, &sa, NULL);
 	sigaction(SIGCHLD, &sa, NULL);
 }
 
