@@ -10,15 +10,12 @@
 
 static int open_proc_entry(int pid, char* key)
 {
-	char buf[40];
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
-
+	FMTBUF(p, e, buf, 40);
 	p = fmtstr(p, e, "/proc/");
 	p = fmtint(p, e, pid);
 	p = fmtstr(p, e, "/");
 	p = fmtstr(p, e, key);
-	*p++ = '\0';
+	FMTEND(p, e);
 
 	return sys_open(buf, O_RDONLY);
 }
@@ -45,20 +42,19 @@ static char* maybe_put_comm(char* p, char* e, int pid)
 
 static void show_vt(CTX, struct ucattr* vt, int active)
 {
-	char buf[100];
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
-	char* q;
-
 	int* tty = uc_sub_int(vt, ATTR_TTY);
 	int* pid = uc_sub_int(vt, ATTR_PID);
 
 	if(!tty) return;
 
-	p = fmtstr(p, e, "tty");
+	FMTBUF(p, e, buf, 100);
+
+	char* q = p;
+
+	q = fmtstr(q, e, "tty");
 	q = fmtint(p, e, *tty);
 	q = fmtstr(q, e, (*tty == active ? "*" : ""));
-	p = fmtpadr(p, e, 3, q);
+	p = fmtpadr(p, e, 6, q);
 
 	p = fmtstr(p, e, "  ");
 	q = pid ? fmtint(p, e, *pid) : fmtstr(p, e, "-");
@@ -68,7 +64,7 @@ static void show_vt(CTX, struct ucattr* vt, int active)
 
 	p = maybe_put_comm(p, e, *pid);
 
-	*p++ = '\n';
+	FMTENL(p, e);
 
 	output(ctx, buf, p - buf);
 }

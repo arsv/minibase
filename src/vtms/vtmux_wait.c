@@ -33,12 +33,10 @@
 
 static void report_cause(int fd, int status)
 {
-	char msg[32];
-	char* p = msg;
-	char* e = msg + sizeof(msg) - 1;
-
 	if(!status)
 		return;
+
+	FMTBUF(p, e, msg, 32);
 
 	if(WIFEXITED(status)) {
 		p = fmtstr(p, e, "Exit ");
@@ -48,11 +46,9 @@ static void report_cause(int fd, int status)
 		p = fmtint(p, e, WTERMSIG(status));
 	}
 
-	*p++ = '\n';
-	int ret = sys_write(fd, msg, p - msg);
+	FMTENL(p, e);
 
-	if(ret < 0)
-		warn("write", NULL, ret);
+	writeall(fd, msg, p - msg);
 }
 
 static void reset_tty_modes(struct term* vt)

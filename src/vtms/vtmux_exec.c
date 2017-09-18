@@ -36,19 +36,15 @@ int pinmask;
 
 int open_tty_device(int tty)
 {
-	char namebuf[30];
+	int fd;
 
-	char* p = namebuf;
-	char* e = namebuf + sizeof(namebuf) - 1;
-
+	FMTBUF(p, e, path, 30);
 	p = fmtstr(p, e, "/dev/tty");
 	p = fmtint(p, e, tty);
-	*p++ = '\0';
+	FMTEND(p, e);
 
-	int fd = sys_open(namebuf, O_RDWR | O_CLOEXEC);
-
-	if(fd < 0)
-		warn("open", namebuf, fd);
+	if((fd = sys_open(path, O_RDWR | O_CLOEXEC)) < 0)
+		warn(NULL, path, fd);
 
 	return fd;
 }
@@ -122,17 +118,6 @@ out1:
 	return ret;
 }
 
-static void make_cmd_path(char* buf, int len, char* dir, char* cmd)
-{
-	char* p = buf;
-	char* e = buf + len - 1;
-
-	p = fmtstr(p, e, dir);
-	p = fmtstr(p, e, "/");
-	p = fmtstr(p, e, cmd);
-	*p++ = '\0';
-}
-
 static int check_cmd_exists(char* path)
 {
 	return sys_access(path, X_OK);
@@ -145,13 +130,16 @@ static int check_cmd_exists(char* path)
 int spawn(int tty, char* cmd)
 {
 	char* dir = CONFDIR;
-	char path[strlen(dir) + strlen(cmd) + 5];
+
+	FMTBUF(p, e, path, strlen(dir) + strlen(cmd) + 5);
+	p = fmtstr(p, e, dir);
+	p = fmtstr(p, e, "/");
+	p = fmtstr(p, e, cmd);
+	FMTEND(p, e);
 
 	int old = activetty;
 	struct term* cvt;
 	int ret = -EAGAIN;
-
-	make_cmd_path(path, sizeof(path), dir, cmd);
 
 	if((ret = check_cmd_exists(path)) < 0)
 		return ret;
@@ -197,11 +185,9 @@ int show_greeter(void)
 void scan_pinned(void)
 {
 	int tty;
-
 	char* dir = CONFDIR;
-	char buf[strlen(dir) + 20];
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
+
+	FMTBUF(p, e, path, strlen(dir) + 20);
 
 	p = fmtstr(p, e, dir);
 	p = fmtstr(p, e, "/tty");
@@ -210,10 +196,13 @@ void scan_pinned(void)
 
 	for(tty = 1; tty <= 12; tty++) {
 		char* q = fmtint(p, e, tty);
-		*q++ = '\0';
 
-		if(sys_access(buf, X_OK) >= 0)
-			pinmask |= (1 << tty);
+		FMTEND(q, e);
+
+		if(sys_access(path, X_OK) < 0)
+			continue;
+
+		pinmask |= (1 << tty);
 	}
 }
 
@@ -227,13 +216,10 @@ int pinned(int tty)
 
 int spawn_pinned(int tty)
 {
-	char buf[20];
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
-
+	FMTBUF(p, e, path, 20);
 	p = fmtstr(p, e, "tty");
 	p = fmtint(p, e, tty);
-	*p++ = '\0';
+	FMTEND(p, e);
 
-	return spawn(tty, buf);
+	return spawn(tty, path);
 }
