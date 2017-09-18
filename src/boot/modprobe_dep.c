@@ -4,7 +4,7 @@
 #include <string.h>
 #include <util.h>
 
-#include "kmod.h"
+#include "modprobe.h"
 
 #define MAX_RELEASE_LEN 65
 

@@ -3,7 +3,7 @@
 #include <string.h>
 #include <util.h>
 
-#include "kmod.h"
+#include "modprobe.h"
 
 static int check_strip_suffix(char* name, int nlen, char* suffix)
 {

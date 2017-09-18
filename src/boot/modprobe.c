@@ -5,9 +5,9 @@
 #include <errtag.h>
 #include <util.h>
 
-#include "kmod.h"
+#include "modprobe.h"
 
-ERRTAG("kmod");
+ERRTAG("modprobe");
 ERRLIST(NEACCES NEAGAIN NEBADF NEINVAL NENFILE NENODEV NENOMEM NEPERM NENOENT
 	NETXTBSY NEOVERFLOW NEBADMSG NEBUSY NEFAULT NENOKEY NEEXIST NENOEXEC);
 

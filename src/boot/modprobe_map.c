@@ -3,7 +3,7 @@
 #include <sys/proc.h>
 
 #include <util.h>
-#include "kmod.h"
+#include "modprobe.h"
 
 /* The module must be loaded to process memory prior to init_module call.
    Uncompressed modules are mmaped whole. For compresses ones, the output

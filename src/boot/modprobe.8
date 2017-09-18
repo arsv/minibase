@@ -1,15 +1,15 @@
-.TH kmod 8
+.TH modprobe 8
 '''
 .SH NAME
-kmod \- load or unload kernel module
+modprobe \- load or unload kernel module
 '''
 .SH SYNOPSIS
-kmod \fImodule\fR [\fIopt\fR=\fIvalue\fR \fIopt\fR=\fIvalue\fR ...]
+modprobe \fImodule\fR [\fIopt\fR=\fIvalue\fR \fIopt\fR=\fIvalue\fR ...]
 .br
-kmod \fB-r\fR \fImodule\fR [\fImodule\fR \fImodule\fR ...]
+modprobe \fB-r\fR \fImodule\fR [\fImodule\fR \fImodule\fR ...]
 '''
 .SH DESCRIPTION
-kmod attempts to load specified module into the kernel.
+modprobe attempts to load specified module into the kernel.
 If \fImodule\fR is a path, it is mmaped and loaded directly via
 \fBinit_module\fR(2) syscall. Otherwise, the name is checked against
 modules.dep (see below), and all its dependencies are loaded first.
@@ -17,7 +17,7 @@ modules.dep (see below), and all its dependencies are loaded first.
 Optional \fIopt\fR=\fIvalue\fR arguments are passed directly to the module.
 Dependencies, if any, are loaded without any options.
 .P
-With \fB-r\fR, kmod calls \fRdelete_module\fR(2) to unload named module.
+With \fB-r\fR, modprobe calls \fRdelete_module\fR(2) to unload named module.
 Note \fImodule\fR in this case is the name kernel uses internally.
 Usually it's the base name of the module file, but there are no strict
 guarantees on this.

@@ -1,4 +1,4 @@
 insmod
-kmod
+modprobe
 lsmod
 switchroot

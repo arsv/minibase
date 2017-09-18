@@ -1,6 +1,6 @@
-initrd = insmod switchroot
-command = kmod lsmod
+initrd = modprobe insmod switchroot
+command = modprobe lsmod
 
 include ../rules.mk
 
-kmod: kmod.o kmod_dep.o kmod_ins.o kmod_map.o
+modprobe: modprobe.o modprobe_dep.o modprobe_ins.o modprobe_map.o
