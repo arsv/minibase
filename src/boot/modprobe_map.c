@@ -1,8 +1,13 @@
 #include <sys/file.h>
+#include <sys/info.h>
 #include <sys/mman.h>
+#include <sys/module.h>
 #include <sys/proc.h>
 
+#include <string.h>
+#include <format.h>
 #include <util.h>
+
 #include "modprobe.h"
 
 /* The module must be loaded to process memory prior to init_module call.
@@ -47,7 +52,7 @@ static int child(int fds[2], char* cmd, char* path, char** envp)
 	return 0xFF;
 }
 
-void readall(struct mbuf* mb, int fd, char* cmd)
+static void readall(struct mbuf* mb, int fd, char* cmd)
 {
 	const int unit = 4*PAGE;
 	long len = unit;
@@ -70,7 +75,7 @@ void readall(struct mbuf* mb, int fd, char* cmd)
 	mb->full = len;
 }
 
-void decompress(struct mbuf* mb, char* path, char* cmd, char** envp)
+void decompress(CTX, struct mbuf* mb, char* path, char* cmd)
 {
 	int fds[2];
 	xchk(sys_pipe2(fds, 0), "pipe", NULL);
@@ -78,7 +83,7 @@ void decompress(struct mbuf* mb, char* path, char* cmd, char** envp)
 	int pid = xchk(sys_fork(), "fork", NULL);
 
 	if(pid == 0)
-		_exit(child(fds, cmd, path, envp));
+		_exit(child(fds, cmd, path, ctx->envp));
 
 	sys_close(fds[1]);
 
@@ -90,24 +95,28 @@ void decompress(struct mbuf* mb, char* path, char* cmd, char** envp)
 	if(status) fail("non-zero exit code in", cmd, 0);
 }
 
-void mmapwhole(struct mbuf* mb, char* name)
+void mmap_whole(struct mbuf* mb, char* name, int strict)
 {
 	int fd;
 	long ret;
 	struct stat st;
 
-	if((fd = sys_open(name, O_RDONLY)) < 0)
-		fail("cannot open", name, fd);
+	if((fd = sys_open(name, O_RDONLY)) >= 0)
+		;
+	else if(strict)
+		fail("open", name, fd);
+	else
+		return;
 
 	if((ret = sys_fstat(fd, &st)) < 0)
-		fail("cannot stat", name, ret);
+		fail("stat", name, ret);
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
 	char* ptr = sys_mmap(NULL, st.size, prot, flags, fd, 0);
 
 	if(mmap_error(ptr))
-		fail("cannot mmap", name, (long)ptr);
+		fail("mmap", name, (long)ptr);
 
 	if(st.size > MAX_FILE_SIZE)
 		fail("file too large:", name, 0);
@@ -116,7 +125,57 @@ void mmapwhole(struct mbuf* mb, char* name)
 	mb->len = mb->full = st.size;
 }
 
-void munmapbuf(struct mbuf* mb)
+void unmap_buf(struct mbuf* mb)
 {
 	sys_munmap(mb->buf, mb->full);
+}
+
+static void prep_heap(CTX)
+{
+	void* brk;
+	void* end;
+
+	if(ctx->brk)
+		return;
+
+	brk = sys_brk(0);
+	end = sys_brk(brk + PAGE);
+
+	if(brk_error(brk, end))
+		fail("cannot allocate memory", NULL, 0);
+
+	ctx->brk = brk;
+	ctx->lwm = brk;
+	ctx->ptr = brk;
+	ctx->end = end;
+}
+
+void* heap_alloc(CTX, int size)
+{
+	prep_heap(ctx);
+
+	char* ptr = ctx->ptr;
+	char* req = ptr + size;
+	char* end = ctx->end;
+
+	if(req < end)
+		goto done;
+
+	int aligned = size + (PAGE - size % PAGE) % PAGE;
+
+	end = sys_brk(ptr + aligned);
+
+	if(brk_error(ptr, end))
+		fail("cannot allocate memory", NULL, 0);
+
+	ctx->end = end;
+done:
+	ctx->ptr = req;
+
+	return ptr;
+}
+
+void flush_heap(CTX)
+{
+	ctx->ptr = ctx->lwm;
 }

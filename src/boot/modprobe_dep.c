@@ -1,32 +1,60 @@
 #include <sys/info.h>
+#include <sys/mman.h>
+#include <sys/module.h>
 
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <dirs.h>
 
 #include "modprobe.h"
 
-#define MAX_RELEASE_LEN 65
-
-struct modctx {
-	char* name;     /* "e1000e" */
-	char* dir;      /* "/lib/modules/4.8.13-1-ARCH/" */
-
-	struct mbuf md; /* mmaped modules.dep */
-
-	char* ls;       /* line for this particular module */
-	char* le;
-	char* sep;
-
-	char* pars;
-	char** envp;
-};
-
-static char* eol(char* p, char* end)
+void prep_release(CTX)
 {
-	while(p < end && *p != '\n')
-		p++;
-	return p;
+	struct utsname uts;
+	int ret;
+
+	if(ctx->release)
+		return;
+
+	if((ret = sys_uname(&uts)) < 0)
+		fail("uname", NULL, ret);
+
+	int relen = strlen(uts.release);
+	char* restr = heap_alloc(ctx, relen + 1);
+
+	memcpy(restr, uts.release, relen + 1);
+
+	ctx->release = restr;
+	ctx->lwm = ctx->ptr;
+}
+
+void prep_modules_dep(CTX)
+{
+	if(ctx->modules_dep.buf)
+		return;
+
+	prep_release(ctx);
+
+	char* release = ctx->release;
+
+	FMTBUF(p, e, path, strlen(release) + 40);
+	p = fmtstr(p, e, "/lib/modules/");
+	p = fmtstr(p, e, release);
+	p = fmtstr(p, e, "/modules.dep");
+	FMTEND(p, e);
+
+	mmap_whole(&ctx->modules_dep, path, 1);
+}
+
+void prep_etc_modopts(CTX)
+{
+	if(ctx->did_modopts)
+		return;
+
+	ctx->did_modopts = 1;
+
+	mmap_whole(&ctx->etc_modopts, ETCDIR "/modopts", 0);
 }
 
 static int isspace(int c)
@@ -34,163 +62,172 @@ static int isspace(int c)
 	return (c == ' ' || c == '\t');
 }
 
-static void concat(char* buf, int len, char* a, char* b)
+static char* skip_space(char* p, char* e)
 {
-	char* p = buf;
-	char* e = buf + len - 1;
-
-	p = fmtstr(p, e, a);
-	p = fmtstr(p, e, b);
-
-	*p++ = '\0';
+	while(p < e && isspace(*p))
+		p++;
+	return p;
 }
 
-static char* match_depmod_line(char* ls, char* le, char* name, int nlen)
+static char* skip_word(char* p, char* e)
 {
-	if(*ls == '#')
-		return NULL;
-	if(*ls == ':')
-		return NULL;
-
-	char* sep = strecbrk(ls, le, ':');
-
-	if(sep == le)
-		return NULL;
-
-	char* base = strerev(ls, sep, '/');
-
-	if(sep - base < nlen + 3)
-		return NULL;
-	if(strncmp(base, name, nlen))
-		return NULL;
-	if(base[nlen] != '.')
-		return NULL;
-
-	return sep;
+	while(p < e && !isspace(*p))
+		p++;
+	return p;
 }
 
-static void query_modules_dep(struct modctx* ctx, struct mbuf* mb)
+static char* match_dep(char* ls, char* le, char* name, int nlen)
 {
-	char* name = ctx->name;
-	char* dir = ctx->dir;
+	char* p = strecbrk(ls, le, ':');
 
-	char dep[strlen(dir)+20];
-	concat(dep, sizeof(dep), dir, "/modules.dep");
+	if(p >= le)
+		return NULL;
 
-	mmapwhole(mb, dep);
+	char* q = p - 1;
 
-	long dlen = mb->len;
-	char* deps = mb->buf;
-	char* dend = deps + dlen;
+	while(q > ls && *q != '/') q--;
 
-	char *ls, *le, *sep = NULL;
+	if(*q == '/') q++;
+
+	if(le - q < nlen)
+		return NULL;
+
+	if(strncmp(q, name, nlen))
+		return NULL;
+	if(q[nlen] != '.')
+		return NULL;
+
+	return p;
+}
+
+static void add_dep(CTX, char* p, char* e)
+{
+	int len = e - p;
+
+	char* str = heap_alloc(ctx, len + 1);
+
+	memcpy(str, p, len);
+	str[len] = '\0';
+}
+
+int locate_line(struct mbuf* mb, struct line* ln, lnmatch lnm, char* name)
+{
 	int nlen = strlen(name);
 
-	for(ls = le = deps; ls < dend; ls = le + 1) {
-		le = eol(ls, dend);
-		if((sep = match_depmod_line(ls, le, name, nlen)))
-			break;
-	} if(ls >= dend) {
-		fail("module not found:", name, 0);
+	char* bs = mb->buf;
+	char* be = bs + mb->len;
+	char *ls, *le;
+	char *p;
+
+	for(ls = bs; ls < be; ls = le + 1) {
+		le = strecbrk(ls, be, '\n');
+
+		if(!(p = lnm(ls, le, name, nlen)))
+			continue;
+
+		ln->ptr = ls;
+		ln->sep = p;
+		ln->end = le;
+
+		return 0;
 	}
 
-	ctx->ls = ls;
-	ctx->le = le;
-	ctx->sep = sep;
+	return -ENOENT;
 }
 
-/* modctx for a given module looks somewhat like this:
-
-       kernel/fs/fat/vfat.ko.gz: kernel/fs/fat/fat.ko.gz
-       ^                       ^                        ^
-       ls                     sep                       le
-
-   The line is not 0-terminated, so individual module names
-   are passed as pointer:length pairs.
-
-   Module file names in modules.dep are relative to the directory
-   modules.dep resides in, that's ctx->dir here. */
-
-static void insmod_relative(struct modctx* ctx, char* bp, int bl, char* pars)
+static char** index_deps(CTX, char* ptr, char* end)
 {
-	char* dp = ctx->dir;
-	int dl = strlen(dp);
+	int cnt = 1;
+	char* p;
 
-	char *p, *e;
+	for(p = ptr; p < end - 1; p++)
+		if(!*p) cnt++;
 
-	char path[dl + bl + 4];
-	p = path;
-	e = path + sizeof(path) - 1;
+	char** idx = heap_alloc(ctx, (cnt+1)*sizeof(char*));
+	int i = 0;
 
-	p = fmtstrn(p, e, dp, dl);
-	*p++ = '/';
-	p = fmtstrn(p, e, bp, bl);
-	*p++ = '\0';
+	idx[i++] = ptr;
 
-	insmod(path, pars, ctx->envp);
+	for(p = ptr; p < end - 1; p++)
+		if(!*p) idx[i++] = p + 1;
+
+	idx[i] = NULL;
+
+	return idx;
 }
 
-static void insmod_dependencies(struct modctx* ctx)
+static char** pack_deps(CTX, struct line* ln)
 {
-	char* p = ctx->sep + 1;
-	char* e = ctx->le;
+	char* ls = ln->ptr;
+	char* le = ln->end;
+	char *p, *q;
 
-	while(p < e && isspace(*p)) p++;
+	p = ln->sep;
 
-	while(p < e) {
-		char* q = p;
+	char* ptr = ctx->ptr;
 
-		while(q < e && !isspace(*q)) q++;
+	add_dep(ctx, ls, p++);
 
-		insmod_relative(ctx, p, q - p, "");
+	while(p < le) {
+		p = skip_space(p, le);
+		q = skip_word(p, le);
 
-		while(q < e &&  isspace(*q)) q++;
+		add_dep(ctx, p, q);
 
-		p = q;
+		p = q + 1;
 	}
+
+	char* end = ctx->ptr;
+
+	return index_deps(ctx, ptr, end);
 }
 
-static void insmod_primary_module(struct modctx* ctx)
+char** query_deps(CTX, char* name)
 {
-	insmod_relative(ctx, ctx->ls, ctx->sep - ctx->ls, ctx->pars);
+	struct mbuf* mb = &ctx->modules_dep;
+	struct line ln;
+
+	prep_modules_dep(ctx);
+
+	if(locate_line(mb, &ln, match_dep, name))
+		return NULL;
+
+	return pack_deps(ctx, &ln);
 }
 
-static void urelease(char* buf, int len)
+static char* match_opt(char* ls, char* le, char* name, int nlen)
 {
-	struct utsname uts;
+	char* p = strecbrk(ls, le, ':');
 
-	xchk(sys_uname(&uts), "uname", NULL);
+	if(p >= le || p - ls < nlen)
+		return NULL;
+	if(strncmp(ls, name, nlen))
+		return NULL;
+	if(p != ls + nlen)
+		return NULL;
 
-	int relen = strlen(uts.release);
-
-	if(relen > len - 1)
-		fail("release name too long:", uts.release, 0);
-
-	memcpy(buf, uts.release, relen + 1);
+	return p;
 }
 
-void modprobe(char* name, char* pars, char** envp)
+char* query_pars(CTX, char* name)
 {
-	char rel[MAX_RELEASE_LEN];
+	struct mbuf* mb = &ctx->etc_modopts;
+	struct line ln;
 
-	urelease(rel, sizeof(rel));
+	prep_etc_modopts(ctx);
 
-	char dir[strlen(rel)+16];
-	concat(dir, sizeof(dir), "/lib/modules/", rel);
+	if(!mb->buf)
+		return NULL;
+	if(locate_line(mb, &ln, match_opt, name))
+		return NULL;
 
-	struct modctx ctx;
-	memset(&ctx, 0, sizeof(ctx));
+	char* p = skip_space(ln.sep + 1, ln.end);
 
-	ctx.dir = dir;
-	ctx.name = name;
-	ctx.envp = envp;
-	ctx.pars = pars;
+	int len = ln.end - p;
+	char* buf = heap_alloc(ctx, len + 1);
 
-	struct mbuf deps;
+	memcpy(buf, p, len);
+	buf[len] = '\0';
 
-	query_modules_dep(&ctx, &deps);
-	insmod_dependencies(&ctx);
-	insmod_primary_module(&ctx);
-
-	munmapbuf(&deps);
+	return buf;
 }

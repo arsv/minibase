@@ -1,32 +1,23 @@
 .TH modprobe 8
 '''
 .SH NAME
-modprobe \- load or unload kernel module
+\fBmodprobe\fR \- load or unload kernel modules
 '''
 .SH SYNOPSIS
-modprobe \fImodule\fR [\fIopt\fR=\fIvalue\fR \fIopt\fR=\fIvalue\fR ...]
-.br
-modprobe \fB-r\fR \fImodule\fR [\fImodule\fR \fImodule\fR ...]
-'''
-.SH DESCRIPTION
-modprobe attempts to load specified module into the kernel.
-If \fImodule\fR is a path, it is mmaped and loaded directly via
-\fBinit_module\fR(2) syscall. Otherwise, the name is checked against
-modules.dep (see below), and all its dependencies are loaded first.
-.P
-Optional \fIopt\fR=\fIvalue\fR arguments are passed directly to the module.
-Dependencies, if any, are loaded without any options.
-.P
-With \fB-r\fR, modprobe calls \fRdelete_module\fR(2) to unload named module.
-Note \fImodule\fR in this case is the name kernel uses internally.
-Usually it's the base name of the module file, but there are no strict
-guarantees on this.
+.IP "\fBmodprobe\fR \fImodule\fR [\fIoptions\fR]" 4
+Load single module, optionally overriding its configured options.
+.IP "\fBmodprobe\fR \fB-a\fR \fImodule\fR \fImodule\fR ..." 4
+Load specified modules with default options.
+.IP "\fBmodprobe\fR \fB-r\fR \fImodule\fR \fImodule\fR ..." 4
+Unload specified modules and if possible their dependencies.
 '''
 .SH FILES
 .IP "/lib/modules/$RELEASE" 4
 Base directory to look for modules.
 .IP "/lib/modules/$RELEASE/modules.dep" 4
 List of module paths and dependencies. 
+.IP "/etc/modopts" 4
+Pre-configured module options.
 .P
 $RELEASE is the running kernel release as returned by \fBuname\fR(2).
 '''
