@@ -1,12 +1,10 @@
 #include <bits/stdio.h>
-#include <bits/ioctl/tty.h>
 
 #include <sys/fpath.h>
 #include <sys/creds.h>
 #include <sys/sched.h>
 #include <sys/rlimit.h>
 #include <sys/seccomp.h>
-#include <sys/ioctl.h>
 
 #include <string.h>
 #include <format.h>
@@ -125,18 +123,4 @@ int cmd_chroot(struct sh* ctx)
 		return -1;
 
 	return fchk(sys_chroot(dir), ctx, dir);
-}
-
-int cmd_setsid(struct sh* ctx)
-{
-	int ret;
-
-	if(moreleft(ctx))
-		return -1;
-	if((ret = sys_setsid()) < 0)
-		return error(ctx, NULL, NULL, ret);
-	if((ret = sys_ioctl(STDOUT, TIOCSCTTY, 0)) < 0)
-		return error(ctx, "ioctl(TIOCSCTTY)", NULL, ret);
-
-	return 0;
 }
