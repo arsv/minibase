@@ -17,7 +17,8 @@
 
 ERRTAG("modprobe");
 ERRLIST(NEACCES NEAGAIN NEBADF NEINVAL NENFILE NENODEV NENOMEM NEPERM NENOENT
-	NETXTBSY NEOVERFLOW NEBADMSG NEBUSY NEFAULT NENOKEY NEEXIST NENOEXEC);
+	NETXTBSY NEOVERFLOW NEBADMSG NEBUSY NEFAULT NENOKEY NEEXIST NENOEXEC
+	NESRCH);
 
 static int got_args(CTX)
 {
@@ -210,7 +211,7 @@ static void insert_(CTX, char* name, char* pars)
 	else if(ctx->opts & OPT_q)
 		_exit(0xff);
 	else
-		fail(name, NULL, -ENOENT);
+		fail(name, NULL, -ESRCH);
 
 	char **p, **e;
 
