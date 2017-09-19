@@ -26,7 +26,7 @@ struct top {
 
 	struct mbuf modules_dep;
 	struct mbuf modules_alias;
-	struct mbuf etc_modopts;
+	struct mbuf config;
 
 	char** deps;
 
@@ -43,6 +43,7 @@ void prep_modules_dep(CTX);
 char** query_deps(CTX, char* name);
 char* query_pars(CTX, char* name);
 char* query_alias(CTX, char* name);
+int is_blacklisted(CTX, char* name);
 
 void mmap_whole(struct mbuf* mb, char* name, int strict);
 void decompress(CTX, struct mbuf* mb, char* path, char* cmd);

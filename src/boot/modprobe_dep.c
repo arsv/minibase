@@ -8,6 +8,7 @@
 #include <util.h>
 #include <dirs.h>
 
+#include "common.h"
 #include "modprobe.h"
 
 void prep_release(CTX)
@@ -54,9 +55,9 @@ void prep_modules_alias(CTX)
 	prep_modules_file(ctx, &ctx->modules_alias, "modules.alias", 0);
 }
 
-void prep_etc_modopts(CTX)
+void prep_config(CTX)
 {
-	mmap_whole(&ctx->etc_modopts, ETCDIR "/modopts", 0);
+	mmap_whole(&ctx->config, CONFIG, 0);
 }
 
 static int isspace(int c)
@@ -111,6 +112,9 @@ int locate_line(struct mbuf* mb, struct line* ln, lnmatch lnm, char* name)
 {
 	int nlen = strlen(name);
 
+	if(!mb->buf)
+		goto out;
+
 	char* bs = mb->buf;
 	char* be = bs + mb->len;
 	char *ls, *le;
@@ -128,7 +132,7 @@ int locate_line(struct mbuf* mb, struct line* ln, lnmatch lnm, char* name)
 
 		return 0;
 	}
-
+out:
 	return -ENOENT;
 }
 
@@ -192,15 +196,43 @@ char** query_deps(CTX, char* name)
 	return pack_deps(ctx, &ln);
 }
 
-static char* match_opt(char* ls, char* le, char* name, int nlen)
+static char* word(char* p, char* e, char* word)
 {
-	char* p = strecbrk(ls, le, ':');
+	int len = strlen(word);
 
-	if(p >= le || p - ls < nlen)
+	if(e - p < len)
 		return NULL;
-	if(strncmp(ls, name, nlen))
+	if(strncmp(p, word, len))
 		return NULL;
-	if(p != ls + nlen)
+	if(p + len >= e)
+		return e;
+	if(!isspace(p[len]))
+		return NULL;
+
+	return skip_space(p + len, e);
+}
+
+static char* match_opt(char* ls, char* le, char* name, int _)
+{
+	char* p = ls;
+	char* e = le;
+
+	if(!(p = word(p, e, "options")))
+		return NULL;
+	if(!(p = word(p, e, name)))
+		return NULL;
+
+	return p;
+}
+
+static char* match_blacklist(char* ls, char* le, char* name, int _)
+{
+	char* p = ls;
+	char* e = le;
+
+	if(!(p = word(p, e, "blacklist")))
+		return NULL;
+	if(!(p = word(p, e, name)))
 		return NULL;
 
 	return p;
@@ -208,73 +240,88 @@ static char* match_opt(char* ls, char* le, char* name, int nlen)
 
 char* query_pars(CTX, char* name)
 {
-	struct mbuf* mb = &ctx->etc_modopts;
+	struct mbuf* mb = &ctx->config;
 	struct line ln;
 
-	prep_etc_modopts(ctx);
+	prep_config(ctx);
 
 	if(!mb->buf)
 		return NULL;
 	if(locate_line(mb, &ln, match_opt, name))
 		return NULL;
 
-	char* p = skip_space(ln.sep + 1, ln.end);
+	char* p = skip_space(ln.sep, ln.end);
 
 	return heap_dupe(ctx, p, ln.end);
 }
 
-/* Note wildcard handling here is wrong, it should be a full shell glob
-   implementation instead, but it's enough to get kernel aliases working.
+/* Note wildcard handling here is wrong, but it's enough to get kernel
+   aliases working.
 
    pci:v000010ECd0000525Asv00001028sd000006DEbcFFsc00i00
    pci:v000010ECd0000525Asv*       sd*       bc* sc* i*
 
-   The values being match with * are uppercase hex while the terminals
-   are lowercase letters. */
+   The values being matched with * are uppercase hex while the terminals
+   are lowercase letters, so we can just skip until the next non-* character
+   from the pattern. */
 
-static char* match_alias(char* ls, char* le, char* name, int nlen)
+static char* match_alias(char* ls, char* le, char* name, int _)
 {
-	if(le - ls < 7 || strncmp(ls, "alias ", 6))
+	char* p = ls;
+	char* e = le;
+	char* n = name;
+
+	if(!(p = word(p, e, "alias")))
 		return NULL;
 
-	ls += 6;
-
-	char* p = name;
-	char* q = ls;
-
-	while(*p && q < le) {
-		if(isspace(*q)) {
+	while(*n && p < e) {
+		if(isspace(*p)) {
 			break;
-		} else if(*q == '*') {
-			q++;
-			while(*p && *p != *q)
-				p++;
-		} else if(*q != *p) {
+		} else if(*p == '*') {
+			p++;
+			while(*n && *n != *p)
+				n++;
+		} else if(*p != *n) {
 			return NULL;
 		} else {
-			q++;
 			p++;
+			n++;
 		};
-	} if(*p || q >= le || !isspace(*q)) {
+	} if(*n || p >= e || !isspace(*p)) {
 		return NULL;
 	}
 
-	q = skip_space(q, le);
-
-	return q;
+	return skip_space(p, e);
 }
 
 char* query_alias(CTX, char* name)
 {
-	struct mbuf* mb = &ctx->modules_alias;
+	struct mbuf* ma = &ctx->modules_alias;
+	struct mbuf* cf = &ctx->config;
 	struct line ln;
 
+	prep_config(ctx);
 	prep_modules_alias(ctx);
 
-	if(!mb->buf)
-		return NULL;
-	if(locate_line(mb, &ln, match_alias, name))
-		return NULL;
+	if(locate_line(cf, &ln, match_alias, name) >= 0)
+		goto got;
+	if(locate_line(ma, &ln, match_alias, name) >= 0)
+		goto got;
 
+	return NULL;
+got:
 	return heap_dupe(ctx, ln.sep, ln.end);
+}
+
+int is_blacklisted(CTX, char* name)
+{
+	struct mbuf* mb = &ctx->config;
+	struct line ln;
+
+	prep_config(ctx);
+
+	if(locate_line(mb, &ln, match_blacklist, name))
+		return 0;
+
+	return 1;
 }

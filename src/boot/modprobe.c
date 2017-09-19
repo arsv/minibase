@@ -9,11 +9,12 @@
 
 #include "modprobe.h"
 
-#define OPTS "ranq"
+#define OPTS "ranqb"
 #define OPT_r (1<<0)
 #define OPT_a (1<<1)
 #define OPT_n (1<<2)
 #define OPT_q (1<<3)
+#define OPT_b (1<<4)
 
 ERRTAG("modprobe");
 ERRLIST(NEACCES NEAGAIN NEBADF NEINVAL NENFILE NENODEV NENOMEM NEPERM NENOENT
@@ -205,10 +206,19 @@ static void remove(CTX, char* name)
 static void insert_(CTX, char* name, char* pars)
 {
 	char** deps;
+	char* alias;
+
+	if((alias = query_alias(ctx, name)))
+		name = alias;
+
+	if(!(ctx->opts & OPT_b))
+		;
+	else if(is_blacklisted(ctx, name))
+		return;
 
 	if((deps = query_deps(ctx, name)))
 		;
-	else if(ctx->opts & OPT_q)
+	else if(ctx->opts & (OPT_q | OPT_b))
 		_exit(0xff);
 	else
 		fail(name, NULL, -ESRCH);
@@ -230,11 +240,6 @@ static void insert_(CTX, char* name, char* pars)
 
 static void insert(CTX, char* name)
 {
-	char* alias;
-
-	if((alias = query_alias(ctx, name)))
-		name = alias;
-
 	insert_(ctx, name, NULL);
 }
 
@@ -242,14 +247,11 @@ static void insert_single(CTX)
 {
 	char* name = shift_arg(ctx);
 	char* pars = shift_arg(ctx);
-	char* alias;
 
 	if(!name)
 		fail("module name required", NULL, 0);
 	if(got_args(ctx))
 		fail("too many arguments", NULL, 0);
-	if((alias = query_alias(ctx, name)))
-		name = alias;
 
 	insert_(ctx, name, pars);
 }

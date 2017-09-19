@@ -1,0 +1,3 @@
+options e1000e debug=1
+blacklist e1000e
+blacklist i915
