@@ -133,7 +133,7 @@ void insmod(CTX, char* relpath, char* pars)
 		;
 	else if(ret == -EEXIST)
 		;
-	else fail("init_module", name, ret);
+	else fail("init-module", name, ret);
 
 	unmap_buf(&mb);
 }

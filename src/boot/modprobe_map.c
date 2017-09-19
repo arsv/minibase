@@ -179,3 +179,24 @@ void flush_heap(CTX)
 {
 	ctx->ptr = ctx->lwm;
 }
+
+char* heap_dupn(CTX, char* str, int len)
+{
+	char* buf = heap_alloc(ctx, len + 1);
+
+	memcpy(buf, str, len);
+
+	buf[len] = '\0';
+
+	return buf;
+}
+
+char* heap_dupe(CTX, char* p, char* e)
+{
+	return heap_dupn(ctx, p, e - p);
+}
+
+char* heap_dup(CTX, char* str)
+{
+	return heap_dupn(ctx, str, strlen(str));
+}

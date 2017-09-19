@@ -48,3 +48,6 @@ void decompress(CTX, struct mbuf* mb, char* path, char* cmd);
 void* heap_alloc(CTX, int size);
 void unmap_buf(struct mbuf* mb);
 void flush_heap(CTX);
+
+char* heap_dup(CTX, char* str);
+char* heap_dupe(CTX, char* p, char* e);

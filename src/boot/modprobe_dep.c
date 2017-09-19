@@ -20,12 +20,8 @@ void prep_release(CTX)
 	if((ret = sys_uname(&uts)) < 0)
 		fail("uname", NULL, ret);
 
-	int relen = strlen(uts.release);
-	char* restr = heap_alloc(ctx, relen + 1);
+	ctx->release = heap_dup(ctx, uts.release);
 
-	memcpy(restr, uts.release, relen + 1);
-
-	ctx->release = restr;
 	ctx->lwm = ctx->ptr;
 }
 
@@ -102,12 +98,7 @@ static char* match_dep(char* ls, char* le, char* name, int nlen)
 
 static void add_dep(CTX, char* p, char* e)
 {
-	int len = e - p;
-
-	char* str = heap_alloc(ctx, len + 1);
-
-	memcpy(str, p, len);
-	str[len] = '\0';
+	(void)heap_dupe(ctx, p, e);
 }
 
 int locate_line(struct mbuf* mb, struct line* ln, lnmatch lnm, char* name)
@@ -223,11 +214,5 @@ char* query_pars(CTX, char* name)
 
 	char* p = skip_space(ln.sep + 1, ln.end);
 
-	int len = ln.end - p;
-	char* buf = heap_alloc(ctx, len + 1);
-
-	memcpy(buf, p, len);
-	buf[len] = '\0';
-
-	return buf;
+	return heap_dupe(ctx, p, ln.end);
 }
