@@ -235,3 +235,20 @@ int cmd_mkdirs(struct sh* ctx)
 
 	return fchk(mkdirs(name, mode), ctx, name);
 }
+
+int cmd_reopen(struct sh* ctx)
+{
+	char* name;
+	int ret = 0;
+
+	if(shift_str(ctx, &name))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
+
+	ret |= open_onto_fd(ctx, STDIN,  name, O_RDONLY, 0000);
+	ret |= open_onto_fd(ctx, STDOUT, name, O_WRONLY, 0000);
+	sys_dup2(STDOUT, STDERR);
+
+	return ret;
+}

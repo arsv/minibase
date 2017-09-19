@@ -59,6 +59,8 @@ status if any error happens while executing the rest of the script.
 .IP "\fBstdtwo\fR [\fB-ax\fR] \fIfile\fR" 4
 Redirect respective fds to the given \fIfile\fR; \fBstdtwo\fR redirects
 both stdout and stderr. Options: \fBa\fRppend, open e\fBx\fRclusively (O_EXCL).
+.IP "\fBreopen\fR \fIdevice\fR" 4
+Redirect all three standard descriptors to \fIdevice\fR.
 .IP "\fBclose\fR \fIfd\fR" 4
 .IP "\fBdupfd\fR \fIold\fR \fInew\fR" 4
 See \fBdup2\fR(2).
