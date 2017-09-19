@@ -23,11 +23,11 @@ Some tools are missing, and some still need work.
   * Several small linux-specific tools (systime, sync, dmesg etc).
 
   * Simple non-interactive shell (msh) for scripting the boot
-    process and service startup [usable].
+    process and service startup [usable,incomplete].
   * Early-stage boot utils (switchroot, kmod, mount).
 
-  * Non-encrypted block device locator (findblk) [usable?]
-  * Encrypted device locator and passphrase prompt tool (passblk) [usable?]
+  * Non-encrypted block device locator (findblk) [usable]
+  * Encrypted device locator and passphrase prompt tool (passblk) [usable]
   * Support tooling for disc encryption (dektool, dmcrypt) [usable]
   - No fsck for any fs yet.
   
@@ -50,7 +50,7 @@ Some tools are missing, and some still need work.
   - No package manager / download tool yet.
 
   * VT/DRM/input multiplexer (vtmux) aka that part of systemd-logind
-    everyone keeps asking about [usable, weston only, issues?].
+    everyone keeps asking about [partially usable, weston only].
 
   - No greeters yet.
   - No interactive shell yet.
