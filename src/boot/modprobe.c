@@ -230,6 +230,11 @@ static void insert_(CTX, char* name, char* pars)
 
 static void insert(CTX, char* name)
 {
+	char* alias;
+
+	if((alias = query_alias(ctx, name)))
+		name = alias;
+
 	insert_(ctx, name, NULL);
 }
 
@@ -237,11 +242,14 @@ static void insert_single(CTX)
 {
 	char* name = shift_arg(ctx);
 	char* pars = shift_arg(ctx);
+	char* alias;
 
 	if(!name)
 		fail("module name required", NULL, 0);
 	if(got_args(ctx))
 		fail("too many arguments", NULL, 0);
+	if((alias = query_alias(ctx, name)))
+		name = alias;
 
 	insert_(ctx, name, pars);
 }

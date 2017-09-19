@@ -2,6 +2,7 @@ struct mbuf {
 	char* buf;
 	long len;
 	long full;
+	int tried;
 };
 
 struct line {
@@ -24,8 +25,8 @@ struct top {
 	void* end;
 
 	struct mbuf modules_dep;
+	struct mbuf modules_alias;
 	struct mbuf etc_modopts;
-	int did_modopts;
 
 	char** deps;
 
@@ -41,6 +42,7 @@ void prep_release(CTX);
 void prep_modules_dep(CTX);
 char** query_deps(CTX, char* name);
 char* query_pars(CTX, char* name);
+char* query_alias(CTX, char* name);
 
 void mmap_whole(struct mbuf* mb, char* name, int strict);
 void decompress(CTX, struct mbuf* mb, char* path, char* cmd);

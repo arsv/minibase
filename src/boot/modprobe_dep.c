@@ -4,6 +4,7 @@
 
 #include <format.h>
 #include <string.h>
+#include <printf.h>
 #include <util.h>
 #include <dirs.h>
 
@@ -25,10 +26,9 @@ void prep_release(CTX)
 	ctx->lwm = ctx->ptr;
 }
 
-void prep_modules_dep(CTX)
+static void prep_modules_file(CTX, struct mbuf* mb, char* name, int strict)
 {
-	if(ctx->modules_dep.buf)
-		return;
+	if(mb->tried) return;
 
 	prep_release(ctx);
 
@@ -37,19 +37,25 @@ void prep_modules_dep(CTX)
 	FMTBUF(p, e, path, strlen(release) + 40);
 	p = fmtstr(p, e, "/lib/modules/");
 	p = fmtstr(p, e, release);
-	p = fmtstr(p, e, "/modules.dep");
+	p = fmtstr(p, e, "/");
+	p = fmtstr(p, e, name);
 	FMTEND(p, e);
 
-	mmap_whole(&ctx->modules_dep, path, 1);
+	mmap_whole(mb, path, strict);
+}
+
+void prep_modules_dep(CTX)
+{
+	prep_modules_file(ctx, &ctx->modules_dep, "modules.dep", 1);
+}
+
+void prep_modules_alias(CTX)
+{
+	prep_modules_file(ctx, &ctx->modules_alias, "modules.alias", 0);
 }
 
 void prep_etc_modopts(CTX)
 {
-	if(ctx->did_modopts)
-		return;
-
-	ctx->did_modopts = 1;
-
 	mmap_whole(&ctx->etc_modopts, ETCDIR "/modopts", 0);
 }
 
@@ -215,4 +221,60 @@ char* query_pars(CTX, char* name)
 	char* p = skip_space(ln.sep + 1, ln.end);
 
 	return heap_dupe(ctx, p, ln.end);
+}
+
+/* Note wildcard handling here is wrong, it should be a full shell glob
+   implementation instead, but it's enough to get kernel aliases working.
+
+   pci:v000010ECd0000525Asv00001028sd000006DEbcFFsc00i00
+   pci:v000010ECd0000525Asv*       sd*       bc* sc* i*
+
+   The values being match with * are uppercase hex while the terminals
+   are lowercase letters. */
+
+static char* match_alias(char* ls, char* le, char* name, int nlen)
+{
+	if(le - ls < 7 || strncmp(ls, "alias ", 6))
+		return NULL;
+
+	ls += 6;
+
+	char* p = name;
+	char* q = ls;
+
+	while(*p && q < le) {
+		if(isspace(*q)) {
+			break;
+		} else if(*q == '*') {
+			q++;
+			while(*p && *p != *q)
+				p++;
+		} else if(*q != *p) {
+			return NULL;
+		} else {
+			q++;
+			p++;
+		};
+	} if(*p || q >= le || !isspace(*q)) {
+		return NULL;
+	}
+
+	q = skip_space(q, le);
+
+	return q;
+}
+
+char* query_alias(CTX, char* name)
+{
+	struct mbuf* mb = &ctx->modules_alias;
+	struct line ln;
+
+	prep_modules_alias(ctx);
+
+	if(!mb->buf)
+		return NULL;
+	if(locate_line(mb, &ln, match_alias, name))
+		return NULL;
+
+	return heap_dupe(ctx, ln.sep, ln.end);
 }

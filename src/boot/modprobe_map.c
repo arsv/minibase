@@ -101,6 +101,11 @@ void mmap_whole(struct mbuf* mb, char* name, int strict)
 	long ret;
 	struct stat st;
 
+	if(mb->tried)
+		return;
+
+	mb->tried = 1;
+
 	if((fd = sys_open(name, O_RDONLY)) >= 0)
 		;
 	else if(strict)
