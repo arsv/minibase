@@ -93,3 +93,32 @@ int cmd_die(struct sh* ctx)
 	cmd_warn(ctx);
 	_exit(0xFF);
 }
+
+/* This assigns an executable to be exec()ed into in case of error.
+
+   Current implementation is extremely crude, but so far there is
+   exactly one use for this, invoking /sbin/system/reboot in pid 0
+   scripts, so anything more would be an overkill. */
+
+int cmd_trap(struct sh* ctx)
+{
+	char* arg;
+
+	if(shift_str(ctx, &arg))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
+
+	int len = strlen(arg);
+
+	if(len == 1 && arg[0] == '-') {
+		memzero(ctx->trap, sizeof(ctx->trap));
+		return 0;
+	} else if(len + 1 > sizeof(ctx->trap)) {
+		return error(ctx, "command too long", NULL, 0);
+	}
+
+	memcpy(ctx->trap, arg, len);
+
+	return 0;
+}

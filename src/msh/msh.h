@@ -55,6 +55,8 @@ struct sh {
 	int dash;        /* leading - to suppress abort-on-failure */
 
 	char pid[20];
+
+	char trap[50];   /* see cmd_trap() */
 };
 
 struct env {
