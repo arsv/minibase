@@ -1,5 +1,6 @@
 #include <sys/file.h>
 #include <sys/sync.h>
+#include <sys/creds.h>
 #include <sys/mount.h>
 #include <sys/reboot.h>
 #include <sys/sched.h>
@@ -25,7 +26,7 @@
 #define OPTS "phr"
 #define OPT_p (1<<0)	/* poweroff */
 #define OPT_h (1<<1)	/* halt */
-#define OPT_r (1<<2)	/* reboot, default */
+#define OPT_r (1<<2)	/* reboot */
 
 ERRTAG("reboot");
 ERRLIST(NEPERM NENOENT NEBADF NEFAULT NELOOP NENOMEM NENOTDIR NEOVERFLOW
@@ -201,6 +202,12 @@ static void sleep(int sec)
 	sys_nanosleep(&ts, NULL);
 }
 
+static void warn_pause(void)
+{
+	warn("waiting 5 seconds", NULL, 0);
+	sleep(5);
+}
+
 int main(int argc, char** argv)
 {
 	int mode = RB_AUTOBOOT;
@@ -208,6 +215,9 @@ int main(int argc, char** argv)
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
+
+	if(sys_getpid() != 0)
+		fail("invoked with non-zero pid", NULL, 0);
 
 	if(opts == OPT_p)
 		mode = RB_POWER_OFF;
@@ -217,6 +227,7 @@ int main(int argc, char** argv)
 		mode = RB_AUTOBOOT;
 	else if(opts)
 		fail("cannot use -phr together", NULL, 0);
+	else warn_pause();
 
 	if((ret = sys_sync()) < 0)
 		warn("sync", NULL, ret);
