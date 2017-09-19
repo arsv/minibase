@@ -113,7 +113,10 @@ void insmod(CTX, char* relpath, char* pars)
 	p = fmtstr(p, e, relpath);
 	FMTEND(p, e);
 
-	if(!pars) pars = query_pars(ctx, name);
+	if(!pars)
+		pars = query_pars(ctx, name);
+	if(!pars)
+		pars = "";
 
 	if(ctx->opts & OPT_n)
 		return report_insmod(ctx, path, pars);
@@ -166,14 +169,8 @@ static void remove_dep(CTX, char* path)
 static void try_remove_all(CTX, char** deps)
 {
 	char** p;
-	char** e;
 
-	for(e = deps; *e; e++)
-		;
-	if(e == deps)
-		return;
-
-	for(p = e - 1; p >= deps + 1; p--)
+	for(p = deps + 1; *p; p++)
 		remove_dep(ctx, *p);
 }
 
@@ -195,6 +192,15 @@ static void remove(CTX, char* name)
 	flush_heap(ctx);
 }
 
+/* For the listed dependencies,
+
+       mod: dep-a dep-b dep-c
+
+   it looks like the right insertion order is dep-c, dep-b, dep-a,
+   and the right removal order is the opposite. No clear indication
+   whether it's true though. If it's not, then it's going to be multi
+   pass insmod which I would rather avoid. */
+
 static void insert_(CTX, char* name, char* pars)
 {
 	char** deps;
@@ -206,7 +212,14 @@ static void insert_(CTX, char* name, char* pars)
 	else
 		fail(name, NULL, -ENOENT);
 
-	for(char** p = deps + 1; *p; p++)
+	char **p, **e;
+
+	for(e = deps; *e; e++)
+		;
+	if(e == deps)
+		return;
+
+	for(p = e - 1; p >= deps + 1; p--)
 		insmod(ctx, *p, NULL);
 
 	insmod(ctx, deps[0], pars);
