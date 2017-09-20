@@ -4,6 +4,7 @@
 #include <sys/proc.h>
 
 #include <format.h>
+#include <string.h>
 #include <util.h>
 
 #include "common.h"
@@ -14,17 +15,40 @@ char** environ;
 char rbcode;
 
 static short flagged;
+static char reboot[50];
 
-static int spawn_reboot(void)
+static int exec_into_reboot(void)
 {
+	if(!reboot[0]) return -1;
+
 	char arg[] = { '-', rbcode, '\0' };
-	char* argv[] = { REBOOT, arg, NULL };
+	char* argv[] = { reboot, arg, NULL };
 
 	int ret = sys_execve(*argv, argv, environ);
 
 	report("exec", *argv, ret);
 	
 	return -1; /* cause kernel panic */
+}
+
+static void setup_args(int argc, char** argv)
+{
+	if(argc < 2)
+		goto out;
+
+	char* arg = argv[1];
+	int len = strlen(arg);
+
+	if(len > sizeof(reboot) - 1) {
+		report("command too long:", arg, 0);
+		goto out;
+	}
+
+	memcpy(reboot, arg, len);
+	reboot[len] = '\0';
+out:
+	for(int i = 1; i < argc; i++)
+		memzero(argv[i], strlen(argv[i]));
 }
 
 void request(int flags)
@@ -45,6 +69,8 @@ int main(int argc, char** argv, char** envp)
 {
 	environ = envp;
 	confdir = CONFDIR;
+
+	setup_args(argc, argv);
 
 	setup_heap();
 	setup_ctrl();
@@ -81,5 +107,5 @@ reboot:
 	if(sys_getpid() != 1)
 		return 0;
 
-	return spawn_reboot();
+	return exec_into_reboot();
 };
