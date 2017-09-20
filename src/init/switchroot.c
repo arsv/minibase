@@ -193,25 +193,6 @@ static int check_ramfs(void)
 	return 0;
 };
 
-static void maybe_reopen_fds(struct root* ctx)
-{
-	struct stat st;
-	int fd, i;
-
-	if((sys_fstat(0, &st)) < 0)
-		return;
-	if(st.dev != ctx->olddev)
-		return;
-	if((fd = sys_open("/dev/console", O_RDWR)) < 0)
-		return;
-
-	for(i = 0; i <= 2; i++)
-		if(fd != i)
-			sys_dup2(fd, i);
-	if(fd > 2)
-		sys_close(fd);
-}
-
 static void changeroot(char* newroot)
 {
 	struct root ctx;
@@ -231,25 +212,20 @@ static void changeroot(char* newroot)
 	xchk(sys_mount(".", "/", NULL, MS_MOVE, NULL), "mount", ". to /");
 	xchk(sys_chroot("."), "chroot", ".");
 	xchk(sys_chdir("/"), "chdir", "/");
-
-	maybe_reopen_fds(&ctx);
 }
 
-/* Usage: switchroot /newroot [/sbin/init ...] */
+/* Usage: switchroot /newroot /sbin/system/start ... */
 
 int main(int argc, char** argv)
 {
 	if(argc < 2)
 		fail("no newroot to switch to", NULL, 0);
+	if(argc < 3)
+		fail("need executable to invoke on the new root", NULL, 0);
 
 	changeroot(argv[1]);
 
-	if(argc >= 3) {
-		argv += 2;
-	} else { /* no init has been supplied */
-		argv[0] = "/sbin/system/start";
-		argv[1] = NULL;
-	}
+	argv += 2;
 
 	long ret = sys_execve(*argv, argv, NULL);
 	fail("cannot exec", *argv, ret);
