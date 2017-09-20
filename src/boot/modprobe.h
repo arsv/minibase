@@ -1,3 +1,9 @@
+/* mbuf mapping modes */
+
+#define NEWMAP 0
+#define STRICT 1
+#define FAILOK 2
+
 struct mbuf {
 	char* buf;
 	long len;
@@ -45,7 +51,7 @@ char* query_pars(CTX, char* name);
 char* query_alias(CTX, char* name);
 int is_blacklisted(CTX, char* name);
 
-void mmap_whole(struct mbuf* mb, char* name, int strict);
+void mmap_whole(struct mbuf* mb, char* name, int mode);
 void decompress(CTX, struct mbuf* mb, char* path, char* cmd);
 
 void* heap_alloc(CTX, int size);

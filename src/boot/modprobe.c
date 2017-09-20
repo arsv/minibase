@@ -80,7 +80,7 @@ static void report_insmod(CTX, char* path, char* pars)
 static void load_module(CTX, struct mbuf* mb, char* path, char* base, int blen)
 {
 	if(check_strip_suffix(base, blen, ".ko"))
-		mmap_whole(mb, path, 1);
+		mmap_whole(mb, path, NEWMAP);
 	else if(check_strip_suffix(base, blen, ".ko.gz"))
 		decompress(ctx, mb, path, "/bin/zcat");
 	else if(check_strip_suffix(base, blen, ".ko.xz"))
@@ -125,6 +125,8 @@ void insmod(CTX, char* relpath, char* pars)
 
 	struct mbuf mb;
 	int ret;
+
+	memzero(&mb, sizeof(mb));
 
 	load_module(ctx, &mb, path, base, blen);
 

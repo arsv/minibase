@@ -95,23 +95,24 @@ void decompress(CTX, struct mbuf* mb, char* path, char* cmd)
 	if(status) fail("non-zero exit code in", cmd, 0);
 }
 
-void mmap_whole(struct mbuf* mb, char* name, int strict)
+void mmap_whole(struct mbuf* mb, char* name, int mode)
 {
 	int fd;
 	long ret;
 	struct stat st;
 
-	if(mb->tried)
+	if(mode == NEWMAP)
+		;
+	else if(mb->tried)
 		return;
 
 	mb->tried = 1;
 
 	if((fd = sys_open(name, O_RDONLY)) >= 0)
 		;
-	else if(strict)
+	else if(mode != FAILOK)
 		fail("open", name, fd);
-	else
-		return;
+	else return;
 
 	if((ret = sys_fstat(fd, &st)) < 0)
 		fail("stat", name, ret);
@@ -133,6 +134,7 @@ void mmap_whole(struct mbuf* mb, char* name, int strict)
 void unmap_buf(struct mbuf* mb)
 {
 	sys_munmap(mb->buf, mb->full);
+	memzero(mb, sizeof(*mb));
 }
 
 static void prep_heap(CTX)

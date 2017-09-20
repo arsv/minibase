@@ -27,7 +27,7 @@ void prep_release(CTX)
 	ctx->lwm = ctx->ptr;
 }
 
-static void prep_modules_file(CTX, struct mbuf* mb, char* name, int strict)
+static void prep_modules_file(CTX, struct mbuf* mb, char* name, int mode)
 {
 	if(mb->tried) return;
 
@@ -42,22 +42,22 @@ static void prep_modules_file(CTX, struct mbuf* mb, char* name, int strict)
 	p = fmtstr(p, e, name);
 	FMTEND(p, e);
 
-	mmap_whole(mb, path, strict);
+	mmap_whole(mb, path, mode);
 }
 
 void prep_modules_dep(CTX)
 {
-	prep_modules_file(ctx, &ctx->modules_dep, "modules.dep", 1);
+	prep_modules_file(ctx, &ctx->modules_dep, "modules.dep", STRICT);
 }
 
 void prep_modules_alias(CTX)
 {
-	prep_modules_file(ctx, &ctx->modules_alias, "modules.alias", 0);
+	prep_modules_file(ctx, &ctx->modules_alias, "modules.alias", FAILOK);
 }
 
 void prep_config(CTX)
 {
-	mmap_whole(&ctx->config, CONFIG, 0);
+	mmap_whole(&ctx->config, CONFIG, FAILOK);
 }
 
 static int isspace(int c)
