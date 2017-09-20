@@ -1,3 +1,3 @@
-service = lindevd
+service = lindevd udevmod
 
 include ../rules.mk
