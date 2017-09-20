@@ -247,7 +247,7 @@ int main(int argc, char** argv)
 	if(argc >= 3) {
 		argv += 2;
 	} else { /* no init has been supplied */
-		argv[0] = "/sbin/init";
+		argv[0] = "/sbin/system/start";
 		argv[1] = NULL;
 	}
 
