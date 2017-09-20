@@ -1,4 +1,4 @@
-initrd = modprobe insmod switchroot
+initrd = modprobe switchroot
 command = modprobe lsmod
 
 include ../rules.mk
