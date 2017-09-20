@@ -1,5 +1,6 @@
 #include <sys/file.h>
 #include <sys/sync.h>
+#include <sys/proc.h>
 #include <sys/creds.h>
 #include <sys/mount.h>
 #include <sys/reboot.h>
@@ -208,6 +209,25 @@ static void warn_pause(void)
 	sleep(5);
 }
 
+static int spawn_reboot(int mode)
+{
+	int pid, ret, status;
+
+	if((pid = sys_fork()) < 0)
+		fail("fork", NULL, pid);
+
+	if(pid == 0) {
+		if((ret = sys_reboot(mode)) < 0)
+			warn("reboot", NULL, ret);
+		return (ret < 0 ? 0xFF : 0x00);
+	} else {
+		if((ret = sys_waitpid(pid, &status, 0)) < 0)
+			fail("waitpid", NULL, ret);
+
+		return (status ? 0xFF : 0x00);
+	}
+}
+
 int main(int argc, char** argv)
 {
 	int mode = RB_AUTOBOOT;
@@ -216,8 +236,8 @@ int main(int argc, char** argv)
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
-	if(sys_getpid() != 0)
-		fail("invoked with non-zero pid", NULL, 0);
+	if((ret = sys_getpid()) != 1)
+		fail("invoked with pid", NULL, ret);
 
 	if(opts == OPT_p)
 		mode = RB_POWER_OFF;
@@ -229,16 +249,14 @@ int main(int argc, char** argv)
 		fail("cannot use -phr together", NULL, 0);
 	else warn_pause();
 
+	warn("proceeding to sync and umount", NULL, 0);
+
 	if((ret = sys_sync()) < 0)
 		warn("sync", NULL, ret);
 
 	umountall();
 
-	if((ret = sys_reboot(mode)) >= 0)
-		return 0;
+	warn("spawning child to stop the kernel", NULL, 0);
 
-	warn("reboot", NULL, ret);
-	sleep(5);
-
-	return -1; /* kernel panic here */
+	return spawn_reboot(mode);
 }
