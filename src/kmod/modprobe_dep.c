@@ -79,6 +79,31 @@ static char* skip_word(char* p, char* e)
 	return p;
 }
 
+/* Sometimes a module named foo-bar resides in a file named foo_bar.ko
+   and vice versa. There are no apparent rules for this, so we just
+   collate - with _ and match the names that way. */
+
+static char eq(char c)
+{
+	return (c == '_' ? '-' : c);
+}
+
+static int xstrncmp(char* a, char* b, int len)
+{
+	char* e = b + len;
+
+	while(*a && b < e && *b)
+		if(eq(*a++) != eq(*b++))
+			return -1;
+
+	if(b >= e)
+		return 0;
+	if(*a == *b)
+		return 0;
+
+	return -1;
+}
+
 static char* match_dep(char* ls, char* le, char* name, int nlen)
 {
 	char* p = strecbrk(ls, le, ':');
@@ -95,7 +120,7 @@ static char* match_dep(char* ls, char* le, char* name, int nlen)
 	if(le - q < nlen)
 		return NULL;
 
-	if(strncmp(q, name, nlen))
+	if(xstrncmp(q, name, nlen))
 		return NULL;
 	if(q[nlen] != '.')
 		return NULL;
