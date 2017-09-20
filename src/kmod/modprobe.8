@@ -11,13 +11,26 @@ Load specified modules with default options.
 .IP "\fBmodprobe\fR \fB-r\fR \fImodule\fR \fImodule\fR ..." 4
 Unload specified modules and if possible their dependencies.
 '''
+.SH OPTIONS
+.IP "\fB-a\fR" 4
+Treat all arguments as module names.
+.IP "\fB-b\fR" 4
+Apply blacklist; do nothing if requested \fImodule\fR happens
+to be blacklisted.
+.IP "\fB-n\fR" 4
+Dry run. Show actions to be performed, but do not perform them.
+.IP "\fB-r\fR" 4
+Remove specified modules and their dependencies from the kernel.
+.IP "\fB-q\fR" 4
+Suppress some error messages.
+'''
 .SH FILES
 .IP "/lib/modules/$RELEASE" 4
 Base directory to look for modules.
 .IP "/lib/modules/$RELEASE/modules.dep" 4
 List of module paths and dependencies. 
-.IP "/etc/modopts" 4
-Pre-configured module options.
+.IP "/etc/modules" 4
+Configuration file.
 .P
 $RELEASE is the running kernel release as returned by \fBuname\fR(2).
 '''
