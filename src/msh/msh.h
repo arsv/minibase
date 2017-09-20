@@ -56,7 +56,7 @@ struct sh {
 
 	char pid[20];
 
-	char trap[50];   /* see cmd_trap() */
+	char trap[50];   /* see cmd_onerror() */
 };
 
 struct env {

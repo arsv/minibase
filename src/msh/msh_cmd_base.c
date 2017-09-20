@@ -100,7 +100,7 @@ int cmd_die(struct sh* ctx)
    exactly one use for this, invoking /sbin/system/reboot in pid 0
    scripts, so anything more would be an overkill. */
 
-int cmd_trap(struct sh* ctx)
+int cmd_onerror(struct sh* ctx)
 {
 	char* arg;
 
