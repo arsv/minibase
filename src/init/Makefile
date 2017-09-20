@@ -1,4 +1,5 @@
 system = super reboot
+initrd = switchroot
 command = svctl
 other = trap tick
 

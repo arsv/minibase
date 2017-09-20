@@ -17,18 +17,14 @@ static short flagged;
 
 static int spawn_reboot(void)
 {
-	int pid = sys_fork();
+	char arg[] = { '-', rbcode, '\0' };
+	char* argv[] = { REBOOT, arg, NULL };
 
-	if(pid == 0) {
-		char arg[] = { '-', rbcode, '\0' };
-		char* argv[] = { REBOOT, arg, NULL };
-		sys_execve(*argv, argv, environ);
-	} else if(pid > 0) {
-		int status;
-		sys_waitpid(pid, &status, 0);
-	}
+	int ret = sys_execve(*argv, argv, environ);
 
-	return -1;
+	report("exec", *argv, ret);
+	
+	return -1; /* cause kernel panic */
 }
 
 void request(int flags)
@@ -80,10 +76,10 @@ int main(int argc, char** argv, char** envp)
 			update_poll_fds();
 	}
 reboot:
-	if(sys_getpid() != 1) {
-		sys_unlink(CONTROL);
+	sys_unlink(CONTROL);
+
+	if(sys_getpid() != 1)
 		return 0;
-	} else {
-		return spawn_reboot();
-	}
+
+	return spawn_reboot();
 };

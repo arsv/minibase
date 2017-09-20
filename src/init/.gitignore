@@ -1,6 +1,7 @@
-reboot
+switchroot
 svctl
 super
+reboot
 !etc/super
 trap
 tick
