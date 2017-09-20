@@ -1,4 +1,4 @@
-system = start super reboot
+system = super reboot
 command = svctl
 other = trap tick
 
