@@ -26,7 +26,7 @@ void warn(const char* msg, const char* obj, int ret)
 		p = fmtstr(p, end, ":");
 	} if(ret) {
 		p = fmtstr(p, end, " ");
-		p = fmterr(p, end, -ret);
+		p = fmterr(p, end, ret);
 	}
 
 	*p++ = '\n';

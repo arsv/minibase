@@ -51,7 +51,7 @@ static void report(struct sh* ctx, const char* err, char* arg, long ret, int m)
 		p = fmtstr(p, e, arg);
 	} if(ret) {
 		p = fmtstr(p, e, ": ");
-		p = fmterr(p, e, -ret);
+		p = fmterr(p, e, ret);
 	}
 
 	FMTENL(p, e);
