@@ -31,31 +31,31 @@ static int watch_ino_for(CTX, int fd, char* name, struct timespec* ts)
 {
 	struct pollfd pfd = { .fd = fd, .events = POLLIN };
 	int ret, rd;
-again:
-	if((ret = sys_ppoll(&pfd, 1, ts, NULL)) < 0)
-		return error(ctx, "ppoll", NULL, ret);
-	if(ret == 0)
-		return -ETIMEDOUT;
 
-	char buf[512];
-	int len = sizeof(buf);
+	while(1) {
+		if((ret = sys_ppoll(&pfd, 1, ts, NULL)) < 0)
+			return error(ctx, "ppoll", NULL, ret);
+		if(ret == 0)
+			return -ETIMEDOUT;
 
-	if((rd = sys_read(fd, buf, len)) < 0)
-		return error(ctx, "inotify", NULL, rd);
+		char buf[512];
+		int len = sizeof(buf);
 
-	char* end = buf + rd;
-	char* ptr = buf;
+		if((rd = sys_read(fd, buf, len)) < 0)
+			return error(ctx, "inotify", NULL, rd);
 
-	while(ptr < end) {
-		struct inotify_event* ino = (void*) ptr;
+		char* end = buf + rd;
+		char* ptr = buf;
 
-		if(match_event(ino, name))
-			return 0;
+		while(ptr < end) {
+			struct inotify_event* ino = (void*) ptr;
 
-		ptr += sizeof(*ino) + ino->len;
+			if(match_event(ino, name))
+				return 0;
+
+			ptr += sizeof(*ino) + ino->len;
+		}
 	}
-
-	goto again;
 }
 
 static void prep_dirname(char* dir, int dlen, char* name, char* base)
