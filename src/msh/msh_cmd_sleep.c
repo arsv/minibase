@@ -16,15 +16,15 @@ static int parsetime(struct sh* ctx, struct timespec* sp, char* str)
 	char *p, *q;
 
 	if(!*str)
-		goto inval;
+		goto err;
 	if(!(p = parseulong(str, &sec)))
-		goto inval;
+		goto err;
 	if(!*p)
 		goto out;
 	if(*p++ != '.')
-		goto inval;
+		goto err;
 	if(!(q = parseulong(p, &nsec)) || *q)
-		goto inval;
+		goto err;
 
 	for(nmul = NANOFRAC; p < q; p++)
 		nmul /= 10;
@@ -33,7 +33,7 @@ out:
 	sp->nsec = nsec*nmul;
 
 	return 0;
-inval:
+err:
 	return error(ctx, "invalid time spec", str, 0);
 }
 
