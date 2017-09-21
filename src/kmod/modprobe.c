@@ -1,5 +1,6 @@
 #include <sys/module.h>
 #include <sys/info.h>
+#include <sys/file.h>
 
 #include <errtag.h>
 #include <string.h>
@@ -9,12 +10,13 @@
 
 #include "modprobe.h"
 
-#define OPTS "ranqb"
+#define OPTS "ranqbp"
 #define OPT_r (1<<0)
 #define OPT_a (1<<1)
 #define OPT_n (1<<2)
 #define OPT_q (1<<3)
 #define OPT_b (1<<4)
+#define OPT_p (1<<5)
 
 ERRTAG("modprobe");
 ERRLIST(NEACCES NEAGAIN NEBADF NEINVAL NENFILE NENODEV NENOMEM NEPERM NENOENT
@@ -218,8 +220,12 @@ static void insert_(CTX, char* name, char* pars)
 	else if(is_blacklisted(ctx, name))
 		return;
 
+	ctx->nmatching++;
+
 	if((deps = query_deps(ctx, name)))
 		;
+	else if(ctx->opts & (OPT_a | OPT_p) && (ctx->opts & OPT_q))
+		return;
 	else if(ctx->opts & (OPT_q | OPT_b))
 		_exit(0xff);
 	else
@@ -236,6 +242,8 @@ static void insert_(CTX, char* name, char* pars)
 		insmod(ctx, *p, NULL);
 
 	insmod(ctx, deps[0], pars);
+
+	ctx->ninserted++;
 
 	flush_heap(ctx);
 }
@@ -256,6 +264,36 @@ static void insert_single(CTX)
 		fail("too many arguments", NULL, 0);
 
 	insert_(ctx, name, pars);
+}
+
+static void from_stdin(CTX, void (*call)(CTX, char* name))
+{
+	char buf[1024];
+	int len = sizeof(buf);
+	int off = 0;
+	int rd;
+
+	while((rd = sys_read(STDIN, buf + off, len - off)) > 0) {
+		char* e = buf + off + rd;
+		char* p = buf;
+
+		while(p < e) {
+			char* q = strecbrk(p, e, '\n');
+
+			if(q >= e) break;
+
+			*q = '\0';
+
+			call(ctx, p);
+
+			p = q + 1;
+		}
+
+		if(p > buf) {
+			off = e - p;
+			memmove(buf, p, off);
+		}
+	}
 }
 
 static void forall_args(CTX, void (*call)(CTX, char* name))
@@ -296,12 +334,17 @@ int main(int argc, char** argv, char** envp)
 	struct top context, *ctx = &context;
 	int opts = parse_args(ctx, argc, argv, envp);
 
-	if(opts & OPT_r)
+	if(opts & OPT_p)
+		from_stdin(ctx, insert);
+	else if(opts & OPT_r)
 		forall_args(ctx, remove);
 	else if(opts & OPT_a)
 		forall_args(ctx, insert);
 	else
 		insert_single(ctx);
+
+	if(ctx->nmatching && !ctx->ninserted)
+		return 0xFF;
 
 	return 0;
 }

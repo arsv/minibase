@@ -37,6 +37,9 @@ struct top {
 	char** deps;
 
 	char* release;
+
+	int nmatching;
+	int ninserted;
 };
 
 typedef char* (*lnmatch)(char* ls, char* le, char* tag, int len);
