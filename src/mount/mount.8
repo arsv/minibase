@@ -4,9 +4,9 @@
 \fBmount\fR \- attach filesystem tree to a given directory
 '''
 .SH SYNOPSIS
-.IP "\fBmount\fR [\fB-rtdxusy\fR] \fItarget\fR \fIsource\fR [\fIfstype\fR [\fIdata\fR]]" 4
+.IP "\fBmount\fR [\fB-crtdxusy\fR] \fItarget\fR \fIsource\fR [\fIfstype\fR [\fIdata\fR]]" 4
 Mount block device \fIsource\fR onto \fItarget\fR directory.
-.IP "\fBmount\fR \fB-n\fR[\fBrtdxusy\fR] \fItarget\fR \fIfstype\fR [\fIdata\fR]" 4
+.IP "\fBmount\fR \fB-n\fR[\fBcrtdxusy\fR] \fItarget\fR \fIfstype\fR [\fIdata\fR]" 4
 Mount virtual filesystem \fIfstype\fR onto \fItarget\fR.
 .IP "\fBmount\fR \fB-b\fR \fItarget\fR \fIsource\fR" 4
 Bind mount: attach \fIsource\fR directory onto \fItarget\fR (MS_BIND).
@@ -16,7 +16,7 @@ Move mount: detach \fIsource\fR and attach it at \fItarget\fR (MS_MOVE).
 Remount \fItarget\fR, possibly changing its mount options (MS_REMOUNT).
 .IP "\fBmount\fR \fB-u\fR[\fBfdxn\fR] \fItarget\fR \fItarget\fR ..." 4
 Unmount each \fItarget\fR.
-.IP "\fBmount\fR \fB-v\fR \fItarget\fR \fItarget\fR ..." 4
+.IP "\fBmount\fR \fB-v\fR[\fBc\fR] \fItarget\fR \fItarget\fR ..." 4
 Mount pre-defined virtual filesystems at given locations.
 '''
 .SH DESCRIPTION
@@ -30,11 +30,14 @@ at different locations, and change mount options for already-mounted
 filesystems. 
 '''
 .SH OPTIONS
-The following apply if \fB-u\fR is not used. All options set bits in
-\fBmountflags\fR argument for \fBmount\fR(2). These flags are common
-for all filesystems; any filesystem-specific settings are passed via
-\fIdata\fR which is a comma-separated list of keys or \fIkey\fB=\fIvalue\fR
-pairs.
+.IP "\fB-u\fR" 4
+Umount specified directories.
+.IP "\fB-v\fR" 4
+Mount pre-defined virtual filesystems.
+.IP "\fB-c\fR" 4
+Create mountpoint if mounting, remove if unmounting.
+.P
+The following apply if neither \fB-u\fR nor \fB-v\fR were used.
 .IP "\fB-r\fR" 4
 Mount \fIsource\fR read-only (MS_RDONLY).
 .IP "\fB-t\fR" 4
@@ -92,4 +95,4 @@ Pre-defined mountpoints that can be mounted with using \fB-v\fR:
 /sys/kernel/debug/tracing
 '''
 .SH SEE ALSO
-\fBmount\fR(2).
+\fBmount\fR(2), \fBumount\fR(2), \fBpmount\fR(1)
