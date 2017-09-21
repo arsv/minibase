@@ -249,8 +249,8 @@ static void check_src_dst(CCT)
 }
 
 /* At the top level, and *only* at the top level, we may get dst=(at, path)
-   with $path not being a basename. It this case access(at, ".") won't cut it
-   so we have to figure out what's the real directory is. */
+   with path not being a basename. It this case access(at, ".") won't cut it
+   so we have to figure out what the real directory is. */
 
 static int check_top_dst(CCT, char* name)
 {
