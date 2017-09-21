@@ -76,40 +76,42 @@ struct mbuf {
 	int len;
 };
 
-void hinit(struct sh* ctx);
-void* halloc(struct sh* ctx, int len);
-void hrev(struct sh* ctx, int type);
-void hset(struct sh* ctx, int what);
+#define CTX struct sh* ctx
 
-void parse(struct sh* ctx, char* buf, int len);
-void pfini(struct sh* ctx);
+void hinit(CTX);
+void* halloc(CTX, int len);
+void hrev(CTX, int type);
+void hset(CTX, int what);
 
-void loadvar(struct sh* ctx, char* var);
-char* valueof(struct sh* ctx, char* var);
-void setenv(struct sh* ctx, char* pkey, char* pval);
-void define(struct sh* ctx, char* var, char* val);
-void undef(struct sh* ctx, char* var);
-int export(struct sh* ctx, char* var);
+void parse(CTX, char* buf, int len);
+void pfini(CTX);
 
-void command(struct sh* ctx);
+void loadvar(CTX, char* var);
+char* valueof(CTX, char* var);
+void setenv(CTX, char* pkey, char* pval);
+void define(CTX, char* var, char* val);
+void undef(CTX, char* var);
+int export(CTX, char* var);
+
+void command(CTX);
 
 #define NR __attribute__((noreturn))
-void quit(struct sh* ctx, const char* err, char* arg, long ret) NR;
-int error(struct sh* ctx, const char* err, char* arg, long ret);
-void fatal(struct sh* ctx, const char* err, char* arg) NR;
-int fchk(long ret, struct sh* ctx, char* arg);
+void quit(CTX, const char* err, char* arg, long ret) NR;
+int error(CTX, const char* err, char* arg, long ret);
+void fatal(CTX, const char* err, char* arg) NR;
+int fchk(long ret, CTX, char* arg);
 
-int numleft(struct sh* ctx);
-int dasharg(struct sh* ctx);
-int moreleft(struct sh* ctx);
-int noneleft(struct sh* ctx);
-char** argsleft(struct sh* ctx);
-char* peek(struct sh* ctx);
-char* shift(struct sh* ctx);
-int shift_str(struct sh* ctx, char** dst);
-int shift_int(struct sh* ctx, int* dst);
-int shift_u64(struct sh* ctx, uint64_t* dst);
-int shift_oct(struct sh* ctx, int* dst);
+int numleft(CTX);
+int dasharg(CTX);
+int moreleft(CTX);
+int noneleft(CTX);
+char** argsleft(CTX);
+char* peek(CTX);
+char* shift(CTX);
+int shift_str(CTX, char** dst);
+int shift_int(CTX, int* dst);
+int shift_u64(CTX, uint64_t* dst);
+int shift_oct(CTX, int* dst);
 
 int mmapfile(struct mbuf* mb, char* name);
 int munmapfile(struct mbuf* mb);

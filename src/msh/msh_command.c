@@ -10,7 +10,7 @@
 
 static const struct cmd {
 	char name[12];
-	int (*func)(struct sh* ctx);
+	int (*func)(CTX);
 } builtins[] = {
 #define CMD(name) \
 	{ #name, cmd_##name },
@@ -18,14 +18,14 @@ static const struct cmd {
 	{ "", NULL }
 };
 
-static int child(struct sh* ctx, char* cmd)
+static int child(CTX, char* cmd)
 {
 	long ret = execvpe(cmd, ctx->argv, ctx->envp);
 	error(ctx, "exec", cmd, ret);
 	return 0xFF;
 }
 
-static int describe(struct sh* ctx, int status)
+static int describe(CTX, int status)
 {
 	char* msg;
 
@@ -44,7 +44,7 @@ static int describe(struct sh* ctx, int status)
 	return error(ctx, msg, buf, 0);
 }
 
-static int spawn(struct sh* ctx, int dash)
+static int spawn(CTX, int dash)
 {
 	long pid = sys_fork();
 	char* cmd = *ctx->argv;
@@ -76,14 +76,14 @@ static const struct cmd* builtin(const char* name)
 	return NULL;
 }
 
-static void exec_into_trap(struct sh* ctx)
+static void exec_into_trap(CTX)
 {
 	char* argv[] = { ctx->trap, NULL };
 	int ret = sys_execve(*argv, argv, ctx->envp);
 	warn("exec", *argv, ret);
 }
 
-void command(struct sh* ctx)
+void command(CTX)
 {
 	const struct cmd* cc;
 	int ret, dash;

@@ -18,29 +18,29 @@
 #define VALUE 0x9       /* var=va.       rhs in variable definition       */
 #define TRAIL 0xa       /* var=val .     whatever follows variable def    */
 
-static void dispatch(struct sh* ctx, char c);
+static void dispatch(CTX, char c);
 
-static void set_state(struct sh* ctx, int st)
+static void set_state(CTX, int st)
 {
 	ctx->state = (ctx->state & ~0xFF) | (st & 0xFF);
 }
 
-static void push_state(struct sh* ctx, int st)
+static void push_state(CTX, int st)
 {
 	ctx->state = (ctx->state << 8) | (st & 0xFF);
 }
 
-static void pop_state(struct sh* ctx)
+static void pop_state(CTX)
 {
 	ctx->state = (ctx->state >> 8);
 }
 
-static void start_var(struct sh* ctx)
+static void start_var(CTX)
 {
 	ctx->var = ctx->hptr;
 }
 
-static void end_var(struct sh* ctx)
+static void end_var(CTX)
 {
 	/* terminate and substitute $VAR */
 	*(ctx->hptr) = '\0';	
@@ -57,20 +57,20 @@ static void end_var(struct sh* ctx)
 	memcpy(spc, val, vlen);
 }
 
-static void add_char(struct sh* ctx, char c)
+static void add_char(CTX, char c)
 {
 	char* spc = halloc(ctx, 1);
 	*spc = c;
 }
 
-static void end_arg(struct sh* ctx)
+static void end_arg(CTX)
 {
 	add_char(ctx, 0);
 
 	ctx->argc++;
 }
 
-static char** put_argv(struct sh* ctx)
+static char** put_argv(CTX)
 {
 	int argn = ctx->argc;
 	char* base = ctx->csep;
@@ -97,7 +97,7 @@ static char** put_argv(struct sh* ctx)
 	return argv;
 }
 
-static void end_val(struct sh* ctx)
+static void end_val(CTX)
 {
 	ctx->argc++;
 
@@ -113,7 +113,7 @@ out:
 	ctx->argc = 0;
 }
 
-static void end_cmd(struct sh* ctx)
+static void end_cmd(CTX)
 {
 	if(!ctx->argc) return;
 
@@ -129,7 +129,7 @@ static void end_cmd(struct sh* ctx)
 	ctx->argp = 0;
 }
 
-static void parse_sep(struct sh* ctx, char c)
+static void parse_sep(CTX, char c)
 {
 	switch(c) {
 		case '\0':
@@ -150,7 +150,7 @@ static void parse_sep(struct sh* ctx, char c)
 	};
 }
 
-static void parse_lead(struct sh* ctx, char c)
+static void parse_lead(CTX, char c)
 {
 	switch(c) {
 		case 'a'...'z':
@@ -169,7 +169,7 @@ static void parse_lead(struct sh* ctx, char c)
 	}
 }
 
-static void parse_arg(struct sh* ctx, char c)
+static void parse_arg(CTX, char c)
 {
 	switch(c) {
 		case '\0':
@@ -201,7 +201,7 @@ static void parse_arg(struct sh* ctx, char c)
 	}
 }
 
-static void parse_dquote(struct sh* ctx, char c)
+static void parse_dquote(CTX, char c)
 {
 	switch(c) {
 		case '"':
@@ -221,7 +221,7 @@ static void parse_dquote(struct sh* ctx, char c)
 	}
 }
 
-static void parse_squote(struct sh* ctx, char c)
+static void parse_squote(CTX, char c)
 {
 	switch(c) {
 		case '\'':
@@ -234,7 +234,7 @@ static void parse_squote(struct sh* ctx, char c)
 	}
 }
 
-static void parse_slash(struct sh* ctx, char c)
+static void parse_slash(CTX, char c)
 {
 	switch(c) {
 		case '\0': fatal(ctx, "trailing backslash", NULL);
@@ -247,7 +247,7 @@ static void parse_slash(struct sh* ctx, char c)
 	pop_state(ctx);
 }
 
-static void parse_vsign(struct sh* ctx, char c)
+static void parse_vsign(CTX, char c)
 {
 	switch(c) {
 		case 'a'...'z':
@@ -269,13 +269,13 @@ static void parse_vsign(struct sh* ctx, char c)
 	}
 }
 
-static void parse_comm(struct sh* ctx, char c)
+static void parse_comm(CTX, char c)
 {
 	if(c == '\n')
 		set_state(ctx, SEP);
 }
 
-static void parse_vcont(struct sh* ctx, char c)
+static void parse_vcont(CTX, char c)
 {
 	switch(c) {
 		case 'a'...'z':
@@ -291,7 +291,7 @@ static void parse_vcont(struct sh* ctx, char c)
 	}
 }
 
-static void parse_value(struct sh* ctx, char c)
+static void parse_value(CTX, char c)
 {
 	switch(c) {
 		case '\0': /* foo=|EOF| */
@@ -322,7 +322,7 @@ static void parse_value(struct sh* ctx, char c)
 	}
 }
 
-static void parse_trail(struct sh* ctx, char c)
+static void parse_trail(CTX, char c)
 {
 	switch(c) {
 		case ' ':
@@ -336,7 +336,7 @@ static void parse_trail(struct sh* ctx, char c)
 	}
 }
 
-static void dispatch(struct sh* ctx, char c)
+static void dispatch(CTX, char c)
 {
 	switch(ctx->state & 0xFF) {
 		case SEP: parse_sep(ctx, c); break;
@@ -356,7 +356,7 @@ static void dispatch(struct sh* ctx, char c)
 	}
 }
 
-void parse(struct sh* ctx, char* buf, int len)
+void parse(CTX, char* buf, int len)
 {
 	char* end = buf + len;
 	char* p;
@@ -369,7 +369,7 @@ void parse(struct sh* ctx, char* buf, int len)
 	}
 }
 
-void pfini(struct sh* ctx)
+void pfini(CTX)
 {
 	dispatch(ctx, '\n');
 

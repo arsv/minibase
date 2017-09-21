@@ -34,5 +34,6 @@ CMD(sleep)
 CMD(setuid)
 CMD(setgid)
 CMD(groups)
+CMD(waitfor)
 
 #undef CMD

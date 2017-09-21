@@ -7,7 +7,7 @@
 #include "msh.h"
 #include "msh_cmd.h"
 
-int cmd_cd(struct sh* ctx)
+int cmd_cd(CTX)
 {
 	char* dir;
 
@@ -19,7 +19,7 @@ int cmd_cd(struct sh* ctx)
 	return fchk(sys_chdir(dir), ctx, dir);
 }
 
-int cmd_exec(struct sh* ctx)
+int cmd_exec(CTX)
 {
 	if(noneleft(ctx))
 		return -1;
@@ -29,7 +29,7 @@ int cmd_exec(struct sh* ctx)
 	return fchk(execvpe(*argv, argv, ctx->envp), ctx, *argv);
 }
 
-int cmd_exit(struct sh* ctx)
+int cmd_exit(CTX)
 {
 	int code = 0;
 
@@ -41,7 +41,7 @@ int cmd_exit(struct sh* ctx)
 	_exit(code);
 }
 
-int cmd_invoke(struct sh* ctx)
+int cmd_invoke(CTX)
 {
 	int nargs = numleft(ctx);
 	int norig = ctx->topargc - ctx->topargp;
@@ -61,7 +61,7 @@ int cmd_invoke(struct sh* ctx)
 	return fchk(execvpe(*argv, argv, ctx->envp), ctx, *argv);
 }
 
-static int print(struct sh* ctx, int fd)
+static int print(CTX, int fd)
 {
 	char* msg;
 
@@ -78,17 +78,17 @@ static int print(struct sh* ctx, int fd)
 	return 0;
 }
 
-int cmd_echo(struct sh* ctx)
+int cmd_echo(CTX)
 {
 	return print(ctx, STDOUT);
 }
 
-int cmd_warn(struct sh* ctx)
+int cmd_warn(CTX)
 {
 	return print(ctx, STDERR);
 }
 
-int cmd_die(struct sh* ctx)
+int cmd_die(CTX)
 {
 	cmd_warn(ctx);
 	_exit(0xFF);
@@ -100,7 +100,7 @@ int cmd_die(struct sh* ctx)
    exactly one use for this, invoking /sbin/system/reboot in pid 0
    scripts, so anything more would be an overkill. */
 
-int cmd_onerror(struct sh* ctx)
+int cmd_onerror(CTX)
 {
 	char* arg;
 

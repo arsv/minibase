@@ -24,7 +24,7 @@ static int maybelen(const char* str)
 #define FILE_LINE_SAVED  1
 #define FILE_LINE_REDIR  2
 
-static void report(struct sh* ctx, const char* err, char* arg, long ret, int m)
+static void report(CTX, const char* err, char* arg, long ret, int m)
 {
 	char* file = ctx->file;
 	int line = ctx->line;
@@ -64,25 +64,25 @@ static void report(struct sh* ctx, const char* err, char* arg, long ret, int m)
 	writeall(fd, buf, p - buf);
 }
 
-void quit(struct sh* ctx, const char* err, char* arg, long ret)
+void quit(CTX, const char* err, char* arg, long ret)
 {
 	report(ctx, err, arg, ret, TAGGED_SAVED);
 	_exit(0xFF);
 }
 
-int error(struct sh* ctx, const char* err, char* arg, long ret)
+int error(CTX, const char* err, char* arg, long ret)
 {
 	report(ctx, err, arg, ret, FILE_LINE_REDIR);
 	return -1;
 }
 
-void fatal(struct sh* ctx, const char* err, char* arg)
+void fatal(CTX, const char* err, char* arg)
 {
 	report(ctx, err, arg, 0, FILE_LINE_SAVED);
 	_exit(0xFF);
 }
 
-int fchk(long ret, struct sh* ctx, char* arg)
+int fchk(long ret, CTX, char* arg)
 {
 	if(ret < 0)
 		return error(ctx, *ctx->argv, arg, ret);
@@ -92,19 +92,19 @@ int fchk(long ret, struct sh* ctx, char* arg)
 
 /* Arguments handling for builtins */
 
-int numleft(struct sh* ctx)
+int numleft(CTX)
 {
 	return ctx->argc - ctx->argp;
 }
 
-int dasharg(struct sh* ctx)
+int dasharg(CTX)
 {
 	char* arg = peek(ctx);
 
 	return arg && *arg == '-';
 }
 
-int moreleft(struct sh* ctx)
+int moreleft(CTX)
 {
 	if(numleft(ctx) > 0)
 		return error(ctx, "too many arguments", NULL, 0);
@@ -112,7 +112,7 @@ int moreleft(struct sh* ctx)
 		return 0;
 }
 
-int noneleft(struct sh* ctx)
+int noneleft(CTX)
 {
 	if(numleft(ctx) <= 0)
 		return error(ctx, "too few arguments", NULL, 0);
@@ -120,12 +120,12 @@ int noneleft(struct sh* ctx)
 		return 0;
 }
 
-char** argsleft(struct sh* ctx)
+char** argsleft(CTX)
 {
 	return &(ctx->argv[ctx->argp]);
 }
 
-char* peek(struct sh* ctx)
+char* peek(CTX)
 {
 	if(ctx->argp < ctx->argc)
 		return ctx->argv[ctx->argp];
@@ -133,7 +133,7 @@ char* peek(struct sh* ctx)
 		return NULL;
 }
 
-char* shift(struct sh* ctx)
+char* shift(CTX)
 {
 	char* arg;
 
@@ -143,7 +143,7 @@ char* shift(struct sh* ctx)
 	return arg;
 }
 
-int shift_str(struct sh* ctx, char** dst)
+int shift_str(CTX, char** dst)
 {
 	char* str;
 
@@ -154,17 +154,17 @@ int shift_str(struct sh* ctx, char** dst)
 	return 0;
 }
 
-static int argument_required(struct sh* ctx)
+static int argument_required(CTX)
 {
 	return error(ctx, "argument required", NULL, 0);
 }
 
-static int numeric_arg_required(struct sh* ctx)
+static int numeric_arg_required(CTX)
 {
 	return error(ctx, "numeric argument required", NULL, 0);
 }
 
-int shift_int(struct sh* ctx, int* dst)
+int shift_int(CTX, int* dst)
 {
 	char* p;
 
@@ -176,7 +176,7 @@ int shift_int(struct sh* ctx, int* dst)
 	return 0;
 }
 
-int shift_u64(struct sh* ctx, uint64_t* dst)
+int shift_u64(CTX, uint64_t* dst)
 {
 	char* p;
 
@@ -188,7 +188,7 @@ int shift_u64(struct sh* ctx, uint64_t* dst)
 	return 0;
 }
 
-int shift_oct(struct sh* ctx, int* dst)
+int shift_oct(CTX, int* dst)
 {
 	char* p;
 

@@ -11,7 +11,7 @@
 
 #define PAGE 4096
 
-void hinit(struct sh* ctx)
+void hinit(CTX)
 {
 	void* brk = sys_brk(0);
 	void* end = sys_brk(brk + 4096);
@@ -26,7 +26,7 @@ void hinit(struct sh* ctx)
 	ctx->hend = end;
 }
 
-void* halloc(struct sh* ctx, int len)
+void* halloc(CTX, int len)
 {
 	void* ret = ctx->hptr;
 
@@ -45,7 +45,7 @@ ptr:
 	return ret;
 }
 
-void hrev(struct sh* ctx, int what)
+void hrev(CTX, int what)
 {
 	switch(what) {
 		case CSEP:
@@ -62,7 +62,7 @@ void hrev(struct sh* ctx, int what)
 	}
 }
 
-void hset(struct sh* ctx, int what)
+void hset(CTX, int what)
 {
 	switch(what) {
 		case CSEP: ctx->csep = ctx->hptr; break;

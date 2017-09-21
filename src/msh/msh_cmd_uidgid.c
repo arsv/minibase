@@ -50,7 +50,7 @@ static int pwname2id(struct mbuf* mb, char* name)
 	return mapid(mb, name);
 }
 
-static int pwresolve(struct sh* ctx, char* pwfile,
+static int pwresolve(CTX, char* pwfile,
                      int n, char** names, int* ids, char* notfound)
 {
 	struct mbuf mb;
@@ -68,7 +68,7 @@ static int pwresolve(struct sh* ctx, char* pwfile,
 	return err;
 }
 
-int cmd_setuid(struct sh* ctx)
+int cmd_setuid(CTX)
 {
 	int uid;
 	char* pwfile = "/etc/passwd";
@@ -84,7 +84,7 @@ int cmd_setuid(struct sh* ctx)
 	return fchk(sys_setresuid(uid, uid, uid), ctx, user);
 }
 
-int cmd_setgid(struct sh* ctx)
+int cmd_setgid(CTX)
 {
 	int gid;
 	char* pwfile = "/etc/group";
@@ -100,7 +100,7 @@ int cmd_setgid(struct sh* ctx)
 	return fchk(sys_setresgid(gid, gid, gid), ctx, group);
 }
 
-int cmd_groups(struct sh* ctx)
+int cmd_groups(CTX)
 {
 	char* pwfile = "/etc/group";
 	int num = numleft(ctx);

@@ -4,7 +4,7 @@
 
 #include "msh.h"
 
-static void parsefd(struct sh* ctx, int fd)
+static void parsefd(CTX, int fd)
 {
 	char inbuf[2048];
 	int rd;
@@ -16,12 +16,12 @@ static void parsefd(struct sh* ctx, int fd)
 	};
 }
 
-static void parsestr(struct sh* ctx, char* str)
+static void parsestr(CTX, char* str)
 {
 	parse(ctx, str, strlen(str));
 }
 
-static int openfile(struct sh* ctx, char* name)
+static int openfile(CTX, char* name)
 {
 	int fd;
 
@@ -38,7 +38,7 @@ static int openfile(struct sh* ctx, char* name)
 
 #define OPT_c (1<<0)
 
-static int parseopts(struct sh* ctx, char* str)
+static int parseopts(CTX, char* str)
 {
 	char* p;
 	int opts = 0;

@@ -30,7 +30,7 @@ static int striplock(char* str)
 	return 1;
 }
 
-int cmd_secbits(struct sh* ctx)
+int cmd_secbits(CTX)
 {
 	const struct secbit* sb;
 	char* arg;

@@ -59,7 +59,7 @@ static const struct cap {
 #define OPT_p (1<<3)
 #define OPT_e (1<<4)
 
-static int parsecaps(struct sh* ctx, int* bits)
+static int parsecaps(CTX, int* bits)
 {
 	const struct cap* sc;
 	char* arg;
@@ -80,7 +80,7 @@ static int parsecaps(struct sh* ctx, int* bits)
 	return 0;
 }
 
-static int setbcaps(struct sh* ctx, int* bits, int opts)
+static int setbcaps(CTX, int* bits, int opts)
 {
 	const struct cap* sc;
 	int ret;
@@ -102,7 +102,7 @@ static int setbcaps(struct sh* ctx, int* bits, int opts)
 	return 0;
 }
 
-static int pr_cap_ambient(struct sh* ctx, int op, int cap)
+static int pr_cap_ambient(CTX, int op, int cap)
 {
 	int ret;
 
@@ -112,7 +112,7 @@ static int pr_cap_ambient(struct sh* ctx, int op, int cap)
 	return ret;
 }
 
-static int pr_cap_ambient_clear_all(struct sh* ctx)
+static int pr_cap_ambient_clear_all(CTX)
 {
 	int ret;
 
@@ -122,12 +122,12 @@ static int pr_cap_ambient_clear_all(struct sh* ctx)
 	return 0;
 }
 
-static int pr_cap_ambient_is_set(struct sh* ctx, int cap)
+static int pr_cap_ambient_is_set(CTX, int cap)
 {
 	return pr_cap_ambient(ctx, PR_CAP_AMBIENT_IS_SET, cap);
 }
 
-static int setacaps(struct sh* ctx, int* bits, int opts)
+static int setacaps(CTX, int* bits, int opts)
 {
 	const struct cap* sc;
 
@@ -157,7 +157,7 @@ static int setacaps(struct sh* ctx, int* bits, int opts)
 	return 0;
 }
 
-static int setepicaps(struct sh* ctx, int* bits, int opts, struct cap_data* cd)
+static int setepicaps(CTX, int* bits, int opts, struct cap_data* cd)
 {
 	struct cap_header ch = {
 		.version = LINUX_CAPABILITY_VERSION,
@@ -181,7 +181,7 @@ static int setepicaps(struct sh* ctx, int* bits, int opts, struct cap_data* cd)
 	return fchk(sys_capset(&ch, cd), ctx, "capset");
 }
 
-static int prepcaps(struct sh* ctx, int* caps, int opts, struct cap_data* cd)
+static int prepcaps(CTX, int* caps, int opts, struct cap_data* cd)
 {
 	int ret;
 	struct cap_header ch = {
@@ -206,7 +206,7 @@ static int prepcaps(struct sh* ctx, int* caps, int opts, struct cap_data* cd)
 	return fchk(sys_capset(&ch, cd), ctx, "capset");
 }
 
-static int capopts(struct sh* ctx, char* arg)
+static int capopts(CTX, char* arg)
 {
 	int opts = 0;
 	char* p;
@@ -224,7 +224,7 @@ static int capopts(struct sh* ctx, char* arg)
 	return opts;
 }
 
-int cmd_setcaps(struct sh* ctx)
+int cmd_setcaps(CTX)
 {
 	struct cap_data dh[2];
 	int caps[2] = { 0, 0 };

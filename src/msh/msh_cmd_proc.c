@@ -36,7 +36,7 @@ static const struct rlpair {
 	{ "",         0                 }
 };
 
-int cmd_rlimit(struct sh* ctx)
+int cmd_rlimit(CTX)
 {
 	const struct rlpair* rp;
 	struct rlimit rl;
@@ -62,7 +62,7 @@ int cmd_rlimit(struct sh* ctx)
 	return fchk(sys_prlimit(0, rp->res, &rl, NULL), ctx, key);
 }
 
-int cmd_seccomp(struct sh* ctx)
+int cmd_seccomp(CTX)
 {
 	struct mbuf mb;
 	int ret;
@@ -89,7 +89,7 @@ out:
 	return ret;
 }
 
-int cmd_setprio(struct sh* ctx)
+int cmd_setprio(CTX)
 {
 	int prio;
 
@@ -101,7 +101,7 @@ int cmd_setprio(struct sh* ctx)
 	return fchk(sys_setpriority(0, 0, prio), ctx, NULL);
 }
 
-int cmd_umask(struct sh* ctx)
+int cmd_umask(CTX)
 {
 	int mask;
 
@@ -113,7 +113,7 @@ int cmd_umask(struct sh* ctx)
 	return fchk(sys_umask(mask), ctx, NULL);
 }
 
-int cmd_chroot(struct sh* ctx)
+int cmd_chroot(CTX)
 {
 	char* dir;
 

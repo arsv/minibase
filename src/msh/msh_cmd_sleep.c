@@ -8,7 +8,7 @@
 
 #define NANOFRAC 1000000000 /* nanoseconds in a second */
 
-static int parsetime(struct sh* ctx, struct timespec* sp, char* str)
+static int parsetime(CTX, struct timespec* sp, char* str)
 {
 	unsigned long sec = 0;
 	unsigned long nsec = 0;
@@ -37,7 +37,7 @@ err:
 	return error(ctx, "invalid time spec", str, 0);
 }
 
-int cmd_sleep(struct sh* ctx)
+int cmd_sleep(CTX)
 {
 	struct timespec sp;
 	int ret;

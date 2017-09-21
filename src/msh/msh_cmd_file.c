@@ -6,7 +6,7 @@
 #include "msh.h"
 #include "msh_cmd.h"
 
-static int wflags(struct sh* ctx, char* str, int* dst)
+static int wflags(CTX, char* str, int* dst)
 {
 	int flags = O_WRONLY;
 
@@ -21,7 +21,7 @@ static int wflags(struct sh* ctx, char* str, int* dst)
 	return 0;
 }
 
-static int open_onto_fd(struct sh* ctx, int tofd, char* name, int fl, int md)
+static int open_onto_fd(CTX, int tofd, char* name, int fl, int md)
 {
 	int fd, ret;
 
@@ -36,7 +36,7 @@ static int open_onto_fd(struct sh* ctx, int tofd, char* name, int fl, int md)
 	return ret;
 }
 
-static int open_output(struct sh* ctx, int tofd)
+static int open_output(CTX, int tofd)
 {
 	char* name;
 	int flags;
@@ -56,7 +56,7 @@ static int open_output(struct sh* ctx, int tofd)
 	return open_onto_fd(ctx, tofd, name, flags, 0666);
 }
 
-int cmd_stdin(struct sh* ctx)
+int cmd_stdin(CTX)
 {
 	char* name;
 
@@ -70,7 +70,7 @@ int cmd_stdin(struct sh* ctx)
 	return open_onto_fd(ctx, STDIN, name, O_RDONLY, 0000);
 }
 
-static void save_stderr(struct sh* ctx)
+static void save_stderr(CTX)
 {
 	int fd;
 
@@ -82,18 +82,18 @@ static void save_stderr(struct sh* ctx)
 	ctx->errfd = fd;
 }
 
-int cmd_stdout(struct sh* ctx)
+int cmd_stdout(CTX)
 {
 	return open_output(ctx, STDOUT);
 }
 
-int cmd_stderr(struct sh* ctx)
+int cmd_stderr(CTX)
 {
 	save_stderr(ctx);
 	return open_output(ctx, STDERR);
 }
 
-int cmd_stdtwo(struct sh* ctx)
+int cmd_stdtwo(CTX)
 {
 	int ret;
 
@@ -104,7 +104,7 @@ int cmd_stdtwo(struct sh* ctx)
 	return fchk(sys_dup2(STDOUT, STDERR), ctx, "dup2");
 }
 
-int cmd_dupfd(struct sh* ctx)
+int cmd_dupfd(CTX)
 {
 	int oldfd, newfd;
 
@@ -118,7 +118,7 @@ int cmd_dupfd(struct sh* ctx)
 	return fchk(sys_dup2(oldfd, newfd), ctx, NULL);
 }
 
-int cmd_close(struct sh* ctx)
+int cmd_close(CTX)
 {
 	int fd;
 
@@ -130,7 +130,7 @@ int cmd_close(struct sh* ctx)
 	return fchk(sys_close(fd), ctx, NULL);
 }
 
-int cmd_write(struct sh* ctx)
+int cmd_write(CTX)
 {
 	int fd, ret;
 	char* data;
@@ -159,7 +159,7 @@ int cmd_write(struct sh* ctx)
 	return 0;
 }
 
-int cmd_unlink(struct sh* ctx)
+int cmd_unlink(CTX)
 {
 	char* name;
 	int ret;
@@ -223,7 +223,7 @@ out:
 	return ret;
 }
 
-int cmd_mkdirs(struct sh* ctx)
+int cmd_mkdirs(CTX)
 {
 	int mode = 0755;
 	char* name;
@@ -236,7 +236,7 @@ int cmd_mkdirs(struct sh* ctx)
 	return fchk(mkdirs(name, mode), ctx, name);
 }
 
-int cmd_reopen(struct sh* ctx)
+int cmd_reopen(CTX)
 {
 	char* name;
 	int ret = 0;

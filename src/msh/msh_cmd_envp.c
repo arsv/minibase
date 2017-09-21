@@ -1,7 +1,7 @@
 #include "msh.h"
 #include "msh_cmd.h"
 
-int cmd_setenv(struct sh* ctx)
+int cmd_setenv(CTX)
 {
 	char *var, *val;
 
@@ -17,7 +17,7 @@ int cmd_setenv(struct sh* ctx)
 	return 0;
 }
 
-int cmd_unset(struct sh* ctx)
+int cmd_unset(CTX)
 {
 	char* var;
 
@@ -29,7 +29,7 @@ int cmd_unset(struct sh* ctx)
 	return 0;
 }
 
-int cmd_export(struct sh* ctx)
+int cmd_export(CTX)
 {
 	char* var;
 

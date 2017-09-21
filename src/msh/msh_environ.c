@@ -24,7 +24,7 @@ static char* stringptr(struct env* es)
 	return NULL;
 }
 
-static char* match(struct sh* ctx, char* env, char* var)
+static char* match(CTX, char* env, char* var)
 {
 	char* a = env;
 	char* b = var;
@@ -38,7 +38,7 @@ static char* match(struct sh* ctx, char* env, char* var)
 	return a + 1;
 }
 
-static int match_env(struct sh* ctx, struct env* es, char* var)
+static int match_env(CTX, struct env* es, char* var)
 {
 	return !!match(ctx, stringptr(es), var);
 }
@@ -54,7 +54,7 @@ static int match_env(struct sh* ctx, struct env* es, char* var)
    The distinction between ENVSTR (inline string) and ENVPTR (pointer)
    is a kind of petty optimization to avoid copying envp strings. */
 
-static void maybe_init_env(struct sh* ctx)
+static void maybe_init_env(CTX)
 {
 	char** e;
 	struct envptr* p;
@@ -78,9 +78,9 @@ static void maybe_init_env(struct sh* ctx)
    it just happens to be the common part of otherwise unrelated
    rebuild_envp() and del_env_entry(). */
 
-typedef int (*envf)(struct sh* ctx, struct env* es, char* var);
+typedef int (*envf)(CTX, struct env* es, char* var);
 
-static struct env* foreach_env(struct sh* ctx, envf func, char* var)
+static struct env* foreach_env(CTX, envf func, char* var)
 {
 	char* ptr = ctx->heap;
 	char* end = ctx->esep;
@@ -102,7 +102,7 @@ static struct env* foreach_env(struct sh* ctx, envf func, char* var)
 	return NULL;
 }
 
-static int add_env_ptr(struct sh* ctx, struct env* es, char* _)
+static int add_env_ptr(CTX, struct env* es, char* _)
 {
 	if(es->type == ENVLOC)
 		return 0;
@@ -113,7 +113,7 @@ static int add_env_ptr(struct sh* ctx, struct env* es, char* _)
 	return 0;
 }
 
-static void rebuild_envp(struct sh* ctx)
+static void rebuild_envp(CTX)
 {
 	hset(ctx, ESEP);
 
@@ -127,7 +127,7 @@ static void rebuild_envp(struct sh* ctx)
 	ctx->envp = (char**)ctx->esep;
 }
 
-static int del_env_entry(struct sh* ctx, char* var)
+static int del_env_entry(CTX, char* var)
 {
 	struct env* es;
 
@@ -151,7 +151,7 @@ static char* sdup(char* str, int len, char* buf)
 
 #define allocadup(str, len) sdup(str, len, alloca(len+1))
 
-static void putvar(struct sh* ctx, char* pkey, char* pval, int type)
+static void putvar(CTX, char* pkey, char* pval, int type)
 {
 	int klen = strlen(pkey);
 	int vlen = strlen(pval);
@@ -182,17 +182,17 @@ static void putvar(struct sh* ctx, char* pkey, char* pval, int type)
 	rebuild_envp(ctx);
 }
 
-void define(struct sh* ctx, char* pkey, char* pval)
+void define(CTX, char* pkey, char* pval)
 {
 	putvar(ctx, pkey, pval, ENVLOC);
 }
 
-void setenv(struct sh* ctx, char* pkey, char* pval)
+void setenv(CTX, char* pkey, char* pval)
 {
 	putvar(ctx, pkey, pval, ENVSTR);
 }
 
-void undef(struct sh* ctx, char* pkey)
+void undef(CTX, char* pkey)
 {
 	int klen = strlen(pkey);
 	char* key = allocadup(pkey, klen);
@@ -206,7 +206,7 @@ void undef(struct sh* ctx, char* pkey)
 	rebuild_envp(ctx);
 }
 
-int export(struct sh* ctx, char* var)
+int export(CTX, char* var)
 {
 	struct env* es;
 
@@ -229,7 +229,7 @@ int export(struct sh* ctx, char* var)
    it should use the original envp; or after that, then it has
    to deal with local/global stuff and thus stuct env-s. */
 
-static char* valueof_envs(struct sh* ctx, char* var)
+static char* valueof_envs(CTX, char* var)
 {
 	struct env* es;
 	char* p;
@@ -246,7 +246,7 @@ static char* valueof_envs(struct sh* ctx, char* var)
 	return p + 1;
 }
 
-static char* valueof_orig(struct sh* ctx, char* var)
+static char* valueof_orig(CTX, char* var)
 {
 	char** p;
 	char* r;
@@ -258,7 +258,7 @@ static char* valueof_orig(struct sh* ctx, char* var)
 	return NULL;
 }
 
-static char* valueof_argv(struct sh* ctx, int i)
+static char* valueof_argv(CTX, int i)
 {
 	if(i < 0)
 		return NULL;
@@ -269,7 +269,7 @@ static char* valueof_argv(struct sh* ctx, int i)
 	return NULL;
 }
 
-static char* valueof_pid(struct sh* ctx)
+static char* valueof_pid(CTX)
 {
 	if(*ctx->pid)
 		goto out;
@@ -284,7 +284,7 @@ out:
 	return ctx->pid;
 }
 
-static char* valueof_spec(struct sh* ctx, char* var)
+static char* valueof_spec(CTX, char* var)
 {
 	char c = *var;
 
@@ -311,7 +311,7 @@ static int special(char* var)
 	return 0;
 }
 
-char* valueof(struct sh* ctx, char* var)
+char* valueof(CTX, char* var)
 {
 	if(special(var))
 		return valueof_spec(ctx, var);
