@@ -1,4 +1,4 @@
-command = mount pmount locfg
+command = kmount pmount locfg
 service = mountd
 
 include ../rules.mk

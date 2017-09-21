@@ -1,31 +1,31 @@
-.TH mount 8
+.TH kmount 8
 '''
 .SH NAME
-\fBmount\fR \- attach filesystem tree to a given directory
+\fBkmount\fR \- attach filesystem tree to a given directory
 '''
 .SH SYNOPSIS
-.IP "\fBmount\fR [\fB-crtdxusy\fR] \fItarget\fR \fIsource\fR [\fIfstype\fR [\fIdata\fR]]" 4
+.IP "\fBkmount\fR [\fB-crtdxusy\fR] \fItarget\fR \fIsource\fR [\fIfstype\fR [\fIdata\fR]]" 4
 Mount block device \fIsource\fR onto \fItarget\fR directory.
-.IP "\fBmount\fR \fB-n\fR[\fBcrtdxusy\fR] \fItarget\fR \fIfstype\fR [\fIdata\fR]" 4
+.IP "\fBkmount\fR \fB-n\fR[\fBcrtdxusy\fR] \fItarget\fR \fIfstype\fR [\fIdata\fR]" 4
 Mount virtual filesystem \fIfstype\fR onto \fItarget\fR.
-.IP "\fBmount\fR \fB-b\fR \fItarget\fR \fIsource\fR" 4
+.IP "\fBkmount\fR \fB-b\fR \fItarget\fR \fIsource\fR" 4
 Bind mount: attach \fIsource\fR directory onto \fItarget\fR (MS_BIND).
-.IP "\fBmount\fR \fB-m\fR \fItarget\fR \fIsource\fR" 4
+.IP "\fBkmount\fR \fB-m\fR \fItarget\fR \fIsource\fR" 4
 Move mount: detach \fIsource\fR and attach it at \fItarget\fR (MS_MOVE).
-.IP "\fBmount\fR \fB-e\fR[\fBrdxuy\fR] \fItarget\fR \fIdata\fR" 4
+.IP "\fBkmount\fR \fB-e\fR[\fBrdxuy\fR] \fItarget\fR \fIdata\fR" 4
 Remount \fItarget\fR, possibly changing its mount options (MS_REMOUNT).
-.IP "\fBmount\fR \fB-u\fR[\fBfdxn\fR] \fItarget\fR \fItarget\fR ..." 4
+.IP "\fBkmount\fR \fB-u\fR[\fBfdxn\fR] \fItarget\fR \fItarget\fR ..." 4
 Unmount each \fItarget\fR.
-.IP "\fBmount\fR \fB-v\fR[\fBc\fR] \fItarget\fR \fItarget\fR ..." 4
+.IP "\fBkmount\fR \fB-v\fR[\fBc\fR] \fItarget\fR \fItarget\fR ..." 4
 Mount pre-defined virtual filesystems at given locations.
 '''
 .SH DESCRIPTION
-mount replaces visible contents of \fItarget\fR directory with some other
+Mounting replaces visible contents of \fItarget\fR directory with some other
 file subtree. Typical invocation attaches a \fIfstype\fR filesystem tree
 contained on block device \fIsource\fR, with optional \fIdata\fR passed
 to the filesystem driver.
 .P
-With relevant options, mount can also attach existing directory trees
+With relevant options, kmount can also attach existing directory trees
 at different locations, and change mount options for already-mounted
 filesystems. 
 '''
