@@ -1,0 +1,25 @@
+.TH udevmod 8
+'''
+.SH NAME
+\fBudevmod\fR \- auto-load kernel modules on udev events
+'''
+.SH DESCRIPTION
+Some drivers within the kernel include special MODALIAS entry in their udev
+events to let the userspace figure out a suitable driver for un-handled devices
+sitting on some enumerable buses. \fBudevmod\fR listens for these events and
+spawns \fBmodprobe\fR to check for modules.
+.P
+In common PC systems, this service is responsible for loading PCI device
+drivers, including DRI modules for video output.
+.P
+No configuration is needed to run it. The aliases involved usually come from
+/lib/modules/$release/modules.alias and indirectly from the kernel sources.
+'''
+.SH FILES
+.IP "/sbin/modprobe" 4
+Path to \fBmodprobe\fR(8) executable.
+.IP "/sys/devices/*/modalias" 4
+Aliases for devices already present in the system.
+'''
+.SH SEE ALSO
+\fBmodprobe\fR(8)
