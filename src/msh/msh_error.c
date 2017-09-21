@@ -43,14 +43,17 @@ static void report(CTX, const char* err, char* arg, long ret, int m)
 		p = fmtstr(p, e, errtag);
 	}
 
-	p = fmtstr(p, e, ": ");
-	p = fmtstr(p, e, err);
+	p = fmtstr(p, e, ":");
 
-	if(arg) {
+	if(err) {
+		p = fmtstr(p, e, " ");
+		p = fmtstr(p, e, err);
+	} if(arg) {
 		p = fmtstr(p, e, " ");
 		p = fmtstr(p, e, arg);
-	} if(ret) {
+	} if(arg || err) {
 		p = fmtstr(p, e, ": ");
+	} if(ret) {
 		p = fmterr(p, e, ret);
 	}
 
