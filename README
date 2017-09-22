@@ -117,10 +117,6 @@ Licensing
 ~~~~~~~~~
 GNU Public License version 3, see COPYING.
 
-Note that due to the nature of the tools, most of the common GPL gripes
-do not apply to this package. You should not be linking against them
-or extending them anyhow. However, non-tivoization clause is still there.
-
 Limited closed-box license is planned but has not been written yet.
 
 The code in lib/sys, lib/bits and lib/arch constitutes the public interface
