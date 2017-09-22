@@ -69,7 +69,11 @@ See \fBdup2\fR(2).
 .IP "\fBwrite\fR \fIstring\fR \fIfile\fR" 4
 For small writes to /sys and similar files.
 .IP "\fBchroot\fR \fIdirectory\fR" 4
+Change root.
+.IP "\fBmkdir\fR \fIdirectory\fR [\fImode\fR [\fIuser\fB:\fIgroup\fR]]" 4
+Create directory and chown it if necessary.
 .IP "\fBumask\fR \fIvalue\fR" 4
+Set umask for current process and all its children.
 .IP "\fBexport\fR \fIvariable\fR" 4
 Add \fIvariable\fR to \fBenvp\fR passed to newly spawned children.
 .IP "\fBsetenv\fR \fIvariable\fR \fIvalue\fR" 4
