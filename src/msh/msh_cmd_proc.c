@@ -124,3 +124,49 @@ int cmd_chroot(CTX)
 
 	return fchk(sys_chroot(dir), ctx, dir);
 }
+
+int cmd_setuid(CTX)
+{
+	int uid;
+	char* user;
+
+	if(shift_str(ctx, &user))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
+	if(get_user_id(ctx, user, &uid))
+		return -1;
+
+	return fchk(sys_setresuid(uid, uid, uid), ctx, user);
+}
+
+int cmd_setgid(CTX)
+{
+	int gid;
+	char* group;
+
+	if(shift_str(ctx, &group))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
+	if(get_group_id(ctx, group, &gid))
+		return -1;
+
+	return fchk(sys_setresgid(gid, gid, gid), ctx, group);
+}
+
+int cmd_groups(CTX)
+{
+	int num = numleft(ctx);
+	char** groups = argsleft(ctx);
+	int gids[num];
+
+	if(noneleft(ctx))
+		return -1;
+
+	for(int i = 0; i < num; i++)
+		if(get_group_id(ctx, groups[i], &gids[i]))
+			return -1;
+
+	return fchk(sys_setgroups(num, gids), ctx, NULL);
+}

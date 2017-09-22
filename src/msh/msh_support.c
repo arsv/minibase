@@ -105,3 +105,97 @@ int munmapfile(struct mbuf* mb)
 {
 	return sys_munmap(mb->buf, mb->len);
 }
+
+static int mapid(struct mbuf* mb, char* name)
+{
+	char* filedata = mb->buf;
+	char* fileend = filedata + mb->len;
+	int id;
+
+	/* user:x:500:...\n */
+	/* ls  ue un     le */
+	char *ls, *le;
+	char *ue, *un;
+	char *ne = NULL;
+	for(ls = filedata; ls < fileend; ls = le + 1) {
+		le = strecbrk(ls, fileend, '\n');
+		ue = strecbrk(ls, le, ':');
+		if(ue >= le) continue;
+		un = strecbrk(ue + 1, le, ':') + 1;
+		if(un >= le) continue;
+
+		if(strncmp(name, ls, ue - ls))
+			continue;
+
+		ne = parseint(un, &id);
+		break;
+	};
+
+	if(!ne || *ne != ':')
+		return -1;
+
+	return id;
+}
+
+static int prep_pwfile(CTX, struct mbuf* mb, char* pwfile)
+{
+	int ret;
+
+	if(mb->buf)
+		return 0;
+	if((ret = mmapfile(mb, pwfile)) < 0)
+		return error(ctx, "cannot mmap", pwfile, ret);
+
+	return 0;
+}
+
+static int resolve_pwname(CTX, char* name, int* id,
+		struct mbuf* mb, char* file, char* notfound)
+{
+	int ret;
+	char* p;
+
+	if((p = parseint(name, id)) && !*p)
+		return 0;
+
+	if(prep_pwfile(ctx, mb, "/etc/group"))
+		return -1;
+
+	if((ret = mapid(mb, name)) < 0)
+		return error(ctx, notfound, name, 0);
+
+	*id = ret;
+
+	return 0;
+}
+
+int get_user_id(CTX, char* user, int* uid)
+{
+	return resolve_pwname(ctx, user, uid,
+			&ctx->passwd, "/etc/passwd", "unknown user name");
+}
+
+int get_group_id(CTX, char* group, int* gid)
+{
+	return resolve_pwname(ctx, group, gid,
+			&ctx->passwd, "/etc/group", "unknown group name");
+}
+
+int get_owner_ids(CTX, char* owner, int* uid, int* gid)
+{
+	char* sep = strcbrk(owner, ':');
+
+	if(!*sep || !*(sep+1)) /* "user" or "user:" */
+		*gid = -1;
+	else if(get_group_id(ctx, sep+1, gid))
+		return -1;
+
+	*sep = '\0';
+
+	if(sep == owner) /* ":group" */
+		*uid = -1;
+	else if(get_user_id(ctx, owner, uid))
+		return -1;
+
+	return 0;
+}

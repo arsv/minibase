@@ -1,5 +1,6 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
+#include <sys/fprop.h>
 
 #include <string.h>
 
@@ -118,6 +119,23 @@ int cmd_dupfd(CTX)
 	return fchk(sys_dup2(oldfd, newfd), ctx, NULL);
 }
 
+int cmd_reopen(CTX)
+{
+	char* name;
+	int ret = 0;
+
+	if(shift_str(ctx, &name))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
+
+	ret |= open_onto_fd(ctx, STDIN,  name, O_RDONLY, 0000);
+	ret |= open_onto_fd(ctx, STDOUT, name, O_WRONLY, 0000);
+	sys_dup2(STDOUT, STDERR);
+
+	return ret;
+}
+
 int cmd_close(CTX)
 {
 	int fd;
@@ -227,28 +245,49 @@ int cmd_mkdirs(CTX)
 {
 	int mode = 0755;
 	char* name;
+	int ret;
+
+	if(noneleft(ctx))
+		return -1;
+
+	while(numleft(ctx)) {
+		if(shift_str(ctx, &name))
+			return -1;
+		if((ret = mkdirs(name, mode)) < 0)
+			return error(ctx, "mkdir", name, ret);
+	}
+
+	return 0;
+}
+
+int cmd_mkdir(CTX)
+{
+	int mode = 0755;
+	char *name, *owner = NULL;
+	int ret, uid, gid;
 
 	if(shift_str(ctx, &name))
 		return -1;
 	if(numleft(ctx) && shift_oct(ctx, &mode))
 		return -1;
-
-	return fchk(mkdirs(name, mode), ctx, name);
-}
-
-int cmd_reopen(CTX)
-{
-	char* name;
-	int ret = 0;
-
-	if(shift_str(ctx, &name))
+	if(numleft(ctx) && shift_str(ctx, &owner))
 		return -1;
 	if(moreleft(ctx))
 		return -1;
 
-	ret |= open_onto_fd(ctx, STDIN,  name, O_RDONLY, 0000);
-	ret |= open_onto_fd(ctx, STDOUT, name, O_WRONLY, 0000);
-	sys_dup2(STDOUT, STDERR);
+	if((ret = sys_mkdir(name, mode)) >= 0)
+		;
+	else if(ret == -EEXIST)
+		return 0;
+	else
+		return error(ctx, "mkdir", name, ret);
 
-	return ret;
+	if(!owner)
+		return 0;
+	if(get_owner_ids(ctx, owner, &uid, &gid))
+		return -1;
+	if((ret = sys_chown(name, uid, gid)) < 0)
+		return error(ctx, "chown", name, ret);
+
+	return 0;
 }

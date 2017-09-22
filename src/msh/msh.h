@@ -12,6 +12,11 @@
 #define ENVSTR 2
 #define ENVLOC 3
 
+struct mbuf {
+	char* buf;
+	int len;
+};
+
 /* Heap layout, at the point when end_cmd() calls exec():
 
    heap                csep                           hend
@@ -57,6 +62,9 @@ struct sh {
 	char pid[20];
 
 	char trap[50];   /* see cmd_onerror() */
+
+	struct mbuf passwd;
+	struct mbuf group;
 };
 
 struct env {
@@ -69,11 +77,6 @@ struct envptr {
 	unsigned short len;
 	char type;
 	char* ref;
-};
-
-struct mbuf {
-	char* buf;
-	int len;
 };
 
 #define CTX struct sh* ctx
@@ -115,3 +118,7 @@ int shift_oct(CTX, int* dst);
 
 int mmapfile(struct mbuf* mb, char* name);
 int munmapfile(struct mbuf* mb);
+
+int get_user_id(CTX, char* user, int* id);
+int get_group_id(CTX, char* group, int* id);
+int get_owner_ids(CTX, char* owner, int* uid, int* gid);
