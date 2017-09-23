@@ -121,8 +121,8 @@ static void moveblock(CCT, uint64_t* size)
    Non-sparse files contain one block spanning the whole file and no holes,
    so a single call to moveblock is enough.
 
-   Sparse files are rare, so we try to skip hole-hopping code as soon as
-   it becomes clear there are likely no holes in the source file. */
+   Sparse files are rare, so we try to skip the hole-hopping code as soon
+   as it becomes clear there are likely no holes in the source file. */
 
 static void transfer(CCT)
 {
