@@ -1,0 +1,95 @@
+weston-launch protocol for managed DRI/input clients
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This protocol is used by vtmux and must be followed by any clients willing
+to use DRI or input devices while running under vtmux.
+
+
+1. Identification and control channel
+
+The application is spawned with an open fd referring to the VT manager ctrl
+channel. The fd is always 3 in vtmux, while in weston-launcher its value is
+passed via WESTON_LAUNCHER_SOCK environment variable.
+
+To run any clients relying on the variable with vtmux, make sure to do
+
+	setenv WESTON_LAUNCHER_SOCK 3
+
+in the startup script. To run any non-DRI clients with vtmux, make sure
+to close fd 3 in the startup script. Any DRI clients should mark it CLOEXEC
+as soon as possible. Passing fd 3 to children is a security risk.
+
+
+2. Communication protocol
+
+The ctrl fd is a SOCK_SEQPACKET. The generic framing for both requests and
+replies is this:
+
+	struct pmsg {
+		int code;
+		char payload[];
+	};
+
+However the format for payload[] depends on the code.
+
+The client normally only sends requests to which the manager replies.
+The manager may also send spontaneous notifications.
+Negative code indicate error the usual way (-ENOENT etc).
+
+
+3. Opening managed devices
+
+Instead of attempting to open /dev/dri/card* or /dev/input/event* directly
+via syscalls to the kernel, the client must request them from the manager
+by sending the the following message:
+
+	struct pmsg_open {
+		int code = 0 (PIPE_CMD_OPEN)
+		int mode = O_RDWR    <-- ignored
+		char path[] = "/dev/dri/card0"
+	}
+
+The server replies with code=0 (PIPE_REP_OK) and passes fd in ancillary data.
+
+Figuring out which devices to open is up to the client.
+
+There is *NO* way to notify the manager that the fd is not needed atm.
+The client should probably just close its copy of the fd.
+
+A successful attempt to open /dev/dri/cardN yields a mastering fd.
+
+
+4. VT switches
+
+Whenever client's VT becomes a background one, the manager yanks DRI master
+from the DRI fds, disables input fds, and sends
+
+	struct pmsg {
+		int code = 2 (PIPE_REP_DEACTIVATE)
+	}
+
+to the client. The client *may* notice the lack of DRI mastering before the
+notification arrives, and must be ready to handle the situation. Upon receiving
+this notification, the client should close all input fds.
+
+When the VT becomes foreground again, the manager sends
+
+	struct pmsg {
+		int code = 1 (PIPE_REP_ACTIVATE)
+	}
+
+to the client. This notification means DRI mastering has been restored,
+and the client should try re-opening all input devices it needs.
+
+
+
+That's it. There's nothing more to this protocol. Porting application to work
+with vtmux effectively means replacing open() calls RPC over the ctrl fd in
+relevant places, and implementing reaction to PIPE_REP_(DE)ACTIVATE.
+
+A good implementation should be able to handle notifications intermixed with
+replies to CMD_OPEN. However, not doing this (i.e. always expecting REP_OK
+as the first packet to come after sending CMD_OPEN) should work well enough
+in practice -- VT switching is generally slow enough.
+
+Note that unmodified weston-launch tool itself cannot be used to run
+arbitrary clients because of hard-coded "weston" command.
