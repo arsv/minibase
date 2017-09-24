@@ -2,10 +2,10 @@
 #include <sys/dents.h>
 #include <sys/mman.h>
 
+#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <output.h>
-#include <errtag.h>
 #include <util.h>
 
 #define PAGE 4096
@@ -23,318 +23,505 @@
 
 ERRTAG("du");
 
-struct entsize {
-	uint64_t size;
-	char* name;
-};
+struct top {
+	int opts;
 
-struct heap {
+	int argc;
+	int argi;
+	char** argv;
+
 	char* brk;
-	char* end;
+	char* res;
 	char* ptr;
+	char* end;
 
 	int count;
-	char** index;
+	int incomplete;
+
+	uint64_t size;
+	uint64_t total;
 };
 
-struct node {
+struct res {
 	int len;
+	uint64_t size;
 	char name[];
 };
 
-static void addstsize(uint64_t* sum, struct stat* st, int opts)
+struct rfn {
+	int at;
+	char* dir;
+	char* name;
+};
+
+#define CTX struct top* ctx
+#define FN struct rfn* fn
+#define AT(dd) dd->at, dd->name
+
+/* Heap routines. Each call to scan_top() may add a struct res to the heap,
+   so that dump_results() could index and sort them later. Scanning may use
+   some heap for dirent buffers, but any space allocated that way gets reset
+   in scan_top() so that only the results are left. */
+
+static void init_heap(CTX)
 {
-	if(opts & OPT_a)
-		*sum += st->size;
-	else
-		*sum += st->blocks*512;
+	void* brk = sys_brk(0);
+	void* end = sys_brk(brk + 2*PAGE);
+
+	if(brk_error(brk, end))
+		fail("cannot allocate memory", NULL, 0);
+
+	ctx->brk = brk;
+	ctx->res = brk;
+	ctx->ptr = brk;
+	ctx->end = end;
 }
 
-/* No buffering here. For each line written, there will be at least one
-   stat() call, probably much more, and the user would probably like to
-   see some progress while the disc is being scanned. */
-
-static void dump(uint64_t count, char* tag, int opts)
+static void heap_extend(CTX, long need)
 {
-	int taglen = tag ? strlen(tag) : 0;
+	need += (PAGE - need % PAGE) % PAGE;
+	char* req = ctx->end + need;
+	char* new = sys_brk(req);
 
-	char buf[100 + taglen];
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
-	
-	if(opts & OPT_n)
-		p = fmtpad(p, e, 8, fmtu64(p, e, count));
-	else
-		p = fmtpad(p, e, 5, fmtsize(p, e, count));
+	if(mmap_error(new))
+		fail("cannot allocate memory", NULL, 0);
 
-	if(tag) {
-		p = fmtstr(p, e, "  ");
-		p = fmtstr(p, e, tag);
-	};
-
-	*p++ = '\n';
-	
-	char* q = buf;
-	if(!(opts & OPT_s))
-		while(*q == ' ') q++;
-
-	writeout(q, p - q);
+	ctx->end = new;
 }
 
-typedef void (*scanner)(char* dir, char* name, void* ptr, int arg);
-
-static void for_each_in(char* path, scanner sc, void* ptr, int arg);
-
-static void scan_dent(char* path, char* name, void* arg, int opts)
-{
-	uint64_t* size = arg;
-
-	int pathlen = strlen(path);
-	int namelen = strlen(name);
-	char fullname[pathlen + namelen + 2];
-
-	char* p = fullname;
-	memcpy(p, path, pathlen); p += pathlen; *p++ = '/';
-	memcpy(p, name, namelen); p += namelen; *p = '\0';
-
-	struct stat st;
-
-	long ret = sys_lstat(fullname, &st);
-	if(ret < 0)
-		return;
-
-	addstsize(size, &st, opts);
-
-	if((st.mode & S_IFMT) != S_IFDIR)
-		return;
-
-	for_each_in(fullname, scan_dent, size, opts);
-}
-
-static void for_each_in(char* path, scanner sc, void* scptr, int scarg)
-{
-	char debuf[PAGE];
-
-	long fd = sys_open(path, O_RDONLY | O_DIRECTORY);
-
-	if(fd < 0)
-		fail("cannot open", path, fd);
-
-	long rd;
-
-	while((rd = sys_getdents(fd, debuf, sizeof(debuf))) > 0) {
-		char* ptr = debuf;
-		char* end = debuf + rd;
-		while(ptr < end) {
-			struct dirent* de = (struct dirent*) ptr;
-			ptr += de->reclen;
-
-			if(!de->reclen)
-				break;
-			if(dotddot(de->name))
-				continue;
-
-			sc(path, de->name, scptr, scarg);
-		}
-	}
-
-	sys_close(fd);
-}
-
-static int scan_path(uint64_t* size, char* path, int opts)
-{
-	struct stat st;
-
-	xchk(sys_lstat(path, &st), "cannot stat", path);
-
-	int isdir = ((st.mode & S_IFMT) == S_IFDIR);
-
-	if((opts & OPT_d) && !isdir)
-		return -1;
-
-	addstsize(size, &st, opts);
-
-	if(!isdir)
-		return 0;
-	
-	for_each_in(path, scan_dent, size, opts);
-
-	return 0;
-}
-
-static int sizecmp(const struct entsize* a, const struct entsize* b)
-{
-	if(a->size < b->size)
-		return -1;
-	if(a->size > b->size)
-		return  1;
-	else
-		return strcmp(a->name, b->name);
-}
-
-static void scan_each(uint64_t* total, int argc, char** argv, int opts)
-{
-	int i;
-	int n = 0;
-	struct entsize res[argc];
-
-	for(i = 0; i < argc; i++) {
-		uint64_t size = 0;
-
-		if(scan_path(&size, argv[i], opts))
-			continue;
-
-		res[n].name = argv[i];
-		res[n].size = size;
-		*total += size;
-
-		n++;
-	}
-
-	if(!(opts & OPT_s))
-		return;
-
-	qsort(res, n, sizeof(*res), (qcmp)sizecmp, 0);
-
-	for(i = 0; i < n; i++)
-		dump(res[i].size, res[i].name, opts);
-}
-
-void init_heap(struct heap* ctx, int size)
-{
-	ctx->brk = sys_brk(0);
-	ctx->end = sys_brk(ctx->brk + size);
-	ctx->ptr = ctx->brk;
-
-	if(brk_error(ctx->brk, ctx->end))
-		fail("cannot init heap", NULL, 0);
-
-	ctx->count = 0;
-	ctx->index = NULL;
-}
-
-void* alloc(struct heap* ctx, int len)
+static void* heap_alloc(CTX, int len)
 {
 	char* ptr = ctx->ptr;
 	long avail = ctx->end - ptr;
 
-	if(avail < len) {
-		long need = len - avail;
-		need += (PAGE - need % PAGE) % PAGE;
-		char* req = ctx->end + need;
-		char* new = sys_brk(req);
-
-		if(mmap_error(new))
-			fail("cannot allocate memory", NULL, 0);
-
-		ctx->end = new;
-	}
+	if(avail < len)
+		heap_extend(ctx, len - avail);
 
 	ctx->ptr += len;
 
 	return ptr;
 }
 
-static void note_dent(char* dir, char* ent, void* ptr, int opts)
+static long heap_left(CTX)
 {
-	struct heap* ctx = ptr;
-
-	int dirlen = strlen(dir);
-	int entlen = strlen(ent);
-	int usedir = !(opts & SET_cwd);
-
-	int namelen = usedir ? dirlen + entlen + 2 : entlen + 1;
-	struct node* nd = alloc(ctx, sizeof(struct node) + namelen);
-
-	nd->len = sizeof(struct node) + namelen;
-
-	char* p = nd->name;
-	char* e = nd->name + namelen - 1;
-
-	if(usedir) {
-		p = fmtstr(p, e, dir);
-		p = fmtchar(p, e, '/');
-	}
-	p = fmtstr(p, e, ent);
-	*p++ = '\0';
-
-	ctx->count++;
+	return ctx->end - ctx->ptr;
 }
 
-static void index_notes(struct heap* ctx)
+/* Result sorting and final output */
+
+static int sizecmp(const void* pa, const void* pb, long _)
 {
-	char* ptr = ctx->brk;
-	char* end = ctx->end;
-	int n = ctx->count;
+	const struct res* a = *((void**)pa);
+	const struct res* b = *((void**)pb);
+
+	if(a->size < b->size)
+		return -1;
+	if(a->size > b->size)
+		return  1;
+
+	return strcmp(a->name, b->name);
+}
+
+static struct res** index_results(CTX, int count)
+{
+	char* brk = ctx->brk;
+	char* ptr = ctx->ptr;
+
+	struct res** idx = heap_alloc(ctx, count*sizeof(struct res*));
+
+	char* p;
 	int i = 0;
 
-	char** index = alloc(ctx, n*sizeof(char*));
+	for(p = brk; p < ptr;) {
+		struct res* rs = (struct res*) p;
+		p += rs->len;
 
-	while(ptr < end && i < n) {
-		struct node* nd = (struct node*) ptr;
-		index[i++] = nd->name;
-		ptr += nd->len;
+		if(i >= count)
+			fail("count mismatch", NULL, 0);
+
+		idx[i++] = rs;
 	}
 
-	ctx->index = index;
+	qsort(idx, count, sizeof(*idx), sizecmp, 0);
+
+	return idx;
 }
 
-static void scan_dirs(uint64_t* total, int argc, char** argv, int opts)
+static void prep_bufout(CTX, struct bufout* bo)
 {
-	struct heap ctx;
+	long len;
+
+	if((len = heap_left(ctx)) < PAGE) {
+		heap_extend(ctx, PAGE);
+		len = heap_left(ctx);
+	};
+
+	bo->fd = STDOUT;
+	bo->buf = heap_alloc(ctx, len);
+	bo->len = len;
+	bo->ptr = 0;
+}
+
+void dump_single(CTX, struct bufout* bo, struct res* rs)
+{
+	int opts = ctx->opts;
+
+	FMTBUF(p, e, line, 50 + strlen(rs->name));
+
+	if(opts & OPT_n)
+		p = fmtpad(p, e, 8, fmtu64(p, e, rs->size));
+	else
+		p = fmtpad(p, e, 5, fmtsize(p, e, rs->size));
+
+	if(rs->name[0]) {
+		p = fmtstr(p, e, "  ");
+		p = fmtstr(p, e, rs->name);
+	}
+
+	FMTENL(p, e);
+
+	char* q = line;
+
+	if(!(opts & OPT_s))
+		while(*q == ' ') q++;
+
+	bufout(bo, q, p - q);
+}
+
+void dump_total(CTX, struct bufout* bo)
+{
+	int opts = ctx->opts;
+
+	FMTBUF(p, e, line, 80);
+
+	if(opts & OPT_n)
+		p = fmtpad(p, e, 8, fmtu64(p, e, ctx->total));
+	else
+		p = fmtpad(p, e, 5, fmtsize(p, e, ctx->total));
+
+	if(opts & OPT_s)
+		p = fmtstr(p, e, " total");
+
+	FMTENL(p, e);
+
+	bufout(bo, line, p - line);
+}
+
+void dump_results(CTX)
+{
+	int opts = ctx->opts;
+	int count = ctx->count;
+	struct res** idx = index_results(ctx, count);
+
+	struct bufout bo;
 	int i;
 
-	init_heap(&ctx, 2*PAGE);
+	prep_bufout(ctx, &bo);
 
-	for(i = 0; i < argc; i++)
-		for_each_in(argv[i], note_dent, &ctx, opts);
+	if(!(opts & OPT_s))
+		;
+	else for(i = 0; i < count; i++)
+		dump_single(ctx, &bo, idx[i]);
 
-	index_notes(&ctx);
+	if(ctx->opts & OPT_c)
+		dump_total(ctx, &bo);
 
-	scan_each(total, ctx.count, ctx.index, opts);
+	bufoutflush(&bo);
+
+	if(ctx->incomplete)
+		warn("incomplete results due to scan errors", NULL, 0);
 }
 
-static void scan_cwd(uint64_t* total, int opts)
-{
-	char* list[] = { "." };
+/* Support routines for at-filenames */
 
-	scan_dirs(total, 1, list, opts | SET_cwd);
+static int pathlen(struct rfn* dd)
+{
+	char* name = dd->name;
+	char* dir = dd->dir;
+	int len = 0;
+
+	if(name)
+		len += strlen(name);
+
+	if(name && name[0] == '/')
+		;
+	else if(dir)
+		len += strlen(dir) + 1;
+
+	return len + 1;
 }
 
-int main(int argc, char** argv)
+static void makepath(char* buf, int size, struct rfn* dd)
 {
-	int i = 1;
-	int opts = 0;
+	char* p = buf;
+	char* e = buf + size - 1;
+	char* dir = dd->dir;
+	char* name = dd->name;
+
+	if(dir && (!name || name[0] != '/')) {
+		p = fmtstr(p, e, dir);
+		p = fmtstr(p, e, "/");
+	} if(name) {
+		p = fmtstr(p, e, name);
+	}
+
+	*p = '\0';
+}
+
+static void errin(CTX, struct rfn* dd, char* msg, int ret)
+{
+	char path[pathlen(dd)];
+
+	makepath(path, sizeof(path), dd);
+
+	warn(msg, path, ret);
+
+	ctx->incomplete = 1;
+}
+
+/* Directory tree walking */
+
+static void add_st_size(CTX, struct stat* st)
+{
+	if(ctx->opts & OPT_a)
+		ctx->size += st->size;
+	else
+		ctx->size += st->blocks*512;
+}
+
+static void scan_entry(CTX, struct rfn* dd, int type, int* isdir);
+
+static void scan_directory(CTX, struct rfn* dd, int fd)
+{
+	int plen = pathlen(dd);
+	char path[plen];
+
+	makepath(path, plen, dd);
+
+	struct rfn next = { fd, path, NULL };
+
+	char* ptr = ctx->ptr;
+	int blen = 2096;
+	char* buf = heap_alloc(ctx, blen);
+	int rd;
+
+	while((rd = sys_getdents(fd, buf, blen)) > 0) {
+		char* p = buf;
+		char* e = buf + rd;
+
+		while(p < e) {
+			struct dirent* de = (struct dirent*) p;
+
+			p += de->reclen;
+
+			if(dotddot(de->name))
+				continue;
+
+			next.name = de->name;
+
+			scan_entry(ctx, &next, de->type, NULL);
+		}
+	}
+
+	ctx->ptr = ptr;
+
+	sys_close(fd);
+}
+
+static void scan_entry(CTX, struct rfn* dd, int type, int* isdir)
+{
+	struct stat st;
+	int ret, fd;
+
+	if(type == DT_DIR) {
+		if((fd = sys_openat(AT(dd), O_DIRECTORY)) < 0)
+			return errin(ctx, dd, NULL, fd);
+		if((ret = sys_fstat(fd, &st)) < 0)
+			return errin(ctx, dd, "stat", ret);
+
+		add_st_size(ctx, &st);
+
+		if(isdir) *isdir = 1;
+
+		scan_directory(ctx, dd, fd);
+	} else {
+		if((ret = sys_fstatat(AT(dd), &st, AT_SYMLINK_NOFOLLOW)) < 0)
+			return errin(ctx, dd, "stat", ret);
+
+		if((st.mode & S_IFMT) == S_IFDIR) {
+			if((fd = sys_openat(AT(dd), O_DIRECTORY)) < 0)
+				return errin(ctx, dd, NULL, fd);
+
+			add_st_size(ctx, &st);
+
+			if(isdir) *isdir = 1;
+
+			scan_directory(ctx, dd, fd);
+		} else if(isdir && (ctx->opts & OPT_d)) {
+			; /* skip top-level non-directories */
+		} else {
+			add_st_size(ctx, &st);
+		}
+	}
+}
+
+static void scan_top(CTX, struct rfn* dd, int type)
+{
+	int opts = ctx->opts;
+	char* ptr = ctx->ptr;
+	int isdir = 0;
+
+	scan_entry(ctx, dd, type, &isdir);
+
+	if((opts & OPT_d) && !isdir)
+		goto out;
+	if(!(opts & OPT_s))
+		goto sum;
+
+	ctx->ptr = ptr;
+
+	int plen = pathlen(dd) + isdir;
+	int alen = sizeof(struct res) + plen;
+	struct res* rs = heap_alloc(ctx, alen);
+
+	makepath(rs->name, plen, dd);
+
+	if(isdir && plen >= 2) {
+		rs->name[plen-2] = '/';
+		rs->name[plen-1] = '\0';
+	}
+
+	rs->len = alen;
+	rs->size = ctx->size;
+	ctx->count++;
+sum:
+	ctx->total += ctx->size;
+out:
+	ctx->size = 0;
+}
+
+static void scan_all_entries_in(CTX, int fd, char* dir)
+{
+	char buf[1024];
+	int rd;
+
+	while((rd = sys_getdents(fd, buf, sizeof(buf))) > 0) {
+		char* p = buf;
+		char* e = buf + rd;
+
+		while(p < e) {
+			struct dirent* de = (struct dirent*) p;
+
+			p += de->reclen;
+
+			if(dotddot(de->name))
+				continue;
+
+			struct rfn dd = { fd, dir, de->name };
+
+			scan_top(ctx, &dd, de->type);
+		}
+	}
+}
+
+/* Options and invocation */
+
+static int got_args(CTX)
+{
+	return (ctx->argi < ctx->argc);
+}
+
+static char* shift_arg(CTX)
+{
+	if(ctx->argi >= ctx->argc)
+		return NULL;
+
+	return ctx->argv[ctx->argi++];
+}
+
+static void scan_dirs(CTX)
+{
+	char* dir;
+	int fd;
+
+	while((dir = shift_arg(ctx))) {
+		if((fd = sys_open(dir, O_DIRECTORY)) < 0)
+			fail(NULL, dir, fd);
+
+		scan_all_entries_in(ctx, fd, dir);
+
+		sys_close(fd);
+	}
+}
+
+static void scan_each(CTX)
+{
+	char* name;
+
+	while((name = shift_arg(ctx))) {
+		struct rfn dd = { AT_FDCWD, NULL, name };
+		scan_top(ctx, &dd, DT_UNKNOWN);
+	}
+}
+
+static void scan_cwd(CTX)
+{
+	int fd;
+
+	if((fd = sys_open(".", O_DIRECTORY)) < 0)
+		fail("cannot open", ".", fd);
+
+	scan_all_entries_in(ctx, fd, NULL);
+
+	sys_close(fd);
+}
+
+static int parse_opts(CTX, int argc, char** argv)
+{
+	int i = 1, opts = 0;
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
-	argc -= i;
-	argv += i;
+	ctx->argi = i;
+	ctx->argc = argc;
+	ctx->argv = argv;
 
-	uint64_t total = 0;
+	int left = argc - i;
 
 	if(opts & OPT_b)
 		opts |= OPT_a | OPT_n;
 
 	if(opts & (OPT_s | OPT_c))
 		;
-	else if(argc == 1 && !(opts & OPT_i))
+	else if(left == 1 && !(opts & OPT_i))
 		opts |= OPT_c;
 	else
 		opts |= OPT_s;
 
+	ctx->opts = opts;
+
+	return opts;
+}
+
+int main(int argc, char** argv)
+{
+	struct top context, *ctx = &context;
+
+	memzero(ctx, sizeof(*ctx));
+
+	int opts = parse_opts(ctx, argc, argv);
+
+	init_heap(ctx);
+
 	if(opts & OPT_i)
-		scan_dirs(&total, argc, argv, opts);
-	else if(argc)
-		scan_each(&total, argc, argv, opts);
-	else 
-		scan_cwd(&total, opts);
+		scan_dirs(ctx);
+	else if(got_args(ctx))
+		scan_each(ctx);
+	else
+		scan_cwd(ctx);
 
-	if(opts & OPT_c)
-		dump(total, NULL, opts);
-
-	flushout();
+	dump_results(ctx);
 
 	return 0;
 }
