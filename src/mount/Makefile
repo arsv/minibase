@@ -1,5 +1,6 @@
 command = kmount pmount locfg
 service = mountd
+initrd = kmount
 
 include ../rules.mk
 

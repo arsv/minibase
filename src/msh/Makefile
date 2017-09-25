@@ -1,4 +1,5 @@
 command = msh
+initrd = msh
 
 include ../rules.mk
 
