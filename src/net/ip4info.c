@@ -259,7 +259,7 @@ char* fmt_route_dev(char* p, char* e, struct rtmsg* msg)
 	if(!(oif = nl_u32(rt_get(msg, RTA_OIF))))
 		goto out;
 
-	p = fmtstr(p, e, ": ");
+	p = fmtstr(p, e, " dev ");
 
 	if((name = ifi_to_name(*oif))) {
 		p = fmtstr(p, e, name);
@@ -268,7 +268,6 @@ char* fmt_route_dev(char* p, char* e, struct rtmsg* msg)
 		p = fmtint(p, e, *oif);
 	}
 
-	p = fmtstr(p, e, " ");
 out:	
 	return p;
 }
@@ -278,9 +277,8 @@ char* fmt_route_gw(char* p, char* e, struct rtmsg* msg)
 	uint8_t* gw = nl_bin(rt_get(msg, RTA_GATEWAY), 4);
 
 	if(gw) {
-		p = fmtstr(p, e, "gw ");
+		p = fmtstr(p, e, " gw ");
 		p = fmtip(p, e, gw);
-		p = fmtstr(p, e, " ");
 	}
 
 	return p;
@@ -307,7 +305,7 @@ char* fmt_route_misc(char* p, char* e, struct rtmsg* msg)
 {
 	char* q = p;
 
-	p = fmtstr(p, e, "(");
+	p = fmtstr(p, e, " (");
 
 	p = fmt_route_proto(p, e, msg);
 
@@ -327,9 +325,8 @@ void show_route(struct rtmsg* msg)
 	p = fmtstr(p, e, "  ");
 
 	p = fmt_route_dst(p, e, msg);
-	p = fmt_route_dev(p, e, msg);
 	p = fmt_route_gw(p, e, msg);
-
+	p = fmt_route_dev(p, e, msg);
 	p = fmt_route_misc(p, e, msg);
 
 	*p++ = '\n';
@@ -346,6 +343,7 @@ void list_routes(void)
 		fail("netlink", "RTM_GETROUTE", nl.err);
 
 	banner("Routes");
+
 	while((nl_recv_multi_into(&nl, msg)))
 		show_route(msg);
 	if(nl.err)
