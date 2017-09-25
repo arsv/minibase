@@ -13,8 +13,9 @@
 
 ERRTAG("ip4cfg");
 
-#define OPTS "d"
+#define OPTS "du"
 #define OPT_d (1<<0)
+#define OPT_u (1<<1)
 
 char txbuf[1024];
 char rxbuf[3*1024];
@@ -61,7 +62,9 @@ static void flush_iface(struct netlink* nl, int idx)
 
 	long ret = nl_send_recv_ack(nl);
 
-	if(ret && ret != -EADDRNOTAVAIL)
+	while((ret = nl_send_recv_ack(nl)) >= 0)
+		;
+	if(ret != -EADDRNOTAVAIL)
 		fail("netlink", "RTM_DELADDR", nl->err);
 }
 
@@ -144,6 +147,12 @@ static void config(struct netlink* nl, int ifi, int i, int argc, char** argv)
 	}
 }
 
+static void bringup(struct netlink* nl, int ifi, int i, int argc, char** argv)
+{
+	need_no_more_args(i, argc);
+	set_iface_state(nl, ifi, 1);
+}
+
 static void setup(struct netlink* nl, int* ifi, char* name)
 {
 	nl_init(nl);
@@ -174,6 +183,8 @@ int main(int argc, char** argv)
 
 	if(opts & OPT_d)
 		deconf(&nl, ifindex, i, argc, argv);
+	else if(opts & OPT_u)
+		bringup(&nl, ifindex, i, argc, argv);
 	else
 		config(&nl, ifindex, i, argc, argv);
 
