@@ -20,9 +20,43 @@ ERRTAG("ip4cfg");
 char txbuf[1024];
 char rxbuf[3*1024];
 
+struct top {
+	int argc;
+	int argi;
+	char** argv;
+
+	int opts;
+	int ifi;
+
+	struct netlink nl;
+};
+
+#define CTX struct top* ctx
+#define NL &ctx->nl
+
 static int gotall(char* p)
 {
 	return (p && !*p);
+}
+
+static char* shift_arg(CTX)
+{
+	if(ctx->argi >= ctx->argc)
+		fail("too few arguments", NULL, 0);
+
+	return ctx->argv[ctx->argi++];
+}
+
+static int match_next_arg(CTX, char* kw)
+{
+	if(ctx->argi >= ctx->argc)
+		return 0;
+	if(strcmp(ctx->argv[ctx->argi], kw))
+		return 0;
+
+	ctx->argi++;
+
+	return 1;
 }
 
 static void check_parse_ipmask(uint8_t ip[5], char* arg)
@@ -37,20 +71,15 @@ static void check_parse_ipaddr(uint8_t ip[4], char* arg)
 		fail("invalid address", arg, 0);
 }
 
-static void need_one_more_arg(int i, int argc)
+static void no_more_args(CTX)
 {
-	if(i >= argc)
-		fail("too few arguments", NULL, 0);
-}
-
-static void need_no_more_args(int i, int argc)
-{
-	if(i < argc)
+	if(ctx->argi < ctx->argc)
 		fail("too many arguments", NULL, 0);
 }
 
-static void flush_iface(struct netlink* nl, int idx)
+static void flush_iface(CTX)
 {
+	struct netlink* nl = &ctx->nl;
 	struct ifaddrmsg* req;
 
 	nl_header(nl, req, RTM_DELADDR, 0,
@@ -58,7 +87,7 @@ static void flush_iface(struct netlink* nl, int idx)
 		.prefixlen = 0,
 		.flags = 0,
 		.scope = 0,
-		.index = idx);
+		.index = ctx->ifi);
 
 	long ret = nl_send_recv_ack(nl);
 
@@ -68,14 +97,15 @@ static void flush_iface(struct netlink* nl, int idx)
 		fail("netlink", "RTM_DELADDR", nl->err);
 }
 
-static void set_iface_state(struct netlink* nl, int ifi, int up)
+static void set_iface_state(CTX, int up)
 {
+	struct netlink* nl = &ctx->nl;
 	struct ifinfomsg* req;
 
 	nl_header(nl, req, RTM_NEWLINK, 0,
 		.family = AF_INET,
 		.type = 0,
-		.index = ifi,
+		.index = ctx->ifi,
 		.flags = up ? IFF_UP : 0,
 		.change = IFF_UP);
 
@@ -83,8 +113,9 @@ static void set_iface_state(struct netlink* nl, int ifi, int up)
 		fail("netlink", "RTM_NEWLINK", nl->err);
 }
 
-static void set_iface_address(struct netlink* nl, int ifi, uint8_t ipm[5])
+static void set_iface_address(CTX, uint8_t ipm[5])
 {
+	struct netlink* nl = &ctx->nl;
 	struct ifaddrmsg* req;
 
 	nl_header(nl, req, RTM_NEWADDR, NLM_F_REPLACE,
@@ -92,24 +123,25 @@ static void set_iface_address(struct netlink* nl, int ifi, uint8_t ipm[5])
 		.prefixlen = ipm[4],
 		.flags = 0,
 		.scope = 0,
-		.index = ifi);
+		.index = ctx->ifi);
 	nl_put(nl, IFA_LOCAL, ipm, 4);
 
 	if(nl_send_recv_ack(nl))
 		fail("netlink", "RTM_NEWADDR", nl->err);
 }
 
-static void deconf(struct netlink* nl, int ifi, int i, int argc, char** argv)
+static void deconf(CTX)
 {
-	need_no_more_args(i, argc);
-	set_iface_state(nl, ifi, 0);
-	flush_iface(nl, ifi);
+	no_more_args(ctx);
+	set_iface_state(ctx, 0);
+	flush_iface(ctx);
 }
 
-static void add_default_route(struct netlink* nl, int ifi, uint8_t gw[4])
+static void add_default_route(CTX, uint8_t gw[4])
 {
+	struct netlink* nl = &ctx->nl;
 	struct rtmsg* req;
-	uint32_t oif = ifi;
+	uint32_t oif = ctx->ifi;
 
 	nl_header(nl, req, RTM_NEWROUTE, NLM_F_CREATE | NLM_F_EXCL,
 		.family = ARPHRD_EETHER, /* Important! EOPNOTSUPP if wrong. */
@@ -128,33 +160,34 @@ static void add_default_route(struct netlink* nl, int ifi, uint8_t gw[4])
 		fail("netlink", "RTM_NEWROUTE", nl->err);
 }
 
-static void config(struct netlink* nl, int ifi, int i, int argc, char** argv)
+static void config(CTX)
 {
 	uint8_t ip[5];
 	uint8_t gw[4];
 
-	need_one_more_arg(i, argc);
-	check_parse_ipmask(ip, argv[i++]);
+	check_parse_ipmask(ip, shift_arg(ctx));
 
-	flush_iface(nl, ifi);
-	set_iface_state(nl, ifi, 1);
-	set_iface_address(nl, ifi, ip);
+	flush_iface(ctx);
+	set_iface_state(ctx, 1);
+	set_iface_address(ctx, ip);
 
-	if(i < argc && !strcmp("gw", argv[i])) {
-		need_one_more_arg(i++, argc);
-		check_parse_ipaddr(gw, argv[i++]);
-		add_default_route(nl, ifi, gw);
+	if(match_next_arg(ctx, "gw")) {
+		check_parse_ipaddr(gw, shift_arg(ctx));
+		add_default_route(ctx, gw);
 	}
 }
 
-static void bringup(struct netlink* nl, int ifi, int i, int argc, char** argv)
+static void bringup(CTX)
 {
-	need_no_more_args(i, argc);
-	set_iface_state(nl, ifi, 1);
+	no_more_args(ctx);
+	set_iface_state(ctx, 1);
 }
 
-static void setup(struct netlink* nl, int* ifi, char* name)
+static void setup_netlink(CTX, char* ifname)
 {
+	struct netlink* nl = NL;
+	int ifi;
+
 	nl_init(nl);
 
 	nl_set_rxbuf(nl, rxbuf, sizeof(rxbuf));
@@ -163,30 +196,45 @@ static void setup(struct netlink* nl, int* ifi, char* name)
 	xchk(nl_connect(nl, NETLINK_ROUTE, 0),
 			"netlink connect", NULL);
 
-	if((*ifi = getifindex(nl->fd, name)) <= 0)
-		fail("unknown interface", name, 0);
+	if(!ifname)
+		fail("need interface name", NULL, 0);
+	if((ifi = getifindex(nl->fd, ifname)) <= 0)
+		fail("unknown interface", ifname, 0);
+
+	ctx->ifi = ifi;
 }
 
-int main(int argc, char** argv)
+static int parse_args(CTX, int argc, char** argv)
 {
-	struct netlink nl;
-	int ifindex;
-
-	int opts = 0;
-	int i = 1;
+	int i = 1, opts = 0;
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
-	need_one_more_arg(i, argc);
-	setup(&nl, &ifindex, argv[i++]);
+	ctx->argc = argc;
+	ctx->argi = i;
+	ctx->argv = argv;
+	ctx->opts = opts;
+
+	setup_netlink(ctx, shift_arg(ctx));
+
+	return opts;
+}
+
+int main(int argc, char** argv)
+{
+	struct top context, *ctx = &context;
+
+	memzero(ctx, sizeof(*ctx));
+
+	int opts = parse_args(ctx, argc, argv);
 
 	if(opts & OPT_d)
-		deconf(&nl, ifindex, i, argc, argv);
+		deconf(ctx);
 	else if(opts & OPT_u)
-		bringup(&nl, ifindex, i, argc, argv);
+		bringup(ctx);
 	else
-		config(&nl, ifindex, i, argc, argv);
+		config(ctx);
 
 	return 0;
 }
