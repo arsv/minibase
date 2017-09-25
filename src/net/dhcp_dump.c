@@ -1,3 +1,4 @@
+#include <sys/file.h>
 #include <sys/time.h>
 
 #include <format.h>
@@ -153,4 +154,30 @@ void show_config(uint8_t* ip)
 	}
 
 	writeall(STDOUT, outbuf, p - outbuf);
+}
+
+void write_resolv_conf(void)
+{
+	struct dhcpopt* opt;
+	char* name = "/var/resolv.conf";
+	int flags = O_WRONLY | O_CREAT | O_TRUNC;
+	int mode = 0644;
+	int fd;
+
+	if((fd = sys_open3(name, flags, mode)) < 0)
+		fail(NULL, name, fd);
+
+	if((opt = get_option(DHCP_NAME_SERVERS, 0))) {
+		FMTBUF(p, e, buf, 100);
+		p = fmtstr(p, e, "nameserver");
+		for(int i = 0; i < opt->len - 4; i += 4) {
+			p = fmtstr(p, e, " ");
+			p = fmtip(p, e, opt->payload + i);
+		}
+		FMTENL(p, e);
+
+		writeall(fd, buf, p - buf);
+	}
+
+	sys_close(fd);
 }

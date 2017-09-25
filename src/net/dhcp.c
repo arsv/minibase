@@ -490,9 +490,10 @@ again:
 	}
 }
 
-#define OPTS "ng"
+#define OPTS "ngr"
 #define OPT_n (1<<0)
 #define OPT_g (1<<1)
+#define OPT_r (1<<2)
 
 int main(int argc, char** argv, char** envp)
 {
@@ -523,6 +524,9 @@ int main(int argc, char** argv, char** envp)
 		show_config(ip);
 	else
 		conf_netdev(ifi, ip, (opts & OPT_g));
+
+	if(opts & OPT_r)
+		write_resolv_conf();
 
 	return 0;
 }

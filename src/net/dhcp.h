@@ -27,6 +27,7 @@
 
 #define DHCP_NETMASK        1
 #define DHCP_ROUTER_IP      3
+#define DHCP_NAME_SERVERS   6
 #define DHCP_REQUESTED_IP  50
 #define DHCP_LEASE_TIME    51
 #define DHCP_RENEW_TIME    58
@@ -68,3 +69,5 @@ struct dhcpopt* get_option(int code, int len);
 
 void show_config(uint8_t* ip);
 void conf_netdev(int ifi, uint8_t* ip, int skipgw);
+
+void write_resolv_conf(void);
