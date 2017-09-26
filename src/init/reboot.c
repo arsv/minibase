@@ -205,8 +205,8 @@ static void sleep(int sec)
 
 static void warn_pause(void)
 {
-	warn("waiting 5 seconds", NULL, 0);
-	sleep(5);
+	warn("waiting 10 seconds", NULL, 0);
+	sleep(10);
 }
 
 static int spawn_reboot(int mode)
