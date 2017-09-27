@@ -182,16 +182,17 @@ static void writestr(struct strptr* str)
 static void list_mods(struct strptr* mods)
 {
 	struct lineidx lx;
+	char* end = mods->end;
 
 	index_lines(&lx, mods);
 
 	for(int i = 0; i < lx.n; i++) {
 		char* ls = lx.s[i];
-		char* le = lx.s[i+1];
+		char* le = strecbrk(ls, end, '\0');
 		struct strptr parts[5];
 		int n;
 
-		if((n = split(ls, le, parts, 5) < 4))
+		if((n = split(ls, le, parts, 5)) < 4)
 			continue;
 
 		writestr(&parts[0]);
