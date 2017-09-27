@@ -48,7 +48,7 @@ static void initialize(char* title, int len)
 		len = sizeof(inp.buf);
 
 	int tlen = strlen(title);
-	int wlen = min(cols - 12, max(tlen, len));
+	int wlen = min(cols - 30, max(tlen, len));
 
 	memzero(&inp, sizeof(inp));
 
