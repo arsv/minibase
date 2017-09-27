@@ -1,34 +1,34 @@
-(Ab)using TLS for stack-allocated global context
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Placing global objects into .data and relying on the ELF loader to allocate
-them has certain disadvantages in the context of small executables, related
-mostly to the rather rigid loading rules.
+What is struct top* ctx?
+~~~~~~~~~~~~~~~~~~~~~~~~
+Global variable declared the usual way force at least a page to be allocated
+for .bss segment, even though the total size of the variables may be way less
+than a whole page. To avoid wasting a whole page, the variables get moved to
+the stack. There's always at least one dirty page of stack so no loss happens.
 
-For minitools, a lone declaration like this:
+Busybox has struct G which is exactly the same thing.
 
-	int foo;
+Normal libc applications generally cannot drop .bss completely, because of
+errno (in threadless implementations) or because of other accidentally linked
+global stuff. In contrast, lots of tools in minibase lack both .bss and .data
+segments.
 
-forces a whole page to be mmaped during load. In Busybox, the same declaration
-found in one applet would be allocated in every single applet, because
-the linker lack the notion of a union (or at least they don't use the tricks
-needed to implement it).
+Unlike .bss/.data, the stuff in the stack cannot be addressed statically.
+The workaround is to pass the pointer to every single function that uses
+them:
 
-A workaround used in both projects is to put globals onto the stack
-and pass the pointer to every single function that uses them:
-
-	struct globals {
+	struct top {
 		int foo;
 	};
 
-	void do_blah(struct globals* G, ...)
+	void do_blah(struct top* ctx, ...)
 	{
-		G->foo++;
+		ctx->foo++;
 	}
 
 	int main(...) {
-		struct globals G = { ... };
+		struct top context = { ... }, *ctx = &context;
 
-		do_blah(&G, ...);
+		do_blah(ctx, ...);
 
 		...
 	}
@@ -37,6 +37,9 @@ This way, first-argument register holds the base address and all globals
 are accesses via offsets to that address. The base address is not known
 at link time but once set early in main(), it does not change.
 
+
+(Ab)using TLS for stack-allocated global context
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Reserving a register to point to a global struct -- sounds familiar, right?
 That's exactly how thread pointer works. The register is actually reserved,
 and the compiler knows it so there is no need to pass it to every single
@@ -66,8 +69,8 @@ The problem is, this feature is surprisingly difficult to set up.
     that requires a syscall. On others, it's just a register move.
 
   * How the data is offset from TP varies wildly between arches;
-    sometimes it's TP+offset sometimes TP-offset and offset rarely
-    starts from 0.
+    sometimes it's TP+offset sometimes TP-offset and almost never
+    it's just TP.
 
   * Finding out sizeof(globals) requires going through ELF headers;
     it is not provided as a linker symbol or anything like that.
