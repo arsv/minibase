@@ -69,11 +69,31 @@ static void show_vt(CTX, struct ucattr* vt, int active)
 	output(ctx, buf, p - buf);
 }
 
+static int cmpvt(const void* a, const void* b, long _)
+{
+	struct ucattr* at = *((struct ucattr**)a);
+	struct ucattr* bt = *((struct ucattr**)b);
+
+	int* pa = uc_sub_int(at, ATTR_TTY);
+	int* pb = uc_sub_int(bt, ATTR_TTY);
+
+	int ttya = pa ? *pa : 0;
+	int ttyb = pb ? *pb : 0;
+
+	if(ttya < ttyb)
+		return -1;
+	if(ttya > ttyb)
+		return  1;
+
+	return 0;
+}
+
 void dump_status(CTX, MSG)
 {
 	int active, *ap;
 	struct ucattr* at;
 	struct ucattr* vt;
+	int nvts = 0, i = 0;
 
 	init_output(ctx);
 
@@ -81,10 +101,21 @@ void dump_status(CTX, MSG)
 		active = *ap;
 	else
 		active = -1;
+
+	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
+		if(uc_is_nest(at, ATTR_VT))
+			nvts++;
+
+	struct ucattr* vts[nvts];
 	
 	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
 		if((vt = uc_is_nest(at, ATTR_VT)))
-			show_vt(ctx, vt, active);
+			vts[i++] = vt;
+
+	qsort(vts, nvts, sizeof(void*), cmpvt, 0);
+
+	for(i = 0; i < nvts; i++)
+		show_vt(ctx, vts[i], active);
 
 	flush_output(ctx);
 }
