@@ -168,6 +168,8 @@ int show_greeter(void)
 	if((tty = query_greeter_tty()) < 0)
 		return tty;
 
+	greetertty = tty;
+
 	return spawn(tty, "tty0");
 }
 
