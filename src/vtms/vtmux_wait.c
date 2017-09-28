@@ -98,6 +98,7 @@ static void finalize(struct term* vt)
 {
 	int ttyfd = vt->ttyfd;
 	char* erase = "\033[3J\033[1;1H";
+	/* clear screen and scroll buf, move cursor to origin */
 
 	sys_write(ttyfd, erase, strlen(erase));
 	sys_close(ttyfd);
@@ -123,10 +124,28 @@ static void handle_dead(struct term* vt, int status)
 	if(!status)
 		finalize(vt);
 	else
-		vt->ctlfd = 0;
-		/* and wait for user to invoke final_enter() */
+		vt->ctlfd = 0; /* and wait for user to invoke final_enter() */
 
 	pollset = 0;
+}
+
+static void switch_to_smth(void)
+{
+	struct term* vt;
+
+	if(!(vt = find_term_by_tty(primarytty)))
+		;
+	else if(vt->pid && vt->tty != activetty)
+		switchto(primarytty);
+
+	for(vt = terms + 1; vt < terms + nterms; vt++)
+		if(vt->pid)
+			break;
+
+	if(vt >= terms + nterms)
+		show_greeter();
+	else
+		switchto(vt->tty);
 }
 
 void final_enter(struct term* vt)
@@ -138,7 +157,10 @@ void final_enter(struct term* vt)
 	if(tty != activetty)
 		return; /* very unlikely but still */
 
-	switchto(primarytty);
+	if(tty == primarytty)
+		switchto(primarytty); /* try to restart */
+	else
+		switch_to_smth();
 
 	pollset = 0;
 }
@@ -176,12 +198,8 @@ void wait_pids(int shutdown)
 
 	reopen_tty_device(active);
 
-	if(active->tty == primarytty)
-		;
-	else if(actexit || shutdown)
-		;
-	else
-		switchto(primarytty);
+	if(!actexit && !shutdown)
+		switch_to_smth();
 
 	handle_dead(active, actexit);
 }
