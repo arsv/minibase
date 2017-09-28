@@ -31,24 +31,10 @@
 #include <bits/ints.h>
 #include <bits/errno.h>
 #include <crypto/pbkdf2.h>
+#include <endian.h>
 #include <string.h>
 
 #include "scrypt.h"
-
-#ifdef BIGENDIAN
-static uint32_t swab(uint32_t x)
-{
-	return ((x & 0x000000FF) << 24)
-	     | ((x & 0x0000FF00) <<  8)
-	     | ((x & 0x00FF0000) >>  8)
-	     | ((x & 0xFF000000) >> 24);
-}
-#else
-static uint32_t swab(uint32_t x)
-{
-	return x;
-}
-#endif
 
 static void blkcpy(uint32_t* dst, const uint32_t* src, size_t n)
 {
@@ -142,7 +128,7 @@ static void salsamix(uint32_t* B, int r, int N, uint32_t* V, void* XY)
 	long k;
 
 	for (k = 0; k < 32*r; k++)
-		X[k] = swab(B[k]);
+		X[k] = itohl(B[k]);
 
 	for (i = 0; i < N; i += 2) {
 		blkcpy(&V[i*(32*r)], X, 32*r);
@@ -161,7 +147,7 @@ static void salsamix(uint32_t* B, int r, int N, uint32_t* V, void* XY)
 	}
 
 	for (k = 0; k < 32*r; k++)
-		B[k] = swab(X[k]);
+		B[k] = htoil(X[k]);
 }
 
 static void spbkdf(struct scrypt* sc, void* salt, int slen, void* dk, int dklen)
