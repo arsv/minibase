@@ -177,11 +177,9 @@ static char* skip_prefix(char* ls, char* le)
 {
 	char* p;
 
-	for(p = ls; p < le; p++)
-		if(*p == ' ')
-			break;
-		else if(*p == ':')
-			return p + 1;
+	for(p = ls; p < le - 2; p++)
+		if(*p == ':' && *(p+1) == ' ')
+			return p;
 
 	return NULL;
 }
