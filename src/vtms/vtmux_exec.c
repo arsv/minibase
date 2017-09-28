@@ -32,7 +32,7 @@ int pinmask;
    mapping between via first and the last fields in traditional
    /etc/passwd format.
 
-   Greeter itself is just another pinned client named "LOGIN". */
+   Greeter itself is just another pinned client named "tty0". */
 
 int open_tty_device(int tty)
 {
@@ -168,7 +168,7 @@ int show_greeter(void)
 	if((tty = query_greeter_tty()) < 0)
 		return tty;
 
-	return spawn(tty, "LOGIN");
+	return spawn(tty, "tty0");
 }
 
 /* The idea behind the following code is to allow the user to dedicate
