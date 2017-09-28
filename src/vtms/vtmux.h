@@ -83,6 +83,8 @@ void setup_ctrl(void);
 void handle_conn(struct conn* cn);
 
 void handle_pipe(struct term* vt);
+void final_enter(struct term* vt);
+
 void clear_ctrl(void);
 void poll_inputs(void);
 int poll_final(int secs);

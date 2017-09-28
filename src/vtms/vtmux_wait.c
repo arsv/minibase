@@ -31,22 +31,31 @@
    being used for some time. There's no point in keeping it running
    in background, it will be re-started on request anyway. */
 
-static void report_cause(int fd, int status)
+static void report_cause(int fd, int status, int primary)
 {
 	if(!status)
 		return;
 
-	FMTBUF(p, e, msg, 32);
+	FMTBUF(p, e, msg, 100);
+
+	p = fmtstr(p, e, "\n");
 
 	if(WIFEXITED(status)) {
-		p = fmtstr(p, e, "Exit ");
+		p = fmtstr(p, e, "Exited with code ");
 		p = fmtint(p, e, WEXITSTATUS(status));
 	} else {
-		p = fmtstr(p, e, "Signal ");
+		p = fmtstr(p, e, "Killed by signal ");
 		p = fmtint(p, e, WTERMSIG(status));
 	}
 
-	FMTENL(p, e);
+	p = fmtstr(p, e, ". ");
+
+	if(primary)
+		p = fmtstr(p, e, "Press Enter to restart.");
+	else
+		p = fmtstr(p, e, "Press Enter to close VT.");
+
+	/* no newline here! */
 
 	writeall(fd, msg, p - msg);
 }
@@ -85,7 +94,18 @@ static void reopen_tty_device(struct term* vt)
 	vt->ttyfd = fd;
 }
 
-static void wipe_dead(struct term* vt, int status)
+static void finalize(struct term* vt)
+{
+	int ttyfd = vt->ttyfd;
+	char* erase = "\033[3J\033[1;1H";
+
+	sys_write(ttyfd, erase, strlen(erase));
+	sys_close(ttyfd);
+
+	free_term_slot(vt);
+}
+
+static void handle_dead(struct term* vt, int status)
 {
 	int tty = vt->tty;
 	int ttyfd = vt->ttyfd;
@@ -93,14 +113,32 @@ static void wipe_dead(struct term* vt, int status)
 	disable_all_devs_for(tty);
 
 	reset_tty_modes(vt);
-	report_cause(ttyfd, status);
+	report_cause(ttyfd, status, tty == primarytty);
 
 	if(tty == greetertty)
 		greetertty = 0;
 
-	sys_close(vt->ttyfd);
 	sys_close(vt->ctlfd);
-	free_term_slot(vt);
+
+	if(!status)
+		finalize(vt);
+	else
+		vt->ctlfd = 0;
+		/* and wait for user to invoke final_enter() */
+
+	pollset = 0;
+}
+
+void final_enter(struct term* vt)
+{
+	int tty = vt->tty;
+
+	finalize(vt);
+
+	if(tty != activetty)
+		return; /* very unlikely but still */
+
+	switchto(primarytty);
 
 	pollset = 0;
 }
@@ -129,7 +167,7 @@ void wait_pids(int shutdown)
 			actexit = status;
 		} else {
 			reopen_tty_device(vt);
-			wipe_dead(vt, status);
+			handle_dead(vt, status);
 		}
 	}
 
@@ -145,7 +183,7 @@ void wait_pids(int shutdown)
 	else
 		switchto(primarytty);
 
-	wipe_dead(active, actexit);
+	handle_dead(active, actexit);
 }
 
 /* Shutdown routines: wait for VT clients to die before exiting. */

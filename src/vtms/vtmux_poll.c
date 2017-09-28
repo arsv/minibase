@@ -92,7 +92,11 @@ void update_poll_fds(void)
 	n = add_poll_fd(n, ctrlfd, 0);
 
 	for(i = 0; i < nterms; i++)
-		n = add_poll_fd(n, terms[i].ctlfd, 1 + i);
+		if(terms[i].ctlfd)
+			n = add_poll_fd(n, terms[i].ctlfd, 1 + i);
+		else if(terms[i].ttyfd)
+			n = add_poll_fd(n, terms[i].ttyfd, 1 + i);
+
 	for(i = 0; i < nconns; i++)
 		n = add_poll_fd(n, conns[i].fd, -1 - i);
 
@@ -126,6 +130,14 @@ static void close_conn(struct conn* cn)
 	pollset = 0;
 }
 
+static void close_term(struct term* vt)
+{
+	if(vt->ctlfd)
+		close_pipe(vt);
+	else
+		final_enter(vt);
+}
+
 static void recv_ctrl(struct pollfd* pf)
 {
 	if(pf->revents & POLLIN)
@@ -134,12 +146,20 @@ static void recv_ctrl(struct pollfd* pf)
 		close_ctrl();
 }
 
+static void handle_term(struct term* vt)
+{
+	if(vt->ctlfd)
+		handle_pipe(vt);
+	else
+		final_enter(vt);
+}
+
 static void recv_term(struct pollfd* pf, struct term* vt)
 {
 	if(pf->revents & POLLIN)
-		handle_pipe(vt);
+		handle_term(vt);
 	if(pf->revents & ~POLLIN)
-		close_pipe(vt);
+		close_term(vt);
 }
 
 static void recv_conn(struct pollfd* pf, struct conn* cn)
