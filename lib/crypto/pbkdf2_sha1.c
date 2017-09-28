@@ -13,9 +13,6 @@
 
    PRF(P, I) = HMAC-SHA1(key=P, input=I)
 
-   This should be in ../../lib/crypto/ but so far WPA2 code is the only
-   place it gets used.
-
    Ref. RFC 2898 PKCS #5: Password-Based Cryptography Specification v.2 */
 
 #define HS 20 /* SHA-1 output size, bytes */
