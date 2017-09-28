@@ -1,5 +1,6 @@
 service = vtmux
 command = vtctl
+system = ctrlvt
 other = unlock
 
 include ../rules.mk
