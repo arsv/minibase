@@ -356,54 +356,20 @@ static void recv_syslog(struct top* ctx)
    but the fd for that file can be ppoll'ed. See syslog(2).
 
    Unlike syslog socket, this fd may spew several messages at once.
-   However, like klogctl, it always reads complete messages. */
+   However, like klogctl, it always reads complete messages.
 
-int timestamp_is_zero_seconds(char* ts)
-{
-	char* p;
-
-	for(p = ts; *p; p++)
-		if(*p != '0')
-			break;
-	if(*p != '.' && *p != ']')
-		return 0;
-
-	return 1;
-}
-
-static void maybe_report_boot(struct top* ctx, char* ts)
-{
-	if(ctx->late)
-		return;
-	ctx->late = 1;
-
-	if(!timestamp_is_zero_seconds(ts))
-		return;
-
-	char* message = "--- SYSTEM BOOT ---";
-	int prio = 1;
-
-	int off = TAGSPACE;
-	int len = strlen(message);
-
-	char buf[off+len+1];
-	char* msg = buf + TAGSPACE;
-	char* end = buf + sizeof(buf) - 1;
-
-	memcpy(msg, message, len); msg[len] = '\0';
-
-	send_to_log(ctx, prio, msg, end);
-}
-
-/* klog lines look like this:
+   klog lines look like this:
 
        <6>[642493.137018] mmcblk0: mmc0:0007 SD8GB 7.42 GiB
 
-   We ignore the [timestamp] field completely. It is in seconds
-   relative to something but it is not clear what is that something.
-   Neither boottime nor monotonic clocks yield reliable results.
+   or possibly like this (depends on kernel config):
 
-   Instead, the time recorded is the time when sysklogd gets
+       <6>mmcblk0: mmc0:0007 SD8GB 7.42 GiB
+
+   We ignore the [timestamp] field completely even if present.
+   It is in seconds relative to something, but it is not clear what is
+   that something. Neither boottime nor monotonic clocks yield reliable
+   results. Instead, the time recorded is the time when sysklogd gets
    the message. */
 
 static void process_klog_line(struct top* ctx, char* ls, char* le)
@@ -414,13 +380,12 @@ static void process_klog_line(struct top* ctx, char* ls, char* le)
 	if(!isdigit(*p++)) return;
 	if(*p++ != '>') return;
 
-	if(*p++ != '[') return;
-	while(*p && *p != ']') p++;
-	if(*p++ != ']') return;
-
-	if(*p++ != ' ') return;
-
-	maybe_report_boot(ctx, ls + 4);
+	if(*p == '[') { /* timestamp is optional! */
+		p++;
+		while(*p && *p != ']') p++;
+		if(*p++ != ']') return;
+		if(*p++ != ' ') return;
+	}
 
 	/*                  v-- p              */
 	/*  <6>[000000.000] some message here  */
