@@ -125,7 +125,7 @@ int cmd_waitfor(CTX)
 	sys_close(fd);
 
 	if(ret == -ETIMEDOUT)
-		return error(ctx, name, NULL, ret);
+		return error(ctx, "timeout waiting for", name, 0);
 
 	return ret;
 }
