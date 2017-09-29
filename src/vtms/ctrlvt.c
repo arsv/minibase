@@ -1,5 +1,6 @@
 #include <bits/ioctl/tty.h>
 #include <sys/ioctl.h>
+#include <sys/signal.h>
 #include <sys/proc.h>
 #include <sys/file.h>
 
@@ -220,11 +221,14 @@ static void cmd_exit(void)
 
 static void cmd_back(void)
 {
-	term_fini();
-	int ret = spawn("vtctl", "-b");
-	term_back();
+	int ret;
 
-	if(ret == 0) _exit(0);
+	term_fini();
+
+	if(!(ret = spawn("vtctl", "-b")))
+		_exit(0);
+
+	term_back();
 }
 
 static void promp_action(void)
@@ -256,10 +260,29 @@ redraw:
 		}
 }
 
+static void sighandler(int _)
+{
+	term_fini();
+	_exit(0);
+}
+
+static void setup_signals(void)
+{
+	struct sigaction sa = {
+		.handler = sighandler,
+		.flags = SA_RESTORER,
+		.restorer = sigreturn
+	};
+
+	sys_sigaction(SIGTERM, &sa, NULL);
+	sys_sigaction(SIGINT,  &sa, NULL);
+}
+
 int main(int argc, char** argv, char** envp)
 {
 	environ = envp;
 
+	setup_signals();
 	term_init();
 
 	tcs(CSI, rows/2 + 5, rows, 'r');
