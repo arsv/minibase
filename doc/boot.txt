@@ -2,29 +2,27 @@ Booting the system with minibase
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Happy path only. Note some of the tools are not ready at the time of writing.
 
-* The kernel loads initrd, starts /linuxrc (msh script)
-* linuxrc runs findblk or passblk to find system partitions
+* The kernel loads initrd, starts /init (msh script)
+* init runs findblk or passblk to find system partitions
 	* passblk (or findblk) waits for devices to appear if necessary
 	* passblk prompts for passphrase and sets up disk encryption
-* linuxrc calls mount on all system partitions
-* linuxrc execs into switchroot
+* init calls mount on all system partitions
+* init execs into switchroot
 
 * switchroot replaces initrd root with the real root
 	* moves mounts onto the real root
 	* cleans up initrd
 	* pivots the root
-* switchroot execs into /sbin/init on the real root partition
+* switchroot execs into /sbin/system/start (msh script) on the real
+  root partition
 
-* init is a simple executable (../src/init/init.c)
-* init sets up basic process environment
-* init runs /etc/sysinit and waits for it to exit
-	* sysinit is a host-specific script (part of the host config)
-	* sysinit performs one-time system configuration
-		* sysctl and related stuff
-		* hwclock
-		* loadkeys, setfonts if necessary
-		* possibly iptables
-* init execs into /sbin/super
+* start sets up basic process environment
+* start performs one-time system configuration
+	* sysctl and related stuff
+	* hwclock
+	* loadkeys, setfonts if necessary
+	* possibly iptables
+* start execs into /sbin/system/super
 
 * super runs as pid 1 for the whole time the system is up
 * super (re)spawns all long-running services
@@ -32,9 +30,9 @@ Happy path only. Note some of the tools are not ready at the time of writing.
 	* wimon
 	* vtmux
 	...
-* on SIGTERM/SIGINT/svc request, super kills all spawned services
+* on SIGTERM/SIGINT/svctl request, super kills all spawned services
   and waits for them to terminate
-* super execs into /sbin/reboot
+* super execs into /sbin/system/reboot
 
 * reboot syncs, umounts all mounted partitions and calls reboot(2)
 * that's all really, this part is not scripted in any way
@@ -49,33 +47,47 @@ User session startup sequence
 * $name execs into appropriate interactive shell (xinit, weston, bash etc)
 * vtmux reaps the process once it dies
 
-The /etc/vtx/$name script itself is a part of host configuration,
+The /etc/vtmux/$name script itself is a part of host configuration,
 replacing the rightmost fields in conventional /etc/passwd and
 the 3rd field in /etc/group.
 
 
 Service startup sequence
 ~~~~~~~~~~~~~~~~~~~~~~~~
-* super spawns /etc/rc/$name which is a msh script
+* super spawns /etc/super/$name which is a msh script
 * $name sets up process environment, uids, gids and so on
 * $name execs into the actual service executable
 
 The script itself is a part of host configuration.
 
 
-Implementation notes
-~~~~~~~~~~~~~~~~~~~~
-The purpose of init (the small executable that bootstraps super) is to handle
-possible failures in /etc/sysinit. If that one fails, init execs directly into
-/sbin/reboot in attempt to bring the system down. Doing this nicely is just
-slightly above msh scripting abilities at this moment. Maybe at some point
-it should become a script. Maybe not.
+Handling errors in pid 1 scripts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Normally msh aborts on any errors. This is not acceptable when the script
+runs as pid 1 since that would cause immediate panic. For this particular
+case, msh got `onerror` build-in. The expected usage is always
 
-Same logic applies to linuxrc (the initrd entry point), but it's simpler
-and less likely to require proper termination. Root should be probably be
-mounted read-only at that point, with remounting later in /etc/sysinit.
-With that in mind, linuxrc may be just a plain msh script that exits if
-anything goes wrong, causing kernel panic and system halt.
+	onerror /path/to/reboot
 
-When/if it will become clear how to handle initrd failures, something better
-than msh script may get written.
+but having it as an explicit command removes the need to hard-code any paths
+into msh. This way, instead of aborting, msh execs into reboot on any error,
+and the system gets terminated properly.
+
+Another idea considered and rejected was a small wrapper executable what would
+"catch" non-zero msh exits and exec into reboot. This would avoid the need to
+have a single-use built-in, however it would also prevent msh from running as
+pid 1 and using its *other* builtins to set up environment for subsequent
+processes. Turns out onerror implementation within msh is much easier than any
+workaround not involving msh.
+
+
+System shutdown and /path/to/reboot
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Initially the path that super exec()ed into was hard-coded. Following onerror
+design in msh, the hard-coded path was replaced with an explicit argument for
+super. This allows somewhat unusual directory layouts like /sbin/system/reboot
+without forcing them onto all minibase users. Some people may prefer plain
+/sbin/reboot instead.
+
+Having /sbin/reboot dangling in ps output isn't pretty, so measures were taken
+in super to erase it from argv.
