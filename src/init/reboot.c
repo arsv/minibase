@@ -7,6 +7,7 @@
 #include <sys/sched.h>
 
 #include <errtag.h>
+#include <format.h>
 #include <string.h>
 #include <util.h>
 #include <heap.h>
@@ -31,7 +32,7 @@
 
 ERRTAG("reboot");
 ERRLIST(NEPERM NENOENT NEBADF NEFAULT NELOOP NENOMEM NENOTDIR NEOVERFLOW
-	NEINTR NEIO NENOSYS NEISDIR NEMFILE NENFILE NEBUSY);
+	NEINTR NEIO NENOSYS NEISDIR NEMFILE NENFILE NEBUSY NEINVAL);
 
 /* A line from mountinfo looks like this:
 
@@ -136,6 +137,14 @@ static char** index_scanned(struct heap* hp, int count)
 	return mps;
 }
 
+/* Attempts to umount root return -EINVAL, cluttering the output.
+   The only op on / that is expected to succeed is r/o remount. */
+
+int isroot(char* mp)
+{
+	return (mp[0] == '/' && !mp[1]);
+}
+
 /* First try to umount, then try to remount r/o.
 
    The second attempt to umount is there to deal with improperly
@@ -148,11 +157,14 @@ static char** index_scanned(struct heap* hp, int count)
 
 static int umount1(char* mp)
 {
-	long ret = sys_umount(mp, 0);
+	int ret;
 
-	if(!ret) return 1;
-
-	if(ret == -EBUSY) return 0;
+	if(isroot(mp))
+		return 0;
+	if((ret = sys_umount(mp, 0)) >= 0)
+		return 1;
+	if(ret == -EBUSY)
+		return 0;
 
 	warn("umount", mp, ret);
 
@@ -164,15 +176,13 @@ static void umount2(char* mp)
 	int flags = MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOEXEC;
 	long ret;
 
-	ret = sys_umount(mp, MNT_FORCE);
+	if(isroot(mp))
+		;
+	else if((ret = sys_umount(mp, MNT_FORCE)) >= 0)
+		return;
 
-	if(!ret) return;
-
-	warn("umount", mp, ret);
-
-	ret = sys_mount(NULL, mp, NULL, flags, NULL);
-
-	if(!ret) return;
+	if((ret = sys_mount(NULL, mp, NULL, flags, NULL)) >= 0)
+		return;
 
 	warn("remount", mp, ret);
 }
@@ -205,8 +215,26 @@ static void sleep(int sec)
 
 static void warn_pause(void)
 {
-	warn("waiting 10 seconds", NULL, 0);
-	sleep(10);
+	FMTBUF(p, e, buf, 50);
+
+	p = fmtstr(p, e, "\rRebooting in ");
+	char* q = p;
+
+	sys_write(STDOUT, "\n", 1);
+
+	for(int i = 10; i > 0; i--) {
+		p = fmtint(q, e, i);
+		p = fmtstr(p, e, " second");
+		if(i > 1) p = fmtstr(p, e, "s");
+		p = fmtstr(p, e, "...\033[K");
+
+		sys_write(STDOUT, buf, p - buf);
+
+		sleep(1);
+	}
+
+	char* final = "\r\033[K";
+	sys_write(STDOUT, final, strlen(final));
 }
 
 static int spawn_reboot(int mode)
@@ -255,8 +283,6 @@ int main(int argc, char** argv)
 		warn("sync", NULL, ret);
 
 	umountall();
-
-	warn("spawning child to stop the kernel", NULL, 0);
 
 	return spawn_reboot(mode);
 }
