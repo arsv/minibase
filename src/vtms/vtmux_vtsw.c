@@ -46,7 +46,7 @@ static int query_empty_mask(int* mask)
 	struct vt_stat vst;
 	int ret;
 
-	if((ret = sys_ioctl(0, VT_GETSTATE, &vst)) < 0)
+	if((ret = sys_ioctl(tty0fd, VT_GETSTATE, &vst)) < 0)
 		return ret;
 
 	*mask = vst.state;
@@ -105,10 +105,10 @@ int lock_switch(int* mask)
 	struct vt_stat vst;
 	long ret;
 
-	if((ret = ioctl(0, VT_LOCKSWITCH, NULL, "VT_LOCKSWITCH")) < 0)
+	if((ret = ioctl(tty0fd, VT_LOCKSWITCH, NULL, "VT_LOCKSWITCH")) < 0)
 		return ret;
 
-	if((ret = ioctl(0, VT_GETSTATE, &vst, "VT_GETSTATE")) < 0)
+	if((ret = ioctl(tty0fd, VT_GETSTATE, &vst, "VT_GETSTATE")) < 0)
 		return ret;
 
 	if(mask)
@@ -119,7 +119,7 @@ int lock_switch(int* mask)
 
 int unlock_switch(void)
 {
-	return ioctl(0, VT_UNLOCKSWITCH, NULL, "VT_UNLOCKSWITCH");
+	return ioctl(tty0fd, VT_UNLOCKSWITCH, NULL, "VT_UNLOCKSWITCH");
 }
 
 /* DRI devices can be suspended and resumed but inputs are irrevocably
@@ -298,11 +298,11 @@ static int switch_wait(int tty)
 
 	switching = 1;
 
-	if((ret = sys_ioctli(0, VT_ACTIVATE, tty)) < 0)
+	if((ret = sys_ioctli(tty0fd, VT_ACTIVATE, tty)) < 0)
 		goto out;
 
 	while(1) {
-		ret = sys_ioctli(0, VT_WAITACTIVE, tty);
+		ret = sys_ioctli(tty0fd, VT_WAITACTIVE, tty);
 
 		if((ret) >= 0)
 			break;

@@ -18,6 +18,8 @@ int greetertty;
 int activetty;
 int lastusertty;
 
+int tty0fd;
+
 ERRTAG("vtmux");
 
 static int intarg(char* arg)
@@ -31,6 +33,17 @@ static int intarg(char* arg)
 	return ret;
 }
 
+static void setup_tty0(void)
+{
+	int fd;
+	char* name = "/dev/tty0";
+
+	if((fd = sys_open(name, O_RDWR)) < 0)
+		fail("open", name, fd);
+
+	tty0fd = fd;
+}
+
 int main(int argc, char** argv, char** envp)
 {
 	int i = 1;
@@ -42,6 +55,7 @@ int main(int argc, char** argv, char** envp)
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
+	setup_tty0();
 	setup_signals();
 	setup_ctrl();
 	scan_pinned();

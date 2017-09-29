@@ -243,7 +243,7 @@ void setup_ctrl(void)
 		fail("socket", "AF_UNIX", fd);
 	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
 		fail("bind", addr.path, ret);
-	if((ret = sys_listen(fd, 10)))
+	if((ret = sys_listen(fd, 1)))
 		quit("listen", addr.path, ret);
 
 	ctrlfd = fd;
