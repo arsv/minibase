@@ -51,7 +51,7 @@ static void report(CTX, const char* err, char* arg, long ret, int m)
 	} if(arg) {
 		p = fmtstr(p, e, " ");
 		p = fmtstr(p, e, arg);
-	} if(arg || err) {
+	} if((arg || err) && ret) {
 		p = fmtstr(p, e, ": ");
 	} if(ret) {
 		p = fmterr(p, e, ret);
