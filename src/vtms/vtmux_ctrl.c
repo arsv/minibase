@@ -10,7 +10,6 @@
 #include <nlusctl.h>
 #include <string.h>
 #include <format.h>
-#include <alloca.h>
 #include <util.h>
 
 #include "common.h"
@@ -66,10 +65,26 @@ static int cmd_switch(CN, MSG)
 	if(!(tty = uc_get_int(msg, ATTR_TTY)))
 		return -EINVAL;
 
-	if((ret = switchto(*tty)) < 0)
-		return ret;
+	if(*tty == 0)
+		ret = show_greeter();
+	else
+		ret = switchto(*tty);
 
-	return reply(cn, 0);
+	return ret > 0 ? 0 : ret;
+}
+
+static int cmd_swback(CN, MSG)
+{
+	int ret;
+
+	if(lastusertty && find_term_by_tty(lastusertty))
+		ret = switchto(lastusertty);
+	else if(primarytty && find_term_by_tty(primarytty))
+		ret = switchto(primarytty);
+	else
+		ret = -ENOENT;
+
+	return ret > 0 ? 0 : ret;
 }
 
 /* No up-directory escapes here. Only basenames */
@@ -101,7 +116,7 @@ static int cmd_spawn(CN, MSG)
 
 	int ret = spawn(tty, name);
 
-	return reply(cn, ret);
+	return ret > 0 ? 0 : ret;
 }
 
 static int cmd_status(CN, MSG)
@@ -138,6 +153,7 @@ static const struct cmd {
 	{ CMD_STATUS,  cmd_status },
 	{ CMD_SWITCH,  cmd_switch },
 	{ CMD_SPAWN,   cmd_spawn  },
+	{ CMD_SWBACK,  cmd_swback },
 	{ 0,           NULL       }
 };
 
@@ -205,6 +221,7 @@ void accept_ctrl(void)
 		if((cn = grab_conn_slot())) {
 			cn->fd = cfd;
 		} else {
+			warn("dropping connection", NULL, 0);
 			sys_shutdown(cfd, SHUT_RDWR);
 			sys_close(cfd);
 		}
@@ -226,7 +243,7 @@ void setup_ctrl(void)
 		fail("socket", "AF_UNIX", fd);
 	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
 		fail("bind", addr.path, ret);
-	if((ret = sys_listen(fd, 1)))
+	if((ret = sys_listen(fd, 10)))
 		quit("listen", addr.path, ret);
 
 	ctrlfd = fd;

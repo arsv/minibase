@@ -41,6 +41,7 @@ extern int activetty;
 extern int initialtty;
 extern int primarytty;
 extern int greetertty;
+extern int lastusertty;
 extern int pollset;
 extern int mdevreq;
 extern int ctrlfd;

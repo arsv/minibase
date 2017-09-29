@@ -16,6 +16,7 @@ int initialtty;
 int primarytty;
 int greetertty;
 int activetty;
+int lastusertty;
 
 ERRTAG("vtmux");
 

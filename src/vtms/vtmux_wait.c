@@ -96,14 +96,19 @@ static void reopen_tty_device(struct term* vt)
 
 static void finalize(struct term* vt)
 {
-	int ttyfd = vt->ttyfd;
 	char* erase = "\033[3J\033[1;1H";
 	/* clear screen and scroll buf, move cursor to origin */
 
-	sys_write(ttyfd, erase, strlen(erase));
-	sys_close(ttyfd);
+	sys_write(vt->ttyfd, erase, strlen(erase));
+
+	if(vt->ctlfd > 0)
+		sys_close(vt->ctlfd);
+	if(vt->ttyfd > 0)
+		sys_close(vt->ttyfd);
 
 	free_term_slot(vt);
+
+	pollset = 0;
 }
 
 static void handle_dead(struct term* vt, int status)
@@ -118,15 +123,20 @@ static void handle_dead(struct term* vt, int status)
 
 	if(tty == greetertty)
 		greetertty = 0;
+	if(tty == lastusertty)
+		lastusertty = 0;
 
-	sys_close(vt->ctlfd);
+	if(vt->ctlfd > 0) {
+		sys_close(vt->ctlfd);
+		vt->ctlfd = -1;
+	}
 
-	if(!status)
+	if(!status) {
 		finalize(vt);
-	else
-		vt->ctlfd = 0; /* and wait for user to invoke final_enter() */
-
-	pollset = 0;
+	} else {
+		vt->pid = 0; /* and wait for user to invoke final_enter() */
+		pollset = 0;
+	}
 }
 
 static void switch_to_smth(void)
@@ -161,8 +171,6 @@ void final_enter(struct term* vt)
 		switchto(primarytty); /* try to restart */
 	else
 		switch_to_smth();
-
-	pollset = 0;
 }
 
 /* Most but not all clients should die while in foreground.

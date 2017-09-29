@@ -371,10 +371,11 @@ void grab_initial_lock(void)
 
 int switchto(int tty)
 {
-	if(tty < 0)
+	if(tty <= 0)
 		return -EINVAL;
-	if(tty == 0)
-		return show_greeter();
+
+	if(tty == activetty)
+		return 0;
 
 	if(find_term_by_tty(tty))
 		return activate(tty);

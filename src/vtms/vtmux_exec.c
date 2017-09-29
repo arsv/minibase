@@ -162,6 +162,9 @@ int show_greeter(void)
 {
 	int tty;
 
+	if(activetty != greetertty)
+		lastusertty = activetty;
+
 	if(greetertty)
 		return switchto(greetertty);
 

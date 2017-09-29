@@ -218,6 +218,15 @@ static void cmd_exit(void)
 	_exit(0);
 }
 
+static void cmd_back(void)
+{
+	term_fini();
+	int ret = spawn("vtctl", "-b");
+	term_back();
+
+	if(ret == 0) _exit(0);
+}
+
 static void promp_action(void)
 {
 	char buf[40];
@@ -238,7 +247,7 @@ redraw:
 			continue;
 		else switch(buf[0]) {
 			case '\004': cmd_exit(); break;
-			case '\033': cmd_exit(); break;
+			case '\033': cmd_back(); break;
 			case '\014': goto redraw;
 			case 'R': cmd_reboot(); break;
 			case 'P': cmd_poweroff(); break;

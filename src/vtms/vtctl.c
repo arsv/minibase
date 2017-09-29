@@ -10,8 +10,9 @@ ERRTAG("vtctl");
 ERRLIST(NENOENT NECONNREFUSED NELOOP NENFILE NEMFILE NEINTR
 	NEINVAL NEACCES NEPERM NEIO NEFAULT NENOSYS);
 
-#define OPTS "s"
+#define OPTS "sb"
 #define OPT_s (1<<0)
+#define OPT_b (1<<1)
 
 static void no_other_options(CTX)
 {
@@ -123,11 +124,22 @@ static void cmd_spawn(CTX)
 	recv_empty(ctx);
 }
 
+static void cmd_swback(CTX)
+{
+	no_other_options(ctx);
+
+	start_request(ctx, CMD_SWBACK, 0, 0);
+	send_request(ctx);
+
+	recv_empty(ctx);
+}
+
 static const struct cmdrec {
 	int opt;
 	void (*cmd)(CTX);
 } commands[] = {
 	{ OPT_s, cmd_spawn    },
+	{ OPT_b, cmd_swback   },
 	{     0, NULL         }
 };
 

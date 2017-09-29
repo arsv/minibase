@@ -8,6 +8,7 @@
 #define CMD_STATUS   VT(1)
 #define CMD_SWITCH   VT(2)
 #define CMD_SPAWN    VT(3)
+#define CMD_SWBACK   VT(4)
 
 #define ATTR_VT      1
 #define ATTR_TTY    10
