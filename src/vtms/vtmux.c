@@ -19,6 +19,7 @@ int activetty;
 int lastusertty;
 
 int tty0fd;
+int switchlock;
 
 ERRTAG("vtmux");
 

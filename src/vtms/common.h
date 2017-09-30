@@ -9,6 +9,8 @@
 #define CMD_SWITCH   VT(2)
 #define CMD_SPAWN    VT(3)
 #define CMD_SWBACK   VT(4)
+#define CMD_SWLOCK   VT(5)
+#define CMD_UNLOCK   VT(6)
 
 #define ATTR_VT      1
 #define ATTR_TTY    10

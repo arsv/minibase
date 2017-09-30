@@ -47,6 +47,8 @@ extern int mdevreq;
 extern int ctrlfd;
 extern int tty0fd;
 
+extern int switchlock;
+
 /* The numbers below are upper limits for loops, all arrays
    may happen to have empty slots below resp. limits. */
 

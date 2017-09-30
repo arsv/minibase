@@ -65,6 +65,9 @@ static int cmd_switch(CN, MSG)
 	if(!(tty = uc_get_int(msg, ATTR_TTY)))
 		return -EINVAL;
 
+	if(switchlock)
+		return -EPERM;
+
 	if(*tty == 0)
 		ret = show_greeter();
 	else
@@ -76,6 +79,9 @@ static int cmd_switch(CN, MSG)
 static int cmd_swback(CN, MSG)
 {
 	int ret;
+
+	if(switchlock)
+		return -EPERM;
 
 	if(lastusertty && find_term_by_tty(lastusertty))
 		ret = switchto(lastusertty);
@@ -146,6 +152,18 @@ static int cmd_status(CN, MSG)
 	return send_reply(cn);
 }
 
+static int cmd_swlock(CN, MSG)
+{
+	switchlock = 1;
+	return 0;
+}
+
+static int cmd_unlock(CN, MSG)
+{
+	switchlock = 0;
+	return 0;
+}
+
 static const struct cmd {
 	int cmd;
 	int (*call)(CN, MSG);
@@ -154,6 +172,8 @@ static const struct cmd {
 	{ CMD_SWITCH,  cmd_switch },
 	{ CMD_SPAWN,   cmd_spawn  },
 	{ CMD_SWBACK,  cmd_swback },
+	{ CMD_SWLOCK,  cmd_swlock },
+	{ CMD_UNLOCK,  cmd_unlock },
 	{ 0,           NULL       }
 };
 

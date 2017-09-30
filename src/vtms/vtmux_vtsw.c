@@ -377,6 +377,8 @@ int switchto(int tty)
 	if(tty == activetty)
 		return 0;
 
+	switchlock = 0; /* break lock if set */
+
 	if(find_term_by_tty(tty))
 		return activate(tty);
 
