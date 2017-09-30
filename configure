@@ -8,7 +8,7 @@ unset cc ar strip tp lto
 commanddir=/sbin/
 servicedir=/sbin/service
 systemdir=/sbin/system
-initrddir=/boot/bin
+initrddir=/boot/sbin
 
 man1dir=/usr/share/man1
 man5dir=/usr/share/man5
