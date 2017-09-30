@@ -298,11 +298,17 @@ static void suppress_sigpipe(void)
 	sys_sigaction(SIGPIPE, &sa, NULL);
 }
 
+#define OPTS "s"
+#define OPT_s (1<<0)
+
 int main(int argc, char** argv, char** envp)
 {
 	struct top context, *ctx = &context;
+	int i = 1, opts = 0;
 
-	if(argc > 1)
+	if(i < argc && argv[i][0] == '-')
+		opts = argbits(OPTS, argv[i++] + 1);
+	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
 	memzero(ctx, sizeof(*ctx));
@@ -315,6 +321,8 @@ int main(int argc, char** argv, char** envp)
 	open_modprobe(ctx);
 	scan_devices(ctx);
 	stop_modprobe(ctx);
+
+	if(opts & OPT_s) return 0;
 
 	while(1) recv_event(ctx);
 }
