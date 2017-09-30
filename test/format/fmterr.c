@@ -28,10 +28,10 @@ int main(void)
 {
 	int ret = 0;
 
-	TEST(ENOENT, "ENOENT");
-	TEST(EINTR,  "EINTR");
-	TEST(EINVAL, "EINVAL");
-	TEST(EPERM,  "1"); /* hopefully same for all supported arches */
+	TEST(-ENOENT, "ENOENT");
+	TEST(-EINTR,  "EINTR");
+	TEST(-EINVAL, "EINVAL");
+	TEST(-EPERM,  "-1"); /* hopefully same for all supported arches */
 
 	return ret;
 }
