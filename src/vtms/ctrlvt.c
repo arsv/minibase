@@ -3,6 +3,7 @@
 #include <sys/signal.h>
 #include <sys/proc.h>
 #include <sys/file.h>
+#include <sys/sched.h>
 
 #include <errtag.h>
 #include <format.h>
@@ -17,6 +18,10 @@ int rows;
 int cols;
 int initialized;
 char** environ;
+
+char code[20];
+char copy[20];
+int codelen, copylen;
 
 struct box {
 	int r, c, w, h;
@@ -146,6 +151,133 @@ void term_fini(void)
 	initialized = 0;
 }
 
+static void outbuf(char* buf, int len, char* pad, int ptr)
+{
+	output(buf, ptr);
+	output(pad, len - ptr);
+}
+
+static int input(char* tag)
+{
+	int len = strlen(tag);
+	int r = rows/2;
+	int c = cols/2 - len - sizeof(code)/2;
+
+	int rd;
+	char buf[10];
+
+	codelen = 0;
+
+	moveto(r, c);
+	tcs(CSI, 2, 0, 'K');
+
+	char pad[sizeof(code)];
+	memset(pad, '_', sizeof(pad));
+
+	while(1) {
+		moveto(r, c);
+		output(tag, len);
+		outstr(": ");
+		outbuf(code, sizeof(code), pad, codelen);
+
+		if((rd = sys_read(STDIN, buf, sizeof(buf))) <= 0)
+			return -1;
+		if(rd > 1)
+			continue;
+
+		switch(*buf) {
+			case 0x0D:
+				return 0;
+			case 0x1B:
+				return -1;
+			case 0x7F:
+				if(codelen > 0)
+					codelen--;
+				break;
+			case 0x20 ... 0x7E:
+				if(codelen < sizeof(code))
+					code[codelen++] = *buf;
+				break;
+		}
+	}
+
+}
+
+static void copy_code(void)
+{
+	memcpy(copy, code, codelen);
+	copylen = codelen;
+}
+
+static void msleep(int ms)
+{
+	struct timespec ts = { ms / 1000, (ms % 1000)*1000*1000 };
+
+	sys_nanosleep(&ts, NULL);
+}
+
+static int match(void)
+{
+	if(copylen != codelen)
+		return 0;
+	if(memcmp(copy, code, copylen))
+		return 0;
+
+	return 1;
+}
+
+static void message(char* msg)
+{
+	int len = strlen(msg);
+	int r = rows/2 + 2;
+	int c = cols/2 - len/2;
+
+	moveto(r, c);
+	tcs(CSI, 2, 0, 'K');
+	output(msg, len);
+
+	msleep(500);
+	tcs(CSI, 2, 0, 'K');
+}
+
+static int set_code(void)
+{
+	copylen = 0;
+
+	while(1) {
+		if(input("Lock code"))
+			return -1;
+
+		copy_code();
+
+		if(input("Repeat"))
+			return -1;
+
+		if(match())
+			return 0;
+
+		message("mismatch");
+	}
+
+	return 0;
+}
+
+static int ask_code(void)
+{
+	int i;
+
+	for(i = 0; i < 5; i++) {
+		if(input("Unlock code"))
+			continue;
+		if(match())
+			return 0;
+
+		message("incorrect");
+	}
+
+	return -1;
+}
+
 static int spawn(char* cmd, char* arg)
 {
 	int pid, status, ret;
@@ -208,11 +340,6 @@ static void cmd_sleep(void)
 	term_back();
 }
 
-static void cmd_lock(void)
-{
-
-}
-
 static void cmd_exit(void)
 {
 	term_fini();
@@ -229,6 +356,33 @@ static void cmd_back(void)
 		_exit(0);
 
 	term_back();
+}
+
+static void cmd_lock(void)
+{
+	if(set_code())
+		return;
+
+	term_fini();
+
+	spawn("vtctl", "-k");
+	enter_sleep_mode();
+
+	term_back();
+again:
+	if(!ask_code()) {
+		spawn("vtctl", "-u");
+		spawn("vtctl", "-b");
+		return;
+	}
+
+	message("rebooting");
+
+	term_fini();
+	spawn("svctl", "-R");
+	term_back();
+
+	goto again;
 }
 
 static void promp_action(void)
@@ -256,7 +410,7 @@ redraw:
 			case 'R': cmd_reboot(); break;
 			case 'P': cmd_poweroff(); break;
 			case 'S': cmd_sleep(); break;
-			case 'L': cmd_lock(); break;
+			case 'L': cmd_lock(); goto redraw;
 		}
 }
 
