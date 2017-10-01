@@ -347,12 +347,6 @@ static void cmd_sleep(void)
 	term_back();
 }
 
-static void cmd_exit(void)
-{
-	term_fini();
-	_exit(0);
-}
-
 static void cmd_back(void)
 {
 	int ret;
@@ -411,7 +405,7 @@ redraw:
 		if(ret != 1)
 			continue;
 		else switch(buf[0]) {
-			case '\004': cmd_exit(); break;
+			case '\004': cmd_back(); break;
 			case '\033': cmd_back(); break;
 			case '\014': goto redraw;
 			case 'R': cmd_reboot(); break;
