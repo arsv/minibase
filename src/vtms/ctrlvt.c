@@ -436,6 +436,9 @@ static void setup_signals(void)
 	};
 
 	sys_sigaction(SIGTERM, &sa, NULL);
+
+	sa.handler = SIG_IGN;
+
 	sys_sigaction(SIGINT,  &sa, NULL);
 }
 
