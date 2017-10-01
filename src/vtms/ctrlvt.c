@@ -171,14 +171,17 @@ static int input(char* tag)
 	moveto(r, c);
 	tcs(CSI, 2, 0, 'K');
 
-	char pad[sizeof(code)];
-	memset(pad, '_', sizeof(pad));
+	char pad_[sizeof(code)];
+	char padx[sizeof(code)];
+	memset(pad_, '_', sizeof(pad_));
+	memset(padx, '*', sizeof(padx));
 
 	while(1) {
 		moveto(r, c);
 		output(tag, len);
 		outstr(": ");
-		outbuf(code, sizeof(code), pad, codelen);
+		output(padx, codelen);
+		output(pad_, sizeof(code) - codelen);
 
 		if((rd = sys_read(STDIN, buf, sizeof(buf))) <= 0)
 			return -1;
@@ -203,10 +206,15 @@ static int input(char* tag)
 
 }
 
-static void copy_code(void)
+static int copy_code(void)
 {
+	if(!codelen)
+		return -1;
+
 	memcpy(copy, code, codelen);
 	copylen = codelen;
+
+	return 0;
 }
 
 static void msleep(int ms)
@@ -247,9 +255,8 @@ static int set_code(void)
 	while(1) {
 		if(input("Lock code"))
 			return -1;
-
-		copy_code();
-
+		if(copy_code())
+			return -1;
 		if(input("Repeat"))
 			return -1;
 
