@@ -37,6 +37,7 @@ char* fmtuint(char* buf, char* end, unsigned num);
 char* fmtlong(char* buf, char* end, long num);
 char* fmtulong(char* buf, char* end, unsigned long num);
 char* fmtxlong(char* buf, char* end, long num);
+char* fmthex(char* p, char* e, unsigned n);
 char* fmtpad(char* p, char* e, int width, char* q);
 char* fmtpad0(char* p, char* e, int width, char* q);
 char* fmtpadr(char* p, char* e, int width, char* q);
@@ -58,6 +59,7 @@ char* parseu64(char* buf, uint64_t* np);
 char* parsebyte(char* p, uint8_t* v);
 char* parsebytes(char* p, uint8_t* dst, int len);
 char* parseoct(char* buf, int* np);
+char* parsehex(char* buf, int* np);
 
 char* parsemac(char* p, uint8_t* mac);
 char* parseip(char* p, uint8_t* ip);
