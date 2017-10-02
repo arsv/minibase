@@ -17,8 +17,6 @@
 #define HOLDTIME   1000 /* 1s in ms; for keys */
 #define LONGTIME  10000 /* 10s in ms; for switches */
 
-#define CMDLEN  50
-
 #define NDEVICES 40
 #define NACTIONS 40
 
@@ -43,7 +41,7 @@ struct device {
 struct action {
 	short mode;
 	short code;
-	char cmd[16];
+	char cmd[20];
 	char arg[8];
 	int time;
 	int minor;

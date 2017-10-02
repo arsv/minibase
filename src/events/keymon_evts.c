@@ -20,32 +20,18 @@
    to simplify the code. Tracking arbitrary keys would require lots
    of code, and won't be used most of the time. */
 
-static char cmdbuf[CMDLEN];
-
-static void prep_action_path(char* action)
-{
-	char* p = cmdbuf;
-	char* e = cmdbuf + sizeof(cmdbuf) - 1;
-
-	p = fmtstr(p, e, CONFDIR);
-	p = fmtstr(p, e, "/");
-	p = fmtstr(p, e, action);
-	*p++ = '\0';
-}
-
 static void spawn(struct action* ka)
 {
 	int pid, ret, status;
+	char* cmd = ka->cmd;
 	char* arg = *(ka->arg) ? ka->arg : NULL;
-
-	prep_action_path(ka->cmd);
 
 	if((pid = sys_fork()) < 0) {
 		warn("fork", NULL, pid);
 		return;
 	} else if(pid == 0) {
-		char* argv[] = { cmdbuf, arg, NULL };
-		ret = sys_execve(*argv, argv, environ);
+		char* argv[] = { cmd, arg, NULL };
+		ret = execvpe(*argv, argv, environ);
 		fail("exec", *argv, ret);
 	}
 

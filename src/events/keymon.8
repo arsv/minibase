@@ -9,10 +9,10 @@
 configured events occur.
 '''
 .SH CONFIGURATION
-Events to watch for are described in /etc/keymon.conf, one per line,
+Events to watch for are described in /etc/keymon, one per line,
 using the following format:
 .IP "" 4
-[\fImode\fR] [\fBC-\fR][\fBA-\fR]\fIkey\fB:\fR \fIaction\fR [\fIargument\fR]
+[\fImode\fR] [\fBC-\fR][\fBA-\fR]\fIkey\fB:\fR \fIcommand\fR [\fIargument\fR]
 .P
 \fIkey\fR is either a numeric code (see input-event-codes.h from the Linux
 kernel sources for the full list) or one of the supported names:
@@ -24,20 +24,18 @@ modifiers respectively.
 Default is a momentary key press, \fBhold\fR means holding the key down
 for about 1s, and \fBlong\fR for about 10s.
 .P
-When the event happens, \fBkeymon\fR spawns /etc/keymon/\fIaction\fR,
+When the event happens, \fBkeymon\fR spawns \fIcommand\fR,
 optionally passing it a single \fIargument\fR.
 '''
 .SH FILES
 .IP "/dev/input/event*" 4
 Input devices.
-.IP "/etc/keyacts" 4
-Primary configuration file.
-.IP "/etc/keymon/" 4
-Location of per-event scripts.
+.IP "/etc/keymon" 4
+Configuration file.
 '''
 .SH NOTES
 \fBkeymon\fR never spawns two scripts at the same time, no matter how
-fast the events arrive. The scripts in /etc/keymon must be short-running.
+fast the events arrive. The commands in /etc/keymon must be short-running.
 '''
 .SH SEE ALSO
 \fBacpid\fR(8), \fBinputs\fR(1)
