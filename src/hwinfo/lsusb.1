@@ -1,0 +1,22 @@
+.TH lsusb 1
+'''
+.SH NAME
+\fBlsusb\fR \- list USB devices
+'''
+.SH DESCRIPTION
+The tool reads /sys/bus/usb/devices and produces a list of all non-hub USB
+devices present in the system. For each device, two kinds of addresses are
+shown: \fIbus\fB.\fIdev\fR (001.003) and
+\fIhub\fB-\fR[\fB-\fIhub\fR]\fB-\fIport\fR (1-7 or 1-5-27). The kernel mostly
+refers to devices using the hub-port scheme, but it some cases bus.dev shows
+up as well.
+.P
+All USB devices also come with \fIvendor\fB:\fIproduct\fR pairs (1234:F0AB).
+'''
+.SH FILES
+.IP "/sys/bus/usb/devices" 4
+USB devices in sysfs.
+'''
+.SH NOTES
+This tool does not use the USB id database to map vendor:product pairs to
+human-readable names. Devices names shown are strings reported by the devices.
