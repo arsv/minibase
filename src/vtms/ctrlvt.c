@@ -151,12 +151,6 @@ void term_fini(void)
 	initialized = 0;
 }
 
-static void outbuf(char* buf, int len, char* pad, int ptr)
-{
-	output(buf, ptr);
-	output(pad, len - ptr);
-}
-
 static int input(char* tag)
 {
 	int len = strlen(tag);
