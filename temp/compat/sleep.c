@@ -53,9 +53,9 @@ static void parsetime(struct timespec* sp, const char* str)
 
 	/* Suffix (including eos and '.') */
 	switch(*p) {
-		case 'd': sec *= 24;
-		case 'h': sec *= 60;
-		case 'm': sec *= 60;
+		case 'd': sec *= 24; /* fallthrough */
+		case 'h': sec *= 60; /* fallthrough */
+		case 'm': sec *= 60; /* fallthrough */
 		case 's':
 		case '\0':
 		case '.': break;

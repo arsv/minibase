@@ -214,13 +214,13 @@ static const char fakeys[] = {
 
 static char* fmtprio(char* p, char* e, int prio)
 {
-	int facility = prio >> 3;
-	int severity = prio & 7;
+	uint facility = prio >> 3;
+	uint severity = prio & 7;
 
 	char fc;
 	char pc = '0' + severity;
 
-	if(facility >= 0 && facility < sizeof(fakeys))
+	if(facility < sizeof(fakeys))
 		fc = fakeys[facility];
 	else
 		fc = '?';

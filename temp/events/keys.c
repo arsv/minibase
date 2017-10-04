@@ -286,7 +286,7 @@ static void list_keys(int fd)
 {
 	uint8_t bits[32];
 	int bitsize = sizeof(bits);
-	int i;
+	uint i;
 
 	memset(bits, 0, bitsize);
 

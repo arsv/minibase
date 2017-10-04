@@ -25,8 +25,7 @@ static const char* keydesc[] = {
 	[0x0c] = "ROTATE_LOCK",
 	[0x0d] = "LINEIN_INSERT",
 	[0x0e] = "MUTE_DEVICE",
-	[0x0f] = "PEN_INSERTED",
-	[0x0f] = "MAX"
+	[0x0f] = "PEN_INSERTED"
 };
 
 static const int nkeydesc = ARRAY_SIZE(keydesc);
@@ -58,9 +57,9 @@ static void list_part(int base, int byte)
 
 static void list_keys(int fd)
 {
-	uint8_t bits[4];
+	byte bits[4];
 	int bitsize = sizeof(bits);
-	int i;
+	uint i;
 
 	memset(bits, 0, bitsize);
 

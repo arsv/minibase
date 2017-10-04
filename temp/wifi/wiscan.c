@@ -258,7 +258,7 @@ int resolve_80211_subscribe_scan(struct netlink* nl)
 void request_scan(struct netlink* nl, int nl80211, int ifindex)
 {
 	struct nlgen* msg;
-	uint32_t* idx;
+	int* idx;
 
 	nl_new_cmd(nl, nl80211, NL80211_CMD_TRIGGER_SCAN, 0);
 	nl_put_u64(nl, NL80211_ATTR_IFINDEX, ifindex);
@@ -267,7 +267,7 @@ void request_scan(struct netlink* nl, int nl80211, int ifindex)
 		fail("NL80211_CMD_TRIGGER_SCAN", NULL, nl->err);
 
 	while((msg = nl_recv_genl(nl))) {
-		if(!(idx = nl_get_u32(msg, NL80211_ATTR_IFINDEX)))
+		if(!(idx = nl_get_i32(msg, NL80211_ATTR_IFINDEX)))
 			continue;
 		if(*idx != ifindex)
 			continue;
@@ -283,7 +283,7 @@ void request_scan(struct netlink* nl, int nl80211, int ifindex)
 static int query_interface(struct netlink* nl, int nl80211, char* name)
 {
 	struct nlgen* msg;
-	uint32_t* idx;
+	int* idx;
 
 	int ifindex = -1;
 
@@ -292,7 +292,7 @@ static int query_interface(struct netlink* nl, int nl80211, char* name)
 		fail("nl-send", NULL, nl->err);
 
 	while((msg = nl_recv_genl_multi(nl))) {
-		if(!(idx = nl_get_u32(msg, NL80211_ATTR_IFINDEX)))
+		if(!(idx = nl_get_i32(msg, NL80211_ATTR_IFINDEX)))
 			continue;
 		if(name) {
 			char* nn = nl_get_str(msg, NL80211_ATTR_IFNAME);

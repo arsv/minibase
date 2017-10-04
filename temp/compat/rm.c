@@ -29,7 +29,7 @@ static void mfail(int opts, const char* msg, const char* obj, int err)
 	if(!(opts & OPT_f)) _exit(-1);
 }
 
-static int samefs(const char* dirname, int dirfd, long rootdev)
+static int samefs(const char* dirname, int dirfd, uint64_t rootdev)
 {
 	struct stat st;
 
@@ -42,11 +42,11 @@ static int samefs(const char* dirname, int dirfd, long rootdev)
 	return (ret >= 0 && st.dev == rootdev);
 }
 
-static void removeany(const char* name, int type, long rootdev, int opts);
+static void removeany(const char* name, int type, uint64_t rootdev, int opts);
 static void removedep(const char* dirname, struct dirent* dep,
-		long rootdev, int opts);
+		uint64_t rootdev, int opts);
 
-static void removedir(const char* dirname, long rootdev, int opts)
+static void removedir(const char* dirname, uint64_t rootdev, int opts)
 {
 	char debuf[DEBUFSIZE];
 	const int delen = sizeof(debuf);
@@ -80,7 +80,7 @@ out:
 };
 
 static void removedep(const char* dirname, struct dirent* dep,
-		long rootdev, int opts)
+		uint64_t rootdev, int opts)
 {
 	int dirnlen = strlen(dirname);
 	int depnlen = strlen(dep->name);
@@ -106,7 +106,7 @@ static void removedep(const char* dirname, struct dirent* dep,
    In case getdents64() was kind enough to tell us node type, and it
    happens to be a directory, the check is skipped. */
 
-static void removeany(const char* name, int type, long rootdev, int opts)
+static void removeany(const char* name, int type, uint64_t rootdev, int opts)
 {
 	long ret;
 

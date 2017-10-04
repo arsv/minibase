@@ -40,8 +40,8 @@ static void putstr(char* buf, char* src, int len)
 
 static void dm_suspend(int fd, char* name, int flags)
 {
-	int nlen = strlen(name);
-	int ret;
+	uint nlen = strlen(name);
+	long ret;
 
 	struct dm_ioctl dmi = {
 		.version = { DM_VERSION_MAJOR, 0, 0 },
@@ -64,13 +64,13 @@ static int dm_single(int fd, char* name, uint64_t size, char* targ, char* opts)
 	struct dm_target_spec* dts;
 	char* optstring;
 
-	int nlen = strlen(name);
-	int tlen = strlen(targ);
-	int olen = strlen(opts);
-	int dmilen = sizeof(*dmi);
-	int dtslen = sizeof(*dts);
+	uint nlen = strlen(name);
+	uint tlen = strlen(targ);
+	uint olen = strlen(opts);
+	uint dmilen = sizeof(*dmi);
+	uint dtslen = sizeof(*dts);
 
-	int reqlen = dmilen + dtslen + olen + 1;
+	uint reqlen = dmilen + dtslen + olen + 1;
 	char req[reqlen];
 
 	dmi = (struct dm_ioctl*)(req + 0);
@@ -109,8 +109,8 @@ static int dm_single(int fd, char* name, uint64_t size, char* targ, char* opts)
 
 static void dm_remove(int fd, char* name)
 {
-	int nlen = strlen(name);
-	int ret;
+	uint nlen = strlen(name);
+	long ret;
 
 	struct dm_ioctl dmi = {
 		.version = { DM_VERSION_MAJOR, 0, 0 },

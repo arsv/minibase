@@ -3,7 +3,6 @@
 #include <sys/module.h>
 
 #include <errtag.h>
-#include <alloca.h>
 #include <string.h>
 #include <util.h>
 

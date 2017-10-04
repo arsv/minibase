@@ -1,5 +1,4 @@
 #include <sys/file.h>
-#include <alloca.h>
 #include <util.h>
 
 /* We do one syscall per line here, instead of making a huge

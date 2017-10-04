@@ -8,12 +8,12 @@ ERRTAG("holes");
 
 static uint64_t lseek(int fd, uint64_t off, int whence)
 {
-	uint64_t ret;
+	int64_t ret;
 
 	if((ret = sys_lseek(fd, off, whence)) < 0)
 		fail("seek", NULL, ret);
 
-	return ret;
+	return (uint64_t)ret;
 }
 
 static void report(char* tag, uint64_t from, uint64_t to)

@@ -8,7 +8,7 @@
 #define PAGE 4096
 #define MAX_FILE_SIZE 0x50000
 
-void* mmapwhole(const char* name, long* len)
+void* mmapwhole(const char* name, ulong* len)
 {
 	int fd;
 	long ret;
@@ -32,7 +32,7 @@ void* mmapwhole(const char* name, long* len)
 	return ptr;
 }
 
-void* readwhole(int fd, long* len)
+void* readwhole(int fd, ulong* len)
 {
 	char* brk = (char*)sys_brk(NULL);
 	char* end = (char*)sys_brk(brk + PAGE);

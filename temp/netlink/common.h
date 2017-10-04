@@ -1,2 +1,2 @@
-void* mmapwhole(const char* name, long* len);
-void* readwhole(int fd, long* len);
+void* mmapwhole(const char* name, ulong* len);
+void* readwhole(int fd, ulong* len);

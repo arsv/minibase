@@ -105,7 +105,7 @@ int main(void)
 {
 	struct winsize ws;
 	struct termios ts;
-	int ret, i;
+	int ret;
 
 	if((ret = sys_ioctl(0, TIOCGWINSZ, &ws)) < 0)
 		fail("ioctl", "TIOCGWINSZ", ret);
@@ -123,7 +123,7 @@ int main(void)
 	printf("ispeed=%i ospeed=%i\n", ts.ispeed, ts.ospeed);
 
 	printf("cc = { ");
-	for(i = 0; i < sizeof(ts.cc); i++) {
+	for(uint i = 0; i < sizeof(ts.cc); i++) {
 		int q = ts.cc[i] & 0xFF;
 
 		if(i) printf(", ");

@@ -1,4 +1,3 @@
-#include <alloca.h>
 #include <util.h>
 
 #define TAG "echo"

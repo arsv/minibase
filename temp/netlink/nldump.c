@@ -13,7 +13,7 @@ int align4(int n) { return n + (4 - n % 4) % 4; }
 
 int main(int argc, char** argv)
 {
-	long len;
+	ulong len;
 	char* buf;
 
 	if(argc == 2)
@@ -23,10 +23,10 @@ int main(int argc, char** argv)
 	else
 		fail("bad call", NULL, 0);
 
-	long ptr = 0;
+	ulong ptr = 0;
 
 	while(ptr < len) {
-		long left = len - ptr;
+		ulong left = len - ptr;
 
 		if(left < sizeof(struct nlmsg))
 			break;
