@@ -1,7 +1,7 @@
-#include <bits/null.h>
-#include "../nlusctl.h"
+#include <cdefs.h>
+#include <nlusctl.h>
 
-static struct ucmsg* uc_msg_hdr(char* buf, int len)
+static struct ucmsg* uc_msg_hdr(char* buf, size_t len)
 {
 	struct ucmsg* msg = (struct ucmsg*) buf;
 
@@ -11,7 +11,7 @@ static struct ucmsg* uc_msg_hdr(char* buf, int len)
 	return msg;
 }
 
-int uc_msglen(char* buf, int len)
+int uc_msglen(char* buf, size_t len)
 {
 	struct ucmsg* msg;
 
@@ -21,7 +21,7 @@ int uc_msglen(char* buf, int len)
 	return msg->len;
 }
 
-struct ucmsg* uc_msg(char* buf, int len)
+struct ucmsg* uc_msg(char* buf, size_t len)
 {
 	struct ucmsg* msg;
 
@@ -33,7 +33,7 @@ struct ucmsg* uc_msg(char* buf, int len)
 	return msg;
 }
 
-static struct ucattr* uc_get_0_in(char* buf, int len)
+static struct ucattr* uc_get_0_in(char* buf, size_t len)
 {
 	struct ucattr* at = (struct ucattr*) buf;
 
@@ -45,7 +45,7 @@ static struct ucattr* uc_get_0_in(char* buf, int len)
 	return at;
 }
 
-static struct ucattr* uc_get_n_in(char* buf, int len, struct ucattr* at)
+static struct ucattr* uc_get_n_in(char* buf, size_t len, struct ucattr* at)
 {
 	char* end = buf + len;
 	char* ptr = (char*) at;

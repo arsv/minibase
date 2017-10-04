@@ -1,3 +1,5 @@
+#include <cdefs.h>
+
 /* Netlink-based userspace service control protocol.
 
    Essentially simplified request-reply GENL with hairy stuff like
@@ -23,24 +25,24 @@ struct urbuf {
 };
 
 struct ucmsg {
-	unsigned len;
-	int cmd;
+	uint32_t len;
+	int32_t cmd;
 	char payload[];
-} __attribute__((packed));
+} __packed;
 
 struct ucattr {
-	short len;
-	short key;
+	uint16_t len;
+	uint16_t key;
 	char payload[];
-} __attribute__((packed));
+} __packed;
 
-void uc_buf_set(struct ucbuf* uc, char* buf, int len);
+void uc_buf_set(struct ucbuf* uc, char* buf, size_t len);
 
 void uc_put_hdr(struct ucbuf* uc, int cmd);
 void uc_put_end(struct ucbuf* uc);
 
-struct ucattr* uc_put_attr(struct ucbuf* uc, int key, int len);
-void uc_put_bin(struct ucbuf* uc, int key, void* buf, int len);
+struct ucattr* uc_put_attr(struct ucbuf* uc, int key, size_t len);
+void uc_put_bin(struct ucbuf* uc, int key, void* buf, size_t len);
 void uc_put_int(struct ucbuf* uc, int key, int v);
 void uc_put_str(struct ucbuf* uc, int key, char* str);
 void uc_put_flag(struct ucbuf* uc, int key);
@@ -48,8 +50,8 @@ void uc_put_flag(struct ucbuf* uc, int key);
 struct ucattr* uc_put_nest(struct ucbuf* uc, int key);
 void uc_end_nest(struct ucbuf* uc, struct ucattr* nest);
 
-int uc_msglen(char* buf, int len);
-struct ucmsg* uc_msg(char* buf, int len);
+int uc_msglen(char* buf, size_t len);
+struct ucmsg* uc_msg(char* buf, size_t len);
 
 struct ucattr* uc_get_0(struct ucmsg* msg);
 struct ucattr* uc_get_n(struct ucmsg* msg, struct ucattr* at);

@@ -1,6 +1,6 @@
-#include <bits/null.h>
+#include <cdefs.h>
 #include <string.h>
-#include "../nlusctl.h"
+#include <nlusctl.h>
 
 static void* uc_alloc(struct ucbuf* uc, int len)
 {
@@ -22,7 +22,7 @@ static void* uc_alloc(struct ucbuf* uc, int len)
 	return ret;
 }
 
-void uc_buf_set(struct ucbuf* uc, char* buf, int len)
+void uc_buf_set(struct ucbuf* uc, char* buf, size_t len)
 {
 	uc->brk = buf;
 	uc->ptr = buf;
@@ -63,7 +63,7 @@ void uc_put_end(struct ucbuf* uc)
 	msg->len = uc->ptr - uc->brk;
 }
 
-struct ucattr* uc_put_attr(struct ucbuf* uc, int key, int len)
+struct ucattr* uc_put_attr(struct ucbuf* uc, int key, size_t len)
 {
 	struct ucattr* at;
 	int total = sizeof(*at) + len;
@@ -77,7 +77,7 @@ struct ucattr* uc_put_attr(struct ucbuf* uc, int key, int len)
 	return at;
 }
 
-void uc_put_bin(struct ucbuf* uc, int key, void* buf, int len)
+void uc_put_bin(struct ucbuf* uc, int key, void* buf, size_t len)
 {
 	struct ucattr* at;
 

@@ -1,4 +1,4 @@
-#include <bits/null.h>
+#include <cdefs.h>
 
 #include "base.h"
 #include "attr.h"
@@ -18,7 +18,7 @@ struct nlattr* nl_sub(struct nlattr* at, uint16_t type)
 	return nl_attr_k_in(ATPAYLOAD(at), type);
 }
 
-void* nl_sub_of_len(struct nlattr* at, uint16_t type, int len)
+void* nl_sub_of_len(struct nlattr* at, uint16_t type, size_t len)
 {
 	struct nlattr* ak = nl_sub(at, type);
 	if(!ak) return NULL;

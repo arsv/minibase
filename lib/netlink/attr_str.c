@@ -1,11 +1,11 @@
-#include <bits/null.h>
+#include <cdefs.h>
 
 #include "base.h"
 #include "attr.h"
 
-int nl_check_zstr(char* buf, int len)
+int nl_check_zstr(char* buf, size_t len)
 {
-	int i;
+	size_t i;
 
 	for(i = 0; i < len; i++)
 		if(!buf[i])

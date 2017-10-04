@@ -1,6 +1,6 @@
 #include <bits/errno.h>
 #include <bits/types.h>
-#include <bits/null.h>
+#include <cdefs.h>
 
 #include "base.h"
 #include "attr.h"
@@ -38,7 +38,7 @@ struct nlmsg* nl_recv_seq(struct netlink* nl)
 	return msg;
 }
 
-struct nlmsg* nl_recv_expect(struct netlink* nl, int hdrsize, int one)
+static struct nlmsg* nl_recv_expect(struct netlink* nl, size_t hdrsize, int one)
 {
 	struct nlmsg* msg = nl_recv_seq(nl);
 

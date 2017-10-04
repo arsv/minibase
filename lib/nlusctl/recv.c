@@ -1,8 +1,7 @@
-#include <bits/null.h>
 #include <sys/socket.h>
+#include <cdefs.h>
 #include <string.h>
-
-#include "../nlusctl.h"
+#include <nlusctl.h>
 
 static void shift_buf(struct urbuf* ur)
 {

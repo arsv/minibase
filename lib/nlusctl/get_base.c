@@ -1,5 +1,5 @@
-#include <bits/null.h>
-#include "../nlusctl.h"
+#include <cdefs.h>
+#include <nlusctl.h>
 
 static int is_zstr(char* buf, int len)
 {

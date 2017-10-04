@@ -1,4 +1,4 @@
-#include <bits/null.h>
+#include <cdefs.h>
 
 #include "base.h"
 #include "attr.h"
@@ -23,7 +23,7 @@ struct nlattr* nl_get_n(struct nlgen* msg, struct nlattr* cur)
 	return nl_attr_n_in(NLPAYLOAD(msg), cur);
 }
 
-void* nl_get_of_len(struct nlgen* msg, uint16_t type, int len)
+void* nl_get_of_len(struct nlgen* msg, uint16_t type, size_t len)
 {
 	struct nlattr* at = nl_get(msg, type);
 	if(!at) return NULL;

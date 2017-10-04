@@ -5,7 +5,7 @@
 struct nlgen;
 struct nlattr;
 
-void* nl_bin(struct nlattr* at, int len);
+void* nl_bin(struct nlattr* at, unsigned len);
 char* nl_str(struct nlattr* at);
 struct nlattr* nl_nest(struct nlattr* at);
 
@@ -18,12 +18,12 @@ struct nlattr* nl_nest(struct nlattr* at);
 #define NLPAYLOAD(msg) msg->payload, (msg->nlm.len - sizeof(*msg))
 #define ATPAYLOAD(at)  at->payload, (at->len - sizeof(*at))
 
-struct nlattr* nl_attr_0_in(char* buf, int len);
-struct nlattr* nl_attr_n_in(char* buf, int len, struct nlattr* at);
-struct nlattr* nl_attr_k_in(char* buf, int len, int type);
+struct nlattr* nl_attr_0_in(char* buf, size_t len);
+struct nlattr* nl_attr_n_in(char* buf, size_t len, struct nlattr* at);
+struct nlattr* nl_attr_k_in(char* buf, size_t len, int type);
 
-int nl_check_zstr(char* buf, int len);
-int nl_check_nest(char* buf, int len);
+int nl_check_zstr(char* buf, size_t len);
+int nl_check_nest(char* buf, size_t len);
 
 int nl_attr_len(struct nlattr* at);
 int nl_attr_is_nest(struct nlattr* at);
@@ -32,7 +32,7 @@ int nl_attr_is_zstr(struct nlattr* at);
 /* GENL shorthands */
 
 struct nlattr* nl_get(struct nlgen* msg, uint16_t type);
-void* nl_get_of_len(struct nlgen* msg, uint16_t type, int len);
+void* nl_get_of_len(struct nlgen* msg, uint16_t type, size_t len);
 char* nl_get_str(struct nlgen* msg, uint16_t type);
 struct nlattr* nl_get_nest(struct nlgen* msg, uint16_t type);
 
@@ -43,7 +43,7 @@ struct nlattr* nl_get_nest(struct nlgen* msg, uint16_t type);
 #define nl_get_i32(at, kk) nl_get_int(at, kk, int32_t)
 
 int nl_attr_len(struct nlattr* at);
-void* nl_sub_of_len(struct nlattr* at, uint16_t type, int len);
+void* nl_sub_of_len(struct nlattr* at, uint16_t type, size_t len);
 char* nl_sub_str(struct nlattr* at, uint16_t type);
 
 #define nl_sub_int(at, kk, tt) (tt*)(nl_sub_of_len(at, kk, sizeof(tt)))

@@ -1,12 +1,12 @@
-#include <bits/null.h>
-#include "../nlusctl.h"
+#include <cdefs.h>
+#include <nlusctl.h>
 
 static int extend_to_4bytes(int n)
 {
 	return n + ((4 - (n & 3)) & 3);
 }
 
-static int is_nest(char* buf, int len)
+static int is_nest(char* buf, size_t len)
 {
 	char* end = buf + len;
 

@@ -4,16 +4,16 @@ struct nlmsg;
 
 struct netlink {
 	int fd;
-	int seq;
 	int err;
+	unsigned seq;
 
 	void* rxbuf;
-	int rxlen;
-	int rxend;
+	size_t rxlen;
+	size_t rxend;
 
 	void* txbuf;
-	int txlen;
-	int txend;
+	size_t txlen;
+	size_t txend;
 	int txover;
 
 	struct nlmsg* rx;
@@ -24,8 +24,8 @@ struct netlink {
 };
 
 void nl_init(struct netlink* nl);
-void nl_set_txbuf(struct netlink* nl, void* buf, int len);
-void nl_set_rxbuf(struct netlink* nl, void* buf, int len);
+void nl_set_txbuf(struct netlink* nl, void* buf, size_t len);
+void nl_set_rxbuf(struct netlink* nl, void* buf, size_t len);
 long nl_connect(struct netlink* nl, int protocol, int grps);
 long nl_subscribe(struct netlink* nl, int id);
 

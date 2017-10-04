@@ -1,8 +1,8 @@
-#include <bits/null.h>
 #include <sys/creds.h>
 #include <sys/socket.h>
 
 #include <string.h>
+#include <cdefs.h>
 
 #include "ctx.h"
 #include "base.h"
@@ -12,13 +12,13 @@ void nl_init(struct netlink* nl)
 	memset(nl, 0, sizeof(*nl));
 }
 
-void nl_set_txbuf(struct netlink* nl, void* buf, int len)
+void nl_set_txbuf(struct netlink* nl, void* buf, size_t len)
 {
 	nl->txbuf = buf;
 	nl->txlen = len;
 }
 
-void nl_set_rxbuf(struct netlink* nl, void* buf, int len)
+void nl_set_rxbuf(struct netlink* nl, void* buf, size_t len)
 {
 	nl->rxbuf = buf;
 	nl->rxlen = len;
@@ -88,7 +88,7 @@ long nl_send_txbuf(struct netlink* nl)
 static int nl_got_message(struct netlink* nl)
 {
 	int off = nl->msgend;
-	int len = nl->rxend - off;
+	size_t len = nl->rxend - off;
 
 	if(len < sizeof(struct nlmsg))
 		return 0;

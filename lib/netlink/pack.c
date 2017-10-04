@@ -1,4 +1,4 @@
-#include <bits/null.h>
+#include <cdefs.h>
 #include <string.h>
 
 #include "base.h"

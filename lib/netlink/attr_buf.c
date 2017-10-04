@@ -1,14 +1,14 @@
-#include <bits/null.h>
+#include <cdefs.h>
 
 #include "base.h"
 #include "attr.h"
 
-static int extend_to_4bytes(int n)
+static size_t extend_to_4bytes(size_t n)
 {
 	return n + ((4 - (n & 3)) & 3);
 }
 
-struct nlattr* nl_attr_0_in(char* buf, int len)
+struct nlattr* nl_attr_0_in(char* buf, size_t len)
 {
 	struct nlattr* at;
 
@@ -23,7 +23,7 @@ struct nlattr* nl_attr_0_in(char* buf, int len)
 	return at;
 }
 
-static int ptr_in_buf(char* buf, int len, char* ptr)
+static int ptr_in_buf(char* buf, size_t len, char* ptr)
 {
 	if(!ptr)
 		return 0;
@@ -34,7 +34,7 @@ static int ptr_in_buf(char* buf, int len, char* ptr)
 	return 1;
 }
 
-struct nlattr* nl_attr_n_in(char* buf, int len, struct nlattr* curr)
+struct nlattr* nl_attr_n_in(char* buf, size_t len, struct nlattr* curr)
 {
 	char* pcurr = (char*)curr;
 
@@ -49,7 +49,7 @@ struct nlattr* nl_attr_n_in(char* buf, int len, struct nlattr* curr)
 	return (struct nlattr*)pnext;	
 }
 
-struct nlattr* nl_attr_k_in(char* buf, int len, int type)
+struct nlattr* nl_attr_k_in(char* buf, size_t len, int type)
 {
 	struct nlattr* at;
 

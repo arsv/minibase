@@ -1,9 +1,9 @@
-#include <bits/null.h>
+#include <cdefs.h>
 
 #include "base.h"
 #include "attr.h"
 
-void* nl_bin(struct nlattr* at, int len)
+void* nl_bin(struct nlattr* at, unsigned len)
 {
 	return (at && at->len - sizeof(*at) == len) ? at->payload : NULL;
 }
