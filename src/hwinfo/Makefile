@@ -1,3 +1,3 @@
-command = lsusb
+command = lsusb lspci
 
 include ../rules.mk
