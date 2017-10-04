@@ -164,7 +164,7 @@ static void setup(int argc, char** argv, char** envp)
 
 	if(!(p = parsemac(arg_bssid, bssid)) || *p)
 		fail("invalid bssid:", arg_bssid, 0);
-	if(!(p = parseint(arg_freq, &frequency)) || *p)
+	if(!(p = parseint(arg_freq, (int*)&frequency)) || *p)
 		fail("invalid frequency:", arg_freq, 0);
 
 	if(!arg_mode || !strcmp(arg_mode, "cc"))

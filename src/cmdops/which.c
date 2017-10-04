@@ -6,7 +6,7 @@
 
 #define TAG "which"
 
-extern void _exit(int) __attribute__((noreturn));
+extern void _exit(int code) noreturn;
 
 static void warn(const char* obj, const char* msg)
 {

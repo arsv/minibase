@@ -1,7 +1,6 @@
 #include <sys/klog.h>
 #include <sys/mman.h>
 
-#include <alloca.h>
 #include <string.h>
 #include <format.h>
 #include <output.h>

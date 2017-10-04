@@ -61,6 +61,6 @@ void match_part(char* name);
 int check_partitions(void);
 void link_parts(void);
 
-int error(const char* msg, char* arg, int err) __attribute__((noreturn));
+int error(const char* msg, char* arg, int err) noreturn;
 int check_keyindex(int keyidx);
-void quit(const char* msg, char* arg, int err) __attribute__((noreturn));
+void quit(const char* msg, char* arg, int err) noreturn;

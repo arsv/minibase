@@ -1,7 +1,6 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
-#include <alloca.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>

@@ -37,7 +37,7 @@ static void setup_socket(char* name)
 {
 	int fd, ret;
 	struct sockaddr_un addr;
-	int nlen = strlen(name);
+	uint nlen = strlen(name);
 
 	addr.family = AF_UNIX;
 	

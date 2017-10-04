@@ -501,7 +501,7 @@ static void seek_to_start_of_line(CTX)
 	int ret, fd = ctx->fd;
 	char* end = ctx->buf.end;
 	char* ptr = ctx->buf.ptr;
-	long chunk = end - ptr;
+	ulong chunk = end - ptr;
 	char* ls;
 
 	if((ret = sys_fstat(fd, &st)) < 0)

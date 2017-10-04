@@ -32,4 +32,4 @@ void negotiate_keys(void);
 int group_rekey(void);
 void cleanup_keys(void);
 
-void quit(const char* msg, const char* arg, int err) __attribute__((noreturn));
+void quit(const char* msg, const char* arg, int err) noreturn;

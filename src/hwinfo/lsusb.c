@@ -33,8 +33,8 @@ struct dev {
 	int vendor;
 	int product;
 
-	int ncls;
-	unsigned char cls[8];
+	uint ncls;
+	byte cls[8];
 
 	char payload[];
 };
@@ -287,7 +287,7 @@ static int read_int_file(int at, char* name, int hex)
 
 static void add_dev_class(struct dev* dev, int cls)
 {
-	int i;
+	uint i;
 
 	for(i = 0; i < dev->ncls; i++)
 		if(dev->cls[i] == cls)
@@ -513,8 +513,9 @@ static char* describe_class(char* p, char* e, struct dev* dev)
 	char* s = p;
 	p = fmtstr(p, e, " (");
 	char* q = p;
+	uint i;
 
-	for(int i = 0; i < dev->ncls; i++) {
+	for(i = 0; i < dev->ncls; i++) {
 		int class = dev->cls[i];
 		const char* name = usb_class_name(class);
 

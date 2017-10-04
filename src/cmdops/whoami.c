@@ -63,7 +63,7 @@ static char* findname(char* filedata, int len, char* uidstr, int* namelen)
 	return NULL;
 }
 
-int main(int argc, char** argv)
+int main(int argc, char** argv __unused)
 {
 	if(argc > 1)
 		fail("no options allowed", NULL, 0);

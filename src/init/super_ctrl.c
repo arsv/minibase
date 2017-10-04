@@ -9,7 +9,6 @@
 #include <nlusctl.h>
 #include <string.h>
 #include <format.h>
-#include <alloca.h>
 #include <util.h>
 
 #include "common.h"

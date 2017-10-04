@@ -27,7 +27,7 @@ static int sendfile(CCT, uint64_t* size)
 
 	uint64_t done = 0;
 	long ret = 0;
-	long run = 0x7ffff000;
+	ulong run = 0x7ffff000;
 
 	if(*size < run)
 		run = *size;
@@ -74,7 +74,7 @@ static void readwrite(CCT, uint64_t* size)
 	uint64_t done = 0;
 
 	char* buf = ctx->buf;
-	long len = ctx->len;
+	ulong len = ctx->len;
 
 	if(len > *size)
 		len = *size;
@@ -140,12 +140,12 @@ static void transfer(CCT)
 
 	ds = sys_lseek(rfd, 0, SEEK_DATA);
 
-	if(ds == -EINVAL || ds >= size)
+	if(ds == -EINVAL || (ulong)ds >= size)
 		goto plain;
 
 	de = sys_lseek(rfd, ds, SEEK_HOLE);
 
-	if(de < 0 || de >= size)
+	if(de < 0 || (ulong)de >= size)
 		goto plain;
 
 	sys_ftruncate(wfd, size);
@@ -157,7 +157,7 @@ static void transfer(CCT)
 		if((blk = de - ds) > 0)
 			moveblock(cct, &blk);
 
-		if(de >= size)
+		if((ulong)de >= size)
 			break;
 
 		ds = sys_lseek(rfd, de, SEEK_DATA);

@@ -35,7 +35,7 @@ static int is_named_part_of(char* dev, char* part, char* name)
 
 static void set_part_name(struct part* pt, char* name)
 {
-	int nlen = strlen(name);
+	uint nlen = strlen(name);
 
 	if(nlen > sizeof(pt->name) - 1)
 		quit("part name too long:", name, 0);
@@ -179,7 +179,7 @@ static int has_mbr(char* dev, char* id)
 		return 0;
 	if((rd = sys_read(fd, buf, sizeof(buf))) < 0)
 		goto out;
-	if(rd < sizeof(buf))
+	if((ulong)rd < sizeof(buf))
 		goto out;
 
 	if(memcmp(buf + 0x1FE, mbrtag, sizeof(mbrtag)))
@@ -289,7 +289,7 @@ static int matches(struct bdev* bd, char* dev)
 
 static void set_dev_name(struct bdev* bd, char* name)
 {
-	int nlen = strlen(name);
+	uint nlen = strlen(name);
 
 	if(nlen > sizeof(bd->name) - 1)
 		quit("device name too long:", name, 0);

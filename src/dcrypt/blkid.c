@@ -31,7 +31,7 @@ static int open_dev_dir(char* name)
 	return sys_open(path, O_DIRECTORY);
 }
 
-static int read_entry(int at, const char* entry, char* buf, int len)
+static int read_entry(int at, const char* entry, char* buf, ulong len)
 {
 	int fd, rd;
 

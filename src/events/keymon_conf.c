@@ -153,8 +153,8 @@ static void parse_acts(struct lbuf* lb, struct action* ka, char* p)
 	char* cmd = p;
 	char* arg = cut_word(p);
 
-	int cmdlen = strnlen(cmd, sizeof(ka->cmd));
-	int arglen = strnlen(arg, sizeof(ka->arg));
+	uint cmdlen = strnlen(cmd, sizeof(ka->cmd));
+	uint arglen = strnlen(arg, sizeof(ka->arg));
 
 	if(cmdlen >= sizeof(ka->cmd))
 		error(lb, "action name too long", NULL);

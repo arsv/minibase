@@ -92,7 +92,7 @@ static void parse_vendor(struct scan* sc, int len, char* buf)
 		sc->type |= ST_WPS;
 }
 
-static void set_station_ssid(struct scan* sc, int len, char* buf)
+static void set_station_ssid(struct scan* sc, uint len, char* buf)
 {
 	int i;
 
@@ -108,7 +108,7 @@ static void set_station_ssid(struct scan* sc, int len, char* buf)
 	sc->slen = i;
 }
 
-void parse_station_ies(struct scan* sc, char* buf, int len)
+void parse_station_ies(struct scan* sc, char* buf, uint len)
 {
 	char* end = buf + len;
 	char* ptr = buf;

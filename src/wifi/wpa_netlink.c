@@ -79,9 +79,9 @@ int resolve_ifname(char* name)
 
 static int match_ifi(struct nlgen* msg)
 {
-	uint32_t* ifi;
+	int32_t* ifi;
 
-	if(!(ifi = nl_get_u32(msg, NL80211_ATTR_IFINDEX)))
+	if(!(ifi = nl_get_i32(msg, NL80211_ATTR_IFINDEX)))
 		return 0;
 	if(*ifi != ifindex)
 		return 0;

@@ -68,9 +68,9 @@ static void parsesuffixed(uint64_t* u, const char* n)
 	{
 		default: fail("invalid number", n, 0);
 		case '\0': break;
-		case 'G': tmp *= 1024;
-		case 'M': tmp *= 1024;
-		case 'K': tmp *= 1024;
+		case 'G': tmp *= 1024; /* fallthrough */
+		case 'M': tmp *= 1024; /* fallthrough */
+		case 'K': tmp *= 1024; /* fallthrough; also f-ck gcc */
 	};
 
 	*u = tmp;

@@ -42,7 +42,7 @@ static int min(int a, int b)
 	return a > b ? b : a;
 }
 
-static void initialize(char* title, int len)
+static void initialize(char* title, ulong len)
 {
 	if(len > sizeof(inp.buf))
 		len = sizeof(inp.buf);
@@ -285,7 +285,7 @@ int input(char* title, char* buf, int len)
 		if(handle(rbuf, ret))
 			break;
 
-	int ptr = inp.ptr;
+	uint ptr = inp.ptr;
 
 	if(ptr > sizeof(inp.buf))
 		ptr = sizeof(inp.buf);

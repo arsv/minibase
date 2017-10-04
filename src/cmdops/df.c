@@ -51,7 +51,7 @@ static char* fmtmem(char* p, char* e, unsigned long n, int mu)
 
 	/* mu is typically 4KB or so, and we can skip three extra zeros */
 	int muinkb = !(mu % 1024);
-	int sfi = muinkb ? 1 : 0;
+	unsigned sfi = muinkb ? 1 : 0;
 	unsigned long nb = muinkb ? n*(mu/1024) : n*mu;
 	unsigned long fr = 0;
 
@@ -98,7 +98,7 @@ static void wrheader()
 	xwriteout((char*)hdr, sizeof(hdr));
 }
 
-static char* fmtstatfs(char* p, char* e, struct statfs* st, int opts)
+static char* fmtstatfs(char* p, char* e, struct statfs* st)
 {
 	long bs = st->bsize;
 	long blocksused = st->blocks - st->bavail;
@@ -145,7 +145,7 @@ static void reportfs(char* statfile, char* mountpoint, int opts)
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
 
-	p = fmtstatfs(p, e, &st, opts);
+	p = fmtstatfs(p, e, &st);
 
 	xwriteout(buf, p - buf);
 

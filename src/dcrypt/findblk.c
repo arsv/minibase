@@ -15,12 +15,12 @@ void quit(const char* msg, char* arg, int err)
 	fail(msg, arg, err);
 }
 
-int check_keyindex(int kidx)
+int check_keyindex(int kidx __unused)
 {
 	return -EINVAL;
 }
 
-int main(int argc, char** argv)
+int main(int argc)
 {
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);

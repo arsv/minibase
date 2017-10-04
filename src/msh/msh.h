@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <cdefs.h>
 
 /* arguments for hset/hrev */
 #define HEAP 0
@@ -98,10 +98,9 @@ int export(CTX, char* var);
 
 void command(CTX);
 
-#define NR __attribute__((noreturn))
-void quit(CTX, const char* err, char* arg, long ret) NR;
+void quit(CTX, const char* err, char* arg, long ret) noreturn;
 int error(CTX, const char* err, char* arg, long ret);
-void fatal(CTX, const char* err, char* arg) NR;
+void fatal(CTX, const char* err, char* arg) noreturn;
 int fchk(long ret, CTX, char* arg);
 
 int numleft(CTX);

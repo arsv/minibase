@@ -109,7 +109,7 @@ int cmd_onerror(CTX)
 	if(moreleft(ctx))
 		return -1;
 
-	int len = strlen(arg);
+	uint len = strlen(arg);
 
 	if(len == 1 && arg[0] == '-') {
 		memzero(ctx->trap, sizeof(ctx->trap));

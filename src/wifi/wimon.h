@@ -48,7 +48,7 @@
 
 struct link {
 	int ifi;
-	int seq;
+	uint seq;
 	char name[NAMELEN+2];
 	short flags;
 	short mode;
@@ -81,7 +81,7 @@ struct scan {
 	short tries;
 	short flags;
 	uint8_t bssid[6];
-	short slen;
+	ushort slen;
 	uint8_t ssid[SSIDLEN];
 };
 
@@ -209,7 +209,7 @@ void del_link_addresses(int ifi);
 
 void trigger_scan(int ifi, int freq);
 void trigger_disconnect(int ifi);
-void parse_station_ies(struct scan* sc, char* buf, int len);
+void parse_station_ies(struct scan* sc, char* buf, uint len);
 
 void enable_iface(int ifi);
 void disable_iface(int ifi);
@@ -283,7 +283,7 @@ void start_wifi_scan(void);
 
 void wifi_mode_disabled(void);
 int wifi_mode_roaming(void);
-int wifi_mode_fixedap(uint8_t* ssid, int slen, char* psk);
+int wifi_mode_fixedap(uint8_t* ssid, uint slen, char* psk);
 
 /* wimon_proc.c */
 

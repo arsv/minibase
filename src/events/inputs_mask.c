@@ -1,5 +1,4 @@
 #include <bits/input.h>
-#include <bits/null.h>
 #include <sys/ioctl.h>
 #include <string.h>
 #include <format.h>

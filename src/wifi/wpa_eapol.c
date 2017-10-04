@@ -347,7 +347,7 @@ static void fill_smac(void)
 	int fd = rawsock;
 	struct ifreq ifr;
 	long ret;
-	int ifnlen = strlen(ifname);
+	uint ifnlen = strlen(ifname);
 
 	memzero(&ifr, sizeof(ifr));
 

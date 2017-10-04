@@ -190,7 +190,7 @@ static void clear_ap(void)
 
 static int load_given_psk(char* psk)
 {
-	int len = strlen(psk);
+	uint len = strlen(psk);
 
 	if(len > sizeof(wifi.psk) - 1)
 		return -EINVAL;
@@ -545,7 +545,7 @@ int wifi_mode_roaming(void)
 	return restart_wifi();
 }
 
-int wifi_mode_fixedap(uint8_t* ssid, int slen, char* psk)
+int wifi_mode_fixedap(uint8_t* ssid, uint slen, char* psk)
 {
 	int ret;
 

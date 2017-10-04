@@ -100,7 +100,7 @@ void notify_deactivated(int tty)
 	send_notification(tty, PIPE_REP_DEACTIVATE);
 }
 
-static int check_managed_dev(int fd, int* dev, int tty)
+static int check_managed_dev(int fd, uint64_t* dev, int tty)
 {
 	struct stat st;
 	long ret;
@@ -129,7 +129,7 @@ static int check_managed_dev(int fd, int* dev, int tty)
    would also mess up mastering. Inputs would be ok, but there's
    still no point in opening them more than once. */
 
-static int check_for_duplicate(struct mdev* md, int dev, int tty)
+static int check_for_duplicate(struct mdev* md, uint64_t dev, int tty)
 {
 	struct mdev* mx;
 
@@ -241,7 +241,7 @@ static int is_zstr(char* buf, int len)
    For DRIs, the active tty may not have yet opened this particular device,
    so the background one will become master despite being in background. */
 
-static void req_open(struct term* cvt, void* buf, int len)
+static void req_open(struct term* cvt, void* buf, uint len)
 {
 	struct pmsg_open* msg = buf;
 	int ret;
@@ -257,7 +257,7 @@ static void req_open(struct term* cvt, void* buf, int len)
 	return reply_send_fd(cvt, PIPE_REP_OK, ret);
 }
 
-static void dispatch_req(struct term* cvt, void* buf, int len)
+static void dispatch_req(struct term* cvt, void* buf, uint len)
 {
 	struct pmsg* msg = buf;
 

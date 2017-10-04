@@ -1,4 +1,3 @@
-#include <bits/null.h>
 #include <bits/ints.h>
 #include <bits/rfkill.h>
 #include <sys/file.h>
@@ -118,7 +117,7 @@ void handle_rfkill(void)
 	while((rd = sys_read(fd, buf, sizeof(buf))) > 0) {
 		re = (struct rfkill_event*) buf;
 
-		if(rd < sizeof(*re))
+		if((ulong)rd < sizeof(*re))
 			continue;
 		if(re->type != RFKILL_TYPE_WLAN)
 			continue;

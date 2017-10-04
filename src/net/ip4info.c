@@ -33,14 +33,14 @@ struct heap hp;
 struct netlink nl;
 
 struct ip4addr {
-	unsigned ifi;
-	unsigned flags;
-	uint8_t ip[4];
-	uint8_t mask;
+	uint ifi;
+	uint flags;
+	byte ip[4];
+	byte mask;
 } **ips;
 
 struct ip4link {
-	unsigned ifi;
+	uint ifi;
 	char name[20];
 } **ifs;
 
@@ -240,7 +240,7 @@ char* fmt_route_dst(char* p, char* e, struct rtmsg* msg)
 	return p;
 }
 
-char* ifi_to_name(int ifi)
+char* ifi_to_name(uint ifi)
 {
 	struct ip4link** q;
 

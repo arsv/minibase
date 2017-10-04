@@ -155,7 +155,7 @@ void msg_new_link(struct ifinfomsg* msg)
 {
 	struct link* ls;
 	char* name;
-	int nlen;
+	uint nlen;
 
 	if(!(name = nl_str(ifi_get(msg, IFLA_IFNAME))))
 		return;
@@ -303,7 +303,7 @@ void msg_del_route(struct rtmsg* msg)
 
    NLMSG_DONE packets should never arrive unrequested on RTNL. */
 
-static void send_dump_req(int cmd, int hdrsize)
+static void send_dump_req(int cmd, uint hdrsize)
 {
 	struct nlmsg* nlm;
 
@@ -367,7 +367,7 @@ typedef void (*rth)(struct nlmsg* msg);
 struct rtnh {
 	int type;
 	rth func;
-	int hdr;
+	uint hdr;
 } rtnlcmds[] = {
 #define MSG(cmd, func, mm) { cmd, (rth)(func), sizeof(struct mm) }
 	MSG(NLMSG_NOOP,   NULL,          nlmsg),

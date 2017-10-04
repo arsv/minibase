@@ -264,7 +264,7 @@ static void readwrite(struct file* dst, struct file* src, uint64_t size)
 {
 	uint64_t left = size;
 
-	long blen = size > MAXRUN ? MAXRUN : size;
+	uint64_t blen = size > MAXRUN ? MAXRUN : size;
 	char* buf = mmapempty(blen);
 
 	long rd, wr;

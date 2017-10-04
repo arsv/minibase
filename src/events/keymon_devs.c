@@ -45,7 +45,7 @@ static int already_polling(int minor)
 	return 0;
 }
 
-static int check_event_dev(int fd, long* dev)
+static int check_event_dev(int fd, uint64_t* dev)
 {
 	struct stat st;
 
@@ -84,7 +84,7 @@ static void check_dir_ent(char* dir, char* name)
 {
 	struct device* kb;
 	int fd;
-	long rdev;
+	uint64_t rdev;
 
 	int dirlen = strlen(dir);
 	int namelen = strlen(name);

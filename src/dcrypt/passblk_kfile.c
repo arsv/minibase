@@ -36,7 +36,7 @@ void load_keyfile(void)
 
 	if((ret = sys_read(fd, keybuf, st.size)) < 0)
 		fail("read", name, ret);
-	if(ret < st.size)
+	if((ulong)ret < st.size)
 		fail("incomplete read", NULL, 0);
 	if(ret < 16 || ret % 16)
 		fail("invalid keyfile", name, 0);

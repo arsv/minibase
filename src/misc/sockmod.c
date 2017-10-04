@@ -42,7 +42,7 @@ struct top {
 struct access {
 	int uid;
 	int gid;
-	int mode;
+	uint mode;
 };
 
 #define CTX struct top* ctx
@@ -97,6 +97,7 @@ static void* heap_alloc(CTX, long size)
 static void read_file(CTX, struct fbuf* fb, const char* name)
 {
 	int fd, ret;
+	long rd;
 	struct stat st;
 
 	if(fb->ptr)
@@ -109,9 +110,9 @@ static void read_file(CTX, struct fbuf* fb, const char* name)
 
 	char* buf = heap_alloc(ctx, st.size + 1);
 
-	if((ret = sys_read(fd, buf, st.size)) < 0)
-		fail("read", name, ret);
-	if(ret < st.size)
+	if((rd = sys_read(fd, buf, st.size)) < 0)
+		fail("read", name, rd);
+	if((size_t)rd < st.size)
 		fail("incomplete read from", name, 0);
 
 	buf[st.size] = '\0';

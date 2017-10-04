@@ -19,7 +19,7 @@ struct top {
 	int opts;
 
 	char* buf;
-	long len;
+	size_t len;
 
 	int uid;
 	int gid;

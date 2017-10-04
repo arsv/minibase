@@ -185,7 +185,7 @@ static void create(void)
 		count = shift_uint();
 	no_other_options();
 
-	int total = sizeof(kf->salt) + sizeof(kf->iv) + count*size;
+	ulong total = sizeof(kf->salt) + sizeof(kf->iv) + count*size;
 
 	if(total > sizeof(kf->buf))
 		fail("keyring size too large", NULL, 0);

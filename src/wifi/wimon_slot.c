@@ -1,4 +1,3 @@
-#include <bits/null.h>
 #include <string.h>
 #include <format.h>
 

@@ -46,7 +46,7 @@ struct {
 } offer;
 
 struct {
-	int index;
+	uint index;
 	char name[IFNAMESIZ+1];
 	uint8_t mac[6];
 } iface;
@@ -186,7 +186,7 @@ static void reset(void)
 
 static struct dhcpopt* add_option(int code, int len)
 {
-	int alloc = len + sizeof(struct dhcpopt);
+	uint alloc = len + sizeof(struct dhcpopt);
 
 	if(optptr + alloc >= sizeof(packet.options) - 1)
 		fail("out of packet space", NULL, 0);

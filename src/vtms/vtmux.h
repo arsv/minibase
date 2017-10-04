@@ -1,3 +1,5 @@
+#include <cdefs.h>
+
 #define CMDSIZE 20
 
 #define NTERMS 12
@@ -26,8 +28,8 @@ struct term {
 
 struct mdev {
 	int fd;
-	int dev;      /* maj:min, in st_dev encoding */
-	short tty;    /* N in ttyN this fd is associated with */
+	int tty;        /* N in ttyN this fd is associated with */
+	uint64_t dev;   /* maj:min, in st_dev encoding */
 };
 
 struct conn {
@@ -117,4 +119,4 @@ void flush_mdevs(void);
 void switch_sigalrm(void);
 void switch_sigusr1(void);
 
-void quit(const char* msg, char* arg, int err) __attribute__((noreturn));
+void quit(const char* msg, char* arg, int err) noreturn;

@@ -98,7 +98,7 @@ static void putstr(char* buf, char* src, int len)
 static int dm_create(struct device* dev)
 {
 	char* name = dev->name;
-	int nlen = strlen(name);
+	ulong nlen = strlen(name);
 	int ret;
 
 	struct dm_ioctl dmi = {
@@ -126,13 +126,13 @@ static int dm_single(char* name, uint64_t size, char* targ, char* opts)
 	struct dm_target_spec* dts;
 	char* optstring;
 
-	int nlen = strlen(name);
-	int tlen = strlen(targ);
-	int olen = strlen(opts);
-	int dmilen = sizeof(*dmi);
-	int dtslen = sizeof(*dts);
+	uint nlen = strlen(name);
+	uint tlen = strlen(targ);
+	uint olen = strlen(opts);
+	uint dmilen = sizeof(*dmi);
+	uint dtslen = sizeof(*dts);
 
-	int reqlen = dmilen + dtslen + olen + 1;
+	uint reqlen = dmilen + dtslen + olen + 1;
 	char req[reqlen];
 
 	dmi = (struct dm_ioctl*)(req + 0);
@@ -193,7 +193,7 @@ static int dm_crypt(struct device* dev, char* cipher, void* key, int keylen)
 
 static int dm_suspend(char* name, int flags)
 {
-	int nlen = strlen(name);
+	unsigned nlen = strlen(name);
 	int ret;
 
 	struct dm_ioctl dmi = {
@@ -215,7 +215,7 @@ static int dm_suspend(char* name, int flags)
 
 static void dm_remove(char* name)
 {
-	int nlen = strlen(name);
+	uint nlen = strlen(name);
 	int ret;
 
 	struct dm_ioctl dmi = {

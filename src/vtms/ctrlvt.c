@@ -21,7 +21,7 @@ char** environ;
 
 char code[20];
 char copy[20];
-int codelen, copylen;
+uint codelen, copylen;
 
 struct box {
 	int r, c, w, h;

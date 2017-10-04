@@ -13,7 +13,7 @@ ERRTAG("tail");
 #define OPT_h (1<<1)
 
 struct top {
-	int count;
+	unsigned count;
 	int opts;
 	char* name;
 	int fd;
@@ -148,7 +148,7 @@ static void reopen_file(struct top* ctx)
    as it limits the about of garbage the users would get if the file happens
    to be non-text. */
 
-int estimate_size(int count)
+unsigned estimate_size(unsigned count)
 {
 	return 120*count;
 }
@@ -421,8 +421,8 @@ static void seek_file(struct top* ctx, int off, int whence)
 
 static void seek_file_tail(struct top* ctx)
 {
-	int count = ctx->count;
-	int est = estimate_size(count);
+	unsigned count = ctx->count;
+	unsigned est = estimate_size(count);
 	struct stat st;
 	int ret;
 
@@ -432,15 +432,15 @@ static void seek_file_tail(struct top* ctx)
 	if(!is_regular_file(&st) || !st.size)
 		return skip_file_tail(ctx);
 
-	long maxbuf = (1<<20);
-	long buflen = st.size > maxbuf ? maxbuf : st.size;
+	ulong maxbuf = (1<<20);
+	ulong buflen = st.size > maxbuf ? maxbuf : st.size;
 	allocate_tail_buf(ctx, buflen);
 
 	if(est < st.size)
 		seek_file(ctx, -est, SEEK_END);
 
-	int cnt = count_tail_lines(ctx);
-	int skip = cnt > count ? cnt - count : 0;
+	unsigned cnt = count_tail_lines(ctx);
+	unsigned skip = cnt > count ? cnt - count : 0;
 
 	if(est < st.size)
 		seek_file(ctx, -est, SEEK_END);

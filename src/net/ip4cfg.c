@@ -26,7 +26,7 @@ struct top {
 	char** argv;
 
 	int opts;
-	int ifi;
+	uint ifi;
 
 	struct netlink nl;
 };

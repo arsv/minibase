@@ -37,7 +37,7 @@ static void setup_args(int argc, char** argv)
 		goto out;
 
 	char* arg = argv[1];
-	int len = strlen(arg);
+	unsigned len = strlen(arg);
 
 	if(len > sizeof(reboot) - 1) {
 		report("command too long:", arg, 0);

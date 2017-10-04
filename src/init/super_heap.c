@@ -1,5 +1,6 @@
-#include <bits/null.h>
 #include <sys/mman.h>
+
+#include <cdefs.h>
 #include "super.h"
 
 /* Heap is only used for large buffers in load_dir_ents()

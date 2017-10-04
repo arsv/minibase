@@ -129,7 +129,7 @@ static void add_hex_id(struct ctx* ctx, int type, int len)
 			case '0' ... '9':
 			case 'A' ... 'F': *p++ = *q; break;
 			case 'a' ... 'f': *p++ = 'A' + (*q - 'a'); break;
-			case '-': if((p - s) % 2 == 0) break;
+			case '-': if((p - s) % 2 == 0) break; /* fallthrough */
 			default: parse_error(ctx, "invalid hex value", NULL);
 		}
 
@@ -364,7 +364,7 @@ void load_config(void)
 	if(st.size > MAX_CONFIG_SIZE)
 		fail("file too large:", name, ret);
 
-	int len = st.size;
+	uint len = st.size;
 	char* buf;
 	
 	if(len + 1 <= sizeof(smallbuf))
@@ -374,7 +374,7 @@ void load_config(void)
 
 	if((ret = sys_read(fd, buf, len)) < 0)
 		fail("read", name, ret);
-	else if(ret < len)
+	else if((ulong)ret < len)
 		fail("read", name, 0);
 
 	sys_close(fd);

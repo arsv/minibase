@@ -1,4 +1,3 @@
-#include <bits/null.h>
 #include <sys/sched.h>
 
 #include <format.h>

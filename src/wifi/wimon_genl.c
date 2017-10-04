@@ -45,7 +45,7 @@ int nl80211;
 #define DUMP_SCAN 2
 
 int genl_scan_ifi;
-int genl_scan_seq;
+uint genl_scan_seq;
 int genl_dump_state;
 int genl_scan_ready;
 
@@ -165,7 +165,7 @@ static void mark_stale_scan_slots(struct nlgen* msg)
 {
 	struct nlattr* at;
 	struct nlattr* sb;
-	uint32_t* fq;
+	int32_t* fq;
 	struct scan* sc;
 
 	if(!(at = nl_get_nest(msg, NL80211_ATTR_SCAN_FREQUENCIES)))
@@ -175,7 +175,7 @@ static void mark_stale_scan_slots(struct nlgen* msg)
 		if(!sc->freq)
 			continue;
 		for(sb = nl_sub_0(at); sb; sb = nl_sub_n(at, sb))
-			if(!(fq = nl_u32(sb)))
+			if(!(fq = (int*)nl_u32(sb)))
 				continue;
 			else if(*fq == sc->freq)
 				break;

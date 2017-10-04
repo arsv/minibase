@@ -24,8 +24,8 @@ ERRLIST(NEACCES NEBADF NEFAULT NEINTR NEIO NELOOP NENOENT NENOMEM
 #define DEBUFSIZE 2000
 
 struct root {
-	long olddev;
-	long newdev;
+	uint64_t olddev;
+	uint64_t newdev;
 	char* newroot;
 	int newrlen;
 };

@@ -9,7 +9,6 @@
 #include <nlusctl.h>
 #include <string.h>
 #include <format.h>
-#include <alloca.h>
 #include <util.h>
 
 #include "common.h"
@@ -29,11 +28,11 @@ static struct preq {
 static char txbuf[100]; /* for small replies */
 static struct ucbuf uc;
 
-static void start_reply(int cmd, int expected)
+static void start_reply(int cmd, unsigned expected)
 {
 	char* buf = NULL;
 	int len;
-	int req = expected + sizeof(struct ucmsg) + 4;
+	unsigned req = expected + sizeof(struct ucmsg) + 4;
 
 	if(req > sizeof(txbuf)) {
 		buf = heap_alloc(req);

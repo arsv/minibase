@@ -8,7 +8,7 @@ struct ucmsg;
 struct ucbuf;
 struct ucred;
 
-void quit(const char* msg, char* arg, int err) __attribute__((noreturn));
+void quit(const char* msg, char* arg, int err) noreturn;
 void handle(int fd);
 
 int grab_blkdev(char* path, struct ucred* uc);

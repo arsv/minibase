@@ -2,7 +2,6 @@
 
 #include <format.h>
 #include <string.h>
-#include <alloca.h>
 #include <util.h>
 
 #include "msh.h"

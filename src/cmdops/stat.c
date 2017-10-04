@@ -143,7 +143,7 @@ static char* sumtypemode(char* p, char* e, struct stat* st, int opts)
    is not shared either because this stat implementation always
    handles exactly one file. */
 
-static char* mmapfile(const char* fname, long* size)
+static char* mmapfile(const char* fname, size_t* size)
 {
 	long fd = sys_open(fname, O_RDONLY);
 	if(fd < 0) return NULL;
@@ -173,7 +173,7 @@ static char* idname(char* name, char* nend, int id, const char* dictname)
 
 	if(!dictname) goto asnum;
 	
-	long size = 0x7FFFFFFF; /* max size of /etc/passwd */
+	ulong size = 0x7FFFFFFF; /* max size of /etc/passwd */
 	char* buf = mmapfile(dictname, &size);
 	char* end = buf + size;
 
@@ -248,7 +248,7 @@ static char* sumlinks(char* p, char* e, struct stat* st)
 
 static char* sumblkdevino(char* p, char* e, struct stat* st, int opts)
 {
-	int du = 512*st->blocks;
+	unsigned du = 512*st->blocks;
 	int diff = (du > st->size + 512 || du < st->size - 512);
 
 	if(!st->blocks) {
