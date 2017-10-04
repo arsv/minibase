@@ -11,8 +11,8 @@ static char* fmt1i0(char* p, char* e, int n)
 char* fmtsize(char* p, char* e, uint64_t n)
 {
 	static const char sfx[] = " KMGTP";
-	int sfi = 0;
-	int fr = 0;
+	unsigned sfi = 0;
+	unsigned fr = 0;
 
 	/* find out the largest multiplier we can use */
 	for(; sfi < sizeof(sfx) && n > 1024; sfi++) {

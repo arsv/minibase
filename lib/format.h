@@ -12,7 +12,7 @@
 #define FMTEND(p, e) \
 	*p = '\0';
 #define FMTENL(p, e) \
-	*p++ = '\n';
+	if(p < e) *p++ = '\n';
 /* Note FMTENL is used to produce a buffer suitable for
    write()-ing to STDOUT, *not* a 0-terminated string. */
 

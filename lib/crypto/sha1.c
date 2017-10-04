@@ -177,7 +177,7 @@ static void sha1_load_pad2(struct sha1* sh, char* ptr, int tail)
 	sha1_load(sh, block);
 }
 
-static void sha1_load_pad0(struct sha1* sh, char* ptr, uint64_t total)
+static void sha1_load_pad0(struct sha1* sh, uint64_t total)
 {
 	char block[64];
 
@@ -207,7 +207,7 @@ void sha1_last(struct sha1* sh, char* ptr, int len, uint64_t total)
 	if(tail > 55) {
 		sha1_load_pad2(sh, ptr, tail);
 		sha1_hash(sh);
-		sha1_load_pad0(sh, ptr, total);
+		sha1_load_pad0(sh, total);
 		sha1_hash(sh);
 	} else {
 		sha1_load_pad1(sh, ptr, tail, total);

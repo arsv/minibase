@@ -44,12 +44,14 @@ static int nl_attr_is_printable_str(struct nlattr* at)
 static void nl_hexbytes(char* outbuf, int outlen, char* inbuf, int inlen)
 {
 	static const char digits[] = "0123456789ABCDEF";
+	char* end = outbuf + outlen;
 
 	char* p = outbuf;
 	int i;
 
 	for(i = 0; i < inlen; i++) {
 		char c = inbuf[i];
+		if(p + 3 > end) break;
 		*p++ = digits[(c >> 4) & 15];
 		*p++ = digits[(c >> 0) & 15];
 		*p++ = ' ';
@@ -63,7 +65,7 @@ static void nl_hexstring(char* output, char* inbuf, int len)
 	int i;
 
 	for(i = 0; i < len; i++)
-		if(inbuf[i] >= 0x20 && inbuf[i] <= 0x7F)
+		if(inbuf[i] >= 0x20 && !(inbuf[i] & 0x80))
 			output[i] = inbuf[i];
 		else
 			output[i] = '.';
