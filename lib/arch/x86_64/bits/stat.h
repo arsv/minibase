@@ -10,8 +10,8 @@ struct stat {
 	uint32_t nlink;
 	uint32_t __0;
 	uint32_t mode;
-	uint32_t uid;
-	uint32_t gid;
+	int32_t uid;
+	int32_t gid;
 	uint64_t rdev;
 	uint64_t size;
 	uint32_t blksize;

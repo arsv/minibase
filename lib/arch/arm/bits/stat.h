@@ -9,8 +9,8 @@ struct stat {
 	uint64_t ino;
 	uint32_t mode;
 	uint32_t nlink;
-	uint32_t uid;
-	uint32_t gid;
+	 int32_t uid;
+	 int32_t gid;
 	uint64_t rdev;
 	uint64_t __1;
 	 int64_t size;
