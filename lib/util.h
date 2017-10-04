@@ -1,13 +1,7 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__
 
-#include <bits/types.h>
-#include <bits/stdio.h>
-#include <bits/null.h>
-
-#define ARRAY_SIZE(a) (sizeof(a)/sizeof(*a))
-#define ARRAY_END(a) (a + ARRAY_SIZE(a))
-#define offsetof(t, f) __builtin_offsetof(t, f)
+#include <cdefs.h>
 
 int argbits(const char* key, const char* arg);
 int argsumlen(int argc, char** argv);
@@ -26,8 +20,8 @@ long execvpe(char* file, char** argv, char** envp);
 int getifindex(int fd, char* ifname);
 
 void warn(const char* msg, const char* obj, int err);
-void fail(const char* msg, const char* obj, int err) __attribute__((noreturn));
-void _exit(int) __attribute__((noreturn));
+void fail(const char* msg, const char* obj, int err) noreturn;
+void _exit(int) noreturn;
 
 /* There's a common routine when we need to fail() in case given
    syscall returns an error. In some cases we may be interested

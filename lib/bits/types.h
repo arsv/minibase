@@ -15,4 +15,9 @@ typedef int pid_t;
 typedef unsigned long size_t;
 typedef uint64_t off_t;
 
+typedef unsigned char byte;
+typedef unsigned short ushort;
+typedef unsigned uint;
+typedef unsigned long ulong;
+
 #endif
