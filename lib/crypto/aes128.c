@@ -10,9 +10,9 @@
 #include <endian.h>
 #include "aes128.h"
 
-static const int Nk = 4;
-static const int Nb = 4;
-static const int Nr = 10;
+static const uint Nk = 4;
+static const uint Nb = 4;
+static const uint Nr = 10;
 
 static const uint8_t sbox[256] = {
 0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
@@ -58,7 +58,7 @@ static const uint8_t rcon[11] = {
 
 /* Bytes and words are *BIG*endian while uint32-s are host-endian. */
 
-static uint8_t byte(uint32_t x, int i)
+static byte getbyte(uint32_t x, int i)
 {
 #ifdef BIGENDIAN
 	return (x >> (8*(3-i))) & 0xFF;
@@ -87,10 +87,10 @@ static uint32_t rotword(uint32_t x)
 
 static uint32_t subword(uint32_t x, const uint8_t box[256])
 {
-	return word(box[byte(x,0)],
-	            box[byte(x,1)],
-	            box[byte(x,2)],
-	            box[byte(x,3)]);
+	return word(box[getbyte(x,0)],
+	            box[getbyte(x,1)],
+	            box[getbyte(x,2)],
+	            box[getbyte(x,3)]);
 }
 
 static uint8_t xtime(uint8_t x)
@@ -115,7 +115,7 @@ static uint8_t xmul(uint8_t x, uint8_t y)
 
 static void add_round_key(uint32_t S[4], uint32_t W[44], int r)
 {
-	for(int c = 0; c < Nb; c++)
+	for(uint c = 0; c < Nb; c++)
 		S[c] ^= htonl(W[r*Nb+c]);
 }
 
@@ -125,10 +125,10 @@ static void add_round_key(uint32_t S[4], uint32_t W[44], int r)
 
 static uint32_t rowshift(uint32_t S[4], int a, int b, int c, int d)
 {
-	return word(byte(S[a], 0),
-	            byte(S[b], 1),
-	            byte(S[c], 2),
-	            byte(S[d], 3));
+	return word(getbyte(S[a], 0),
+	            getbyte(S[b], 1),
+	            getbyte(S[c], 2),
+	            getbyte(S[d], 3));
 }
 
 static void inv_shift_rows(uint32_t S[4])
@@ -157,10 +157,10 @@ static void fwd_shift_rows(uint32_t S[4])
 
 static uint8_t colmul(uint32_t Si, int a, int b, int c, int d)
 {
-	return xmul(byte(Si, 0), a) ^
-	       xmul(byte(Si, 1), b) ^
-	       xmul(byte(Si, 2), c) ^
-	       xmul(byte(Si, 3), d);
+	return xmul(getbyte(Si, 0), a) ^
+	       xmul(getbyte(Si, 1), b) ^
+	       xmul(getbyte(Si, 2), c) ^
+	       xmul(getbyte(Si, 3), d);
 }
 
 static void inv_sub_bytes(uint32_t S[4])
@@ -197,7 +197,7 @@ static void fwd_mix_columns(uint32_t S[4])
 	}
 }
 
-static uint32_t rconmask(int ii)
+static uint32_t rconmask(uint ii)
 {
 #ifdef BIGENDIAN
 	return rcon[ii];
@@ -211,8 +211,8 @@ void aes128_init(struct aes128* ctx, const uint8_t key[16])
 	const uint32_t* K = (uint32_t*) key;
 	uint32_t* W = ctx->W;
 	uint32_t temp;
-	int Nw = Nb * (Nr + 1); /* 44, elements in W */
-	int i;
+	uint Nw = Nb * (Nr + 1); /* 44, elements in W */
+	uint i;
 
 	for(i = 0; i < Nk; i++)
 		W[i] = ntohl(K[i]);
@@ -233,7 +233,7 @@ void aes128_decrypt(struct aes128* ctx, uint8_t blk[16])
 {
 	uint32_t* W = ctx->W;
 	uint32_t* S = (uint32_t*) blk;
-	int r;
+	uint r;
 
 	add_round_key(S, W, Nr);
 
@@ -249,11 +249,11 @@ void aes128_decrypt(struct aes128* ctx, uint8_t blk[16])
 	add_round_key(S, W, 0);
 }
 
-void aes128_encrypt(struct aes128* ctx, uint8_t blk[16])
+void aes128_encrypt(struct aes128* ctx, byte blk[16])
 {
 	uint32_t* W = ctx->W;
 	uint32_t* S = (uint32_t*) blk;
-	int r;
+	uint r;
 
 	add_round_key(S, W, 0);
 

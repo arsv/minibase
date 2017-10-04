@@ -158,7 +158,7 @@ static void spbkdf(struct scrypt* sc, void* salt, int slen, void* dk, int dklen)
 	pbkdf2_sha256(dk, dklen, pass, plen, salt, slen, 1);
 }
 
-long scrypt_init(struct scrypt* sc, int n, int r, int p)
+ulong scrypt_init(struct scrypt* sc, uint n, uint r, uint p)
 {
 	memzero(sc, sizeof(*sc));
 
@@ -166,17 +166,17 @@ long scrypt_init(struct scrypt* sc, int n, int r, int p)
 	sc->p = p;
 	sc->r = r;
 
-	size_t B0size = 128*r*p;
-	size_t XYsize = 256*r + 64;
-	size_t V0size = 128*r*n;
-	long need = B0size + XYsize + V0size; 
+	ulong B0size = 128*r*p;
+	ulong XYsize = 256*r + 64;
+	ulong V0size = 128*r*n;
+	ulong need = B0size + XYsize + V0size; 
 
 	sc->templen = need;
 
 	return need;
 }
 
-int scrypt_temp(struct scrypt* sc, void* buf, long len)
+int scrypt_temp(struct scrypt* sc, void* buf, ulong len)
 {
 	sc->temp = buf;
 
@@ -188,7 +188,7 @@ int scrypt_temp(struct scrypt* sc, void* buf, long len)
 	return 0;
 }
 
-int scrypt_data(struct scrypt* sc, void* P, int plen, void* S, int slen)
+int scrypt_data(struct scrypt* sc, void* P, uint plen, void* S, uint slen)
 {
 	sc->pass = P;
 	sc->passlen = plen;
@@ -199,15 +199,15 @@ int scrypt_data(struct scrypt* sc, void* P, int plen, void* S, int slen)
 	return 0;
 }
 
-void scrypt_hash(struct scrypt* sc, void* dk, int dklen)
+void scrypt_hash(struct scrypt* sc, void* dk, uint dklen)
 {
 	int r = sc->r;
 	int p = sc->p;
 	int n = sc->n;
 	int i;
 
-	size_t B0size = 128*r*p;
-	size_t XYsize = 256*r + 64;
+	ulong B0size = 128*r*p;
+	ulong XYsize = 256*r + 64;
 
 	uint32_t* B = (sc->temp + 0);
 	uint32_t* XY = (sc->temp + B0size);

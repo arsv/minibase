@@ -13,13 +13,13 @@ static uint64_t wrapmask(int n)
 #endif
 }
 
-void aes128_unwrap(uint8_t key[16], void* buf, int len)
+void aes128_unwrap(byte key[16], void* buf, ulong len)
 {
 	struct aes128 ae;
 
-	int n = len / 8 - 1;
+	ulong n = len / 8 - 1;
 	uint64_t* R = buf;
-	uint8_t B[16];
+	byte B[16];
 	int i, j;
 
 	aes128_init(&ae, key);
