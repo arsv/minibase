@@ -1,8 +1,7 @@
 #ifndef __OUTPUT_H__
 #define __OUTPUT_H__
 
-#include <bits/null.h>
-#include <bits/stdio.h>
+#include <cdefs.h>
 
 /* Buffered output. Allocating the buffer itself is caller's duty
    as it may happen to be in the stack or somewhere else. */

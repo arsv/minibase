@@ -1,4 +1,4 @@
-#include <bits/null.h>
+#include <cdefs.h>
 #include <format.h>
 
 char* parsemac(char* p, uint8_t* mac)

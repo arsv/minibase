@@ -1,9 +1,9 @@
 #include <bits/ints.h>
 #include <format.h>
 
-char* parsebytes(char* p, uint8_t* dst, int len)
+char* parsebytes(char* p, byte* dst, uint len)
 {
-	uint8_t* q = dst;
+	byte* q = dst;
 
 	while(len-- > 0 && p)
 		p = parsebyte(p, q++);

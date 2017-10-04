@@ -1,4 +1,4 @@
-#include <bits/null.h>
+#include <cdefs.h>
 #include <format.h>
 
 char* parseip(char* p, uint8_t ip[4])

@@ -1,7 +1,7 @@
 #include <cmsg.h>
 #include <string.h>
 
-int cmsg_align(int len)
+ulong cmsg_align(ulong len)
 {
 	int mask = sizeof(long) - 1;
 	return ((len + mask) & ~mask);
@@ -10,7 +10,7 @@ int cmsg_align(int len)
 struct cmsg* cmsg_first(void* p, void* e)
 {
 	struct cmsg* cm = p;
-	long len = e - p;
+	ulong len = e - p;
 
 	if(len < sizeof(cm))
 		return NULL;
@@ -32,7 +32,7 @@ struct cmsg* cmsg_next(void* p, void* e)
 	return cmsg_first(p, e);
 }
 
-void* cmsg_put(void* p, void* e, int lvl, int type, void* data, int dlen)
+void* cmsg_put(void* p, void* e, int lvl, int type, void* data, ulong dlen)
 {
 	if(!p) return p;
 

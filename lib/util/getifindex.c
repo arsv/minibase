@@ -8,7 +8,7 @@
 int getifindex(int fd, char* ifname)
 {
 	struct ifreq ifreq;
-	int len = strlen(ifname);
+	size_t len = strlen(ifname);
 	int ifi;
 	char* p;
 

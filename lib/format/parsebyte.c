@@ -1,4 +1,4 @@
-#include <bits/null.h>
+#include <cdefs.h>
 #include <format.h>
 
 static int hexdigit(char c)
@@ -13,7 +13,7 @@ static int hexdigit(char c)
 		return -1;
 }
 
-char* parsebyte(char* p, uint8_t* v)
+char* parsebyte(char* p, byte* v)
 {
 	int q;
 	int r;

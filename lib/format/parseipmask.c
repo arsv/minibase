@@ -1,4 +1,4 @@
-#include <bits/null.h>
+#include <cdefs.h>
 #include <format.h>
 
 char* parseipmask(char* p, uint8_t* ip, uint8_t* mask)

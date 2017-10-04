@@ -18,14 +18,14 @@
 
 typedef void (*qexch)(void* a, void* b, size_t sz);
 
-static void exch_long(long* a, long* b, size_t _)
+static void exch_long(long* a, long* b, size_t sz __unused)
 {
 	long t = *a;
 	*a = *b;
 	*b = t;
 }
 
-static void exch_int(int* a, int* b, size_t _)
+static void exch_int(int* a, int* b, size_t sz __unused)
 {
 	int t = *a;
 	*a = *b;

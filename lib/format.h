@@ -1,4 +1,4 @@
-#include <bits/types.h>
+#include <cdefs.h>
 
 #define FMTUSE(p, e, buf, len) \
 	char* p = buf; \
@@ -24,7 +24,7 @@ char* fmterr(char* buf, char* end, int err);
 
 char* fmtchar(char* dst, char* end, char c);
 char* fmtbyte(char* dst, char* end, char c);
-char* fmtbytes(char* dst, char* end, void* data, size_t len);
+char* fmtbytes(char* dst, char* end, void* data, uint len);
 
 char* fmti32(char* buf, char* end,  int32_t num);
 char* fmtu32(char* buf, char* end, uint32_t num);
@@ -33,11 +33,11 @@ char* fmti64(char* buf, char* end,  int64_t num);
 char* fmtu64(char* buf, char* end, uint64_t num);
 
 char* fmtint(char* buf, char* end, int num);
-char* fmtuint(char* buf, char* end, unsigned num);
+char* fmtuint(char* buf, char* end, uint num);
 char* fmtlong(char* buf, char* end, long num);
-char* fmtulong(char* buf, char* end, unsigned long num);
+char* fmtulong(char* buf, char* end, ulong num);
 char* fmtxlong(char* buf, char* end, long num);
-char* fmthex(char* p, char* e, unsigned n);
+char* fmthex(char* p, char* e, uint n);
 char* fmtpad(char* p, char* e, int width, char* q);
 char* fmtpad0(char* p, char* e, int width, char* q);
 char* fmtpadr(char* p, char* e, int width, char* q);
@@ -48,19 +48,19 @@ char* fmtstrn(char* dst, char* end, const char* src, int len);
 char* fmtstrl(char* dst, char* end, const char* src, int len);
 
 char* fmttm(char* buf, char* end, const struct tm* tm);
-char* fmtulp(char* buf, char* end, unsigned long num, int pad);
+char* fmtulp(char* buf, char* end, ulong num, int pad);
 char* fmtip(char* p, char* e, uint8_t ip[4]);
 char* fmtmac(char* p, char* e, uint8_t mac[6]);
 
 char* parseint(char* buf, int* np);
 char* parselong(char* buf, long* np);
-char* parseulong(char* buf, unsigned long* np);
+char* parseulong(char* buf, ulong* np);
 char* parseu64(char* buf, uint64_t* np);
-char* parsebyte(char* p, uint8_t* v);
-char* parsebytes(char* p, uint8_t* dst, int len);
+char* parsebyte(char* p, byte* v);
+char* parsebytes(char* p, byte* dst, uint len);
 char* parseoct(char* buf, int* np);
 char* parsehex(char* buf, int* np);
 
-char* parsemac(char* p, uint8_t* mac);
-char* parseip(char* p, uint8_t* ip);
-char* parseipmask(char* p, uint8_t* ip, uint8_t* mask);
+char* parsemac(char* p, byte* mac);
+char* parseip(char* p, byte* ip);
+char* parseipmask(char* p, byte* ip, byte* mask);
