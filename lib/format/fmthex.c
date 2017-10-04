@@ -1,13 +1,22 @@
 #include <format.h>
 
-char* fmthex(char* p, char* e, unsigned n)
+char* fmthex(char* buf, char* end, unsigned num)
 {
 	static const char digits[] = "0123456789ABCDEF";
 
-	while(p < e && n) {
-		*p++ = digits[n % 16];
-		n /= 16;
-	}
+	int len = 0;
+	long n;
 
-	return p;
+	for(len = 1, n = num; n >= 0x10; len++)
+		n >>= 4;
+
+	int i;
+	char* e = buf + len;
+	char* p = e - 1; /* len >= 1 so e > buf */
+	
+	for(i = 0; i < len; i++, p--, num >>= 4)
+		if(p < end)
+			*p = digits[num & 0x0F];
+
+	return e; 
 }
