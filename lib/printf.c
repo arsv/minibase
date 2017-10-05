@@ -53,6 +53,8 @@ static char* fmt_s(char* p, char* e, struct spec* sp, va_list ap)
 
 static char* fmt_c(char* p, char* e, struct spec* sp, va_list ap)
 {
+	(void)sp;
+
 	return fmtchar(p, e, va_arg(ap, unsigned));
 }
 
@@ -82,6 +84,8 @@ static char* fmt_x(char* p, char* e, struct spec* sp, va_list ap)
 
 static char* fmt_p(char* p, char* e, struct spec* sp, va_list ap)
 {
+	(void)sp;
+
 	p = fmtstr(p, e, "0x");
 	p = fmtxlong(p, e, (long)va_arg(ap, void*));
 
