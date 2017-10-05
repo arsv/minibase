@@ -96,6 +96,7 @@ static int cmd_exec(int* cpid, struct ucmsg* msg, struct ucbuf* uc)
 
 static int cmd_kill(int* cpid, struct ucmsg* msg, struct ucbuf* uc)
 {
+	(void)uc;
 	int sig, *p;
 
 	if((p = uc_get_int(msg, ATTR_SIGNAL)))

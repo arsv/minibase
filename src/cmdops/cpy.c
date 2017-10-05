@@ -47,7 +47,7 @@ static void copy_over(CTX, CCT)
 	char* src = shift_arg(ctx);
 	no_more_args(ctx);
 
-	run(ctx, cct, dst, src);
+	run(cct, dst, src);
 }
 
 static void copy_many(CTX, CCT)
@@ -58,7 +58,7 @@ static void copy_many(CTX, CCT)
 		char* src = shift_arg(ctx);
 		char* dst = basename(src);
 
-		run(ctx, cct, dst, src);
+		run(cct, dst, src);
 	}
 }
 

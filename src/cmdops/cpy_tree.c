@@ -511,7 +511,7 @@ void runrec(CCT, char* dname, char* sname, int type)
 	end_file_pair(cct);
 }
 
-void run(CTX, CCT, char* dname, char* sname)
+void run(CCT, char* dname, char* sname)
 {
 	int type = DT_UNKNOWN;
 

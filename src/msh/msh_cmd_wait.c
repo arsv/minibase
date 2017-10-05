@@ -62,6 +62,7 @@ static void prep_dirname(char* dir, int dlen, char* name, char* base)
 {
 	if(base > name) {
 		int len = base - name - 1;
+		if(len > dlen - 1) len = dlen - 1;
 		memcpy(dir, name, len);
 		dir[len] = '\0';
 	} else {

@@ -18,8 +18,8 @@
 #define NOERROR 0
 #define REPLIED 1
 
-#define CN struct conn* cn
-#define MSG struct ucmsg* msg
+#define CN struct conn* cn __unused
+#define MSG struct ucmsg* msg __unused
 
 int ctrlfd;
 

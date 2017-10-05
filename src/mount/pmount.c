@@ -43,7 +43,7 @@ struct top {
 	int opts;
 };
 
-#define CTX struct top* ctx
+#define CTX struct top* ctx __unused
 
 int init_socket(void)
 {

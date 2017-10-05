@@ -147,6 +147,7 @@ static void showall(struct sysinfo* si)
 
 int main(int argc, char** argv)
 {
+	(void)argv;
 	int i = 1;
 	struct sysinfo si;
 

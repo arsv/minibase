@@ -49,6 +49,8 @@ again:
 
 int main(int argc, char** argv)
 {
+	(void)argv;
+
 	if(argc > 1)
 		fail("no arguments allowed", NULL, 0);
 

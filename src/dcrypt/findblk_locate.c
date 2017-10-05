@@ -115,8 +115,10 @@ static void check_part_ent(char* name, char* base)
 	match_part(name);
 }
 
-static void check_dev_ent(char* name, char* _)
+static void check_dev_ent(char* name, char* base)
 {
+	(void)base;
+
 	if(!strncmp(name, "loop", 4))
 		return;
 

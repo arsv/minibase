@@ -28,6 +28,8 @@ int sigchld;
 
 static void child_died(int cfd, int pid, int status)
 {
+	(void)pid; /* maybe check if it's the right one? */
+
 	if(WIFSIGNALED(status))
 		reply(cfd, REP_DEAD, ATTR_SIGNAL, WTERMSIG(status));
 	else
@@ -225,6 +227,7 @@ void quit(const char* msg, char* arg, int err)
 
 int main(int argc, char** argv, char** envp)
 {
+	(void)argv;
 	int ret;
 
 	if(argc > 1)

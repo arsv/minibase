@@ -67,7 +67,7 @@ struct link {
 void warnat(const char* msg, struct atf* dd, int err);
 void failat(const char* msg, struct atf* dd, int err) noreturn;
 
-void run(CTX, CCT, char* dst, char* src);
+void run(CCT, char* dst, char* src);
 
 void copyfile(CCT);
 void trychown(CCT);

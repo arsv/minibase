@@ -34,7 +34,7 @@ struct top {
 	struct bufout bo;
 };
 
-#define CTX struct top* ctx
+#define CTX struct top* ctx __unused
 
 static void init_heap(CTX)
 {
@@ -176,7 +176,7 @@ static int parse_uevent(CTX, struct dev* dev, char* buf, int len)
 	return 0;
 }
 
-static int read_uevent(CTX, int at, char* name, struct dev* dev)
+static int read_uevent(CTX, int at, struct dev* dev)
 {
 	int fd, rd;
 	int ret = -1;
@@ -213,7 +213,7 @@ static void scan_entry(CTX, int at, char* name)
 	if((fd = sys_openat(at, name, O_DIRECTORY)) < 0)
 		return;
 
-	if(read_uevent(ctx, fd, name, dev) >= 0)
+	if(read_uevent(ctx, fd, dev) >= 0)
 		ctx->count++;
 	else
 		ctx->ptr = ptr;
@@ -403,6 +403,7 @@ static void dump_devices(CTX)
 
 int main(int argc, char** argv)
 {
+	(void)argv;
 	struct top context, *ctx = &context;
 
 	if(argc > 1)

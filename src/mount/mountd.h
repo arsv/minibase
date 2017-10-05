@@ -14,7 +14,7 @@ void handle(int fd);
 int grab_blkdev(char* path, struct ucred* uc);
 int release_blkdev(char* path, struct ucred* uc);
 
-int check_blkdev(char* name, char* path, int isloop);
+int check_blkdev(char* path, int isloop);
 int prep_fs_options(char* buf, int len, int fstype, struct ucred* uc);
 const char* fs_type_string(int fst);
 

@@ -90,6 +90,7 @@ static void set_line_ptrs(char* buf, char* end, char** idx, int n)
 	for(p = buf; p < end; p++) {
 		if(nl) { idx[i++] = p; nl = 0; }
 		if(!*p || *p == '\n') { *p = '\0'; nl = 1; }
+		if(i >= n) break;
 	}
 
 	idx[i] = p;

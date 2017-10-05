@@ -151,7 +151,7 @@ static int mount(RCT, char* name, int flags, struct ucred* uc, int isloop)
 	make_path(devpath, sizeof(devpath), "/dev/", name);
 	make_path(mntpath, sizeof(mntpath), "/mnt/", name);
 
-	if((fst = check_blkdev(name, devpath, isloop)) < 0)
+	if((fst = check_blkdev(devpath, isloop)) < 0)
 		return fst;
 	if((ret = prep_fs_options(data, datalen, fst, uc)))
 		return ret;

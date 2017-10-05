@@ -170,6 +170,8 @@ static void update_timers(timespec* ts0, timespec* ts1)
 
 int main(int argc, char** argv, char** envp)
 {
+	(void)argv;
+
 	int ret;
 	timespec ts0, ts1, *pts;
 

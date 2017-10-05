@@ -55,6 +55,7 @@ struct sockaddr_ll sockaddr;
 
 static void sigalarm(int sig)
 {
+	(void)sig;
 	fail("timeout", NULL, 0);
 }
 

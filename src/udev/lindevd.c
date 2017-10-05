@@ -333,6 +333,8 @@ static void makedir(char* dir)
 
 int main(int argc, char** argv)
 {
+	(void)argv;
+
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);
 

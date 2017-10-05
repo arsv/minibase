@@ -245,6 +245,7 @@ static int connect_to_something(void)
 
 int grab_wifi_device(int rifi)
 {
+	(void)rifi;
 	struct link* ls;
 	int ifi = wifi.ifi;
 
@@ -293,8 +294,10 @@ void start_wifi_scan(void)
 		trigger_scan(ifi, 0);
 }
 
-static void timed_wifi_scan(int _)
+static void timed_wifi_scan(int arg)
 {
+	(void)arg;
+
 	if(wifi.mode == WM_DISABLED)
 		return;
 	if(wifi.state != WS_IDLE)
@@ -409,8 +412,10 @@ static void disable_wifi_iface(void)
 	disable_iface(wifi.ifi);
 }
 
-static void expire_scan_list(int _)
+static void expire_scan_list(int arg)
 {
+	(void)arg;
+
 	drop_scan_slots();
 }
 

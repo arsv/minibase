@@ -16,8 +16,9 @@
 
 ERRTAG("tserv");
 
-static void sighandler(int _)
+static void sighandler(int sig)
 {
+	(void)sig;
 	/* do nothing */
 }
 

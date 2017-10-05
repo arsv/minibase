@@ -122,6 +122,8 @@ static int get_genl_ifindex(struct nlgen* msg)
 
 static void msg_new_wifi(struct link* ls, struct nlgen* msg)
 {
+	(void)msg;
+
 	ls->flags |= S_NL80211;
 
 	link_wifi(ls);
@@ -129,6 +131,8 @@ static void msg_new_wifi(struct link* ls, struct nlgen* msg)
 
 static void msg_new_wifi_early(int ifi, struct nlgen* msg)
 {
+	(void)msg;
+
 	struct link* ls = grab_link_slot(ifi);
 
 	ls->ifi = ifi;
@@ -139,6 +143,8 @@ static void msg_new_wifi_early(int ifi, struct nlgen* msg)
 
 static void msg_del_wifi(struct link* ls, struct nlgen* msg)
 {
+	(void)msg;
+
 	ls->flags &= ~S_NL80211;
 
 	if(ls->ifi != genl_scan_ifi)
@@ -149,12 +155,16 @@ static void msg_del_wifi(struct link* ls, struct nlgen* msg)
 
 static void msg_scan_start(struct link* ls, struct nlgen* msg)
 {
+	(void)msg;
+
 	if(ls->ifi != genl_scan_ifi)
 		return;
 }
 
 static void msg_scan_abort(struct link* ls, struct nlgen* msg)
 {
+	(void)msg;
+
 	if(ls->ifi != genl_scan_ifi)
 		return;
 
@@ -280,7 +290,7 @@ static void handle_nl80211(struct nlgen* msg)
 		nl_dump_genl(&msg->nlm);
 }
 
-static void handle_genl_done(struct nlmsg* nlm)
+static void handle_genl_done(void)
 {
 	if(genl_dump_state == DUMP_SCAN) {
 		drop_stale_scan_slots();
@@ -315,7 +325,7 @@ void handle_genl(struct nlmsg* nlm)
 	else if(type == NLMSG_ERROR)
 		handle_genl_error(nlm);
 	else if(type == NLMSG_DONE)
-		handle_genl_done(nlm);
+		handle_genl_done();
 	else if(type != nl80211)
 		return;
 

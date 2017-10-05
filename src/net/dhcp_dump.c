@@ -22,7 +22,10 @@ static void note_reftime(void)
 
 static char* fmt_ip(char* p, char* e, uint8_t* ip, int len)
 {
-	return fmtip(p, e, ip);
+	if(len == 4)
+		return fmtip(p, e, ip);
+	else
+		return fmtstr(p, e, "???");
 }
 
 static char* fmt_ips(char* p, char* e, uint8_t* ips, int len)

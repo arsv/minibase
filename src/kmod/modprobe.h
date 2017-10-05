@@ -44,7 +44,7 @@ struct top {
 
 typedef char* (*lnmatch)(char* ls, char* le, char* tag, int len);
 
-#define CTX struct top* ctx
+#define CTX struct top* ctx __unused
 
 void insmod(CTX, char* name, char* opts);
 void prep_release(CTX);

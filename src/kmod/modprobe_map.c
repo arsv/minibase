@@ -46,7 +46,7 @@ static int child(int fds[2], char* cmd, char* path, char** envp)
 
 	xchk(sys_close(fds[0]), "close", NULL);
 	xchk(sys_dup2(fds[1], STDOUT), "dup2", NULL);
-	long ret = sys_execve(cmd, argv, NULL);
+	long ret = sys_execve(cmd, argv, envp);
 
 	fail("cannot exec", cmd, ret);
 	return 0xFF;

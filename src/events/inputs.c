@@ -119,7 +119,7 @@ static void forall_args(int i, int argc, char** argv, dumper f)
 		with_named(argv[i], f);
 }
 
-void event_monitor(int i, int argc, char** argv, int opts)
+void event_monitor(int i, int argc, char** argv)
 {
 	if(i >= argc)
 		fail("device name required", NULL, 0);
@@ -138,7 +138,7 @@ int main(int argc, char** argv)
 		opts = argbits(OPTS, argv[i++] + 1);
 
 	if(opts & OPT_r)
-		event_monitor(i, argc, argv, opts);
+		event_monitor(i, argc, argv);
 	else if(i < argc)
 		forall_args(i, argc, argv, longinfo);
 	else if(opts & OPT_a)

@@ -165,6 +165,9 @@ static void checkfile(struct dirctx* dc, char* name)
 
 static void checkstat(struct dirctx* dc, char* name)
 {
+	(void)dc;
+	(void)name;
+
 	fail("not implemented", NULL, 0);
 }
 

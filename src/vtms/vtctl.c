@@ -88,7 +88,7 @@ static void cmd_status(CTX)
 {
 	no_other_options(ctx);
 
-	start_request(ctx, CMD_STATUS, 0, 0);
+	start_request(ctx, CMD_STATUS);
 	send_request(ctx);
 
 	recv_dump(ctx, NULL, dump_status);
@@ -103,7 +103,7 @@ static void cmd_switch(CTX)
 
 	no_other_options(ctx);
 
-	start_request(ctx, CMD_SWITCH, 0, 0);
+	start_request(ctx, CMD_SWITCH);
 	add_int_attr(ctx, ATTR_TTY, tty);
 	send_request(ctx);
 
@@ -119,7 +119,7 @@ static void cmd_spawn(CTX)
 
 	no_other_options(ctx);
 
-	start_request(ctx, CMD_SPAWN, 0, 0);
+	start_request(ctx, CMD_SPAWN);
 	add_str_attr(ctx, ATTR_NAME, name);
 	send_request(ctx);
 
@@ -130,7 +130,7 @@ static void simple(CTX, int cmd)
 {
 	no_other_options(ctx);
 
-	start_request(ctx, cmd, 0, 0);
+	start_request(ctx, cmd);
 	send_request(ctx);
 
 	recv_empty(ctx);

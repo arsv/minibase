@@ -167,6 +167,8 @@ static int parse_type(char* line, struct dev* dev)
 
 static int parse_uevent(CTX, struct dev* dev, char* buf, int len)
 {
+	(void)ctx;
+
 	char* p = buf;
 	char* e = buf + len;
 	char *q, *v;
@@ -199,6 +201,8 @@ static int parse_uevent(CTX, struct dev* dev, char* buf, int len)
 
 static int read_uevent(CTX, int at, char* name, struct dev* dev)
 {
+	(void)name;
+
 	int fd, rd;
 	int ret = -1;
 	char buf[1024];
@@ -300,6 +304,7 @@ static void add_dev_class(struct dev* dev, int cls)
 
 static void read_iface_classes(CTX, int at, char* name, struct dev* dev)
 {
+	(void)ctx;
 	int config, niface, fd, cls;
 
 	if((config = read_int_file(at, "bConfigurationValue", 0)) < 0)
@@ -339,7 +344,7 @@ void sanitize(char* s, char* p)
 			*s = '?';
 }
 
-static void read_prodname(CTX, int at, char* name, struct dev* dev)
+static void read_prodname(CTX, int at)
 {
 	FMTBUF(p, e, buf, 100);
 	p = read_entry(p, e, at, "manufacturer");
@@ -372,7 +377,7 @@ static void scan_entry(CTX, int at, char* name)
 
 	append_payload(ctx, name, strlen(name) + 1);
 
-	read_prodname(ctx, fd, name, dev);
+	read_prodname(ctx, fd);
 
 	read_iface_classes(ctx, fd, name, dev);
 
@@ -615,6 +620,7 @@ static void dump_devices(CTX)
 
 int main(int argc, char** argv)
 {
+	(void)argv;
 	struct top context, *ctx = &context;
 
 	if(argc > 1)

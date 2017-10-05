@@ -100,7 +100,7 @@ void notify_deactivated(int tty)
 	send_notification(tty, PIPE_REP_DEACTIVATE);
 }
 
-static int check_managed_dev(int fd, uint64_t* dev, int tty)
+static int check_managed_dev(int fd, uint64_t* dev)
 {
 	struct stat st;
 	long ret;
@@ -198,7 +198,7 @@ static int open_managed_dev(char* path, int mode, struct term* vt)
 	if((dfd = sys_open(path, mode | O_NOCTTY | O_CLOEXEC)) < 0)
 		return dfd;
 
-	if((ret = check_managed_dev(dfd, &md->dev, tty)) < 0)
+	if((ret = check_managed_dev(dfd, &md->dev)) < 0)
 		goto close;
 	if((ret = check_for_duplicate(md, md->dev, tty)) < 0)
 		goto close;

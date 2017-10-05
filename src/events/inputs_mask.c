@@ -37,6 +37,7 @@ static const char indent2[] = "       ";
 
 static char* start_line(char* s, char* p, char* e, const struct ev* ev)
 {
+	(void)s;
 	p = fmtstr(p, e, indent1);
 	p = fmtstr(p, e, ev->tag);
 	p = fmtstr(p, e, ":");
@@ -68,6 +69,7 @@ static char* put_bit(char* s, char* p, char* e, const struct ev* ev, int k)
 
 static void finish_line(char* s, char* p, char* e)
 {
+	(void)e;
 	*p++ = '\n';
 	writeout(s, p - s);
 }

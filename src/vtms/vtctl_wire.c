@@ -40,7 +40,7 @@ static void connect_socket(CTX)
 	ctx->connected = 1;
 }
 
-void start_request(CTX, int cmd, int count, int paylen)
+void start_request(CTX, int cmd)
 {
 	void* brk;
 	int len = sizeof(ctx->recbuf);

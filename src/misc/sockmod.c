@@ -45,7 +45,7 @@ struct access {
 	uint mode;
 };
 
-#define CTX struct top* ctx
+#define CTX struct top* ctx __unused
 
 static void set_alarm(CTX)
 {
@@ -290,8 +290,9 @@ static void check(CTX, char* name)
 		chmod(ctx, name, ac.mode);
 }
 
-static void sighandler(int _)
+static void sighandler(int sig)
 {
+	(void)sig;
 	/* do nothing */
 }
 
@@ -394,6 +395,7 @@ static void drop_file_bufs(CTX)
 
 int main(int argc, char** argv)
 {
+	(void)argv;
 	struct top context, *ctx = &context;
 	char* dir = NLCDIR;
 

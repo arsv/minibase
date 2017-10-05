@@ -38,6 +38,7 @@ struct top {
 
 static void sighandler(int sig)
 {
+	(void)sig;
 	sys_unlink(DEVLOG);
 	_exit(-1);
 }
@@ -479,6 +480,7 @@ static void poll_loop(struct top* ctx)
 
 int main(int argc, char** argv)
 {
+	(void)argv;
 	struct top context, *ctx = &context;
 
 	if(argc > 1)

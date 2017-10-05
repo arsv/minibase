@@ -158,7 +158,7 @@ static int resolve_pwname(CTX, char* name, int* id,
 	if((p = parseint(name, id)) && !*p)
 		return 0;
 
-	if(prep_pwfile(ctx, mb, "/etc/group"))
+	if(prep_pwfile(ctx, mb, file))
 		return -1;
 
 	if((ret = mapid(mb, name)) < 0)

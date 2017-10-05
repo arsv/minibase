@@ -124,6 +124,8 @@ static void setup_netlink(struct top* ctx)
 
 int main(int argc, char** argv, char** envp)
 {
+	(void)argv;
+
 	struct top context, *ctx = &context;
 	memzero(ctx, sizeof(*ctx));
 
@@ -131,6 +133,9 @@ int main(int argc, char** argv, char** envp)
 	struct nlmsg* nlm;
 	struct acpievent* evt;
 	const struct action* act;
+
+	if(argc > 1)
+		fail("too many arguments", NULL, 0);
 
 	setup_netlink(ctx);
 

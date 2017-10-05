@@ -74,8 +74,9 @@ static void dump_event(struct event* ee)
 	}
 }
 
-void read_events(char* _, int fd)
+void read_events(char* name, int fd)
 {
+	(void)name;
 	char buf[256];
 	char* ptr;
 	int size = sizeof(struct event);

@@ -62,8 +62,10 @@ void save_config(void)
 	modified = 0;
 }
 
-void drop_config(int _)
+void drop_config(int arg)
 {
+	(void)arg;
+
 	if(!config)
 		return;
 	if(modified)

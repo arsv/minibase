@@ -111,7 +111,7 @@ static int send_ack(const char* tag)
 		msg->flags |= NLM_F_ACK;
 
 	if(nl_send(&nl))
-		quit("send", NULL, nl.err);
+		quit("send", tag, nl.err);
 
 	while((msg = nl_recv(&nl)))
 		if((err = nl_err(msg)) && (msg->seq == nl.seq))
@@ -119,7 +119,7 @@ static int send_ack(const char* tag)
 		else if((gen = nl_gen(msg)))
 			check_notification(gen);
 
-	quit("recv", NULL, nl.err);
+	quit("recv", tag, nl.err);
 }
 
 static void send_check(const char* tag)

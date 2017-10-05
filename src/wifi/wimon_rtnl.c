@@ -348,6 +348,8 @@ static void proceed_with_dump(void)
 
 static void msg_rtnl_done(struct nlmsg* msg)
 {
+	(void)msg;
+
 	rtnl_dump_lock = 0;
 
 	if(rtnl_dump_pending)

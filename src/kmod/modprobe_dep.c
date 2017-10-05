@@ -237,8 +237,9 @@ static char* word(char* p, char* e, char* word)
 	return skip_space(p + len, e);
 }
 
-static char* match_opt(char* ls, char* le, char* name, int _)
+static char* match_opt(char* ls, char* le, char* name, int nlen)
 {
+	(void)nlen;
 	char* p = ls;
 	char* e = le;
 
@@ -250,8 +251,9 @@ static char* match_opt(char* ls, char* le, char* name, int _)
 	return p;
 }
 
-static char* match_blacklist(char* ls, char* le, char* name, int _)
+static char* match_blacklist(char* ls, char* le, char* name, int nlen)
 {
+	(void)nlen;
 	char* p = ls;
 	char* e = le;
 
@@ -290,8 +292,9 @@ char* query_pars(CTX, char* name)
    are lowercase letters, so we can just skip until the next non-* character
    from the pattern. */
 
-static char* match_alias(char* ls, char* le, char* name, int _)
+static char* match_alias(char* ls, char* le, char* name, int nlen)
 {
+	(void)nlen;
 	char* p = ls;
 	char* e = le;
 	char* n = name;

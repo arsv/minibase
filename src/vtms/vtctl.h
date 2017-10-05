@@ -30,7 +30,7 @@ void output(CTX, char* buf, int len);
 void flush_output(CTX);
 
 void init_socket(CTX);
-void start_request(CTX, int cmd, int count, int length);
+void start_request(CTX, int cmd);
 void add_str_attr(CTX, int key, char* name);
 void add_int_attr(CTX, int key, int val);
 void send_request(CTX);

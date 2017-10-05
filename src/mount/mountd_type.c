@@ -137,7 +137,7 @@ static int isblock(int fd)
 	return 0;
 }
 
-int check_blkdev(char* name, char* path, int isloop)
+int check_blkdev(char* path, int isloop)
 {
 	int fd, ret;
 

@@ -352,6 +352,9 @@ static void stop_wait_procs(void)
 
 int main(int argc, char** argv, char** envp)
 {
+	(void)argc;
+	(void)argv;
+
 	struct timespec ts, te, *tp;
 
 	setup_env(envp);

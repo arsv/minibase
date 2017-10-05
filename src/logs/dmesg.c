@@ -63,7 +63,7 @@ static void set_loglevel(char* arg)
 		fail("klogctl", "CONSOLE_LEVEL", ret);
 }
 
-static void no_more_args(int argc, char** argv, int i)
+static void no_more_args(int argc, int i)
 {
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
@@ -76,7 +76,7 @@ static char* get_single_arg(int argc, char** argv, int i)
 
 	char* ret = argv[i++];
 
-	no_more_args(argc, argv, i);
+	no_more_args(argc, i);
 
 	return ret;
 }
@@ -92,7 +92,7 @@ int main(int argc, char** argv)
 		char* arg = get_single_arg(argc, argv, i);
 		set_loglevel(arg);
 	} else {
-		no_more_args(argc, argv, i);
+		no_more_args(argc, i);
 		dump_contents(opts & OPT_c);
 	}
 

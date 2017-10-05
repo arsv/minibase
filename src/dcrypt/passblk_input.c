@@ -119,6 +119,7 @@ static int curr_utf_len(char* p)
 
 static int glyph_width(char* p)
 {
+	(void)p;
 	return 1;
 }
 
@@ -247,6 +248,9 @@ static int add_text(char* rbuf, int rlen)
 
 static int esc_seq(char* rbuf, int rlen)
 {
+	(void)rbuf;
+	(void)rlen;
+
 	return 0;
 }
 

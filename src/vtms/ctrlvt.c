@@ -409,8 +409,9 @@ redraw:
 		}
 }
 
-static void sighandler(int _)
+static void sighandler(int sig)
 {
+	(void)sig;
 	term_fini();
 	_exit(0);
 }
@@ -432,6 +433,9 @@ static void setup_signals(void)
 
 int main(int argc, char** argv, char** envp)
 {
+	(void)argc;
+	(void)argv;
+
 	environ = envp;
 
 	setup_signals();

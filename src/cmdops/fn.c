@@ -69,6 +69,7 @@ static void printparts(char* name, int len, int opts)
 
 static int normalize(char* name, int len)
 {
+	char* end = name + len;
 	char* p = name;
 	char* q = name;
 	char last = *p;
@@ -76,7 +77,7 @@ static int normalize(char* name, int len)
 	if(last == '/')
 		*q++ = *p++;
 
-	while(*p) {
+	while(*p && p < end) {
 		if(last == '/' && p[0] == '.' && p[1] == '/')
 			p += 2;
 		else if(last == '/' && *p == '/')
@@ -103,7 +104,7 @@ static void lexical(char* name, int len, int opts)
 	printparts(buf, len, opts);
 }
 
-static void printatcwd(char* orig, char* name, int namelen, int opts)
+static void printatcwd(char* name, int namelen, int opts)
 {
 	if(*name == '/')
 		return printparts(name, namelen, opts);
@@ -136,7 +137,7 @@ static void abstail(char* orig, char* dir, int dlen, char* tail, int tlen, int o
 	if(sys_chdir(buf) < 0)
 		fail(NULL, orig, ENOTDIR);
 
-	return printatcwd(orig, tail, tlen, opts);
+	return printatcwd(tail, tlen, opts);
 }
 
 static void absolutize(char* orig, char* name, int namelen, int opts)
@@ -158,7 +159,7 @@ static void absolutize(char* orig, char* name, int namelen, int opts)
 		be = revpsep(name, bs);
 	}
 
-	return printatcwd(orig, name, namelen, opts);
+	return printatcwd(name, namelen, opts);
 }
 
 static void chdirtodirname(char* orig, char* name, int namelen)
@@ -209,14 +210,14 @@ static void canonlink(char* orig, char* name, int namelen, int opts, int depth)
 
 		char* end = name + namelen;
 		char* bn = revbase(name, end);
-		printatcwd(orig, bn, end - bn, opts);
+		printatcwd(bn, end - bn, opts);
 	}
 }
 
 static void canonicalize(char* orig, char* name, int namelen, int opts)
 {
 	if(sys_chdir(name) >= 0)
-		return printatcwd(orig, "", 0, opts);
+		return printatcwd("", 0, opts);
 
 	char* end = name + namelen;
 	char* bn = revbase(name, end);
@@ -307,7 +308,7 @@ int main(int argc, char** argv)
 	opts = adjopts(opts, argc);
 
 	if(argc <= 0)
-		printatcwd(NULL, "", 0, opts);
+		printatcwd("", 0, opts);
 	else
 		printfiles(argc, argv, opts);
 

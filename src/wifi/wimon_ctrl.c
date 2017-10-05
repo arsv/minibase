@@ -166,6 +166,8 @@ static int cmd_fixedap(struct conn* cn, struct ucmsg* msg)
 
 static int cmd_neutral(struct conn* cn, struct ucmsg* msg)
 {
+	(void)msg;
+
 	wifi_mode_disabled();
 
 	if(!stop_links_except(0))
@@ -222,6 +224,8 @@ static int cmd_wired(struct conn* cn, struct ucmsg* msg)
 
 static int cmd_setprio(struct conn* cn, struct ucmsg* msg)
 {
+	(void)cn;
+
 	int prio, *pptr;
 	struct ucattr* at;
 	int ret;
@@ -255,6 +259,7 @@ static int cmd_setprio(struct conn* cn, struct ucmsg* msg)
 
 static int cmd_notouch(struct conn* cn, struct ucmsg* msg)
 {
+	(void)cn;
 	int* pifi;
 	struct link* ls;
 
@@ -272,6 +277,7 @@ static int cmd_notouch(struct conn* cn, struct ucmsg* msg)
 
 static int cmd_status(struct conn* cn, struct ucmsg* msg)
 {
+	(void)msg;
 	rep_status(cn);
 	return REPLIED;
 }

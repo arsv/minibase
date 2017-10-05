@@ -79,7 +79,7 @@ struct envptr {
 	char* ref;
 };
 
-#define CTX struct sh* ctx
+#define CTX struct sh* ctx __unused
 
 void hinit(CTX);
 void* halloc(CTX, int len);

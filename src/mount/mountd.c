@@ -165,6 +165,7 @@ static void setup_ctrl(CTX)
 
 int main(int argc, char** argv)
 {
+	(void)argv;
 	struct top context, *ctx = &context;
 
 	if(argc > 1)

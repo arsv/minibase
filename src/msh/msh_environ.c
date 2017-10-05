@@ -101,8 +101,10 @@ static struct env* foreach_env(CTX, envf func, char* var)
 	return NULL;
 }
 
-static int add_env_ptr(CTX, struct env* es, char* _)
+static int add_env_ptr(CTX, struct env* es, char* arg)
 {
+	(void)arg;
+
 	if(es->type == ENVLOC)
 		return 0;
 
