@@ -67,23 +67,56 @@ inline static long sys_dup2(int fda, int fdb)
 #define SEEK_DATA 3
 #define SEEK_HOLE 4
 
+/* There's probably no good way to implement lseek in a way that would
+   work reasonably well on both 32 and 64 bit targets. The code below
+   is the best I can come up with. The compiler should be able to eliminate
+   the pointer mess in 64-bit case. */
+
 #ifdef NR__llseek
-inline static int64_t sys_lseek(int fd, int64_t off, int whence)
+inline static long sys_seek(int fd, int64_t off)
 {
 	int64_t pos;
 	int32_t hi = (off >> 32);
-	int32_t lo = off;
+	int32_t lo = (int32_t)off;
 	long ret;
 
-	if((ret = syscall(NR__llseek, fd, hi, lo, &pos, whence)) < 0)
-		return ret;
-
-	return pos;
+	return syscall(NR__llseek, fd, hi, lo, &pos, SEEK_SET);
 }
 #else
-inline static long sys_lseek(int fd, int64_t off, int whence)
+inline static long sys_seek(int fd, int64_t off)
 {
-	return syscall3(NR_lseek, fd, off, whence);
+	long ret;
+
+	if((ret = syscall3(NR_lseek, fd, off, SEEK_SET)) < 0)
+		return ret;
+
+	return 0;
+}
+#endif
+
+/* The prototype for this accidentally matches the man page for _llseek,
+   so let's call it sys_llseek. */
+
+#ifdef NR__llseek
+inline static long sys_llseek(int fd, int64_t off, int64_t* pos, int whence)
+{
+	int32_t hi = (off >> 32);
+	int32_t lo = (int32_t)off;
+	long ret;
+
+	return syscall(NR__llseek, fd, hi, lo, pos, whence);
+}
+#else
+inline static long sys_llseek(int fd, int64_t off, int64_t* pos, int whence)
+{
+	long ret;
+
+	if((ret = syscall3(NR_lseek, fd, off, whence)) < 0)
+		return ret;
+
+	*pos = ret;
+
+	return 0;
 }
 #endif
 
