@@ -304,7 +304,7 @@ static int open_src_dir(CCT)
 	struct stat* st = &cct->st;
 	int fd, ret;
 
-	if((fd = sys_openat(AT(src), O_DIRECTORY)) < 0)
+	if((ret = fd = sys_openat(AT(src), O_DIRECTORY)) < 0)
 		goto fail;
 
 	if(set(cct, DRY))

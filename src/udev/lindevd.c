@@ -205,7 +205,7 @@ struct field {
 	F(MAJOR),
 	F(MINOR),
 	F(DEVNAME),
-	{ NULL }
+	{ NULL, 0 }
 };
 
 #define fieldat(s, o) *((char**) ((void*)(s) + o) )
