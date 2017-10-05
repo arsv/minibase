@@ -16,8 +16,8 @@
    non-64-bit version. */
 
 struct dirent {
-	ino64_t ino;
-	off64_t	off;
+	uint64_t ino;
+	int64_t off;
 	uint16_t reclen;
 	uint8_t type;
 	char name[];

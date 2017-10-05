@@ -13,10 +13,10 @@ struct stat {
 	int32_t uid;
 	int32_t gid;
 	uint64_t rdev;
-	uint64_t size;
-	uint32_t blksize;
+	int64_t size;
+	int32_t blksize;
 	uint32_t __2;
-	uint64_t blocks;
+	int64_t blocks;
 	struct timespec atime;
 	struct timespec mtime;
 	struct timespec ctime;
