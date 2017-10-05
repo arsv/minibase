@@ -213,9 +213,12 @@ struct shortent* nextshortent(struct shortent* p)
 	return (struct shortent*)(q + p->len);
 }
 
-static int cmpidx(struct shortent** a, struct shortent** b, int opts)
+static int cmpidx(const void* a, const void* b)
 {
-	return strcmp((*a)->name, (*b)->name);
+	struct shortent* pa = *((struct shortent**)a);
+	struct shortent* pb = *((struct shortent**)b);
+
+	return strcmp(pa->name, pb->name);
 }
 
 static void idxfound(struct dirctx* dc)
@@ -234,7 +237,7 @@ static void idxfound(struct dirctx* dc)
 		p = nextshortent(p);
 	}
 
-	qsort(dc->idx, nents, sizeof(void*), (qcmp)cmpidx, tc->opts);
+	qsort(dc->idx, nents, sizeof(void*), cmpidx);
 }
 
 static void searchdir(struct topctx* tc, char* dir);

@@ -18,7 +18,7 @@ static int cmp_str(attr at, attr bt, int key)
 	return strcmp(na, nb);
 }
 
-static int rec_ord(const void* a, const void* b, long p)
+static int rec_ord(const void* a, const void* b)
 {
 	attr at = *((attr*)a);
 	attr bt = *((attr*)b);
@@ -30,7 +30,7 @@ static int rec_ord(const void* a, const void* b, long p)
 	return 0;
 }
 
-static attr* prep_list(CTX, MSG, int key, qcmp cmp)
+static attr* prep_list(CTX, MSG, int key, qcmp2 cmp)
 {
 	int n = 0, i = 0;
 	attr at;
@@ -46,7 +46,7 @@ static attr* prep_list(CTX, MSG, int key, qcmp cmp)
 			refs[i++] = at;
 	refs[i] = NULL;
 
-	qsort(refs, i, sizeof(void*), cmp, 0);
+	qsort(refs, i, sizeof(void*), cmp);
 
 	return refs;
 }

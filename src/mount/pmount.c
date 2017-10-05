@@ -226,7 +226,7 @@ static void release(CTX)
 	cmd_name_fd(CMD_RELEASE, single_arg(ctx), -1);
 }
 
-static int cmp(const void* a, const void* b, long _)
+static int cmp(const void* a, const void* b)
 {
 	char* sa = *((char**)a);
 	char* sb = *((char**)b);
@@ -283,7 +283,7 @@ static void foreach_devs(struct heap* hp, void (*call)(struct heap* hp, char**))
 
 	char** idx = index_devs(hp, dss, dse, ndevs);
 
-	qsort(idx, ndevs, sizeof(char*), cmp, 0);
+	qsort(idx, ndevs, sizeof(char*), cmp);
 
 	return call(hp, idx);
 }

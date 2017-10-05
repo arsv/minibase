@@ -69,7 +69,7 @@ static void show_vt(CTX, struct ucattr* vt, int active)
 	output(ctx, buf, p - buf);
 }
 
-static int cmpvt(const void* a, const void* b, long _)
+static int cmpvt(const void* a, const void* b)
 {
 	struct ucattr* at = *((struct ucattr**)a);
 	struct ucattr* bt = *((struct ucattr**)b);
@@ -112,7 +112,7 @@ void dump_status(CTX, MSG)
 		if((vt = uc_is_nest(at, ATTR_VT)))
 			vts[i++] = vt;
 
-	qsort(vts, nvts, sizeof(void*), cmpvt, 0);
+	qsort(vts, nvts, sizeof(void*), cmpvt);
 
 	for(i = 0; i < nvts; i++)
 		show_vt(ctx, vts[i], active);

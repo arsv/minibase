@@ -183,23 +183,26 @@ static int isdirtype(int t)
 	return (t == DT_DIR || t == DT_LNK_DIR);
 }
 
-static int cmpidx(struct idxent* a, struct idxent* b, int opts)
+static int cmpidx(const void* a, const void* b, long opts)
 {
+	struct idxent* pa = ((struct idxent*)a);
+	struct idxent* pb = ((struct idxent*)b);
+
 	if(!(opts & OPT_u)) {
-		int dira = isdirtype(a->de->type);
-		int dirb = isdirtype(b->de->type);
+		int dira = isdirtype(pa->de->type);
+		int dirb = isdirtype(pb->de->type);
 
 		if(dira && !dirb)
 			return -1;
 		if(dirb && !dira)
 			return  1;
 	}
-	return strcmp(a->de->name, b->de->name);
+	return strcmp(pa->de->name, pb->de->name);
 }
 
 static void sortidx(struct idxent* idx, int nument, int opts)
 {
-	qsort(idx, nument, sizeof(*idx), (qcmp)cmpidx, opts);
+	qsortx(idx, nument, sizeof(*idx), cmpidx, opts);
 }
 
 static void list(struct topctx* tc, const char* realpath, const char* showpath, int strict);

@@ -20,7 +20,7 @@ static void read_whole_dir(struct heap* hp, int fd, const char* dir)
 		fail("cannot read entries from", dir, ret);
 }
 
-static int cmp_de_by_name(const void* a, const void* b, long _)
+static int cmp_de_by_name(const void* a, const void* b)
 {
 	struct dirent* da = *((struct dirent**)a);
 	struct dirent* db = *((struct dirent**)b);
@@ -55,7 +55,7 @@ static struct dirent** index_dents(struct heap* hp, void* dents, void* deend)
 			idx[i++] = p;
 	idx[i] = NULL;
 
-	qsort(idx, nument, sizeof(*idx), cmp_de_by_name, 0);
+	qsort(idx, nument, sizeof(*idx), cmp_de_by_name);
 	
 	return idx;
 }
