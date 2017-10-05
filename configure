@@ -104,7 +104,7 @@ END
 
 if [ -n "$clang" ]; then
 cat >> mini-cc <<END
-exec $cc -fno-strict-aliasing -fno-asynchronous-unwind-tables $lto\\
+exec $cc -fno-asynchronous-unwind-tables $lto\\
 	-Wno-unused-command-line-argument -Wno-gnu -ffreestanding \\
 	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib -static \\
 	-nopie -fno-pic -fno-plt -fno-vectorize -fno-stack-protector \\
@@ -113,7 +113,7 @@ exec $cc -fno-strict-aliasing -fno-asynchronous-unwind-tables $lto\\
 END
 else
 cat >> mini-cc <<END
-exec $cc -fno-strict-aliasing -fno-asynchronous-unwind-tables $lto\\
+exec $cc -fno-asynchronous-unwind-tables $lto\\
 	-ffreestanding -nostdinc -I\$base/lib/arch/$arch -I\$base/lib \\
 	-no-pie -fno-pie -fno-PIE -fno-pic -fno-PIC -fno-plt \\
 	-fno-stack-protector \\
