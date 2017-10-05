@@ -51,9 +51,9 @@ static void* pick_pivot(void* S, void* E, size_t size)
 
    Equal element are then swapped to the center. */
 
-static void srec(void* S, void* E, size_t size, qcmp cmp, qexch exch, long opts);
+static void srec(void* S, void* E, size_t size, qcmp3 cmp, qexch exch, long opts);
 
-static void sort(void* S, void* E, size_t size, qcmp cmp, qexch exch, long opts)
+static void sort(void* S, void* E, size_t size, qcmp3 cmp, qexch exch, long opts)
 {
 	void* pv = pick_pivot(S, E, size);
 
@@ -132,7 +132,7 @@ static void sort(void* S, void* E, size_t size, qcmp cmp, qexch exch, long opts)
 
 /* Special handling for low-n cases */
 
-static void sort2(void* S, size_t size, qcmp cmp, qexch exch, long opts)
+static void sort2(void* S, size_t size, qcmp3 cmp, qexch exch, long opts)
 {
 	void* a0 = S;
 	void* a1 = S + size;
@@ -141,7 +141,7 @@ static void sort2(void* S, size_t size, qcmp cmp, qexch exch, long opts)
 		exch(a0, a1, size);
 }
 
-static void sort3(void* S, size_t size, qcmp cmp, qexch exch, long opts)
+static void sort3(void* S, size_t size, qcmp3 cmp, qexch exch, long opts)
 {
 	void* a0 = S;
 	void* a1 = a0 + size;
@@ -155,7 +155,7 @@ static void sort3(void* S, size_t size, qcmp cmp, qexch exch, long opts)
 		exch(a0, a1, size);
 }
 
-static void srec(void* S, void* E, size_t size, qcmp cmp, qexch exch, long opts)
+static void srec(void* S, void* E, size_t size, qcmp3 cmp, qexch exch, long opts)
 {
 	size_t len = E - S;
 	size_t sz1 = size;
@@ -172,7 +172,7 @@ static void srec(void* S, void* E, size_t size, qcmp cmp, qexch exch, long opts)
 	return sort(S, E, size, cmp, exch, opts);
 }
 
-void qsort(void* base, size_t n, size_t size, qcmp cmp, long opts)
+void qsortx(void* base, size_t n, size_t size, qcmp3 cmp, long opts)
 {
 	qexch exch;
 	
@@ -184,4 +184,9 @@ void qsort(void* base, size_t n, size_t size, qcmp cmp, long opts)
 		exch = exch_any;
 
 	srec(base, base + n*size, size, cmp, exch, opts);
+}
+
+void qsort(void* base, size_t n, size_t size, qcmp2 cmp)
+{
+	return qsortx(base, n, size, (qcmp3)cmp, 0);
 }
