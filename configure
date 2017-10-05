@@ -104,19 +104,20 @@ END
 
 if [ -n "$clang" ]; then
 cat >> mini-cc <<END
-exec $cc -fno-asynchronous-unwind-tables $lto\\
-	-Wno-unused-command-line-argument -Wno-gnu -ffreestanding \\
-	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib -static \\
-	-nopie -fno-pic -fno-plt -fno-vectorize -fno-stack-protector \\
+exec $cc -ffreestanding \\
+        -fno-asynchronous-unwind-tables -fno-stack-protector -fno-vectorize \\
+	-static -nopie -fno-pic -fno-plt $lto \\
+	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib \\
+	-Wno-unused-command-line-argument -Wno-gnu \\
 	$cflags "\$@" \\
 	-nostdlib \${needslib:+\$base/lib/all.a}
 END
 else
 cat >> mini-cc <<END
-exec $cc -fno-asynchronous-unwind-tables $lto\\
-	-ffreestanding -nostdinc -I\$base/lib/arch/$arch -I\$base/lib \\
-	-no-pie -fno-pie -fno-PIE -fno-pic -fno-PIC -fno-plt \\
-	-fno-stack-protector \\
+exec $cc -ffreestanding \\
+	-fno-asynchronous-unwind-tables -fno-stack-protector \\
+	-static -no-pie -fno-pie -fno-PIE -fno-pic -fno-PIC -fno-plt $lto \\
+	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib \\
 	$cflags "\$@" \\
 	-nostdlib -Wl,-\\( \${needslib:+\$base/lib/all.a -lgcc} -Wl,-\\)
 END
