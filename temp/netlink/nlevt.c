@@ -80,7 +80,7 @@ static int resolve_80211_subscribe_scan(struct netlink* nl)
 	return fam.id;
 }
 
-int main(int argc, char** argv)
+int main(void)
 {
 	struct netlink nl;
 	struct nlmsg* msg;

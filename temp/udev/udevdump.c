@@ -56,6 +56,7 @@ static int open_udev(void)
 
 int main(int argc, char** argv)
 {
+	(void)argv;
 	int fd, rd;
 	char buf[2048];
 	int max = sizeof(buf) - 2;

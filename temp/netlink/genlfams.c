@@ -72,7 +72,7 @@ static void dump_family(struct nlgen* msg)
 	dump_groups(msg);
 }
 
-int main(int argc, char** argv)
+int main(void)
 {
 	struct netlink nl;
 	struct nlgen* msg;

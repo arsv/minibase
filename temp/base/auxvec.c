@@ -84,6 +84,9 @@ struct auxvec* skipenvp(char** envp)
 
 int main(int argc, char** argv, char** envp)
 {
+	(void)argc;
+	(void)argv;
+
 	struct auxvec* a = skipenvp(envp);
 	const struct entry* x;
 

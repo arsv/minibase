@@ -190,6 +190,7 @@ static void pipe_klog_to_syslog(struct top* ctx)
 
 int main(int argc, char** argv)
 {
+	(void)argv;
 	struct top context, *ctx = &context;
 
 	if(argc > 1)

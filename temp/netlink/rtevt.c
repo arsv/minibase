@@ -12,7 +12,7 @@ ERRTAG("rtevents");
 char TX[1*1024];
 char RX[7*1024];
 
-int main(int argc, char** argv)
+int main(void)
 {
 	struct netlink nl;
 	struct nlmsg* msg;

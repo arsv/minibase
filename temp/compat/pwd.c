@@ -11,6 +11,7 @@ ERRLIST(NEINVAL NENOSYS);
 
 int main(int argc, char** argv)
 {
+	(void)argv;
 	char cwd[MAXCWD];
 	long ret;
 
