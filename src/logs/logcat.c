@@ -509,9 +509,9 @@ static void seek_to_start_of_line(CTX)
 
 	if(!st.size)
 		return;
-	if(st.size < chunk)
+	if(mem_off_cmp(chunk, st.size) > 0)
 		;
-	else if((ret = sys_lseek(fd, st.size - chunk, SEEK_SET)) < 0)
+	else if((ret = sys_seek(fd, st.size - chunk)) < 0)
 		fail("seek", ctx->name, ret);
 
 	read_chunk(ctx);

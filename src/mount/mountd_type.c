@@ -23,7 +23,7 @@ static int read_at_off(int fd, long off, char* buf, int size)
 {
 	int ret;
 
-	if((ret = sys_lseek(fd, off, 0)) < 0)
+	if((ret = sys_seek(fd, off)) < 0)
 		return ret;
 	if((ret = sys_read(fd, buf, size)) < 0)
 		return ret;

@@ -17,7 +17,7 @@
 
 #define RWBUFSIZE 1024*1024
 
-static int sendfile(CCT, uint64_t* size)
+static int sendfile(CCT, off_t* size)
 {
 	struct atf* dst = &cct->dst;
 	struct atf* src = &cct->src;
@@ -25,9 +25,9 @@ static int sendfile(CCT, uint64_t* size)
 	int sfd = src->fd;
 	int dfd = dst->fd;
 
-	uint64_t done = 0;
+	off_t done = 0;
 	long ret = 0;
-	ulong run = 0x7ffff000;
+	long run = 0x7ffff000;
 
 	if(*size < run)
 		run = *size;
@@ -62,7 +62,7 @@ static void alloc_rw_buf(CTX)
 	ctx->len = len;
 }
 
-static void readwrite(CCT, uint64_t* size)
+static void readwrite(CCT, off_t* size)
 {
 	struct atf* dst = &cct->dst;
 	struct atf* src = &cct->src;
@@ -71,12 +71,12 @@ static void readwrite(CCT, uint64_t* size)
 	if(!ctx->buf)
 		alloc_rw_buf(ctx);
 
-	uint64_t done = 0;
+	off_t done = 0;
 
 	char* buf = ctx->buf;
-	ulong len = ctx->len;
+	size_t len = ctx->len;
 
-	if(len > *size)
+	if(mem_off_cmp(len, *size) > 0)
 		len = *size;
 
 	int rd = 0, wr;
@@ -102,7 +102,7 @@ static void readwrite(CCT, uint64_t* size)
    Generally the reasons depend on directory (and the underlying fs), so if
    sendfile fails for one file we stop using it for the whole directory. */
 
-static void moveblock(CCT, uint64_t* size)
+static void moveblock(CCT, off_t* size)
 {
 	if(cct->nosendfile)
 		;
@@ -127,43 +127,42 @@ static void moveblock(CCT, uint64_t* size)
 static void transfer(CCT)
 {
 	struct stat* st = &cct->st;
+	char* rname = cct->src.name;
+	char* wname = cct->dst.name;
 	int rfd = cct->src.fd;
 	int wfd = cct->dst.fd;
+	int ret;
 
 	if(512*st->blocks >= st->size)
 		goto plain;
 
-	uint64_t size = st->size;
-	int64_t ds;
-	int64_t de;
-	uint64_t blk;
+	off_t size = st->size;
+	off_t ds = 0;
+	off_t de;
+	off_t blk;
 
-	ds = sys_lseek(rfd, 0, SEEK_DATA);
-
-	if(ds == -EINVAL || (ulong)ds >= size)
+	if(((sys_llseek(rfd, 0, &ds, SEEK_DATA)) < 0) || ds >= size)
 		goto plain;
-
-	de = sys_lseek(rfd, ds, SEEK_HOLE);
-
-	if(de < 0 || (ulong)de >= size)
+	if(((sys_llseek(rfd, ds, &de, SEEK_HOLE)) < 0) || de >= size)
 		goto plain;
 
 	sys_ftruncate(wfd, size);
 
 	while(1) {
-		sys_lseek(wfd, ds, SEEK_SET);
-		sys_lseek(rfd, ds, SEEK_SET);
+		if((ret = sys_seek(wfd, ds)) < 0)
+			fail("seek", wname, ret);
+		if((ret = sys_seek(rfd, ds)) < 0)
+			fail("seek", rname, ret);
 
 		if((blk = de - ds) > 0)
 			moveblock(cct, &blk);
 
-		if((ulong)de >= size)
+		if(de >= size)
 			break;
 
-		ds = sys_lseek(rfd, de, SEEK_DATA);
-		de = sys_lseek(rfd, ds, SEEK_HOLE);
-
-		if(ds < 0 || de < 0)
+		if((sys_llseek(rfd, de, &ds, SEEK_DATA)) < 0)
+			break;
+		if((sys_llseek(rfd, ds, &de, SEEK_HOLE)) < 0)
 			break;
 	}
 

@@ -199,7 +199,7 @@ static int load_gpt_at(int fd, int off, void* buf, int size)
 {
 	int ret;
 
-	if((ret = sys_lseek(fd, off, SEEK_SET)) < 0)
+	if((ret = sys_seek(fd, off)) < 0)
 		return 0;
 	if((ret = sys_read(fd, buf, size)) < 0)
 		return 0;

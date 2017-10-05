@@ -19,12 +19,12 @@ struct top {
 	int fd;
 
 	char* buf;
-	int len;
+	size_t len;
 
 	int inofd; /* inotify fd */
 	int inowd; /* for the file itself */
 
-	uint64_t size;
+	off_t size;
 };
 
 /* tail -f sets up inotify for the file itself and for the directory it
@@ -207,7 +207,7 @@ static int check_truncation(struct top* ctx)
 	if(st.size < ctx->size) {
 		warn("rewinding", ctx->name, 0);
 
-		if((ret = sys_lseek(fd, 0, SEEK_SET)) < 0)
+		if((ret = sys_seek(fd, 0)) < 0)
 			fail("seek", ctx->name, ret);
 
 		ctx->size = 0;
@@ -411,11 +411,11 @@ static int is_regular_file(struct stat* st)
 	return ((st->mode & S_IFMT) == S_IFREG);
 }
 
-static void seek_file(struct top* ctx, int off, int whence)
+static void seek_file(struct top* ctx, off_t off)
 {
 	int ret;
 
-	if((ret = sys_lseek(ctx->fd, off, whence)) < 0)
+	if((ret = sys_seek(ctx->fd, off)) < 0)
 		fail("seek", ctx->name, ret);
 }
 
@@ -433,19 +433,23 @@ static void seek_file_tail(struct top* ctx)
 		return skip_file_tail(ctx);
 
 	ulong maxbuf = (1<<20);
-	ulong buflen = st.size > maxbuf ? maxbuf : st.size;
+	ulong buflen = maxbuf;
+
+	if(mem_off_cmp(maxbuf, st.size) > 0)
+		buflen = st.size;
+
 	allocate_tail_buf(ctx, buflen);
 
 	if(est < st.size)
-		seek_file(ctx, -est, SEEK_END);
+		seek_file(ctx, st.size - est);
 
 	unsigned cnt = count_tail_lines(ctx);
 	unsigned skip = cnt > count ? cnt - count : 0;
 
 	if(est < st.size)
-		seek_file(ctx, -est, SEEK_END);
+		seek_file(ctx, st.size - est);
 	else
-		seek_file(ctx, 0, SEEK_SET);
+		seek_file(ctx, 0);
 
 	read_skipping_first(ctx, skip);
 }

@@ -171,10 +171,13 @@ static void truncate(struct file* dst, uint64_t size)
 
 static void seekfile(struct file* f)
 {
-	if(!f->off)
-		return;
-	xchk(sys_lseek(f->fd, f->off, 0),
-		"cannot seek", f->name);
+	int64_t off = f->off;
+	int ret;
+
+	if(!off) return;
+
+	if((ret = sys_seek(f->fd, off)) < 0)
+		fail("seek", f->name, ret);
 }
 
 static void closefile(struct file* f)

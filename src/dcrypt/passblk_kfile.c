@@ -31,12 +31,12 @@ void load_keyfile(void)
 		fail("open", name, fd);
 	if((ret = sys_fstat(fd, &st)) < 0)
 		fail("stat", name, ret);
-	if(st.size > sizeof(keybuf))
+	if(mem_off_cmp(sizeof(keybuf), st.size) < 0)
 		fail("keyfile too large", NULL, 0);
 
 	if((ret = sys_read(fd, keybuf, st.size)) < 0)
 		fail("read", name, ret);
-	if((ulong)ret < st.size)
+	if(ret < st.size)
 		fail("incomplete read", NULL, 0);
 	if(ret < 16 || ret % 16)
 		fail("invalid keyfile", name, 0);

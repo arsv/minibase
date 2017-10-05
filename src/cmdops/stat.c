@@ -145,21 +145,25 @@ static char* sumtypemode(char* p, char* e, struct stat* st, int opts)
 
 static char* mmapfile(const char* fname, size_t* size)
 {
-	long fd = sys_open(fname, O_RDONLY);
-	if(fd < 0) return NULL;
-
+	int fd, ret;
 	struct stat st;
-	long sr = sys_fstat(fd, &st);
-	if(sr < 0) return NULL;
 
-	if(st.size > *size) return NULL;
+	if((fd = sys_open(fname, O_RDONLY)) < 0)
+		return NULL;
+	if((ret = sys_fstat(fd, &st)) < 0)
+		return NULL;
+	if(mem_off_cmp(*size, st.size) < 0)
+		return NULL; /* file too large */
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
 	void* mr = sys_mmap(NULL, st.size, prot, flags, fd, 0);
-	if(mmap_error(mr)) return NULL;
+
+	if(mmap_error(mr))
+		return NULL;
 
 	*size = st.size;
+
 	return mr;
 }
 
