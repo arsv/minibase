@@ -6,16 +6,6 @@
 
 ERRTAG("holes");
 
-static uint64_t lseek(int fd, uint64_t off, int whence)
-{
-	int64_t ret;
-
-	if((ret = sys_lseek(fd, off, whence)) < 0)
-		fail("seek", NULL, ret);
-
-	return (uint64_t)ret;
-}
-
 static void report(char* tag, uint64_t from, uint64_t to)
 {
 	FMTBUF(p, e, buf, 100);
@@ -36,7 +26,7 @@ int main(int argc, char** argv)
 	int fd, ret;
 	char* name = argv[1];
 	struct stat st;
-	uint64_t ds, dh;
+	off_t ds, dh;
 
 	if(argc != 2)
 		fail("bad call", NULL, 0);
@@ -46,19 +36,22 @@ int main(int argc, char** argv)
 	if((ret = sys_fstat(fd, &st)) < 0)
 		fail("stat", name, ret);
 
-	ds = lseek(fd, 0, SEEK_DATA);
-
-	if(ds > 0) report("hole", 0, ds);
+	if((ret = sys_llseek(fd, 0, &ds, SEEK_DATA)) < 0)
+		fail("llseek", "DATA", ret);
+	if(ds > 0)
+		report("hole", 0, ds);
 
 	while(ds < st.size) {
-		dh = lseek(fd, ds, SEEK_HOLE);
+		if((ret = sys_llseek(fd, ds, &dh, SEEK_HOLE)) < 0)
+			fail("llseek", "HOLE", ret);
 
 		report("data", ds, dh);
 
 		if(dh >= st.size)
 			break;
 
-		ds = lseek(fd, dh, SEEK_DATA);
+		if((ret = sys_llseek(fd, dh, &ds, SEEK_DATA)) < 0)
+			fail("llseek", "DATA", ret);
 
 		report("hole", dh, ds);
 	}

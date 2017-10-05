@@ -10,7 +10,9 @@ ERRTAG("sparse");
 
 static void skip(int fd, long len)
 {
-	sys_lseek(fd, len, SEEK_CUR);
+	off_t temp;
+
+	sys_llseek(fd, len, &temp, SEEK_CUR);
 }
 
 static void fill(int fd, long len, int rn)

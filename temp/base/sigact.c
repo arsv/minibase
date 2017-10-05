@@ -1,4 +1,3 @@
-#include <bits/null.h>
 #include <sys/signal.h>
 #include <sys/file.h>
 #include <sys/creds.h>

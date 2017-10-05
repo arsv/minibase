@@ -156,9 +156,9 @@ static void countfile(struct wc* cnts, const char* fname, int last)
 	const int flags = MAP_SHARED;
 
 	char* buf = NULL; /* mmaped window */
-	uint64_t off = 0; /* offset within the file */
+	off_t off = 0; /* offset within the file */
 	long map = 0; /* bytes mmapped on this iter */
-	uint64_t rem = st.size; /* bytes remaining */
+	off_t rem = st.size; /* bytes remaining */
 
 	while(off < st.size) {
 		map = rem > MAPSIZE ? MAPSIZE : rem;
