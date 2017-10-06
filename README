@@ -22,23 +22,23 @@ Some tools are missing, and some still need work.
   * Small basic unix tools (cat, ls, du, df etc).
   * Several small linux-specific tools (systime, sync, dmesg etc).
 
-  * Simple non-interactive shell (msh) for scripting the boot
-    process and service startup [usable,incomplete].
+  * Simple non-interactive command interpreter (msh) for scripting
+    boot process and service startup.
   * Early-stage boot utils (switchroot, kmod, mount).
 
-  * Non-encrypted block device locator (findblk) [usable]
-  * Encrypted device locator and passphrase prompt tool (passblk) [usable]
-  * Support tooling for disc encryption (dektool, dmcrypt) [usable]
+  * Non-encrypted block device locator (findblk)
+  * Encrypted device locator and passphrase prompt tool (passblk)
+  * Support tooling for disc encryption (dektool, dmcrypt)
   - No fsck for any fs yet.
   
-  * Process supervisor suite (init, super, reboot, svc), split-stage
-    implementation similar to daemontools or runit [usable].
+  * Process supervisor suite (init, super, reboot, svc),
+    split-stage implementation similar to daemontools or runit.
   
-  - No udevd yet.
-  * Unprivileged mount tooling (mountd, pmount) [usable].
-  * Controlled privilege escalation tool (sudo) [usable].
+  * udevd stub.
+  * Unprivileged mount tooling (mountd, pmount).
+  * Controlled privilege escalation tool (sudo).
 
-  * DHCP client (dhcp) [usable].
+  * DHCP client (dhcp).
   * manual interface setup tools (ip4cfg, ip4info) [incomplete].
   - No sntpd yet.
 
@@ -50,9 +50,9 @@ Some tools are missing, and some still need work.
   - No package manager / download tool yet.
 
   * VT/DRM/input multiplexer (vtmux) aka that part of systemd-logind
-    everyone keeps asking about [partially usable, weston only].
+    everyone keeps asking about [weston only atm].
+  * Non-graphical greeter stub.
 
-  - No greeters yet.
   - No interactive shell yet.
 
 With everything in place, the system should be able to boot, on minibase
@@ -79,7 +79,7 @@ try to be compatible with either.
 
 Busybox needs a proper libc toolchain to build, minibase does not.
 On the other hand, busybox can be built for any target given libc supports
-while minibase only supports 4 targets at this moment.
+while minibase only supports four targets at this moment.
 
 The set of tools is quite different. Busybox provides more POSIX-style
 text manipulation tools (grep, patch, vi) while minibase is mostly about
@@ -133,7 +133,7 @@ The whole project was inspired and initially heavily influenced by busybox.
 Certain decision from skarnet/s6 project also played significant role.
 
 Syscall code (static inline functions with asm volatile blocks)
-follows musl, because they got it right.
+follows musl. Because musl folks got it right.
 
 The Rust coreutils project provided great deal of inspiration,
 specifically by showing how not to write coreutils.
