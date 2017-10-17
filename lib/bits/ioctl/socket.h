@@ -4,6 +4,9 @@
 #define SIOCGIFHWADDR	0x8927
 #define SIOCGIFINDEX	0x8933
 
+#define SIOCGIFFLAGS	0x8913
+#define SIOCSIFFLAGS	0x8914
+
 #define IFNAMESIZ 16
 
 struct ifreq {
