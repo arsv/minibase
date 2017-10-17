@@ -27,8 +27,9 @@ for arg in "$@"; do
 		ar=*) eval "$arg" ;;
 		strip=*) eval "$arg" ;;
 		clang) clang=yes ;;
-		devel) cflags="-Wall -Wextra -g -DDEVEL" ;;
+		devel) cflags="-Wall -g -DDEVEL" ;;
 		debug) cflags="-Os -g" ;;
+		wextra) cflags="$cflags -Wextra" ;;
 		lto) lto="-flto " ;;
 		*) die "Unexpected argument $arg" ;;
 	esac
