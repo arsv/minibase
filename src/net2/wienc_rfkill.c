@@ -40,6 +40,14 @@ int rfkill;
 int rfkilled;
 static int rfkidx;
 
+/* The interface gets brought up with simple ioctls. It could have been
+   done with RTNL as well, but setting up RTNL for this mere reason
+   hardly makes sense.
+
+   Current code works on interface named $ifname, in contrast with GENL
+   code that uses $ifindex instead. Renaming the interface while wienc
+   runs *will* confuse it. */
+
 #define IFF_UP (1<<0)
 
 static void bring_iface_up(void)
