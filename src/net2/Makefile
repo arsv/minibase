@@ -1,0 +1,7 @@
+service = wienc
+
+include ../rules.mk
+
+wienc: wienc.o wienc_netlink.o wienc_eapol.o wienc_crypto.o wienc_cntrl.o \
+	wienc_slots.o wienc_sta_ies.o wienc_config.o wienc_apsel.o \
+	wienc_rfkill.o
