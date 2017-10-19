@@ -157,6 +157,7 @@ void free_scan_slot(struct scan* sc);
 void parse_station_ies(struct scan* sc, char* buf, uint len);
 struct scan* find_scan_slot(byte bssid[6]);
 
+void reconnect_to_current_ap(void);
 void reassess_wifi_situation(void);
 void handle_connect(void);
 void handle_disconnect(void);

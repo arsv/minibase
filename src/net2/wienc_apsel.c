@@ -326,12 +326,12 @@ static void rescan_current_ap(void)
 	start_scan(ap.freq);
 }
 
-static void reconnect_to_current_ap(void)
+void reconnect_to_current_ap(void)
 {
 	tracef("%s\n", __FUNCTION__);
 
-	/* opermode == OP_RESCAN at this point */
-	opermode = OP_ENABLED;
+	if(opermode == OP_RESCAN)
+		opermode = OP_ENABLED;
 
 	if(find_current_ap())
 		start_connection();
@@ -373,11 +373,6 @@ void check_new_scan_results(void)
 		if(got_psk_for(sc->ssid, sc->slen))
 			sc->flags |= SF_PASS;
 	}
-
-	if(opermode == OP_RESCAN)
-		reconnect_to_current_ap();
-	else
-		reassess_wifi_situation();
 }
 
 /* Netlink reports AP connection has been lost. */

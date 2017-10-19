@@ -19,6 +19,7 @@ struct netlink nl;
 int netlink;
 static int nl80211;
 static int scanseq;
+static int freqreq;
 
 int authstate;
 int scanstate;
@@ -88,32 +89,38 @@ static void send_set_authstate(int as)
 	authstate = as;
 }
 
+static void reset_scan_state(void)
+{
+	scanstate = SS_IDLE;
+	scanseq = 0;
+	freqreq = 0;
+}
+
 int start_scan(int freq)
 {
+	struct nlattr* at;
 	int ret;
 
 	tracef("%s\n", __FUNCTION__);
 
-	if(scanstate != SS_IDLE)
-		return -EBUSY;
-
-	if(authstate == AS_IDLE)
-		;
-	else if(authstate == AS_CONNECTED)
-		;
-	else if(authstate == AS_NETDOWN)
-		;
-	else return -EBUSY;
+	if(scanstate != SS_IDLE) {
+		if(freq && !freqreq) {
+			freqreq = freq;
+			return 0;
+		} else {
+			return -EBUSY;
+		}
+	}
 
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_TRIGGER_SCAN, 0);
 	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
 
-	if(!freq) goto send;
+	if(freq) {
+		at = nl_put_nest(&nl, NL80211_ATTR_SCAN_FREQUENCIES);
+		nl_put_u32(&nl, 0, freq);
+		nl_end_nest(&nl, at);
+	}
 
-	struct nlattr* at = nl_put_nest(&nl, NL80211_ATTR_SCAN_FREQUENCIES);
-	nl_put_u32(&nl, 0, freq);
-	nl_end_nest(&nl, at);
-send:
 	if((ret = nl_send(&nl)) < 0)
 		return ret;
 
@@ -221,6 +228,7 @@ static void cmd_scan_aborted(struct nlgen* msg)
 	warn("scan aborted", NULL, 0);
 	report_scan_fail();
 
+	reset_scan_state();
 	scanstate = SS_IDLE;
 	scanseq = 0;
 }
@@ -369,6 +377,8 @@ void upload_gtk(void)
 
 static void trigger_disconnect(void)
 {
+	tracef("%s\n", __FUNCTION__);
+
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_DISCONNECT, 0);
 	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
 
@@ -377,14 +387,18 @@ static void trigger_disconnect(void)
 
 void abort_connection(void)
 {
-	if(authstate == AS_IDLE)
+	tracef("%s\n", __FUNCTION__);
+
+	if(start_disconnect() >= 0)
 		return;
 
-	trigger_disconnect();
+	reassess_wifi_situation();
 }
 
 int start_disconnect(void)
 {
+	tracef("%s\n", __FUNCTION__);
+
 	switch(authstate) {
 		case AS_IDLE:
 		case AS_NETDOWN:
@@ -420,37 +434,41 @@ static void drop_stale_scan_slots(void)
 
 static void handle_scan_error(int err)
 {
-	warn("scan error", NULL, err);
-	scanstate = SS_IDLE;
-	scanseq = 0;
+	tracef("%s %i\n", __FUNCTION__, err);
+
+	reset_scan_state();
+	report_scan_fail();
 }
 
 static void snap_to_netdown(void)
 {
+	reset_scan_state();
+
 	if(rfkilled) {
 		tracef("%s already rfkilled\n", __FUNCTION__);
 		authstate = AS_IDLE;
-		scanstate = SS_IDLE;
 	} else {
 		tracef("%s no rfkill yet\n", __FUNCTION__);
 		authstate = AS_NETDOWN;
-		scanstate = SS_IDLE;
 		set_timer(1);
 	}
+
+	report_net_down();
 }
 
 static void handle_auth_error(int err)
 {
-	warn("auth error", NULL, err);
+	tracef("%s %i\n", __FUNCTION__, err);
 
-	if(authstate == AS_DISCONNECTING)
+	if(authstate == AS_DISCONNECTING) {
 		authstate = AS_IDLE;
-	else if(err == -EALREADY)
-		authstate = AS_EXTERNAL;
-	else
+		reassess_wifi_situation();
+	} else if(authstate == AS_AUTHENTICATING && err == -ENOENT) {
+		authstate = AS_IDLE;
+		start_scan(ap.freq);
+	} else {
 		abort_connection();
-
-	//snap_to_neutral();
+	}
 }
 
 static void genl_done(void)
@@ -458,18 +476,22 @@ static void genl_done(void)
 	if(scanstate != SS_SCANDUMP)
 		return;
 
-	scanseq = 0;
-	scanstate = SS_IDLE;
+	reset_scan_state();
 
 	drop_stale_scan_slots();
 
 	check_new_scan_results();
+
+	report_scan_done();
+
+	if(freqreq)
+		reconnect_to_current_ap();
+	else
+		reassess_wifi_situation();
 }
 
 static void genl_error(struct nlerr* msg)
 {
-	warn("nl error", NULL, msg->errno);
-
 	if(msg->errno == -ENETDOWN)
 		snap_to_netdown();
 	else if(msg->nlm.seq == scanseq)
