@@ -117,9 +117,15 @@ static void put_status_scans(struct ucbuf* uc)
 		uc_put_int(uc, ATTR_FREQ,   sc->freq);
 		uc_put_int(uc, ATTR_TYPE,   sc->type);
 		uc_put_int(uc, ATTR_SIGNAL, sc->signal);
-		uc_put_int(uc, ATTR_PRIO,   sc->prio);
 		uc_put_bin(uc, ATTR_BSSID,  sc->bssid, sizeof(sc->bssid));
 		uc_put_bin(uc, ATTR_SSID,   sc->ssid, sc->slen);
+
+		if(!(sc->flags & SF_PASS))
+			;
+		else if(!(sc->flags & SF_GOOD))
+			;
+		else uc_put_flag(uc, ATTR_PRIO);
+
 		uc_end_nest(uc, nn);
 	}
 }

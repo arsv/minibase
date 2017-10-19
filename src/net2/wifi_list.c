@@ -133,6 +133,19 @@ static char* fmt_kv(char* p, char* e, int val, const struct dict* dc)
 	return p;
 }
 
+static int cmp_flag(attr at, attr bt, int key)
+{
+	struct ucattr* fa = uc_sub(at, key);
+	struct ucattr* fb = uc_sub(bt, key);
+
+	if(!fa && fb)
+		return -1;
+	if(fa && !fb)
+		return  1;
+
+	return 0;
+}
+
 static int cmp_int(attr at, attr bt, int key)
 {
 	int* na = uc_sub_int(at, key);
@@ -158,7 +171,7 @@ static int scan_ord(const void* a, const void* b)
 	attr bt = *((attr*)b);
 	int ret;
 
-	if((ret = cmp_int(at, bt, ATTR_PRIO)))
+	if((ret = cmp_flag(at, bt, ATTR_PRIO)))
 		return -ret;
 	if((ret = cmp_int(at, bt, ATTR_SIGNAL)))
 		return -ret;
@@ -183,16 +196,6 @@ static char* fmt_ssid(char* p, char* e, attr at)
 			p = fmtbyte(p, e, ssid[i]);
 		}
 	}
-
-	return p;
-}
-
-static char* fmt_prio(char* p, char* e, int prio)
-{
-	if(prio == 0)
-		return fmtstr(p, e, " +");
-	else if(prio > 0)
-		return fmtstr(p, e, " *");
 
 	return p;
 }
@@ -295,13 +298,13 @@ static void dump_scan(CTX, AT)
 
 	struct ucattr* ssid = uc_sub(at, ATTR_SSID);
 	uint8_t* bssid = uc_sub_bin(at, ATTR_BSSID, 6);
-	int signal, freq, prio;
+	struct ucattr* prio = uc_sub(at, ATTR_PRIO);
+	int signal, freq;
 
 	if(!bssid || !ssid) return;
 
 	sub_int(at, ATTR_SIGNAL, &signal);
 	sub_int(at, ATTR_FREQ, &freq);
-	sub_int(at, ATTR_PRIO, &prio);
 
 	p = fmtstr(p, e, "AP ");
 	p = fmtint(p, e, (signal)/100);
@@ -311,7 +314,7 @@ static void dump_scan(CTX, AT)
 	p = fmtmac(p, e, bssid);
 	p = fmtstr(p, e, "  ");
 	p = fmt_ssid(p, e, ssid);
-	p = fmt_prio(p, e, prio);
+	if(prio) p = fmtstr(p, e, " *");
 	*p++ = '\n';
 
 	output(ctx, buf, p - buf);

@@ -62,8 +62,8 @@ static int connectable(struct scan* sc)
 		return 0; /* already tried that */
 	if(ap.fixed)
 		return 1;
-	if(sc->prio <= 0)
-		return 0; /* no PSK */
+	if(!(sc->flags & SF_PASS))
+		return 0;
 	return 1;
 }
 
@@ -111,9 +111,6 @@ static int compare(struct scan* sc, struct scan* best)
 
 	if(!best)
 		return 1;
-
-	if((r = cmp(sc->prio, best->prio)))
-		return r;
 	if((r = cmp(band_score(sc), band_score(best))))
 		return r;
 	if((r = cmp(sc->signal, best->signal)))
@@ -366,12 +363,11 @@ void check_new_scan_results(void)
 			continue;
 
 		sc->flags |= SF_SEEN;
-		sc->prio = saved_psk_prio(sc->ssid, sc->slen);
 
-		if(!check_wpa(sc))
-			continue;
-		
-		sc->flags |= SF_GOOD;
+		if(check_wpa(sc))
+			sc->flags |= SF_GOOD;
+		if(got_psk_for(sc->ssid, sc->slen))
+			sc->flags |= SF_PASS;
 	}
 
 	if(opermode == OP_RESCAN)

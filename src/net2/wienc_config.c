@@ -11,9 +11,9 @@
 
 /* Mini text editor for the config file. The config looks something like this:
 
-	001122...EEFF 1 Blackhole
-	91234A...47AC 0 publicnet
-	F419BE...01F5 0 someothernet
+	001122...EEFF Blackhole
+	91234A...47AC publicnet
+	F419BE...01F5 someothernet
 
    and wienc only uses it to store PSKs at this point.
 
@@ -311,8 +311,8 @@ int find_ssid(struct line* ln, byte* ssid, int slen)
 	p = fmt_ssid(p, e, ssid, slen);
 	FMTEND(p, e);
 
-	/* 0 is psk, 1 is prio, 2 is ssid */
-	return find_line(ln, 2, buf, p - buf);
+	/* 0 is psk, 1 is ssid */
+	return find_line(ln, 1, buf, p - buf);
 }
 
 static void change_part(char* start, char* end, char* buf, int len)
@@ -409,41 +409,29 @@ void save_line(struct line* ln, char* buf, int len)
 	modified = 1;
 }
 
-int saved_psk_prio(byte* ssid, int slen)
+int got_psk_for(byte* ssid, int slen)
 {
 	struct line ln;
-	struct chunk ck[4];
-
-	char* p;
-	int prio;
 
 	if(load_config())
-		return -1;
+		return 0;
 	if(find_ssid(&ln, ssid, slen))
-		return -1;
-	if(split_line(&ln, ck, 3) < 3)
-		return -1;
-	if(!(p = parseint(ck[1].start, &prio)))
-		return -1;
-	if(p < ck[1].end)
-		return -1;
+		return 0;
 
-	tracef("prio %i for %.*s\n", prio, slen, ssid);
-
-	return prio;
+	return 1;
 }
 
 int load_psk(byte* ssid, int slen, byte psk[32])
 {
 	struct line ln;
-	struct chunk ck[4];
+	struct chunk ck[2];
 	int ret = -ENOKEY;
 
 	if(load_config())
 		return ret;
 	if(find_ssid(&ln, ssid, slen))
 		return ret;
-	if(split_line(&ln, ck, 3) < 3)
+	if(split_line(&ln, ck, 2) < 2)
 		return ret;
 
 	struct chunk* cpsk = &ck[0];
@@ -457,7 +445,7 @@ int load_psk(byte* ssid, int slen, byte psk[32])
 	return 0;
 }
 
-void save_psk(byte* ssid, int slen, int prio, byte psk[32])
+void save_psk(byte* ssid, int slen, byte psk[32])
 {
 	struct line ln;
 
@@ -467,36 +455,10 @@ void save_psk(byte* ssid, int slen, int prio, byte psk[32])
 
 	p = fmtbytes(p, e, psk, 32);
 	p = fmtstr(p, e, " ");
-	p = fmtint(p, e, prio);
-	p = fmtstr(p, e, " ");
 	p = fmt_ssid(p, e, ssid, slen);
 
 	if(load_config()) return;
 
 	find_ssid(&ln, ssid, slen);
 	save_line(&ln, buf, p - buf);
-}
-
-int set_psk_prio(uint8_t* ssid, int slen, int prio)
-{
-	struct line ln;
-	struct chunk ck[4];
-
-	if(load_config())
-		return -ENOENT;
-	if(find_ssid(&ln, ssid, slen))
-		return -ENOENT;
-
-	if(prio >= 10)
-		return -EINVAL;
-	if(prio < 0)
-		drop_line(&ln);
-	else if(split_line(&ln, ck, 3) < 3)
-		return -EBADSLT;
-	else {
-		char buf[2] = { '0' + prio, '\0' };
-		change_chunk(&ck[1], buf);
-	}
-
-	return 0;
 }

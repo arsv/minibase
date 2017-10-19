@@ -44,13 +44,13 @@
 
 #define SF_SEEN        (1<<0)
 #define SF_GOOD        (1<<1)
-#define SF_STALE       (1<<2)
-#define SF_TRIED       (1<<3)
+#define SF_PASS        (1<<2)
+#define SF_STALE       (1<<3)
+#define SF_TRIED       (1<<4)
 
 struct scan {
 	short freq;
 	short signal;
-	short prio;
 	short flags;
 	short type;
 	uint8_t bssid[6];
@@ -156,7 +156,7 @@ void free_scan_slot(struct scan* sc);
 void parse_station_ies(struct scan* sc, char* buf, uint len);
 struct scan* find_scan_slot(byte bssid[6]);
 
-int saved_psk_prio(byte* ssid, int slen);
+int got_psk_for(byte* ssid, int slen);
 void check_new_scan_results(void);
 void reassess_wifi_situation(void);
 void handle_oneshot_disconnect(void);
@@ -166,8 +166,7 @@ void save_config(void);
 void drop_config(void);
 
 int load_psk(byte* ssid, int slen, byte psk[32]);
-void save_psk(byte* ssid, int slen, int prio, byte psk[32]);
-int set_psk_prio(uint8_t* ssid, int slen, int prio);
+void save_psk(byte* ssid, int slen, byte psk[32]);
 
 void set_timer(int seconds);
 void clr_timer(void);
