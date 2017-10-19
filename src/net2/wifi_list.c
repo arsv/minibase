@@ -132,19 +132,6 @@ static char* fmt_kv(char* p, char* e, int val, const struct dict* dc)
 	return p;
 }
 
-static int cmp_flag(attr at, attr bt, int key)
-{
-	struct ucattr* fa = uc_sub(at, key);
-	struct ucattr* fb = uc_sub(bt, key);
-
-	if(!fa && fb)
-		return -1;
-	if(fa && !fb)
-		return  1;
-
-	return 0;
-}
-
 static int cmp_int(attr at, attr bt, int key)
 {
 	int* na = uc_sub_int(at, key);
@@ -170,8 +157,6 @@ static int scan_ord(const void* a, const void* b)
 	attr bt = *((attr*)b);
 	int ret;
 
-	if((ret = cmp_flag(at, bt, ATTR_PRIO)))
-		return -ret;
 	if((ret = cmp_int(at, bt, ATTR_SIGNAL)))
 		return -ret;
 	if((ret = cmp_int(at, bt, ATTR_FREQ)))
