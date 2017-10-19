@@ -104,7 +104,7 @@ static void handle_event(struct rfkill_event* re)
 	if(re->soft || re->hard) {
 		rfkilled = 1;
 		clr_timer();
-	} else if(rfkilled) {
+	} else {
 		rfkilled = 0;
 		bring_iface_up();
 		handle_rfrestored();
