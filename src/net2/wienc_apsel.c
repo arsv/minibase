@@ -366,6 +366,8 @@ void check_new_scan_results(void)
 
 		if(check_wpa(sc))
 			sc->flags |= SF_GOOD;
+		else
+			continue;
 		if(got_psk_for(sc->ssid, sc->slen))
 			sc->flags |= SF_PASS;
 	}
