@@ -387,17 +387,11 @@ void handle_disconnect(void)
 	if(opermode == OP_EXIT)
 		return;
 
-	if(opermode == OP_RESCAN) {
+	if(opermode == OP_RESCAN)
 		opermode = OP_ENABLED;
-		ap.success = 0; /* should be 0 already anyway */
-	}
+	if(opermode == OP_ONESHOT && ap.success)
+		opermode = OP_ENABLED;
 
-	if(opermode == OP_ONESHOT) {
-		if(ap.success)
-			opermode = OP_ENABLED;
-		else
-			opermode = OP_NEUTRAL;
-	}
 	if(opermode == OP_ENABLED) {
 		if(ap.success)
 			rescan_current_ap();
@@ -468,6 +462,7 @@ static int maybe_start_scan(void)
 static void idle_then_rescan(void)
 {
 	tracef("%s: idling\n", __FUNCTION__);
+
 	set_timer(60); /* for rescan */
 }
 
@@ -487,5 +482,8 @@ void reassess_wifi_situation(void)
 	if(connect_to_something())
 		return;
 
-	idle_then_rescan();
+	if(opermode == OP_ONESHOT)
+		opermode = OP_NEUTRAL;
+	else
+		idle_then_rescan();
 }
