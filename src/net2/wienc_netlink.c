@@ -26,42 +26,15 @@ int scanstate;
 
 struct ap ap;
 
-void setup_netlink(void)
-{
-	char* family = "nl80211";
-	struct nlpair grps[] = {
-		{ -1, "mlme" },
-		{ -1, "scan" },
-		{  0, NULL } };
-	int ret;
-
-	nl_init(&nl);
-	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
-	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
-
-	if((ret = nl_connect(&nl, NETLINK_GENERIC, 0)) < 0)
-		fail("nl-connect", NULL, ret);
-
-	if((nl80211 = query_family_grps(&nl, family, grps)) < 0)
-		fail("NL family", family, nl80211);
-	if(grps[0].id < 0)
-		fail("NL group nl80211", grps[0].name, -ENOENT);
-
-	if((ret = nl_subscribe(&nl, grps[0].id)) < 0)
-		fail("NL subscribe nl80211", grps[0].name, -ret);
-	if((ret = nl_subscribe(&nl, grps[1].id)) < 0)
-		fail("NL subscribe nl80211", grps[1].name, -ret);
-
-	netlink = nl.fd;
-}
+/* No point in waiting for notifications if the goal is to reset
+   the device and quit. So unlike regular trigger_disconnect, this
+   does a synchronous ACK-ed command. */
 
 void quit(const char* msg, char* arg, int err)
 {
 	warn(msg, arg, err);
 
 	if(authstate == AS_IDLE)
-		goto out;
-	if(authstate == AS_EXTERNAL)
 		goto out;
 
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_DISCONNECT, 0);
@@ -71,6 +44,8 @@ out:
 	unlink_control();
 	_exit(0xFF);
 }
+
+/* Socket-level errors on netlink socket should not happen. */
 
 static void send_check(void)
 {
@@ -96,6 +71,9 @@ static void reset_scan_state(void)
 	freqreq = 0;
 }
 
+/* The weird logic below handles the cases when a re-scan or a routine
+   scheduled scan coincides with a user-requested full range scan. */
+
 int start_scan(int freq)
 {
 	struct nlattr* at;
@@ -107,6 +85,8 @@ int start_scan(int freq)
 		if(freq && !freqreq) {
 			freqreq = freq;
 			return 0;
+		} else if(!freq && !freqreq) {
+			return 0;
 		} else {
 			return -EBUSY;
 		}
@@ -117,7 +97,7 @@ int start_scan(int freq)
 
 	if(freq) {
 		at = nl_put_nest(&nl, NL80211_ATTR_SCAN_FREQUENCIES);
-		nl_put_u32(&nl, 0, freq);
+		nl_put_u32(&nl, 0, freq); /* 0 is index here */
 		nl_end_nest(&nl, at);
 	}
 
@@ -210,6 +190,11 @@ static void cmd_trigger_scan(struct nlgen* msg)
 	mark_stale_scan_slots(msg);
 }
 
+/* Non-MULTI scan results command means the card is done scanning,
+   and it comes empty. We must then trigger scan dump, which results
+   in a bunch of messages with the same command code *but* also with
+   the MULTI flag set. The dump ends with NLMSG_DONE. */
+
 static void cmd_scan_results(struct nlgen* msg)
 {
 	if(msg->nlm.flags & NLM_F_MULTI)
@@ -288,9 +273,9 @@ static void snap_to_disabled(char* why)
 }
 
 /* See comments around prime_eapol_state() / allow_eapol_sends() on why
-   this stuff works the way it does. Note that ASSOCIATE is the last
-   command we issue over netlink, pretty everything else happens either
-   on its own or through the rawsock. */
+   this stuff works the way it does. ASSOCIATE is the last command we issue
+   over netlink, pretty everything else happens either on its own or through
+   the rawsock. */
 
 static void cmd_authenticate(struct nlgen* msg)
 {
@@ -325,6 +310,10 @@ static void cmd_connect(struct nlgen* msg)
 
 	authstate = AS_CONNECTED;
 }
+
+/* EAPOL code does negotiations in the user space, but the resulting
+   keys must be uploaded (installed, in 802.11 terms) back to the card
+   and the upload happens via netlink. */
 
 void upload_ptk(void)
 {
@@ -385,15 +374,8 @@ static void trigger_disconnect(void)
 	send_set_authstate(AS_DISCONNECTING);
 }
 
-void abort_connection(void)
-{
-	tracef("%s\n", __FUNCTION__);
-
-	if(start_disconnect() >= 0)
-		return;
-
-	reassess_wifi_situation();
-}
+/* start_disconnect is for user requests,
+   abort_connection gets called if EAPOL negotiations fail. */
 
 int start_disconnect(void)
 {
@@ -412,6 +394,16 @@ int start_disconnect(void)
 	return 0;
 }
 
+void abort_connection(void)
+{
+	tracef("%s\n", __FUNCTION__);
+
+	if(start_disconnect() >= 0)
+		return;
+
+	reassess_wifi_situation();
+}
+
 static void cmd_disconnect(struct nlgen* msg)
 {
 	tracef("%s\n", __FUNCTION__);
@@ -423,6 +415,14 @@ static void cmd_disconnect(struct nlgen* msg)
 	handle_disconnect();
 }
 
+/* NLMSG_DONE indicates the end of a dump. The only kind of dumps
+   that happens in wienc is scan dump.
+
+   A pending single-frequency scan request (freqreq) means we're
+   either pre-scanning an AP after ENOENT, or re-scanning it after
+   losing a connection. In both cases the configured AP should be
+   tried first before proceeding to reassess_wifi_situation(). */
+
 static void drop_stale_scan_slots(void)
 {
 	struct scan* sc;
@@ -431,6 +431,29 @@ static void drop_stale_scan_slots(void)
 		if(sc->flags & SF_STALE)
 			free_scan_slot(sc);
 }
+
+static void genl_done(void)
+{
+	if(scanstate != SS_SCANDUMP)
+		return;
+
+	reset_scan_state();
+
+	drop_stale_scan_slots();
+
+	check_new_scan_results();
+
+	report_scan_done();
+
+	if(freqreq)
+		reconnect_to_current_ap();
+	else
+		reassess_wifi_situation();
+}
+
+/* Netlink errors caused by scan-related commands; we track those
+   with scanseq. There's really not that much to do here, if a scan
+   fails (and it's not ENETDOWN which gets handled separately). */
 
 static void handle_scan_error(int err)
 {
@@ -456,6 +479,19 @@ static void snap_to_netdown(void)
 	report_net_down();
 }
 
+/* Netlink errors not matching scanseq are caused by AUTHENTICATE
+   and related commands. These are usually various shades of EBUSY
+   and EALREADY. Actual authentication (PSK check) errors originate
+   from the EAPOL code and call abort_connection() directly.
+
+   ENOENT handling is tricky. This error means that the AP is not
+   in the fast card/kernel scan cache, which gets purged in like 10s
+   after the scan. It does not necessary really mean the AP is gone.
+   
+   So if we get ENOENT, we do a fast single-frequency scan for the AP
+   we're connecting to. If the AP is really gone, it will be detected
+   in reconnect_to_current_ap() and not here. */
+
 static void handle_auth_error(int err)
 {
 	tracef("%s %i\n", __FUNCTION__, err);
@@ -469,25 +505,6 @@ static void handle_auth_error(int err)
 	} else {
 		abort_connection();
 	}
-}
-
-static void genl_done(void)
-{
-	if(scanstate != SS_SCANDUMP)
-		return;
-
-	reset_scan_state();
-
-	drop_stale_scan_slots();
-
-	check_new_scan_results();
-
-	report_scan_done();
-
-	if(freqreq)
-		reconnect_to_current_ap();
-	else
-		reassess_wifi_situation();
 }
 
 static void genl_error(struct nlerr* msg)
@@ -524,6 +541,9 @@ static void dispatch(struct nlgen* msg)
 	//tracef("NL unhandled cmd %i\n", msg->cmd);
 }
 
+/* Netlink has no per-device subscription. We will be getting notifications
+   for all available nl80211 devices, not just the one we watch. */
+
 static int match_ifi(struct nlgen* msg)
 {
 	int32_t* ifi;
@@ -559,4 +579,33 @@ void handle_netlink(void)
 		else dispatch(gen);
 
 	nl_shift_rxbuf(&nl);
+}
+
+void setup_netlink(void)
+{
+	char* family = "nl80211";
+	struct nlpair grps[] = {
+		{ -1, "mlme" },
+		{ -1, "scan" },
+		{  0, NULL } };
+	int ret;
+
+	nl_init(&nl);
+	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
+	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
+
+	if((ret = nl_connect(&nl, NETLINK_GENERIC, 0)) < 0)
+		fail("nl-connect", NULL, ret);
+
+	if((nl80211 = query_family_grps(&nl, family, grps)) < 0)
+		fail("NL family", family, nl80211);
+	if(grps[0].id < 0)
+		fail("NL group nl80211", grps[0].name, -ENOENT);
+
+	if((ret = nl_subscribe(&nl, grps[0].id)) < 0)
+		fail("NL subscribe nl80211", grps[0].name, -ret);
+	if((ret = nl_subscribe(&nl, grps[1].id)) < 0)
+		fail("NL subscribe nl80211", grps[1].name, -ret);
+
+	netlink = nl.fd;
 }

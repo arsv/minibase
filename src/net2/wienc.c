@@ -222,7 +222,6 @@ static void shutdown(void)
 	switch(authstate) {
 		case AS_IDLE:
 		case AS_NETDOWN:
-		case AS_EXTERNAL:
 			opermode = OP_EXIT;
 			return;
 	}

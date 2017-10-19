@@ -153,8 +153,6 @@ static int common_wifi_state(void)
 {
 	if(authstate == AS_CONNECTED)
 		return WS_CONNECTED;
-	if(authstate == AS_EXTERNAL)
-		return WS_EXTERNAL;
 	if(authstate == AS_NETDOWN)
 		return rfkilled ? WS_RFKILLED : WS_NETDOWN;
 	if(authstate != AS_IDLE)

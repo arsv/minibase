@@ -12,7 +12,6 @@
 #define AS_CONNECTING      3
 #define AS_CONNECTED       4
 #define AS_DISCONNECTING   5
-#define AS_EXTERNAL        6
 #define AS_NETDOWN         7
 
 #define ES_IDLE            0
