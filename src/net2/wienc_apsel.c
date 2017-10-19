@@ -311,6 +311,8 @@ void handle_connect(void)
 
 	if((sc = find_current_ap()))
 		sc->flags &= ~SF_TRIED;
+
+	report_connected();
 }
 
 static void rescan_current_ap(void)
@@ -392,6 +394,8 @@ void handle_disconnect(void)
 	if(opermode == OP_ONESHOT && ap.success)
 		opermode = OP_ENABLED;
 
+	report_disconnect();
+
 	if(opermode == OP_ENABLED) {
 		if(ap.success)
 			rescan_current_ap();
@@ -451,6 +455,8 @@ static int maybe_start_scan(void)
 		; /* more than a minute has passed */
 	else return 0;
 
+	report_scanning();
+
 	if((ret = start_scan(0)) < 0)
 		return 0;
 
@@ -481,6 +487,8 @@ void reassess_wifi_situation(void)
 		return;
 	if(connect_to_something())
 		return;
+
+	report_no_connect();
 
 	if(opermode == OP_ONESHOT)
 		opermode = OP_NEUTRAL;

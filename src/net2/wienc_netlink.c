@@ -219,6 +219,7 @@ static void cmd_scan_aborted(struct nlgen* msg)
 		return;
 
 	warn("scan aborted", NULL, 0);
+	report_scan_fail();
 
 	scanstate = SS_IDLE;
 	scanseq = 0;

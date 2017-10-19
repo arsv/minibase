@@ -23,6 +23,79 @@ struct ucbuf uc;
 
 #define REPLIED 1
 
+static void send_report(char* buf, int len)
+{
+	struct conn* cn;
+	int fd;
+
+	for(cn = conns; cn < conns + nconns; cn++) {
+		if(!cn->rep || (fd = cn->fd) <= 0)
+			continue;
+
+		struct itimerval old, itv = {
+			.interval = { 0, 0 },
+			.value = { 1, 0 }
+		};
+
+		sys_setitimer(ITIMER_REAL, &itv, &old);
+
+		if(sys_write(fd, buf, len) < 0)
+			sys_shutdown(fd, SHUT_RDWR);
+
+		sys_setitimer(ITIMER_REAL, &old, NULL);
+	}
+}
+
+static void report_simple(int cmd)
+{
+	char buf[64];
+	struct ucbuf uc = {
+		.brk = buf,
+		.ptr = buf,
+		.end = buf + sizeof(buf)
+	};
+
+	uc_put_hdr(&uc, cmd);
+	uc_put_end(&uc);
+
+	send_report(uc.brk, uc.ptr - uc.brk);
+}
+
+void report_net_down(void)
+{
+	report_simple(REP_WI_NET_DOWN);
+}
+
+void report_scanning(void)
+{
+	report_simple(REP_WI_SCANNING);
+}
+
+void report_scan_done(void)
+{
+	report_simple(REP_WI_SCAN_DONE);
+}
+
+void report_scan_fail(void)
+{
+	report_simple(REP_WI_SCAN_FAIL);
+}
+
+void report_no_connect(void)
+{
+	report_simple(REP_WI_NO_CONNECT);
+}
+
+void report_disconnect(void)
+{
+	report_simple(REP_WI_DISCONNECT);
+}
+
+void report_connected(void)
+{
+	report_simple(REP_WI_CONNECTED);
+}
+
 static void start_reply(int cmd)
 {
 	void* buf = NULL;
@@ -146,12 +219,21 @@ static int cmd_status(CN, MSG)
 
 	free_heap(&hp);
 
+	cn->rep = 0;
+
 	return ret;
 }
 
 static int cmd_scan(CN, MSG)
 {
-	return run_stamped_scan();
+	int ret;
+
+	if((ret = run_stamped_scan()) < 0)
+		return ret;
+
+	cn->rep = 1;
+
+	return 0;
 }
 
 static int cmd_neutral(CN, MSG)
@@ -162,6 +244,8 @@ static int cmd_neutral(CN, MSG)
 
 	if((ret = start_disconnect()) < 0)
 		return ret;
+
+	cn->rep = 1;
 
 	return 0;
 }
@@ -200,6 +284,8 @@ static int cmd_fixedap(CN, MSG)
 	else
 		opermode = OP_ENABLED;
 
+	cn->rep = 1;
+
 	reassess_wifi_situation();
 
 	return 0;
@@ -215,6 +301,8 @@ static int cmd_roaming(CN, MSG)
 	opermode = OP_ENABLED;
 
 	clr_timer();
+
+	cn->rep = 1;
 
 	reassess_wifi_situation();
 

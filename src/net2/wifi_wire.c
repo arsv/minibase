@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 
 #include <nlusctl.h>
+#include <printf.h>
 #include <util.h>
 #include <heap.h>
 
@@ -54,13 +55,13 @@ static void connect_socket(CTX)
 	ctx->connected = 1;
 }
 
-static void send_command(CTX)
+void send_command(CTX)
 {
 	int wr, fd = ctx->fd;
 	char* txbuf = ctx->uc.brk;
 	int txlen = ctx->uc.ptr - ctx->uc.brk;
 
-	uc_put_end(&ctx->uc);
+	//uc_put_end(&ctx->uc);
 
 	if(!ctx->connected)
 		connect_socket(ctx);
@@ -69,7 +70,7 @@ static void send_command(CTX)
 		fail("write", NULL, wr);
 }
 
-static struct ucmsg* recv_reply(CTX)
+struct ucmsg* recv_reply(CTX)
 {
 	struct urbuf* ur = &ctx->ur;
 	int ret, fd = ctx->fd;
@@ -77,41 +78,44 @@ static struct ucmsg* recv_reply(CTX)
 	if((ret = uc_recv(fd, ur, 1)) < 0)
 		return NULL;
 
+	int cmd = ur->msg->cmd;
+
+	if(cmd < 0)
+		tracef("err %i\n", cmd);
+	else if(cmd >= WI(0))
+		tracef("cmd WI(%i)\n", cmd - WI(0));
+	else
+		tracef("cmd %X\n", cmd);
+
 	return ur->msg;
 }
 
-struct ucmsg* send_recv(CTX)
+struct ucmsg* send_recv_msg(CTX)
 {
 	struct ucmsg* msg;
 
 	send_command(ctx);
 
-	if(!(msg = recv_reply(ctx)))
-		fail("no reply", NULL, 0);
+	while((msg = recv_reply(ctx)))
+		if(msg->cmd <= 0)
+			return msg;
 
-	return msg;
+	fail("connection lost", NULL, 0);
 }
 
-struct ucmsg* send_check(CTX)
+int send_recv_cmd(CTX)
 {
-	struct ucmsg* msg;
+	struct ucmsg* msg = send_recv_msg(ctx);
 
-	msg = send_recv(ctx);
-
-	if(msg->cmd < 0)
-		fail(NULL, NULL, msg->cmd);
-	if(msg->cmd > 0)
-		fail("unexpected notification", NULL, 0);
-
-	return msg;
+	return msg->cmd;
 }
 
-void send_check_empty(CTX)
+void send_check(CTX)
 {
-	struct ucmsg* msg = send_check(ctx);
+	int ret;
 
-	if(msg->len > sizeof(msg))
-		fail("unexpected reply data", NULL, 0);
+	if((ret = send_recv_cmd(ctx)) < 0)
+		fail(NULL, NULL, ret);
 }
 
 void init_output(CTX)

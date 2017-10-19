@@ -27,9 +27,11 @@ struct top {
 typedef struct ucattr* attr;
 
 void top_init(CTX);
-struct ucmsg* send_recv(CTX);
-struct ucmsg* send_check(CTX);
-void send_check_empty(CTX);
+void send_command(CTX);
+void send_check(CTX);
+int send_recv_cmd(CTX);
+struct ucmsg* send_recv_msg(CTX);
+struct ucmsg* recv_reply(CTX);
 
 void dump_status(CTX, MSG);
 void dump_scanlist(CTX, MSG);

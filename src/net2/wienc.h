@@ -60,6 +60,7 @@ struct scan {
 
 struct conn {
 	int fd;
+	int rep;
 };
 
 extern char* ifname;
@@ -176,3 +177,11 @@ void clr_timer(void);
 
 int set_fixed_saved(byte* ssid, int slen);
 int set_fixed_given(byte* ssid, int slen, byte psk[32]);
+
+void report_net_down(void);
+void report_scanning(void);
+void report_scan_done(void);
+void report_scan_fail(void);
+void report_no_connect(void);
+void report_disconnect(void);
+void report_connected(void);

@@ -54,32 +54,90 @@ static char* shift_arg(CTX)
 	return ctx->argv[ctx->argi++];
 }
 
-static void req_neutral(CTX)
-{
-	uc_put_hdr(UC, CMD_WI_NEUTRAL);
-	no_other_options(ctx);
-	send_check_empty(ctx);
-}
-
 static void req_status(CTX)
 {
+	struct ucmsg* msg;
+
 	uc_put_hdr(UC, CMD_WI_STATUS);
+	uc_put_end(UC);
+
 	no_other_options(ctx);
-	dump_status(ctx, send_check(ctx));
+	msg = send_recv_msg(ctx);
+
+	dump_status(ctx, msg);
+}
+
+static void req_neutral(CTX)
+{
+	struct ucmsg* msg;
+	int ret;
+
+	uc_put_hdr(UC, CMD_WI_NEUTRAL);
+	uc_put_end(UC);
+
+	no_other_options(ctx);
+	if((ret = send_recv_cmd(ctx)) == -EALREADY)
+		return;
+	else if(ret < 0)
+		fail(NULL, NULL, ret);
+
+	while((msg = recv_reply(ctx))) {
+		if(msg->cmd == REP_WI_DISCONNECT)
+			break;
+		if(msg->cmd == REP_WI_NET_DOWN)
+			break;
+	}
 }
 
 static void req_scan(CTX)
 {
+	struct ucmsg* msg;
+
 	uc_put_hdr(UC, CMD_WI_SCAN);
+	uc_put_end(UC);
+
 	no_other_options(ctx);
-	dump_scanlist(ctx, send_check(ctx));
+	send_check(ctx);
+
+	while((msg = recv_reply(ctx))) {
+		if(msg->cmd == REP_WI_SCAN_FAIL)
+			fail("scan failed", NULL, 0);
+		if(msg->cmd == REP_WI_SCAN_DONE)
+			break;
+		if(msg->cmd == REP_WI_NET_DOWN)
+			fail("net down", NULL, 0);
+	}
+
+	uc_put_hdr(UC, CMD_WI_STATUS);
+	uc_put_end(UC);
+
+	msg = send_recv_msg(ctx);
+
+	dump_scanlist(ctx, msg);
 }
 
 static void req_roaming(CTX)
 {
+	struct ucmsg* msg;
+
 	uc_put_hdr(UC, CMD_WI_ROAMING);
+	uc_put_end(UC);
+
 	no_other_options(ctx);
-	send_check_empty(ctx);
+	send_command(ctx);
+
+	while((msg = recv_reply(ctx))) {
+		if(msg->cmd < 0)
+			fail(NULL, NULL, msg->cmd);
+		else if(msg->cmd == REP_WI_SCANNING)
+			warn("scanning", NULL, 0);
+		else if(msg->cmd == REP_WI_SCAN_FAIL)
+			fail("scan failed", NULL, 0);
+		else if(msg->cmd == REP_WI_CONNECTED)
+			break;
+		else if(msg->cmd == REP_WI_NET_DOWN)
+			fail("net down", NULL, 0);
+	}
 }
 
 static void req_fixedap(CTX)
@@ -98,8 +156,10 @@ static void req_fixedap(CTX)
 	if(use_opt(ctx, OPT_p))
 		put_psk_input(ctx, ssid, slen);
 
+	uc_put_end(UC);
+
 	no_other_options(ctx);
-	send_check_empty(ctx);
+	send_check(ctx);
 }
 
 static void activate(CTX)
@@ -109,24 +169,6 @@ static void activate(CTX)
 	else
 		req_roaming(ctx);
 }
-
-//static void cmd_setprio(CTX, int prio)
-//{
-//	char* ssid;
-//
-//	uc_put_hdr(UC, CMD_SETPRIO);
-//
-//	if(!(ssid = pop_arg(ctx)))
-//		fail("ssid required", NULL, 0);
-//
-//	uc_put_bin(UC, ATTR_SSID, ssid, strlen(ssid));
-//
-//	if(prio < 10)
-//		uc_put_int(UC, ATTR_PRIO, prio);
-//
-//	no_other_options(ctx);
-//	send_check_empty(ctx);
-//}
 
 static void init_args(CTX, int argc, char** argv)
 {
@@ -151,14 +193,6 @@ int main(int argc, char** argv)
 
 	if(use_opt(ctx, OPT_d))
 		req_neutral(ctx);
-	//else if(use_opt(ctx, OPT_z))
-	//	cmd_setprio(ctx, -1);
-	//else if(use_opt(ctx, OPT_a))
-	//	cmd_setprio(ctx, 2);
-	//else if(use_opt(ctx, OPT_b))
-	//	cmd_setprio(ctx, 1);
-	//else if(use_opt(ctx, OPT_c))
-	//	cmd_setprio(ctx, 0);
 	else if(use_opt(ctx, OPT_s))
 		req_scan(ctx);
 	else if(use_opt(ctx, OPT_a))
