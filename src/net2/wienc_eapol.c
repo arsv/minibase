@@ -308,8 +308,6 @@ static int checkbits(struct eapolkey* ek, int bits)
 	int keytype = keyinfo & KI_TYPEMASK;
 	int mask = KI_PAIRWISE | KI_ACK | KI_SECURE | KI_MIC | KI_ENCRYPTED;
 
-	tracef("got %04X:%04X exp %04X\n", keyinfo, keyinfo & mask, bits);
-
 	if(keytype != KI_SHA)
 		return -1;
 	if((keyinfo & mask) != bits)
@@ -321,8 +319,6 @@ static int checkbits(struct eapolkey* ek, int bits)
 static void recv_packet_1(struct eapolkey* ek)
 {
 	/* wpa_supplicant does not check ek->version */
-
-	tracef("%s\n", __FUNCTION__);
 
 	if(ek->type != EAPOL_KEY_RSN)
 		return abort("packet 1/4 wrong type");
@@ -344,8 +340,6 @@ static void recv_packet_1(struct eapolkey* ek)
 static void send_packet_2(void)
 {
 	struct eapolkey* ek = (struct eapolkey*) packet;
-
-	tracef("%s\n", __FUNCTION__);
 
 	ek->version = 1;
 	ek->pactype = EAPOL_KEY;
@@ -381,8 +375,6 @@ static void recv_packet_3(struct eapolkey* ek)
 	int paclen = 4 + ntohs(ek->paclen);
 	int bits = KI_PAIRWISE | KI_ACK | KI_MIC | KI_ENCRYPTED | KI_SECURE;
 
-	tracef("%s\n", __FUNCTION__);
-
 	if(checkbits(ek, bits))
 		return ignore("packet 3/4 wrong bits");
 
@@ -410,8 +402,6 @@ static void recv_packet_3(struct eapolkey* ek)
 static void send_packet_4(void)
 {
 	struct eapolkey* ek = (struct eapolkey*) packet;
-
-	tracef("%s\n", __FUNCTION__);
 
 	ek->version = 1;
 	ek->pactype = 3;
@@ -498,6 +488,7 @@ void send_group_2(void)
 	if(send_packet(packet, paclen))
 		return;
 
+	warn("group re-keying completed", NULL, 0);
 	upload_gtk();
 }
 
