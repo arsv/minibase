@@ -12,6 +12,6 @@
 # define NLCDIR "/run/ctrl"
 #endif
 
-/* For nlusctl commands; (a,b) are two chars identifyint the service. */
+/* For nlusctl commands; (a,b) are two chars identifying the service. */
 
-#define TAGGED(a, b, c) ((a) | (b << 8) | (c << 16))
+#define TAGGED(a, b, c) ((a << 24) | (b << 16) | (c))
