@@ -134,8 +134,8 @@ void handle_netlink(void);
 void handle_rawsock(void);
 void handle_control(void);
 void handle_conn(struct conn* cn);
-void retry_rfkill(void);
 void handle_rfkill(void);
+void retry_rfkill(void);
 
 void upload_ptk(void);
 void upload_gtk(void);
@@ -156,15 +156,18 @@ void free_scan_slot(struct scan* sc);
 void parse_station_ies(struct scan* sc, char* buf, uint len);
 struct scan* find_scan_slot(byte bssid[6]);
 
-int got_psk_for(byte* ssid, int slen);
-void check_new_scan_results(void);
 void reassess_wifi_situation(void);
-void handle_oneshot_disconnect(void);
+void handle_connect(void);
+void handle_disconnect(void);
+void handle_rfrestored(void);
+void check_new_scan_results(void);
+int run_stamped_scan(void);
 
 int load_config(void);
 void save_config(void);
 void drop_config(void);
 
+int got_psk_for(byte* ssid, int slen);
 int load_psk(byte* ssid, int slen, byte psk[32]);
 void save_psk(byte* ssid, int slen, byte psk[32]);
 
@@ -173,8 +176,3 @@ void clr_timer(void);
 
 int set_fixed_saved(byte* ssid, int slen);
 int set_fixed_given(byte* ssid, int slen, byte psk[32]);
-
-void handle_connect(void);
-void handle_disconnect(void);
-void handle_rfrestored(void);
-int run_stamped_scan(void);
