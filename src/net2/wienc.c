@@ -188,8 +188,6 @@ void set_timer(int seconds)
 
 static void timer_expired(void)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	clr_timer();
 
 	if(authstate == AS_NETDOWN) {
@@ -210,8 +208,6 @@ static void timer_expired(void)
 
 static void shutdown(void)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	sigterm = 0;
 
 	switch(opermode) {

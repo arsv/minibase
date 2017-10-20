@@ -129,9 +129,4 @@ void parse_station_ies(struct scan* sc, char* buf, uint len)
 
 		ptr += ielen;
 	}
-
-	byte* b = sc->bssid;
-	printf("STA %02X:%02X:%02X:%02X:%02X:%02X %.*s\n",
-		b[0], b[1], b[2], b[3], b[4], b[5],
-		sc->slen, sc->ssid);
 }

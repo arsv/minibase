@@ -1,7 +1,6 @@
 #include <sys/time.h>
 
 #include <string.h>
-#include <printf.h>
 
 #include "wienc.h"
 
@@ -169,8 +168,6 @@ static int set_current_ap(struct scan* sc)
 {
 	int auth = sc->type;
 
-	tracef("%s\n", __FUNCTION__);
-
 	sc->flags |= SF_TRIED;
 
 	ap.success = 0;
@@ -178,10 +175,8 @@ static int set_current_ap(struct scan* sc)
 	ap.type = sc->type;
 	memcpy(ap.bssid, sc->bssid, MACLEN);
 
-	if(!(auth & ST_RSN_P_CCMP)) {
-		tracef("%s no CCMP pair\n", __FUNCTION__);
+	if(!(auth & ST_RSN_P_CCMP))
 		return -1;
-	}
 
 	if(auth & ST_RSN_G_TKIP) {
 		ap.ies = ies_ccmp_tkip;
@@ -199,10 +194,8 @@ static int set_current_ap(struct scan* sc)
 	ap.slen = sc->slen;
 	memcpy(ap.ssid, sc->ssid, sc->slen);
 
-	if(load_psk(ap.ssid, ap.slen, PSK)) {
-		tracef("%s failed to load PSK\n", __FUNCTION__);
+	if(load_psk(ap.ssid, ap.slen, PSK))
 		return -1;
-	}
 
 	return 0;
 }
@@ -291,8 +284,6 @@ static int connect_to_something(void)
 	struct scan* sc;
 
 	while((sc = get_best_ap())) {
-		tracef("best AP %.*s\n", sc->slen, sc->ssid);
-
 		if(set_current_ap(sc))
 			;
 		else if(start_connection())
@@ -309,8 +300,6 @@ void handle_connect(void)
 {
 	struct scan* sc;
 
-	tracef("%s\n", __FUNCTION__);
-
 	ap.success = 1;
 
 	if(opermode == OP_RESCAN)
@@ -324,8 +313,6 @@ void handle_connect(void)
 
 static void rescan_current_ap(void)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	ap.success = 0;
 	/* keep the rest of ap in place */
 	opermode = OP_RESCAN;
@@ -335,8 +322,6 @@ static void rescan_current_ap(void)
 
 void reconnect_to_current_ap(void)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	if(opermode == OP_RESCAN)
 		opermode = OP_ENABLED;
 
@@ -348,8 +333,6 @@ void reconnect_to_current_ap(void)
 
 static void try_some_other_ap(void)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	clear_ap_bssid();
 
 	if(!ap.fixed)
@@ -364,8 +347,6 @@ static void try_some_other_ap(void)
 void check_new_scan_results(void)
 {
 	struct scan* sc;
-
-	tracef("%s\n", __FUNCTION__);
 
 	for(sc = scans; sc < scans + nscans; sc++) {
 		if(sc->flags & SF_SEEN)
@@ -424,8 +405,6 @@ void handle_rfrestored(void)
 
 	authstate = AS_IDLE;
 
-	tracef("%s opermode %i\n", __FUNCTION__, opermode);
-
 	if(opermode == OP_RESCAN)
 		rescan_current_ap();
 	else
@@ -472,7 +451,6 @@ static int maybe_start_scan(void)
 
 static void snap_to_neutral(void)
 {
-	tracef("%s\n", __FUNCTION__);
 	clear_ap_bssid();
 	clear_ap_ssid();
 	opermode = OP_NEUTRAL;
@@ -480,14 +458,11 @@ static void snap_to_neutral(void)
 
 static void idle_then_rescan(void)
 {
-	tracef("%s\n", __FUNCTION__);
 	set_timer(60); /* for rescan */
 }
 
 void reassess_wifi_situation(void)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	if(opermode == OP_NEUTRAL)
 		return;
 	if(authstate != AS_IDLE)

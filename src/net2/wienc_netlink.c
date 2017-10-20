@@ -66,7 +66,6 @@ static void send_set_authstate(int as)
 
 static void reset_scan_state(void)
 {
-	tracef("%s\n", __FUNCTION__);
 	scanstate = SS_IDLE;
 	scanseq = 0;
 	freqreq = 0;
@@ -79,8 +78,6 @@ int start_scan(int freq)
 {
 	struct nlattr* at;
 	int ret;
-
-	tracef("%s %i\n", __FUNCTION__, freq);
 
 	if(scanstate != SS_IDLE) {
 		if(freq && !freqreq) {
@@ -137,8 +134,6 @@ static void trigger_scan_dump(void)
 {
 	int ret;
 
-	tracef("%s\n", __FUNCTION__);
-
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_GET_SCAN, 0);
 	nl_put_u64(&nl, NL80211_ATTR_IFINDEX, ifindex);
 	
@@ -183,8 +178,6 @@ static void parse_scan_result(struct nlgen* msg)
 
 static void cmd_trigger_scan(struct nlgen* msg)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	if(scanstate != SS_SCANNING)
 		return;
 
@@ -223,8 +216,6 @@ static void trigger_authentication(void)
 {
 	int authtype = 0;
 
-	tracef("%s\n", __FUNCTION__);
-
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_AUTHENTICATE, 0);
 	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
 	nl_put(&nl, NL80211_ATTR_MAC, ap.bssid, sizeof(ap.bssid));
@@ -251,8 +242,6 @@ int start_connection(void)
 
 static void trigger_associaction(void)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_ASSOCIATE, 0);
 	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
 	nl_put(&nl, NL80211_ATTR_MAC, ap.bssid, sizeof(ap.bssid));
@@ -280,8 +269,6 @@ static void snap_to_disabled(char* why)
 
 static void cmd_authenticate(struct nlgen* msg)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	if(authstate != AS_AUTHENTICATING)
 		return snap_to_disabled("out-of-order AUTH");
 
@@ -292,8 +279,6 @@ static void cmd_authenticate(struct nlgen* msg)
 
 static void cmd_associate(struct nlgen* msg)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	if(authstate != AS_ASSOCIATING)
 		return snap_to_disabled("out-of-order ASSOC");
 
@@ -304,8 +289,6 @@ static void cmd_associate(struct nlgen* msg)
 
 static void cmd_connect(struct nlgen* msg)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	if(authstate != AS_CONNECTING)
 		snap_to_disabled("out-of-order CONNECT");
 
@@ -367,8 +350,6 @@ void upload_gtk(void)
 
 static void trigger_disconnect(void)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_DISCONNECT, 0);
 	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
 
@@ -380,8 +361,6 @@ static void trigger_disconnect(void)
 
 int start_disconnect(void)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	switch(authstate) {
 		case AS_IDLE:
 		case AS_NETDOWN:
@@ -397,8 +376,6 @@ int start_disconnect(void)
 
 void abort_connection(void)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	if(start_disconnect() >= 0)
 		return;
 
@@ -407,8 +384,6 @@ void abort_connection(void)
 
 static void cmd_disconnect(struct nlgen* msg)
 {
-	tracef("%s\n", __FUNCTION__);
-
 	if(authstate == AS_IDLE)
 		return;
 
@@ -440,8 +415,6 @@ static void genl_done(void)
 {
 	int current = !!freqreq;
 
-	tracef("%s\n", __FUNCTION__);
-
 	if(scanstate != SS_SCANDUMP)
 		return;
 
@@ -465,8 +438,6 @@ static void genl_done(void)
 
 static void handle_scan_error(int err)
 {
-	tracef("%s %i\n", __FUNCTION__, err);
-
 	reset_scan_state();
 	report_scan_fail();
 }
@@ -476,10 +447,8 @@ static void snap_to_netdown(void)
 	reset_scan_state();
 
 	if(rfkilled) {
-		tracef("%s already rfkilled\n", __FUNCTION__);
 		authstate = AS_IDLE;
 	} else {
-		tracef("%s no rfkill yet\n", __FUNCTION__);
 		authstate = AS_NETDOWN;
 		set_timer(1);
 	}
@@ -502,8 +471,6 @@ static void snap_to_netdown(void)
 
 static void handle_auth_error(int err)
 {
-	tracef("%s %i\n", __FUNCTION__, err);
-
 	if(authstate == AS_DISCONNECTING) {
 		authstate = AS_IDLE;
 		reassess_wifi_situation();
