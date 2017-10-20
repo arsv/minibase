@@ -66,6 +66,7 @@ static void send_set_authstate(int as)
 
 static void reset_scan_state(void)
 {
+	tracef("%s\n", __FUNCTION__);
 	scanstate = SS_IDLE;
 	scanseq = 0;
 	freqreq = 0;
@@ -79,7 +80,7 @@ int start_scan(int freq)
 	struct nlattr* at;
 	int ret;
 
-	tracef("%s\n", __FUNCTION__);
+	tracef("%s %i\n", __FUNCTION__, freq);
 
 	if(scanstate != SS_IDLE) {
 		if(freq && !freqreq) {
@@ -143,7 +144,7 @@ static void trigger_scan_dump(void)
 	
 	if((ret = nl_send_dump(&nl)) < 0) {
 		warn("nl-send", "scan dump", ret);
-		scanstate = SS_IDLE;
+		reset_scan_state();
 	} else {
 		scanstate = SS_SCANDUMP;
 		scanseq = nl.seq;
@@ -214,8 +215,6 @@ static void cmd_scan_aborted(struct nlgen* msg)
 	report_scan_fail();
 
 	reset_scan_state();
-	scanstate = SS_IDLE;
-	scanseq = 0;
 }
 
 static void trigger_authentication(void)
@@ -434,6 +433,10 @@ static void drop_stale_scan_slots(void)
 
 static void genl_done(void)
 {
+	int current = !!freqreq;
+
+	tracef("%s\n", __FUNCTION__);
+
 	if(scanstate != SS_SCANDUMP)
 		return;
 
@@ -445,7 +448,7 @@ static void genl_done(void)
 
 	report_scan_done();
 
-	if(freqreq)
+	if(current)
 		reconnect_to_current_ap();
 	else
 		reassess_wifi_situation();
