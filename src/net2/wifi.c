@@ -128,23 +128,31 @@ static void req_scan(CTX)
 static void wait_for_connect(CTX)
 {
 	struct ucmsg* msg;
+	int failures = 0;
 
-	while((msg = recv_reply(ctx))) {
-		if(msg->cmd == REP_WI_SCANNING)
+	while((msg = recv_reply(ctx))) switch(msg->cmd) {
+		case REP_WI_SCANNING:
 			warn("scanning", NULL, 0);
-		if(msg->cmd == REP_WI_SCAN_FAIL)
-			fail("scan failed", NULL, 0);
-		if(msg->cmd == REP_WI_CONNECTED)
 			break;
-		if(msg->cmd == REP_WI_NO_CONNECT)
-			fail("cannot connect", NULL, 0);
-		if(msg->cmd == REP_WI_NET_DOWN)
+		case REP_WI_SCAN_FAIL:
+			fail("scan failed", NULL, 0);
+		case REP_WI_NET_DOWN:
 			fail("net down", NULL, 0);
+		case REP_WI_CONNECTED:
+			dump_station(ctx, msg, "Connected to");
+			return;
+		case REP_WI_DISCONNECT:
+			dump_station(ctx, msg, "Cannot connect to");
+			failures++;
+			break;
+		case REP_WI_NO_CONNECT:
+			if(failures)
+				fail("no more APs in range", NULL, 0);
+			else
+				fail("no suitable APs in range", NULL, 0);
 	}
 
 	check_not_null(msg);
-
-	dump_station(ctx, msg);
 }
 
 static void req_roaming(CTX)

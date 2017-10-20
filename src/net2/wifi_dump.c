@@ -241,7 +241,18 @@ static char* fmt_station(char* p, char* e, MSG)
 	return p;
 }
 
-static void dump_wifi(CTX, MSG)
+static void print_station(CTX, MSG, char* text)
+{
+	FMTBUF(p, e, buf, 200);
+	p = fmtstr(p, e, text);
+	p = fmtstr(p, e, " ");
+	p = fmt_station(p, e, msg);
+	FMTENL(p, e);
+
+	output(ctx, buf, p - buf);
+}
+
+static void print_status(CTX, MSG)
 {
 	int state;
 
@@ -280,7 +291,7 @@ static void sub_int(AT, int attr, int* val)
 		*val = 0;
 }
 
-static void dump_scan(CTX, AT)
+static void print_scanline(CTX, AT)
 {
 	char buf[200];
 	char* p = buf;
@@ -331,7 +342,7 @@ static attr* prep_list(CTX, MSG, int key, qcmp2 cmp)
 	return refs;
 }
 
-static void dump_list(CTX, attr* list, void (*dump)(CTX, AT))
+static void forall(CTX, attr* list, void (*dump)(CTX, AT))
 {
 	for(attr* ap = list; *ap; ap++)
 		dump(ctx, *ap);
@@ -347,7 +358,7 @@ void dump_scanlist(CTX, MSG)
 	attr* scans = prep_list(ctx, msg, ATTR_SCAN, scan_ord);
 
 	init_output(ctx);
-	dump_list(ctx, scans, dump_scan);
+	forall(ctx, scans, print_scanline);
 	fini_output(ctx);
 }
 
@@ -357,23 +368,18 @@ void dump_status(CTX, MSG)
 
 	init_output(ctx);
 
-	dump_list(ctx, scans, dump_scan);
+	forall(ctx, scans, print_scanline);
 
 	if(*scans) newline(ctx);
 
-	dump_wifi(ctx, msg);
+	print_status(ctx, msg);
 
 	fini_output(ctx);
 }
 
-void dump_station(CTX, MSG)
+void dump_station(CTX, MSG, char* text)
 {
-	FMTBUF(p, e, buf, 200);
-	p = fmtstr(p, e, "Connected to ");
-	p = fmt_station(p, e, msg);
-	FMTENL(p, e);
-
 	init_output(ctx);
-	output(ctx, buf, p - buf);
+	print_station(ctx, msg, text);
 	fini_output(ctx);
 }
