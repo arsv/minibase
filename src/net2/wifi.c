@@ -54,6 +54,11 @@ static char* shift_arg(CTX)
 	return ctx->argv[ctx->argi++];
 }
 
+static void check_not_null(MSG)
+{
+	if(!msg) fail("connection lost", NULL, 0);
+}
+
 static void req_status(CTX)
 {
 	struct ucmsg* msg;
@@ -86,7 +91,9 @@ static void req_neutral(CTX)
 			break;
 		if(msg->cmd == REP_WI_NET_DOWN)
 			break;
-	}
+	};
+
+	check_not_null(msg);
 }
 
 static void req_scan(CTX)
@@ -108,6 +115,8 @@ static void req_scan(CTX)
 			fail("net down", NULL, 0);
 	}
 
+	check_not_null(msg);
+
 	uc_put_hdr(UC, CMD_WI_STATUS);
 	uc_put_end(UC);
 
@@ -116,28 +125,37 @@ static void req_scan(CTX)
 	dump_scanlist(ctx, msg);
 }
 
-static void req_roaming(CTX)
+static void wait_for_connect(CTX)
 {
 	struct ucmsg* msg;
 
+	while((msg = recv_reply(ctx))) {
+		if(msg->cmd == REP_WI_SCANNING)
+			warn("scanning", NULL, 0);
+		if(msg->cmd == REP_WI_SCAN_FAIL)
+			fail("scan failed", NULL, 0);
+		if(msg->cmd == REP_WI_CONNECTED)
+			break;
+		if(msg->cmd == REP_WI_NO_CONNECT)
+			fail("cannot connect", NULL, 0);
+		if(msg->cmd == REP_WI_NET_DOWN)
+			fail("net down", NULL, 0);
+	}
+
+	check_not_null(msg);
+
+	dump_station(ctx, msg);
+}
+
+static void req_roaming(CTX)
+{
 	uc_put_hdr(UC, CMD_WI_ROAMING);
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	send_command(ctx);
+	send_check(ctx);
 
-	while((msg = recv_reply(ctx))) {
-		if(msg->cmd < 0)
-			fail(NULL, NULL, msg->cmd);
-		else if(msg->cmd == REP_WI_SCANNING)
-			warn("scanning", NULL, 0);
-		else if(msg->cmd == REP_WI_SCAN_FAIL)
-			fail("scan failed", NULL, 0);
-		else if(msg->cmd == REP_WI_CONNECTED)
-			break;
-		else if(msg->cmd == REP_WI_NET_DOWN)
-			fail("net down", NULL, 0);
-	}
+	wait_for_connect(ctx);
 }
 
 static void req_fixedap(CTX)
@@ -160,6 +178,8 @@ static void req_fixedap(CTX)
 
 	no_other_options(ctx);
 	send_check(ctx);
+
+	wait_for_connect(ctx);
 }
 
 static void activate(CTX)

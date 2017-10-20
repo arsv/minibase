@@ -195,12 +195,10 @@ static char* fmt_wifi_bssid(char* p, char* e, attr at)
 	return p;
 }
 
-static char* fmt_wifi_ssid(char* p, char* e, attr ssid, int sep)
+static char* fmt_wifi_ssid(char* p, char* e, attr ssid)
 {
 	if(!ssid)
 		goto out;
-	if(sep)
-		p = fmtstr(p, e, " ");
 
 	p = fmtstr(p, e, "AP ");
 	p = fmt_ssid(p, e, ssid);
@@ -218,20 +216,14 @@ static void get_int(MSG, int attr, int* val)
 		*val = 0;
 }
 
-static void dump_wifi(CTX, MSG)
+static char* fmt_station(char* p, char* e, MSG)
 {
-	char buf[200];
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
-	int freq, chan, state;
+	int freq, chan;
 
 	get_int(msg, ATTR_FREQ, &freq);
-	get_int(msg, ATTR_STATE, &state);
 	chan = get_channel(freq);
 
-	//p = fmt_wifi_iface(p, e, at);
-	p = fmt_kv(p, e, state, wistates);
-	p = fmt_wifi_ssid(p, e, uc_get(msg, ATTR_SSID), 1);
+	p = fmt_wifi_ssid(p, e, uc_get(msg, ATTR_SSID));
 	p = fmt_wifi_bssid(p, e, uc_get(msg, ATTR_BSSID));
 
 	if(freq) {
@@ -246,7 +238,21 @@ static void dump_wifi(CTX, MSG)
 		p = fmtstr(p, e, "MHz)");
 	}
 
-	*p++ = '\n';
+	return p;
+}
+
+static void dump_wifi(CTX, MSG)
+{
+	int state;
+
+	FMTBUF(p, e, buf, 200);
+
+	get_int(msg, ATTR_STATE, &state);
+	p = fmt_kv(p, e, state, wistates);
+	p = fmtstr(p, e, " ");
+	p = fmt_station(p, e, msg);
+
+	FMTENL(p, e);
 
 	output(ctx, buf, p - buf);
 }
@@ -357,5 +363,17 @@ void dump_status(CTX, MSG)
 
 	dump_wifi(ctx, msg);
 
+	fini_output(ctx);
+}
+
+void dump_station(CTX, MSG)
+{
+	FMTBUF(p, e, buf, 200);
+	p = fmtstr(p, e, "Connected to ");
+	p = fmt_station(p, e, msg);
+	FMTENL(p, e);
+
+	init_output(ctx);
+	output(ctx, buf, p - buf);
 	fini_output(ctx);
 }
