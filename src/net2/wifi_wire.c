@@ -61,8 +61,6 @@ void send_command(CTX)
 	char* txbuf = ctx->uc.brk;
 	int txlen = ctx->uc.ptr - ctx->uc.brk;
 
-	//uc_put_end(&ctx->uc);
-
 	if(!ctx->connected)
 		connect_socket(ctx);
 

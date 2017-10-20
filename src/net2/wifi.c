@@ -14,17 +14,11 @@ ERRTAG("wifi");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT);
 
-#define OPTS "abcdepswxz"
+#define OPTS "asdp"
 #define OPT_a (1<<0)
-#define OPT_b (1<<1)
-#define OPT_c (1<<2)
-#define OPT_d (1<<3)
-#define OPT_e (1<<4)
-#define OPT_p (1<<5)
-#define OPT_s (1<<6)
-#define OPT_w (1<<7)
-#define OPT_x (1<<8)
-#define OPT_z (1<<9)
+#define OPT_s (1<<1)
+#define OPT_d (1<<2)
+#define OPT_p (1<<3)
 
 static void no_other_options(CTX)
 {
