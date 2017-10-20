@@ -78,15 +78,6 @@ struct ucmsg* recv_reply(CTX)
 	if((ret = uc_recv(fd, ur, 1)) < 0)
 		return NULL;
 
-	int cmd = ur->msg->cmd;
-
-	if(cmd < 0)
-		tracef("err %i\n", cmd);
-	else if(cmd >= WI(0))
-		tracef("cmd WI(%i)\n", cmd - WI(0));
-	else
-		tracef("cmd %X\n", cmd);
-
 	return ur->msg;
 }
 

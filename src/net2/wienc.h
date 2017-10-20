@@ -82,7 +82,7 @@ extern int rfkilled;
 /* The AP we're tuned on */
 
 extern struct ap {
-	short bssid[6];
+	byte bssid[6];
 	short freq;
 	short signal;
 	ushort slen;

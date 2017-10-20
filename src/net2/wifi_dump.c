@@ -1,8 +1,8 @@
 #include <nlusctl.h>
 #include <heap.h>
 #include <util.h>
-#include <format.h>
 #include <string.h>
+#include <format.h>
 #include <output.h>
 
 #include "common.h"
@@ -363,7 +363,7 @@ void warn_sta(char* text, MSG)
 {
 	FMTBUF(p, e, sta, 50);
 	p = fmt_station(p, e, msg);
-	FMTENL(p, e);
+	FMTEND(p, e);
 
 	warn(text, sta, 0);
 }
