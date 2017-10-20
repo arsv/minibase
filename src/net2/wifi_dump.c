@@ -241,33 +241,6 @@ static char* fmt_station(char* p, char* e, MSG)
 	return p;
 }
 
-static void print_station(CTX, MSG, char* text)
-{
-	FMTBUF(p, e, buf, 200);
-	p = fmtstr(p, e, text);
-	p = fmtstr(p, e, " ");
-	p = fmt_station(p, e, msg);
-	FMTENL(p, e);
-
-	output(ctx, buf, p - buf);
-}
-
-static void print_status(CTX, MSG)
-{
-	int state;
-
-	FMTBUF(p, e, buf, 200);
-
-	get_int(msg, ATTR_STATE, &state);
-	p = fmt_kv(p, e, state, wistates);
-	p = fmtstr(p, e, " ");
-	p = fmt_station(p, e, msg);
-
-	FMTENL(p, e);
-
-	output(ctx, buf, p - buf);
-}
-
 static char* fmt_freq(char* p, char* e, int freq)
 {
 	int chan = get_channel(freq);
@@ -342,44 +315,55 @@ static attr* prep_list(CTX, MSG, int key, qcmp2 cmp)
 	return refs;
 }
 
-static void forall(CTX, attr* list, void (*dump)(CTX, AT))
+static void print_scan_results(CTX, MSG, int nl)
 {
-	for(attr* ap = list; *ap; ap++)
-		dump(ctx, *ap);
+	attr* scans = prep_list(ctx, msg, ATTR_SCAN, scan_ord);
+
+	for(attr* ap = scans; *ap; ap++)
+		print_scanline(ctx, *ap);
+
+	if(nl && *scans) output(ctx, "\n", 1);
 }
 
-static void newline(CTX)
+static void print_status(CTX, MSG)
 {
-	output(ctx, "\n", 1);
+	int state;
+
+	FMTBUF(p, e, buf, 200);
+
+	get_int(msg, ATTR_STATE, &state);
+	p = fmt_kv(p, e, state, wistates);
+	p = fmtstr(p, e, " ");
+	p = fmt_station(p, e, msg);
+
+	FMTENL(p, e);
+
+	output(ctx, buf, p - buf);
 }
 
 void dump_scanlist(CTX, MSG)
 {
-	attr* scans = prep_list(ctx, msg, ATTR_SCAN, scan_ord);
-
 	init_output(ctx);
-	forall(ctx, scans, print_scanline);
+	print_scan_results(ctx, msg, 0);
 	fini_output(ctx);
 }
 
 void dump_status(CTX, MSG)
 {
-	attr* scans = prep_list(ctx, msg, ATTR_SCAN, scan_ord);
-
 	init_output(ctx);
 
-	forall(ctx, scans, print_scanline);
-
-	if(*scans) newline(ctx);
+	print_scan_results(ctx, msg, 1);
 
 	print_status(ctx, msg);
 
 	fini_output(ctx);
 }
 
-void dump_station(CTX, MSG, char* text)
+void warn_sta(char* text, MSG)
 {
-	init_output(ctx);
-	print_station(ctx, msg, text);
-	fini_output(ctx);
+	FMTBUF(p, e, sta, 50);
+	p = fmt_station(p, e, msg);
+	FMTENL(p, e);
+
+	warn(text, sta, 0);
 }

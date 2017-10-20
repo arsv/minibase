@@ -137,12 +137,12 @@ static void wait_for_connect(CTX)
 		case REP_WI_SCAN_FAIL:
 			fail("scan failed", NULL, 0);
 		case REP_WI_NET_DOWN:
-			fail("net down", NULL, 0);
+			fail(NULL, NULL, -ENETDOWN);
 		case REP_WI_CONNECTED:
-			dump_station(ctx, msg, "Connected to");
+			warn_sta("connected to", msg);
 			return;
 		case REP_WI_DISCONNECT:
-			dump_station(ctx, msg, "Cannot connect to");
+			warn_sta("cannot connect to", msg);
 			failures++;
 			break;
 		case REP_WI_NO_CONNECT:

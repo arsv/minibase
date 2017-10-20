@@ -36,7 +36,6 @@ struct ucmsg* recv_reply(CTX);
 void dump_status(CTX, MSG);
 void dump_scanlist(CTX, MSG);
 void dump_linkconf(CTX, MSG);
-void dump_station(CTX, MSG, char* pref);
 struct ucattr** make_scanlist(CTX, MSG);
 
 void put_psk_input(CTX, void* ssid, int slen);
@@ -47,3 +46,5 @@ void connect_to_wimon(CTX);
 void init_output(CTX);
 void fini_output(CTX);
 void output(CTX, char* buf, int len);
+
+void warn_sta(char* text, MSG);
