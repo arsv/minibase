@@ -8,97 +8,80 @@
 #include "common.h"
 #include "wifi.h"
 
-static const struct channel {
-	short chan;
-	short freq;
-} channels[] = {
-	{ 1,	2412 },
-	{ 2,	2417 },
-	{ 3,	2422 },
-	{ 4,	2427 },
-	{ 5,	2432 },
-	{ 6,	2437 },
-	{ 7,	2442 },
-	{ 8,	2447 },
-	{ 9,	2452 },
-	{ 10,	2457 },
-	{ 11,	2462 },
-	{ 12,	2467 },
-	{ 13,	2472 },
-	{ 14,	2484 },
-	{ 7,	5035 },
-	{ 8,	5040 },
-	{ 9,	5045 },
-	{ 11,	5055 },
-	{ 12,	5060 },
-	{ 16,	5080 },
-	{ 34,	5170 },
-	{ 36,	5180 },
-	{ 38,	5190 },
-	{ 40,	5200 },
-	{ 42,	5210 },
-	{ 44,	5220 },
-	{ 46,	5230 },
-	{ 48,	5240 },
-	{ 50,	5250 },
-	{ 52,	5260 },
-	{ 54,	5270 },
-	{ 56,	5280 },
-	{ 58,	5290 },
-	{ 60,	5300 },
-	{ 62,	5310 },
-	{ 64,	5320 },
-	{ 100,	5500 },
-	{ 102,	5510 },
-	{ 104,	5520 },
-	{ 106,	5530 },
-	{ 108,	5540 },
-	{ 110,	5550 },
-	{ 112,	5560 },
-	{ 114,	5570 },
-	{ 116,	5580 },
-	{ 118,	5590 },
-	{ 120,	5600 },
-	{ 122,	5610 },
-	{ 124,	5620 },
-	{ 126,	5630 },
-	{ 128,	5640 },
-	{ 132,	5660 },
-	{ 134,	5670 },
-	{ 136,	5680 },
-	{ 138,	5690 },
-	{ 140,	5700 },
-	{ 142,	5710 },
-	{ 144,	5720 },
-	{ 149,	5745 },
-	{ 151,	5755 },
-	{ 153,	5765 },
-	{ 155,	5775 },
-	{ 157,	5785 },
-	{ 159,	5795 },
-	{ 161,	5805 },
-	{ 165,	5825 },
-	{ 169,	5845 },
-	{ 173,	5865 },
-	{ 183,	4915 },
-	{ 184,	4920 },
-	{ 185,	4925 },
-	{ 187,	4935 },
-	{ 188,	4940 },
-	{ 189,	4945 },
-	{ 192,	4960 },
-	{ 196,	4980 },
-};
+/* Wi-Fi channel designation.
+   
+   Ref. https://en.wikipedia.org/wiki/List_of_WLAN_channels
+ 
+   Bands a and b refer to 802.11a and 802.11b respectively. */
 
-static int get_channel(int freq)
+static int inrange(int freq, int a, int b, int s, int i)
 {
-	const struct channel* p;
+	if(freq < a)
+		return 0;
+	if(freq > b)
+		return 0;
 
-	for(p = channels; p < ARRAY_END(channels); p++)
-		if(p->freq == freq)
-			return p->chan;
+	int d = freq - a;
 
-	return -1;
+	if(d % s)
+		return 0;
+
+	return i + (d/s);
+}
+
+static char* fmt_chan(char* p, char* e, int freq)
+{
+	int step;
+	char band;
+
+	if(freq == 2484) {
+		step = 14;
+		band = 'b';
+	} else if((step = inrange(freq, 2412, 2467, 5, 1))) {
+		band = 'b';
+	} else if((step = inrange(freq, 5035, 5865, 5, 7))) {
+		band = 'a';
+	} else if((step = inrange(freq, 4915, 4980, 5, 183))) {
+		band = 'a';
+	} else {
+		return p;
+	}
+
+	p = fmtint(p, e, step);
+	p = fmtchar(p, e, band);
+
+	return p;
+}
+
+/* 5240 -> "48a", 5241 -> "5240" */
+
+static char* fmt_chan_or_freq(char* p, char* e, int freq)
+{
+	char* s = p;
+
+	p = fmt_chan(p, e, freq);
+
+	if(p > s) return p;
+
+	p = fmtint(p, e, freq);
+
+	return p;
+}
+
+/* 5240 -> "48a/5240MHz", 5240 -> "5240MHz" */
+
+static char* fmt_chan_and_freq(char* p, char* e, int freq)
+{
+	char* s = p;
+
+	p = fmt_chan(p, e, freq);
+
+	if(p > s) p = fmtchar(p, e, '/');
+
+	p = fmtint(p, e, freq);
+	p = fmtstr(p, e, "MHz");
+
+	return p;
 }
 
 #define DICTEND -1
@@ -218,38 +201,18 @@ static void get_int(MSG, int attr, int* val)
 
 static char* fmt_station(char* p, char* e, MSG)
 {
-	int freq, chan;
+	int freq;
 
 	get_int(msg, ATTR_FREQ, &freq);
-	chan = get_channel(freq);
 
 	p = fmt_wifi_ssid(p, e, uc_get(msg, ATTR_SSID));
 	p = fmt_wifi_bssid(p, e, uc_get(msg, ATTR_BSSID));
 
 	if(freq) {
 		p = fmtstr(p, e, " (");
-		if(chan > 0) {
-			p = fmtstr(p, e, "");
-			p = fmtint(p, e, chan);
-			p = fmtstr(p, e, freq > 5000 ? "a" : "b");
-			p = fmtstr(p, e, "/");
-		}
-		p = fmtint(p, e, freq);
-		p = fmtstr(p, e, "MHz)");
+		p = fmt_chan_and_freq(p, e, freq);
+		p = fmtstr(p, e, ")");
 	}
-
-	return p;
-}
-
-static char* fmt_freq(char* p, char* e, int freq)
-{
-	int chan = get_channel(freq);
-
-	if(chan <= 0)
-		return fmtint(p, e, freq);
-
-	p = fmtint(p, e, chan);
-	p = fmtstr(p, e, freq > 5000 ? "a" : "b");
 
 	return p;
 }
@@ -283,7 +246,7 @@ static void print_scanline(CTX, AT)
 	p = fmtstr(p, e, "AP ");
 	p = fmtint(p, e, (signal)/100);
 	p = fmtstr(p, e, " ");
-	p = fmtpad(p, e, 4, fmt_freq(p, e, freq));
+	p = fmtpad(p, e, 4, fmt_chan_or_freq(p, e, freq));
 	p = fmtstr(p, e, "  ");
 	p = fmtmac(p, e, bssid);
 	p = fmtstr(p, e, "  ");
