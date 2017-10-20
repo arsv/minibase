@@ -154,8 +154,15 @@ static void clear_ap_bssid(void)
 static void clear_ap_ssid(void)
 {
 	ap.slen = 0;
+	ap.fixed = 0;
 	memzero(&ap.ssid, sizeof(ap.ssid));
 	memzero(PSK, sizeof(PSK));
+}
+
+void reset_station(void)
+{
+	clear_ap_bssid();
+	clear_ap_ssid();
 }
 
 static int set_current_ap(struct scan* sc)

@@ -176,7 +176,7 @@ static void req_fixedap(CTX)
 
 	slen = strlen(ssid);
 
-	uc_put_hdr(UC, CMD_WI_FIXEDAP);
+	uc_put_hdr(UC, CMD_WI_CONNECT);
 	uc_put_bin(UC, ATTR_SSID, ssid, slen);
 
 	if(use_opt(ctx, OPT_p))

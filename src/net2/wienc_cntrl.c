@@ -263,89 +263,64 @@ static int cmd_neutral(CN, MSG)
 
 	cn->rep = 1;
 
+	clr_timer();
+
 	return 0;
 }
 
-/* A note on reassess_wifi_situation() hanling here: the client expects all
-   notifications caused by a command to come after the ACK for said command.
+static int configure_station(MSG)
+{
+	struct ucattr* assid;
+	struct ucattr* apsk;
 
-   Unlike pretty much anything else here, reassess_wifi_situation is a long
-   piece of code, and while it doesn't send any notification atm it may need
-   to at some point. So we reply first and let it send whatever notifications
-   it wants without messing up the message queue.
+	reset_station();
 
-   At this point errors are never reported immediately anyway, so we're ok
-   to do so. Netlink code will catch and pass them via notifications. */
+	if(!(assid = uc_get(msg, ATTR_SSID)))
+		return 0;
 
-static int proceed_to_connect(CN)
+	byte* ssid = uc_payload(assid);
+	int slen = uc_paylen(assid);
+
+	if(!(apsk = uc_get(msg, ATTR_PSK)))
+		return set_fixed_saved(ssid, slen);
+	else if(uc_paylen(apsk) == 32)
+		return set_fixed_given(ssid, slen, uc_payload(apsk));
+	else
+		return -EINVAL;
+}
+
+/* ACK to the command should preceed any notifications caused by the command.
+   Since reassess_wifi_situation() is pretty long and involved piece of code,
+   we reply early to make sure possible messages generated while starting
+   connection do not confuse the client.
+
+   Note at this point reassess_wifi_situation() does *not* generate any
+   notifications. Not even SCANNING, that one is issued reactively on
+   NL80211_CMD_TRIGGER_SCAN. */
+
+static int cmd_connect(CN, MSG)
 {
 	int ret;
+
+	if(authstate != AS_IDLE)
+		return -EBUSY;
+	if(scanstate != SS_IDLE)
+		return -EBUSY;
+
+	if((ret = configure_station(msg)) < 0)
+		return ret;
+
+	opermode = OP_ONESHOT;
 
 	cn->rep = 1;
 
 	ret = reply(cn, 0);
 
+	clr_timer();
+
 	reassess_wifi_situation();
 
 	return ret;
-}
-
-static int cmd_fixedap(CN, MSG)
-{
-	struct ucattr* assid;
-	struct ucattr* apsk;
-
-	if(authstate != AS_IDLE)
-		return -EBUSY;
-	if(scanstate != SS_IDLE)
-		return -EBUSY;
-
-	if(!(assid = uc_get(msg, ATTR_SSID)))
-		return -EINVAL;
-
-	if(!(apsk = uc_get(msg, ATTR_PSK)))
-		;
-	else if(uc_paylen(apsk) != 32)
-		return -EINVAL;
-
-	byte* ssid = uc_payload(assid);
-	int slen = uc_paylen(assid);
-	int ret;
-
-	if(apsk)
-		ret = set_fixed_given(ssid, slen, uc_payload(apsk));
-	else
-		ret = set_fixed_saved(ssid, slen);
-
-	if(ret < 0)
-		return ret;
-	else if(apsk)
-		opermode = OP_ONESHOT;
-	else
-		opermode = OP_ENABLED;
-
-	return proceed_to_connect(cn);
-}
-
-/* This was used to be called "roaming" mode, but that's not how
-   it works now. It picks the best AP it can find, and sticks to
-   it as with cmd_fixedap. True roaming is tricky to get right,
-   and potentially dangerous since it may mislead the user by
-   reporting connection to one AP and then immediately switching
-   to another. So now it's just "connect to whatever". */
-
-static int cmd_connect(CN, MSG)
-{
-	if(authstate != AS_IDLE)
-		return -EBUSY;
-	if(scanstate != SS_IDLE)
-		return -EBUSY;
-
-	opermode = OP_ENABLED;
-
-	clr_timer();
-
-	return proceed_to_connect(cn);
 }
 
 static const struct cmd {
@@ -355,7 +330,6 @@ static const struct cmd {
 	{ CMD_WI_STATUS,  cmd_status  },
 	{ CMD_WI_SCAN,    cmd_scan    },
 	{ CMD_WI_NEUTRAL, cmd_neutral },
-	{ CMD_WI_FIXEDAP, cmd_fixedap },
 	{ CMD_WI_CONNECT, cmd_connect }
 };
 
