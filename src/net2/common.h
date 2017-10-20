@@ -12,8 +12,7 @@
 #define CMD_WI_STATUS   WI(0)
 #define CMD_WI_SCAN     WI(1)
 #define CMD_WI_NEUTRAL  WI(2)
-#define CMD_WI_FIXEDAP  WI(3)
-#define CMD_WI_CONNECT  WI(4)
+#define CMD_WI_CONNECT  WI(3)
 
 #define REP_WI_NET_DOWN   WI(0)
 #define REP_WI_SCANNING   WI(1)
