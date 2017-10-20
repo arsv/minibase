@@ -86,14 +86,32 @@ void report_no_connect(void)
 	report_simple(REP_WI_NO_CONNECT);
 }
 
+static void report_station(int cmd)
+{
+	char buf[256];
+	struct ucbuf uc = {
+		.brk = buf,
+		.ptr = buf,
+		.end = buf + sizeof(buf)
+	};
+
+	uc_put_hdr(&uc, cmd);
+	uc_put_bin(&uc, ATTR_BSSID, ap.bssid, sizeof(ap.bssid));
+	uc_put_bin(&uc, ATTR_SSID, ap.ssid, ap.slen);
+	uc_put_int(&uc, ATTR_FREQ, ap.freq);
+	uc_put_end(&uc);
+
+	send_report(uc.brk, uc.ptr - uc.brk);
+}
+
 void report_disconnect(void)
 {
-	report_simple(REP_WI_DISCONNECT);
+	report_station(REP_WI_DISCONNECT);
 }
 
 void report_connected(void)
 {
-	report_simple(REP_WI_CONNECTED);
+	report_station(REP_WI_CONNECTED);
 }
 
 static void start_reply(int cmd)

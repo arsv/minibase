@@ -407,6 +407,9 @@ static void cmd_disconnect(struct nlgen* msg)
 {
 	tracef("%s\n", __FUNCTION__);
 
+	if(authstate == AS_IDLE)
+		return;
+
 	reset_eapol_state();
 
 	authstate = AS_IDLE;
