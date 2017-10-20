@@ -155,9 +155,9 @@ static void wait_for_connect(CTX)
 	check_not_null(msg);
 }
 
-static void req_roaming(CTX)
+static void req_connect(CTX)
 {
-	uc_put_hdr(UC, CMD_WI_ROAMING);
+	uc_put_hdr(UC, CMD_WI_CONNECT);
 	uc_put_end(UC);
 
 	no_other_options(ctx);
@@ -195,7 +195,7 @@ static void activate(CTX)
 	if(got_any_args(ctx))
 		req_fixedap(ctx);
 	else
-		req_roaming(ctx);
+		req_connect(ctx);
 }
 
 static void init_args(CTX, int argc, char** argv)

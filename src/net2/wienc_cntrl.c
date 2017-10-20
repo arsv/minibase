@@ -327,7 +327,14 @@ static int cmd_fixedap(CN, MSG)
 	return proceed_to_connect(cn);
 }
 
-static int cmd_roaming(CN, MSG)
+/* This was used to be called "roaming" mode, but that's not how
+   it works now. It picks the best AP it can find, and sticks to
+   it as with cmd_fixedap. True roaming is tricky to get right,
+   and potentially dangerous since it may mislead the user by
+   reporting connection to one AP and then immediately switching
+   to another. So now it's just "connect to whatever". */
+
+static int cmd_connect(CN, MSG)
 {
 	if(authstate != AS_IDLE)
 		return -EBUSY;
@@ -349,7 +356,7 @@ static const struct cmd {
 	{ CMD_WI_SCAN,    cmd_scan    },
 	{ CMD_WI_NEUTRAL, cmd_neutral },
 	{ CMD_WI_FIXEDAP, cmd_fixedap },
-	{ CMD_WI_ROAMING, cmd_roaming }
+	{ CMD_WI_CONNECT, cmd_connect }
 };
 
 static int dispatch_cmd(CN, MSG)
