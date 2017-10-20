@@ -266,6 +266,30 @@ static int cmd_neutral(CN, MSG)
 	return 0;
 }
 
+/* A note on reassess_wifi_situation() hanling here: the client expects all
+   notifications caused by a command to come after the ACK for said command.
+
+   Unlike pretty much anything else here, reassess_wifi_situation is a long
+   piece of code, and while it doesn't send any notification atm it may need
+   to at some point. So we reply first and let it send whatever notifications
+   it wants without messing up the message queue.
+
+   At this point errors are never reported immediately anyway, so we're ok
+   to do so. Netlink code will catch and pass them via notifications. */
+
+static int proceed_to_connect(CN)
+{
+	int ret;
+
+	cn->rep = 1;
+
+	ret = reply(cn, 0);
+
+	reassess_wifi_situation();
+
+	return ret;
+}
+
 static int cmd_fixedap(CN, MSG)
 {
 	struct ucattr* assid;
@@ -300,11 +324,7 @@ static int cmd_fixedap(CN, MSG)
 	else
 		opermode = OP_ENABLED;
 
-	cn->rep = 1;
-
-	reassess_wifi_situation();
-
-	return 0;
+	return proceed_to_connect(cn);
 }
 
 static int cmd_roaming(CN, MSG)
@@ -318,11 +338,7 @@ static int cmd_roaming(CN, MSG)
 
 	clr_timer();
 
-	cn->rep = 1;
-
-	reassess_wifi_situation();
-
-	return 0;
+	return proceed_to_connect(cn);
 }
 
 static const struct cmd {
@@ -378,7 +394,6 @@ void handle_conn(struct conn* cn)
 	while(1) {
 		if((ret = uc_recv(fd, &ur, 0)) < 0)
 			break;
-
 		if((ret = dispatch_cmd(cn, ur.msg)) < 0)
 			break;
 	}

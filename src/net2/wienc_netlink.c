@@ -189,6 +189,8 @@ static void cmd_trigger_scan(struct nlgen* msg)
 		return;
 
 	mark_stale_scan_slots(msg);
+
+	report_scanning();
 }
 
 /* Non-MULTI scan results command means the card is done scanning,

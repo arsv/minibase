@@ -455,8 +455,6 @@ static int maybe_start_scan(void)
 		; /* more than a minute has passed */
 	else return 0;
 
-	report_scanning();
-
 	if((ret = start_scan(0)) < 0)
 		return 0;
 
