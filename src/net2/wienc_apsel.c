@@ -384,12 +384,17 @@ void handle_disconnect(void)
 	if(opermode == OP_EXIT)
 		return;
 
+	report_disconnect();
+
 	if(opermode == OP_RESCAN)
 		opermode = OP_ENABLED;
-	if(opermode == OP_ONESHOT && ap.success)
-		opermode = OP_ENABLED;
 
-	report_disconnect();
+	if(opermode == OP_ONESHOT) {
+		if(ap.success) {
+			opermode = OP_ENABLED;
+			ap.fixed = 1;
+		}
+	}
 
 	if(opermode == OP_ENABLED) {
 		if(ap.success)
@@ -460,10 +465,17 @@ static int maybe_start_scan(void)
 	return 1;
 }
 
+static void snap_to_neutral(void)
+{
+	tracef("%s\n", __FUNCTION__);
+	clear_ap_bssid();
+	clear_ap_ssid();
+	opermode = OP_NEUTRAL;
+}
+
 static void idle_then_rescan(void)
 {
-	tracef("%s: idling\n", __FUNCTION__);
-
+	tracef("%s\n", __FUNCTION__);
 	set_timer(60); /* for rescan */
 }
 
@@ -486,7 +498,7 @@ void reassess_wifi_situation(void)
 	report_no_connect();
 
 	if(opermode == OP_ONESHOT)
-		opermode = OP_NEUTRAL;
+		snap_to_neutral();
 	else
 		idle_then_rescan();
 }
