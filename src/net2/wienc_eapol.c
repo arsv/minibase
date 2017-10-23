@@ -257,12 +257,12 @@ void reset_eapol_state(void)
    
    So instead we prime the EAPOL state machine before we send ASSOCIATE and
    let it receive packet 1/4 early, but only reply with 2/4 once netlink
-   reports association. This ensure very fast connection with no packets
-   lost/ignored in most cases, and with no need to re-send anything.
+   reports association. This ensures very fast connection with no packets
+   lost or ignored in most cases, and with no need to re-send anything.
 
    Now since it all depends on relative timing of unrelated events, we can
-   not be sure it always happens like this. We may get 1/4 after ASSOCIATED
-   state change, so we must be ready to reply immediately too. */
+   not be sure it always happens like this. We may get 1/4 after ASSOCIATE
+   notification, so we must be ready to reply immediately too. */
 
 void prime_eapol_state(void)
 {
@@ -434,6 +434,14 @@ static void send_packet_4(void)
 	handle_connect();
 }
 
+/* Group rekey packets may arrive at any time, and they are the only
+   reason to keep rawsock open past the initial key negotiations.
+   The AP decides when to send them, typically once in N hours.
+
+   Because of the way dispatch() below works, any EAPOL packet
+   arriving after packet 4/4 has been sent will be treated as
+   group rekey request, and rejected if they don't look like one. */
+
 static void recv_group_1(struct eapolkey* ek)
 {
 	char* pacbuf = (char*)ek;
@@ -488,9 +496,14 @@ void send_group_2(void)
 	if(send_packet(packet, paclen))
 		return;
 
-	warn("group re-keying completed", NULL, 0);
 	upload_gtk();
 }
+
+/* Waiting 2/4 here means we got packet 1/4 but did not send 2/4.
+   If we get another packet in this state, it's a re-send of 1/4
+   and we prefer it to the 1/4 we got initially. This shouldn't
+   really happen, but re-sends are mandated by 802.11 and we're
+   not in control over the AP so who knows. */
 
 static void dispatch(struct eapolkey* ek)
 {

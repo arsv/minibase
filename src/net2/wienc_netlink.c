@@ -463,9 +463,9 @@ static void snap_to_netdown(void)
 
    ENOENT handling is tricky. This error means that the AP is not
    in the fast card/kernel scan cache, which gets purged in like 10s
-   after the scan. It does not necessary really mean the AP is gone.
+   after the scan. It does not necessary mean the AP is gone.
    
-   So if we get ENOENT, we do a fast single-frequency scan for the AP
+   If we get ENOENT, we do a fast single-frequency scan for the AP
    we're connecting to. If the AP is really gone, it will be detected
    in reconnect_to_current_ap() and not here. */
 
