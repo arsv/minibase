@@ -1,4 +1,4 @@
-service = wienc wifi
+service = wimon wifi ipcfg
 
 include ../rules.mk
 
