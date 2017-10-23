@@ -1,4 +1,4 @@
-service = wimon wifi ipcfg
+service = wienc wifi ipcfg nimon
 
 include ../rules.mk
 
@@ -7,3 +7,6 @@ wienc: wienc.o wienc_netlink.o wienc_eapol.o wienc_crypto.o wienc_cntrl.o \
 	wienc_rfkill.o
 
 wifi: wifi.o wifi_dump.o wifi_pass.o wifi_wire.o
+
+nimon: nimon.o nimon_ctrl.o nimon_rtnl.o nimon_exec.o nimon_slot.o \
+	nimon_link.o nimon_conf.o
