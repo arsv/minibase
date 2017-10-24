@@ -10,9 +10,9 @@
 #include <util.h>
 
 #include "common.h"
-#include "nimon.h"
+#include "ifmon.h"
 
-ERRTAG("nimon");
+ERRTAG("ifmon");
 
 char** environ;
 

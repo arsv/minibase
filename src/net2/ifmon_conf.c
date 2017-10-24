@@ -7,7 +7,7 @@
 #include <util.h>
 
 #include "common.h"
-#include "nimon.h"
+#include "ifmon.h"
 
 #define PAGE 4096
 #define MAX_CONFIG_SIZE 64*1024

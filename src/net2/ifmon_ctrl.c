@@ -11,7 +11,7 @@
 #include <util.h>
 
 #include "common.h"
-#include "nimon.h"
+#include "ifmon.h"
 
 #define TIMEOUT 1
 #define REPLIED 1

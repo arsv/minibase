@@ -6,7 +6,7 @@
 #include <string.h>
 #include <util.h>
 
-#include "nimon.h"
+#include "ifmon.h"
 
 void stop_link_procs(struct link* ls, int drop)
 {

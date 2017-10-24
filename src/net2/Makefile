@@ -1,4 +1,4 @@
-service = wienc wifi ipcfg ipinfo nimon dhcp
+service = wienc wifi ipcfg ipinfo ifmon dhcp
 
 include ../rules.mk
 
@@ -8,7 +8,7 @@ wienc: wienc.o wienc_netlink.o wienc_eapol.o wienc_crypto.o wienc_cntrl.o \
 
 wifi: wifi.o wifi_dump.o wifi_pass.o wifi_wire.o
 
-nimon: nimon.o nimon_ctrl.o nimon_rtnl.o nimon_exec.o nimon_slot.o \
-	nimon_link.o nimon_conf.o
+ifmon: ifmon.o ifmon_ctrl.o ifmon_rtnl.o ifmon_exec.o ifmon_slot.o \
+	ifmon_link.o ifmon_conf.o
 
 dhcp: dhcp.o dhcp_dump.o dhcp_conf.o dhcp_udp.o

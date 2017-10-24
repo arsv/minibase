@@ -1,7 +1,7 @@
 #include <string.h>
 #include <format.h>
 
-#include "nimon.h"
+#include "ifmon.h"
 
 /* Slot allocation for various objects used in wimon. */
 

@@ -1,6 +1,6 @@
 #include <util.h>
 #include <printf.h>
-#include "nimon.h"
+#include "ifmon.h"
 
 static void start_wienc(LS)
 {

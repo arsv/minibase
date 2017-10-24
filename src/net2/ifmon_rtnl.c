@@ -12,7 +12,7 @@
 #include <string.h>
 #include <util.h>
 
-#include "nimon.h"
+#include "ifmon.h"
 
 struct netlink rtnl;
 int rtnl_dump_req;
