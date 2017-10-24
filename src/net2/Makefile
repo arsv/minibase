@@ -1,4 +1,4 @@
-service = wienc wifi ipcfg nimon dhcp
+service = wienc wifi ipcfg ipinfo nimon dhcp
 
 include ../rules.mk
 
