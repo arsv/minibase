@@ -90,15 +90,17 @@ static void dhcp_exit(LS, int status)
 	tracef("%s %s\n", __FUNCTION__, ls->name);
 
 	switch(ls->dhcp) {
-		case LD_ST_FLUSH: start_flush(ls); return;
-		case LD_FLUSHING: break;
-		case LD_STOPPING: break;
-		default: return;
+		case LD_ST_FLUSH:
+			start_flush(ls);
+			return;
+		case LD_FLUSHING:
+		case LD_STOPPING:
+			ls->dhcp = LD_NEUTRAL;
+			return;
+		case LD_RUNNING:
+			ls->dhcp = LD_FINISHED;
+			return;
 	}
-
-	ls->dhcp = LD_NEUTRAL;
-
-	start_dhcp(ls);
 }
 
 int is_neutral(LS)
