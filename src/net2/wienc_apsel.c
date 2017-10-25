@@ -308,6 +308,8 @@ void handle_connect(void)
 	if((sc = find_current_ap()))
 		sc->flags &= ~SF_TRIED;
 
+	trigger_dhcp();
+
 	report_connected();
 }
 

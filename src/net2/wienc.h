@@ -186,3 +186,5 @@ void report_scan_fail(void);
 void report_no_connect(void);
 void report_disconnect(void);
 void report_connected(void);
+
+void trigger_dhcp(void);
