@@ -1,6 +1,7 @@
 dhcp
 ifmon
 ipcfg
+ifctl
 ipinfo
 wienc
 wifi

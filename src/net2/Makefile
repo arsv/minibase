@@ -1,4 +1,4 @@
-service = wienc wifi ipcfg ipinfo ifmon dhcp
+service = wienc wifi ipcfg ipinfo ifmon ifctl dhcp
 
 include ../rules.mk
 
