@@ -6,6 +6,7 @@
 #include <sys/mman.h>
 
 #include <nlusctl.h>
+#include <string.h>
 #include <heap.h>
 #include <util.h>
 
@@ -323,6 +324,31 @@ static int cmd_connect(CN, MSG)
 	return ret;
 }
 
+static int cmd_forget(CN, MSG)
+{
+	int ret;
+	struct ucattr* at;
+	struct scan* sc;
+
+	if(!(at = uc_get(msg, ATTR_SSID)))
+		return -EINVAL;
+
+	byte* ssid = uc_payload(at);
+	int slen = uc_paylen(at);
+
+	if((ret = drop_psk(ssid, slen)) < 0)
+		return ret;
+
+	for(sc = scans; sc < scans + nscans; sc++)
+		if(sc->slen != slen)
+			;
+		else if(memcmp(sc->ssid, ssid, slen))
+			;
+		else sc->flags &= ~SF_PASS;
+
+	return 0;
+}
+
 static const struct cmd {
 	int cmd;
 	int (*call)(CN, MSG);
@@ -330,7 +356,8 @@ static const struct cmd {
 	{ CMD_WI_STATUS,  cmd_status  },
 	{ CMD_WI_SCAN,    cmd_scan    },
 	{ CMD_WI_NEUTRAL, cmd_neutral },
-	{ CMD_WI_CONNECT, cmd_connect }
+	{ CMD_WI_CONNECT, cmd_connect },
+	{ CMD_WI_FORGET,  cmd_forget  }
 };
 
 static int dispatch_cmd(CN, MSG)

@@ -234,7 +234,7 @@ static char* skipsep(char* p, char* e)
 	return p;
 }
 
-int split_line(struct line* ln, struct chunk* ck, int nc)
+static int split_line(struct line* ln, struct chunk* ck, int nc)
 {
 	char* end = ln->end;
 	char* p = ln->start;
@@ -253,7 +253,7 @@ int split_line(struct line* ln, struct chunk* ck, int nc)
 	return i;
 }
 
-int chunklen(struct chunk* ck)
+static int chunklen(struct chunk* ck)
 {
 	return ck->end - ck->start;
 }
@@ -305,7 +305,7 @@ static char* fmt_ssid(char* p, char* e, byte* ssid, int slen)
 	return p;
 }
 
-int find_ssid(struct line* ln, byte* ssid, int slen)
+static int find_ssid(struct line* ln, byte* ssid, int slen)
 {
 	FMTBUF(p, e, buf, 3*32+2);
 	p = fmt_ssid(p, e, ssid, slen);
@@ -347,17 +347,7 @@ static void insert_line(char* buf, int len)
 	at[len] = '\n';
 }
 
-void change_chunk(struct chunk* ck, char* str)
-{
-	change_part(ck->start, ck->end, str, strlen(str));
-
-	ck->start = NULL;
-	ck->end = NULL;
-
-	modified = 1;
-}
-
-void drop_line(struct line* ln)
+static void drop_line(struct line* ln)
 {
 	if(!ln->start)
 		return;
@@ -441,4 +431,19 @@ void save_psk(byte* ssid, int slen, byte psk[32])
 
 	find_ssid(&ln, ssid, slen);
 	save_line(&ln, buf, p - buf);
+}
+
+int drop_psk(byte* ssid, int slen)
+{
+	struct line ln;
+	int ret;
+
+	if((ret = load_config()) < 0)
+		return ret;
+	if((ret = find_ssid(&ln, ssid, slen)) < 0)
+		return ret;
+
+	drop_line(&ln);
+
+	return 0;
 }

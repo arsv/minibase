@@ -14,11 +14,12 @@ ERRTAG("wifi");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT);
 
-#define OPTS "asdp"
+#define OPTS "asdpz"
 #define OPT_a (1<<0)
 #define OPT_s (1<<1)
 #define OPT_d (1<<2)
 #define OPT_p (1<<3)
+#define OPT_z (1<<4)
 
 static void no_other_options(CTX)
 {
@@ -202,6 +203,26 @@ static void activate(CTX)
 		req_connect(ctx);
 }
 
+static void req_forget(CTX)
+{
+	char *ssid;
+	int slen;
+
+	if(!(ssid = shift_arg(ctx)))
+		fail("SSID required", NULL, 0);
+
+	slen = strlen(ssid);
+
+	uc_put_hdr(UC, CMD_WI_FORGET);
+	uc_put_bin(UC, ATTR_SSID, ssid, slen);
+	uc_put_end(UC);
+
+	no_other_options(ctx);
+	connect_socket(ctx, 1);
+
+	send_check(ctx);
+}
+
 static void init_args(CTX, int argc, char** argv)
 {
 	int i = 1;
@@ -227,6 +248,8 @@ int main(int argc, char** argv)
 		req_neutral(ctx);
 	else if(use_opt(ctx, OPT_s))
 		req_scan(ctx);
+	else if(use_opt(ctx, OPT_z))
+		req_forget(ctx);
 	else if(use_opt(ctx, OPT_a))
 		activate(ctx);
 	else if(got_any_args(ctx))

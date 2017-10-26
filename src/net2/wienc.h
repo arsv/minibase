@@ -171,6 +171,7 @@ void drop_config(void);
 int got_psk_for(byte* ssid, int slen);
 int load_psk(byte* ssid, int slen, byte psk[32]);
 void save_psk(byte* ssid, int slen, byte psk[32]);
+int drop_psk(byte* ssid, int slen);
 
 void set_timer(int seconds);
 void clr_timer(void);
