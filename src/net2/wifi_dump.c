@@ -53,7 +53,7 @@ static char* fmt_chan(char* p, char* e, int freq)
 	return p;
 }
 
-/* 5240 -> "48a", 5241 -> "5240" */
+/* 5240 -> "48a", 5241 -> "5241" */
 
 static char* fmt_chan_or_freq(char* p, char* e, int freq)
 {
@@ -68,7 +68,7 @@ static char* fmt_chan_or_freq(char* p, char* e, int freq)
 	return p;
 }
 
-/* 5240 -> "48a/5240MHz", 5240 -> "5240MHz" */
+/* 5240 -> "48a/5240MHz", 5241 -> "5241MHz" */
 
 static char* fmt_chan_and_freq(char* p, char* e, int freq)
 {
