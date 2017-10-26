@@ -1,3 +1,4 @@
+#include <sys/creds.h>
 #include <sys/proc.h>
 #include <sys/signal.h>
 
@@ -42,12 +43,14 @@ void kill_all_procs(struct link* ls)
 {
 	struct proc* ch;
 
-	for(ch = procs; ch < procs + nprocs; ch++)
+	for(ch = procs; ch < procs + nprocs; ch++) {
 		if(ls && ls->ifi != ch->ifi)
-			;
-		else if(ch->pid <= 0)
-			;
-		else sys_kill(ch->pid, SIGTERM);
+			continue;
+		if(ch->pid <= 0)
+			continue;
+
+		sys_kill(ch->pid, SIGTERM);
+	}
 }
 
 int kill_tagged(struct link* ls, int tag)
@@ -126,16 +129,17 @@ int spawn(struct link* ls, int tag, char** args)
 	int pid;
 	int ret;
 
-	tracef("spawn %s %s\n", args[0], args[1]);
-
-	if(any_running(ls, tag))
+	if(any_running(ls, tag)) {
+		tracef("%s %s already running\n", args[0], args[1]);
 		return -EALREADY;
+	}
 	if(!(ch = grab_proc_slot()))
 		return -ENOMEM;
 	if((pid = sys_fork()) < 0)
 		return pid;
 
 	if(pid == 0) {
+		sys_setsid();
 		ret = execvpe(*args, args, environ);
 		warn("exec", *args, ret);
 		_exit(0xFF);

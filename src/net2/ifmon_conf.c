@@ -35,14 +35,16 @@ static int pagealign(long size)
 void save_config(void)
 {
 	int fd;
+	char* name = IFCFG;
+	int flags = O_WRONLY | O_CREAT | O_TRUNC;
 
 	if(!config)
 		return;
 	if(!modified)
 		return;
 
-	if((fd = sys_open3(IFCFG, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0) {
-		warn("cannot open", WICFG, fd);
+	if((fd = sys_open3(name, flags, 0600)) < 0) {
+		warn("cannot open", name, fd);
 		return;
 	}
 
@@ -64,12 +66,12 @@ void drop_config(void)
 	datalen = 0;
 }
 
-static int open_stat_config(int* size)
+static int open_stat_config(char* name, int* size)
 {
 	int fd, ret;
 	struct stat st;
 
-	if((fd = sys_open(WICFG, O_RDONLY)) < 0) {
+	if((fd = sys_open(name, O_RDONLY)) < 0) {
 		*size = 0;
 		return fd;
 	}
@@ -87,7 +89,7 @@ out:
 	sys_close(fd);
 
 	if(ret && ret != -ENOENT)
-		warn(NULL, WICFG, ret);
+		warn(NULL, name, ret);
 
 	return ret;
 }
@@ -160,11 +162,12 @@ int load_config(void)
 	int fd;
 	long ret;
 	int filesize;
+	char* name = IFCFG;
 
 	if(config)
 		return 0;
 
-	if((fd = open_stat_config(&filesize)) < 0)
+	if((fd = open_stat_config(name, &filesize)) < 0)
 		filesize = 0;
 	if((ret = mmap_config_buf(filesize)) < 0)
 		goto out;
@@ -177,7 +180,7 @@ out:
 	if(fd >= 0)
 		sys_close(fd);
 	if(ret && ret != -ENOENT)
-		warn(NULL, WICFG, ret);
+		warn(NULL, name, ret);
 
 	return ret;
 }
@@ -405,12 +408,14 @@ void load_link(struct link* ls)
 
 	if(chunkis(md, "down"))
 		ls->mode = LM_DOWN;
-	else if(chunkis(md, "auto"))
-		ls->mode = LM_AUTO;
+	else if(chunkis(md, "dhcp"))
+		ls->mode = LM_DHCP;
 	else if(chunkis(md, "wifi"))
-		ls->mode = LM_WIENC;
-	else if(chunkis(md, "static"))
-		ls->mode = LM_SETIP;
+		ls->mode = LM_WIFI;
+	//else if(chunkis(md, "static"))
+	//	ls->mode = LM_SETIP;
+
+	tracef("load %s mode %i\n", ls->name, ls->mode);
 }
 
 void save_link(struct link* ls, char* conf)
@@ -433,45 +438,4 @@ void save_link(struct link* ls, char* conf)
 
 		save_line(&ln, buf, p - buf);
 	}
-}
-
-static void load_link_static(LS, int cn, struct chunk* ck)
-{
-	if(ls->dhcp != LD_NEUTRAL)
-		return;
-
-	struct chunk* ip = &ck[0];
-
-	int arglen = chunklen(ip);
-	char argcpy[arglen+1];
-	memcpy(argcpy, ip->start, arglen);
-	argcpy[arglen] = '\0';
-
-	char* args[] = { "ipcfg", ls->name, argcpy, NULL };
-	int ret;
-
-	if((ret = spawn(ls, CH_DHCP, args)) < 0)
-		return;
-
-	ls->dhcp = LD_RUNNING;
-}
-
-void load_link_conf(LS)
-{
-	int argn = 5;
-	struct chunk ck[5];
-	struct line ln;
-
-	if(load_config())
-		return;
-
-	find_mac(&ln, ls->mac);
-
-	if((argn = split_line(&ln, ck, argn)) < 3)
-		return;
-
-	struct chunk* md = &ck[1];
-
-	if(chunkis(md, "static"))
-		load_link_static(ls, argn - 2, ck + 2);
 }

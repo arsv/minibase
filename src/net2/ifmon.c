@@ -37,6 +37,22 @@ static void sighandler(int sig)
 	}
 }
 
+static void sigaction(int sig, struct sigaction* sa)
+{
+	int ret;
+
+	if((ret = sys_sigaction(sig, sa, NULL)) < 0)
+		fail("sigaction", NULL, ret);
+}
+
+static void sigprocmask(int sig, sigset_t* mask, sigset_t* mold)
+{
+	int ret;
+
+	if((ret = sys_sigprocmask(sig, mask, mold)) < 0)
+		fail("sigprocmask", NULL, ret);
+}
+
 void setup_signals(void)
 {
 	struct sigaction sa = {
@@ -45,26 +61,25 @@ void setup_signals(void)
 		.restorer = sigreturn
 	};
 
-	int ret = 0;
-
 	sigemptyset(&sa.mask);
 	sigaddset(&sa.mask, SIGCHLD);
-	ret |= sys_sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
+	sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
 
 	sigaddset(&sa.mask, SIGINT);
 	sigaddset(&sa.mask, SIGTERM);
 	sigaddset(&sa.mask, SIGHUP);
 	sigaddset(&sa.mask, SIGALRM);
 
-	ret |= sys_sigaction(SIGINT,  &sa, NULL);
-	ret |= sys_sigaction(SIGTERM, &sa, NULL);
-	ret |= sys_sigaction(SIGHUP,  &sa, NULL);
-	ret |= sys_sigaction(SIGALRM, &sa, NULL);
+	sigaction(SIGINT,  &sa);
+	sigaction(SIGTERM, &sa);
+	sigaction(SIGHUP,  &sa);
+	sigaction(SIGALRM, &sa);
 
 	sa.flags &= ~SA_RESTART;
-	ret |= sys_sigaction(SIGCHLD, &sa, NULL);
+	sigaction(SIGCHLD, &sa);
 
-	if(ret) fail("signal init failed", NULL, 0);
+	sa.handler = SIG_IGN;
+	sigaction(SIGPIPE, &sa);
 }
 
 static void set_pollfd(struct pollfd* pfd, int fd)

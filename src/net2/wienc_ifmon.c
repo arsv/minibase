@@ -32,7 +32,8 @@ void trigger_dhcp(void)
 		.end = buf + sizeof(buf)
 	};
 
-	uc_put_hdr(&uc, CMD_NI_XDHCP);
+	uc_put_hdr(&uc, CMD_IF_XDHCP);
+	uc_put_int(&uc, ATTR_IFI, ifindex);
 	uc_put_end(&uc);
 
 	int len = uc.ptr - uc.brk;

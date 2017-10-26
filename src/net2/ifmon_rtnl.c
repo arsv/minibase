@@ -58,20 +58,22 @@ void disable_iface(LS)
 	set_iface_state(ls->ifi, IFF_UP, 0);
 }
 
-static int iff_to_wire(int iff)
+static int iff_to_flags(int iff, int flags)
 {
+	flags &= ~(LF_ENABLED | LF_CARRIER);
+	
 	if(iff & IFF_RUNNING)
-		return LW_CARRIER;
+		flags |= LF_CARRIER;
 	if(iff & IFF_UP)
-		return LW_ENABLED;
+		flags |= LF_ENABLED;
 
-	return LW_DISABLED;
+	return flags;
 }
 
 /* Avoid tracking netdevs that lack MAC address.
    This should exclude ppp ifaces among other things. */
 
-static int looks_like_netcard(struct ifinfomsg* msg)
+static int check_set_mac(struct link* ls, struct ifinfomsg* msg)
 {
 	struct nlattr* at;
 
@@ -80,7 +82,14 @@ static int looks_like_netcard(struct ifinfomsg* msg)
 	if(at->len - sizeof(*at) != 6)
 		return 0;
 
+	memcpy(ls->mac, at->payload, 6);
+
 	return 1;
+}
+
+static int bitgain(int prev, int curr, int bit)
+{
+	return (!(prev & bit) && (curr & bit));
 }
 
 static void msg_new_link(struct ifinfomsg* msg)
@@ -98,29 +107,39 @@ static void msg_new_link(struct ifinfomsg* msg)
 	if(!(ls = grab_link_slot(msg->index)))
 		return;
 
-	int prev = ls->wire;
-	int curr = iff_to_wire(msg->flags);
+	int prev = ls->flags;
+	int curr = iff_to_flags(msg->flags, ls->flags);
 
 	if(!ls->ifi) {
 		/* new link notification */
-		if(!looks_like_netcard(msg))
+
+		if(!check_set_mac(ls, msg))
 			return;
+
 		ls->ifi = msg->index;
-		ls->wire = curr;
+		ls->flags = curr;
 		memcpy(ls->name, name, nlen);
+
 		link_new(ls);
+
+		if(ls->flags & LF_ENABLED)
+			link_enabled(ls);
+		if(ls->flags & LF_CARRIER)
+			link_carrier(ls);
+
 	} else if(curr != prev) {
 		/* state change notification */
-		ls->wire = curr;
 
-		if(curr == LW_DISABLED)
-			link_down(ls);
-		else if(prev == LW_DISABLED)
-			link_enabled(ls);
-		else if(curr == LW_CARRIER)
-			link_carrier(ls);
-		else if(prev == LW_CARRIER)
+		ls->flags = curr;
+
+		if(bitgain(curr, prev, LF_CARRIER))
 			link_lost(ls);
+		if(bitgain(curr, prev, LF_ENABLED))
+			link_down(ls);
+		if(bitgain(prev, curr, LF_ENABLED))
+			link_enabled(ls);
+		if(bitgain(prev, curr, LF_CARRIER))
+			link_carrier(ls);
 	}
 }
 
