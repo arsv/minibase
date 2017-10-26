@@ -3,6 +3,7 @@
 #include <sys/fprop.h>
 #include <sys/dents.h>
 #include <sys/ppoll.h>
+#include <sys/sched.h>
 #include <sys/inotify.h>
 #include <sys/socket.h>
 
@@ -158,83 +159,15 @@ static void contact_ifmon(int ifi, char* name)
 	sys_close(fd);
 }
 
-/* Wait until /var/run/wienc appears
-   (a simplied version of `waitfor` msh builtin) */
-
-static int check_file(char* path)
-{
-	struct stat st;
-	return (sys_stat(path, &st) >= 0);
-}
-
-static int watch_ino_for(int fd, char* name, char* base)
-{
-	struct timespec ts = { .sec = 3, .nsec = 0 };
-	struct pollfd pfd = { .fd = fd, .events = POLLIN };
-	int ret, rd;
-
-	while(1) {
-		if((ret = sys_ppoll(&pfd, 1, &ts, NULL)) < 0)
-			fail("ppoll", NULL, ret);
-		if(ret == 0)
-			fail("timeout waiting for", name, 0);
-
-		char buf[512];
-		int len = sizeof(buf);
-
-		if((rd = sys_read(fd, buf, len)) < 0)
-			fail("inotify", NULL, rd);
-
-		char* end = buf + rd;
-		char* ptr = buf;
-
-		while(ptr < end) {
-			struct inotify_event* ino = (void*) ptr;
-
-			if(!strcmp(base, ino->name))
-				return 0;
-
-			ptr += sizeof(*ino) + ino->len;
-		}
-	}
-}
-
-static void prep_dirname(char* dir, int dlen, char* name, char* base)
-{
-	int len = base - name - 1;
-	if(len > dlen - 1) len = dlen - 1;
-	memcpy(dir, name, len);
-	dir[len] = '\0';
-}
+/* There was a pretty big chunk of code here involving inotify.
+   Turns out this problem is pretty difficult to solve correctly
+   (taking in account sockmod) but it hardly ever matters.
+   A simple timeout should be more than enough. */
 
 static void wait_for_wictl(void)
 {
-	char* name = WICTL;
-	char* base = basename(name);
-	char dir[base - name + 3];
-	long fd, wd;
-
-	if((fd = sys_inotify_init1(IN_NONBLOCK)) < 0)
-		fail("inotify", NULL, fd);
-
-	prep_dirname(dir, sizeof(dir), name, base);
-
-	if((wd = sys_inotify_add_watch(fd, dir, IN_CREATE)) < 0)
-		fail(NULL, dir, wd);
-
-	if(check_file(name))
-		; /* the file already exists */
-	else watch_ino_for(fd, name, base);
-
-	sys_inotify_rm_watch(fd, wd);
-
-	sys_close(fd);
-
-	/* Lazy hack to let sockmod do its job. Monitoring for mode
-	   bits change is actually quite difficult. */
-
 	struct timespec ts = { .sec = 1, .nsec = 0 };
-	sys_ppoll(NULL, 0, &ts, NULL);
+	sys_nanosleep(&ts, NULL);
 }
 
 /* Entry point for all the stuff above */
