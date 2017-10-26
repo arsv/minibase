@@ -156,6 +156,7 @@ static void clear_ap_ssid(void)
 	ap.fixed = 0;
 	memzero(&ap.ssid, sizeof(ap.ssid));
 	memzero(PSK, sizeof(PSK));
+	ap.unsaved = 0;
 }
 
 void reset_station(void)
@@ -264,6 +265,8 @@ int set_fixed_given(byte* ssid, int slen, byte psk[32])
 
 	memcpy(PSK, psk, 32);
 
+	ap.unsaved = 1;
+
 	return 0;
 }
 
@@ -275,6 +278,8 @@ int set_fixed_saved(byte* ssid, int slen)
 		return ret;
 	if((ret = set_fixed(ssid, slen)) < 0)
 		return ret;
+
+	ap.unsaved = 0;
 
 	return 0;
 }
@@ -301,12 +306,21 @@ void handle_connect(void)
 	struct scan* sc;
 
 	ap.success = 1;
+	ap.fixed = 1;
 
 	if(opermode == OP_RESCAN)
+		opermode = OP_ENABLED;
+	if(opermode == OP_ONESHOT)
 		opermode = OP_ENABLED;
 
 	if((sc = find_current_ap()))
 		sc->flags &= ~SF_TRIED;
+	if(ap.unsaved)
+		save_psk(ap.ssid, ap.slen, PSK);
+	if(ap.unsaved && sc)
+		sc->flags |= SF_PASS;
+
+	ap.unsaved = 0;
 
 	trigger_dhcp();
 
@@ -379,18 +393,14 @@ void handle_disconnect(void)
 	if(opermode == OP_RESCAN)
 		opermode = OP_ENABLED;
 
-	if(opermode == OP_ONESHOT) {
-		if(ap.success) {
-			opermode = OP_ENABLED;
-			ap.fixed = 1;
-		}
-	}
-
 	if(opermode == OP_ENABLED) {
 		if(ap.success)
 			rescan_current_ap();
 		else
 			try_some_other_ap();
+	} else {
+		clear_ap_bssid();
+		clear_ap_ssid();
 	}
 }
 

@@ -264,6 +264,8 @@ int main(int argc, char** argv, char** envp)
 			fail("ppoll", NULL, ret);
 		if(sigterm)
 			shutdown();
+
+		save_config();
 	}
 
 	unlink_control();
