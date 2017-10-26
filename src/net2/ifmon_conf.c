@@ -319,33 +319,13 @@ static void change_part(char* start, char* end, char* buf, int len)
 	memcpy(head, buf, len);
 }
 
-static char* find_line_spot(char* buf, int len)
-{
-	struct line ln;
-	int lk;
-
-	for(lk = firstline(&ln); lk; lk = nextline(&ln)) {
-		int cklen = ln.end - ln.start;
-		int cmplen = len > cklen ? cklen : len;
-
-		if(strncmp(ln.start, buf, cmplen) > 0)
-			return ln.start;
-	}
-
-	return config + datalen;
-}
-
 static void insert_line(char* buf, int len)
 {
-	char* at = find_line_spot(buf, len);
+	char* at = config + datalen;
 
-	int shift = len + 1;
-	int shlen = config + datalen - at;
-
-	if(extend_config(shift))
+	if(extend_config(len + 1))
 		return;
 
-	memmove(at + shift, at, shlen);
 	memcpy(at, buf, len);
 	at[len] = '\n';
 }
