@@ -14,6 +14,19 @@
 #include "wienc_crypto.h"
 #include "wienc_eapol.h"
 
+/* Once the radio level connection has been established by the NL code,
+   there's a usable ethernet-style link to the AP. There's no encryption
+   yet however, and the AP does not let any packets through except for
+   the EHT_P_PAE (type 0x888E) key negotiation packets.
+
+   The keys are negotiated by sending packets over this ethernet link.
+   It's a 4-way handshake, 2 packets in and 2 packets out, and it is
+   initiated by the AP. Well actually not, it's initiated by the client
+   (that's us) sending the right IEs with the ASSOCIATE command back
+   in NL code, but here at EAPOL level it looks like the AP talks first.
+
+   The final result of negotiations is PTK and GTK. */
+
 char* ifname;
 int ifindex;
 int rawsock;
@@ -44,7 +57,10 @@ static void send_packet_2(void);
 static void send_packet_4(void);
 static void send_group_2(void);
 
-/* One-time initialization of the raw socket */
+/* A socket bound to an interface enters failed state if the interface
+   goes down, which happens during rfkill. If this happens, we have to
+   re-open adn re-bind it. Otherwise, there's no problem with the socket
+   remaining open across connection, so we do not bother closing it. */
 
 static void open_rawsock(void)
 {
@@ -65,6 +81,14 @@ static void open_rawsock(void)
 		quit("bind", "AF_PACKET", ret);
 
 	rawsock = fd;
+}
+
+void reopen_rawsock(void)
+{
+	if(rawsock >= 0)
+		return;
+
+	open_rawsock();
 }
 
 void setup_iface(char* name)
@@ -93,14 +117,6 @@ void setup_iface(char* name)
 		fail("unexpected hwaddr family on", name, 0);
 
 	memcpy(smac, ifr.addr.data, 6);
-
-	open_rawsock();
-}
-
-void reopen_rawsock(void)
-{
-	if(rawsock >= 0)
-		return;
 
 	open_rawsock();
 }
@@ -151,7 +167,20 @@ static void pmk_to_ptk()
 	memzero(key, sizeof(key));
 }
 
+/* Message 3 comes with a bunch of IEs (apparently?), among which
+   there should be one with the GTK. The whole thing is really
+   messed up, so refer to the standard for clues. KDE structure
+   comes directly from 802.11, it's a kind of tagged union there
+   but we only need a single case, namely the GTK KDE. */
+
+/* Ref. IEEE 802.11-2012 Table 11-6 */
 static const char kde_type_gtk[4] = { 0x00, 0x0F, 0xAC, 0x01 };
+
+/* From wpa_supplicant: swap Tx/Rx for Michael MIC. No idea where
+   this comes from, but it's necessary to get the right key.
+
+   Only applies to TKIP. In CCMP mode, the key is 16 bytes and
+   there's no need to swap anything.  */
 
 static void store_gtk(uint8_t* buf)
 {
@@ -337,6 +366,14 @@ static void recv_packet_1(struct eapolkey* ek)
 		eapolstate = ES_WAITING_2_4;
 }
 
+/* Packet 2/4 must carry IEs, the same ones we've sent already
+   with the ASSOCIATE command. The point in doing so is not clear,
+   but there are APs (like the Android hotspot) that *do* check them
+   and bail out if IEs are not there.
+
+   The fact they match exactly the ASSOCIATE payload may be accidental.
+   Really needs a reference here. But they do seem to match in practice. */
+
 static void send_packet_2(void)
 {
 	struct eapolkey* ek = (struct eapolkey*) packet;
@@ -438,7 +475,7 @@ static void send_packet_4(void)
    reason to keep rawsock open past the initial key negotiations.
    The AP decides when to send them, typically once in N hours.
 
-   Because of the way dispatch() below works, any EAPOL packet
+   Because of the way dispatch() below works, any EAPOL packets
    arriving after packet 4/4 has been sent will be treated as
    group rekey request, and rejected if they don't look like one. */
 
