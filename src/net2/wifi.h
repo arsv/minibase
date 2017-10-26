@@ -41,7 +41,8 @@ struct ucattr** make_scanlist(CTX, MSG);
 void put_psk_input(CTX, void* ssid, int slen);
 
 void init_heap_socket(CTX);
-void connect_to_wimon(CTX);
+void connect_socket(CTX, int start);
+void try_start_wienc(CTX);
 
 void init_output(CTX);
 void fini_output(CTX);

@@ -61,6 +61,8 @@ static void req_status(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
+	connect_socket(ctx, 0);
+
 	msg = send_recv_msg(ctx);
 
 	dump_status(ctx, msg);
@@ -75,6 +77,8 @@ static void req_neutral(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
+	connect_socket(ctx, 0);
+
 	if((ret = send_recv_cmd(ctx)) == -EALREADY)
 		return;
 	else if(ret < 0)
@@ -98,6 +102,8 @@ static void req_scan(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
+	connect_socket(ctx, 1);
+
 	send_check(ctx);
 
 	while((msg = recv_reply(ctx))) {
@@ -155,6 +161,8 @@ static void req_connect(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
+	connect_socket(ctx, 1);
+
 	send_check(ctx);
 
 	wait_for_connect(ctx);
@@ -179,6 +187,8 @@ static void req_fixedap(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
+	connect_socket(ctx, 1);
+
 	send_check(ctx);
 
 	wait_for_connect(ctx);

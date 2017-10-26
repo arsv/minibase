@@ -40,7 +40,7 @@ void init_heap_socket(CTX)
 	ctx->fd = fd;
 }
 
-static void connect_socket(CTX)
+void connect_socket(CTX, int start)
 {
 	int ret;
 
@@ -49,9 +49,18 @@ static void connect_socket(CTX)
 		.path = WICTL
 	};
 
-	if((ret = sys_connect(ctx->fd, &addr, sizeof(addr))) < 0)
-		fail("connect", WICTL, ret);
+	if((ret = sys_connect(ctx->fd, &addr, sizeof(addr))) >= 0)
+		goto out;
+	if(ret != -ENOENT)
+		fail("connect", addr.path, ret);
+	if(!start)
+		fail("wienc is not running", NULL, 0);
 
+	try_start_wienc(ctx);
+
+	if((ret = sys_connect(ctx->fd, &addr, sizeof(addr))) < 0)
+		fail("connect", addr.path, ret);
+out:
 	ctx->connected = 1;
 }
 
@@ -62,7 +71,7 @@ void send_command(CTX)
 	int txlen = ctx->uc.ptr - ctx->uc.brk;
 
 	if(!ctx->connected)
-		connect_socket(ctx);
+		fail("socket not connected", NULL, 0);
 
 	if((wr = writeall(fd, txbuf, txlen)) < 0)
 		fail("write", NULL, wr);
