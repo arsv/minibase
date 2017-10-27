@@ -40,28 +40,63 @@ void init_heap_socket(CTX)
 	ctx->fd = fd;
 }
 
-void connect_socket(CTX, int start)
+static int connctl(CTX, struct sockaddr_un* addr, int miss)
 {
 	int ret;
 
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = WICTL
-	};
+	if((ret = sys_connect(ctx->fd, addr, sizeof(*addr))) < 0) {
+		if(ret != -ENOENT || !miss)
+			fail("connect", addr->path, ret);
+		else
+			return ret;
+	}
 
-	if((ret = sys_connect(ctx->fd, &addr, sizeof(addr))) >= 0)
-		goto out;
-	if(ret != -ENOENT)
-		fail("connect", addr.path, ret);
-	if(!start)
-		fail("wienc is not running", NULL, 0);
+	ctx->connected = 1;
+
+	return ret;
+}
+
+static void resocket(CTX)
+{
+	int fd;
+
+	sys_close(ctx->fd);
+
+	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+		fail("socket", "AF_UNIX", fd);
+
+	ctx->fd = fd;
+	ctx->connected = 0;
+}
+
+void connect_ifctl(CTX)
+{
+	struct sockaddr_un ifctl = { .family = AF_UNIX, .path = IFCTL };
+
+	connctl(ctx, &ifctl, 0);
+}
+
+void connect_wictl(CTX)
+{
+	struct sockaddr_un wictl = { .family = AF_UNIX, .path = WICTL };
+
+	connctl(ctx, &wictl, 0);
+}
+
+void connect_start(CTX)
+{
+	struct sockaddr_un wictl = { .family = AF_UNIX, .path = WICTL };
+
+	if(connctl(ctx, &wictl, 1) >= 0)
+		return;
+
+	connect_ifctl(ctx);
 
 	try_start_wienc(ctx);
 
-	if((ret = sys_connect(ctx->fd, &addr, sizeof(addr))) < 0)
-		fail("connect", addr.path, ret);
-out:
-	ctx->connected = 1;
+	resocket(ctx);
+
+	connect_wictl(ctx);
 }
 
 void send_command(CTX)

@@ -84,79 +84,13 @@ static int resolve_iface(CTX, char* name)
 	return ifi;
 }
 
-static int open_ifmon_socket(void)
+static void contact_ifmon(CTX, int ifi, char* name)
 {
-	int fd, ret;
+	uc_put_hdr(UC, CMD_IF_SET_WIFI);
+	uc_put_int(UC, ATTR_IFI, ifi);
+	uc_put_end(UC);
 
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = IFCTL
-	};
-
-	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
-		fail("socket", "AF_UNIX", fd);
-	if((ret = sys_connect(fd, &addr, sizeof(addr))) < 0)
-		fail("connect", addr.path, ret);
-
-	return fd;
-}
-
-static void recv_ifmon_reply(int fd, char* name)
-{
-	char buf[64];
-	int ret;
-
-	struct urbuf ur = {
-		.buf = buf,
-		.mptr = buf,
-		.rptr = buf,
-		.end = buf + sizeof(buf)
-	};
-
-	while(1) {
-		if((ret = uc_recv(fd, &ur, 1)) < 0)
-			fail("connection lost", NULL, 0);
-
-		struct ucmsg* msg = ur.msg;
-
-		if(msg->cmd > 0)
-			continue;
-		if(msg->cmd < 0)
-			fail(NULL, name, msg->cmd);
-
-		return;
-	}
-}
-
-static void send_ifmon_command(int fd, int ifi)
-{
-	char buf[64];
-	int wr;
-
-	struct ucbuf uc = {
-		.brk = buf,
-		.ptr = buf,
-		.end = buf + sizeof(buf)
-	};
-
-	uc_put_hdr(&uc, CMD_IF_SET_WIFI);
-	uc_put_int(&uc, ATTR_IFI, ifi);
-	uc_put_end(&uc);
-
-	int len = uc.ptr - uc.brk;
-
-	if((wr = writeall(fd, buf, len)) < 0)
-		fail("write", NULL, wr);
-}
-
-static void contact_ifmon(int ifi, char* name)
-{
-	int fd = open_ifmon_socket();
-
-	send_ifmon_command(fd, ifi);
-	recv_ifmon_reply(fd, name);
-
-	sys_close(fd);
+	send_check(ctx);
 }
 
 /* There was a pretty big chunk of code here involving inotify.
@@ -183,7 +117,7 @@ void try_start_wienc(CTX)
 
 	ifi = resolve_iface(ctx, ifname);
 
-	contact_ifmon(ifi, ifname);
+	contact_ifmon(ctx, ifi, ifname);
 
 	wait_for_wictl();
 }

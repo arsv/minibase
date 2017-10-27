@@ -14,12 +14,13 @@ ERRTAG("wifi");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT);
 
-#define OPTS "asdpz"
+#define OPTS "asdpxz"
 #define OPT_a (1<<0)
 #define OPT_s (1<<1)
 #define OPT_d (1<<2)
 #define OPT_p (1<<3)
-#define OPT_z (1<<4)
+#define OPT_x (1<<4)
+#define OPT_z (1<<5)
 
 static void no_other_options(CTX)
 {
@@ -62,7 +63,7 @@ static void req_status(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_socket(ctx, 0);
+	connect_wictl(ctx);
 
 	msg = send_recv_msg(ctx);
 
@@ -78,7 +79,7 @@ static void req_neutral(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_socket(ctx, 0);
+	connect_wictl(ctx);
 
 	if((ret = send_recv_cmd(ctx)) == -EALREADY)
 		return;
@@ -103,7 +104,7 @@ static void req_scan(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_socket(ctx, 1);
+	connect_start(ctx);
 
 	send_check(ctx);
 
@@ -124,6 +125,11 @@ static void req_scan(CTX)
 	msg = send_recv_msg(ctx);
 
 	dump_scanlist(ctx, msg);
+}
+
+static void req_stop(CTX)
+{
+	fail("not implemented", NULL, 0);
 }
 
 static void wait_for_connect(CTX)
@@ -162,7 +168,7 @@ static void req_connect(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_socket(ctx, 1);
+	connect_start(ctx);
 
 	send_check(ctx);
 
@@ -188,7 +194,7 @@ static void req_fixedap(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_socket(ctx, 1);
+	connect_start(ctx);
 
 	send_check(ctx);
 
@@ -218,7 +224,7 @@ static void req_forget(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_socket(ctx, 1);
+	connect_start(ctx);
 
 	send_check(ctx);
 }
@@ -248,6 +254,8 @@ int main(int argc, char** argv)
 		req_neutral(ctx);
 	else if(use_opt(ctx, OPT_s))
 		req_scan(ctx);
+	else if(use_opt(ctx, OPT_x))
+		req_stop(ctx);
 	else if(use_opt(ctx, OPT_z))
 		req_forget(ctx);
 	else if(use_opt(ctx, OPT_a))
