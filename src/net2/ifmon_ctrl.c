@@ -100,9 +100,10 @@ void report_link_carrier(LS)
 	report_simple(ls, REP_IF_LINK_CARRIER);
 }
 
-static void send_reply(struct conn* cn, struct ucbuf* uc)
+static int send_reply(struct conn* cn, struct ucbuf* uc)
 {
 	writeall(cn->fd, uc->brk, uc->ptr - uc->brk);
+	return REPLIED;
 }
 
 int reply(struct conn* cn, int err)
@@ -114,9 +115,7 @@ int reply(struct conn* cn, int err)
 	uc_put_hdr(&uc, err);
 	uc_put_end(&uc);
 
-	send_reply(cn, &uc);
-
-	return REPLIED;
+	return send_reply(cn, &uc);
 }
 
 static int get_ifi(MSG)
@@ -251,8 +250,6 @@ static int cmd_set_wifi(CN, MSG)
 static int cmd_xdhcp(CN, MSG)
 {
 	struct link* ls;
-
-	tracef("%s\n", __FUNCTION__);
 
 	if((ls = find_link(msg)))
 		start_dhcp(ls);
