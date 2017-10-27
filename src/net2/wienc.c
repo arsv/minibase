@@ -12,7 +12,6 @@
 #include <errtag.h>
 #include <endian.h>
 #include <string.h>
-#include <printf.h>
 #include <sigset.h>
 #include <util.h>
 
@@ -199,11 +198,11 @@ static void timer_expired(void)
 	}
 
 	if(authstate == AS_CONNECTED)
-		return;
-	if(authstate != AS_IDLE)
+		routine_bg_scan();
+	else if(authstate != AS_IDLE)
 		abort_connection();
-	else if(scanstate == SS_IDLE)
-		start_full_scan();
+	else
+		routine_fg_scan();
 }
 
 static void shutdown(void)
@@ -248,8 +247,8 @@ int main(int argc, char** argv, char** envp)
 	setup_control();
 	retry_rfkill();
 
-	opermode = OP_ENABLED;
-	run_stamped_scan();
+	opermode = OP_NEUTRAL;
+	routine_fg_scan();
 
 	while(opermode) {
 		struct timespec* ts = timerset ? &pollts : NULL;

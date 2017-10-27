@@ -29,7 +29,7 @@
 #define OP_EXITREQ         1
 #define OP_NEUTRAL         2
 #define OP_ONESHOT         3
-#define OP_ENABLED         4
+#define OP_ACTIVE          4
 #define OP_RESCAN          5
 
 /* scan.type */
@@ -97,6 +97,7 @@ extern struct ap {
 	int tkipgroup;
 
 	int success;
+	int rescans;
 } ap;
 
 /* Config file parsing */
@@ -192,3 +193,7 @@ void report_disconnect(void);
 void report_connected(void);
 
 void trigger_dhcp(void);
+
+void routine_fg_scan(void);
+void routine_bg_scan(void);
+int maybe_start_scan(void);

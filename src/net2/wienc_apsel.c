@@ -1,5 +1,3 @@
-#include <sys/time.h>
-
 #include <string.h>
 
 #include "wienc.h"
@@ -7,7 +5,8 @@
 /* AP selection code. Scan, pick some AP to connect, fail, pick
    another AP, success, and so on. */
 
-static struct timespec lastscan;
+#define TIME_TO_FG_SCAN 1*60
+#define TIME_TO_BG_SCAN 5*60
 
 /* IEs (Information Elements) telling the AP which cipher we'd like to use
    must be sent twice: first in ASSOCIATE request, and then also in EAPOL
@@ -143,9 +142,9 @@ static struct scan* get_best_ap(void)
 
 static void clear_ap_bssid(void)
 {
-	ap.freq = 0;
 	ap.type = 0;
 	ap.success = 0;
+	ap.rescans = 0;
 
 	memzero(&ap.bssid, sizeof(ap.bssid));
 }
@@ -153,6 +152,7 @@ static void clear_ap_bssid(void)
 static void clear_ap_ssid(void)
 {
 	ap.slen = 0;
+	ap.freq = 0;
 	ap.fixed = 0;
 	memzero(&ap.ssid, sizeof(ap.ssid));
 	memzero(PSK, sizeof(PSK));
@@ -308,10 +308,12 @@ void handle_connect(void)
 	ap.success = 1;
 	ap.fixed = 1;
 
+	set_timer(TIME_TO_BG_SCAN);
+
 	if(opermode == OP_RESCAN)
-		opermode = OP_ENABLED;
+		opermode = OP_ACTIVE;
 	if(opermode == OP_ONESHOT)
-		opermode = OP_ENABLED;
+		opermode = OP_ACTIVE;
 
 	if((sc = find_current_ap()))
 		sc->flags &= ~SF_TRIED;
@@ -339,7 +341,7 @@ static void rescan_current_ap(void)
 void reconnect_to_current_ap(void)
 {
 	if(opermode == OP_RESCAN)
-		opermode = OP_ENABLED;
+		opermode = OP_ACTIVE;
 
 	if(find_current_ap())
 		start_connection();
@@ -383,6 +385,8 @@ void check_new_scan_results(void)
 
 void handle_disconnect(void)
 {
+	clr_timer();
+
 	if(opermode == OP_EXITREQ)
 		opermode = OP_EXIT;
 	if(opermode == OP_EXIT)
@@ -391,9 +395,9 @@ void handle_disconnect(void)
 	report_disconnect();
 
 	if(opermode == OP_RESCAN)
-		opermode = OP_ENABLED;
+		opermode = OP_ACTIVE;
 
-	if(opermode == OP_ENABLED) {
+	if(opermode == OP_ACTIVE) {
 		if(ap.success)
 			rescan_current_ap();
 		else
@@ -423,42 +427,33 @@ void handle_rfrestored(void)
 		reassess_wifi_situation();
 }
 
-int run_stamped_scan(void)
+void routine_bg_scan(void)
 {
-	int ret;
-
-	if((ret = start_void_scan()) < 0)
-		return ret;
-
-	sys_clock_gettime(CLOCK_MONOTONIC, &lastscan);
-
-	return 0;
+	start_void_scan();
+	set_timer(TIME_TO_BG_SCAN);
 }
 
-static int maybe_start_scan(void)
+void routine_fg_scan(void)
 {
-	struct timespec currtime;
-	int ret;
+	if(!ap.fixed) {
+		set_timer(TIME_TO_FG_SCAN);
+		start_void_scan();
+	} else if(ap.freq) {
+		set_timer(10);
 
-	if((ret = sys_clock_gettime(CLOCK_MONOTONIC, &currtime)) < 0)
-		return 0;
-	if(currtime.sec == 0 && currtime.nsec == 0)
-		return 0;
+		if(++ap.rescans % 6)
+			start_scan(ap.freq);
+		else
+			start_full_scan();
 
-	if(lastscan.sec == 0 && lastscan.nsec == 0)
-		;
-	else if(currtime.sec < lastscan.sec)
-		; /* something's wrong */
-	else if(currtime.sec - lastscan.sec >= 50)
-		; /* more than a minute has passed */
-	else return 0;
-
-	if((ret = start_full_scan()) < 0)
-		return 0;
-
-	lastscan = currtime;
-
-	return 1;
+		if(ap.rescans >= 6*5) { /* 5 minutes */
+			ap.freq = 0;
+			ap.rescans = 0;
+		}
+	} else {
+		set_timer(TIME_TO_FG_SCAN);
+		start_full_scan();
+	}
 }
 
 static void snap_to_neutral(void)
@@ -470,7 +465,7 @@ static void snap_to_neutral(void)
 
 static void idle_then_rescan(void)
 {
-	set_timer(60); /* for rescan */
+	set_timer(TIME_TO_FG_SCAN);
 }
 
 void reassess_wifi_situation(void)
@@ -482,8 +477,6 @@ void reassess_wifi_situation(void)
 	if(scanstate != SS_IDLE)
 		return;
 
-	if(maybe_start_scan())
-		return;
 	if(connect_to_something())
 		return;
 

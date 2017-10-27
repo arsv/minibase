@@ -7,7 +7,6 @@
 #include <netlink/dump.h>
 
 #include <string.h>
-#include <printf.h>
 #include <util.h>
 
 #include "wienc.h"

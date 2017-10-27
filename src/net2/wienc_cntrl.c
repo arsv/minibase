@@ -247,7 +247,7 @@ static int cmd_scan(CN, MSG)
 {
 	int ret;
 
-	if((ret = run_stamped_scan()) < 0)
+	if((ret = start_void_scan()) < 0)
 		return ret;
 
 	cn->rep = 1;
