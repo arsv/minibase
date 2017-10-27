@@ -50,7 +50,7 @@ $$(target-$1): $$(dstdir-$1)/%: % | $$(dstdir-$1)
 .PHONY: $$(target-$1)
 endef
 
-targets = command service system initrd
+targets = command service network system initrd
 
 $(foreach _,$(targets),$(if $($_),$(eval $(call bin-rules,$_))))
 
