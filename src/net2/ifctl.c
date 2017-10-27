@@ -79,6 +79,111 @@ static void connect_socket(CTX)
 	ctx->connected = 1;
 }
 
+/* Link list output */
+
+static int count_links(MSG)
+{
+	struct ucattr* at;
+	int count = 0;
+
+	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
+		if(uc_is_nest(at, ATTR_LINK))
+			count++;
+
+	return count;
+}
+
+static void fill_links(MSG, struct ucattr** idx, int n)
+{
+	struct ucattr* at;
+	int i = 0;
+
+	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
+		if(i >= n)
+			break;
+		else if(!uc_is_nest(at, ATTR_LINK))
+			continue;
+		else
+			idx[i++] = at;
+}
+
+static const char* modes[] = {
+	[IF_MODE_SKIP] = "skip",
+	[IF_MODE_DOWN] = "down",
+	[IF_MODE_DHCP] = "dhcp",
+	[IF_MODE_WIFI] = "wifi"
+};
+
+static char* fmt_mode(char* p, char* e, int mode)
+{
+	if(mode >= 0 && mode < ARRAY_SIZE(modes))
+		return fmtstr(p, e, modes[mode]);
+	else
+		return fmtint(p, e, mode);
+}
+
+static char* fmt_flags(char* p, char* e, int flags)
+{
+	p = fmtstr(p, e, "(");
+
+	if(flags & IF_CARRIER)
+		p = fmtstr(p, e, "carrier");
+	else if(flags & IF_ENABLED)
+		p = fmtstr(p, e, "up");
+	else
+		p = fmtstr(p, e, "down");
+
+	if(flags & IF_STOPPING)
+		p = fmtstr(p, e, ",stopping");
+	else if(flags & IF_RUNNING)
+		p = fmtstr(p, e, ",running");
+
+	p = fmtstr(p, e, ")");
+
+	return p;
+}
+
+static char* fmt_link(char* p, char* e, struct ucattr* at)
+{
+	int* ifi = uc_sub_int(at, ATTR_IFI);
+	char* name = uc_sub_str(at, ATTR_NAME);
+	int* mode = uc_sub_int(at, ATTR_MODE);
+	int* flags = uc_sub_int(at, ATTR_FLAGS);
+
+	if(!ifi || !name || !mode || !flags)
+		return p;
+
+	p = fmtstr(p, e, "Link ");
+	p = fmtint(p, e, *ifi);
+	p = fmtstr(p, e, " ");
+	p = fmtstr(p, e, name);
+	p = fmtstr(p, e, ": ");
+	p = fmt_mode(p, e, *mode);
+	p = fmtstr(p, e, " ");
+	p = fmt_flags(p, e, *flags);
+	p = fmtstr(p, e, "\n");
+
+	return p;
+}
+
+static void dump_status(CTX, MSG)
+{
+	int i, n = count_links(msg);
+	struct ucattr* idx[n];
+	fill_links(msg, idx, n);
+
+	FMTBUF(p, e, buf, 2048);
+
+	for(i = 0; i < n; i++)
+		p = fmt_link(p, e, idx[i]);
+
+	FMTEND(p, e);
+
+	writeall(STDOUT, buf, p - buf);
+}
+
+/* Wire utils */
+
 void send_command(CTX)
 {
 	int wr, fd = ctx->fd;
@@ -131,6 +236,22 @@ static void send_check(CTX)
 		fail(NULL, NULL, ret);
 }
 
+/* Cmdline arguments */
+
+static void init_args(CTX, int argc, char** argv)
+{
+	int i = 1;
+
+	if(i < argc && argv[i][0] == '-')
+		ctx->opts = argbits(OPTS, argv[i++] + 1);
+	else
+		ctx->opts = 0;
+
+	ctx->argi = i;
+	ctx->argc = argc;
+	ctx->argv = argv;
+}
+
 static void no_other_options(CTX)
 {
 	if(ctx->argi < ctx->argc)
@@ -168,9 +289,25 @@ static int shift_ifi(CTX)
 	return ifi;
 }
 
+/* Requests */
+
 static void req_status(CTX)
 {
-	fail("not implemented:", __FUNCTION__, 0);
+	struct ucmsg* msg;
+
+	no_other_options(ctx);
+
+	uc_put_hdr(UC, CMD_IF_STATUS);
+	uc_put_end(UC);
+
+	msg = send_recv_msg(ctx);
+
+	if(msg->cmd < 0)
+		fail(NULL, NULL, msg->cmd);
+	if(msg->cmd > 0)
+		fail("unexpected notification", NULL, 0);
+
+	dump_status(ctx, msg);
 }
 
 static void stop_link_wait(CTX, int ifi)
@@ -226,36 +363,6 @@ static void req_wifi(CTX)
 	return req_set_link(ctx, CMD_IF_SET_WIFI);
 }
 
-//static void wait_for_connect(CTX)
-//{
-//	struct ucmsg* msg;
-//	int failures = 0;
-//
-//	while((msg = recv_reply(ctx))) switch(msg->cmd) {
-//		case REP_WI_SCANNING:
-//			warn("scanning", NULL, 0);
-//			break;
-//		case REP_WI_SCAN_FAIL:
-//			fail("scan failed", NULL, 0);
-//		case REP_WI_NET_DOWN:
-//			fail(NULL, NULL, -ENETDOWN);
-//		case REP_WI_CONNECTED:
-//			warn_sta("connected to", msg);
-//			return;
-//		case REP_WI_DISCONNECT:
-//			warn_sta("cannot connect to", msg);
-//			failures++;
-//			break;
-//		case REP_WI_NO_CONNECT:
-//			if(failures)
-//				fail("no more APs in range", NULL, 0);
-//			else
-//				fail("no suitable APs in range", NULL, 0);
-//	}
-//
-//	check_not_null(msg);
-//}
-
 static void req_restart(CTX)
 {
 	int ifi = shift_ifi(ctx);
@@ -267,20 +374,6 @@ static void req_restart(CTX)
 	uc_put_end(UC);
 
 	send_check(ctx);
-}
-
-static void init_args(CTX, int argc, char** argv)
-{
-	int i = 1;
-
-	if(i < argc && argv[i][0] == '-')
-		ctx->opts = argbits(OPTS, argv[i++] + 1);
-	else
-		ctx->opts = 0;
-
-	ctx->argi = i;
-	ctx->argc = argc;
-	ctx->argv = argv;
 }
 
 int main(int argc, char** argv)

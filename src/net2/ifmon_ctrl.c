@@ -184,8 +184,51 @@ static int set_link_mode(CN, MSG, int mode)
 	return ret;
 }
 
+static int common_flags(LS)
+{
+	int val = ls->flags;
+	int out = 0;
+
+	if(val & LF_ENABLED)
+		out |= IF_ENABLED;
+	if(val & LF_CARRIER)
+		out |= IF_CARRIER;
+	if(val & LF_RUNNING)
+		out |= IF_RUNNING;
+	if(val & LF_STOPPING)
+		out |= IF_STOPPING;
+	if(val & LF_ERROR)
+		out |= IF_ERROR;
+
+	return out;
+}
+
 static int cmd_status(CN, MSG)
 {
+	char cbuf[512];
+	struct ucbuf uc;
+	struct link* ls;
+	struct ucattr* at;
+
+	uc_buf_set(&uc, cbuf, sizeof(cbuf));
+	uc_put_hdr(&uc, 0);
+
+	for(ls = links; ls < links + nlinks; ls++) {
+		if(!ls->ifi)
+			continue;
+
+		at = uc_put_nest(&uc, ATTR_LINK);
+		uc_put_int(&uc, ATTR_IFI, ls->ifi);
+		uc_put_str(&uc, ATTR_NAME, ls->name);
+		uc_put_int(&uc, ATTR_MODE, ls->mode);
+		uc_put_int(&uc, ATTR_FLAGS, common_flags(ls));
+		uc_end_nest(&uc, at);
+	}
+
+	uc_put_end(&uc);
+
+	return send_reply(cn, &uc);
+
 	return -ENOSYS;
 }
 

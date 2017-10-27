@@ -54,6 +54,9 @@
 #define ATTR_STATE     11
 #define ATTR_IP        12
 #define ATTR_MASK      13
+#define ATTR_LINK      14
+#define ATTR_MODE      15
+#define ATTR_FLAGS     16
 
 #define WS_IDLE         0
 #define WS_RFKILLED     1
@@ -62,3 +65,14 @@
 #define WS_SCANNING     4
 #define WS_CONNECTING   5
 #define WS_CONNECTED    6
+
+#define IF_ENABLED  (1<<0)
+#define IF_CARRIER  (1<<1)
+#define IF_RUNNING  (1<<2)
+#define IF_STOPPING (1<<3)
+#define IF_ERROR    (1<<4)
+
+#define IF_MODE_SKIP    0
+#define IF_MODE_DOWN    1
+#define IF_MODE_DHCP    2
+#define IF_MODE_WIFI    3

@@ -49,8 +49,10 @@ extern int netlink;
 
 extern struct proc procs[];
 extern struct conn conns[];
+extern struct link links[];
 extern int nprocs;
 extern int nconns;
+extern int nlinks;
 extern int ctrlfd;
 
 void accept_ctrl(int fd);
