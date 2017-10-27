@@ -13,6 +13,7 @@
 #define AS_CONNECTED       4
 #define AS_DISCONNECTING   5
 #define AS_NETDOWN         7
+#define AS_EXTERNAL        8
 
 #define ES_IDLE            0
 #define ES_WAITING_1_4     1

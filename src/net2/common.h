@@ -58,6 +58,7 @@
 #define WS_IDLE         0
 #define WS_RFKILLED     1
 #define WS_NETDOWN      2
-#define WS_SCANNING     3
-#define WS_CONNECTING   4
-#define WS_CONNECTED    5
+#define WS_EXTERNAL     3
+#define WS_SCANNING     4
+#define WS_CONNECTING   5
+#define WS_CONNECTED    6

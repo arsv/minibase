@@ -253,13 +253,26 @@ static void trigger_associaction(void)
 	send_set_authstate(AS_ASSOCIATING);
 }
 
+static void trigger_disconnect(void)
+{
+	nl_new_cmd(&nl, nl80211, NL80211_CMD_DISCONNECT, 0);
+	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
+
+	send_set_authstate(AS_DISCONNECTING);
+}
+
+/* Hard-reset and disable the auth state machine. This is not a normal
+   operation, and should only happen in response to another supplicant
+   trying to work on the same device. */
+
 static void snap_to_disabled(char* why)
 {
-	tracef("%s\n", why);
-	//reset_eapol_state();
-	//trigger_disconnect();
-	//authstate = AS_IDLE;
-	//opermode = OP_NEUTRAL;
+	opermode = OP_NEUTRAL;
+	authstate = AS_EXTERNAL;
+
+	reset_eapol_state();
+
+	handle_disconnect();
 }
 
 /* See comments around prime_eapol_state() / allow_eapol_sends() on why
@@ -269,6 +282,8 @@ static void snap_to_disabled(char* why)
 
 static void cmd_authenticate(struct nlgen* msg)
 {
+	if(authstate == AS_EXTERNAL)
+		return;
 	if(authstate != AS_AUTHENTICATING)
 		return snap_to_disabled("out-of-order AUTH");
 
@@ -279,6 +294,8 @@ static void cmd_authenticate(struct nlgen* msg)
 
 static void cmd_associate(struct nlgen* msg)
 {
+	if(authstate == AS_EXTERNAL)
+		return;
 	if(authstate != AS_ASSOCIATING)
 		return snap_to_disabled("out-of-order ASSOC");
 
@@ -289,10 +306,50 @@ static void cmd_associate(struct nlgen* msg)
 
 static void cmd_connect(struct nlgen* msg)
 {
+	if(authstate == AS_EXTERNAL)
+		return;
 	if(authstate != AS_CONNECTING)
 		snap_to_disabled("out-of-order CONNECT");
 
 	authstate = AS_CONNECTED;
+}
+
+/* start_disconnect is for user requests,
+   abort_connection gets called if EAPOL negotiations fail. */
+
+int start_disconnect(void)
+{
+	switch(authstate) {
+		case AS_IDLE:
+		case AS_NETDOWN:
+			return -EALREADY;
+		case AS_DISCONNECTING:
+			return -EBUSY;
+	}
+
+	trigger_disconnect();
+
+	return 0;
+}
+
+void abort_connection(void)
+{
+	if(start_disconnect() >= 0)
+		return;
+
+	reassess_wifi_situation();
+}
+
+static void cmd_disconnect(struct nlgen* msg)
+{
+	if(authstate == AS_IDLE)
+		return;
+
+	reset_eapol_state();
+
+	authstate = AS_IDLE;
+
+	handle_disconnect();
 }
 
 /* EAPOL code does negotiations in the user space, but the resulting
@@ -346,52 +403,6 @@ void upload_gtk(void)
 	nl_end_nest(&nl, at);
 
 	send_check();
-}
-
-static void trigger_disconnect(void)
-{
-	nl_new_cmd(&nl, nl80211, NL80211_CMD_DISCONNECT, 0);
-	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
-
-	send_set_authstate(AS_DISCONNECTING);
-}
-
-/* start_disconnect is for user requests,
-   abort_connection gets called if EAPOL negotiations fail. */
-
-int start_disconnect(void)
-{
-	switch(authstate) {
-		case AS_IDLE:
-		case AS_NETDOWN:
-			return -EALREADY;
-		case AS_DISCONNECTING:
-			return -EBUSY;
-	}
-
-	trigger_disconnect();
-
-	return 0;
-}
-
-void abort_connection(void)
-{
-	if(start_disconnect() >= 0)
-		return;
-
-	reassess_wifi_situation();
-}
-
-static void cmd_disconnect(struct nlgen* msg)
-{
-	if(authstate == AS_IDLE)
-		return;
-
-	reset_eapol_state();
-
-	authstate = AS_IDLE;
-
-	handle_disconnect();
 }
 
 /* NLMSG_DONE indicates the end of a dump. The only kind of dumps

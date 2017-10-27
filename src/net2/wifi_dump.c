@@ -93,6 +93,7 @@ static const struct dict {
 	{ WS_IDLE,       "Idle"       },
 	{ WS_RFKILLED,   "RF-kill"    },
 	{ WS_NETDOWN,    "Net down"   },
+	{ WS_EXTERNAL,   "External"   },
 	{ WS_SCANNING,   "Scanning"   },
 	{ WS_CONNECTING, "Connecting" },
 	{ WS_CONNECTED,  "Connected"  },
