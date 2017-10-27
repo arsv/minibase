@@ -143,6 +143,8 @@ void upload_gtk(void);
 void prime_eapol_state(void);
 void allow_eapol_sends(void);
 void reset_eapol_state(void);
+int start_full_scan(void);
+int start_void_scan(void);
 int start_scan(int freq);
 int start_disconnect(void);
 int start_connection(void);

@@ -427,7 +427,7 @@ int run_stamped_scan(void)
 {
 	int ret;
 
-	if((ret = start_scan(0)) < 0)
+	if((ret = start_void_scan()) < 0)
 		return ret;
 
 	sys_clock_gettime(CLOCK_MONOTONIC, &lastscan);
@@ -453,7 +453,7 @@ static int maybe_start_scan(void)
 		; /* more than a minute has passed */
 	else return 0;
 
-	if((ret = start_scan(0)) < 0)
+	if((ret = start_full_scan()) < 0)
 		return 0;
 
 	lastscan = currtime;

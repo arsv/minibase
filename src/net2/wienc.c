@@ -203,7 +203,7 @@ static void timer_expired(void)
 	if(authstate != AS_IDLE)
 		abort_connection();
 	else if(scanstate == SS_IDLE)
-		start_scan(0);
+		start_full_scan();
 }
 
 static void shutdown(void)

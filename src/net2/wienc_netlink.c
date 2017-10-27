@@ -12,14 +12,18 @@
 
 #include "wienc.h"
 
+#define SR_SCANNING_ONE_FREQ (1<<0)
+#define SR_RECONNECT_CURRENT (1<<1)
+#define SR_CONNECT_SOMETHING (1<<2)
+
 char txbuf[512];
-char rxbuf[8192-1024];
+char rxbuf[8*1024];
 
 struct netlink nl;
 int netlink;
 static int nl80211;
 static int scanseq;
-static int freqreq;
+static int scanreq;
 
 int authstate;
 int scanstate;
@@ -68,7 +72,7 @@ static void reset_scan_state(void)
 {
 	scanstate = SS_IDLE;
 	scanseq = 0;
-	freqreq = 0;
+	scanreq = 0;
 }
 
 /* The weird logic below handles the cases when a re-scan or a routine
@@ -79,33 +83,48 @@ int start_scan(int freq)
 	struct nlattr* at;
 	int ret;
 
-	if(scanstate != SS_IDLE) {
-		if(freq && !freqreq) {
-			freqreq = freq;
-			return 0;
-		} else if(!freq && !freqreq) {
-			return 0;
-		} else {
-			return -EBUSY;
-		}
+	if(scanstate == SS_IDLE) {
+		/* no ongoing scan, great */
+	} else if(scanreq & SR_SCANNING_ONE_FREQ) {
+		/* ongoing single-freq scan, bad */
+		return -EBUSY;
+	} else { /* ongoing whole-range scan */
+		if(freq > 0)
+			scanreq |= SR_RECONNECT_CURRENT;
+		if(freq < 0)
+			scanreq |= SR_CONNECT_SOMETHING;
+		return 0;
 	}
 
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_TRIGGER_SCAN, 0);
 	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
 
-	if(freq) {
+	if(freq > 0) {
+		scanreq |= SR_SCANNING_ONE_FREQ | SR_RECONNECT_CURRENT;
 		at = nl_put_nest(&nl, NL80211_ATTR_SCAN_FREQUENCIES);
 		nl_put_u32(&nl, 0, freq); /* 0 is index here */
 		nl_end_nest(&nl, at);
 	}
 
-	if((ret = nl_send(&nl)) < 0)
+	if((ret = nl_send(&nl)) < 0) {
+		scanreq = 0;
 		return ret;
+	}
 
 	scanstate = SS_SCANNING;
 	scanseq = nl.seq;
 
 	return 0;
+}
+
+int start_void_scan(void)
+{
+	return start_scan(0);
+}
+
+int start_full_scan(void)
+{
+	return start_scan(-1);
 }
 
 static void mark_stale_scan_slots(struct nlgen* msg)
@@ -424,7 +443,7 @@ static void drop_stale_scan_slots(void)
 
 static void genl_done(void)
 {
-	int current = !!freqreq;
+	int current = scanreq;
 
 	if(scanstate != SS_SCANDUMP)
 		return;
@@ -437,10 +456,10 @@ static void genl_done(void)
 
 	report_scan_done();
 
-	if(current)
-		reconnect_to_current_ap();
-	else
-		reassess_wifi_situation();
+	if(current & SR_RECONNECT_CURRENT)
+		return reconnect_to_current_ap();
+	if(current & SR_CONNECT_SOMETHING)
+		return reassess_wifi_situation();
 }
 
 /* Netlink errors caused by scan-related commands; we track those
