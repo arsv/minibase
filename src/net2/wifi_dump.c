@@ -8,6 +8,26 @@
 #include "common.h"
 #include "wifi.h"
 
+static void init_output(CTX)
+{
+	int len = 2048;
+
+	ctx->bo.fd = STDOUT;
+	ctx->bo.buf = halloc(&ctx->hp, len);
+	ctx->bo.len = len;
+	ctx->bo.ptr = 0;
+}
+
+static void fini_output(CTX)
+{
+	bufoutflush(&ctx->bo);
+}
+
+static void output(CTX, char* buf, int len)
+{
+	bufout(&ctx->bo, buf, len);
+}
+
 /* Wi-Fi channel designation.
    
    Ref. https://en.wikipedia.org/wiki/List_of_WLAN_channels

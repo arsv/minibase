@@ -67,6 +67,24 @@ static char* shift_arg(CTX)
 	return ctx->argv[ctx->argi++];
 }
 
+void connect_wictl_start(CTX)
+{
+	if(connect_wictl_(ctx) >= 0)
+		return;
+
+	try_start_wienc(ctx, NULL);
+
+	connect_wictl(ctx);
+}
+
+void connect_wictl_check(CTX)
+{
+	if(connect_wictl_(ctx) >= 0)
+		return;
+
+	fail("service is not running", NULL, 0);
+}
+
 /* Server request */
 
 static void req_status(CTX)
@@ -165,8 +183,11 @@ static void req_stop(CTX)
 
 static void req_start(CTX)
 {
-	connect_ifctl(ctx);
-	try_start_wienc(ctx);
+	char* dev = shift_arg(ctx);
+
+	no_other_options(ctx);
+
+	try_start_wienc(ctx, dev);
 }
 
 static void wait_for_connect(CTX)
@@ -256,7 +277,7 @@ int main(int argc, char** argv)
 	struct top context, *ctx = &context;
 
 	init_args(ctx, argc, argv);
-	init_heap_socket(ctx);
+	init_heap_bufs(ctx);
 
 	if(use_opt(ctx, OPT_d))
 		req_neutral(ctx);

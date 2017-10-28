@@ -40,15 +40,10 @@ struct ucattr** make_scanlist(CTX, MSG);
 
 void put_psk_input(CTX, void* ssid, int slen);
 
-void init_heap_socket(CTX);
+void init_heap_bufs(CTX);
 void connect_wictl(CTX);
 void connect_ifctl(CTX);
-void connect_wictl_start(CTX);
-void connect_wictl_check(CTX);
-void try_start_wienc(CTX);
-
-void init_output(CTX);
-void fini_output(CTX);
-void output(CTX, char* buf, int len);
+int connect_wictl_(CTX);
+void try_start_wienc(CTX, char* name);
 
 void warn_sta(char* text, MSG);

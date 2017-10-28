@@ -15,10 +15,8 @@
    is delayed until send_command() to avoid waking up wimon and then dropping
    the connection because of a local error. */
 
-void init_heap_socket(CTX)
+void init_heap_bufs(CTX)
 {
-	int fd;
-
 	hinit(&ctx->hp, 2*PAGE);
 
 	char* ucbuf = halloc(&ctx->hp, 2048);
@@ -33,25 +31,19 @@ void init_heap_socket(CTX)
 	ctx->ur.mptr = rxbuf;
 	ctx->ur.rptr = rxbuf;
 	ctx->ur.end = rxbuf + 2048;
-
-	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
-		fail("socket", "AF_UNIX", fd);
-
-	ctx->fd = fd;
 }
 
 static int connctl(CTX, struct sockaddr_un* addr, int miss)
 {
 	int ret, fd;
 
-	if(ctx->connected) {
+	if(ctx->fd > 0)
 		sys_close(ctx->fd);
 
-		if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
-			fail("socket", "AF_UNIX", fd);
+	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+		fail("socket", "AF_UNIX", fd);
 
-		ctx->fd = fd;
-	}
+	ctx->fd = fd;
 
 	if((ret = sys_connect(ctx->fd, addr, sizeof(*addr))) < 0) {
 		if(ret != -ENOENT || !miss)
@@ -84,26 +76,6 @@ int connect_wictl_(CTX)
 	struct sockaddr_un wictl = { .family = AF_UNIX, .path = WICTL };
 
 	return connctl(ctx, &wictl, 1);
-}
-
-void connect_wictl_start(CTX)
-{
-	if(connect_wictl_(ctx) >= 0)
-		return;
-
-	connect_ifctl(ctx);
-
-	try_start_wienc(ctx);
-
-	connect_wictl(ctx);
-}
-
-void connect_wictl_check(CTX)
-{
-	if(connect_wictl_(ctx) >= 0)
-		return;
-
-	fail("service is not running", NULL, 0);
 }
 
 void send_command(CTX)
@@ -156,24 +128,4 @@ void send_check(CTX)
 
 	if((ret = send_recv_cmd(ctx)) < 0)
 		fail(NULL, NULL, ret);
-}
-
-void init_output(CTX)
-{
-	int len = 2048;
-
-	ctx->bo.fd = STDOUT;
-	ctx->bo.buf = halloc(&ctx->hp, len);
-	ctx->bo.len = len;
-	ctx->bo.ptr = 0;
-}
-
-void fini_output(CTX)
-{
-	bufoutflush(&ctx->bo);
-}
-
-void output(CTX, char* buf, int len)
-{
-	bufout(&ctx->bo, buf, len);
 }
