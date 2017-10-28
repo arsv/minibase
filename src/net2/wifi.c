@@ -23,6 +23,22 @@ ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 #define OPT_y (1<<5)
 #define OPT_z (1<<6)
 
+/* Command line args stuff */
+
+static void init_args(CTX, int argc, char** argv)
+{
+	int i = 1;
+
+	if(i < argc && argv[i][0] == '-')
+		ctx->opts = argbits(OPTS, argv[i++] + 1);
+	else
+		ctx->opts = 0;
+
+	ctx->argi = i;
+	ctx->argc = argc;
+	ctx->argv = argv;
+}
+
 static void no_other_options(CTX)
 {
 	if(ctx->argi < ctx->argc)
@@ -51,10 +67,7 @@ static char* shift_arg(CTX)
 	return ctx->argv[ctx->argi++];
 }
 
-static void check_not_null(MSG)
-{
-	if(!msg) fail("connection lost", NULL, 0);
-}
+/* Server request */
 
 static void req_status(CTX)
 {
@@ -93,8 +106,6 @@ static void req_neutral(CTX)
 		if(msg->cmd == REP_WI_NET_DOWN)
 			break;
 	};
-
-	check_not_null(msg);
 }
 
 static void req_scan(CTX)
@@ -117,8 +128,6 @@ static void req_scan(CTX)
 		if(msg->cmd == REP_WI_NET_DOWN)
 			fail("net down", NULL, 0);
 	}
-
-	check_not_null(msg);
 
 	uc_put_hdr(UC, CMD_WI_STATUS);
 	uc_put_end(UC);
@@ -181,8 +190,6 @@ static void wait_for_connect(CTX)
 			else
 				fail("no suitable APs in range", NULL, 0);
 	}
-
-	check_not_null(msg);
 }
 
 static void req_connect(CTX)
@@ -224,14 +231,6 @@ static void req_fixedap(CTX)
 	wait_for_connect(ctx);
 }
 
-static void activate(CTX)
-{
-	if(got_any_args(ctx))
-		req_fixedap(ctx);
-	else
-		req_connect(ctx);
-}
-
 static void req_forget(CTX)
 {
 	char *ssid;
@@ -252,20 +251,6 @@ static void req_forget(CTX)
 	send_check(ctx);
 }
 
-static void init_args(CTX, int argc, char** argv)
-{
-	int i = 1;
-
-	if(i < argc && argv[i][0] == '-')
-		ctx->opts = argbits(OPTS, argv[i++] + 1);
-	else
-		ctx->opts = 0;
-
-	ctx->argi = i;
-	ctx->argc = argc;
-	ctx->argv = argv;
-}
-
 int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
@@ -284,7 +269,7 @@ int main(int argc, char** argv)
 	else if(use_opt(ctx, OPT_z))
 		req_forget(ctx);
 	else if(use_opt(ctx, OPT_a))
-		activate(ctx);
+		req_connect(ctx);
 	else if(got_any_args(ctx))
 		req_fixedap(ctx);
 	else
