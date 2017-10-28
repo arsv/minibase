@@ -42,7 +42,16 @@ void init_heap_socket(CTX)
 
 static int connctl(CTX, struct sockaddr_un* addr, int miss)
 {
-	int ret;
+	int ret, fd;
+
+	if(ctx->connected) {
+		sys_close(ctx->fd);
+
+		if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+			fail("socket", "AF_UNIX", fd);
+
+		ctx->fd = fd;
+	}
 
 	if((ret = sys_connect(ctx->fd, addr, sizeof(*addr))) < 0) {
 		if(ret != -ENOENT || !miss)
@@ -54,19 +63,6 @@ static int connctl(CTX, struct sockaddr_un* addr, int miss)
 	ctx->connected = 1;
 
 	return ret;
-}
-
-static void resocket(CTX)
-{
-	int fd;
-
-	sys_close(ctx->fd);
-
-	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
-		fail("socket", "AF_UNIX", fd);
-
-	ctx->fd = fd;
-	ctx->connected = 0;
 }
 
 void connect_ifctl(CTX)
@@ -83,20 +79,31 @@ void connect_wictl(CTX)
 	connctl(ctx, &wictl, 0);
 }
 
-void connect_start(CTX)
+int connect_wictl_(CTX)
 {
 	struct sockaddr_un wictl = { .family = AF_UNIX, .path = WICTL };
 
-	if(connctl(ctx, &wictl, 1) >= 0)
+	return connctl(ctx, &wictl, 1);
+}
+
+void connect_wictl_start(CTX)
+{
+	if(connect_wictl_(ctx) >= 0)
 		return;
 
 	connect_ifctl(ctx);
 
 	try_start_wienc(ctx);
 
-	resocket(ctx);
-
 	connect_wictl(ctx);
+}
+
+void connect_wictl_check(CTX)
+{
+	if(connect_wictl_(ctx) >= 0)
+		return;
+
+	fail("service is not running", NULL, 0);
 }
 
 void send_command(CTX)

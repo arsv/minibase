@@ -14,13 +14,14 @@ ERRTAG("wifi");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT);
 
-#define OPTS "asdpxz"
+#define OPTS "asdpxyz"
 #define OPT_a (1<<0)
 #define OPT_s (1<<1)
 #define OPT_d (1<<2)
 #define OPT_p (1<<3)
 #define OPT_x (1<<4)
-#define OPT_z (1<<5)
+#define OPT_y (1<<5)
+#define OPT_z (1<<6)
 
 static void no_other_options(CTX)
 {
@@ -63,7 +64,7 @@ static void req_status(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_wictl(ctx);
+	connect_wictl_check(ctx);
 
 	msg = send_recv_msg(ctx);
 
@@ -104,7 +105,7 @@ static void req_scan(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_start(ctx);
+	connect_wictl_start(ctx);
 
 	send_check(ctx);
 
@@ -129,7 +130,34 @@ static void req_scan(CTX)
 
 static void req_stop(CTX)
 {
-	fail("not implemented", NULL, 0);
+	struct ucmsg* msg;
+	int* ifi;
+
+	no_other_options(ctx);
+
+	connect_wictl(ctx);
+
+	uc_put_hdr(UC, CMD_WI_DEVICE);
+	uc_put_end(UC);
+
+	msg = send_recv_msg(ctx);
+
+	if(!(ifi = uc_get_int(msg, ATTR_IFI)))
+		fail("invalid reply from wienc", NULL, 0);
+
+	connect_ifctl(ctx);
+
+	uc_put_hdr(UC, CMD_IF_STOP);
+	uc_put_int(UC, ATTR_IFI, *ifi);
+	uc_put_end(UC);
+
+	send_check(ctx);
+}
+
+static void req_start(CTX)
+{
+	connect_ifctl(ctx);
+	try_start_wienc(ctx);
 }
 
 static void wait_for_connect(CTX)
@@ -138,11 +166,6 @@ static void wait_for_connect(CTX)
 	int failures = 0;
 
 	while((msg = recv_reply(ctx))) switch(msg->cmd) {
-		case REP_WI_SCANNING:
-			warn("scanning", NULL, 0);
-			break;
-		case REP_WI_SCAN_FAIL:
-			fail("scan failed", NULL, 0);
 		case REP_WI_NET_DOWN:
 			fail(NULL, NULL, -ENETDOWN);
 		case REP_WI_CONNECTED:
@@ -168,7 +191,7 @@ static void req_connect(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_start(ctx);
+	connect_wictl_start(ctx);
 
 	send_check(ctx);
 
@@ -194,7 +217,7 @@ static void req_fixedap(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_start(ctx);
+	connect_wictl_start(ctx);
 
 	send_check(ctx);
 
@@ -224,7 +247,7 @@ static void req_forget(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_start(ctx);
+	connect_wictl_start(ctx);
 
 	send_check(ctx);
 }
@@ -256,6 +279,8 @@ int main(int argc, char** argv)
 		req_scan(ctx);
 	else if(use_opt(ctx, OPT_x))
 		req_stop(ctx);
+	else if(use_opt(ctx, OPT_y))
+		req_start(ctx);
 	else if(use_opt(ctx, OPT_z))
 		req_forget(ctx);
 	else if(use_opt(ctx, OPT_a))

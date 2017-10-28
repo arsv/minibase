@@ -243,6 +243,19 @@ static int cmd_status(CN, MSG)
 	return ret;
 }
 
+static int cmd_device(CN, MSG)
+{
+	char buf[64];
+
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, 0);
+	uc_put_int(&uc, ATTR_IFI, ifindex);
+	uc_put_str(&uc, ATTR_NAME, ifname);
+	uc_put_end(&uc);
+
+	return send_reply(cn);
+}
+
 static int cmd_scan(CN, MSG)
 {
 	int ret;
@@ -356,6 +369,7 @@ static const struct cmd {
 	int (*call)(CN, MSG);
 } commands[] = {
 	{ CMD_WI_STATUS,  cmd_status  },
+	{ CMD_WI_DEVICE,  cmd_device  },
 	{ CMD_WI_SCAN,    cmd_scan    },
 	{ CMD_WI_NEUTRAL, cmd_neutral },
 	{ CMD_WI_CONNECT, cmd_connect },

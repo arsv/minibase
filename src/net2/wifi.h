@@ -43,7 +43,8 @@ void put_psk_input(CTX, void* ssid, int slen);
 void init_heap_socket(CTX);
 void connect_wictl(CTX);
 void connect_ifctl(CTX);
-void connect_start(CTX);
+void connect_wictl_start(CTX);
+void connect_wictl_check(CTX);
 void try_start_wienc(CTX);
 
 void init_output(CTX);

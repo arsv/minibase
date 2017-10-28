@@ -10,10 +10,11 @@
 #define WI(c) TAGGED('W', 'I', c)
 
 #define CMD_WI_STATUS       WI(0)
-#define CMD_WI_SCAN         WI(1)
-#define CMD_WI_NEUTRAL      WI(2)
-#define CMD_WI_CONNECT      WI(3)
-#define CMD_WI_FORGET       WI(4)
+#define CMD_WI_DEVICE       WI(1)
+#define CMD_WI_SCAN         WI(2)
+#define CMD_WI_NEUTRAL      WI(3)
+#define CMD_WI_CONNECT      WI(4)
+#define CMD_WI_FORGET       WI(5)
 
 #define REP_WI_NET_DOWN     WI(0)
 #define REP_WI_SCANNING     WI(1)
