@@ -28,6 +28,9 @@ static short pollset;
 static void sighandler(int sig)
 {
 	switch(sig) {
+		case SIGPWR:
+			rbcode = 'p';
+			/* fallthrough */
 		case SIGINT:
 		case SIGTERM:
 			stop_all_procs();
