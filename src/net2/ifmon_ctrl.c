@@ -332,12 +332,6 @@ static int dispatch_cmd(struct conn* cn, struct ucmsg* msg)
 	return ret;
 }
 
-static void shutdown_conn(struct conn* cn)
-{
-	sys_close(cn->fd);
-	memzero(cn, sizeof(*cn));
-}
-
 void handle_conn(struct conn* cn)
 {
 	int ret, fd = cn->fd;
@@ -362,9 +356,6 @@ void handle_conn(struct conn* cn)
 		if((ret = dispatch_cmd(cn, ur.msg)) < 0)
 			break;
 	}
-
-	if(ret < 0 && ret != -EBADF && ret != -EAGAIN)
-		shutdown_conn(cn);
 
 	sys_setitimer(0, &old, NULL);
 }

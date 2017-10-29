@@ -18,6 +18,7 @@ char** environ;
 
 static sigset_t defsigset;
 struct pollfd pfds[2+NCONNS];
+static int pollset;
 int npfds;
 int nconns;
 int ctrlfd;
@@ -101,6 +102,8 @@ void update_connfds(void)
 		set_pollfd(&pfds[2+i], conns[i].fd);
 
 	npfds = 2 + nconns;
+
+	pollset = 1;
 }
 
 void setup_pollfds(void)
@@ -121,16 +124,23 @@ static void recv_netlink(int revents)
 
 static void recv_control(int revents)
 {
-	if(revents & POLLIN)
+	if(revents & POLLIN) {
 		accept_ctrl(ctrlfd);
-	if(revents & ~POLLIN)
+		pollset = 0;
+	} if(revents & ~POLLIN) {
 		fail("poll", "ctrl", 0);
+	}
 }
 
 static void close_conn(struct conn* cn)
 {
+	if(cn->fd <= 0)
+		return;
+
 	sys_close(cn->fd);
 	memzero(cn, sizeof(*cn));
+
+	pollset = 0;
 }
 
 static void recv_client(struct pollfd* pf, struct conn* cn)
@@ -152,6 +162,9 @@ static void check_polled_fds(void)
 
 	for(i = 0; i < nconns; i++)
 		recv_client(&pfds[2+i], &conns[i]);
+
+	if(pollset)
+		return;
 
 	update_connfds();
 }
