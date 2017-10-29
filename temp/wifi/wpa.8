@@ -1,0 +1,72 @@
+.TH wpa 8
+'''
+.SH NAME
+wpa \- WPA2-PSK client tool (supplicant).
+'''
+.SH SYNOPSYS
+\fBexport\fR PSK\fB=\fR\fI00112233...FF0011...EEFF\fR
+.br
+wpa \fIdevice\fR \fIfreq\fR \fIbssid\fR "\fIssid\fR" [\fImode\fR]
+'''
+.SH DESCRIPTION
+This tool establishes and maintains an encrypted connection to a given
+Wi-Fi access point. Only WPA2-PSK authentication scheme is supported,
+with CCMP pairwise cipher and either CCMP or TKIP group ciphers.
+.P
+The connection \fBwpa\fR deals with is a mac-level (OSI 2) packet transport.
+Once the keys have been negotiated, \fIdevice\fR is left with carrier up but
+without any higher-level addresses assigned. Other tools like \fBdhcp\fR(8)
+should be used to configure IP level connectivity.
+'''
+.SH USAGE
+Generally \fBwpa\fR should be run by a network manager that would handle scans
+and AP selection. However, it may be run as a standalone process as well if
+the AP is fixed and its parameters are known in advance.
+.P
+\fBwpa\fR is a long-running process. The connection remains usable for as long
+as the process remains alive. Send SIGINT or SIGTERM to \fBwpa\fR to terminate
+the connection gracefully. The process may terminate spontaneously if the link
+goes down for external reasons, including on AP request.
+.P
+The following arguments must be passed to \fBwpa\fR:
+.IP "\fIdevice\fR" 4
+Network device name (\fTwlp1s0\fR).
+.IP "\fIfreq\fR" 4
+AP base frequency in MHz (\fT5180\fR).
+.IP "\fIbssid\fR" 4
+MAC address of the AP in hex notation (\fT00:11:22:33:44:55\fR).
+.IP "\fIssid\fR" 4
+Human-readable AP name ("\fTBlackhole\fR").
+.IP "\fImode\fR" 4
+Determines cipher suite to use: \fBcc\fR for CCMP pairwise CCMP group or
+\fBct\fR CCMP pairwise TKIP group. Defaults to \fBcc\fR if not specified.
+.P
+The tool expects 32-byte pre-shared key (PSK) in hex notation.
+For passphrase-based configuration, the key must be derived from
+the passphrase first.
+'''
+.SH NOTES
+Attempts to connect with a wrong key, or using wrong ciphers, are silently
+ignored by the AP. Since normal key exchange is very fast, \fBwpa\fR sets a
+short timeout and declares a failure if the time runs out.
+The lack of error reporting is a feature of the underlying authentication
+protocol (EAPOL).
+.P
+Ciphers and authentication schemes supported by the AP are usually pulled
+from the scan results. Doing so is out of scope of this tool. Whoever starts
+\fBwpa\fR must be sure the chosen AP does in fact support WPA2-PSK.
+.P
+Proper WPA2 setups should always use CCMP as both pairwise and group cipher.
+However, there are lots of reasonably modern, ostensibly WPA2 APs operating
+in WPA1/WPA2 compatibility mode with CCMP pairwise but TKIP group ciphers.
+Use \fImode\fR argument to connect with TKIP group cipher if necessary.
+.P
+This tool does not support WPA2 authentication schemes that aren't WPA2-PSK,
+in particular WPA2 Enterprise (including EAP-PSK) and WPA2 FT-PSK (fast
+transition with pre-shared key). Nor does it support WPA(1)-PSK. Connections
+to APs using either of those schemes must be made with other tools \fIin
+place\fR of \fBwpa\fR.
+'''
+.SH SEE ALSO
+\fBwimon\fR(8), \fBwictl\fR(8), \fBwpa_supplicant\fR(8), \fBdhcp\fR(8),
+\fBip4cfg\fR(8).
