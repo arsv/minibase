@@ -25,9 +25,8 @@
    and let EAPOL code notify ifmon when it's ok to start dhcp.
 
    Socket communication is done directly instead of spawning `ifctl`,
-   it's simple enough to allow this.
-
-   Current implementation does not handle possible dhcp failures. */
+   it's simple enough to allow this. Failures are not checked or handled
+   in any way; consider e.g. ipv6-only network. */
 
 void trigger_dhcp(void)
 {
