@@ -11,7 +11,7 @@
 #include <util.h>
 
 #include "common.h"
-#include "wienc.h"
+#include "wsupp.h"
 
 int ctrlfd;
 

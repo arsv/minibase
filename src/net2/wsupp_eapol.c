@@ -10,9 +10,9 @@
 #include <printf.h>
 #include <util.h>
 
-#include "wienc.h"
-#include "wienc_crypto.h"
-#include "wienc_eapol.h"
+#include "wsupp.h"
+#include "wsupp_crypto.h"
+#include "wsupp_eapol.h"
 
 /* Once the radio level connection has been established by the NL code,
    there's a usable ethernet-style link to the AP. There's no encryption

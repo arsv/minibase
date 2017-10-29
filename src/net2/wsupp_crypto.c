@@ -6,8 +6,8 @@
 #include <string.h>
 #include <format.h>
 
-#include "wienc.h"
-#include "wienc_crypto.h"
+#include "wsupp.h"
+#include "wsupp_crypto.h"
 
 /* Supplementary crypto routines for EAPOL negotiations.
    Ref. IEEE 802.11-2012 11.6.1.2 PRF

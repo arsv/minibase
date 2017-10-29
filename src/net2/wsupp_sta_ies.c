@@ -2,7 +2,7 @@
 #include <string.h>
 #include <printf.h>
 
-#include "wienc.h"
+#include "wsupp.h"
 
 /* Most of the information about the stations come encoded in IEs.
    IEs are a pain to deal with and carry a lot more than we need,

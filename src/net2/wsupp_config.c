@@ -7,7 +7,7 @@
 #include <util.h>
 
 #include "common.h"
-#include "wienc.h"
+#include "wsupp.h"
 
 /* Mini text editor for the config file. The config looks something like this:
 
@@ -15,7 +15,7 @@
 	91234A...47AC publicnet
 	F419BE...01F5 someothernet
 
-   and wienc only uses it to store PSKs at this point.
+   and wsupp only uses it to store PSKs at this point.
 
    The data gets read into memory on demand, queried, modified in memory
    if necessary, and synced back to disk. */

@@ -16,9 +16,9 @@
 #include <util.h>
 
 #include "common.h"
-#include "wienc.h"
+#include "wsupp.h"
 
-ERRTAG("wienc");
+ERRTAG("wsupp");
 
 char** environ;
 

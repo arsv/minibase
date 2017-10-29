@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "wienc.h"
+#include "wsupp.h"
 
 /* AP selection code. Scan, pick some AP to connect, fail, pick
    another AP, success, and so on. */

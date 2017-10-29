@@ -9,7 +9,7 @@
 #include <string.h>
 #include <util.h>
 
-#include "wienc.h"
+#include "wsupp.h"
 
 #define SR_SCANNING_ONE_FREQ (1<<0)
 #define SR_RECONNECT_CURRENT (1<<1)
@@ -424,7 +424,7 @@ void upload_gtk(void)
 }
 
 /* NLMSG_DONE indicates the end of a dump. The only kind of dumps
-   that happens in wienc is scan dump.
+   that happens in wsupp is scan dump.
 
    A pending single-frequency scan request (freqreq) means we're
    either pre-scanning an AP after ENOENT, or re-scanning it after

@@ -7,7 +7,7 @@
 #include <util.h>
 
 #include "common.h"
-#include "wienc.h"
+#include "wsupp.h"
 
 /* For regular wired links, dhcp gets run once the link reports carrier
    acquisition (IFF_RUNNING). This does not work with 802.11: carrier

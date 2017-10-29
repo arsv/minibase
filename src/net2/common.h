@@ -3,7 +3,7 @@
 #define IFCTL NLCDIR "/ifmon"
 #define IFCFG VARDIR "/ifmon"
 
-#define WICTL NLCDIR "/wienc"
+#define WICTL NLCDIR "/wsupp"
 #define WICFG VARDIR "/wipsk"
 
 #define IF(c) TAGGED('I', 'F', c)

@@ -2,7 +2,7 @@
 #include <format.h>
 #include <util.h>
 
-#include "wienc.h"
+#include "wsupp.h"
 
 struct conn conns[NCONNS];
 struct scan scans[NSCANS];

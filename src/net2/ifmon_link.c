@@ -2,9 +2,9 @@
 #include <printf.h>
 #include "ifmon.h"
 
-static void start_wienc(LS)
+static void start_wsupp(LS)
 {
-	char* argv[] = { "wienc", ls->name, NULL };
+	char* argv[] = { "wsupp", ls->name, NULL };
 
 	if(spawn(ls, CH_WIENC, argv) < 0)
 		return;
@@ -59,7 +59,7 @@ static void dhcp_exit(LS, int status)
 		return start_dhcp(ls);
 }
 
-static void wienc_exit(LS, int status)
+static void wsupp_exit(LS, int status)
 {
 	if(ls->flags & LF_STOP)
 		return;
@@ -70,7 +70,7 @@ static void wienc_exit(LS, int status)
 		ls->flags |= LF_ERROR;
 		stop_link(ls);
 	} else {
-		start_wienc(ls);
+		start_wsupp(ls);
 	}
 }
 
@@ -130,7 +130,7 @@ static int effmode(LS, int mode)
 void link_enabled(LS)
 {
 	if(effmode(ls, LM_WIFI))
-		start_wienc(ls);
+		start_wsupp(ls);
 
 	report_link_enabled(ls);
 }
@@ -172,7 +172,7 @@ void link_exit(LS, int tag, int status)
 	if(tag == CH_DHCP)
 		dhcp_exit(ls, status);
 	else if(tag == CH_WIENC)
-		wienc_exit(ls, status);
+		wsupp_exit(ls, status);
 
 	maybe_mark_stopped(ls);
 }
