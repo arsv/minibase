@@ -41,6 +41,26 @@ static void sighandler(int sig)
 	}
 }
 
+static int sigprocmask(int how, sigset_t* mask, sigset_t* mold)
+{
+	int ret;
+
+	if((ret = sys_sigprocmask(how, mask, mold)) < 0)
+		report("sigprocmask", NULL, ret);
+
+	return ret;
+}
+
+static int sigaction(int sig, struct sigaction* sa, char* tag)
+{
+	int ret;
+
+	if((ret = sys_sigaction(sig, sa, NULL)) < 0)
+		report("sigaction", tag, ret);
+
+	return ret;
+}
+
 int setup_signals(void)
 {
 	struct sigaction sa = {
@@ -48,28 +68,30 @@ int setup_signals(void)
 		.flags = SA_RESTART | SA_RESTORER,
 		.restorer = sigreturn
 	};
-	/* The stuff below *can* fail due to broken libc, but that is so bad
-	   by itself that there is no point in reporting it properly. */
+
 	int ret = 0;
 
 	sigemptyset(&sa.mask);
 	sigaddset(&sa.mask, SIGCHLD);
-	ret |= sys_sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
+	ret |= sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
 
 	sigaddset(&sa.mask, SIGINT);
 	sigaddset(&sa.mask, SIGPWR);
 	sigaddset(&sa.mask, SIGTERM);
 	sigaddset(&sa.mask, SIGHUP);
 
-	ret |= sys_sigaction(SIGINT,  &sa, NULL);
-	ret |= sys_sigaction(SIGPWR,  &sa, NULL);
-	ret |= sys_sigaction(SIGTERM, &sa, NULL);
-	ret |= sys_sigaction(SIGHUP,  &sa, NULL);
+	ret |= sigaction(SIGINT,  &sa, NULL);
+	ret |= sigaction(SIGPWR,  &sa, NULL);
+	ret |= sigaction(SIGTERM, &sa, NULL);
+	ret |= sigaction(SIGHUP,  &sa, NULL);
 
 	/* SIGCHLD is only allowed to arrive in ppoll,
 	   so SA_RESTART just does not make sense. */
 	sa.flags &= ~SA_RESTART;
-	ret |= sys_sigaction(SIGCHLD, &sa, NULL);
+
+	ret |= sigaction(SIGCHLD, &sa, NULL);
+
+	if(ret) report("signal setup failed", NULL, 0);
 
 	return ret;
 }
@@ -84,7 +106,6 @@ void set_passtime(void)
 	else
 		passtime = BOOTCLOCKOFFSET + tp.sec;
 }
-
 
 void wakeupin(int seconds)
 {
