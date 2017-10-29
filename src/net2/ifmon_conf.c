@@ -394,8 +394,6 @@ void load_link(struct link* ls)
 		ls->mode = LM_WIFI;
 	//else if(chunkis(md, "static"))
 	//	ls->mode = LM_SETIP;
-
-	tracef("load %s mode %i\n", ls->name, ls->mode);
 }
 
 void save_link(struct link* ls, char* conf)

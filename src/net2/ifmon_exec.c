@@ -129,10 +129,8 @@ int spawn(struct link* ls, int tag, char** args)
 	int pid;
 	int ret;
 
-	if(any_running(ls, tag)) {
-		tracef("%s %s already running\n", args[0], args[1]);
+	if(any_running(ls, tag))
 		return -EALREADY;
-	}
 	if(!(ch = grab_proc_slot()))
 		return -ENOMEM;
 	if((pid = sys_fork()) < 0)

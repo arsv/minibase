@@ -38,8 +38,6 @@ static void set_iface_state(int ifi, int mask, int bits)
 {
 	struct ifinfomsg* msg;
 
-	tracef("%s ifi=%i bits=%i\n", __FUNCTION__, ifi, bits);
-
 	nl_header(&rtnl, msg, RTM_SETLINK, 0,
 			.index = ifi,
 			.flags = bits,
@@ -173,8 +171,6 @@ static void msg_rtnl_err(struct nlerr* msg)
 static void trigger_link_dump(void)
 {
 	struct ifinfomsg* req;
-
-	tracef("%s\n", __FUNCTION__);
 
 	nl_header(&rtnl, req, RTM_GETLINK, NLM_F_REQUEST | NLM_F_DUMP);
 

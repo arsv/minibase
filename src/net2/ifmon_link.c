@@ -4,8 +4,6 @@
 
 static void start_wienc(LS)
 {
-	tracef("%s %s\n", __FUNCTION__, ls->name);
-
 	char* argv[] = { "wienc", ls->name, NULL };
 
 	if(spawn(ls, CH_WIENC, argv) < 0)
@@ -16,8 +14,6 @@ static void start_wienc(LS)
 
 void start_dhcp(LS)
 {
-	tracef("%s %s\n", __FUNCTION__, ls->name);
-
 	char* argv[] = { "dhcp", ls->name, NULL };
 
 	if(spawn(ls, CH_DHCP, argv) < 0) {
@@ -30,8 +26,6 @@ void start_dhcp(LS)
 
 static void start_flush(LS)
 {
-	tracef("%s %s\n", __FUNCTION__, ls->name);
-
 	char* argv[] = { "ipcfg", "-f", ls->name, NULL };
 
 	if(spawn(ls, CH_DHCP, argv) < 0) {
@@ -49,15 +43,11 @@ static void stop_dhcp(LS)
 
 static void flush_link(LS)
 {
-	tracef("%s %s\n", __FUNCTION__, ls->name);
-
 	start_flush(ls);
 }
 
 static void dhcp_exit(LS, int status)
 {
-	tracef("%s %s\n", __FUNCTION__, ls->name);
-
 	if(ls->flags & LF_FLUSHING)
 		ls->flags &= ~LF_FLUSHING;
 	else
@@ -115,14 +105,10 @@ int stop_link(LS)
 
 void link_new(LS)
 {
-	tracef("%s %s\n", __FUNCTION__, ls->name);
-
 	load_link(ls);
 
 	int isup = (ls->flags & LF_ENABLED);
 	int mode = ls->mode;
-
-	tracef("link ifi=%i name=%s isup=%i mode=%i\n", ls->ifi, ls->name, isup, mode);
 
 	if(mode == LM_SKIP)
 		return;
@@ -143,8 +129,6 @@ static int effmode(LS, int mode)
 
 void link_enabled(LS)
 {
-	tracef("%s %s\n", __FUNCTION__, ls->name);
-
 	if(effmode(ls, LM_WIFI))
 		start_wienc(ls);
 
@@ -153,8 +137,6 @@ void link_enabled(LS)
 
 void link_carrier(LS)
 {
-	tracef("%s %s\n", __FUNCTION__, ls->name);
-
 	if(effmode(ls, LM_DHCP))
 		start_dhcp(ls);
 
@@ -163,8 +145,6 @@ void link_carrier(LS)
 
 void link_lost(LS)
 {
-	tracef("%s %s\n", __FUNCTION__, ls->name);
-
 	ls->flags &= ~LF_DHCPREQ;
 
 	if(ls->flags & LF_ADDRSET)
@@ -173,8 +153,6 @@ void link_lost(LS)
 
 void link_down(LS)
 {
-	tracef("%s %s\n", __FUNCTION__, ls->name);
-
 	ls->flags &= ~(LF_ADDRSET | LF_FLUSHREQ);
 
 	stop_dhcp(ls);
@@ -184,8 +162,6 @@ void link_down(LS)
 
 void link_gone(LS)
 {
-	tracef("%s %s\n", __FUNCTION__, ls->name);
-
 	stop_link_procs(ls, 1);
 
 	report_link_gone(ls);
@@ -193,13 +169,10 @@ void link_gone(LS)
 
 void link_exit(LS, int tag, int status)
 {
-	tracef("%s %s tag %i status %i\n", __FUNCTION__, ls->name, tag, status);
-
-	if(tag == CH_DHCP) {
+	if(tag == CH_DHCP)
 		dhcp_exit(ls, status);
-	} else if(tag == CH_WIENC) {
+	else if(tag == CH_WIENC)
 		wienc_exit(ls, status);
-	}
 
 	maybe_mark_stopped(ls);
 }

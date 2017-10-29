@@ -61,42 +61,34 @@ static void report_simple(LS, int cmd)
 
 void report_link_down(LS)
 {
-	tracef("%s\n", __FUNCTION__);
 	report_simple(ls, REP_IF_LINK_DOWN);
 }
 
 void report_link_gone(LS)
 {
-	tracef("%s\n", __FUNCTION__);
 	report_simple(ls, REP_IF_LINK_GONE);
 }
 
 void report_link_stopped(LS)
 {
-	tracef("%s\n", __FUNCTION__);
 	report_simple(ls, REP_IF_LINK_STOP);
 }
 
 void report_link_dhcp(LS, int status)
 {
-	tracef("%s %i\n", __FUNCTION__, status);
-
-	if(status) {
+	if(status)
 		report_simple(ls, REP_IF_DHCP_FAIL);
-	} else {
+	else
 		report_simple(ls, REP_IF_DHCP_DONE);
-	}
 }
 
 void report_link_enabled(LS)
 {
-	tracef("%s\n", __FUNCTION__);
 	report_simple(ls, REP_IF_LINK_ENABLED);
 }
 
 void report_link_carrier(LS)
 {
-	tracef("%s\n", __FUNCTION__);
 	report_simple(ls, REP_IF_LINK_CARRIER);
 }
 
