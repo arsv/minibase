@@ -9,6 +9,26 @@
 #include "common.h"
 #include "wienc.h"
 
+/* For regular wired links, dhcp gets run once the link reports carrier
+   acquisition (IFF_RUNNING). This does not work with 802.11: carrier
+   means the link is associated, but regular packets are not allowed
+   through until EAPOL exchange is completed. Running dhcp concurrently
+   with EAPOL means the first DHCPREQUEST packet often gets lost,
+   which in turn means unnecessary resend timeout.
+
+   There's no way for ifmon to detect the end of EAPOL exchnage on its
+   own, in part because key installation does not seem to generate any
+   notifications whatsoever, and in part because ifmon has no idea whether
+   the keys will be installed at all (we may be running unencrypted link).
+
+   So the workaround here is to suppress normal dhcp logic for wifi links,
+   and let EAPOL code notify ifmon when it's ok to start dhcp.
+
+   Socket communication is done directly instead of spawning `ifctl`,
+   it's simple enough to allow this.
+
+   Current implementation does not handle possible dhcp failures. */
+
 void trigger_dhcp(void)
 {
 	int fd, ret;

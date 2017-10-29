@@ -270,28 +270,18 @@ void reset_eapol_state(void)
 	memzero(amac, sizeof(amac));
 }
 
-/* The tricky part here. EAPOL packet 1/4 (which the AP sends in reponse
-   to our ASSOCIATE command) may arrive before we see the ASSOCIATE note
-   on netlink. These two events come from different fds, and the netlink
-   one clearly takes a longer path somewhere in the kernel, so it's not
-   exactly unexpected.
-
-   For some additional reasons, we cannot *send* packets over rawsock until
-   we're fully associated (they get silently dropped) but somehow we *can*
-   receive packets way before that. So by the time we get packet 1/4, we may
-   not yet be able to reply. If we try to reply, the packet gets lost and we
-   see a retry of 1/4 a bit later instead of the expected 3/4 because the AP
-   never gets our 2/4. If we ignore this first 1/4, we'll have to wait for
-   the re-send, which takes some time and overall isn't nice.
+/* The tricky part here. EAPOL packet 1/4 may arrive before the ASSOCIATE msg
+   on netlink, but sending may not work until the link is fully associated.
+   Packets sent until then get silently dropped somewhere. So at the time we
+   get packet 1/4, we may not yet be able to reply.
    
-   So instead we prime the EAPOL state machine before we send ASSOCIATE and
-   let it receive packet 1/4 early, but only reply with 2/4 once netlink
-   reports association. This ensures very fast connection with no packets
-   lost or ignored in most cases, and with no need to re-send anything.
+   To get around this, we prime the EAPOL state machine before we send
+   ASSOCIATE request and let it receive packet 1/4 early, but only reply
+   with 2/4 once netlink reports association.
 
-   Now since it all depends on relative timing of unrelated events, we can
-   not be sure it always happens like this. We may get 1/4 after ASSOCIATE
-   notification, so we must be ready to reply immediately too. */
+   Since it all depends on relative timing of unrelated events, we can not
+   be sure it always happens like this. We may get 1/4 after ASSOCIATE msg,
+   so we must be ready to reply immediately as well. */
 
 void prime_eapol_state(void)
 {

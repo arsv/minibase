@@ -48,8 +48,8 @@ struct eapolkey {
 
 /* Ref. IEEE 802.11-2012 Figure 11-30; OUI and data merged into type[]
 
-   This particular structure only described magic=0xDD; magic and len are
-   common for all structs apparently but the rest depends on magic, and len
+   This particular structure only describes magic=0xDD; magic and len fields
+   are common for all structs apparently but the rest depends on magic, and len
    includes everything starting from type[]. Total packet length is 2 + len. */
 
 struct kde {
