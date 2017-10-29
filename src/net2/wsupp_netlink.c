@@ -84,6 +84,10 @@ int start_scan(int freq)
 
 	if(scanstate == SS_IDLE) {
 		/* no ongoing scan, great */
+		if(freq > 0)
+			scanreq |= SR_RECONNECT_CURRENT;
+		if(freq < 0)
+			scanreq |= SR_CONNECT_SOMETHING;
 	} else if(scanreq & SR_SCANNING_ONE_FREQ) {
 		/* ongoing single-freq scan, bad */
 		return -EBUSY;

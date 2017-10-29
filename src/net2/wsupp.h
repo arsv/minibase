@@ -172,6 +172,9 @@ int load_config(void);
 void save_config(void);
 void drop_config(void);
 
+void load_state(void);
+void save_state(void);
+
 int got_psk_for(byte* ssid, int slen);
 int load_psk(byte* ssid, int slen, byte psk[32]);
 void save_psk(byte* ssid, int slen, byte psk[32]);

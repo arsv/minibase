@@ -1,4 +1,5 @@
 #include <sys/file.h>
+#include <sys/fpath.h>
 #include <sys/mman.h>
 
 #include <format.h>
@@ -446,4 +447,46 @@ int drop_psk(byte* ssid, int slen)
 	drop_line(&ln);
 
 	return 0;
+}
+
+/* Saving and loading current AP */
+
+void load_state(void)
+{
+	int fd, rd, ret;
+	char* name = WICAP;
+	char buf[64];
+
+	if((fd = sys_open(name, O_RDONLY)) < 0)
+		return;
+	if((rd = sys_read(fd, buf, sizeof(buf))) < 0)
+		goto out;
+
+	byte* ssid = (byte*)buf;
+	int slen = rd;
+
+	if((ret = set_fixed_saved(ssid, slen)) < 0)
+		goto out;
+
+	opermode = OP_ACTIVE;
+	ap.fixed = 1;
+out:
+	sys_close(fd);
+	sys_unlink(name);
+}
+
+void save_state(void)
+{
+	int fd;
+	char* name = WICAP;
+	char* buf = (char*)ap.ssid;
+	int len = ap.slen;
+
+	if(!ap.fixed)
+		return;
+	if((fd = sys_open3(name, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0)
+		return;
+
+	sys_write(fd, buf, len);
+	sys_close(fd);
 }

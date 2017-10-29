@@ -248,6 +248,7 @@ int main(int argc, char** argv, char** envp)
 	retry_rfkill();
 
 	opermode = OP_NEUTRAL;
+	load_state();
 	routine_fg_scan();
 
 	while(opermode) {
@@ -267,6 +268,7 @@ int main(int argc, char** argv, char** envp)
 		save_config();
 	}
 
+	save_state();
 	unlink_control();
 
 	return 0;
