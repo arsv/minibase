@@ -293,6 +293,8 @@ static int cmd_run_dhcp(CN, MSG)
 
 	start_dhcp(ls);
 
+	cn->rep = ls->ifi;
+
 	return 0;
 }
 

@@ -396,6 +396,8 @@ again:
 
 static void req_run_dhcp(CTX)
 {
+	struct ucmsg* msg;
+
 	no_other_options(ctx);
 
 	uc_put_hdr(UC, CMD_IF_RUN_DHCP);
@@ -403,6 +405,12 @@ static void req_run_dhcp(CTX)
 	uc_put_end(UC);
 
 	send_check(ctx);
+
+	while((msg = recv_reply(ctx)))
+		if(msg->cmd == REP_IF_DHCP_DONE)
+			break;
+		else if(msg->cmd == REP_IF_DHCP_FAIL)
+			fail("DHCP failure", NULL, 0);
 }
 
 static void req_neutral(CTX)
