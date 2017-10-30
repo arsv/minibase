@@ -1,8 +1,8 @@
 #include <dirs.h>
 
-#define MAPDIR  DEVDIR "/mapper"
-#define BLKTAB  ETCDIR "/blktab"
-#define KEYFILE ETCDIR "/dekeys"
+#define MAPDIR  HERE "/dev/mapper"
+#define BLKTAB  HERE "/etc/blktab"
+#define KEYFILE HERE "/etc/dekeys"
 
 #define SCRYPT_N (1<<17)
 #define SCRYPT_R 8

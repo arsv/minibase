@@ -1,15 +1,12 @@
+/* For development, paths should be ./dev, ./var, ./etc and so on.
+   Target builds need proper /dev, /var, /etc. */
+
 #ifdef DEVEL
-# define DEVDIR "dev"
-# define ETCDIR "etc"
-# define RUNDIR "run"
-# define VARDIR "var"
-# define NLCDIR "run"
+# define HERE "."
+# define RUN_CTRL "./run"
 #else
-# define DEVDIR "/dev"
-# define ETCDIR "/etc"
-# define RUNDIR "/run"
-# define VARDIR "/var"
-# define NLCDIR "/run/ctrl"
+# define HERE ""
+# define RUN_CTRL "/run/ctrl"
 #endif
 
 /* For nlusctl commands; (a,b) are two chars identifying the service. */

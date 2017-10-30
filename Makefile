@@ -19,7 +19,10 @@ build: lib/all.a
 install: libs
 	$(MAKE) -C src DESTDIR=$(abspath $(DESTDIR)) install
 
-clean: clean-lib clean-src clean-test clean-temp clean-test
+clean: clean-lib clean-src clean-test clean-temp clean-test clean-out
+
+clean-out:
+	rm -fr out/ src/out src/*/out
 
 clean-%:
 	$(MAKE) -C $* clean

@@ -1,7 +1,7 @@
 #include <dirs.h>
 
-#define CONFDIR ETCDIR "/suhub"
-#define CONTROL NLCDIR "/suhub"
+#define CONFDIR HERE "/etc/suhub"
+#define CONTROL RUN_CTRL "/suhub"
 
 #define SH(c) TAGGED('S', 'H', c)
 

@@ -1,7 +1,7 @@
 #include <dirs.h>
 
-#define CONFDIR ETCDIR "/super"
-#define CONTROL NLCDIR "/super"
+#define CONFDIR HERE "/etc/super"
+#define CONTROL RUN_CTRL "/super"
 
 #define SS(c) TAGGED('S', 'S', c)
 

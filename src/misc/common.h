@@ -1,3 +1,3 @@
 #include <dirs.h>
 
-#define CONFIG ETCDIR "/sockmod"
+#define CONFIG HERE "/etc/sockmod"

@@ -1,4 +1,4 @@
 #include <dirs.h>
 
-#define RUNUDEV     RUNDIR "/udev"
-#define RUNUDEVDATA RUNDIR "/udev/data"
+#define RUNUDEV     HERE "/run/udev"
+#define RUNUDEVDATA HERE "/run/udev/data"

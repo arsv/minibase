@@ -1,3 +1,3 @@
 #include <dirs.h>
 
-#define CONFIG  ETCDIR "/keymon"
+#define CONFIG HERE "/etc/keymon"

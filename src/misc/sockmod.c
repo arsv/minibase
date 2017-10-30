@@ -194,7 +194,7 @@ static int group2gid(CTX, char* grp)
 	if((z = parseint(grp, &gid)) && !*z)
 		return gid;
 
-	read_file(ctx, groups, ETCDIR "/group");
+	read_file(ctx, groups, HERE "/etc/group");
 
 	if(find_entry(ctx, groups, grp, &ln)) {
 		warn("unknown group", grp, 0);
@@ -397,7 +397,7 @@ int main(int argc, char** argv)
 {
 	(void)argv;
 	struct top context, *ctx = &context;
-	char* dir = NLCDIR;
+	char* dir = RUN_CTRL;
 
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);

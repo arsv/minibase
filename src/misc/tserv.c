@@ -62,9 +62,10 @@ int main(int argc, char** argv)
 		fail("too many arguments", NULL, 0);
 
 	char* name = argc > 1 ? argv[1] : "tserv";
+	char* dir = RUN_CTRL;
 
-	FMTBUF(p, e, path, strlen(name) + strlen(NLCDIR) + 10);
-	p = fmtstr(p, e, NLCDIR);
+	FMTBUF(p, e, path, strlen(name) + strlen(dir) + 10);
+	p = fmtstr(p, e, dir);
 	p = fmtstr(p, e, "/");
 	p = fmtstr(p, e, name);
 	FMTEND(p, e);

@@ -1,6 +1,6 @@
 #include <dirs.h>
 
-#define CONTROL NLCDIR "/mount"
+#define CONTROL RUN_CTRL "/mount"
 
 #define MT(c) TAGGED('M', 'T', c)
 

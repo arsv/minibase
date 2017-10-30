@@ -1,11 +1,11 @@
 #include <dirs.h>
 
-#define IFCTL NLCDIR "/ifmon"
-#define IFCFG VARDIR "/ifmon"
+#define IFCTL RUN_CTRL "/ifmon"
+#define IFCFG HERE "/var/ifmon"
 
-#define WICTL NLCDIR "/wsupp"
-#define WICFG VARDIR "/wipsk"
-#define WICAP VARDIR "/wiap"
+#define WICTL RUN_CTRL "/wsupp"
+#define WICFG HERE "/var/wipsk"
+#define WICAP HERE "/var/wiap"
 
 #define IF(c) TAGGED('I', 'F', c)
 #define WI(c) TAGGED('W', 'I', c)
