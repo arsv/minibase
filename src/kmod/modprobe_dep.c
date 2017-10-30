@@ -315,9 +315,12 @@ static char* match_alias(char* ls, char* le, char* name, int nlen)
 			p++;
 			n++;
 		};
-	} if(*n || p >= e || !isspace(*p)) {
-		return NULL;
 	}
+
+	if(p < e && *p == '*')
+		p++; /* skip trailing * matching nothing */
+	if(*n || p >= e || !isspace(*p))
+		return NULL;
 
 	return skip_space(p, e);
 }
