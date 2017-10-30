@@ -93,9 +93,22 @@ static void wait_for_wictl(void)
 	sys_nanosleep(&ts, NULL);
 }
 
+/* Ugly hack to be fixed later: the caller relies on the data
+   in ctx->uc being preserved across this call. And it's not easy
+   to save any other way. */
+
 void try_start_wienc(CTX, char* dev)
 {
 	struct ucmsg* msg;
+	char buf[128];
+
+	struct ucbuf uc = {
+		.brk = buf,
+		.ptr = buf,
+		.end = buf + sizeof(buf)
+	}, old = ctx->uc;
+
+	ctx->uc = uc;
 
 	connect_ifctl(ctx);
 
@@ -113,4 +126,6 @@ void try_start_wienc(CTX, char* dev)
 	send_check(ctx);
 
 	wait_for_wictl();
+
+	ctx->uc = old;
 }
