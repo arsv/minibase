@@ -18,11 +18,16 @@
 
 ERRTAG("udevmod");
 
+#define OPTS "sv"
+#define OPT_s (1<<0)
+#define OPT_v (1<<1)
+
 #define UDEV_MGRP_KERNEL   (1<<0)
 
 struct top {
 	int udev;
 	char** envp;
+	int opts;
 
 	int fd;  /* of a running modprobe -p process */
 	int pid;
@@ -57,8 +62,10 @@ static void open_modprobe(CTX)
 	if((pid = sys_fork()) < 0)
 		fail("fork", NULL, pid);
 
+	char* arg = (ctx->opts & OPT_v) ? "-qbpv" : "-qbp";
+
 	if(pid == 0) {
-		char* argv[] = { "/sbin/modprobe", "-qbp", NULL };
+		char* argv[] = { "/sbin/modprobe", arg, NULL };
 		sys_dup2(fds[0], STDIN);
 		sys_close(fds[1]);
 		ret = sys_execve(*argv, argv, ctx->envp);
@@ -298,9 +305,6 @@ static void suppress_sigpipe(void)
 	sys_sigaction(SIGPIPE, &sa, NULL);
 }
 
-#define OPTS "s"
-#define OPT_s (1<<0)
-
 int main(int argc, char** argv, char** envp)
 {
 	struct top context, *ctx = &context;
@@ -314,6 +318,7 @@ int main(int argc, char** argv, char** envp)
 	memzero(ctx, sizeof(*ctx));
 
 	ctx->envp = envp;
+	ctx->opts = opts;
 
 	open_udev(ctx);
 
