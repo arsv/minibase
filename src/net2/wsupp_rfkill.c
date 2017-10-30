@@ -59,13 +59,13 @@ static void bring_iface_up(void)
 	int ret;
 
 	if(nlen > sizeof(ifr.name))
-		fail(NULL, name, -ENAMETOOLONG);
+		quit(NULL, name, -ENAMETOOLONG);
 
 	memzero(&ifr, sizeof(ifr));
 	memcpy(ifr.name, name, nlen);
 
 	if((ret = sys_ioctl(fd, SIOCGIFFLAGS, &ifr)) < 0)
-		fail("ioctl SIOCGIFFLAGS", name, ret);
+		quit("ioctl SIOCGIFFLAGS", name, ret);
 
 	if(ifr.ival & IFF_UP)
 		return;
@@ -73,7 +73,7 @@ static void bring_iface_up(void)
 	ifr.ival |= IFF_UP;
 
 	if((ret = sys_ioctl(fd, SIOCSIFFLAGS, &ifr)) < 0)
-		fail("ioctl SIOCSIFFLAGS", name, ret);
+		quit("ioctl SIOCSIFFLAGS", name, ret);
 }
 
 static int match_rfkill(int idx)

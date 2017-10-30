@@ -105,7 +105,7 @@ static void check_netlink(struct pollfd* pf)
 	if(pf->revents & POLLIN)
 		handle_netlink();
 	if(pf->revents & ~POLLIN)
-		fail("lost netlink connection", NULL, 0);
+		quit("lost netlink connection", NULL, 0);
 }
 
 static void check_control(struct pollfd* pf)
@@ -113,7 +113,7 @@ static void check_control(struct pollfd* pf)
 	if(pf->revents & POLLIN)
 		handle_control();
 	if(pf->revents & ~POLLIN)
-		fail("lost control socket", NULL, 0);
+		quit("lost control socket", NULL, 0);
 
 	pollset = 0;
 }
@@ -261,7 +261,7 @@ int main(int argc, char** argv, char** envp)
 		else if(ret == 0)
 			timer_expired();
 		else if(ret != -EINTR)
-			fail("ppoll", NULL, ret);
+			quit("ppoll", NULL, ret);
 		if(sigterm)
 			shutdown();
 

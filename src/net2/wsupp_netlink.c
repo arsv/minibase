@@ -573,7 +573,7 @@ void handle_netlink(void)
 	struct nlgen* gen;
 
 	if((ret = nl_recv_nowait(&nl)) < 0)
-		fail("nl-recv", NULL, ret);
+		quit("nl-recv", NULL, ret);
 
 	while((msg = nl_get_nowait(&nl)))
 		if(msg->type == NLMSG_DONE)
