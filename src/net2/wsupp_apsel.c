@@ -242,7 +242,7 @@ static void reset_scan_counters()
 
 static int set_fixed(byte* ssid, int slen)
 {
-	if(slen > sizeof(ap.ssid))
+	if(slen > (int)sizeof(ap.ssid))
 		return -ENAMETOOLONG;
 
 	memcpy(ap.ssid, ssid, slen);

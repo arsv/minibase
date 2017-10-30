@@ -19,8 +19,8 @@ static char rxbuf[100];
 static char txbuf[100];
 struct ucbuf uc;
 
-#define CN struct conn* cn
-#define MSG struct ucmsg* msg
+#define CN struct conn* cn __unused
+#define MSG struct ucmsg* msg __unused
 
 #define REPLIED 1
 

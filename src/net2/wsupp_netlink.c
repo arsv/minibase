@@ -21,13 +21,15 @@ char rxbuf[8*1024];
 struct netlink nl;
 int netlink;
 static int nl80211;
-static int scanseq;
 static int scanreq;
+static uint scanseq;
 
 int authstate;
 int scanstate;
 
 struct ap ap;
+
+#define MSG struct nlgen* msg __unused
 
 /* No point in waiting for notifications if the goal is to reset
    the device and quit. So unlike regular trigger_disconnect, this
@@ -198,7 +200,7 @@ static void parse_scan_result(struct nlgen* msg)
 		parse_station_ies(sc, ies->payload, nl_attr_len(ies));
 }
 
-static void cmd_trigger_scan(struct nlgen* msg)
+static void cmd_trigger_scan(MSG)
 {
 	if(scanstate != SS_SCANNING)
 		return;
@@ -213,7 +215,7 @@ static void cmd_trigger_scan(struct nlgen* msg)
    in a bunch of messages with the same command code *but* also with
    the MULTI flag set. The dump ends with NLMSG_DONE. */
 
-static void cmd_scan_results(struct nlgen* msg)
+static void cmd_scan_results(MSG)
 {
 	if(msg->nlm.flags & NLM_F_MULTI)
 		parse_scan_result(msg);
@@ -221,10 +223,8 @@ static void cmd_scan_results(struct nlgen* msg)
 		trigger_scan_dump();
 }
 
-static void cmd_scan_aborted(struct nlgen* msg)
+static void cmd_scan_aborted(MSG)
 {
-	warn(__FUNCTION__, NULL, 0);
-
 	if(scanstate != SS_SCANNING)
 		return;
 
@@ -292,6 +292,8 @@ static void snap_to_disabled(char* why)
 	opermode = OP_NEUTRAL;
 	authstate = AS_EXTERNAL;
 
+	warn("EAPOL", why, 0);
+
 	reset_eapol_state();
 
 	handle_disconnect();
@@ -302,7 +304,7 @@ static void snap_to_disabled(char* why)
    over netlink, pretty everything else happens either on its own or through
    the rawsock. */
 
-static void cmd_authenticate(struct nlgen* msg)
+static void cmd_authenticate(MSG)
 {
 	if(authstate == AS_EXTERNAL)
 		return;
@@ -314,7 +316,7 @@ static void cmd_authenticate(struct nlgen* msg)
 	trigger_associaction();
 }
 
-static void cmd_associate(struct nlgen* msg)
+static void cmd_associate(MSG)
 {
 	if(authstate == AS_EXTERNAL)
 		return;
@@ -326,7 +328,7 @@ static void cmd_associate(struct nlgen* msg)
 	authstate = AS_CONNECTING;
 }
 
-static void cmd_connect(struct nlgen* msg)
+static void cmd_connect(MSG)
 {
 	if(authstate == AS_EXTERNAL)
 		return;
@@ -362,7 +364,7 @@ void abort_connection(void)
 	reassess_wifi_situation();
 }
 
-static void cmd_disconnect(struct nlgen* msg)
+static void cmd_disconnect(MSG)
 {
 	if(authstate == AS_IDLE)
 		return;
@@ -471,6 +473,8 @@ static void genl_done(void)
 
 static void handle_scan_error(int err)
 {
+	if(!err) return; /* stray ACK */
+
 	reset_scan_state();
 	report_scan_fail();
 }
@@ -545,8 +549,6 @@ static void dispatch(struct nlgen* msg)
 	for(p = cmds; p < cmds + ARRAY_SIZE(cmds); p++)
 		if(p->code == msg->cmd)
 			return p->call(msg);
-
-	//tracef("NL unhandled cmd %i\n", msg->cmd);
 }
 
 /* Netlink has no per-device subscription. We will be getting notifications

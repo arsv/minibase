@@ -54,7 +54,7 @@ static void bring_iface_up(void)
 {
 	int fd = netlink;
 	char* name = ifname;
-	int nlen = strlen(name);
+	uint nlen = strlen(name);
 	struct ifreq ifr;
 	int ret;
 

@@ -17,9 +17,8 @@
 #define TIMEOUT 1
 #define REPLIED 1
 
-#define LS struct link* ls
-#define CN struct conn* cn
-#define MSG struct ucmsg* msg
+#define CN struct conn* cn __unused
+#define MSG struct ucmsg* msg __unused
 
 static void send_report(char* buf, int len, int ifi)
 {

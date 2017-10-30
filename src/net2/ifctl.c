@@ -45,9 +45,9 @@ struct top {
 };
 
 typedef struct ucattr* attr;
-#define CTX struct top* ctx
-#define MSG struct ucmsg* msg
-#define AT struct ucattr* at
+#define CTX struct top* ctx __unused
+#define MSG struct ucmsg* msg __unused
+#define AT struct ucattr* at __unused
 #define UC (&ctx->uc)
 
 void init_socket(CTX)
@@ -119,9 +119,9 @@ static const char* modes[] = {
 	[IF_MODE_WIFI] = "wifi"
 };
 
-static char* fmt_mode(char* p, char* e, int mode)
+static char* fmt_mode(char* p, char* e, uint mode)
 {
-	if(mode >= 0 && mode < ARRAY_SIZE(modes))
+	if(mode < ARRAY_SIZE(modes))
 		return fmtstr(p, e, modes[mode]);
 	else
 		return fmtint(p, e, mode);

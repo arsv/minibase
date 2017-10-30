@@ -27,7 +27,7 @@
 struct link {
 	int ifi;
 	int flags;
-	int lease;
+	uint lease;
 	short mode;
 	byte mac[6];
 	char name[NAMELEN];
@@ -45,7 +45,7 @@ struct proc {
 	int tag;
 };
 
-#define LS struct link* ls
+#define LS struct link* ls __unused
 
 extern char** environ;
 extern int netlink;
