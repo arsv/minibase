@@ -33,6 +33,7 @@
 #define CMD_IF_SET_DHCP     IF(5)
 #define CMD_IF_SET_STATIC   IF(6)
 #define CMD_IF_SET_WIFI     IF(7)
+#define CMD_IF_RUN_DHCP     IF(8)
 #define CMD_IF_XDHCP        IF(8)
 
 #define REP_IF_LINK_GONE    IF(0)

@@ -284,6 +284,18 @@ static int cmd_set_wifi(CN, MSG)
 	return set_link_mode(cn, msg, LM_WIFI);
 }
 
+static int cmd_run_dhcp(CN, MSG)
+{
+	struct link* ls;
+
+	if(!(ls = find_link(msg)))
+		return -ENODEV;
+
+	start_dhcp(ls);
+
+	return 0;
+}
+
 static int cmd_xdhcp(CN, MSG)
 {
 	struct link* ls;
@@ -305,6 +317,7 @@ static const struct cmd {
 	{ CMD_IF_SET_DOWN,  cmd_set_down   },
 	{ CMD_IF_SET_DHCP,  cmd_set_dhcp   },
 	{ CMD_IF_SET_WIFI,  cmd_set_wifi   },
+	{ CMD_IF_RUN_DHCP,  cmd_run_dhcp   },
 	{ CMD_IF_XDHCP,     cmd_xdhcp      },
 	{ 0,                NULL           }
 };
