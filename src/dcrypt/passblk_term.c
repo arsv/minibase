@@ -31,6 +31,32 @@ struct box {
 
 static struct termios tso;
 
+static void tcs(char* csi, int n, int m, char c)
+{
+	char buf[20];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
+
+	p = fmtstr(p, e, csi);
+
+	if(n)
+		p = fmtint(p, e, n);
+	if(n && m)
+		p = fmtstr(p, e, ";");
+	if(m)
+		p = fmtint(p, e, m);
+
+	p = fmtchar(p, e, c);
+	*p = '\0';
+
+	output(buf, p - buf);
+}
+
+void park_cursor(void)
+{
+	moveto(rows, 1);
+}
+
 void term_init(void)
 {
 	struct termios ts;
@@ -55,6 +81,9 @@ void term_init(void)
 	if((ret = sys_ioctl(0, TCSETS, &ts)) < 0)
 		fail("ioctl", "TCSETS", ret);
 
+	tcs(CSI, rows/2+5, rows, 'r');
+	park_cursor();
+
 	initialized = 1;
 }
 
@@ -73,6 +102,9 @@ void term_back(void)
 	if((ret = sys_ioctl(0, TCSETS, &ts)) < 0)
 		fail("ioctl", "TCSETS", ret);
 
+	tcs(CSI, rows/2+5, rows, 'r');
+	park_cursor();
+
 	initialized = 1;
 }
 
@@ -82,6 +114,8 @@ void term_fini(void)
 
 	if(!initialized)
 		return;
+
+	tcs(CSI, 1, rows, 'r');
 
 	park_cursor();
 	show_cursor();
@@ -100,27 +134,6 @@ void output(char* s, int len)
 void outstr(char* s)
 {
 	output(s, strlen(s));
-}
-
-static void tcs(char* csi, int n, int m, char c)
-{
-	char buf[20];
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
-
-	p = fmtstr(p, e, csi);
-
-	if(n)
-		p = fmtint(p, e, n);
-	if(n && m)
-		p = fmtstr(p, e, ";");
-	if(m)
-		p = fmtint(p, e, m);
-
-	p = fmtchar(p, e, c);
-	*p = '\0';
-
-	output(buf, p - buf);
 }
 
 void clear(void)
@@ -143,11 +156,6 @@ void moveto(int r, int c)
 void scrollreg(int rf, int rt)
 {
 	tcs(CSI, rf, rt, 'r');
-}
-
-void park_cursor(void)
-{
-	moveto(rows, 1);
 }
 
 void hide_cursor(void)

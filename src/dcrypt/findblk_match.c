@@ -2,6 +2,8 @@
 
 #include <format.h>
 #include <string.h>
+#include <util.h>
+
 #include "findblk.h"
 
 /* Partitions are only matched by their device name: when "sda1" appears
@@ -62,7 +64,8 @@ void match_part(char* name)
 			continue;
 
 		set_part_name(pt, name);
-		break;
+
+		return;
 	}
 }
 
@@ -323,8 +326,8 @@ int match_dev(char* name)
 		if(bd->mode == WHOLE)
 			set_whole(bd - bdevs, name);
 
-		break;
+		return 1;
 	}
 
-	return (bd < bdevs + nbdevs) ? 1 : 0;
+	return 0;
 }
