@@ -7,13 +7,15 @@
 Set persistent configuration for the interface:
 .IP "\fBifctl\fR \fB-x\fR \fIiface\fR" 4
 Skip mode, \fBifmon\fR will not touch this interface.
+.IP "\fBifctl\fR \fB-d\fR \fIiface\fR" 4
+Down mode, \fBifmon\fR will bring this interface down.
 .IP "\fBifctl\fR \fB-w\fR \fIiface\fR" 4
 Wi-Fi client mode, \fBwsupp\fR(8) will be started on this interface.
 .P
 Change interface state temporarily:
 .IP "\fBifctl\fR \fB-a\fR \fIiface\fR" 4
 Activate interface, start any associated processes.
-.IP "\fBifctl\fR \fB-d\fR \fIiface\fR" 4
+.IP "\fBifctl\fR \fB-n\fR \fIiface\fR" 4
 Deactivate interface, stop any associated processes.
 '''
 .SH SEE ALSO

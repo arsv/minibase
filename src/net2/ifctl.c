@@ -17,11 +17,12 @@ ERRTAG("ifctl");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT);
 
-#define OPTS "adxw"
+#define OPTS "andxw"
 #define OPT_a (1<<0)
-#define OPT_d (1<<1)
-#define OPT_x (1<<2)
-#define OPT_w (1<<3)
+#define OPT_n (1<<1)
+#define OPT_d (1<<2)
+#define OPT_x (1<<3)
+#define OPT_w (1<<4)
 
 struct top {
 	int opts;
@@ -36,7 +37,10 @@ struct top {
 	char txbuf[64];
 	char rxbuf[512];
 
-	struct bufout bo;
+	int ifi;
+	char* ifname;
+
+	int retry;
 };
 
 typedef struct ucattr* attr;
@@ -275,18 +279,18 @@ static char* shift_arg(CTX)
 	return ctx->argv[ctx->argi++];
 }
 
-static int shift_ifi(CTX)
+static void set_iface(CTX)
 {
 	char* name;
 	int ifi;
-	
+
 	if(!(name = shift_arg(ctx)))
 		fail("interface name required", NULL, 0);
-
 	if((ifi = getifindex(ctx->fd, name)) < 0)
 		fail(NULL, name, ifi);
 
-	return ifi;
+	ctx->ifi = ifi;
+	ctx->ifname = name;
 }
 
 /* Requests */
@@ -310,13 +314,13 @@ static void req_status(CTX)
 	dump_status(ctx, msg);
 }
 
-static void stop_link_wait(CTX, int ifi)
+static void stop_link_wait(CTX)
 {
 	struct ucmsg* msg;
 	int ret;
 
 	uc_put_hdr(UC, CMD_IF_STOP);
-	uc_put_int(UC, ATTR_IFI, ifi);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
 	uc_put_end(UC);
 
 	if((ret = send_recv_cmd(ctx)) == -EALREADY)
@@ -331,68 +335,101 @@ static void stop_link_wait(CTX, int ifi)
 			fail("link gone", NULL, 0);
 }
 
-static void req_neutral(CTX)
+static int send_maybe_retry(CTX)
 {
-	int ifi = shift_ifi(ctx);
-	no_other_options(ctx);
+	int ret = send_recv_cmd(ctx);
 
-	stop_link_wait(ctx, ifi);
+	if(ret == 0)
+		return 0;
+	if(ret > 0)
+		fail("unexpected notification", NULL, 0);
+	if(ret != -EBUSY || ctx->retry)
+		fail(NULL, ctx->ifname, ret);
+
+	stop_link_wait(ctx);
+
+	ctx->retry = 1;
+
+	return 1;
 }
 
-static void req_set_link(CTX, int cmd)
+static void req_set_skip(CTX)
 {
-	int ifi = shift_ifi(ctx);
 	no_other_options(ctx);
-
-	stop_link_wait(ctx, ifi);
-
-	uc_put_hdr(UC, cmd);
-	uc_put_int(UC, ATTR_IFI, ifi);
+again:
+	uc_put_hdr(UC, CMD_IF_SET_SKIP);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
 	uc_put_end(UC);
 
-	send_check(ctx);
+	if(send_maybe_retry(ctx)) goto again;
 }
 
-static void req_skip(CTX)
+static void req_set_down(CTX)
 {
-	return req_set_link(ctx, CMD_IF_SET_SKIP);
+	no_other_options(ctx);
+again:
+	uc_put_hdr(UC, CMD_IF_SET_DOWN);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
+	uc_put_end(UC);
+
+	if(send_maybe_retry(ctx)) goto again;
 }
 
-static void req_wifi(CTX)
+static void req_set_wifi(CTX)
 {
-	return req_set_link(ctx, CMD_IF_SET_WIFI);
+	no_other_options(ctx);
+again:
+	uc_put_hdr(UC, CMD_IF_SET_WIFI);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
+	uc_put_end(UC);
+
+	if(send_maybe_retry(ctx)) goto again;
+}
+
+static void req_neutral(CTX)
+{
+	no_other_options(ctx);
+
+	stop_link_wait(ctx);
 }
 
 static void req_restart(CTX)
 {
-	int ifi = shift_ifi(ctx);
-
 	no_other_options(ctx);
 
 	uc_put_hdr(UC, CMD_IF_RESTART);
-	uc_put_int(UC, ATTR_IFI, ifi);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
 	uc_put_end(UC);
 
 	send_check(ctx);
 }
 
+static const struct req {
+	int opt;
+	void (*call)(CTX);
+} reqs[] = {
+	{ OPT_a, req_restart  },
+	{ OPT_n, req_neutral  },
+	{ OPT_d, req_set_down },
+	{ OPT_x, req_set_skip },
+	{ OPT_w, req_set_wifi }
+};
+
 int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
+	const struct req* rq;
 
 	init_args(ctx, argc, argv);
 	init_socket(ctx);
 
-	if(use_opt(ctx, OPT_d))
-		req_neutral(ctx);
-	else if(use_opt(ctx, OPT_a))
-		req_restart(ctx);
-	else if(use_opt(ctx, OPT_x))
-		req_skip(ctx);
-	else if(use_opt(ctx, OPT_w))
-		req_wifi(ctx);
-	else
-		req_status(ctx);
+	for(rq = reqs; rq < reqs + ARRAY_SIZE(reqs); rq++)
+		if(use_opt(ctx, rq->opt)) {
+			set_iface(ctx);
+			rq->call(ctx);
+			return 0;
+		}
 
+	req_status(ctx);
 	return 0;
 }
