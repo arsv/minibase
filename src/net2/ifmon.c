@@ -31,6 +31,12 @@ struct link links[NLINKS];
 int sigterm;
 int sigchld;
 
+void quit(const char* msg, char* arg, int err)
+{
+	unlink_ctrl();
+	fail(msg, arg, err);
+}
+
 static void sighandler(int sig)
 {
 	switch(sig) {
@@ -45,7 +51,7 @@ static void sigaction(int sig, struct sigaction* sa)
 	int ret;
 
 	if((ret = sys_sigaction(sig, sa, NULL)) < 0)
-		fail("sigaction", NULL, ret);
+		quit("sigaction", NULL, ret);
 }
 
 static void sigprocmask(int sig, sigset_t* mask, sigset_t* mold)
@@ -53,7 +59,7 @@ static void sigprocmask(int sig, sigset_t* mask, sigset_t* mold)
 	int ret;
 
 	if((ret = sys_sigprocmask(sig, mask, mold)) < 0)
-		fail("sigprocmask", NULL, ret);
+		quit("sigprocmask", NULL, ret);
 }
 
 void setup_signals(void)
@@ -121,7 +127,7 @@ static void recv_netlink(int revents)
 	if(revents & POLLIN)
 		handle_rtnl();
 	if(revents & ~POLLIN)
-		fail("lost netlink connection", NULL, 0);
+		quit("lost netlink connection", NULL, 0);
 }
 
 static void recv_control(int revents)
@@ -130,7 +136,7 @@ static void recv_control(int revents)
 		accept_ctrl(ctrlfd);
 		pollset = 0;
 	} if(revents & ~POLLIN) {
-		fail("poll", "ctrl", 0);
+		quit("poll", "ctrl", 0);
 	}
 }
 
@@ -203,7 +209,13 @@ void set_timeout(int sec)
 
 static int expired(struct timespec* ts)
 {
-	return !(ts && (ts->sec || ts->nsec));
+	return !(ts && (ts->sec > 0 || ts->nsec > 0));
+}
+
+static void timeout(void)
+{
+	timer = (struct timespec){ 0, 0 };
+	timer_expired();
 }
 
 int main(int argc, char** argv, char** envp)
@@ -225,7 +237,7 @@ int main(int argc, char** argv, char** envp)
 	while(!sigterm) {
 		sigchld = 0;
 
-		pt = (timer.sec || timer.nsec) ? &timer : NULL;
+		pt = expired(&timer) ? NULL : &timer;
 
 		int r = sys_ppoll(pfds, npfds, pt, &defsigset);
 
@@ -234,13 +246,13 @@ int main(int argc, char** argv, char** envp)
 		if(r == -EINTR)
 			; /* signal has been caught and handled */
 		else if(r == 0)
-			timer_expired();
+			timeout();
 		else if(r < 0)
-			fail("ppoll", NULL, r);
+			quit("ppoll", NULL, r);
 		else if(r > 0)
 			check_polled_fds();
 		if(r && expired(pt))
-			timer_expired();
+			timeout();
 	}
 
 	stop_wait_procs();

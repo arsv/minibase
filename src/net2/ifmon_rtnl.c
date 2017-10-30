@@ -35,7 +35,7 @@ static void rtnl_send_check(void)
 	if(nl_send(&rtnl) >= 0)
 		return;
 
-	fail("send", "rtnl", rtnl.err);
+	quit("send", "rtnl", rtnl.err);
 }
 
 static void set_iface_state(int ifi, int mask, int bits)

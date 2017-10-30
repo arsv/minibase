@@ -406,7 +406,7 @@ void setup_ctrl(void)
 	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
 		fail("bind", addr.path, ret);
 	else if((ret = sys_listen(fd, 1)))
-		fail("listen", addr.path, ret);
+		quit("listen", addr.path, ret);
 	else
 		return;
 

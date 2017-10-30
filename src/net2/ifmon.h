@@ -58,6 +58,8 @@ extern int nconns;
 extern int nlinks;
 extern int ctrlfd;
 
+void quit(const char* msg, char* arg, int err) noreturn;
+
 void accept_ctrl(int fd);
 void handle_conn(struct conn* cn);
 void handle_rtnl(void);
