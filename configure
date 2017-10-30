@@ -5,7 +5,7 @@ cross=
 
 unset cc ar strip tp lto
 
-commanddir=/sbin/
+commanddir=/sbin
 servicedir=/sbin/service
 networkdir=/sbin/network
 systemdir=/sbin/system
