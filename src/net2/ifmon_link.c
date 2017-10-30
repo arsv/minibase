@@ -19,7 +19,7 @@ void start_dhcp(LS)
 	if(spawn(ls, CH_DHCP, argv) < 0) {
 		ls->flags |= LF_DHCPREQ;
 	} else {
-		ls->flags &= ~LF_DHCPREQ;
+		ls->flags &= ~(LF_DHCPREQ | LF_DHCPFAIL);
 		ls->flags |= (LF_RUNNING | LF_ADDRSET);
 	}
 }
@@ -50,7 +50,10 @@ static void dhcp_exit(LS, int status)
 {
 	if(ls->flags & LF_FLUSHING)
 		ls->flags &= ~LF_FLUSHING;
-	else
+	else if(status)
+		ls->flags |= LF_DHCPFAIL;
+
+	if(!(ls->flags & LF_FLUSHING))
 		report_link_dhcp(ls, status);
 
 	if(ls->flags & LF_FLUSHREQ)

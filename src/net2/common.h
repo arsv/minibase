@@ -73,6 +73,7 @@
 #define IF_RUNNING  (1<<2)
 #define IF_STOPPING (1<<3)
 #define IF_ERROR    (1<<4)
+#define IF_DHCPFAIL (1<<5)
 
 #define IF_MODE_SKIP    0
 #define IF_MODE_DOWN    1

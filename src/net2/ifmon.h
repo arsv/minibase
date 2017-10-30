@@ -18,6 +18,7 @@
 #define LF_STOP     (1<<7)
 #define LF_STOPPING (1<<8)
 #define LF_ERROR    (1<<9)
+#define LF_DHCPFAIL (1<<10)
 
 #define CH_DHCP  1
 #define CH_WIENC 2

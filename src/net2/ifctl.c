@@ -142,6 +142,11 @@ static char* fmt_flags(char* p, char* e, int flags)
 	else if(flags & IF_RUNNING)
 		p = fmtstr(p, e, ",running");
 
+	if(flags & IF_ERROR)
+		p = fmtstr(p, e, ",error");
+	if(flags & IF_DHCPFAIL)
+		p = fmtstr(p, e, ",dhcp-fail");
+
 	p = fmtstr(p, e, ")");
 
 	return p;

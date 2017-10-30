@@ -191,6 +191,8 @@ static int common_flags(LS)
 		out |= IF_STOPPING;
 	if(val & LF_ERROR)
 		out |= IF_ERROR;
+	if(val & LF_DHCPFAIL)
+		out |= IF_DHCPFAIL;
 
 	return out;
 }
