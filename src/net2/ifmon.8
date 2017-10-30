@@ -1,0 +1,21 @@
+.TH ifmon 8
+'''
+.SH NAME
+\fBifmon\fR \- network interface monitor
+'''
+.SH DESCRIPTION
+This service watches for appearance of networking interfaces in the system
+and applies their persistent configuration.
+.P
+Networking interfaces in Linux are dynamic (hot-pluggable) and their names are
+not persistent. The purpose of \fBifmon\fR is to attach configuration to some
+persistent property of the interfaces (its hardware address) so that no matter
+when it appears in the system and which name it gets, the right configuration
+would be applied.
+.P
+Interface configuration performed by \fBifmon\fR includes bringing the device
+up/down, running \fBdhcp\fR(8) and starting device-specific services like
+\fBwsupp\fR(8).
+'''
+.SH SEE ALSO
+\fBifctl\fR(1), \fBwifi\fR(1).

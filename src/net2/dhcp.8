@@ -1,0 +1,17 @@
+.TH dhcp 8
+'''
+.SH NAME
+\fBdhcp\fR \- DHCP client
+'''
+.SH SYNOPSIS
+\fBdhcp\fR [\fB-nr\fR] \fIiface\fR
+'''
+.SH DESCRIPTION
+Requests temporary IP address lease from a server and configures the interface
+to use the obtained address.
+'''
+.SH OPTIONS
+.IP "\fB-n\fR" 4
+Do not configure \fIiface\fR, print configuration to stdout instead.
+.IP "\fB-r\fR" 4
+Write /var/resolv.conf if any DNS addresses were received from the server.

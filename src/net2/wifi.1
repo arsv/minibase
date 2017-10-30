@@ -1,0 +1,35 @@
+.TH wifi 1
+'''
+.SH NAME
+\fBwifi\fR \- Wi-Fi client control tool
+'''
+.SH SYNOPSIS
+.IP "\fBwifi\fR" 4
+Show current status.
+.IP "\fBwifi\fR \fB-s\fR" 4
+Scan for available access points.
+.IP "\fBwifi\fR [\fB-p\fR] \fIssid\fR" 4
+Connect to named AP (using supplied passpharse).
+.IP "\fBwifi\fR \fB-a\fR" 4
+Connect to the strongest known AP in range.
+.IP "\fBwifi\fR \fB-d\fR" 4
+Disconnect.
+.IP "\fBwifi\fR \fB-x\fR" 4
+Stop Wi-Fi service.
+.IP "\fBwifi\fR \fB-y\fR [\fIiface\fR]" 4
+Start Wi-Fi service (on given \fIiface\fR).
+.IP "\fBwifi\fR \fB-z\fR \fIssid\fR" 4
+Forget PSK for given \fIssid\fR.
+'''
+.SH USAGE
+When connection to a new AP for the first time, use \fB-p\fR
+to provide a passphrase. If connection is successful, PSK will
+be saved and subsequent connections will only need \fIssid\fR.
+'''
+.SH NOTES
+Most of the work happens in \fBwsupp\fR(8), this is merely a client
+tool. When starting or stopping the service, it may also need to
+connect to a running \fBifmon\fR(8).
+'''
+.SH SEE ALSO
+\fBifctl\fR(1), \fBifmon\fR(8), \fBwsupp\fR(8).
