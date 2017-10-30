@@ -10,18 +10,29 @@
 
 #include "modprobe.h"
 
-#define OPTS "ranqbp"
+#define OPTS "ranqbpv"
 #define OPT_r (1<<0)
 #define OPT_a (1<<1)
 #define OPT_n (1<<2)
 #define OPT_q (1<<3)
 #define OPT_b (1<<4)
 #define OPT_p (1<<5)
+#define OPT_v (1<<6)
 
 ERRTAG("modprobe");
 ERRLIST(NEACCES NEAGAIN NEBADF NEINVAL NENFILE NENODEV NENOMEM NEPERM NENOENT
 	NETXTBSY NEOVERFLOW NEBADMSG NEBUSY NEFAULT NENOKEY NEEXIST NENOEXEC
 	NESRCH);
+
+int error(CTX, const char* msg, char* arg, int err)
+{
+	warn(msg, arg, err);
+
+	if(ctx->opts & OPT_p)
+		return err ? err : -1;
+	else
+		_exit(0xFF);
+}
 
 static int got_args(CTX)
 {
@@ -79,16 +90,16 @@ static void report_insmod(CTX, char* path, char* pars)
 	writeall(STDOUT, cmd, p - cmd);
 }
 
-static void load_module(CTX, struct mbuf* mb, char* path, char* base, int blen)
+static int load_module(CTX, struct mbuf* mb, char* path, char* base, int blen)
 {
 	if(check_strip_suffix(base, blen, ".ko"))
-		mmap_whole(mb, path, NEWMAP);
-	else if(check_strip_suffix(base, blen, ".ko.gz"))
-		decompress(ctx, mb, path, "/bin/zcat");
-	else if(check_strip_suffix(base, blen, ".ko.xz"))
-		decompress(ctx, mb, path, "/bin/xzcat");
-	else
-		fail("unexpected module extension:", base, 0);
+		return mmap_whole(ctx, mb, path, NEWMAP);
+	if(check_strip_suffix(base, blen, ".ko.gz"))
+		return decompress(ctx, mb, path, "/bin/zcat");
+	if(check_strip_suffix(base, blen, ".ko.xz"))
+		return decompress(ctx, mb, path, "/bin/xzcat");
+
+	return error(ctx, "unexpected module extension:", base, 0);
 }
 
 static void cut_suffix(char* name)
@@ -130,9 +141,7 @@ void insmod(CTX, char* relpath, char* pars)
 
 	memzero(&mb, sizeof(mb));
 
-	load_module(ctx, &mb, path, base, blen);
-
-	if(ctx->opts & OPT_n)
+	if(load_module(ctx, &mb, path, base, blen) < 0)
 		return;
 
 	if((ret = sys_init_module(mb.buf, mb.len, pars)) >= 0)
@@ -142,6 +151,9 @@ void insmod(CTX, char* relpath, char* pars)
 	else fail("init-module", name, ret);
 
 	unmap_buf(&mb);
+
+	if(ctx->opts & OPT_v)
+		report_insmod(ctx, path, pars);
 }
 
 static void report_rmmod(char* name)
@@ -166,10 +178,12 @@ static void remove_dep(CTX, char* path)
 	while(*p && *p != '.') p++;
 	*p = '\0';
 
-	if(ctx->opts & OPT_n)
+	if(ctx->opts & (OPT_n | OPT_v))
 		report_rmmod(buf);
-	else
-		sys_delete_module(buf, 0);
+	if(ctx->opts & OPT_n)
+		return;
+
+	sys_delete_module(buf, 0);
 }
 
 static void try_remove_all(CTX, char** deps)
@@ -190,8 +204,11 @@ static void remove(CTX, char* name)
 
 	try_remove_all(ctx, deps);
 
-	if(ctx->opts & OPT_n)
+	if(ctx->opts & (OPT_n | OPT_v))
 		report_rmmod(name);
+
+	if(ctx->opts & OPT_n)
+		;
 	else if((ret = sys_delete_module(name, 0)) < 0)
 		fail(NULL, name, ret);
 
@@ -215,21 +232,19 @@ static void insert_(CTX, char* name, char* pars)
 	if((alias = query_alias(ctx, name)))
 		name = alias;
 
-	if(!(ctx->opts & OPT_b))
-		;
-	else if(is_blacklisted(ctx, name))
+	if((ctx->opts & OPT_b) && is_blacklisted(ctx, name)) {
+		if(!(ctx->opts & OPT_q))
+			warn("blacklisted:", name, 0);
 		return;
+	}
 
 	ctx->nmatching++;
 
-	if((deps = query_deps(ctx, name)))
-		;
-	else if(ctx->opts & (OPT_a | OPT_p) && (ctx->opts & OPT_q))
+	if(!(deps = query_deps(ctx, name))) {
+		if(!(ctx->opts & OPT_q))
+			error(ctx, NULL, name, -ESRCH);
 		return;
-	else if(ctx->opts & (OPT_q | OPT_b))
-		_exit(0xff);
-	else
-		fail(name, NULL, -ESRCH);
+	}
 
 	char **p, **e;
 

@@ -75,12 +75,15 @@ static void readall(struct mbuf* mb, int fd, char* cmd)
 	mb->full = len;
 }
 
-void decompress(CTX, struct mbuf* mb, char* path, char* cmd)
+int decompress(CTX, struct mbuf* mb, char* path, char* cmd)
 {
-	int fds[2];
-	xchk(sys_pipe2(fds, 0), "pipe", NULL);
+	int pid, ret, fds[2], status;
 
-	int pid = xchk(sys_fork(), "fork", NULL);
+	if((ret = sys_pipe2(fds, 0)) < 0)
+		return error(ctx, "pipe", NULL, ret);
+
+	if((pid = sys_fork()) < 0)
+		return error(ctx, "fork", NULL, ret);
 
 	if(pid == 0)
 		_exit(child(fds, cmd, path, ctx->envp));
@@ -89,13 +92,15 @@ void decompress(CTX, struct mbuf* mb, char* path, char* cmd)
 
 	readall(mb, fds[0], cmd);
 
-	int status;
-	xchk(sys_waitpid(pid, &status, 0), "wait", cmd);
+	if((ret = sys_waitpid(pid, &status, 0)) < 0)
+		return error(ctx, "wait", cmd, pid);
+	if(status)
+		return error(ctx, "non-zero exit in", cmd, 0);
 
-	if(status) fail("non-zero exit code in", cmd, 0);
+	return 0;
 }
 
-void mmap_whole(struct mbuf* mb, char* name, int mode)
+int mmap_whole(CTX, struct mbuf* mb, char* name, int mode)
 {
 	int fd;
 	long ret;
@@ -104,31 +109,36 @@ void mmap_whole(struct mbuf* mb, char* name, int mode)
 	if(mode == NEWMAP)
 		;
 	else if(mb->tried)
-		return;
+		return mb->tried;
 
-	mb->tried = 1;
+	mb->len = 0;
+	mb->tried = -1;
 
 	if((fd = sys_open(name, O_RDONLY)) >= 0)
 		;
-	else if(mode != FAILOK)
-		fail("open", name, fd);
-	else return;
+	else if(mode == FAILOK)
+		return -1;
+	else
+		return error(ctx, NULL, name, fd);
 
 	if((ret = sys_fstat(fd, &st)) < 0)
-		fail("stat", name, ret);
+		return error(ctx, "stat", name, ret);
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
 	char* ptr = sys_mmap(NULL, st.size, prot, flags, fd, 0);
 
 	if(mmap_error(ptr))
-		fail("mmap", name, (long)ptr);
+		return error(ctx, "mmap", name, (long)ptr);
 
 	if(st.size > MAX_FILE_SIZE)
-		fail("file too large:", name, 0);
+		return error(ctx, NULL, name, -E2BIG);
 
+	mb->tried = 1;
 	mb->buf = ptr;
 	mb->len = mb->full = st.size;
+
+	return 0;
 }
 
 void unmap_buf(struct mbuf* mb)

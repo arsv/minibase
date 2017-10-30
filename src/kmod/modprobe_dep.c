@@ -42,7 +42,7 @@ static void prep_modules_file(CTX, struct mbuf* mb, char* name, int mode)
 	p = fmtstr(p, e, name);
 	FMTEND(p, e);
 
-	mmap_whole(mb, path, mode);
+	mmap_whole(ctx, mb, path, mode);
 }
 
 void prep_modules_dep(CTX)
@@ -57,7 +57,7 @@ void prep_modules_alias(CTX)
 
 void prep_config(CTX)
 {
-	mmap_whole(&ctx->config, CONFIG, FAILOK);
+	mmap_whole(ctx, &ctx->config, CONFIG, FAILOK);
 }
 
 static int isspace(int c)

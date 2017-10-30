@@ -54,8 +54,8 @@ char* query_pars(CTX, char* name);
 char* query_alias(CTX, char* name);
 int is_blacklisted(CTX, char* name);
 
-void mmap_whole(struct mbuf* mb, char* name, int mode);
-void decompress(CTX, struct mbuf* mb, char* path, char* cmd);
+int mmap_whole(CTX, struct mbuf* mb, char* name, int mode);
+int decompress(CTX, struct mbuf* mb, char* path, char* cmd);
 
 void* heap_alloc(CTX, int size);
 void unmap_buf(struct mbuf* mb);
@@ -63,3 +63,5 @@ void flush_heap(CTX);
 
 char* heap_dup(CTX, char* str);
 char* heap_dupe(CTX, char* p, char* e);
+
+int error(CTX, const char* msg, char* arg, int err);
