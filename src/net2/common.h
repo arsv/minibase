@@ -60,6 +60,7 @@
 #define ATTR_LINK      14
 #define ATTR_MODE      15
 #define ATTR_FLAGS     16
+#define ATTR_ADDR      17
 
 #define WS_IDLE         0
 #define WS_RFKILLED     1

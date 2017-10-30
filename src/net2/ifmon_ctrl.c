@@ -213,6 +213,7 @@ static int cmd_status(CN, MSG)
 
 		at = uc_put_nest(&uc, ATTR_LINK);
 		uc_put_int(&uc, ATTR_IFI, ls->ifi);
+		uc_put_bin(&uc, ATTR_ADDR, ls->mac, sizeof(ls->mac));
 		uc_put_str(&uc, ATTR_NAME, ls->name);
 		uc_put_int(&uc, ATTR_MODE, ls->mode);
 		uc_put_int(&uc, ATTR_FLAGS, common_flags(ls));

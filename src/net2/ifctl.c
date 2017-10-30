@@ -159,11 +159,13 @@ static char* fmt_link(char* p, char* e, struct ucattr* at)
 	char* name = uc_sub_str(at, ATTR_NAME);
 	int* mode = uc_sub_int(at, ATTR_MODE);
 	int* flags = uc_sub_int(at, ATTR_FLAGS);
+	byte* addr = uc_sub_bin(at, ATTR_ADDR, 6);
 
-	if(!ifi || !name || !mode || !flags)
+	if(!ifi || !name || !mode || !flags || !addr)
 		return p;
 
-	p = fmtstr(p, e, "Link ");
+	p = fmtmac(p,e , addr);
+	p = fmtstr(p, e, " #");
 	p = fmtint(p, e, *ifi);
 	p = fmtstr(p, e, " ");
 	p = fmtstr(p, e, name);
