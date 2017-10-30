@@ -167,6 +167,9 @@ void link_gone(LS)
 {
 	stop_link_procs(ls, 1);
 
+	if(ls->flags & LF_UNSAVED)
+		save_link(ls);
+
 	report_link_gone(ls);
 }
 

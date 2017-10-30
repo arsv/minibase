@@ -165,11 +165,10 @@ static int set_link_mode(CN, MSG, int mode)
 
 	ls->mode = mode;
 	ls->flags &= ~(LF_STOP | LF_ERROR);
+	ls->flags |= LF_UNSAVED;
 	cn->rep = ls->ifi;
 
 	ret = reply(cn, 0);
-
-	//save_link(ls, conf);
 
 	reassess_link(ls);
 

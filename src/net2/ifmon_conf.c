@@ -372,32 +372,19 @@ void save_line(struct line* ln, char* buf, int len)
 	modified = 1;
 }
 
+static const struct lmode {
+	int mode;
+	char key[8];
+} lmodes[] = {
+	{ LM_DOWN, "down" },
+	{ LM_DHCP, "dhcp" },
+	{ LM_WIFI, "wifi" },
+	//{ LM_SETIP, "static" }
+};
+
 void load_link(struct link* ls)
 {
 	struct chunk ck[2];
-	struct line ln;
-
-	if(load_config()) return;
-
-	find_mac(&ln, ls->mac);
-
-	if(split_line(&ln, ck, 2) < 2)
-		return;
-
-	struct chunk* md = &ck[1];
-
-	if(chunkis(md, "down"))
-		ls->mode = LM_DOWN;
-	else if(chunkis(md, "dhcp"))
-		ls->mode = LM_DHCP;
-	else if(chunkis(md, "wifi"))
-		ls->mode = LM_WIFI;
-	//else if(chunkis(md, "static"))
-	//	ls->mode = LM_SETIP;
-}
-
-void save_link(struct link* ls, char* conf)
-{
 	struct line ln;
 
 	if(load_config())
@@ -405,15 +392,64 @@ void save_link(struct link* ls, char* conf)
 
 	find_mac(&ln, ls->mac);
 
-	if(!conf) {
-		drop_line(&ln);
-	} else {
-		FMTBUF(p, e, buf, 100);
-		p = fmtmac(p, e, ls->mac);
-		p = fmtstr(p, e, " ");
-		p = fmtstr(p, e, conf);
-		FMTEND(p, e);
+	if(split_line(&ln, ck, 2) < 2)
+		return;
 
-		save_line(&ln, buf, p - buf);
+	struct chunk* md = &ck[1];
+	const struct lmode* lm;
+
+	for(lm = lmodes; lm < lmodes + ARRAY_SIZE(lmodes); lm++)
+		if(chunkis(md, lm->key)) {
+			ls->mode = lm->mode;
+			break;
+		}
+}
+
+static char* format_link(char* p, char* e, struct link* ls)
+{
+	const struct lmode* lm;
+
+	for(lm = lmodes; lm < lmodes + ARRAY_SIZE(lmodes); lm++)
+		if(lm->mode == ls->mode) {
+			p = fmtstr(p, e, lm->key);
+			break;
+		}
+
+	return p;
+}
+
+void save_link(struct link* ls)
+{
+	struct line ln;
+
+	if(load_config())
+		return;
+
+	ls->flags &= ~LF_UNSAVED;
+
+	find_mac(&ln, ls->mac);
+
+	if(ls->mode == LM_SKIP) {
+		drop_line(&ln);
+		return;
 	}
+
+	FMTBUF(p, e, buf, 100);
+	p = fmtmac(p, e, ls->mac);
+	p = fmtstr(p, e, " ");
+	p = format_link(p, e, ls);
+	FMTEND(p, e);
+
+	save_line(&ln, buf, p - buf);
+}
+
+void save_flagged_links(void)
+{
+	struct link* ls;
+
+	for(ls = links; ls < links + nlinks; ls++)
+		if(ls->flags & LF_UNSAVED)
+			save_link(ls);
+
+	save_config();
 }

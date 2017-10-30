@@ -19,6 +19,7 @@
 #define LF_STOPPING (1<<8)
 #define LF_ERROR    (1<<9)
 #define LF_DHCPFAIL (1<<10)
+#define LF_UNSAVED  (1<<11)
 
 #define CH_DHCP  1
 #define CH_WIENC 2
@@ -84,8 +85,8 @@ void link_exit(LS, int tag, int status);
 void waitpids(void);
 
 void load_link(LS);
-void save_link(LS, char* conf);
-void load_link_conf(LS);
+void save_link(LS);
+void save_flagged_links();
 
 void enable_iface(LS);
 void disable_iface(LS);

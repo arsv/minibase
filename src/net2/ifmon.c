@@ -219,6 +219,7 @@ int main(int argc, char** argv, char** envp)
 	}
 
 	stop_wait_procs();
+	save_flagged_links();
 	unlink_ctrl();
 
 	return 0;
