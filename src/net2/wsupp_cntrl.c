@@ -383,14 +383,14 @@ static int dispatch_cmd(CN, MSG)
 	int ret;
 
 	for(cd = commands; cd < commands + ARRAY_SIZE(commands); cd++)
-		if(cd->cmd == cmd)
-			break;
-	if(!cd->cmd)
-		ret = reply(cn, -ENOSYS);
-	else if((ret = cd->call(cn, msg)) <= 0)
-		ret = reply(cn, ret);
+		if(cd->cmd != cmd)
+			continue;
+		else if((ret = cd->call(cn, msg)) > 0)
+			return ret;
+		else
+			return reply(cn, ret);
 
-	return ret;
+	return reply(cn, -ENOSYS);
 }
 
 static void shutdown_conn(struct conn* cn)
