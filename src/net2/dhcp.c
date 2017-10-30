@@ -526,7 +526,7 @@ int main(int argc, char** argv, char** envp)
 	else
 		conf_netdev(ifi, ip, (opts & OPT_g));
 
-	if(opts & OPT_r)
+	if(!(opts & (OPT_r | OPT_n)))
 		write_resolv_conf();
 
 	return 0;
