@@ -8,7 +8,6 @@
 #include <netlink/rtnl/route.h>
 #include <netlink/rtnl/mgrp.h>
 
-#include <printf.h>
 #include <string.h>
 #include <util.h>
 
@@ -22,6 +21,11 @@ char rtnl_tx[512];
 char rtnl_rx[4096];
 
 static struct nlattr* ifi_get(struct ifinfomsg* msg, int key)
+{
+	return nl_attr_k_in(NLPAYLOAD(msg), key);
+}
+
+static struct nlattr* ifa_get(struct ifaddrmsg* msg, int key)
 {
 	return nl_attr_k_in(NLPAYLOAD(msg), key);
 }
@@ -153,15 +157,32 @@ static void msg_del_link(struct ifinfomsg* msg)
 	free_link_slot(ls);
 }
 
-//static void msg_new_addr(struct ifaddrmsg* msg)
-//{
-//
-//}
-//
-//static void msg_del_addr(struct ifaddrmsg* msg)
-//{
-//
-//}
+static void msg_new_addr(struct ifaddrmsg* msg)
+{
+	struct link* ls;
+	struct nlattr* at;
+	struct ifa_cacheinfo* ci;
+
+	if(!(ls = find_link_slot(msg->index)))
+		return;
+
+	if(!(at = ifa_get(msg, IFA_ADDRESS)))
+		return;
+	if(nl_attr_len(at) != 4)
+		return; /* non-IPv4 addr, not our business */
+
+	if(!(at = ifa_get(msg, IFA_CACHEINFO)))
+		return;
+	if(nl_attr_len(at) != sizeof(*ci))
+		return;
+
+	ci = (struct ifa_cacheinfo*) at->payload;
+
+	if(!ci->prefered)
+		return;
+
+	link_lease(ls, ci->prefered);
+}
 
 static void msg_rtnl_err(struct nlerr* msg)
 {
@@ -195,8 +216,7 @@ struct rtnh {
 	MSG(NLMSG_ERROR,  msg_rtnl_err,  nlerr),
 	MSG(RTM_NEWLINK,  msg_new_link,  ifinfomsg),
 	MSG(RTM_DELLINK,  msg_del_link,  ifinfomsg),
-//	MSG(RTM_NEWADDR,  msg_new_addr,  ifaddrmsg),
-//	MSG(RTM_DELADDR,  msg_del_addr,  ifaddrmsg),
+	MSG(RTM_NEWADDR,  msg_new_addr,  ifaddrmsg),
 #undef MSG
 	{ 0, NULL, 0 }
 };
@@ -205,13 +225,9 @@ static void dispatch(struct nlmsg* msg)
 {
 	struct rtnh* rh;
 
-	//nl_dump_rtnl(msg);
-
 	for(rh = rtnlcmds; rh->hdr; rh++)
 		if(msg->type == rh->type)
 			break;
-	//if(!rh->hdr)
-	//	nl_dump_rtnl(msg);
 	if(!rh->hdr)
 		return;
 	if(msg->len < rh->hdr)

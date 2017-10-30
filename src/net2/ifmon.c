@@ -2,6 +2,7 @@
 #include <sys/fpath.h>
 #include <sys/ppoll.h>
 #include <sys/signal.h>
+#include <sys/time.h>
 
 #include <errtag.h>
 #include <netlink.h>
@@ -19,6 +20,7 @@ char** environ;
 static sigset_t defsigset;
 struct pollfd pfds[2+NCONNS];
 static int pollset;
+struct timespec timer;
 int npfds;
 int nconns;
 int ctrlfd;
@@ -188,9 +190,26 @@ static void stop_wait_procs(void)
 	}
 }
 
+void set_timeout(int sec)
+{
+	if(sec) {
+		timer.sec = sec;
+		timer.nsec = 0;
+	} else {
+		timer.sec = 0;
+		timer.nsec = 0;
+	}
+}
+
+static int expired(struct timespec* ts)
+{
+	return !(ts && (ts->sec || ts->nsec));
+}
+
 int main(int argc, char** argv, char** envp)
 {
 	(void)argv;
+	struct timespec *pt;
 
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);
@@ -206,16 +225,22 @@ int main(int argc, char** argv, char** envp)
 	while(!sigterm) {
 		sigchld = 0;
 
-		int r = sys_ppoll(pfds, npfds, NULL, &defsigset);
+		pt = (timer.sec || timer.nsec) ? &timer : NULL;
+
+		int r = sys_ppoll(pfds, npfds, pt, &defsigset);
 
 		if(sigchld)
 			waitpids();
 		if(r == -EINTR)
 			; /* signal has been caught and handled */
+		else if(r == 0)
+			timer_expired();
 		else if(r < 0)
 			fail("ppoll", NULL, r);
 		else if(r > 0)
 			check_polled_fds();
+		if(r && expired(pt))
+			timer_expired();
 	}
 
 	stop_wait_procs();

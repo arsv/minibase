@@ -1,5 +1,6 @@
+#include <sys/time.h>
+
 #include <util.h>
-#include <printf.h>
 #include "ifmon.h"
 
 static void start_wsupp(LS)
@@ -43,6 +44,7 @@ static void stop_dhcp(LS)
 
 static void flush_link(LS)
 {
+	ls->lease = 0;
 	start_flush(ls);
 }
 
@@ -181,4 +183,78 @@ void link_exit(LS, int tag, int status)
 		wsupp_exit(ls, status);
 
 	maybe_mark_stopped(ls);
+}
+
+/* Check for and renew DHCP leases when appropriate.
+
+   A very simplistic solution that assumes all addresses on a link
+   have the same lifetime. That should never happen with common IPv4
+   DHCP setups, but Linux actually allow weird configurations like that.
+
+   Anyway, doing it better will likely require much more involved
+   address tracking, and current scheme will at most cause us to renew
+   leases a earlier than necessary.
+
+   Alternatively, switching to a long-running DHCP client may be an option. */
+
+static struct timespec lastcheck;
+
+static void reset_link_timer(void)
+{
+	struct link* ls;
+	long sec = 0;
+
+	for(ls = links; ls < links + nlinks; ls++) {
+		if(!ls->ifi)
+			continue;
+		if(!ls->lease)
+			continue;
+		if(sec && ls->lease > sec)
+			continue;
+
+		sec = ls->lease;
+	}
+
+	set_timeout(sec);
+}
+
+void link_lease(LS, uint time)
+{
+	if(ls->lease && ls->lease < time)
+		return;
+
+	ls->lease = time;
+
+	reset_link_timer();
+}
+
+void timer_expired(void)
+{
+	struct timespec ts;
+	struct link* ls;
+	long diff;
+
+	if((sys_clock_gettime(CLOCK_MONOTONIC, &ts)) < 0)
+		return;
+
+	if((diff = ts.sec - lastcheck.sec) <= 0)
+		return;
+
+	for(ls = links; ls < links + nlinks; ls++) {
+		if(!ls->ifi)
+			continue;
+		if(!ls->lease)
+			continue;
+		if(ls->lease > diff) {
+			ls->lease -= diff;
+			continue;
+		}
+
+		ls->lease = 0;
+		start_dhcp(ls);
+	}
+
+	lastcheck = ts;
+
+	reset_link_timer();
 }

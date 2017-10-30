@@ -27,6 +27,7 @@
 struct link {
 	int ifi;
 	int flags;
+	int lease;
 	short mode;
 	byte mac[6];
 	char name[NAMELEN];
@@ -81,6 +82,7 @@ void link_lost(LS);
 void link_down(LS);
 void link_gone(LS);
 void link_exit(LS, int tag, int status);
+void link_lease(LS, uint time);
 
 void waitpids(void);
 
@@ -106,3 +108,6 @@ void report_link_dhcp(LS, int status);
 void report_link_enabled(LS);
 void report_link_carrier(LS);
 void report_link_stopped(LS);
+
+void set_timeout(int sec);
+void timer_expired(void);
