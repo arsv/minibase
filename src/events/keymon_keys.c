@@ -24,6 +24,8 @@ static const struct key {
 	{ "NumLock",     KEY_NUMLOCK         },
 	{ "ScrollLock",  KEY_SCROLLLOCK      },
 	{ "Space",       KEY_SPACE           },
+	{ "Del",         KEY_DELETE          },
+	{ "Delete",      KEY_DELETE          },
 
 	{ "F1",          KEY_F1              },
 	{ "F2",          KEY_F2              },
