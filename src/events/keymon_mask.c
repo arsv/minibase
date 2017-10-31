@@ -45,22 +45,11 @@ static void setcode(char* bits, int len, int code)
 	bits[code/8] |= (1 << (code % 8));
 }
 
-static void check_keyact(struct action* ka, char* bits, char* need, int size)
+static void usecode(char* bits, char* need, int size, int code)
 {
-	if(!hascode(bits, size, ka->code))
+	if(!hascode(bits, size, code))
 		return;
-
-	if(!(ka->mode & (MODE_CTRL | MODE_ALT)))
-		goto set;
-	if(!hascode(bits, size, KEY_LEFTCTRL))
-		return;
-	if(!hascode(bits, size, KEY_LEFTALT))
-		return;
-
-	setcode(need, size, KEY_LEFTCTRL);
-	setcode(need, size, KEY_LEFTALT);
-set:
-	setcode(need, size, ka->code);
+	setcode(need, size, code);
 }
 
 static void check_all_keyacts(char* bits, char* need, int size)
@@ -69,7 +58,10 @@ static void check_all_keyacts(char* bits, char* need, int size)
 
 	for(ka = actions; ka < actions + nactions; ka++)
 		if(ka->code > 0)
-			check_keyact(ka, bits, need, size);
+			usecode(bits, need, size, ka->code);
+
+	usecode(bits, need, size, KEY_LEFTCTRL);
+	usecode(bits, need, size, KEY_LEFTALT);
 }
 
 static void check_swact(struct action* sa, char* bits, char* need, int size)

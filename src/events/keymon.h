@@ -27,10 +27,10 @@
 #define MODE_HOLD   (1<<2)
 #define MODE_LONG   (1<<3)
 
-#define MOD_LCTRL   (1<<4)
-#define MOD_RCTRL   (1<<5)
-#define MOD_LALT    (1<<6)
-#define MOD_RALT    (1<<7)
+#define KEYM_LCTRL   (1<<4)
+#define KEYM_RCTRL   (1<<5)
+#define KEYM_LALT    (1<<6)
+#define KEYM_RALT    (1<<7)
 
 struct device {
 	int fd;

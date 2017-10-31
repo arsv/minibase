@@ -7,4 +7,4 @@ C-F5: vtctl 5
 
 hold C-F12: svctl -P
 
-Power: svctl -P
+C-Power: svctl -P

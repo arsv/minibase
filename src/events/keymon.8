@@ -41,6 +41,11 @@ Some x86 systems are incapable of reporting long Power button hold, and
 thus do not allow "hold Power" configuration. Use \fBinputs\fR(8) in \fB-r\fR
 mode to check button behavior. Affected systems will report release event
 immediately after the press event even if the button is still being held.
+.P
+Modifier keys state is tracked indiscriminately across all devices.
+C-A-F1 action will be triggered even if respective Control, Alt and F1
+keys are located on three different devices. This may sound unintuitive,
+but allows handling cross-device combinations like C-A-Power.
 '''
 .SH SEE ALSO
 \fBacpid\fR(8), \fBinputs\fR(1)

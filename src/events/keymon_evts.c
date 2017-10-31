@@ -20,6 +20,8 @@
    to simplify the code. Tracking arbitrary keys would require lots
    of code, and won't be used most of the time. */
 
+static int modifiers;
+
 static void spawn(struct action* ka)
 {
 	int pid, ret, status;
@@ -43,16 +45,19 @@ static void spawn(struct action* ka)
 		sys_kill(pid, SIGTERM);
 }
 
-static void set_mods(struct device* kb, int mods)
+static void set_global_mods(void)
 {
-	mods &= ~(MODE_ALT | MODE_CTRL);
+	struct device* kb;
+	int mods = 0;
 
-	if(mods & (MOD_LCTRL | MOD_RCTRL))
-		mods |= MODE_CTRL;
-	if(mods & (MOD_LALT | MOD_RALT))
-		mods |= MODE_ALT;
+	for(kb = devices; kb < devices + ndevices; kb++) {
+		if(kb->mods & KEYM_LCTRL)
+			mods |= MODE_CTRL;
+		if(kb->mods & KEYM_LALT)
+			mods |= MODE_ALT;
+	}
 
-	kb->mods = mods;
+	modifiers = mods;
 }
 
 static void start_hold(struct action* ka, struct device* kb)
@@ -95,14 +100,16 @@ static void key_release(struct device* kb, int code)
 	}
 
 	switch(code) {
-		case KEY_LEFTALT:  mods &= ~MOD_LALT;  break;
-		case KEY_LEFTCTRL: mods &= ~MOD_LCTRL; break;
-		case KEY_RIGHTALT: mods &= ~MOD_RALT;  break;
-		case KEY_RIGHTCTRL:mods &= ~MOD_RCTRL; break;
+		case KEY_LEFTALT:  mods &= ~KEYM_LALT;  break;
+		case KEY_LEFTCTRL: mods &= ~KEYM_LCTRL; break;
+		case KEY_RIGHTALT: mods &= ~KEYM_RALT;  break;
+		case KEY_RIGHTCTRL:mods &= ~KEYM_RCTRL; break;
 		default: return;
 	}
 
-	set_mods(kb, mods);
+	kb->mods = mods;
+
+	set_global_mods();
 }
 
 static void key_press(struct device* kb, int code)
@@ -113,9 +120,8 @@ static void key_press(struct device* kb, int code)
 	for(ka = actions; ka < actions + nactions; ka++) {
 		if(ka->code != code)
 			continue;
-		if((ka->mode & mask) != (kb->mods & mask))
+		if((ka->mode & mask) != (modifiers & mask))
 			continue;
-
 		if(ka->mode & MODE_HOLD)
 			start_hold(ka, kb);
 		else
@@ -125,14 +131,16 @@ static void key_press(struct device* kb, int code)
 	int mods = kb->mods;
 
 	switch(code) {
-		case KEY_LEFTALT:  mods |= MOD_LALT;  break;
-		case KEY_LEFTCTRL: mods |= MOD_LCTRL; break;
-		case KEY_RIGHTALT: mods |= MOD_RALT;  break;
-		case KEY_RIGHTCTRL:mods |= MOD_RCTRL; break;
+		case KEY_LEFTALT:  mods |= KEYM_LALT;  break;
+		case KEY_LEFTCTRL: mods |= KEYM_LCTRL; break;
+		case KEY_RIGHTALT: mods |= KEYM_RALT;  break;
+		case KEY_RIGHTCTRL:mods |= KEYM_RCTRL; break;
 		default: return;
 	}
 
-	set_mods(kb, mods);
+	kb->mods = mods;
+
+	set_global_mods();
 }
 
 static void handle_event(struct device* kb, struct event* ev)
