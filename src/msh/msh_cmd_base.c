@@ -94,11 +94,11 @@ int cmd_die(CTX)
 	_exit(0xFF);
 }
 
-/* This assigns an executable to be exec()ed into in case of error.
+/* This assigns executable to be exec()ed into in case of error.
 
    Current implementation is extremely crude, but so far there is
    exactly one use for this, invoking /sbin/system/reboot in pid 0
-   scripts, so anything more would be an overkill. */
+   scripts, so anything more that this would be an overkill. */
 
 int cmd_onerror(CTX)
 {

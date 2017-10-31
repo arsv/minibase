@@ -10,8 +10,8 @@
 
 #include "vtmux.h"
 
-/* Non-terminal SIGCHLD handler. Close fds, deallocate VT,
-   and do whatever else cleanup necessary.
+/* Non-terminal SIGCHLD handler.
+   Close fds, deallocate VT, and do general cleanup.
 
    Most clients should die while active, but inactive ones may die
    as well. Background deaths should not cause VT switching.

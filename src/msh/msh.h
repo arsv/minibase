@@ -21,7 +21,7 @@ struct mbuf {
 
    heap                csep                           hend
    v                   v                              v
-   Ep Ep Ep Es Es ENVP Arg Arg Arg Arg ARGV ..........|
+   Ep Ep Ep Es Es ENVP Arg Arg Arg Arg ARGV .......... 
                   ^                         ^
                   esep                      hptr
 

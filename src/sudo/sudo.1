@@ -7,13 +7,13 @@
 \fBsudo\fR \fIcommand\fR [\fIarg arg ...\fR]
 '''
 .SH DESCRIPTION
-This tool performs a controlled sideways privilege escalation. Supplied
+This tool performs a controlled indirect privilege escalation. Supplied
 \fIcommand\fR is passed to \fBsuhub\fR(8), which then runs it with a set
 of \fBcapabilities\fR(7) unrelated to (and potentially higher than) those
 of the \fBsudo\fR process itself. See \fBsuhub\fR(8) on which \fIcommands\fR
 are allowed and how their privilege level is set.
 .P
-The spawned \fIcommand\fR gets current directory, standard file descriptors
+Spawned \fIcommand\fR gets current directory, standard file descriptors
 and real uid:gid of the \fBsudo\fR process, but not its environment or any
 other properties. \fBsudo\fR waits until the spawned process exits before
 exiting itself, and attempts to relay any SIGINT, SIGTERM and SIGHUB it gets

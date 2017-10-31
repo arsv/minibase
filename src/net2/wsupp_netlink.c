@@ -551,8 +551,9 @@ static void dispatch(struct nlgen* msg)
 			return p->call(msg);
 }
 
-/* Netlink has no per-device subscription. We will be getting notifications
-   for all available nl80211 devices, not just the one we watch. */
+/* Netlink has no notion of per-device subscription.
+   We will be getting notifications for all available nl80211 devices,
+   not just the one we watch. */
 
 static int match_ifi(struct nlgen* msg)
 {
