@@ -36,6 +36,11 @@ Configuration file.
 .SH NOTES
 \fBkeymon\fR never spawns two scripts at the same time, no matter how
 fast the events arrive. The commands in /etc/keymon must be short-running.
+.P
+Some x86 systems are incapable of reporting long Power button hold, and
+thus do not allow "hold Power" configuration. Use \fBinputs\fR(8) in \fB-r\fR
+mode to check button behavior. Affected systems will report release event
+immediately after the press event even if the button is still being held.
 '''
 .SH SEE ALSO
 \fBacpid\fR(8), \fBinputs\fR(1)
