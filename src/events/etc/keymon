@@ -1,0 +1,10 @@
+C-Esc: vtctl 0
+C-F1: vtctl 1
+C-F2: vtctl 2
+C-F3: vtctl 3
+C-F4: vtctl 4
+C-F5: vtctl 5
+
+hold C-F12: svctl -P
+
+Power: svctl -P
