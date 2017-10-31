@@ -57,7 +57,7 @@ static int intlen(int x)
 
 	if(x < 0) { x = -x; len++; };
 
-	for(; x > 10; len++) x /= 10;
+	for(; x >= 10; len++) x /= 10;
 
 	return len;
 }
