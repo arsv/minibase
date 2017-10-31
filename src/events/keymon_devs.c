@@ -88,15 +88,12 @@ static void check_dir_ent(char* dir, char* name)
 
 	int dirlen = strlen(dir);
 	int namelen = strlen(name);
-	char path[dirlen + namelen + 2];
 
-	char* p = path;
-	char* e = path + sizeof(path) - 1;
-
+	FMTBUF(p, e, path, dirlen + namelen + 2);
 	p = fmtstr(p, e, dir);
 	p = fmtstr(p, e, "/");
 	p = fmtstr(p, e, name);
-	*p++ = '\0';
+	FMTEND(p, e);
 
 	if((fd = sys_open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)) < 0)
 		return;
