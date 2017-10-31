@@ -23,7 +23,7 @@ Some tools are missing, and some still need work.
   * Several small linux-specific tools (systime, sync, dmesg etc).
 
   * Simple non-interactive command interpreter (msh)
-  * Early-stage boot utils (switchroot, kmod, mount).
+  * Early-stage boot utils (switchroot, modprobe, mount).
 
   * Non-encrypted block device locator (findblk)
   * Encrypted device locator and passphrase prompt tool (passblk)
@@ -34,6 +34,7 @@ Some tools are missing, and some still need work.
     split-stage implementation similar to daemontools or runit.
   
   * udevd stub.
+  * syslogd and related tools.
   * Unprivileged mount tooling (mountd, pmount).
   * Controlled privilege escalation tool (sudo).
 
@@ -70,24 +71,25 @@ How is it different from busybox?
 Busybox is a multi-call binary, minibase is a bunch of standalone
 statically linked binaries.
 
-Busybox provides mostly POSIX- or GNU-compatible tools. Minibase does not
-try to be compatible with either.
+Busybox provides mostly POSIX- or GNU-compatible tools.
+Minibase is not meant to be compatible with either.
 
-Busybox needs a proper libc toolchain to build, minibase does not.
-On the other hand, busybox can be built for any target given libc supports
-while minibase only supports four targets at this moment.
+Busybox needs a proper libc toolchain to build, minibase only needs
+freestanding compiler and linker. On the other hand, busybox can be
+built for any target given libc supports while minibase only supports
+four targets at this moment.
 
-The set of tools is quite different. Busybox provides more POSIX-style
+The set of tools is also quite different. Busybox provides more POSIX-style
 text manipulation tools (grep, patch, vi) while minibase is mostly about
 linux-specific system services (KMS VTs, Wi-Fi, disk encryption).
 
 
 How is it different from common/GNU tools?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-About the same way busybox is, plus minibase is not restricted
-by POSIX compatibility concerns. It's effectively a different OS,
-a Linux but not GNU/Linux, but one that still allows running parts
-of the GNU system atop.
+About the same way busybox is, and minibase is not restricted by POSIX
+compatibility concerns. It's effectively a different OS, a Linux but
+not GNU/Linux, but one that still allows running parts of the GNU system
+atop of it.
 
 Unlike the GNU system (and to some degree busybox) minibase is designed
 to not rely on suid bits or file capabilities. Anything that requires
