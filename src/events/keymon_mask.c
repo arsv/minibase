@@ -49,12 +49,27 @@ static void check_keyact(struct action* ka, char* bits, char* need, int size)
 {
 	if(!hascode(bits, size, ka->code))
 		return;
-	if(ka->mode & MODE_CTRL && !hascode(bits, size, KEY_LEFTCTRL))
+
+	if(!(ka->mode & (MODE_CTRL | MODE_ALT)))
+		goto set;
+	if(!hascode(bits, size, KEY_LEFTCTRL))
 		return;
-	if(ka->mode & MODE_ALT  && !hascode(bits, size, KEY_LEFTALT))
+	if(!hascode(bits, size, KEY_LEFTALT))
 		return;
 
+	setcode(need, size, KEY_LEFTCTRL);
+	setcode(need, size, KEY_LEFTALT);
+set:
 	setcode(need, size, ka->code);
+}
+
+static void check_all_keyacts(char* bits, char* need, int size)
+{
+	struct action* ka;
+
+	for(ka = actions; ka < actions + nactions; ka++)
+		if(ka->code > 0)
+			check_keyact(ka, bits, need, size);
 }
 
 static void check_swact(struct action* sa, char* bits, char* need, int size)
@@ -101,24 +116,6 @@ static void mask_msc_events(int fd)
 
 	if((ret = sys_ioctl(fd, EVIOCSMASK, &mask)) < 0)
 		warn("ioctl", "EVIOCGBIT EV_MSC", ret);
-}
-
-static void check_all_keyacts(char* bits, char* need, int size)
-{
-	struct action* ka;
-
-	for(ka = actions; ka < actions + nactions; ka++)
-		if(ka->code > 0)
-			check_keyact(ka, bits, need, size);
-
-	if(!nonzero(need, size))
-		return;
-
-	/* We must know the exact state of all modifiers to avoid
-	   triggering say C-F1 on C-A-F1. */
-
-	setcode(need, size, KEY_LEFTCTRL);
-	setcode(need, size, KEY_LEFTALT);
 }
 
 static void check_all_swacts(char* bits, char* need, int size)
