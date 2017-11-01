@@ -4,7 +4,7 @@
 \fBlogcat\fR \- show entries from the system log
 '''
 .SH SYNOPSIS
-.IP "\fBlogcat\fR [\fB-acbf\fR] [\fItag\fR]" 4
+.IP "\fBlogcat\fR [\fB-acbf\fR] [\fIprefix\fR]" 4
 '''
 .SH OPTIONS
 .IP "\fB-a\fR" 4
@@ -15,9 +15,6 @@ Disable colors.
 Use both current and old (rotated) logfile.
 .IP "\fB-f\fR" 4
 Follow the log.
-'''
-.SH NOTES
-Log entry is considered tagged if it starts with "\fItag\fB:\fR".
 '''
 .SH FILES
 .IP "/var/log/syslog" 4

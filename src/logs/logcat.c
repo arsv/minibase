@@ -123,8 +123,6 @@ static int tagged(CTX, char* ls, char* le)
 		return 0;
 	if(strncmp(ls + TAGSPACE, tag, tlen))
 		return 0;
-	if(ls[TAGSPACE+tlen] != ':')
-		return 0;
 
 	return 1;
 }
