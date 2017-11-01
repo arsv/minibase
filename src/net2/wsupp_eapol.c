@@ -526,17 +526,10 @@ void send_group_2(void)
 	upload_gtk();
 }
 
-/* Waiting 2/4 here means we got packet 1/4 but did not send 2/4.
-   If we get another packet in this state, it's a re-send of 1/4
-   and we prefer it to the 1/4 we got initially. This shouldn't
-   really happen, but re-sends are mandated by 802.11 and we're
-   not in control over the AP so who knows. */
-
 static void dispatch(struct eapolkey* ek)
 {
 	switch(eapolstate) {
 		case ES_WAITING_1_4: return recv_packet_1(ek);
-		case ES_WAITING_2_4: return recv_packet_1(ek);
 		case ES_WAITING_3_4: return recv_packet_3(ek);
 		case ES_NEGOTIATED: return recv_group_1(ek);
 		default: return ignore("unexpected packet");
