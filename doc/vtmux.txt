@@ -191,10 +191,6 @@ heavily on the in-kernel VT subsystem. The kernel informs us that it wants
 to switch, we disengage current client and report that to the kernel, the
 kernel switches and informs up, we engage another client.
 
-Both options imply gross abuse of ioctls originally designed for a very
-different switching model (X server controlling the VT directly). With the
-VT subsystem in place, neither is particularly cleaner than the other.
-
 
 Starting new sessions / what is greeter?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
