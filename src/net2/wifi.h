@@ -17,6 +17,8 @@ struct top {
 	char cbuf[128];
 
 	struct bufout bo;
+
+	int showbss;
 };
 
 #define CTX struct top* ctx
@@ -46,4 +48,4 @@ void connect_ifctl(CTX);
 int connect_wictl_(CTX);
 void try_start_wienc(CTX, char* name);
 
-void warn_sta(char* text, MSG);
+void warn_sta(CTX, char* text, MSG);

@@ -220,14 +220,16 @@ static void get_int(MSG, int attr, int* val)
 		*val = 0;
 }
 
-static char* fmt_station(char* p, char* e, MSG)
+static char* fmt_station(char* p, char* e, MSG, int showbss)
 {
 	int freq;
 
 	get_int(msg, ATTR_FREQ, &freq);
 
 	p = fmt_wifi_ssid(p, e, uc_get(msg, ATTR_SSID));
-	p = fmt_wifi_bssid(p, e, uc_get(msg, ATTR_BSSID));
+
+	if(showbss)
+		p = fmt_wifi_bssid(p, e, uc_get(msg, ATTR_BSSID));
 
 	if(freq) {
 		p = fmtstr(p, e, " (");
@@ -268,11 +270,18 @@ static void print_scanline(CTX, AT)
 	p = fmtint(p, e, (signal)/100);
 	p = fmtstr(p, e, " ");
 	p = fmtpad(p, e, 4, fmt_chan_or_freq(p, e, freq));
-	p = fmtstr(p, e, "  ");
-	p = fmtmac(p, e, bssid);
+
+	if(ctx->showbss) {
+		p = fmtstr(p, e, "  ");
+		p = fmtmac(p, e, bssid);
+	}
+
 	p = fmtstr(p, e, "  ");
 	p = fmt_ssid(p, e, ssid);
-	if(prio) p = fmtstr(p, e, " *");
+
+	if(prio)
+		p = fmtstr(p, e, " *");
+
 	*p++ = '\n';
 
 	output(ctx, buf, p - buf);
@@ -318,7 +327,7 @@ static void print_status(CTX, MSG)
 	get_int(msg, ATTR_STATE, &state);
 	p = fmt_kv(p, e, state, wistates);
 	p = fmtstr(p, e, " ");
-	p = fmt_station(p, e, msg);
+	p = fmt_station(p, e, msg, ctx->showbss);
 
 	FMTENL(p, e);
 
@@ -343,10 +352,10 @@ void dump_status(CTX, MSG)
 	fini_output(ctx);
 }
 
-void warn_sta(char* text, MSG)
+void warn_sta(CTX, char* text, MSG)
 {
 	FMTBUF(p, e, sta, 50);
-	p = fmt_station(p, e, msg);
+	p = fmt_station(p, e, msg, ctx->showbss);
 	FMTEND(p, e);
 
 	warn(text, sta, 0);

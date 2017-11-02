@@ -14,7 +14,7 @@ ERRTAG("wifi");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT);
 
-#define OPTS "asdpxyz"
+#define OPTS "asdpxyzb"
 #define OPT_a (1<<0)
 #define OPT_s (1<<1)
 #define OPT_d (1<<2)
@@ -22,21 +22,28 @@ ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 #define OPT_x (1<<4)
 #define OPT_y (1<<5)
 #define OPT_z (1<<6)
+#define OPT_b (1<<7)
 
 /* Command line args stuff */
 
 static void init_args(CTX, int argc, char** argv)
 {
 	int i = 1;
+	int opts = 0;
 
 	if(i < argc && argv[i][0] == '-')
-		ctx->opts = argbits(OPTS, argv[i++] + 1);
-	else
-		ctx->opts = 0;
+		opts = argbits(OPTS, argv[i++] + 1);
 
 	ctx->argi = i;
 	ctx->argc = argc;
 	ctx->argv = argv;
+
+	if(opts & OPT_b) {
+		ctx->showbss = 1;
+		opts &= ~OPT_b;
+	}
+
+	ctx->opts = opts;
 }
 
 static void no_other_options(CTX)
@@ -199,10 +206,10 @@ static void wait_for_connect(CTX)
 		case REP_WI_NET_DOWN:
 			fail(NULL, NULL, -ENETDOWN);
 		case REP_WI_CONNECTED:
-			warn_sta("connected to", msg);
+			warn_sta(ctx, "connected to", msg);
 			return;
 		case REP_WI_DISCONNECT:
-			warn_sta("cannot connect to", msg);
+			warn_sta(ctx, "cannot connect to", msg);
 			failures++;
 			break;
 		case REP_WI_NO_CONNECT:
