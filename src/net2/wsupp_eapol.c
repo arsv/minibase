@@ -326,18 +326,18 @@ static int send_packet(char* buf, int len)
 	return -1;
 }
 
-static int checkbits(struct eapolkey* ek, int bits)
+static int ptype(struct eapolkey* ek, int bits)
 {
 	int keyinfo = ntohs(ek->keyinfo);
 	int keytype = keyinfo & KI_TYPEMASK;
 	int mask = KI_PAIRWISE | KI_ACK | KI_SECURE | KI_MIC | KI_ENCRYPTED;
 
 	if(keytype != KI_SHA)
-		return -1;
+		return 0;
 	if((keyinfo & mask) != bits)
-		return -1;
+		return 0;
 
-	return 0;
+	return 1;
 }
 
 static void recv_packet_1(struct eapolkey* ek)
@@ -346,7 +346,7 @@ static void recv_packet_1(struct eapolkey* ek)
 
 	if(ek->type != EAPOL_KEY_RSN)
 		return abort("packet 1/4 wrong type");
-	if(checkbits(ek, KI_PAIRWISE | KI_ACK))
+	if(!ptype(ek, KI_PAIRWISE | KI_ACK))
 		return ignore("packet 1/4 wrong bits");
 
 	version = ek->version;
@@ -406,10 +406,11 @@ static void recv_packet_3(struct eapolkey* ek)
 {
 	char* pacbuf = (char*)ek;
 	int paclen = 4 + ntohs(ek->paclen);
-	int bits = KI_PAIRWISE | KI_ACK | KI_MIC | KI_ENCRYPTED | KI_SECURE;
 
-	if(checkbits(ek, bits))
-		return ignore("packet 3/4 wrong bits");
+	if(ptype(ek, KI_PAIRWISE | KI_ACK))
+		return abort("packet 1/4 resend detected");
+	if(!ptype(ek, KI_PAIRWISE | KI_ACK | KI_MIC | KI_ENCRYPTED | KI_SECURE))
+		return abort("packet 3/4 wrong bits");
 
 	if(memcmp(anonce, ek->nonce, sizeof(anonce)))
 		return abort("packet 3/4 nonce changed");
@@ -482,7 +483,7 @@ static void recv_group_1(struct eapolkey* ek)
 
 	if(ek->type != EAPOL_KEY_RSN)
 		return ignore("re-keying with a different key type");
-	if(checkbits(ek, KI_SECURE | KI_ENCRYPTED | KI_ACK | KI_MIC))
+	if(!ptype(ek, KI_SECURE | KI_ENCRYPTED | KI_ACK | KI_MIC))
 		return ignore("not a rekey request packet");
 	if(memcmp(replay, ek->replay, sizeof(replay)) >= 0)
 		return ignore("packet 1/2 replay");
