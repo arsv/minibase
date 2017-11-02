@@ -2,7 +2,7 @@
 
 #define SSIDLEN 32
 #define NCONNS 10
-#define NSCANS 20
+#define NSCANS 30
 
 #define MACLEN 6
 

@@ -367,6 +367,8 @@ void check_new_scan_results(void)
 	struct scan* sc;
 
 	for(sc = scans; sc < scans + nscans; sc++) {
+		if(!sc->freq)
+			continue;
 		if(sc->flags & SF_SEEN)
 			continue;
 

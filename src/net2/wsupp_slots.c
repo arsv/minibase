@@ -70,8 +70,25 @@ struct scan* grab_scan_slot(byte bssid[6])
 
 	if((sc = find_scan_slot(bssid)))
 		return sc;
+	if((sc = grab_slot(scans, &nscans, NSCANS, sizeof(*sc))))
+		return sc;
 
-	return grab_slot(scans, &nscans, NSCANS, sizeof(*sc));
+	/* With no more empty slots left, try to sacrifice some
+	   useless ones, namely low-signal ones we don't have PSKs for. */
+
+	for(sc = scans; sc < scans + nscans; sc++) {
+		if(sc->signal > -8000) /* -80dBm */
+			continue;
+		if(!(sc->flags & SF_STALE))
+			continue;
+		if(sc->flags & SF_PASS)
+			continue;
+
+		memzero(sc, sizeof(*sc));
+		return sc;
+	}
+
+	return NULL;
 }
 
 void free_scan_slot(struct scan* sc)
