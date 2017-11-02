@@ -405,6 +405,7 @@ void handle_disconnect(void)
 	} else {
 		clear_ap_bssid();
 		clear_ap_ssid();
+		report_no_connect();
 	}
 }
 
