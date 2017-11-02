@@ -34,6 +34,7 @@ int rawsock;
 int eapolstate;
 int eapolsends;
 
+static int version;
 byte amac[6]; /* A = authenticator (AP) */
 byte smac[6]; /* S = supplicant (client) */
 
@@ -138,6 +139,8 @@ static void pmk_to_ptk()
 {
 	uint8_t *mac1, *mac2;
 	uint8_t *nonce1, *nonce2;
+
+	memcpy(amac, ap.bssid, 6);
 
 	if(memcmp(smac, amac, 6) < 0) {
 		mac1 = smac;
@@ -268,6 +271,8 @@ void reset_eapol_state(void)
 	memzero(snonce, sizeof(snonce));
 	memzero(anonce, sizeof(anonce));
 	memzero(amac, sizeof(amac));
+
+	version = 0;
 }
 
 /* The tricky part here. EAPOL packet 1/4 may arrive before the ASSOCIATE msg
@@ -344,6 +349,7 @@ static void recv_packet_1(struct eapolkey* ek)
 	if(checkbits(ek, KI_PAIRWISE | KI_ACK))
 		return ignore("packet 1/4 wrong bits");
 
+	version = ek->version;
 	memcpy(anonce, ek->nonce, sizeof(anonce));
 	memcpy(replay, ek->replay, sizeof(replay));
 
@@ -368,11 +374,11 @@ static void send_packet_2(void)
 {
 	struct eapolkey* ek = (struct eapolkey*) packet;
 
-	ek->version = 1;
+	ek->version = version;
 	ek->pactype = EAPOL_KEY;
 	ek->type = EAPOL_KEY_RSN;
 	ek->keyinfo = htons(KI_SHA | KI_PAIRWISE | KI_MIC);
-	ek->keylen = 16;
+	ek->keylen = htons(16);
 	memcpy(ek->replay, replay, sizeof(replay));
 	memcpy(ek->nonce, snonce, sizeof(snonce));
 	memzero(ek->iv, sizeof(ek->iv));
@@ -430,7 +436,7 @@ static void send_packet_4(void)
 {
 	struct eapolkey* ek = (struct eapolkey*) packet;
 
-	ek->version = 1;
+	ek->version = version;
 	ek->pactype = 3;
 	ek->type = 2;
 	ek->keyinfo = htons(KI_SHA | KI_PAIRWISE | KI_MIC | KI_SECURE);
@@ -501,7 +507,7 @@ void send_group_2(void)
 {
 	struct eapolkey* ek = (struct eapolkey*) packet;
 
-	ek->version = 1;
+	ek->version = version;
 	ek->pactype = 3;
 	ek->type = 2;
 	ek->keyinfo = htons(KI_MIC | KI_SECURE);
