@@ -25,18 +25,6 @@ void start_dhcp(LS)
 	}
 }
 
-static void start_flush(LS)
-{
-	char* argv[] = { "ipcfg", "-f", ls->name, NULL };
-
-	if(spawn(ls, CH_DHCP, argv) < 0) {
-		ls->flags |= LF_FLUSHREQ;
-	} else {
-		ls->flags &= ~(LF_FLUSHREQ | LF_ADDRSET);
-		ls->flags |= LF_FLUSHING;
-	}
-}
-
 static void stop_dhcp(LS)
 {
 	kill_tagged(ls, CH_DHCP);
@@ -44,22 +32,24 @@ static void stop_dhcp(LS)
 
 static void flush_link(LS)
 {
+	if(ls->flags & LF_FLUSHING)
+		return;
+
 	ls->lease = 0;
-	start_flush(ls);
+	ls->flags &= ~LF_FLUSHREQ;
+	ls->flags |= LF_FLUSHING;
+	delete_addr(ls);
 }
 
 static void dhcp_exit(LS, int status)
 {
-	if(ls->flags & LF_FLUSHING)
-		ls->flags &= ~LF_FLUSHING;
-	else if(status)
+	if(status)
 		ls->flags |= LF_DHCPFAIL;
 
-	if(!(ls->flags & LF_FLUSHING))
-		report_link_dhcp(ls, status);
+	report_link_dhcp(ls, status);
 
 	if(ls->flags & LF_FLUSHREQ)
-		return start_flush(ls);
+		return flush_link(ls);
 	if(ls->flags & LF_DHCPREQ)
 		return start_dhcp(ls);
 }
@@ -183,6 +173,16 @@ void link_exit(LS, int tag, int status)
 		wsupp_exit(ls, status);
 
 	maybe_mark_stopped(ls);
+}
+
+void link_flushed(LS)
+{
+	ls->flags &= ~LF_FLUSHING;
+
+	maybe_mark_stopped(ls);
+
+	if(ls->flags & LF_DHCPREQ)
+		start_dhcp(ls);
 }
 
 /* Check for and renew DHCP leases when appropriate.

@@ -26,6 +26,7 @@
 
 struct link {
 	int ifi;
+	int seq;
 	int flags;
 	uint lease;
 	short mode;
@@ -85,6 +86,7 @@ void link_down(LS);
 void link_gone(LS);
 void link_exit(LS, int tag, int status);
 void link_lease(LS, uint time);
+void link_flushed(LS);
 
 void waitpids(void);
 
@@ -94,6 +96,7 @@ void save_flagged_links();
 
 void enable_iface(LS);
 void disable_iface(LS);
+void delete_addr(LS);
 
 int spawn(LS, int tag, char** argv);
 int any_procs_left(LS);

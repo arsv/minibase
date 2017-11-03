@@ -184,8 +184,50 @@ static void msg_new_addr(struct ifaddrmsg* msg)
 	link_lease(ls, ci->prefered);
 }
 
+void delete_addr(LS)
+{
+	struct ifaddrmsg* req;
+
+	nl_header(&rtnl, req, RTM_DELADDR, NLM_F_ACK,
+		.family = AF_INET,
+		.prefixlen = 0,
+		.flags = 0,
+		.scope = 0,
+		.index = ls->ifi);
+
+	rtnl_send_check();
+
+	ls->seq = rtnl.seq;
+}
+
+static void seq_error(LS, int errno)
+{
+	if(ls->flags & LF_FLUSHING) {
+		if(!errno)
+			delete_addr(ls);
+		else
+			link_flushed(ls);
+	} else if(errno) {
+		warn("rtnl", ls->name, errno);
+	}
+}
+
 static void msg_rtnl_err(struct nlerr* msg)
 {
+	struct link* ls;
+
+	for(ls = links; ls < links + nlinks; ls++) {
+		if(!ls->ifi)
+			continue;
+		if(ls->seq != msg->seq)
+			continue;
+
+		ls->seq = 0;
+		seq_error(ls, msg->errno);
+
+		return;
+	}
+
 	warn("rtnl", "error", msg->errno);
 }
 
