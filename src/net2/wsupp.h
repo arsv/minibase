@@ -6,6 +6,7 @@
 
 #define MACLEN 6
 
+/* authstate */
 #define AS_IDLE            0
 #define AS_AUTHENTICATING  1
 #define AS_ASSOCIATING     2
@@ -15,16 +16,19 @@
 #define AS_NETDOWN         7
 #define AS_EXTERNAL        8
 
+/* eapolstate */
 #define ES_IDLE            0
 #define ES_WAITING_1_4     1
 #define ES_WAITING_2_4     2
 #define ES_WAITING_3_4     3
 #define ES_NEGOTIATED      4
 
+/* scanstate */
 #define SS_IDLE            0
 #define SS_SCANNING        1
 #define SS_SCANDUMP        2
 
+/* opermode */
 #define OP_EXIT            0
 #define OP_EXITREQ         1
 #define OP_NEUTRAL         2
@@ -65,10 +69,11 @@ struct conn {
 
 extern char* ifname;
 extern int ifindex;
-extern int ctrlfd;
-extern int rfkill;
-extern int rawsock;
-extern int netlink;
+
+extern int ctrlfd;    /* control socket */
+extern int rfkill;    /* fd, /dev/rfkill */
+extern int rawsock;   /* fd, EAPOL socket */
+extern int netlink;   /* fd, GENL */
 
 extern struct scan scans[];
 extern struct conn conns[];
@@ -117,7 +122,7 @@ struct chunk {
 extern byte PSK[32];
 extern byte amac[6]; /* == ap.bssid */
 extern byte smac[6];
-
+/* see definitions for these */
 extern byte KCK[16];
 extern byte KEK[16];
 extern byte PTK[16];
