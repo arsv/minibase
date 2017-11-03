@@ -20,46 +20,46 @@ struct tm;
 
 char* fmtraw(char* p, char* e, void* data, int len);
 
-char* fmterr(char* buf, char* end, int err);
+char* fmterr(char* p, char* e, int err);
 
-char* fmtchar(char* dst, char* end, char c);
-char* fmtbyte(char* dst, char* end, char c);
-char* fmtbytes(char* dst, char* end, void* data, uint len);
+char* fmtchar(char* p, char* e, char c);
+char* fmtbyte(char* p, char* e, char c);
+char* fmtbytes(char* p, char* e, void* data, uint len);
 
-char* fmti32(char* buf, char* end,  int32_t num);
-char* fmtu32(char* buf, char* end, uint32_t num);
+char* fmti32(char* p, char* e,  int32_t num);
+char* fmtu32(char* p, char* e, uint32_t num);
 
-char* fmti64(char* buf, char* end,  int64_t num);
-char* fmtu64(char* buf, char* end, uint64_t num);
+char* fmti64(char* p, char* e,  int64_t num);
+char* fmtu64(char* p, char* e, uint64_t num);
 
-char* fmtint(char* buf, char* end, int num);
-char* fmtuint(char* buf, char* end, uint num);
-char* fmtlong(char* buf, char* end, long num);
-char* fmtulong(char* buf, char* end, ulong num);
-char* fmtxlong(char* buf, char* end, long num);
+char* fmtint(char* p, char* e, int num);
+char* fmtuint(char* p, char* e, uint num);
+char* fmtlong(char* p, char* e, long num);
+char* fmtulong(char* p, char* e, ulong num);
+char* fmtxlong(char* p, char* e, long num);
 char* fmthex(char* p, char* e, uint n);
 char* fmtpad(char* p, char* e, int width, char* q);
 char* fmtpad0(char* p, char* e, int width, char* q);
 char* fmtpadr(char* p, char* e, int width, char* q);
 
 char* fmtsize(char* p, char* e, uint64_t n);
-char* fmtstr(char* dst, char* end, const char* src);
-char* fmtstrn(char* dst, char* end, const char* src, int len);
-char* fmtstrl(char* dst, char* end, const char* src, int len);
+char* fmtstr(char* p, char* e, const char* src);
+char* fmtstrn(char* p, char* e, const char* src, int len);
+char* fmtstrl(char* p, char* e, const char* src, int len);
 
-char* fmttm(char* buf, char* end, const struct tm* tm);
-char* fmtulp(char* buf, char* end, ulong num, int pad);
+char* fmttm(char* p, char* e, const struct tm* tm);
+char* fmtulp(char* p, char* e, ulong num, int pad);
 char* fmtip(char* p, char* e, uint8_t ip[4]);
 char* fmtmac(char* p, char* e, uint8_t mac[6]);
 
-char* parseint(char* buf, int* np);
-char* parselong(char* buf, long* np);
-char* parseulong(char* buf, ulong* np);
-char* parseu64(char* buf, uint64_t* np);
+char* parseint(char* p, int* np);
+char* parselong(char* p, long* np);
+char* parseulong(char* p, ulong* np);
+char* parseu64(char* p, uint64_t* np);
 char* parsebyte(char* p, byte* v);
-char* parsebytes(char* p, byte* dst, uint len);
-char* parseoct(char* buf, int* np);
-char* parsehex(char* buf, int* np);
+char* parsebytes(char* p, byte* buf, uint len);
+char* parseoct(char* p, int* np);
+char* parsehex(char* p, int* np);
 
 char* parsemac(char* p, byte* mac);
 char* parseip(char* p, byte* ip);

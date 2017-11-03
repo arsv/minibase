@@ -1,8 +1,8 @@
 #include <format.h>
 
-char* fmtchar(char* dst, char* end, char c)
+char* fmtchar(char* p, char* e, char c)
 {
-	if(dst < end)
-		*dst++ = c;
-	return dst;
+	if(p < e)
+		*p++ = c;
+	return p;
 }
