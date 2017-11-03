@@ -13,10 +13,8 @@ static struct {
 	int left;
 	int tlen;
 	int wlen;
-
+	char* buf;
 	int ir, ic, iw;
-
-	char buf[120];
 } inp;
 
 static void repeat(char c, int n)
@@ -39,21 +37,19 @@ static int max(int a, int b)
 
 static int min(int a, int b)
 {
-	return a > b ? b : a;
+	return a < b ? a : b;
 }
 
-static void initialize(char* title, ulong len)
+static void initialize(char* title, char* buf, ulong len)
 {
-	if(len > sizeof(inp.buf))
-		len = sizeof(inp.buf);
-
 	int tlen = strlen(title);
-	int wlen = min(cols - 30, max(tlen, len));
+	int wlen = max(tlen, min(50, len));
 
 	memzero(&inp, sizeof(inp));
 
 	inp.title = title;
-	inp.len = len;
+	inp.len = len - 1;
+	inp.buf = buf;
 	inp.tlen = tlen;
 	inp.wlen = wlen;
 }
@@ -90,57 +86,9 @@ static void prep_box(void)
 	inp.iw = wlen;
 }
 
-static int prev_utf_len(char* b, char* p)
-{
-	char* q = p;
-
-	for(q--; q > b; q--)
-		if((*q & 0xC0) != 0xC0)
-			break;
-
-	return p - q;
-}
-
-static int curr_utf_len(char* p)
-{
-	int c = *p;
-
-	if(!(c & 0x80))
-		return 1;
-	if((c & 0xE0) == 0xC0)
-		return 2;
-	if((c & 0xF0) == 0xE0)
-		return 3;
-	if((c & 0xF8) == 0xF0)
-		return 4;
-
-	return 1;
-}
-
-static int glyph_width(char* p)
-{
-	(void)p;
-	return 1;
-}
-
-static int text_width(char* p, char* e)
-{
-	int w = 0;
-
-	while(p < e) {
-		w += glyph_width(p);
-		p += curr_utf_len(p);
-	}
-
-	return w;
-}
-
 static int visible_text_width(void)
 {
-	char* s = inp.buf + inp.left;
-	char* e = inp.buf + inp.ptr;
-
-	return text_width(s, e);
+	return inp.ptr - inp.left;
 }
 
 static void redraw_area(void)
@@ -151,8 +99,8 @@ static void redraw_area(void)
 	char* e = inp.buf + inp.ptr;
 
 	while(p < e) {
-		int u = curr_utf_len(p);
-		int w = glyph_width(p);
+		int u = 1;
+		int w = 1;
 
 		if(tw + w > inp.wlen)
 			break;
@@ -161,7 +109,7 @@ static void redraw_area(void)
 		p += u;
 	}
 
-	int vw = text_width(s, p);
+	int vw = inp.ptr - inp.left;
 
 	moveto(inp.ir, inp.ic + vw);
 	repeat('_', inp.wlen - vw);
@@ -171,31 +119,10 @@ static void redraw_area(void)
 
 }
 
-static void scroll_right(void)
+static void scroll_right(int count)
 {
-	char* b = inp.buf;
-	char* p = inp.buf + inp.left;
-
-	if(p <= b)
-		return;
-
-	int bw = 0;
-	int tw = visible_text_width();
-
-	while(p > b) {
-		int u = prev_utf_len(b, p);
-		p -= u;
-		int w = glyph_width(p);
-
-		if(tw + w > inp.wlen)
-			break;
-
-		bw += u;
-		tw += w;
-	}
-
-	if(bw < inp.left)
-		inp.left -= bw;
+	if(count > inp.left)
+		inp.left -= count;
 	else
 		inp.left = 0;
 }
@@ -204,7 +131,8 @@ static void scroll_left(void)
 {
 	if(inp.left >= inp.ptr)
 		return;
-	inp.left += curr_utf_len(inp.buf + inp.ptr);
+
+	inp.left += 1;
 }
 
 static int delete(void)
@@ -215,15 +143,15 @@ static int delete(void)
 	if(p <= b)
 		return 0;
 
-	int cw = prev_utf_len(b, p);
+	int cw = 1;
 
 	if(cw <= inp.ptr)
 		inp.ptr -= cw;
 	else
 		inp.ptr = 0;
 
-	if(inp.left && visible_text_width() < 3)
-		scroll_right();
+	if(inp.left && visible_text_width() < 5)
+		scroll_right(10);
 
 	redraw_area();
 
@@ -282,23 +210,16 @@ int input(char* title, char* buf, int len)
 	char rbuf[10];
 	int ret;
 
-	initialize(title, len);
+	initialize(title, buf, len);
 	prep_box();
 
 	while((ret = sys_read(STDIN, rbuf, sizeof(rbuf))) > 0)
 		if(handle(rbuf, ret))
 			break;
 
-	uint ptr = inp.ptr;
+	buf[inp.ptr] = '\0';
 
-	if(ptr > sizeof(inp.buf))
-		ptr = sizeof(inp.buf);
-
-	memcpy(buf, inp.buf, ptr);
-	buf[ptr] = '\0';
-	memzero(&inp, sizeof(inp));
-
-	return ptr;
+	return inp.ptr;
 }
 
 void message(char* title, int ms)
