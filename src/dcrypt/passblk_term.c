@@ -121,7 +121,7 @@ void term_fini(void)
 	if(!initialized)
 		return;
 
-	tcs(CSI, 1, rows, 'r');
+	tcs(CSI, 1, rows, 'r'); /* scroll area */
 
 	park_cursor();
 	show_cursor();

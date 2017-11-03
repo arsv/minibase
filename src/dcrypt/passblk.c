@@ -9,7 +9,7 @@
 #include "passblk.h"
 
 ERRTAG("passblk");
-ERRLIST(NEINVAL NENOENT NENOTTY NEFAULT NENODEV);
+ERRLIST(NEINVAL NENOENT NENOTTY NEFAULT NENODEV NENOMEM);
 
 void quit(const char* msg, char* arg, int err)
 {
@@ -56,8 +56,10 @@ int main(int argc, char** argv)
 
 	load_config();
 
-	if(any_encrypted_parts())
+	if(any_encrypted_parts()) {
 		open_dm_control();
+		prep_memory();
+	}
 
 	open_udev();
 	term_init();

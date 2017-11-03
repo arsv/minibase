@@ -15,6 +15,7 @@ void link_plain_partitions(void);
 void term_init(void);
 void term_fini(void);
 void open_dm_control(void);
+void prep_memory(void);
 
 int try_passphrase(char* phrase, int len);
 int check_keyindex(int ki);

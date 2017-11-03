@@ -40,14 +40,16 @@ static int scrypt(void* D, int dlen, void* P, int plen, void* S, int slen)
 	int p = SCRYPT_P;
 
 	struct scrypt sc;
-	void* brk = sys_brk(0);
-	long mem = scrypt_init(&sc, n, r, p);
-	void* end = sys_brk(brk + mem);
+	long size = scrypt_init(&sc, n, r, p);
 
-	if(brk_error(brk, end))
-		fail("brk", NULL, -ENOMEM);
+	int prot = PROT_READ | PROT_WRITE;
+	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+	void* buf = sys_mmap(NULL, size, prot, flags, -1, 0);
 
-	scrypt_temp(&sc, brk, end - brk);
+	if(mmap_error(buf))
+		fail("mmap", NULL, (long)buf);
+
+	scrypt_temp(&sc, buf, size);
 	scrypt_data(&sc, P, plen, S, slen);
 	scrypt_hash(&sc, D, dlen);
 

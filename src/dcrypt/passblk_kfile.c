@@ -14,6 +14,7 @@ char keybuf[1024];
 char kplain[1024];
 uint8_t kek[16];
 
+static struct scrypt sc;
 static const char testpad[] = { 0xA6,0xA6,0xA6,0xA6,0xA6,0xA6,0xA6,0xA6 };
 
 void load_keyfile(void)
@@ -44,25 +45,27 @@ void load_keyfile(void)
 	kflen = st.size;
 }
 
-static int scrypt(void* D, int dlen, void* P, int plen, void* S, int slen)
+void prep_memory(void)
 {
 	int n = SCRYPT_N;
 	int r = SCRYPT_P;
 	int p = SCRYPT_P;
 
-	struct scrypt sc;
-	void* brk = sys_brk(0);
-	long mem = scrypt_init(&sc, n, r, p);
-	void* end = sys_brk(brk + mem);
+	long size = scrypt_init(&sc, n, r, p);
+	int prot = PROT_READ | PROT_WRITE;
+	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+	void* buf = sys_mmap(NULL, size, prot, flags, -1, 0);
 
-	if(brk_error(brk, end))
-		fail("brk", NULL, -ENOMEM);
+	if(mmap_error(buf))
+		quit("mmap", NULL, (long)buf);
 
-	scrypt_temp(&sc, brk, end - brk);
+	scrypt_temp(&sc, buf, size);
+}
+
+static void scrypt(void* D, int dlen, void* P, int plen, void* S, int slen)
+{
 	scrypt_data(&sc, P, plen, S, slen);
 	scrypt_hash(&sc, D, dlen);
-
-	return 0;
 }
 
 int try_passphrase(char* phrase, int phrlen)
