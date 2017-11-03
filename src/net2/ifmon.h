@@ -26,7 +26,7 @@
 
 struct link {
 	int ifi;
-	int seq;
+	uint seq;
 	int flags;
 	uint lease;
 	short mode;

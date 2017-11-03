@@ -185,7 +185,7 @@ static const char kde_type_gtk[4] = { 0x00, 0x0F, 0xAC, 0x01 };
    Only applies to TKIP. In CCMP mode, the key is 16 bytes and
    there's no need to swap anything.  */
 
-static int store_gtk(int idx, char* buf, int len)
+static int store_gtk(int idx, byte* buf, int len)
 {
 	int explen = ap.tkipgroup ? 32 : 16;
 
@@ -231,7 +231,7 @@ static int fetch_gtk(char* buf, int len)
 		if(!(idx = kd->data[0] & 0x3)) /* key idx is non-zero for GTK */
 			return -1;
 
-		char* key = kd->data + 2;
+		byte* key = kd->data + 2;
 		int len = datalen - 2;
 
 		return store_gtk(idx, key, len);
