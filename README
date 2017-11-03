@@ -38,6 +38,10 @@ Some tools are missing, and some still need work.
   * Unprivileged mount tooling (mountd, pmount).
   * Controlled privilege escalation tool (sudo).
 
+  * VT/DRM/input multiplexer (vtmux) aka that part of systemd-logind
+    everyone keeps asking about [weston only atm].
+  * Non-graphical greeter stub.
+
   * Networking interface manager (ifmon).
   * DHCP client (dhcp).
   * Wi-Fi (WPA2) supplicant and connection manager (wsupp).
@@ -45,10 +49,6 @@ Some tools are missing, and some still need work.
   - No sntpd yet.
 
   - No package manager / download tool yet.
-
-  * VT/DRM/input multiplexer (vtmux) aka that part of systemd-logind
-    everyone keeps asking about [weston only atm].
-  * Non-graphical greeter stub.
 
   - No interactive shell yet.
 
