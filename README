@@ -56,11 +56,42 @@ With everything in place, the system should be able to boot, on minibase
 alone, up to the point where it's ready to download, install and start GUI.
 
 
+How to build and try the tools
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+To see how a proper build looks like, run
+
+    ./configure
+    make
+    make install     # default DESTDIR is ./out
+
+See https://github.com/arsv/miniroot for a bootable buildroot system.
+
+To try the tools without booting anything, configure and build
+the project in devel mode:
+
+    make clean
+    ./configure devel
+    make
+
+Most tools can then be run from their source directories.
+Tools that need configuration often have devel-mode configuration right
+in their respective directories. Modifying the code, rebuilding and trying
+again should work as well.
+
+Some (like ifmon) need root privileges, but should work just fine under su
+on conventional systems from their source directories. The usual warnings
+about running stuff as root apply.
+
+The only big exception is vtmux. It cannot be test-run on a system that is
+supposed to remain usable during the process. A standalone box with some
+sort of remote (SSH) connection is the bare minimum.
+
+
 What's the intended hardware for this?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 minibase is being written primarily with a personal laptop in mind.
 
-This choice only affects certain tools (super, wimon, vtmux) which either
+This choice only affects certain tools (super, ifmon, vtmux) which either
 allow or expect some user interaction. For unattended or headless systems,
 it would be better to replace them with simpler equivalents, which may get
 written at some point but are not a priority right now.
@@ -75,13 +106,13 @@ Busybox provides mostly POSIX- or GNU-compatible tools.
 Minibase is not meant to be compatible with either.
 
 Busybox needs a proper libc toolchain to build, minibase only needs
-freestanding compiler and linker. On the other hand, busybox can be
-built for any target given libc supports while minibase only supports
+a freestanding compiler and a linker. On the other hand, busybox can
+be built for any target given libc supports while minibase only supports
 four targets at this moment.
 
 The set of tools is also quite different. Busybox provides more POSIX-style
 text manipulation tools (grep, patch, vi) while minibase is mostly about
-linux-specific system services (KMS VTs, Wi-Fi, disk encryption).
+linux-specific system services (KMS VTs, network, disk encryption).
 
 
 How is it different from common/GNU tools?
@@ -98,8 +129,8 @@ privilege escalation in Linux is done via IPC to privileged services.
 
 How is it different from systemd?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Smaller, simpler and less inter-dependent tools.
-Less invasive in respect to the system atop. Easier to build.
+Smaller, simpler and easier to build. Much less dependencies.
+Hopefully less invasive in respect to the system atop.
 No D-bus, or any bus for that matter, only p2p IPC via unix sockets.
 
 Different approach to system security. Minibase is meant for personal
