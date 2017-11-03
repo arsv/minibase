@@ -1,5 +1,6 @@
 system = super reboot
 initrd = switchroot reboot
+service = badsrv
 command = svctl
 other = trap tick
 
