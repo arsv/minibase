@@ -185,21 +185,29 @@ static const char kde_type_gtk[4] = { 0x00, 0x0F, 0xAC, 0x01 };
    Only applies to TKIP. In CCMP mode, the key is 16 bytes and
    there's no need to swap anything.  */
 
-static void store_gtk(uint8_t* buf)
+static int store_gtk(int idx, char* buf, int len)
 {
+	int explen = ap.tkipgroup ? 32 : 16;
+
+	if(len != explen)
+		return -1;
+
+	gtkindex = idx;
+
 	memcpy(GTK, buf, 16);
 
-	if(!ap.tkipgroup) return;
+	if(ap.tkipgroup) {
+		memcpy(GTK + 16, buf + 24, 8);
+		memcpy(GTK + 24, buf + 16, 8);
+	}
 
-	memcpy(GTK + 16, buf + 24, 8);
-	memcpy(GTK + 24, buf + 16, 8);
+	return 0;
 }
 
 static int fetch_gtk(char* buf, int len)
 {
 	struct kde* kd;
 	int kdlen, idx;
-	int keylen = ap.tkipgroup ? 32 : 16;
 
 	char* ptr = buf;
 	char* end = buf + len;
@@ -212,19 +220,21 @@ static int fetch_gtk(char* buf, int len)
 		if(ptr > end)
 			break;
 
+		int datalen = kd->len + 2 - sizeof(*kd);
+
 		if(kd->magic != 0xDD)
-			continue;
-		if(kd->len != 6 + keylen) /* kd->type[4], flags[1], _[1], GTK[] */
 			continue;
 		if(memcmp(kd->type, kde_type_gtk, 4))
 			continue;
-		if(!(idx = kd->data[0] & 0x3))
+		if(datalen < 2 + 16) /* flags[1] + pad[1] + min key length */
+			continue;
+		if(!(idx = kd->data[0] & 0x3)) /* key idx is non-zero for GTK */
 			return -1;
 
-		gtkindex = idx;
-		store_gtk(kd->data + 2);
+		char* key = kd->data + 2;
+		int len = datalen - 2;
 
-		return 0;
+		return store_gtk(idx, key, len);
 	}
 
 	return -1;
