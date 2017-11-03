@@ -52,6 +52,11 @@ static void tcs(char* csi, int n, int m, char c)
 	output(buf, p - buf);
 }
 
+void erase_line(void)
+{
+	tcs(CSI, 0, 0, 'K');
+}
+
 void park_cursor(void)
 {
 	moveto(rows, 1);
@@ -81,6 +86,7 @@ void term_init(void)
 	if((ret = sys_ioctl(0, TCSETS, &ts)) < 0)
 		fail("ioctl", "TCSETS", ret);
 
+	tcs(CSI, 2, 0, 'J'); /* erase whole display */
 	tcs(CSI, rows/2+5, rows, 'r');
 	park_cursor();
 

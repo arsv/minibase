@@ -9,6 +9,7 @@ void quit(const char* msg, char* arg, int err);
 void park_cursor(void);
 void hide_cursor(void);
 void show_cursor(void);
+void erase_line(void);
 
 void clearbox(void);
 void drawbox(int r, int c, int w, int h);

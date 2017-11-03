@@ -15,6 +15,7 @@ static struct {
 	int wlen;
 	char* buf;
 	int ir, ic, iw;
+	int show;
 } inp;
 
 static void repeat(char c, int n)
@@ -86,6 +87,22 @@ static void prep_box(void)
 	inp.iw = wlen;
 }
 
+static void show_tip(void)
+{
+	char* msg = "[Tab] toggle visibility";
+	int len = strlen(msg);
+
+	moveto(inp.ir + 4, cols/2 - len/2);
+	output(msg, len);
+	moveto(inp.ir, inp.ic);
+}
+
+static void hide_tip(void)
+{
+	moveto(inp.ir + 4, 1);
+	erase_line();
+}
+
 static int visible_text_width(void)
 {
 	return inp.ptr - inp.left;
@@ -93,30 +110,22 @@ static int visible_text_width(void)
 
 static void redraw_area(void)
 {
-	int tw = 0;
-	char* s = inp.buf + inp.left;
-	char* p = s;
-	char* e = inp.buf + inp.ptr;
+	int vis = inp.ptr - inp.left;
 
-	while(p < e) {
-		int u = 1;
-		int w = 1;
+	if(vis > inp.wlen)
+		vis = inp.wlen;
 
-		if(tw + w > inp.wlen)
-			break;
+	int pad = inp.wlen - vis;
 
-		tw += w;
-		p += u;
-	}
-
-	int vw = inp.ptr - inp.left;
-
-	moveto(inp.ir, inp.ic + vw);
-	repeat('_', inp.wlen - vw);
+	moveto(inp.ir, inp.ic + vis);
+	repeat('_', pad);
 
 	moveto(inp.ir, inp.ic);
-	output(s, p - s);
 
+	if(inp.show)
+		output(inp.buf + inp.left, vis);
+	else
+		repeat('*', vis);
 }
 
 static void scroll_right(int count)
@@ -158,6 +167,15 @@ static int delete(void)
 	return 0;
 }
 
+static int toggle(void)
+{
+	inp.show = !inp.show;
+
+	redraw_area();
+
+	return 0;
+}
+
 static int add_text(char* rbuf, int rlen)
 {
 	if(inp.ptr + rlen >= inp.len)
@@ -184,10 +202,12 @@ static int esc_seq(char* rbuf, int rlen)
 
 static int ctl_code(char c)
 {
-	if(c == 13)
-		return 1;
-	if(c == 8)
+	if(c == 0x08) /* Backspace */
 		return delete();
+	if(c == 0x09) /* Tab */
+		return toggle();
+	if(c == 0x0D) /* Esc */
+		return 1;
 	return 0;
 }
 
@@ -213,11 +233,15 @@ int input(char* title, char* buf, int len)
 	initialize(title, buf, len);
 	prep_box();
 
+	show_tip();
+
 	while((ret = sys_read(STDIN, rbuf, sizeof(rbuf))) > 0)
 		if(handle(rbuf, ret))
 			break;
 
 	buf[inp.ptr] = '\0';
+
+	hide_tip();
 
 	return inp.ptr;
 }
