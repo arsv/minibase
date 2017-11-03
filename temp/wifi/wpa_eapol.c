@@ -442,8 +442,6 @@ void cleanup_keys(void)
    Things like MIC failures should not happen, and if they do
    it's likely a good reason to disconnect.
 
-   UNTESTED! my AP cannot rekey apparently, wtf.
-
    Ref. IEEE 80211-2012 11.6.7 Group Key Handshake */
 
 void take_group_1(struct eapolkey* ek, uint8_t mac[6])
@@ -499,11 +497,14 @@ int group_rekey(void)
 	uint8_t mac[6];
 	struct eapolkey* ek;
 
+	int keyinfo = ntohs(ek->keyinfo);
+	int keytype = keyinfo & KI_TYPEMASK;
+
 	if(!(ek = recv_eapol(mac)))
 		return 0;
 	if(ek->type != EAPOL_KEY_RSN)
 		return 0; /* re-keying w/ a different key type */
-	if(ntohs(ek->keyinfo) != (KI_SECURE | KI_ENCRYPTED | KI_ACK))
+	if(keytype != (KI_SECURE | KI_ENCRYPTED | KI_ACK | KI_MIC))
 		return 0; /* not a group rekey packet */
 
 	take_group_1(ek, mac);
