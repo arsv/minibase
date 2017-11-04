@@ -134,15 +134,20 @@ static void reassess_link(LS)
 	if(ls->mode == LM_SKIP)
 		return;
 
-	if(ls->mode != LM_DOWN) {
-		if(ls->flags & LF_ENABLED)
-			link_enabled(ls);
-		else
-			enable_iface(ls);
-	} else {
+	if(ls->mode == LM_DOWN) {
 		if(ls->flags & LF_ENABLED)
 			disable_iface(ls);
+		return;
 	}
+	if(!(ls->flags & LF_ENABLED)) {
+		enable_iface(ls);
+		return;
+	}
+
+	if(ls->flags & LF_ENABLED)
+		link_enabled(ls);
+	if(ls->flags & LF_CARRIER)
+		link_carrier(ls);
 }
 
 static int is_stopped(LS)

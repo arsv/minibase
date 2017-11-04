@@ -17,13 +17,14 @@ ERRTAG("ifctl");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT);
 
-#define OPTS "andxwq"
+#define OPTS "andxwqr"
 #define OPT_a (1<<0)
 #define OPT_n (1<<1)
 #define OPT_d (1<<2)
 #define OPT_x (1<<3)
 #define OPT_w (1<<4)
 #define OPT_q (1<<5)
+#define OPT_r (1<<6)
 
 struct top {
 	int opts;
@@ -361,6 +362,17 @@ static int send_maybe_retry(CTX)
 	return 1;
 }
 
+static void req_set_dhcp(CTX)
+{
+	no_other_options(ctx);
+again:
+	uc_put_hdr(UC, CMD_IF_SET_DHCP);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
+	uc_put_end(UC);
+
+	if(send_maybe_retry(ctx)) goto again;
+}
+
 static void req_set_skip(CTX)
 {
 	no_other_options(ctx);
@@ -435,8 +447,9 @@ static const struct req {
 	int opt;
 	void (*call)(CTX);
 } reqs[] = {
-	{ OPT_a, req_restart  },
+	{ OPT_r, req_restart  },
 	{ OPT_n, req_neutral  },
+	{ OPT_a, req_set_dhcp },
 	{ OPT_d, req_set_down },
 	{ OPT_x, req_set_skip },
 	{ OPT_w, req_set_wifi },
