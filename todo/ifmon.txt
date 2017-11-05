@@ -1,0 +1,22 @@
+Current (second? third?) iteration of ifmon is already in place but there's
+still lots of stuff that needs to be done there.
+
+  * Custom iface configuration -- pretty much no way around this, ifmon
+    needs some way to run arbitrary scripts whenever certain interfaces
+    appear. Most likely similar to vtmux, /etc/ifmon/$name.
+    Implementation likely depends on the following point
+
+  * Interface renaming. Kernel stuff aside, lots of things become easier
+    when users are able to give certain interfaces persistent names.
+    It should be optional however. Wifi iface auto-pickup should still work,
+    even with kernel names.
+
+  * Some sort of iptables presets for autoconfed interfaces.
+    Probably a dedicated tool to do this, and some way to configure it in
+    ifmon? Absolutely a must for ipv6 support.
+
+  * Primary interface selection and DHCP cross-locking. Current implementation
+    allows bringing up two uplinks, and will use dhcp data from the last one.
+    It should be arbitrated. Merely preventing the second uplink is probably
+    not possible. May require common dhcp service, or maybe bringing DHCP code
+    into ifmon.
