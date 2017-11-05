@@ -69,31 +69,35 @@ static void wsupp_exit(LS, int status)
 	}
 }
 
-static void maybe_mark_stopped(LS)
+static int maybe_mark_stopped(LS)
 {
 	if(!(ls->flags & LF_STOP))
-		return;
+		return 0;
 	if(!(ls->flags & LF_RUNNING))
-		return;
+		return 0;
+	if(ls->flags & LF_FLUSHING)
+		return 0;
 	if(any_procs_left(ls))
-		return;
+		return 0;
 
 	ls->flags &= ~LF_RUNNING;
 
-	report_link_stopped(ls);
+	return 1;
 }
 
 int stop_link(LS)
 {
 	if(!(ls->flags & LF_RUNNING))
 		return -EALREADY;
-	if(ls->flags & LF_STOP)
-		return 0;
 
-	ls->flags |= LF_STOP;
-	stop_link_procs(ls, 0);
-	flush_link(ls);
-	maybe_mark_stopped(ls);
+	if(!(ls->flags & LF_STOP)) {
+		ls->flags |= LF_STOP;
+		stop_link_procs(ls, 0);
+		flush_link(ls);
+	}
+
+	if(maybe_mark_stopped(ls))
+		return -EALREADY;
 
 	return 0;
 }
@@ -172,14 +176,16 @@ void link_exit(LS, int tag, int status)
 	else if(tag == CH_WIENC)
 		wsupp_exit(ls, status);
 
-	maybe_mark_stopped(ls);
+	if(maybe_mark_stopped(ls))
+		report_link_stopped(ls);
 }
 
 void link_flushed(LS)
 {
 	ls->flags &= ~LF_FLUSHING;
 
-	maybe_mark_stopped(ls);
+	if(maybe_mark_stopped(ls))
+		report_link_stopped(ls);
 
 	if(ls->flags & LF_DHCPREQ)
 		start_dhcp(ls);
