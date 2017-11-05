@@ -288,15 +288,26 @@ static char* shift_arg(CTX)
 	return ctx->argv[ctx->argi++];
 }
 
+/* Allow no-arg ifctl -a, ifctl -d etc to control the default interface.
+   Extremely lazy implementation for now, but proper detection of wired
+   ifaces is not simple and it hardly matters at least until ifmon gets
+   device renaming implemented. */
+
 static void set_iface(CTX)
 {
+	char* dflt = "eth0";
 	char* name;
 	int ifi;
 
 	if(!(name = shift_arg(ctx)))
-		fail("interface name required", NULL, 0);
-	if((ifi = getifindex(ctx->fd, name)) < 0)
-		fail(NULL, name, ifi);
+		name = dflt;
+
+	if((ifi = getifindex(ctx->fd, name)) < 0) {
+		if(name == dflt)
+			fail("interface name required", NULL, 0);
+		else
+			fail(NULL, name, ifi);
+	}
 
 	ctx->ifi = ifi;
 	ctx->ifname = name;
@@ -464,12 +475,13 @@ int main(int argc, char** argv)
 	init_args(ctx, argc, argv);
 	init_socket(ctx);
 
-	for(rq = reqs; rq < reqs + ARRAY_SIZE(reqs); rq++)
+	for(rq = reqs; rq < reqs + ARRAY_SIZE(reqs); rq++) {
 		if(use_opt(ctx, rq->opt)) {
 			set_iface(ctx);
 			rq->call(ctx);
 			return 0;
 		}
+	}
 
 	req_status(ctx);
 	return 0;
