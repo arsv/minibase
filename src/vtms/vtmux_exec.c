@@ -72,13 +72,13 @@ static void child_set_ctty(void)
 static int child_proc(int ttyfd, int ctlfd, char* path)
 {
 	char* argv[] = { path, NULL };
+	int ret;
 
 	child_prep_fds(ttyfd, ctlfd);
 	child_set_ctty();
 
-	xchk(sys_execve(*argv, argv, environ), "exec", path);
-
-	return 0;
+	ret = sys_execve(*argv, argv, environ);
+	fail("exec", path, ret);
 }
 
 /* This runs with $tty already active. */
