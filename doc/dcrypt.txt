@@ -70,11 +70,11 @@ if stored on an encrypted drive since disk encryption does nothing to protect
 it from T1 class attacks, like being stolen by rogue process running within
 the same OS.
 
-The point of crankshaft boot is to reduce T2 to either T5 or T3 in most cases.
+The point of hand-crank boot is to reduce T2 to either T5 or T3 in most cases.
 If wrapped DEKs are kept separate from the encrypted data, it is much more
 likely that the attackers will get either of them but not both. T2 proper may
 happen with B1 setup (DEKs stored on the device) or in case the attackers 
-manage to get a hold on both the device and the crankshaft. If either happens,
+manage to get a hold on both the device and the hand-crank. If either happens,
 the security of the bulk data is reduced to that of the passphrase-derived KEK.
 
 For any scenario that allows an attack on the KEK, such attack will likely be
@@ -139,11 +139,11 @@ of T0, and that all while they still have PBKDF2 as the only choice for KDF
 and DEKs stored in a way that makes KEK their only protection.
 
 
-Mitigating the consequences of losing a crankshaft
+Mitigating the consequences of losing a hand-crank
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The default IV in NIST key wrap covers all 8 bytes, ensuring very low
 false-positive risk if the expected value is there after unwrapping it.
-This means T3 is doable for any attacker who gets the crankshaft alone,
+This means T3 is doable for any attacker who gets the hand-crank alone,
 without the bulk data.
 
 It would be really good to make it so that the success of unwrapping
@@ -166,7 +166,7 @@ any use for filter out typos. Quick checks imply even N=1 works pretty well,
 but this needs further testing.
 
 
-Another issue with crankshafts is the possibility of disclosing device
+Another issue with hand-cranks is the possibility of disclosing device
 IDs used to locate the partitions to decrypt/mount (WWN, CID, whatever).
 This one is easy to address by storing HMACs instead of plaintext IDs,
 at the expense of making the mount tab file somewhat unreadable.
