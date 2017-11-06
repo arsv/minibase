@@ -76,3 +76,12 @@ address assignment without DHCP.
 A possible downside here is either dropping DHCP options, or having to
 re-implement them within hostapd. How much of an issue this happens to be
 is not clear atm, the use of DHCP options is a dubious idea on its own.
+
+
+Status update: ifmon
+~~~~~~~~~~~~~~~~~~~~
+This file was originally written for wimon-wpa pair, which has since been
+replaced with ifmon-wsupp pair. Ifmon retained all RTNL code from wimon,
+scanning code and everything wpa did went into wsupp. The new design goes
+with tightly-integrated ifmon and wsupp. When the keys are finally uploaded
+to the card, wsupp uses ifmon's control interface to trigger DHCP.
