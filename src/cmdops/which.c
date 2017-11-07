@@ -83,6 +83,11 @@ int main(int argc, char** argv, char** envp)
 	char* path = xgetenv(envp, "PATH=");
 	int ret = 0;
 
+	if(argc < 2) {
+		warn(NULL, "too few arguments");
+		return -1;
+	}
+
 	for(i = 1; i < argc; i++)
 		ret |= which(path, argv[i], strlen(argv[i]));
 

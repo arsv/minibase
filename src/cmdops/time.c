@@ -8,7 +8,7 @@
 #include <util.h>
 
 ERRTAG("time");
-ERRLIST(NEINVAL NEFAULT NEAGAIN NENOMEM NENOSYS NECHILD NEINTR);
+ERRLIST(NEINVAL NEFAULT NEAGAIN NENOMEM NENOSYS NECHILD NEINTR NENOENT);
 
 static void spawn(char** argv, char** envp)
 {
@@ -92,6 +92,8 @@ int main(int argc, char** argv, char** envp)
 	if(i < argc && argv[i][0] == '-')
 		if(argv[i++][1])
 			fail("unsupported options", NULL, 0);
+	if(i >= argc)
+		fail("too few arguments", NULL, 0);
 
 	sys_gettimeofday(&t0, NULL);
 
