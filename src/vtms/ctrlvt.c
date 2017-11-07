@@ -303,21 +303,17 @@ static int spawn(char* cmd, char* arg)
 	return status;
 }
 
+static void switch_back_exit(void)
+{
+	int ret;
+
+	if(!(ret = spawn("vtctl", "-b")))
+		_exit(0);
+}
+
 static int enter_sleep_mode(void)
 {
-	int fd;
-	char* name = "/sys/power/state";
-
-	if((fd = sys_open(name, O_WRONLY)) < 0) {
-		warn(NULL, name, fd);
-		return -1;
-	}
-
-	sys_write(fd, "mem\n", 4);
-
-	sys_close(fd);
-
-	return 0;
+	return spawn("ksleep", NULL);
 }
 
 static void cmd_reboot(void)
@@ -337,47 +333,50 @@ static void cmd_poweroff(void)
 static void cmd_sleep(void)
 {
 	term_fini();
-	enter_sleep_mode();
+
+	if(!enter_sleep_mode())
+		switch_back_exit();
+
 	term_back();
 }
 
 static void cmd_back(void)
 {
-	int ret;
-
 	term_fini();
-
-	if(!(ret = spawn("vtctl", "-b")))
-		_exit(0);
-
+	switch_back_exit();
 	term_back();
 }
 
 static void cmd_lock(void)
 {
+	int ret;
+	int attempt = 0;
+
 	if(set_code())
 		return;
 
 	term_fini();
-
 	spawn("vtctl", "-k");
-	enter_sleep_mode();
-
+	ret = enter_sleep_mode();
 	term_back();
-again:
-	if(!ask_code()) {
-		spawn("vtctl", "-u");
-		spawn("vtctl", "-b");
-		return;
+
+	if(!ret) { /* locked successfuly */
+		while(ask_code()) {
+			if(attempt++ < 3)
+				continue;
+
+			message("rebooting");
+
+			term_fini();
+			spawn("svctl", "-R");
+			term_back();
+		}
+	} else {
+		message("Cannot lock VTs");
 	}
 
-	message("rebooting");
-
-	term_fini();
-	spawn("svctl", "-R");
-	term_back();
-
-	goto again;
+	spawn("vtctl", "-u");
+	switch_back_exit();
 }
 
 static void promp_action(void)
