@@ -89,7 +89,7 @@ sort of remote (SSH) connection is the bare minimum.
 
 What's the intended hardware for this?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-minibase is being written primarily with a personal laptop in mind.
+minibase is written primarily with a personal laptop in mind.
 
 This choice only affects certain tools (super, ifmon, vtmux) which either
 allow or expect some user interaction. For unattended or headless systems,
@@ -129,7 +129,7 @@ privilege escalation in Linux is done via IPC to privileged services.
 
 How is it different from systemd?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Smaller, simpler and easier to build. Much less dependencies.
+Smaller, simpler and easier to build. Fewer dependencies.
 Hopefully less invasive in respect to the system atop.
 No D-bus, or any bus for that matter, only p2p IPC via unix sockets.
 
