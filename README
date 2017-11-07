@@ -146,7 +146,8 @@ Licensing
 ~~~~~~~~~
 GNU Public License version 3, see COPYING.
 
-Limited closed-box license is planned but has not been written yet.
+Limited closed-box license (along the lines of Apache 2 w/ export restrictions)
+may or may not get added in the future.
 
 The code in lib/sys, lib/bits and lib/arch constitutes the public interface
 of the Linux kernel. No claims are made for that code, and it should not be
