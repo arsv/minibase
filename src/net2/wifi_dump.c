@@ -57,7 +57,7 @@ static char* fmt_chan(char* p, char* e, int freq)
 	if(freq == 2484) {
 		step = 14;
 		band = 'b';
-	} else if((step = inrange(freq, 2412, 2467, 5, 1))) {
+	} else if((step = inrange(freq, 2412, 2472, 5, 1))) {
 		band = 'b';
 	} else if((step = inrange(freq, 5035, 5865, 5, 7))) {
 		band = 'a';
