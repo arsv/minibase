@@ -29,12 +29,12 @@ struct box {
 
 static struct termios tso;
 
-void output(char* s, int len)
+static void output(char* s, int len)
 {
 	sys_write(STDOUT, s, len);
 }
 
-void outstr(char* s)
+static void outstr(char* s)
 {
 	output(s, strlen(s));
 }
@@ -60,33 +60,38 @@ static void tcs(char* csi, int n, int m, char c)
 	output(buf, p - buf);
 }
 
-void moveto(int r, int c)
+static void moveto(int r, int c)
 {
 	tcs(CSI, r, c, 'H');
 }
 
-void park_cursor(void)
+static void park_cursor(void)
 {
 	moveto(rows, 1);
 }
 
-void hide_cursor(void)
+static void hide_cursor(void)
 {
 	tcs(CSI "?", 25, 0, 'l');
 }
 
-void show_cursor(void)
+static void show_cursor(void)
 {
 	tcs(CSI "?", 25, 0, 'h');
 }
 
-void clear(void)
+static void clear(void)
 {
 	moveto(1,1);
 	tcs(CSI, 0, 0, 'J');
 }
 
-void term_init(void)
+static void clear_line()
+{
+	tcs(CSI, 2, 0, 'K');
+}
+
+static void term_init(void)
 {
 	struct termios ts;
 	struct winsize ws;
@@ -115,7 +120,7 @@ void term_init(void)
 	hide_cursor();
 }
 
-void term_back(void)
+static void term_back(void)
 {
 	struct termios ts;
 	int ret;
@@ -135,7 +140,7 @@ void term_back(void)
 	hide_cursor();
 }
 
-void term_fini(void)
+static void term_fini(void)
 {
 	int ret;
 
@@ -228,10 +233,10 @@ static int match(void)
 	return 1;
 }
 
-static void message(char* msg)
+static void message(char* msg, int down)
 {
 	int len = strlen(msg);
-	int r = rows/2 + 2;
+	int r = rows/2 + down;
 	int c = cols/2 - len/2;
 
 	moveto(r, c);
@@ -254,10 +259,12 @@ static int set_code(void)
 		if(input("Repeat"))
 			return -1;
 
-		if(match())
+		if(match()) {
+			clear_line();
 			return 0;
+		}
 
-		message("mismatch");
+		message("mismatch", 2);
 	}
 
 	return 0;
@@ -273,7 +280,7 @@ static int ask_code(void)
 		if(match())
 			return 0;
 
-		message("incorrect");
+		message("incorrect", 2);
 	}
 
 	return -1;
@@ -365,18 +372,20 @@ static void cmd_lock(void)
 			if(attempt++ < 3)
 				continue;
 
-			message("rebooting");
+			message("rebooting", 0);
 
 			term_fini();
 			spawn("svctl", "-R");
 			term_back();
 		}
 	} else {
-		message("Cannot lock VTs");
+		message("Cannot lock VTs", 0);
 	}
 
+	term_fini();
 	spawn("vtctl", "-u");
 	switch_back_exit();
+	term_back();
 }
 
 static void promp_action(void)
@@ -390,7 +399,7 @@ static void promp_action(void)
 	int r = rows/2;
 	int c = cols/2 - plen/2;
 redraw:
-	clear();
+	clear_line();
 	moveto(r, c);
 	outstr(prompt);
 
@@ -441,6 +450,7 @@ int main(int argc, char** argv, char** envp)
 	term_init();
 
 	tcs(CSI, rows/2 + 5, rows, 'r');
+	clear();
 
 	promp_action();
 
