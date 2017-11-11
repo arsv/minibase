@@ -3,7 +3,7 @@
 #include "wsupp.h"
 
 /* AP selection code. Scan, pick some AP to connect, fail, pick
-   another AP, success, and so on. */
+   another AP and so on. */
 
 #define TIME_TO_FG_SCAN 1*60
 #define TIME_TO_BG_SCAN 5*60
@@ -222,9 +222,9 @@ static struct scan* find_current_ap(void)
 }
 
 /* Fixed AP mode means fixed SSID, *not* fixed BSSID, and we should be
-   ready roam between multiple APs sharing the same SSID. There's almost
-   no difference between roading and fixed mode except for AP selection
-   rules. */
+   ready to roam between multiple APs sharing the same SSID. There's
+   almost no difference between roading and fixed mode except for AP
+   selection rules. */
 
 static void reset_scan_counters()
 {
@@ -359,8 +359,7 @@ static void try_some_other_ap(void)
 	reassess_wifi_situation();
 }
 
-/* Netlink has completed a scan dump and calls this to evaluate
-   the results. */
+/* Netlink has completed a scan dump and wants us to evaluate the results. */
 
 void check_new_scan_results(void)
 {
@@ -429,6 +428,9 @@ void handle_rfrestored(void)
 	else
 		reassess_wifi_situation();
 }
+
+/* Foreground scan means scanning while not connected,
+   background respectively means there's an active connection. */
 
 void routine_bg_scan(void)
 {

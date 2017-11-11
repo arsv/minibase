@@ -310,8 +310,8 @@ static int check_dhcp_header(void)
 	return 0;
 }
 
-/* Sadly DHCP has a tendency to fail unpredictably on newly-established
-   wifi connections. It's difficult to deal with otherwise, so we do
+/* Sadly the first request does sometimes fail unpredictably. Such failures
+   are annoying, and it's difficult to handle them otherwise, so we do
    a small number of timed retries here. */
 
 static int timedrecv(int fd, char* buf, int len)

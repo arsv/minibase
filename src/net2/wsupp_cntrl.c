@@ -13,6 +13,9 @@
 #include "common.h"
 #include "wsupp.h"
 
+/* Userspace control socket code, accepts and handles commands
+   from the frontend tool (wifi). */
+
 int ctrlfd;
 
 static char rxbuf[100];

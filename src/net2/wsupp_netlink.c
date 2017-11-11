@@ -11,6 +11,40 @@
 
 #include "wsupp.h"
 
+/* Netlink is used to control the card: run scans, initiate connections
+   and so on. Netlink code is event-driven, and comprises of two state
+   machines, one for scanning and one for connection. The two are effectively
+   independent, as cards often can scan and connect at the same time.
+
+   Most nl commands have delayed effects, and any (non-scan) errors are
+   handled exactly the same way, so we do not request ACKs.
+   Normal command sequences look like this:
+
+	# connect
+	<- NL80211_CMD_AUTHENTICATE      trigger_authentication
+	-> NL80211_CMD_AUTHENTICATE      cmd_authenticate
+	<- NL80211_CMD_ASSOCIATE         trigger_associaction
+	-> NL80211_CMD_ASSOCIATE         cmd_associate
+	-> NL80211_CMD_CONNECT           cmd_connect
+
+	# disconnect
+	<- NL80211_CMD_DISCONNECT        trigger_disconnect
+	-> NL80211_CMD_DISCONNECT        cmd_disconnect
+
+	# scan
+	<- NL80211_CMD_TRIGGER_SCAN      start_scan
+	-> NL80211_CMD_TRIGGER_SCAN      cmd_trigger_scan
+	-> NL80211_CMD_NEW_SCAN_RESULTS  cmd_scan_results
+	<- NL80211_CMD_GET_SCAN          trigger_scan_dump
+	-> NL80211_CMD_NEW_SCAN_RESULTS* cmd_scan_results
+	-> NL80211_CMD_NEW_SCAN_RESULTS* cmd_scan_results
+	...
+	-> NL80211_CMD_NEW_SCAN_RESULTS* cmd_scan_results
+
+   Disconnect notifications may arrive spontaneously if initiated
+   by the card (rfkill, or the AP going down), trigger_disconnect
+   is only used to abort unsuccessful connection. */
+
 #define SR_SCANNING_ONE_FREQ (1<<0)
 #define SR_RECONNECT_CURRENT (1<<1)
 #define SR_CONNECT_SOMETHING (1<<2)
@@ -31,9 +65,13 @@ struct ap ap;
 
 #define MSG struct nlgen* msg __unused
 
-/* No point in waiting for notifications if the goal is to reset
-   the device and quit. So unlike regular trigger_disconnect, this
-   does a synchronous ACK-ed command. */
+/* When aborting for whatever reason, terminate the connection.
+   Not doing so may leave the card in a (partially-)connected state.
+   It's not bas as such, but may be confusing.
+
+   No point in waiting for notifications if the goal is to reset
+   the device and quit. Unlike regular trigger_disconnect, this does
+   a synchronous ACK-ed command. */
 
 void quit(const char* msg, char* arg, int err)
 {
@@ -199,6 +237,10 @@ static void parse_scan_result(struct nlgen* msg)
 	if((ies = nl_sub(bss, NL80211_BSS_INFORMATION_ELEMENTS)))
 		parse_station_ies(sc, ies->payload, nl_attr_len(ies));
 }
+
+/* NL80211_CMD_TRIGGER_SCAN arrives with a list of frequencies being
+   scanned. We use it to mark and later remove stale scan entries.
+   The list may not be a complete one, esp. with single-freq scans. */
 
 static void cmd_trigger_scan(MSG)
 {
@@ -533,10 +575,10 @@ static const struct cmd {
 	int code;
 	void (*call)(struct nlgen*);
 } cmds[] = {
-	{ NL80211_CMD_TRIGGER_SCAN,     cmd_trigger_scan },
+	{ NL80211_CMD_TRIGGER_SCAN,     cmd_trigger_scan }, /* scan */
 	{ NL80211_CMD_NEW_SCAN_RESULTS, cmd_scan_results },
 	{ NL80211_CMD_SCAN_ABORTED,     cmd_scan_aborted },
-	{ NL80211_CMD_AUTHENTICATE,     cmd_authenticate },
+	{ NL80211_CMD_AUTHENTICATE,     cmd_authenticate }, /* mlme */
 	{ NL80211_CMD_ASSOCIATE,        cmd_associate    },
 	{ NL80211_CMD_CONNECT,          cmd_connect      },
 	{ NL80211_CMD_DISCONNECT,       cmd_disconnect   }
