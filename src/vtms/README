@@ -7,7 +7,7 @@ indirectly deals with user logins. Within systemd the equivalent
 tool is called "logind".
 
 Viewed other way, vtmux (current implementation at least) is
-a multi-client version of wayland-launch.
+a multi-client version of weston-launch.
 
 See ../../doc/vtmux.txt for more detailed description,
 and ../../doc/login.txt on how it fits within the planned
