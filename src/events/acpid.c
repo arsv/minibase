@@ -3,7 +3,6 @@
 
 #include <netlink.h>
 #include <netlink/genl.h>
-#include <netlink/dump.h>
 
 #include <errtag.h>
 #include <format.h>

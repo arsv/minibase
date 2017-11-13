@@ -2,7 +2,6 @@
 #include <bits/socket/inet.h>
 
 #include <netlink.h>
-#include <netlink/dump.h>
 #include <netlink/rtnl/link.h>
 #include <netlink/rtnl/addr.h>
 #include <netlink/rtnl/route.h>

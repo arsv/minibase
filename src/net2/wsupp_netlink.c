@@ -4,7 +4,6 @@
 #include <netlink.h>
 #include <netlink/genl.h>
 #include <netlink/genl/nl80211.h>
-#include <netlink/dump.h>
 
 #include <string.h>
 #include <util.h>
