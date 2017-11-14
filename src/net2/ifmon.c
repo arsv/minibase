@@ -196,32 +196,79 @@ static void stop_wait_procs(void)
 	}
 }
 
-void set_timeout(int sec)
+static struct timespec* prep_poll_timer(struct timespec* t0, struct timespec* t1)
 {
-	if(sec) {
-		timer.sec = sec;
-		timer.nsec = 0;
-	} else {
-		timer.sec = 0;
-		timer.nsec = 0;
+	struct link* ls;
+	struct timespec ts = { 0, 0 }, ct;
+
+	for(ls = links; ls < links + nlinks; ls++) {
+		if(!ls->ifi)
+			continue;
+		if(!ls->timer)
+			continue;
+
+		if(ls->flags & LF_MILLIS) {
+			ct.sec = ls->timer / 1000;
+			ct.nsec = (ls->timer % 1000) * 1000*1000;
+		} else {
+			ct.sec = ls->timer;
+			ct.nsec = 0;
+		}
+
+		if(!ts.sec && !ts.nsec)
+			;
+		else if(ts.sec > ct.sec)
+			continue;
+		else if(ts.nsec > ct.nsec)
+			continue;
+
+		ts = ct;
 	}
+
+	if(!ts.sec && !ts.nsec)
+		return NULL;
+
+	*t0 = ts;
+	*t1 = ts;
+
+	return t1;
 }
 
-static int expired(struct timespec* ts)
+static void update_link_timers(struct timespec* t0, struct timespec* t1)
 {
-	return !(ts && (ts->sec > 0 || ts->nsec > 0));
-}
+	struct timespec diff;
+	struct link* ls;
+	ulong sub;
 
-static void timeout(void)
-{
-	timer = (struct timespec){ 0, 0 };
-	timer_expired();
+	diff.sec = t0->sec - t1->sec;
+	diff.nsec = t0->nsec - t1->nsec;
+
+	if(t1->nsec <= t0->nsec) {
+		diff.nsec += 1000*1000*1000;
+		diff.sec--;
+	}
+
+	for(ls = links; ls < links + nlinks; ls++) {
+		if(!ls->timer)
+			continue;
+		if(ls->flags & LF_MILLIS)
+			sub = 1000*diff.sec + diff.nsec / 1000*1000;
+		else
+			sub = diff.sec;
+
+		if(ls->timer > sub) {
+			ls->timer -= sub;
+		} else {
+			ls->timer = 0;
+			link_timer(ls);
+		}
+	}
 }
 
 int main(int argc, char** argv, char** envp)
 {
 	(void)argv;
-	struct timespec *pt;
+	struct timespec *pt, t0, t1;
 
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);
@@ -237,7 +284,7 @@ int main(int argc, char** argv, char** envp)
 	while(!sigterm) {
 		sigchld = 0;
 
-		pt = expired(&timer) ? NULL : &timer;
+		pt = prep_poll_timer(&t0, &t1);
 
 		int r = sys_ppoll(pfds, npfds, pt, &defsigset);
 
@@ -245,14 +292,14 @@ int main(int argc, char** argv, char** envp)
 			waitpids();
 		if(r == -EINTR)
 			; /* signal has been caught and handled */
-		else if(r == 0)
-			timeout();
 		else if(r < 0)
 			quit("ppoll", NULL, r);
-		else if(r > 0)
+
+		if(pt != NULL)
+			update_link_timers(&t0, &t1);
+
+		if(r > 0)
 			check_polled_fds();
-		if(r && expired(pt))
-			timeout();
 	}
 
 	stop_wait_procs();

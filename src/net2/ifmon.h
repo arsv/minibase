@@ -20,6 +20,7 @@
 #define LF_ERROR    (1<<9)
 #define LF_DHCPFAIL (1<<10)
 #define LF_UNSAVED  (1<<11)
+#define LF_MILLIS   (1<<12)
 
 #define CH_DHCP  1
 #define CH_WIENC 2
@@ -28,7 +29,7 @@ struct link {
 	int ifi;
 	uint seq;
 	int flags;
-	uint lease;
+	uint timer;
 	short mode;
 	byte mac[6];
 	char name[NAMELEN];
@@ -87,6 +88,7 @@ void link_gone(LS);
 void link_exit(LS, int tag, int status);
 void link_lease(LS, uint time);
 void link_flushed(LS);
+void link_timer(LS);
 
 void waitpids(void);
 

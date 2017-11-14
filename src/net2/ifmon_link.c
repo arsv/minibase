@@ -35,7 +35,8 @@ static void flush_link(LS)
 	if(ls->flags & LF_FLUSHING)
 		return;
 
-	ls->lease = 0;
+	ls->timer = 0;
+	ls->flags &= ~LF_MILLIS;
 	ls->flags &= ~LF_FLUSHREQ;
 	ls->flags |= LF_FLUSHING;
 	delete_addr(ls);
@@ -203,64 +204,13 @@ void link_flushed(LS)
 
    Alternatively, switching to a long-running DHCP client may be an option. */
 
-static struct timespec lastcheck;
-
-static void reset_link_timer(void)
-{
-	struct link* ls;
-	long sec = 0;
-
-	for(ls = links; ls < links + nlinks; ls++) {
-		if(!ls->ifi)
-			continue;
-		if(!ls->lease)
-			continue;
-		if(sec && ls->lease > sec)
-			continue;
-
-		sec = ls->lease;
-	}
-
-	set_timeout(sec);
-}
-
 void link_lease(LS, uint time)
 {
-	if(ls->lease && ls->lease < time)
-		return;
-
-	ls->lease = time;
-
-	reset_link_timer();
+	ls->timer = time;
+	ls->flags &= ~LF_MILLIS;
 }
 
-void timer_expired(void)
+void link_timer(LS)
 {
-	struct timespec ts;
-	struct link* ls;
-	long diff;
-
-	if((sys_clock_gettime(CLOCK_MONOTONIC, &ts)) < 0)
-		return;
-
-	if((diff = ts.sec - lastcheck.sec) <= 0)
-		return;
-
-	for(ls = links; ls < links + nlinks; ls++) {
-		if(!ls->ifi)
-			continue;
-		if(!ls->lease)
-			continue;
-		if(ls->lease > diff) {
-			ls->lease -= diff;
-			continue;
-		}
-
-		ls->lease = 0;
-		start_dhcp(ls);
-	}
-
-	lastcheck = ts;
-
-	reset_link_timer();
+	start_dhcp(ls);
 }
