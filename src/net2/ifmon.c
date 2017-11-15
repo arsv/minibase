@@ -196,6 +196,15 @@ static void stop_wait_procs(void)
 	}
 }
 
+static void stop_all_links(void)
+{
+	struct link* ls;
+
+	for(ls = links; ls < links + nlinks; ls++)
+		if(ls->ifi && ls->mode != LM_SKIP)
+			disable_iface(ls);
+}
+
 static struct timespec* prep_poll_timer(struct timespec* t0, struct timespec* t1)
 {
 	struct link* ls;
@@ -303,6 +312,7 @@ int main(int argc, char** argv, char** envp)
 	}
 
 	stop_wait_procs();
+	stop_all_links();
 	save_flagged_links();
 	unlink_ctrl();
 
