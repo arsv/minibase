@@ -7,8 +7,10 @@
 
 struct link links[NLINKS];
 struct conn conns[NCONNS];
+struct dhcp dhcps[NDHCPS];
 int nlinks;
 int nconns;
+int ndhcps;
 
 struct proc procs[NPROCS];
 int nprocs;
@@ -106,4 +108,30 @@ struct conn* grab_conn_slot(void)
 void free_conn_slot(struct conn* cn)
 {
 	free_slot(conns, &nconns, sizeof(*cn), cn);
+}
+
+struct dhcp* find_dhcp_slot(int ifi)
+{
+	struct dhcp* dh;
+
+	for(dh = dhcps; dh < dhcps + ndhcps; dh++)
+		if(dh->ifi == ifi)
+			return dh;
+
+	return NULL;
+}
+
+struct dhcp* grab_dhcp_slot(int ifi)
+{
+	struct dhcp* dh;
+
+	if((dh = find_dhcp_slot(ifi)))
+		return dh;
+
+	return grab_slot(dhcps, &ndhcps, NDHCPS, sizeof(*dh));
+}
+
+void free_dhcp_slot(struct dhcp* dh)
+{
+	free_slot(dhcps, &ndhcps, sizeof(*dh), dh);
 }

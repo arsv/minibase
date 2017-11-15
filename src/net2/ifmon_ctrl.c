@@ -6,7 +6,6 @@
 #include <sys/sched.h>
 
 #include <nlusctl.h>
-#include <printf.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
@@ -43,7 +42,7 @@ static void send_report(char* buf, int len, int ifi)
 	}
 }
 
-static void report_simple(LS, int cmd)
+static void report_simple(int ifi, int cmd)
 {
 	char buf[64];
 	struct ucbuf uc = {
@@ -55,40 +54,52 @@ static void report_simple(LS, int cmd)
 	uc_put_hdr(&uc, cmd);
 	uc_put_end(&uc);
 
-	send_report(uc.brk, uc.ptr - uc.brk, ls->ifi);
+	send_report(uc.brk, uc.ptr - uc.brk, ifi);
+}
+
+static void report_link(LS, int cmd)
+{
+	report_simple(ls->ifi, cmd);
+}
+
+static void report_dhcp(DH, int cmd)
+{
+	report_simple(dh->ifi, cmd);
 }
 
 void report_link_down(LS)
 {
-	report_simple(ls, REP_IF_LINK_DOWN);
+	report_link(ls, REP_IF_LINK_DOWN);
 }
 
 void report_link_gone(LS)
 {
-	report_simple(ls, REP_IF_LINK_GONE);
+	report_link(ls, REP_IF_LINK_GONE);
 }
 
 void report_link_stopped(LS)
 {
-	report_simple(ls, REP_IF_LINK_STOP);
+	report_link(ls, REP_IF_LINK_STOP);
 }
 
-void report_link_dhcp(LS, int status)
+void report_dhcp_done(DH)
 {
-	if(status)
-		report_simple(ls, REP_IF_DHCP_FAIL);
-	else
-		report_simple(ls, REP_IF_DHCP_DONE);
+	report_dhcp(dh, REP_IF_DHCP_FAIL);
+}
+
+void report_dhcp_fail(DH)
+{
+	report_dhcp(dh, REP_IF_DHCP_DONE);
 }
 
 void report_link_enabled(LS)
 {
-	report_simple(ls, REP_IF_LINK_ENABLED);
+	report_link(ls, REP_IF_LINK_ENABLED);
 }
 
 void report_link_carrier(LS)
 {
-	report_simple(ls, REP_IF_LINK_CARRIER);
+	report_link(ls, REP_IF_LINK_CARRIER);
 }
 
 static int send_reply(struct conn* cn, struct ucbuf* uc)
@@ -375,16 +386,19 @@ void handle_conn(struct conn* cn)
 
 void accept_ctrl(int sfd)
 {
-	int cfd;
 	struct sockaddr addr;
 	int addr_len = sizeof(addr);
 	struct conn *cn;
+	int fd;
 
-	while((cfd = sys_accept(sfd, &addr, &addr_len)) > 0)
-		if((cn = grab_conn_slot()))
-			cn->fd = cfd;
-		else
-			sys_close(cfd);
+	while((fd = sys_accept(sfd, &addr, &addr_len)) > 0) {
+		if(!(cn = grab_conn_slot())) {
+			sys_close(fd);
+		} else {
+			cn->fd = fd;
+			pollset = 0;
+		}
+	}
 }
 
 void unlink_ctrl(void)

@@ -18,9 +18,9 @@ ERRTAG("ifmon");
 char** environ;
 
 static sigset_t defsigset;
-struct pollfd pfds[2+NCONNS];
-static int pollset;
-struct timespec timer;
+struct pollfd pfds[2+NCONNS+NDHCPS];
+static int pollkey[2+NCONNS+NDHCPS];
+int pollset;
 int npfds;
 int nconns;
 int ctrlfd;
@@ -91,38 +91,45 @@ void setup_signals(void)
 	sigaction(SIGPIPE, &sa);
 }
 
-static void set_pollfd(struct pollfd* pfd, int fd)
+static void set_pollfd(int fd, int tag)
 {
-	if(fd > 0) {
-		pfd->fd = fd;
-		pfd->events = POLLIN;
-	} else {
-		pfd->fd = -1;
-		pfd->events = 0;
-	}
+	int i = npfds;
+
+	if(fd <= 0)
+		return;
+
+	pfds[i].fd = fd;
+	pfds[i].events = POLLIN;
+	pollkey[i] = tag;
+
+	npfds++;
 }
 
-void update_connfds(void)
+void update_pollfds(void)
 {
 	int i;
 
-	for(i = 0; i < nconns; i++)
-		set_pollfd(&pfds[2+i], conns[i].fd);
+	npfds = 2;
 
-	npfds = 2 + nconns;
+	for(i = 0; i < nconns; i++)
+		set_pollfd(conns[i].fd,  1 + i);
+	for(i = 0; i < ndhcps; i++)
+		set_pollfd(dhcps[i].fd, -1 - i);
 
 	pollset = 1;
 }
 
 void setup_pollfds(void)
 {
-	set_pollfd(&pfds[0], netlink);
-	set_pollfd(&pfds[1], ctrlfd);
+	npfds = 0;
 
-	update_connfds();
+	set_pollfd(netlink, 0);
+	set_pollfd(ctrlfd, 0);
+
+	update_pollfds();
 }
 
-static void recv_netlink(int revents)
+static void check_netlink(int revents)
 {
 	if(revents & POLLIN)
 		handle_rtnl();
@@ -130,14 +137,12 @@ static void recv_netlink(int revents)
 		quit("lost netlink connection", NULL, 0);
 }
 
-static void recv_control(int revents)
+static void check_control(int revents)
 {
-	if(revents & POLLIN) {
+	if(revents & POLLIN)
 		accept_ctrl(ctrlfd);
-		pollset = 0;
-	} if(revents & ~POLLIN) {
+	if(revents & ~POLLIN)
 		quit("poll", "ctrl", 0);
-	}
 }
 
 static void close_conn(struct conn* cn)
@@ -151,7 +156,7 @@ static void close_conn(struct conn* cn)
 	pollset = 0;
 }
 
-static void recv_client(struct pollfd* pf, struct conn* cn)
+static void check_conn(struct pollfd* pf, struct conn* cn)
 {
 	if(!(cn->fd)) /* should not happen */
 		return;
@@ -161,20 +166,30 @@ static void recv_client(struct pollfd* pf, struct conn* cn)
 		close_conn(cn);
 }
 
+static void check_dhcp(struct pollfd* pf, struct dhcp* dh)
+{
+	if(pf->revents & POLLIN)
+		handle_dhcp(dh);
+	if(pf->revents & ~POLLIN)
+		dhcp_error(dh);
+}
+
 static void check_polled_fds(void)
 {
-	int i;
+	int i, k;
 
-	recv_netlink(pfds[0].revents);
-	recv_control(pfds[1].revents);
+	check_netlink(pfds[0].revents);
+	check_control(pfds[1].revents);
 
-	for(i = 0; i < nconns; i++)
-		recv_client(&pfds[2+i], &conns[i]);
+	for(i = 2; i < npfds; i++)
+		if((k = pollkey[i]) > 0)
+			check_conn(&pfds[i], &conns[k - 1]);
+		else if(k < 0)
+			check_dhcp(&pfds[i], &dhcps[-k - 1]);
 
-	if(pollset)
-		return;
+	if(pollset) return;
 
-	update_connfds();
+	update_pollfds();
 }
 
 static void stop_wait_procs(void)
@@ -207,32 +222,9 @@ static void stop_all_links(void)
 
 static struct timespec* prep_poll_timer(struct timespec* t0, struct timespec* t1)
 {
-	struct link* ls;
-	struct timespec ts = { 0, 0 }, ct;
+	struct timespec ts = { 0, 0 };
 
-	for(ls = links; ls < links + nlinks; ls++) {
-		if(!ls->ifi)
-			continue;
-		if(!ls->timer)
-			continue;
-
-		if(ls->flags & LF_MILLIS) {
-			ct.sec = ls->timer / 1000;
-			ct.nsec = (ls->timer % 1000) * 1000*1000;
-		} else {
-			ct.sec = ls->timer;
-			ct.nsec = 0;
-		}
-
-		if(!ts.sec && !ts.nsec)
-			;
-		else if(ts.sec > ct.sec)
-			continue;
-		else if(ts.nsec > ct.nsec)
-			continue;
-
-		ts = ct;
-	}
+	prep_dhcp_timeout(&ts);
 
 	if(!ts.sec && !ts.nsec)
 		return NULL;
@@ -245,33 +237,17 @@ static struct timespec* prep_poll_timer(struct timespec* t0, struct timespec* t1
 
 static void update_link_timers(struct timespec* t0, struct timespec* t1)
 {
-	struct timespec diff;
-	struct link* ls;
-	ulong sub;
+	struct timespec dt;
 
-	diff.sec = t0->sec - t1->sec;
-	diff.nsec = t0->nsec - t1->nsec;
+	dt.sec = t0->sec - t1->sec;
+	dt.nsec = t0->nsec - t1->nsec;
 
 	if(t1->nsec <= t0->nsec) {
-		diff.nsec += 1000*1000*1000;
-		diff.sec--;
+		dt.nsec += 1000*1000*1000;
+		dt.sec--;
 	}
 
-	for(ls = links; ls < links + nlinks; ls++) {
-		if(!ls->timer)
-			continue;
-		if(ls->flags & LF_MILLIS)
-			sub = 1000*diff.sec + diff.nsec / 1000*1000;
-		else
-			sub = diff.sec;
-
-		if(ls->timer > sub) {
-			ls->timer -= sub;
-		} else {
-			ls->timer = 0;
-			link_timer(ls);
-		}
-	}
+	update_dhcp_timers(&dt);
 }
 
 int main(int argc, char** argv, char** envp)
@@ -303,10 +279,8 @@ int main(int argc, char** argv, char** envp)
 			; /* signal has been caught and handled */
 		else if(r < 0)
 			quit("ppoll", NULL, r);
-
 		if(pt != NULL)
 			update_link_timers(&t0, &t1);
-
 		if(r > 0)
 			check_polled_fds();
 	}

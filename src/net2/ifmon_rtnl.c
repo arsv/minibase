@@ -24,11 +24,6 @@ static struct nlattr* ifi_get(struct ifinfomsg* msg, int key)
 	return nl_attr_k_in(NLPAYLOAD(msg), key);
 }
 
-static struct nlattr* ifa_get(struct ifaddrmsg* msg, int key)
-{
-	return nl_attr_k_in(NLPAYLOAD(msg), key);
-}
-
 static void rtnl_send_check(void)
 {
 	if(nl_send(&rtnl) >= 0)
@@ -57,6 +52,56 @@ void enable_iface(LS)
 void disable_iface(LS)
 {
 	set_iface_state(ls->ifi, IFF_UP, 0);
+}
+
+void set_iface_address(int ifi, uint8_t ip[4], int mask, int lt, int rt)
+{
+	struct ifaddrmsg* req;
+
+	nl_header(&rtnl, req, RTM_NEWADDR, NLM_F_CREATE | NLM_F_REPLACE,
+		.family = AF_INET,
+		.prefixlen = mask,
+		.flags = 0,
+		.scope = 0,
+		.index = ifi);
+	nl_put(&rtnl, IFA_LOCAL, ip, 4);
+
+	if(rt > lt) /* renew time must be less than lease time */
+		rt = 0;
+	if(!rt)
+		rt = lt/2;
+	if(lt) {
+		struct ifa_cacheinfo ci = {
+			.valid = lt,
+			.prefered = rt,
+			.created = 0,
+			.updated = 0
+		};
+		nl_put(&rtnl, IFA_CACHEINFO, &ci, sizeof(ci));
+	}
+
+	rtnl_send_check();
+}
+
+void add_default_route(int ifi, uint8_t gw[4])
+{
+	struct rtmsg* req;
+	uint32_t oif = ifi;
+
+	nl_header(&rtnl, req, RTM_NEWROUTE, NLM_F_CREATE | NLM_F_REPLACE,
+		.family = ARPHRD_EETHER,
+		.dst_len = 0,
+		.src_len = 0,
+		.tos = 0,
+		.table = RT_TABLE_MAIN,
+		.protocol = RTPROT_DHCP,
+		.scope = RT_SCOPE_UNIVERSE,
+		.type = RTN_UNICAST,
+		.flags = 0);
+	nl_put(&rtnl, RTA_OIF, &oif, sizeof(oif));
+	nl_put(&rtnl, RTA_GATEWAY, gw, 4);
+
+	rtnl_send_check();
 }
 
 static int iff_to_flags(int iff, int flags)
@@ -156,33 +201,6 @@ static void msg_del_link(struct ifinfomsg* msg)
 	free_link_slot(ls);
 }
 
-static void msg_new_addr(struct ifaddrmsg* msg)
-{
-	struct link* ls;
-	struct nlattr* at;
-	struct ifa_cacheinfo* ci;
-
-	if(!(ls = find_link_slot(msg->index)))
-		return;
-
-	if(!(at = ifa_get(msg, IFA_ADDRESS)))
-		return;
-	if(nl_attr_len(at) != 4)
-		return; /* non-IPv4 addr, not our business */
-
-	if(!(at = ifa_get(msg, IFA_CACHEINFO)))
-		return;
-	if(nl_attr_len(at) != sizeof(*ci))
-		return;
-
-	ci = (struct ifa_cacheinfo*) at->payload;
-
-	if(!ci->prefered)
-		return;
-
-	link_lease(ls, ci->prefered);
-}
-
 void delete_addr(LS)
 {
 	struct ifaddrmsg* req;
@@ -257,7 +275,6 @@ struct rtnh {
 	MSG(NLMSG_ERROR,  msg_rtnl_err,  nlerr),
 	MSG(RTM_NEWLINK,  msg_new_link,  ifinfomsg),
 	MSG(RTM_DELLINK,  msg_del_link,  ifinfomsg),
-	MSG(RTM_NEWADDR,  msg_new_addr,  ifaddrmsg),
 #undef MSG
 	{ 0, NULL, 0 }
 };

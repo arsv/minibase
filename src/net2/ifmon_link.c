@@ -13,46 +13,16 @@ static void start_wsupp(LS)
 	ls->flags |= LF_RUNNING;
 }
 
-void start_dhcp(LS)
-{
-	char* argv[] = { "dhcp", ls->name, NULL };
-
-	if(spawn(ls, CH_DHCP, argv) < 0) {
-		ls->flags |= LF_DHCPREQ;
-	} else {
-		ls->flags &= ~(LF_DHCPREQ | LF_DHCPFAIL);
-		ls->flags |= (LF_RUNNING | LF_ADDRSET);
-	}
-}
-
-static void stop_dhcp(LS)
-{
-	kill_tagged(ls, CH_DHCP);
-}
-
 static void flush_link(LS)
 {
 	if(ls->flags & LF_FLUSHING)
 		return;
 
-	ls->timer = 0;
-	ls->flags &= ~LF_MILLIS;
 	ls->flags &= ~LF_FLUSHREQ;
 	ls->flags |= LF_FLUSHING;
+
 	delete_addr(ls);
-}
-
-static void dhcp_exit(LS, int status)
-{
-	if(status)
-		ls->flags |= LF_DHCPFAIL;
-
-	report_link_dhcp(ls, status);
-
-	if(ls->flags & LF_FLUSHREQ)
-		return flush_link(ls);
-	if(ls->flags & LF_DHCPREQ)
-		return start_dhcp(ls);
+	stop_dhcp(ls);
 }
 
 static void wsupp_exit(LS, int status)
@@ -172,11 +142,8 @@ void link_gone(LS)
 
 void link_exit(LS, int tag, int status)
 {
-	if(tag == CH_DHCP)
-		dhcp_exit(ls, status);
-	else if(tag == CH_WIENC)
+	if(tag == CH_WIENC)
 		wsupp_exit(ls, status);
-
 	if(maybe_mark_stopped(ls))
 		report_link_stopped(ls);
 }
@@ -190,27 +157,4 @@ void link_flushed(LS)
 
 	if(ls->flags & LF_DHCPREQ)
 		start_dhcp(ls);
-}
-
-/* Check for and renew DHCP leases when appropriate.
-
-   A very simplistic solution that assumes all addresses on a link
-   have the same lifetime. That should never happen with common IPv4
-   DHCP setups, but Linux actually allow weird configurations like that.
-
-   Anyway, doing it better will likely require much more involved
-   address tracking, and current scheme will at most cause us to renew
-   leases a earlier than necessary.
-
-   Alternatively, switching to a long-running DHCP client may be an option. */
-
-void link_lease(LS, uint time)
-{
-	ls->timer = time;
-	ls->flags &= ~LF_MILLIS;
-}
-
-void link_timer(LS)
-{
-	start_dhcp(ls);
 }

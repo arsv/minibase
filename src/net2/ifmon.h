@@ -1,6 +1,7 @@
 #define NLINKS 10
 #define NCONNS 10
 #define NPROCS 10
+#define NDHCPS 4
 #define NAMELEN 16
 
 #define LM_SKIP  0
@@ -20,16 +21,18 @@
 #define LF_ERROR    (1<<9)
 #define LF_DHCPFAIL (1<<10)
 #define LF_UNSAVED  (1<<11)
-#define LF_MILLIS   (1<<12)
 
 #define CH_DHCP  1
 #define CH_WIENC 2
+
+#define DH_DISCOVER 1
+#define DH_REQUEST  2
+#define DH_LEASED   3
 
 struct link {
 	int ifi;
 	uint seq;
 	int flags;
-	uint timer;
 	short mode;
 	byte mac[6];
 	char name[NAMELEN];
@@ -47,17 +50,34 @@ struct proc {
 	int tag;
 };
 
+struct dhcp {
+	int ifi;
+	int fd;
+	int state;
+	int tries;
+	uint timer;
+	byte ourmac[6];
+	byte srvmac[6];
+	byte srvaddr[4];
+	byte ouraddr[4];
+	uint32_t xid;
+};
+
 #define LS struct link* ls __unused
+#define DH struct dhcp* dh
 
 extern char** environ;
 extern int netlink;
+extern int pollset;
 
 extern struct proc procs[];
 extern struct conn conns[];
 extern struct link links[];
+extern struct dhcp dhcps[];
 extern int nprocs;
 extern int nconns;
 extern int nlinks;
+extern int ndhcps;
 extern int ctrlfd;
 
 void quit(const char* msg, char* arg, int err) noreturn;
@@ -78,6 +98,9 @@ struct proc* find_proc_slot(int pid);
 void free_proc_slot(struct proc* ch);
 
 struct conn* grab_conn_slot(void);
+struct dhcp* grab_dhcp_slot(int ifi);
+struct dhcp* find_dhcp_slot(int ifi);
+void free_dhcp_slot(struct dhcp* dh);
 
 void link_new(LS);
 void link_enabled(LS);
@@ -86,9 +109,7 @@ void link_lost(LS);
 void link_down(LS);
 void link_gone(LS);
 void link_exit(LS, int tag, int status);
-void link_lease(LS, uint time);
 void link_flushed(LS);
-void link_timer(LS);
 
 void waitpids(void);
 
@@ -108,13 +129,26 @@ void stop_link_procs(struct link* ls, int drop);
 
 int stop_link(LS);
 void start_dhcp(LS);
+void stop_dhcp(LS);
 
 void report_link_down(LS);
 void report_link_gone(LS);
-void report_link_dhcp(LS, int status);
 void report_link_enabled(LS);
 void report_link_carrier(LS);
 void report_link_stopped(LS);
+void report_dhcp_done(DH);
+void report_dhcp_fail(DH);
 
 void set_timeout(int sec);
 void timer_expired(void);
+void request_pollfds_update(void);
+
+struct timespec;
+
+void prep_dhcp_timeout(struct timespec* ts);
+void update_dhcp_timers(struct timespec* dt);
+void handle_dhcp(struct dhcp* dh);
+void dhcp_error(struct dhcp* dh);
+
+void set_iface_address(int ifi, uint8_t ip[4], int mask, int lt, int rt);
+void add_default_route(int ifi, uint8_t gw[4]);
