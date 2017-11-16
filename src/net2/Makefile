@@ -1,5 +1,4 @@
-service = ifmon
-network = wsupp dhcp
+service = ifmon wsupp
 command = wifi ipcfg ipinfo ifctl
 
 include ../rules.mk
@@ -13,5 +12,3 @@ wifi: wifi.o wifi_dump.o wifi_pass.o wifi_wire.o wifi_init.o
 ifmon: ifmon.o ifmon_ctrl.o ifmon_rtnl.o ifmon_exec.o \
 	ifmon_slot.o ifmon_link.o ifmon_conf.o \
 	ifmon_dhcp.o ifmon_dhcp_recv.o ifmon_dhcp_send.o
-
-dhcp: dhcp.o dhcp_dump.o dhcp_conf.o dhcp_udp.o
