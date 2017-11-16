@@ -87,3 +87,25 @@ struct dhcpopt {
 	uint8_t len;
 	uint8_t payload[];
 } __attribute__((packed));
+
+struct dhcpmsg {
+	struct iphdr ip;
+	struct udphdr udp;
+	struct dhcphdr dhcp;
+	char options[500];
+} __attribute__((packed));
+
+extern struct dhcpmsg packet;
+extern int optptr; /* length of useful data in packet.options */
+
+/* Helper functions */
+
+int recv_dhcp_packet(DH, byte mac[6]);
+int get_opt_int(int key);
+uint8_t* get_opt_ip(int key);
+int get_mask_bits(void);
+int get_message_type(void);
+
+int send_renew(DH);
+int send_request(DH);
+int send_discover(DH);
