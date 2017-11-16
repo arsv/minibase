@@ -2,6 +2,7 @@
 #define NCONNS 10
 #define NPROCS 10
 #define NDHCPS 4
+#define NADDRS 12
 #define NAMELEN 16
 
 #define LM_SKIP  0
@@ -30,6 +31,8 @@
 #define DH_LEASED   3
 #define DH_RENEWING 4
 
+#define AD_DNS      1
+
 struct link {
 	int ifi;
 	uint seq;
@@ -49,6 +52,13 @@ struct proc {
 	int pid;
 	int ifi;
 	int tag;
+};
+
+struct addr {
+	int ifi;
+	byte ip[4];
+	byte mask;
+	byte tag;
 };
 
 struct dhcp {
@@ -76,10 +86,12 @@ extern struct proc procs[];
 extern struct conn conns[];
 extern struct link links[];
 extern struct dhcp dhcps[];
+extern struct addr addrs[];
 extern int nprocs;
 extern int nconns;
 extern int nlinks;
 extern int ndhcps;
+extern int naddrs;
 extern int ctrlfd;
 
 void quit(const char* msg, char* arg, int err) noreturn;
@@ -103,6 +115,9 @@ struct conn* grab_conn_slot(void);
 struct dhcp* grab_dhcp_slot(int ifi);
 struct dhcp* find_dhcp_slot(int ifi);
 void free_dhcp_slot(struct dhcp* dh);
+
+void record_addr(int ifi, byte tag, byte ip[4], byte mask);
+void flush_addrs(int ifi, int tag);
 
 void link_new(LS);
 void link_enabled(LS);

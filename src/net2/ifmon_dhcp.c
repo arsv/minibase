@@ -4,11 +4,14 @@
 #include <bits/ether.h>
 #include <sys/socket.h>
 #include <sys/file.h>
+#include <sys/fpath.h>
 
 #include <string.h>
+#include <format.h>
 #include <endian.h>
 #include <util.h>
 
+#include "common.h"
 #include "ifmon.h"
 #include "ifmon_dhcp.h"
 
@@ -79,6 +82,39 @@ static void gen_new_xid(DH)
 	sys_close(fd);
 }
 
+static void regen_resolv_conf(void)
+{
+	char* name = RESOLV_CONF;
+	int mode = 0644;
+	int flags = O_WRONLY | O_CREAT | O_TRUNC;
+	int fd;
+	struct addr* ad;
+
+	FMTBUF(p, e, buf, 300);
+	char* q;
+
+	if((fd = sys_open3(name, flags, mode)) < 0)
+		return;
+
+	for(ad = addrs; ad < addrs + naddrs; ad++) {
+		if(ad->tag != AD_DNS)
+			continue;
+		q = p;
+
+		p = fmtstr(p, e, "nameserver ");
+		p = fmtip(p, e, ad->ip);
+		p = fmtstr(p, e, "\n");
+
+		if(p >= e) p = q;
+	}
+
+	if(p == buf)
+		p = fmtstr(p, e, "# no nameservers\n");
+
+	sys_write(fd, buf, p - buf);
+	sys_close(fd);
+}
+
 static void failure(DH, char* msg)
 {
 	warn("dhcp", msg, 0);
@@ -131,12 +167,26 @@ static void handle_offer(DH, byte mac[6])
 	dh->tries = RETRIES;
 }
 
+static void update_dns_list(int ifi, byte* buf, int len)
+{
+	if(len % 4)
+		return;
+
+	flush_addrs(ifi, AD_DNS);
+
+	for(int i = 0; i < len - 3; i += 4)
+		record_addr(ifi, AD_DNS, buf + i, 0);
+
+	regen_resolv_conf();
+}
+
 static void apply_leased_address(DH)
 {
 	int mask = get_mask_bits();
 	int lt = get_opt_int(DHCP_LEASE_TIME);
 	int rt = get_opt_int(DHCP_RENEW_TIME);
 	byte *gw, *ip = packet.dhcp.yiaddr;
+	struct dhcpopt* op;
 
 	if(!rt && lt > 2*60)
 		rt = lt/2;
@@ -153,10 +203,11 @@ static void apply_leased_address(DH)
 
 	if(dh->state == DH_RENEWING)
 		return;
-	if(!(gw = get_opt_ip(DHCP_ROUTER_IP)))
-		return;
 
-	add_default_route(dh->ifi, gw);
+	if((gw = get_opt_ip(DHCP_ROUTER_IP)))
+		add_default_route(dh->ifi, gw);
+	if((op = get_option(DHCP_NAME_SERVERS, 0)))
+		update_dns_list(dh->ifi, op->payload, op->len);
 }
 
 static void handle_acknak(DH, byte mac[6])
@@ -318,6 +369,8 @@ void drop_all_leases(void)
 			continue;
 		release_lease(dh);
 	}
+
+	sys_unlink(RESOLV_CONF);
 }
 
 void dhcp_error(struct dhcp* dh)

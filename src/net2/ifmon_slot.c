@@ -8,9 +8,11 @@
 struct link links[NLINKS];
 struct conn conns[NCONNS];
 struct dhcp dhcps[NDHCPS];
+struct addr addrs[NADDRS];
 int nlinks;
 int nconns;
 int ndhcps;
+int naddrs;
 
 struct proc procs[NPROCS];
 int nprocs;
@@ -134,4 +136,30 @@ struct dhcp* grab_dhcp_slot(int ifi)
 void free_dhcp_slot(struct dhcp* dh)
 {
 	free_slot(dhcps, &ndhcps, sizeof(*dh), dh);
+}
+
+void flush_addrs(int ifi, int tag)
+{
+	struct addr* ad;
+
+	for(ad = addrs; ad < addrs + naddrs; ad++) {
+		if(ifi && ad->ifi != ifi)
+			continue;
+		if(tag && ad->tag != tag)
+			continue;
+		memzero(ad, sizeof(*ad));
+	}
+}
+
+void record_addr(int ifi, byte tag, byte* ip, byte mask)
+{
+	struct addr* ad;
+
+	if(!(ad = grab_slot(addrs, &naddrs, NADDRS, sizeof(*ad))))
+		return;
+
+	ad->ifi = ifi;
+	ad->tag = tag;
+	memcpy(ad->ip, ip, 4);
+	ad->mask = mask;
 }

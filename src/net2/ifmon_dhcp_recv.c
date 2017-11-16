@@ -11,7 +11,7 @@
 #include "ifmon.h"
 #include "ifmon_dhcp.h"
 
-struct dhcpopt* opt_at(int off)
+static struct dhcpopt* opt_at(int off)
 {
 	struct dhcpopt* opt;
 	int hdrlen = sizeof(*opt);
@@ -29,12 +29,12 @@ struct dhcpopt* opt_at(int off)
 	return opt;
 }
 
-struct dhcpopt* first_opt(void)
+static struct dhcpopt* first_opt(void)
 {
 	return opt_at(0);
 }
 
-struct dhcpopt* next_opt(struct dhcpopt* curr)
+static struct dhcpopt* next_opt(struct dhcpopt* curr)
 {
 	char* cptr = (char*)curr;
 
@@ -48,7 +48,7 @@ struct dhcpopt* next_opt(struct dhcpopt* curr)
 	return opt_at(pos + sizeof(*curr) + curr->len);
 }
 
-static struct dhcpopt* get_option(int code, int len)
+struct dhcpopt* get_option(int code, int len)
 {
 	struct dhcpopt* opt;
 

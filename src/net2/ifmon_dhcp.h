@@ -105,6 +105,7 @@ int get_opt_int(int key);
 uint8_t* get_opt_ip(int key);
 int get_mask_bits(void);
 int get_message_type(void);
+struct dhcpopt* get_option(int code, int len);
 
 int send_renew(DH);
 int send_request(DH);

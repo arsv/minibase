@@ -6,6 +6,7 @@
 #define WICTL RUN_CTRL "/wsupp"
 #define WICFG HERE "/var/wipsk"
 #define WICAP HERE "/var/wiap"
+#define RESOLV_CONF HERE "/run/resolv.conf"
 
 #define IF(c) TAGGED('I', 'F', c)
 #define WI(c) TAGGED('W', 'I', c)
