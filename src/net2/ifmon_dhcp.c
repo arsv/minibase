@@ -4,7 +4,6 @@
 #include <sys/socket.h>
 #include <sys/file.h>
 
-#include <printf.h>
 #include <string.h>
 #include <endian.h>
 #include <util.h>
@@ -14,6 +13,9 @@
 
 #define ARPHRD_NETROM  0
 #define ETH_P_IP  0x0800
+
+#define RETRIES 2 /* plus the initial request */
+#define TIMEOUT 500 /* ms */
 
 static struct dhcpmsg {
 	struct iphdr ip;
@@ -164,31 +166,44 @@ static void set_udp_header(void)
 	packet.ip.check = htons(ipchecksum(&packet, sizeof(packet.ip)));
 }
 
-static int send_packet(DH)
+static int send_packet(DH, const byte mac[6])
 {
-	struct sockaddr_ll addr = {
+	struct sockaddr_ll to = {
 		.family = AF_PACKET,
 		.ifindex = dh->ifi,
 		.hatype = ARPHRD_NETROM,
 		.pkttype = PACKET_HOST,
 		.protocol = htons(ETH_P_IP),
-		.halen = 6,
-		.addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF } /* broadcast */
+		.halen = 6
 	};
 	int fd = dh->fd;
 	int len, ret;
+
+	memcpy(to.addr, mac, 6);
 
 	put_option_end();
 	set_udp_header();
 
 	len = ntohs(packet.ip.tot_len);
 
-	if((ret = sys_sendto(fd, &packet, len, 0, &addr, sizeof(addr))) > 0)
+	if((ret = sys_sendto(fd, &packet, len, 0, &to, sizeof(to))) > 0)
 		return 0;
 
 	warn("sendto", NULL, ret);
 
 	return ret;
+}
+
+static int send_broadcast(DH)
+{
+	static const byte bcast[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+
+	return send_packet(dh, bcast);
+}
+
+static int send_unicast(DH)
+{
+	return send_packet(dh, dh->srvmac);
 }
 
 static int open_socket(DH)
@@ -216,17 +231,16 @@ static int open_socket(DH)
 	}
 
 	dh->fd = fd;
+	pollset = 0;
 
 	return 0;
 }
 
 static int send_discover(DH)
 {
-	tracef("%s %i\n", __FUNCTION__, dh->ifi);
-
 	put_header(DHCPDISCOVER, dh);
 
-	return send_packet(dh);
+	return send_broadcast(dh);
 }
 
 struct dhcpopt* opt_at(int off)
@@ -268,17 +282,23 @@ struct dhcpopt* next_opt(struct dhcpopt* curr)
 
 static int send_request(DH)
 {
-	tracef("%s %i\n", __FUNCTION__, dh->ifi);
-
 	put_header(DHCPREQUEST, dh);
 	put_ip(DHCP_REQUESTED_IP, dh->ouraddr);
 	put_ip(DHCP_SERVER_ID, dh->srvaddr);
 	put_mac(DHCP_CLIENT_ID, dh->ourmac);
 
-	return send_packet(dh);
+	return send_broadcast(dh);
 }
 
-struct dhcpopt* get_option(int code, int len)
+static int send_renew(DH)
+{
+	put_header(DHCPREQUEST, dh);
+	memcpy(packet.dhcp.ciaddr, dh->ouraddr, 4);
+
+	return send_unicast(dh);
+}
+
+static struct dhcpopt* get_option(int code, int len)
 {
 	struct dhcpopt* opt;
 
@@ -305,16 +325,38 @@ static void failure(DH, char* msg)
 	dhcp_error(dh);
 }
 
+static int next_renew_delay(int timeleft)
+{
+	if(timeleft > 2*60)
+		return timeleft / 2;
+	else
+		return timeleft;
+}
+
+static void renew_failed(DH)
+{
+	struct link* ls;
+
+	close_socket(dh);
+
+	if(dh->extra) { /* some more time left */
+		int delay = next_renew_delay(dh->extra);
+		dh->timer = delay;
+		dh->extra -= delay;
+		dh->state = DH_LEASED;
+	} else { /* no more time left */
+		if((ls = find_link_slot(dh->ifi)))
+			stop_link(ls);
+		free_dhcp_slot(dh);
+	}
+}
+
 static void handle_offer(DH, byte mac[6])
 {
 	struct dhcpopt* opt;
 
-	tracef("%s %i\n", __FUNCTION__, dh->ifi);
-
-	if(get_message_type() != DHCPOFFER) {
-		tracef("not an OFFER message (but %i)\n", get_message_type());
+	if(get_message_type() != DHCPOFFER)
 		return;
-	}
 	if(!(opt = get_option(DHCP_SERVER_ID, 4)))
 		return failure(dh, "OFFER without server ip");
 
@@ -322,10 +364,11 @@ static void handle_offer(DH, byte mac[6])
 	memcpy(dh->srvaddr, opt->payload, 4);
 	memcpy(dh->ouraddr, packet.dhcp.yiaddr, 4);
 
-	dh->state = DH_REQUEST;
-	dh->tries = 3;
+	if(send_request(dh))
+		return;
 
-	send_request(dh);
+	dh->state = DH_REQUEST;
+	dh->tries = RETRIES;
 }
 
 static int maskbits(void)
@@ -374,10 +417,12 @@ static int get_opt_int(int key)
 static void apply_leased_address(DH)
 {
 	int mask = maskbits();
-	uint8_t* gw = get_opt_ip(DHCP_ROUTER_IP);
 	int lt = get_opt_int(DHCP_LEASE_TIME);
 	int rt = get_opt_int(DHCP_RENEW_TIME);
+	byte *gw, *ip = packet.dhcp.yiaddr;
 
+	if(!rt && lt > 2*60)
+		rt = lt/2;
 	if(rt && rt < lt)
 		dh->timer = rt;
 	else if(lt)
@@ -385,25 +430,21 @@ static void apply_leased_address(DH)
 	else
 		dh->timer = 0;
 
-	byte* ip = packet.dhcp.yiaddr;
-	tracef("leased %i.%i.%i.%i/%i\n", ip[0], ip[1], ip[2], ip[3], mask);
-	tracef("lease time %i gw %i.%i.%i.%i\n",
-			dh->timer, gw[0], gw[1], gw[2], gw[3]);
+	dh->extra = lt - dh->timer;
 
 	set_iface_address(dh->ifi, ip, mask, lt, rt);
 
-	if(!gw) return;
+	if(dh->state == DH_RENEWING)
+		return;
+	if(!(gw = get_opt_ip(DHCP_ROUTER_IP)))
+		return;
 
 	add_default_route(dh->ifi, gw);
-
-	report_dhcp_done(dh);
 }
 
 static void handle_acknak(DH, byte mac[6])
 {
 	int type = get_message_type();
-
-	tracef("%s %i\n", __FUNCTION__, dh->ifi);
 
 	if(memcmp(mac, dh->srvmac, 6))
 		return; /* packet from another server */
@@ -413,6 +454,27 @@ static void handle_acknak(DH, byte mac[6])
 		return;
 	if(memcmp(packet.dhcp.yiaddr, dh->ouraddr, 4))
 		return failure(dh, "ACK with a different address");
+
+	close_socket(dh);
+	apply_leased_address(dh);
+
+	dh->state = DH_LEASED;
+
+	report_dhcp_done(dh);
+}
+
+static void handle_rebind(DH, byte mac[6])
+{
+	int type = get_message_type();
+
+	if(memcmp(mac, dh->srvmac, 6))
+		return; /* packet from another server */
+	if(type == DHCPNAK)
+		return renew_failed(dh);
+	if(type != DHCPACK)
+		return;
+	if(memcmp(packet.dhcp.yiaddr, dh->ouraddr, 4))
+		return renew_failed(dh);
 
 	close_socket(dh);
 	apply_leased_address(dh);
@@ -464,55 +526,6 @@ static int valid_dhcp_packet(int rd)
 	return 1;
 }
 
-void handle_dhcp(DH)
-{
-	struct sockaddr_ll from;
-	int frlen = sizeof(from);
-	int flags = MSG_DONTWAIT;
-
-	void* buf = &packet;
-	int len = sizeof(packet);
-	int rd, fd = dh->fd;
-
-	reset_packet();
-
-	if((rd = sys_recvfrom(fd, buf, len, flags, &from, &frlen)) == -EAGAIN)
-		return;
-	else if(rd < 0)
-		return failure(dh, "socket error");
-
-	if(!valid_dhcp_packet(rd))
-		return;
-
-	if(dh->state == DH_DISCOVER)
-		handle_offer(dh, from.addr);
-	else if(dh->state == DH_REQUEST)
-		handle_acknak(dh, from.addr);
-	else
-		tracef("dropping stray packet\n");
-}
-
-static void drop_dhcp_slot(DH)
-{
-	close_socket(dh);
-	free_dhcp_slot(dh);
-}
-
-void dhcp_error(struct dhcp* dh)
-{
-	int ifi = dh->ifi;
-	struct link* ls;
-
-	tracef("%s %i\n", __FUNCTION__, dh->ifi);
-
-	if((ls = find_link_slot(ifi)))
-		ls->flags |= LF_DHCPFAIL;
-
-	drop_dhcp_slot(dh);
-
-	report_dhcp_fail(dh);
-}
-
 static void gen_new_xid(DH)
 {
 	int fd, rd;
@@ -530,57 +543,44 @@ static void gen_new_xid(DH)
 	sys_close(fd);
 }
 
-void start_dhcp(LS)
+static void renew_lease(DH)
 {
-	struct dhcp* dh;
-	int ifi = ls->ifi;
+	open_socket(dh);
 
-	tracef("%s %s=%i\n", __FUNCTION__, ls->name, ls->ifi);
+	if(send_renew(dh))
+		return renew_failed(dh);
 
-	if(!(dh = grab_dhcp_slot(ifi))) {
-		tracef("out of dhcp slots\n");
-		ls->flags |= LF_DHCPREQ;
-		return;
-	} else if(dh->ifi) { /* negotiations in progress */
-		if(dh->state != DH_LEASED)
-			return;
-
-		tracef("re-dhcp\n");
-		memzero(dh, sizeof(*dh));
-	}
-
-	dh->ifi = ifi;
-	gen_new_xid(dh);
-	memcpy(dh->ourmac, ls->mac, 6);
-
-	ls->flags |= LF_DHCPFAIL;
-
-	if(open_socket(dh))
-		return;
-	if(send_discover(dh))
-		return;
-
-	ls->flags &= ~LF_DHCPFAIL;
-
-	dh->state = DH_DISCOVER;
-	dh->timer = 500; /* 0.5s to resent DISCOVER */
-}
-
-void stop_dhcp(LS)
-{
-	struct dhcp* dh;
-
-	tracef("%s %s\n", __FUNCTION__, ls->name);
-
-	if(!(dh = find_dhcp_slot(ls->ifi)))
-		return;
-
-	drop_dhcp_slot(dh);
+	dh->state = DH_RENEWING;
+	dh->tries = RETRIES;
+	dh->timer = TIMEOUT;
 }
 
 static void handle_timeout(DH)
 {
-	tracef("%s %i\n", __FUNCTION__, dh->ifi);
+	int ret;
+
+	if(dh->state == DH_LEASED)
+		return renew_lease(dh);
+
+	if(dh->tries)
+		dh->tries--;
+	else if(dh->state == DH_RENEWING)
+		return renew_failed(dh);
+	else
+		return failure(dh, "timeout");
+
+	if(dh->state == DH_DISCOVER)
+		ret = send_discover(dh);
+	else if(dh->state == DH_REQUEST)
+		ret = send_request(dh);
+	else if(dh->state == DH_RENEWING)
+		ret = send_renew(dh);
+	else return;
+
+	if(!ret)
+		dh->timer = TIMEOUT;
+	else
+		dhcp_error(dh);
 }
 
 void prep_dhcp_timeout(struct timespec* out)
@@ -639,4 +639,89 @@ void update_dhcp_timers(struct timespec* diff)
 			handle_timeout(dh);
 		}
 	}
+}
+
+void dhcp_error(struct dhcp* dh)
+{
+	int ifi = dh->ifi;
+	struct link* ls;
+
+	if((ls = find_link_slot(ifi)))
+		ls->flags |= LF_DHCPFAIL;
+
+	close_socket(dh);
+	free_dhcp_slot(dh);
+
+	report_dhcp_fail(dh);
+}
+
+void stop_dhcp(LS)
+{
+	struct dhcp* dh;
+
+	if(!(dh = find_dhcp_slot(ls->ifi)))
+		return;
+
+	close_socket(dh);
+	free_dhcp_slot(dh);
+}
+
+void handle_dhcp(DH)
+{
+	struct sockaddr_ll from;
+	int frlen = sizeof(from);
+	int flags = MSG_DONTWAIT;
+
+	void* buf = &packet;
+	int len = sizeof(packet);
+	int rd, fd = dh->fd;
+
+	reset_packet();
+
+	if((rd = sys_recvfrom(fd, buf, len, flags, &from, &frlen)) == -EAGAIN)
+		return;
+	else if(rd < 0)
+		return failure(dh, "socket error");
+
+	if(!valid_dhcp_packet(rd))
+		return;
+
+	if(dh->state == DH_DISCOVER)
+		handle_offer(dh, from.addr);
+	else if(dh->state == DH_REQUEST)
+		handle_acknak(dh, from.addr);
+	else if(dh->state == DH_RENEWING)
+		handle_rebind(dh, from.addr);
+}
+
+void start_dhcp(LS)
+{
+	struct dhcp* dh;
+	int ifi = ls->ifi;
+
+	if(!(dh = grab_dhcp_slot(ifi))) {
+		ls->flags |= LF_DHCPREQ;
+		return;
+	} else if(dh->ifi) { /* negotiations in progress */
+		if(dh->state != DH_LEASED)
+			return;
+		memzero(dh, sizeof(*dh));
+	}
+
+	dh->ifi = ifi;
+	gen_new_xid(dh);
+	memcpy(dh->ourmac, ls->mac, 6);
+
+	ls->flags |= LF_DHCPFAIL;
+
+	if(open_socket(dh))
+		return;
+	if(send_discover(dh))
+		return;
+
+	ls->flags &= ~LF_DHCPFAIL;
+
+	dh->state = DH_DISCOVER;
+	dh->tries = RETRIES;
+	dh->timer = TIMEOUT;
 }

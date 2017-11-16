@@ -28,6 +28,7 @@
 #define DH_DISCOVER 1
 #define DH_REQUEST  2
 #define DH_LEASED   3
+#define DH_RENEWING 4
 
 struct link {
 	int ifi;
@@ -56,6 +57,7 @@ struct dhcp {
 	int state;
 	int tries;
 	uint timer;
+	uint extra;
 	byte ourmac[6];
 	byte srvmac[6];
 	byte srvaddr[4];

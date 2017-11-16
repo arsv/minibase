@@ -67,9 +67,7 @@ void set_iface_address(int ifi, uint8_t ip[4], int mask, int lt, int rt)
 	nl_put(&rtnl, IFA_LOCAL, ip, 4);
 
 	if(rt > lt) /* renew time must be less than lease time */
-		rt = 0;
-	if(!rt)
-		rt = lt/2;
+		rt = lt;
 	if(lt) {
 		struct ifa_cacheinfo ci = {
 			.valid = lt,

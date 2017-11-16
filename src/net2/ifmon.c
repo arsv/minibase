@@ -4,6 +4,7 @@
 #include <sys/signal.h>
 #include <sys/time.h>
 
+#include <printf.h>
 #include <errtag.h>
 #include <netlink.h>
 #include <sigset.h>
