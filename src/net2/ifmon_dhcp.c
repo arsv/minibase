@@ -630,7 +630,7 @@ void update_dhcp_timers(struct timespec* diff)
 		if(dh->state == DH_LEASED)
 			sub = dt.sec;
 		else
-			sub = 1000*dt.sec + dt.nsec / 1000*1000;
+			sub = 1000*dt.sec + dt.nsec/1000/1000;
 
 		if(dh->timer > sub) {
 			dh->timer -= sub;

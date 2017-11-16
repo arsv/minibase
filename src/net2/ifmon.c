@@ -235,14 +235,14 @@ static struct timespec* prep_poll_timer(struct timespec* t0, struct timespec* t1
 	return t1;
 }
 
-static void update_link_timers(struct timespec* t0, struct timespec* t1)
+static void update_timers(struct timespec* t0, struct timespec* t1)
 {
 	struct timespec dt;
 
 	dt.sec = t0->sec - t1->sec;
 	dt.nsec = t0->nsec - t1->nsec;
 
-	if(t1->nsec <= t0->nsec) {
+	if(t0->nsec < t1->nsec) {
 		dt.nsec += 1000*1000*1000;
 		dt.sec--;
 	}
@@ -280,7 +280,7 @@ int main(int argc, char** argv, char** envp)
 		else if(r < 0)
 			quit("ppoll", NULL, r);
 		if(pt != NULL)
-			update_link_timers(&t0, &t1);
+			update_timers(&t0, &t1);
 		if(r > 0)
 			check_polled_fds();
 	}
