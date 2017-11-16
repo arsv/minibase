@@ -286,6 +286,7 @@ int main(int argc, char** argv, char** envp)
 			check_polled_fds();
 	}
 
+	drop_all_leases();
 	stop_wait_procs();
 	stop_all_links();
 	save_flagged_links();

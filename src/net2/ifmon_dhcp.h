@@ -109,3 +109,4 @@ int get_message_type(void);
 int send_renew(DH);
 int send_request(DH);
 int send_discover(DH);
+void send_release(DH);

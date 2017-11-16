@@ -151,6 +151,7 @@ void prep_dhcp_timeout(struct timespec* ts);
 void update_dhcp_timers(struct timespec* dt);
 void handle_dhcp(struct dhcp* dh);
 void dhcp_error(struct dhcp* dh);
+void drop_all_leases(void);
 
 void set_iface_address(int ifi, uint8_t ip[4], int mask, int lt, int rt);
 void add_default_route(int ifi, uint8_t gw[4]);

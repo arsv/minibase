@@ -201,3 +201,11 @@ int send_renew(DH)
 
 	return send_unicast(dh);
 }
+
+void send_release(DH)
+{
+	put_header(DHCPRELEASE, dh);
+	put_mac(DHCP_CLIENT_ID, dh->ourmac);
+
+	send_unicast(dh);
+}

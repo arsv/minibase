@@ -31,6 +31,9 @@ static int open_socket(DH)
 		.addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }
 	};
 
+	if(dh->fd > 0)
+		return 0;
+
 	if((fd = sys_socket(PF_PACKET, SOCK_DGRAM, 8)) < 0) {
 		warn("socket", NULL, fd);
 		return fd;
@@ -294,6 +297,29 @@ void update_dhcp_timers(struct timespec* diff)
 	}
 }
 
+static void release_lease(DH)
+{
+	if(dh->state == DH_LEASED)
+		;
+	else if(dh->state == DH_RENEWING)
+		;
+	else return;
+
+	open_socket(dh);
+	send_release(dh);
+}
+
+void drop_all_leases(void)
+{
+	struct dhcp* dh;
+
+	for(dh = dhcps; dh < dhcps + ndhcps; dh++) {
+		if(!dh->ifi)
+			continue;
+		release_lease(dh);
+	}
+}
+
 void dhcp_error(struct dhcp* dh)
 {
 	int ifi = dh->ifi;
@@ -315,6 +341,7 @@ void stop_dhcp(LS)
 	if(!(dh = find_dhcp_slot(ls->ifi)))
 		return;
 
+	release_lease(dh);
 	close_socket(dh);
 	free_dhcp_slot(dh);
 }
