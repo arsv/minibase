@@ -513,6 +513,23 @@ void dhcp_error(struct dhcp* dh)
 	report_dhcp_fail(dh);
 }
 
+static void gen_new_xid(DH)
+{
+	int fd, rd;
+	char buf[4];
+	char* name = "/dev/urandom";
+
+	if((fd = sys_open(name, O_RDONLY)) < 0)
+		return warn(NULL, name, fd);
+
+	if((rd = sys_read(fd, buf, sizeof(buf))) < 0)
+		warn("read", name, rd);
+	else
+		memcpy(&dh->xid, buf, 4);
+
+	sys_close(fd);
+}
+
 void start_dhcp(LS)
 {
 	struct dhcp* dh;
@@ -533,7 +550,9 @@ void start_dhcp(LS)
 	}
 
 	dh->ifi = ifi;
+	gen_new_xid(dh);
 	memcpy(dh->ourmac, ls->mac, 6);
+
 	ls->flags |= LF_DHCPFAIL;
 
 	if(open_socket(dh))
