@@ -60,7 +60,7 @@ struct pattern {
 	int where;
 };
 
-struct topctx {
+struct top {
 	int opts;
 	void* ptr;
 	void* brk;
@@ -68,13 +68,16 @@ struct topctx {
 	int pcnt;
 };
 
-struct dirctx {
-	struct topctx* tc;
+struct dir {
+	struct top* tc;
 	char* dir;
 	int count;
 	struct shortent* ents;
 	struct shortent** idx;
 };
+
+#define TC struct top* tc
+#define DC struct dir* dc
 
 static char dirbuf[2*PAGE];
 
@@ -88,7 +91,7 @@ static void* setbrk(void* old, int incr)
 	return ptr;
 }
 
-static void* extend(struct topctx* tc, int size)
+static void* extend(TC, int size)
 {
 	if(tc->brk - tc->ptr < size) {
 		int aligned = size + (PAGE - size % PAGE);
@@ -100,7 +103,7 @@ static void* extend(struct topctx* tc, int size)
 	return ret;
 }
 
-static int pathsize(struct dirctx* dc, char* name)
+static int pathsize(DC, char* name)
 {
 	if(dc->dir)
 		return strlen(dc->dir) + strlen(name) + 2;
@@ -108,40 +111,35 @@ static int pathsize(struct dirctx* dc, char* name)
 		return strlen(name) + 1;
 }
 
-static void makepath(struct dirctx* dc, char* name, char* buf, int len)
+static void enqueue(DC, char* name, int isdir)
 {
-	char* p = buf;
-	char* e = p + len - 1;
-
-	if(dc->dir) {
-		p = fmtstr(p, e, dc->dir);
-		p = fmtchar(p, e, '/');
-	}
-
-	p = fmtstr(p, e, name);
-	*p++ = '\0';
-}
-
-static void enqueue(struct dirctx* dc, char* name, int isdir)
-{
-	struct topctx* tc = dc->tc;
+	struct top* tc = dc->tc;
 
 	int pathlen = pathsize(dc, name);
 	int size = sizeof(struct shortent) + pathlen;
 
-	struct shortent* p = (struct shortent*) extend(tc, size);
+	struct shortent* se = extend(tc, size);
 
-	p->dir = isdir;
-	p->len = size;
+	se->dir = isdir;
+	se->len = size;
 
-	makepath(dc, name, p->name, pathlen);
+	char* p = se->name;
+	char* e = p + pathlen - 1;
+
+	if(dc->dir) {
+		p = fmtstr(p, e, dc->dir);
+		p = fmtstr(p, e, "/");
+	}
+
+	p = fmtstr(p, e, name);
+	*p++ = '\0';
 
 	dc->count++;
 }
 
-static void checkfile(struct dirctx* dc, char* name)
+static void check_file(DC, char* name)
 {
-	struct topctx* tc = dc->tc;
+	struct top* tc = dc->tc;
 	int namelen = strlen(name);
 	int i;
 
@@ -153,17 +151,15 @@ static void checkfile(struct dirctx* dc, char* name)
 
 		char* anchor = p->where ? name + namelen - p->len : name;
 
-		if(!strncmp(anchor, p->name, p->len))
-			break;
-	}
-	
-	if(i >= tc->pcnt)
-		return;
+		if(strncmp(anchor, p->name, p->len))
+			continue;
 
-	enqueue(dc, name, MFILE);
+		enqueue(dc, name, MFILE);
+		break;
+	}
 }
 
-static void checkstat(struct dirctx* dc, char* name)
+static void check_stat(DC, char* name)
 {
 	(void)dc;
 	(void)name;
@@ -171,7 +167,7 @@ static void checkstat(struct dirctx* dc, char* name)
 	fail("not implemented", NULL, 0);
 }
 
-static void checkdent(struct dirctx* dc, struct dirent* de)
+static void check_dent(DC, struct dirent* de)
 {
 	int type = de->type;
 	char* name = de->name;
@@ -179,41 +175,38 @@ static void checkdent(struct dirctx* dc, struct dirent* de)
 	if(type == DT_DIR)
 		enqueue(dc, name, MDIR);
 	else if(type == DT_UNKNOWN)
-		checkstat(dc, name);
+		check_stat(dc, name);
 	else
-		checkfile(dc, name);
+		check_file(dc, name);
 }
 
-static void readscan(struct dirctx* dc, int fd)
+static void read_scan(DC, int fd)
 {
 	char* dir = dc->dir;
-
-	struct dirent64* debuf = (struct dirent64*) dirbuf;
-	long len = sizeof(dirbuf);
+	long dblen = sizeof(dirbuf);
 	long ret;
 
 	dc->ents = (struct shortent*) dc->tc->ptr;
 
-	while((ret = sys_getdents(fd, debuf, len)) > 0) {
-		void* ptr = (void*) debuf;
+	while((ret = sys_getdents(fd, dirbuf, dblen)) > 0) {
+		void* ptr = dirbuf;
 		void* end = ptr + ret;
+
 		while(ptr < end) {
 			struct dirent* de = (struct dirent*) ptr;
 
-			if(!dotddot(de->name))
-				checkdent(dc, de);
 			if(de->reclen <= 0)
 				break;
+
 			ptr += de->reclen;
+
+			if(dotddot(de->name))
+				continue;
+
+			check_dent(dc, de);
 		}
 	} if(ret < 0)
 		fail("cannot read entries from", dir, ret);
-}
-
-struct shortent* nextshortent(struct shortent* p)
-{
-	void* q = (void*) p;
-	return (struct shortent*)(q + p->len);
 }
 
 static int cmpidx(const void* a, const void* b)
@@ -224,9 +217,15 @@ static int cmpidx(const void* a, const void* b)
 	return strcmp(pa->name, pb->name);
 }
 
-static void idxfound(struct dirctx* dc)
+struct shortent* next_shortent(struct shortent* p)
 {
-	struct topctx* tc = dc->tc;
+	void* q = (void*) p;
+	return (struct shortent*)(q + p->len);
+}
+
+static void index_entries(DC)
+{
+	struct top* tc = dc->tc;
 
 	int nents = dc->count;
 	int size = nents * sizeof(void*);
@@ -237,23 +236,23 @@ static void idxfound(struct dirctx* dc)
 
 	for(i = 0; i < nents; i++) {
 		dc->idx[i] = (struct shortent*) p;
-		p = nextshortent(p);
+		p = next_shortent(p);
 	}
 
 	qsort(dc->idx, nents, sizeof(void*), cmpidx);
 }
 
-static void searchdir(struct topctx* tc, char* dir);
+static void scan_dir(TC, char* openname, char* dirname);
 
-static void printrec(struct dirctx* dc)
+static void print_indexed(DC)
 {
-	int i;
+	struct top* tc = dc->tc;
 
-	for(i = 0; i < dc->count; i++) {
+	for(int i = 0; i < dc->count; i++) {
 		struct shortent* q = dc->idx[i];
 
 		if(q->dir) {
-			searchdir(dc->tc, q->name);
+			scan_dir(tc, q->name, q->name);
 		} else {
 			writeout(q->name, strlen(q->name));
 			writeout("\n", 1);
@@ -261,33 +260,34 @@ static void printrec(struct dirctx* dc)
 	}
 }
 
-static void searchdir(struct topctx* tc, char* dir)
+static void scan_dir(TC, char* openname, char* listname)
 {
-	void* saved = tc->ptr;
-	char* dirname = dir ? dir : ".";
+	int fd;
+	void* ptr;
 
-	long fd = sys_open(dirname, O_DIRECTORY);
+	if((fd = sys_open(openname, O_DIRECTORY)) < 0)
+		return;
 
-	if(fd < 0) return;
-
-	struct dirctx dc = {
+	struct dir dc = {
 		.tc = tc,
-		.dir = dir,
+		.dir = listname,
 		.count = 0,
 		.ents = NULL,
 		.idx = NULL
 	};
 
-	readscan(&dc, fd);
+	ptr = tc->ptr;
+
+	read_scan(&dc, fd);
 	sys_close(fd);
 
-	idxfound(&dc);
-	printrec(&dc);
+	index_entries(&dc);
+	print_indexed(&dc);
 
-	tc->ptr = saved;
+	tc->ptr = ptr;
 }
 
-static void setpatterns(struct topctx* tc, int argc, char** argv)
+static void prep_patterns(TC, int argc, char** argv)
 {
 	int i;
 
@@ -306,6 +306,11 @@ int main(int argc, char** argv)
 	int i = 1;
 	char* start = NULL;
 
+	struct top context, *tc = &context;
+	struct pattern patt[argc];
+
+	memzero(tc, sizeof(*tc));
+
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
@@ -318,18 +323,18 @@ int main(int argc, char** argv)
 	argc -= i;
 	argv += i;
 
-	struct topctx tc;
-	struct pattern patt[argc];
+	tc->opts = opts;
+	tc->ptr = setbrk(NULL, 0);
+	tc->brk = setbrk(tc->ptr, PAGE);
+	tc->patt = patt;
+	tc->pcnt = argc;
 
-	tc.opts = opts;
-	tc.ptr = setbrk(NULL, 0);
-	tc.brk = setbrk(tc.ptr, PAGE);
-	tc.patt = patt;
-	tc.pcnt = argc;
+	prep_patterns(tc, argc, argv);
 
-	setpatterns(&tc, argc, argv);
-
-	searchdir(&tc, start);
+	if(start)
+		scan_dir(tc, start, start);
+	else
+		scan_dir(tc, ".", NULL);
 
 	flushout();
 
