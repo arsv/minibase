@@ -50,7 +50,8 @@ ERRTAG("ff");
 
 struct shortent {
 	short len;
-	char dir;
+	short pre;
+	char isdir;
 	char name[];
 };
 
@@ -70,6 +71,7 @@ struct top {
 
 struct dir {
 	struct top* tc;
+	int fd;
 	char* dir;
 	int count;
 	struct shortent* ents;
@@ -120,7 +122,7 @@ static void enqueue(DC, char* name, int isdir)
 
 	struct shortent* se = extend(tc, size);
 
-	se->dir = isdir;
+	se->isdir = isdir;
 	se->len = size;
 
 	char* p = se->name;
@@ -129,6 +131,9 @@ static void enqueue(DC, char* name, int isdir)
 	if(dc->dir) {
 		p = fmtstr(p, e, dc->dir);
 		p = fmtstr(p, e, "/");
+		se->pre = p - se->name;
+	} else {
+		se->pre = 0;
 	}
 
 	p = fmtstr(p, e, name);
@@ -205,8 +210,12 @@ static void read_scan(DC, int fd)
 
 			check_dent(dc, de);
 		}
-	} if(ret < 0)
-		fail("cannot read entries from", dir, ret);
+
+		if(ret < dblen - PAGE)
+			return;
+	}
+
+	if(ret < 0) fail("cannot read entries from", dir, ret);
 }
 
 static int cmpidx(const void* a, const void* b)
@@ -242,34 +251,36 @@ static void index_entries(DC)
 	qsort(dc->idx, nents, sizeof(void*), cmpidx);
 }
 
-static void scan_dir(TC, char* openname, char* dirname);
+static void scan_dir(TC, int at, char* openname, char* dirname);
 
 static void print_indexed(DC)
 {
 	struct top* tc = dc->tc;
+	int at = dc->fd;
 
 	for(int i = 0; i < dc->count; i++) {
-		struct shortent* q = dc->idx[i];
+		struct shortent* se = dc->idx[i];
 
-		if(q->dir) {
-			scan_dir(tc, q->name, q->name);
+		if(se->isdir) {
+			scan_dir(tc, at, se->name + se->pre, se->name);
 		} else {
-			writeout(q->name, strlen(q->name));
+			writeout(se->name, strlen(se->name));
 			writeout("\n", 1);
 		}
 	}
 }
 
-static void scan_dir(TC, char* openname, char* listname)
+static void scan_dir(TC, int at, char* openname, char* listname)
 {
 	int fd;
 	void* ptr;
 
-	if((fd = sys_open(openname, O_DIRECTORY)) < 0)
+	if((fd = sys_openat(at, openname, O_DIRECTORY)) < 0)
 		return;
 
 	struct dir dc = {
 		.tc = tc,
+		.fd = fd,
 		.dir = listname,
 		.count = 0,
 		.ents = NULL,
@@ -279,10 +290,11 @@ static void scan_dir(TC, char* openname, char* listname)
 	ptr = tc->ptr;
 
 	read_scan(&dc, fd);
-	sys_close(fd);
 
 	index_entries(&dc);
 	print_indexed(&dc);
+
+	sys_close(fd);
 
 	tc->ptr = ptr;
 }
@@ -332,9 +344,9 @@ int main(int argc, char** argv)
 	prep_patterns(tc, argc, argv);
 
 	if(start)
-		scan_dir(tc, start, start);
+		scan_dir(tc, AT_FDCWD, start, start);
 	else
-		scan_dir(tc, ".", NULL);
+		scan_dir(tc, AT_FDCWD, ".", NULL);
 
 	flushout();
 
