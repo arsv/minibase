@@ -3,6 +3,7 @@
 #include <sys/mman.h>
 
 #include <errtag.h>
+#include <format.h>
 #include <string.h>
 #include <output.h>
 #include <util.h>
@@ -25,31 +26,27 @@ ERRTAG("ls");
 
 #define SET_stat (1<<16) /* do stat() entries */
 
-struct dataseg {
+struct top {
+	int opts;
+	struct bufout bo;
+
 	void* base;
 	void* ptr;
 	void* end;
 };
 
-struct idxent {
-	struct dirent* de;
-};
-
-struct topctx {
-	int opts;
+struct dir {
+	struct top* top;
 	int fd;
-	struct dataseg ds;
-	struct bufout bo;
+	char* name;
 };
 
-struct dirctx {
-	char* dir;
-	int len;
-};
+#define CTX struct top* ctx
+#define DCT struct dir* dct
 
 char output[PAGE];
 
-static void init(struct topctx* tc, int opts)
+static void init(CTX, int opts)
 {
 	void* brk = sys_brk(0);
 	void* end = sys_brk(brk + PAGE);
@@ -66,96 +63,112 @@ static void init(struct topctx* tc, int opts)
 	else
 		opts |= SET_stat;
 
-	tc->fd = -1;
-	tc->opts = opts;
+	ctx->opts = opts;
 
-	tc->ds.base = brk;
-	tc->ds.end = end;
-	tc->ds.ptr = brk;
+	ctx->base = brk;
+	ctx->end = end;
+	ctx->ptr = brk;
 
-	tc->bo.fd = 1;
-	tc->bo.buf = output;
-	tc->bo.len = sizeof(output);
-	tc->bo.ptr = 0;
+	ctx->bo.fd = 1;
+	ctx->bo.buf = output;
+	ctx->bo.len = sizeof(output);
+	ctx->bo.ptr = 0;
 }
 
-static void fini(struct topctx* tc)
+static void fini(CTX)
 {
-	bufoutflush(&(tc->bo));
+	bufoutflush(&ctx->bo);
 }
 
-static void prepspace(struct dataseg* ds, long ext)
+static void extend(CTX, long ext)
 {
-	if(ds->ptr + ext < ds->end)
+	if(ctx->ptr + ext < ctx->end)
 		return;
 	if(ext % PAGE)
 		ext += PAGE - (ext % PAGE);
 
-	void* old = ds->end;
+	void* old = ctx->end;
 	void* brk = sys_brk(old + ext);
 
 	if(brk_error(old, brk))
 		fail("brk", NULL, 0);
 
-	ds->end = brk;
+	ctx->end = brk;
 }
 
-static void* alloc(struct dataseg* ds, int len)
+static void* alloc(CTX, int len)
 {
-	prepspace(ds, len);
-	char* ret = ds->ptr;
-	ds->ptr += len;
+	extend(ctx, len);
+	char* ret = ctx->ptr;
+	ctx->ptr += len;
 	return ret;
 }
 
-static void readwhole(struct dataseg* ds, int fd, const char* dir)
+static void read_whole(DCT)
 {
-	long ret;
+	struct top* ctx = dct->top;
+	char* name = dct->name ? dct->name : ".";
+	int fd = dct->fd;
+	int ret;
 
-	while((ret = sys_getdents(fd, ds->ptr, ds->end - ds->ptr)) > 0) {
-		ds->ptr += ret;
-		prepspace(ds, PAGE/2);
+	while((ret = sys_getdents(fd, ctx->ptr, ctx->end - ctx->ptr)) > 0) {
+		ctx->ptr += ret;
+		extend(ctx, PAGE/2);
 	} if(ret < 0)
-		fail("cannot read entries from", dir, ret);
+		fail("getdents", name, ret);
 }
 
-static int reindex(struct dataseg* ds, void* dents, void* deend)
+static int delength(void* p)
 {
-	struct dirent* de;
+	return ((struct dirent*)p)->reclen;
+}
+
+static struct dirent** index_dirents(CTX, void* dents, void* deend)
+{
 	void* p;
 	int nument = 0;
 
-	for(p = dents; p < deend; nument++, p += de->reclen)
-		de = (struct dirent*) p;
+	for(p = dents; p < deend; p += delength(p))
+		nument++;
 
-	int len = nument * sizeof(struct idxent);
-	struct idxent* idx = (struct idxent*) alloc(ds, len);
-	struct idxent* end = idx + len;
+	int len = (nument+1) * sizeof(void*);
+	struct dirent** idx = alloc(ctx, len);
+	struct dirent** end = idx + len;
+	struct dirent** ptr = idx;
 
-	for(p = dents; p < deend && idx < end; idx++, p += de->reclen) {
-		de = (struct dirent*) p;
-		idx->de = de;
+	for(p = dents; p < deend; p += delength(p)) {
+		if(ptr >= end)
+			break;
+		*(ptr++) = (struct dirent*) p;
 	}
+
+	*ptr = NULL;
 	
-	return nument;
+	return idx;
 }
 
-static void statidx(struct idxent* idx, int nument, int fd, int opts)
+static void stat_indexed(DCT, struct dirent** idx)
 {
-	struct idxent* p;
+	struct top* ctx = dct->top;
+	int opts = ctx->opts;
+	int at = dct->fd;
+
+	struct dirent** p;
 	struct stat st;
+
 	int flags1 = AT_NO_AUTOMOUNT;
 	int flags2 = AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW;
 
 	if(!(opts & SET_stat))
 		return;
 
-	for(p = idx; p < idx + nument; p++) {
-		int type = p->de->type;
+	for(p = idx; *p; p++) {
+		struct dirent* de = *p;
+		int type = de->type;
 
 		if(type != DT_UNKNOWN)
 			;
-		else if(sys_fstatat(fd, p->de->name, &st, flags1) < 0)
+		else if(sys_fstatat(at, de->name, &st, flags1) < 0)
 			continue;
 		else if(S_ISDIR(st.mode))
 			type = DT_DIR;
@@ -164,17 +177,17 @@ static void statidx(struct idxent* idx, int nument, int fd, int opts)
 		else
 			type = DT_REG; /* neither DIR nor LNK nor UNKNOWN */
 
-		p->de->type = type;
+		de->type = type;
 
 		if(type != DT_LNK)
 			continue;
 		if(opts & OPT_y)
 			continue;
 
-		if(sys_fstatat(fd, p->de->name, &st, flags2) < 0)
+		if(sys_fstatat(at, de->name, &st, flags2) < 0)
 			continue;
 		if(S_ISLNK(st.mode))
-			p->de->type = DT_LNK_DIR;
+			de->type = DT_LNK_DIR;
 	}
 }
 
@@ -185,51 +198,77 @@ static int isdirtype(int t)
 
 static int cmpidx(const void* a, const void* b, long opts)
 {
-	struct idxent* pa = ((struct idxent*)a);
-	struct idxent* pb = ((struct idxent*)b);
+	struct dirent* pa = *((struct dirent**)a);
+	struct dirent* pb = *((struct dirent**)b);
 
 	if(!(opts & OPT_u)) {
-		int dira = isdirtype(pa->de->type);
-		int dirb = isdirtype(pb->de->type);
+		int dira = isdirtype(pa->type);
+		int dirb = isdirtype(pb->type);
 
 		if(dira && !dirb)
 			return -1;
 		if(dirb && !dira)
 			return  1;
 	}
-	return strcmp(pa->de->name, pb->de->name);
+
+	return strcmp(pa->name, pb->name);
 }
 
-static void sortidx(struct idxent* idx, int nument, int opts)
+static void sort_indexed(DCT, struct dirent** idx)
 {
-	qsortx(idx, nument, sizeof(*idx), cmpidx, opts);
+	int opts = dct->top->opts;
+	struct dirent** p;
+	int count = 0;
+
+	for(p = idx; *p; p++)
+		count++;
+
+	qsortx(idx, count, sizeof(void*), cmpidx, opts);
 }
 
-static void list(struct topctx* tc, const char* realpath, const char* showpath, int strict);
+static void list(DCT);
 
-static void recurse(struct topctx* tc, struct dirctx* dc,
-		const char* name, int strict)
+static void enter_directory(DCT, const char* name, int strict)
 {
-	int namelen = strlen(name);
-	struct dataseg* ds = &(tc->ds);
-	char* fullname = (char*)alloc(ds, dc->len + 1 + namelen + 1);
-	char* p = fullname;
+	int at = dct->fd;
+	char* dir = dct->name;
+	int dlen = dir ? strlen(dir) : 0;
+	int fd;
 
-	memcpy(p, dc->dir, dc->len); p += dc->len;
-	if(p > fullname && *(p-1) != '/') *p++ = '/';
-	memcpy(p, name, namelen); p += namelen; *p++ = '\0';
+	FMTBUF(p, e, path, dlen + strlen(name) + 2);
+	p = fmtstr(p, e, dir ? dir : "");
+	p = fmtstr(p, e, dir ? "/" : "");
+	p = fmtstr(p, e, name);
+	FMTEND(p, e);
 
-	list(tc, fullname, fullname, strict);
+	if((fd = sys_openat(at, name, O_DIRECTORY)) < 0) {
+		if(strict)
+			warn(NULL, path, fd);
+		return;
+	}
+
+	struct dir sub = {
+		.top = dct->top,
+		.fd = fd,
+		.name = path
+	};
+
+	list(&sub);
+
+	sys_close(fd);
 }
 
-static void dumpentry(struct topctx* tc, struct dirctx* dc, struct dirent* de)
+static void dump_entry(DCT, struct dirent* de)
 {
-	struct bufout* bo = &(tc->bo);
+	struct top* ctx = dct->top;
+	struct bufout* bo = &(ctx->bo);
 	char* name = de->name;
 	char type = de->type;
 
-	if(dc->len)
-		bufout(bo, dc->dir, dc->len);
+	if(dct->name) {
+		bufout(bo, dct->name, strlen(dct->name));
+		bufout(bo, "//", 1);
+	}
 
 	bufout(bo, name, strlen(name));
 
@@ -241,15 +280,15 @@ static void dumpentry(struct topctx* tc, struct dirctx* dc, struct dirent* de)
 	bufout(bo, "\n", 1);
 }
 
-static void dumplist(struct topctx* tc, struct dirctx* dc,
-		struct idxent* idx, int nument)
+static void dump_indexed(DCT, struct dirent** idx)
 {
-	struct idxent* p;
-	int opts = tc->opts;
+	int opts = dct->top->opts;
+	struct dirent** p;
 
-	for(p = idx; p < idx + nument; p++) {
-		char* name = p->de->name;
-		char type = p->de->type;
+	for(p = idx; *p; p++) {
+		struct dirent* de = *p;
+		char* name = de->name;
+		char type = de->type;
 
 		if(*name == '.' && !(opts & OPT_a))
 			continue;
@@ -259,92 +298,107 @@ static void dumplist(struct topctx* tc, struct dirctx* dc,
 		if(type == DT_DIR && (opts & OPT_e))
 			;
 		else
-			dumpentry(tc, dc, p->de);
+			dump_entry(dct, de);
 
 		if(!(opts & OPT_r))
 			continue;
 		if(type == DT_DIR)
-			recurse(tc, dc, name, MUSTBEDIR);
+			enter_directory(dct, name, MUSTBEDIR);
 		else if(type == DT_LNK_DIR && (opts & OPT_w))
-			recurse(tc, dc, name, MUSTBEDIR);
+			enter_directory(dct, name, MUSTBEDIR);
 		else if(type == DT_UNKNOWN)
-			recurse(tc, dc, name, MAYBEDIR);
+			enter_directory(dct, name, MAYBEDIR);
 	}
 }
 
-static void makedirctx(struct topctx* tc, struct dirctx* dc, const char* path)
+static void list(DCT)
 {
-	if(path) {
-		struct dataseg* ds = &(tc->ds);
-		int len = strlen(path);
-		char* buf = (char*)alloc(ds, len + 2);
-		memcpy(buf, path, len);
-		if(len && buf[len-1] != '/')
-			buf[len++] = '/';
-		buf[len] = '\0';
-		dc->dir = buf;
-		dc->len = len;
-	} else {
-		dc->dir = NULL;
-		dc->len = 0;
-	}
+	struct top* ctx = dct->top;
+
+	void* oldptr = ctx->ptr; /* start heap frame */
+
+	void* dents = ctx->ptr;
+	read_whole(dct);
+	void* deend = ctx->ptr;
+
+	struct dirent** idx = index_dirents(ctx, dents, deend);
+
+	stat_indexed(dct, idx);
+	sort_indexed(dct, idx);
+
+	dump_indexed(dct, idx);
+
+	ctx->ptr = oldptr; /* end heap frame */
 }
 
-static void list(struct topctx* tc, const char* realpath, const char* showpath, int strict)
+static void list_(CTX, char* openname, char* listname)
 {
-	struct dataseg* ds = &(tc->ds);
-	struct dirctx dc;
-	int opts = tc->opts;
-	int flags = O_RDONLY | O_DIRECTORY;
+	int fd;
+	int opts = ctx->opts;
+	int flags = O_DIRECTORY;
 
-	if(!strict && !(opts & OPT_w))
+	if(!(opts & OPT_w))
 		flags |= O_NOFOLLOW;
 
-	if(tc->fd >= 0)
-		sys_close(tc->fd); /* delayed close */
+	if((fd = sys_open(openname, flags)) < 0)
+		fail(NULL, openname, fd);
 
-	if((tc->fd = sys_open(realpath, flags)) < 0) {
-		if(strict && tc->fd == ENOTDIR)
-			return;
-		else
-			fail("cannot open", realpath, tc->fd);
-	}
+	struct dir dct = {
+		.top = ctx,
+		.fd = fd,
+		.name = listname
+	};
 
-	void* oldptr = ds->ptr;		/* start ds frame */
+	list(&dct);
 
-	makedirctx(tc, &dc, showpath);
+	sys_close(fd);
+}
 
-	void* dents = ds->ptr;
-	readwhole(ds, tc->fd, realpath);
-	void* deend = ds->ptr;
+static void list_dir(CTX, char* name)
+{
+	int opts = ctx->opts;
+	char* listname;
 
-	int nument = reindex(ds, dents, deend);
-	struct idxent* idx = (struct idxent*) deend;
+	int nlen = strlen(name);
+	char list[nlen+1];
 
-	statidx(idx, nument, tc->fd, opts);
-	sortidx(idx, nument, opts);
-	dumplist(tc, &dc, idx, nument);
+	memcpy(list, name, nlen+1);
 
-	ds->ptr = oldptr;		/* end ds frame */
+	if(nlen && list[nlen-1] == '/')
+		list[nlen-1] = '\0';
+
+	if(opts & OPT_b)
+		listname = NULL;
+	else
+		listname = list;
+
+	list_(ctx, name, listname);
+}
+
+static void list_cwd(CTX)
+{
+	list_(ctx, ".", NULL);
 }
 
 int main(int argc, char** argv)
 {
-	struct topctx tc;
+	struct top context, *ctx = &context;
 	int opts = 0;
 	int i = 1;
+
+	memzero(ctx, sizeof(*ctx));
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
-	init(&tc, opts);
+	init(ctx, opts);
 
 	if(i >= argc)
-		list(&tc, ".", NULL, MUSTBEDIR);
+		list_cwd(ctx);
 	else for(; i < argc; i++)
-		list(&tc, argv[i], (opts & OPT_b) ? NULL : argv[i], MUSTBEDIR);
+		list_dir(ctx, argv[i]);
 
-	fini(&tc);
+	fini(ctx);
 
 	return 0;
 }
