@@ -497,13 +497,14 @@ int group_rekey(void)
 	uint8_t mac[6];
 	struct eapolkey* ek;
 
-	int keyinfo = ntohs(ek->keyinfo);
-	int keytype = keyinfo & KI_TYPEMASK;
-
 	if(!(ek = recv_eapol(mac)))
 		return 0;
 	if(ek->type != EAPOL_KEY_RSN)
 		return 0; /* re-keying w/ a different key type */
+
+	int keyinfo = ntohs(ek->keyinfo);
+	int keytype = keyinfo & KI_TYPEMASK;
+
 	if(keytype != (KI_SECURE | KI_ENCRYPTED | KI_ACK | KI_MIC))
 		return 0; /* not a group rekey packet */
 
