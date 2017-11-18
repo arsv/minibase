@@ -14,36 +14,13 @@ ERRTAG("wifi");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT);
 
-#define OPTS "asdpxyzb"
-#define OPT_a (1<<0)
-#define OPT_s (1<<1)
-#define OPT_d (1<<2)
-#define OPT_p (1<<3)
-#define OPT_x (1<<4)
-#define OPT_y (1<<5)
-#define OPT_z (1<<6)
-#define OPT_b (1<<7)
-
 /* Command line args stuff */
 
 static void init_args(CTX, int argc, char** argv)
 {
-	int i = 1;
-	int opts = 0;
-
-	if(i < argc && argv[i][0] == '-')
-		opts = argbits(OPTS, argv[i++] + 1);
-
-	ctx->argi = i;
+	ctx->argi = 1;
 	ctx->argc = argc;
 	ctx->argv = argv;
-
-	if(opts & OPT_b) {
-		ctx->showbss = 1;
-		opts &= ~OPT_b;
-	}
-
-	ctx->opts = opts;
 }
 
 static void no_other_options(CTX)
@@ -57,13 +34,6 @@ static void no_other_options(CTX)
 static int got_any_args(CTX)
 {
 	return (ctx->argi < ctx->argc);
-}
-
-static int use_opt(CTX, int opt)
-{
-	int ret = ctx->opts & opt;
-	ctx->opts &= ~opt;
-	return ret;
 }
 
 static char* shift_arg(CTX)
@@ -92,9 +62,9 @@ void connect_wictl_check(CTX)
 	fail("service is not running", NULL, 0);
 }
 
-/* Server request */
+/* User commands */
 
-static void req_status(CTX)
+static void cmd_status(CTX)
 {
 	struct ucmsg* msg;
 
@@ -109,7 +79,13 @@ static void req_status(CTX)
 	dump_status(ctx, msg);
 }
 
-static void req_neutral(CTX)
+static void cmd_bss(CTX)
+{
+	ctx->showbss = 1;
+	cmd_status(ctx);
+}
+
+static void cmd_neutral(CTX)
 {
 	struct ucmsg* msg;
 	int ret;
@@ -133,7 +109,7 @@ static void req_neutral(CTX)
 	};
 }
 
-static void req_scan(CTX)
+static void cmd_scan(CTX)
 {
 	struct ucmsg* msg;
 
@@ -162,7 +138,7 @@ static void req_scan(CTX)
 	dump_scanlist(ctx, msg);
 }
 
-static void req_stop(CTX)
+static void cmd_stop(CTX)
 {
 	struct ucmsg* msg;
 	int* ifi;
@@ -188,7 +164,7 @@ static void req_stop(CTX)
 	send_check(ctx);
 }
 
-static void req_start(CTX)
+static void cmd_start(CTX)
 {
 	char* dev = shift_arg(ctx);
 
@@ -220,46 +196,53 @@ static void wait_for_connect(CTX)
 	}
 }
 
-static void req_connect(CTX)
+static void cmd_fixedap(CTX)
 {
-	uc_put_hdr(UC, CMD_WI_CONNECT);
-	uc_put_end(UC);
+	char *ssid = shift_arg(ctx);
 
-	no_other_options(ctx);
-	connect_wictl_start(ctx);
+	if(!ssid) fail("need AP ssid", NULL, 0);
 
-	send_check(ctx);
-
-	wait_for_connect(ctx);
-}
-
-static void req_fixedap(CTX)
-{
-	char *ssid;
-	int slen;
-
-	if(!(ssid = shift_arg(ctx)))
-		fail("SSID required", NULL, 0);
-
-	slen = strlen(ssid);
+	int slen = strlen(ssid);
+	int ret;
 
 	uc_put_hdr(UC, CMD_WI_CONNECT);
 	uc_put_bin(UC, ATTR_SSID, ssid, slen);
-
-	if(use_opt(ctx, OPT_p))
-		put_psk_input(ctx, ssid, slen);
-
 	uc_put_end(UC);
 
 	no_other_options(ctx);
 	connect_wictl_start(ctx);
 
+	if((ret = send_recv_cmd(ctx)) >= 0)
+		goto got;
+	if(ret != -ENOKEY || !ssid)
+		fail(NULL, NULL, ret);
+
+	uc_put_hdr(UC, CMD_WI_CONNECT);
+	uc_put_bin(UC, ATTR_SSID, ssid, slen);
+	put_psk_input(ctx, ssid, slen);
+	uc_put_end(UC);
+
+	send_check(ctx);
+got:
+	wait_for_connect(ctx);
+}
+
+static void cmd_connect(CTX)
+{
+	if(got_any_args(ctx))
+		return cmd_fixedap(ctx);
+
+	uc_put_hdr(UC, CMD_WI_CONNECT);
+	uc_put_end(UC);
+
+	no_other_options(ctx);
+	connect_wictl_start(ctx);
 	send_check(ctx);
 
 	wait_for_connect(ctx);
 }
 
-static void req_forget(CTX)
+static void cmd_forget(CTX)
 {
 	char *ssid;
 	int slen;
@@ -279,29 +262,47 @@ static void req_forget(CTX)
 	send_check(ctx);
 }
 
+typedef void (*cmdptr)(CTX);
+
+static const struct cmdrec {
+	char name[12];
+	cmdptr call;
+} commands[] = {
+	{ "scan",       cmd_scan    },
+	{ "ap",         cmd_fixedap },
+	{ "connect",    cmd_connect },
+	{ "dc",         cmd_neutral },
+	{ "break",      cmd_neutral },
+	{ "disconnect", cmd_neutral },
+	{ "stop",       cmd_stop    },
+	{ "start",      cmd_start   },
+	{ "forget",     cmd_forget  },
+	{ "bss",        cmd_bss     }
+};
+
+static void dispatch(CTX, char* name)
+{
+	const struct cmdrec* r;
+
+	for(r = commands; r < commands + ARRAY_SIZE(commands); r++)
+		if(!strncmp(r->name, name, sizeof(r->name)))
+			return r->call(ctx);
+
+	fail("unknown command", name, 0);
+}
+
 int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
+	char* cmd;
 
 	init_args(ctx, argc, argv);
 	init_heap_bufs(ctx);
 
-	if(use_opt(ctx, OPT_d))
-		req_neutral(ctx);
-	else if(use_opt(ctx, OPT_s))
-		req_scan(ctx);
-	else if(use_opt(ctx, OPT_x))
-		req_stop(ctx);
-	else if(use_opt(ctx, OPT_y))
-		req_start(ctx);
-	else if(use_opt(ctx, OPT_z))
-		req_forget(ctx);
-	else if(use_opt(ctx, OPT_a))
-		req_connect(ctx);
-	else if(got_any_args(ctx))
-		req_fixedap(ctx);
+	if((cmd = shift_arg(ctx)))
+		dispatch(ctx, cmd);
 	else
-		req_status(ctx);
+		cmd_status(ctx);
 
 	return 0;
 }
