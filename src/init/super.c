@@ -104,8 +104,5 @@ int main(int argc, char** argv, char** envp)
 reboot:
 	sys_unlink(CONTROL);
 
-	if(sys_getpid() != 1)
-		return 0;
-
 	return exec_into_reboot();
 };
