@@ -189,8 +189,10 @@ void check_procs(void)
 			stop(rc);
 	}
 
-	if(!running && !rbcode)
+	if(!running && !rbcode) {
+		report("no running processes", NULL, 0);
 		rbcode = 'r';
+	}
 }
 
 void stop_all_procs(void)
