@@ -10,18 +10,20 @@
 
 ERRTAG("lsusb");
 
-/* The purpose of this tool is to let the user figure which devices are
-   sitting on the USB bus, and how Linux identifies them internally.
+/* The purpose of this tool is to let the user figure out which devices
+   sit on the USB bus and how Linux identifies them internally.
 
    Unlike the conventional lsusb from usbtools package, this one does not
    rely on usb.ids database (www.linux-usb.org/usb.ids). Instead, it uses
    the data provided by the device itself (device class, interface classes
    and mfgr strings). This turns out to be more than enough to identify
-   devices in most cases, either directly or by exclusion, and removes
-   the need to carry rather large usb.ids around. The usefullness of that
-   file is questionable either way, it's rather incomplete.
+   devices in most cases, either directly or by exclusion.
+
+   usb.ids is not that useful in many cases anyway. It's incomplete, and
+   if the exact vendor:product pair is not there it provides less info
+   than this tool does.
  
-   In most cases, the *device* class is useless and we must look up
+   In most cases, the *device* class is meaningless and we must look up
    interface classes on each endpoint. */
 
 struct dev {
@@ -162,8 +164,8 @@ static int parse_type(char* line, struct dev* dev)
 	BUSNUM=001
 	DEVNUM=003
 
-   In the functions below, at referes to /sys/bus/usb/devices/1-7
-   and name is "1-7". */ 
+   In the functions below, $at refers to /sys/bus/usb/devices/1-7
+   directory and name is "1-7". */ 
 
 static int parse_uevent(CTX, struct dev* dev, char* buf, int len)
 {
