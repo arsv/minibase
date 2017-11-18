@@ -42,8 +42,7 @@ Some tools are missing, and some still need work.
     everyone keeps asking about [weston only atm].
   * Non-graphical greeter stub.
 
-  * Networking interface manager (ifmon).
-  * DHCP client (dhcp).
+  * Networking interface manager (ifmon), also handles DHCP.
   * Wi-Fi (WPA2) supplicant and connection manager (wsupp).
   * manual interface setup tools (ip4cfg, ip4info) [incomplete].
   - No sntpd yet.
