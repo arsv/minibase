@@ -12,34 +12,12 @@ ERRTAG("svc");
 ERRLIST(NENOENT NECONNREFUSED NELOOP NENFILE NEMFILE NEINTR NEINVAL NEACCES
 	NEPERM NEIO NEFAULT NENOSYS);
 
-#define OPTS "fhiprstwqzRHP"
-#define OPT_f (1<<0)
-#define OPT_h (1<<1)
-#define OPT_i (1<<2)
-#define OPT_p (1<<3)
-#define OPT_r (1<<4)
-#define OPT_s (1<<5)
-#define OPT_t (1<<6)
-#define OPT_w (1<<7)
-#define OPT_q (1<<8)
-#define OPT_z (1<<9)
-#define OPT_R (1<<10)
-#define OPT_H (1<<11)
-#define OPT_P (1<<12)
-
 static void no_other_options(CTX)
 {
 	if(ctx->argi < ctx->argc)
 		fail("too many arguments", NULL, 0);
 	if(ctx->opts)
 		fail("bad options", NULL, 0);
-}
-
-static int use_opt(CTX, int opt)
-{
-	int ret = ctx->opts & opt;
-	ctx->opts &= ~opt;
-	return ret;
 }
 
 static char* shift_arg(CTX)
@@ -67,14 +45,10 @@ static int sum_length(CTX)
 
 static void init_args(CTX, int argc, char** argv)
 {
-	int i = 1;
+	if(argc > 1 && argv[1][0] == '-')
+		fail("no top-level options allowed", NULL, 0);
 
-	if(i < argc && argv[i][0] == '-')
-		ctx->opts = argbits(OPTS, argv[i++] + 1);
-	else
-		ctx->opts = 0;
-
-	ctx->argi = i;
+	ctx->argi = 1;
 	ctx->argc = argc;
 	ctx->argv = argv;
 }
@@ -220,39 +194,53 @@ static void cmd_poweroff(CTX)
 }
 
 static const struct cmdrec {
-	int opt;
+	char name[12];
 	void (*cmd)(CTX);
 } commands[] = {
-	{ OPT_h, cmd_hup      },
-	{ OPT_i, cmd_pidof    },
-	{ OPT_p, cmd_pause    },
-	{ OPT_r, cmd_restart  },
-	{ OPT_s, cmd_start    },
-	{ OPT_t, cmd_stop     },
-	{ OPT_f, cmd_flush    },
-	{ OPT_w, cmd_resume   },
-	{ OPT_q, cmd_reload   },
-	{ OPT_R, cmd_reboot   },
-	{ OPT_H, cmd_shutdown },
-	{ OPT_P, cmd_poweroff },
-	{     0, cmd_status   }
+	{ "hup",       cmd_hup      },
+	{ "pidof",     cmd_pidof    },
+	{ "pause",     cmd_pause    },
+	{ "restart",   cmd_restart  },
+	{ "start",     cmd_start    },
+	{ "stop",      cmd_stop     },
+	{ "flush",     cmd_flush    },
+	{ "resume",    cmd_resume   },
+	{ "reload",    cmd_reload   },
+	{ "reboot",    cmd_reboot   },
+	{ "shutdown",  cmd_shutdown },
+	{ "poweroff",  cmd_poweroff },
+	{ "status",    cmd_status   }
 };
+
+typedef void (*cmdptr)(CTX);
+
+static cmdptr resolve(char* name)
+{
+	const struct cmdrec* p;
+
+	for(p = commands; p < commands + ARRAY_SIZE(commands); p++)
+		if(!strncmp(p->name, name, sizeof(p->name)))
+			return p->cmd;
+
+	fail("unknown command", name, 0);
+}
 
 int main(int argc, char** argv)
 {
-	const struct cmdrec* cr;
-
 	struct top context, *ctx = &context;
 	memzero(&context, sizeof(context));
+	cmdptr cmd;
 
 	init_args(ctx, argc, argv);
+
+	if(argc > 1)
+		cmd = resolve(shift_arg(ctx));
+	else
+		cmd = cmd_status;
+
 	init_socket(ctx);
 
-	for(cr = commands; cr->opt; cr++)
-		if(use_opt(ctx, cr->opt))
-			break;
-
-	cr->cmd(ctx);
+	cmd(ctx);
 
 	flush_output(ctx);
 
