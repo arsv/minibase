@@ -83,7 +83,7 @@ int main(int argc, char** argv, char** envp)
 	check_procs();
 	update_poll_fds();
 
-	while(!rbcode) {
+	while(1) {
 		wait_poll();
 
 		if(need_to(F_WAIT_PIDS))
@@ -100,6 +100,8 @@ int main(int argc, char** argv, char** envp)
 			trim_ring_area();
 		if(need_to(F_UPDATE_PFDS))
 			update_poll_fds();
+		if(need_to(F_EXIT_LOOP))
+			break;
 	}
 reboot:
 	sys_unlink(CONTROL);

@@ -189,15 +189,19 @@ void check_procs(void)
 			stop(rc);
 	}
 
-	if(!running && !rbcode) {
+	if(running)
+		return;
+	if(!rbcode)
 		report("no running processes", NULL, 0);
-		rbcode = 'r';
-	}
+
+	request(F_EXIT_LOOP);
 }
 
-void stop_all_procs(void)
+void stop_all_procs(int code)
 {
 	struct proc* rc;
+
+	rbcode = code;
 
 	for(rc = firstrec(); rc; rc = nextrec(rc))
 		rc->flags |= P_DISABLED;

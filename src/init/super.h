@@ -29,6 +29,7 @@
 #define F_FLUSH_HEAP    (1<<4)
 #define F_TRIM_RING     (1<<5)
 #define F_UPDATE_PFDS   (1<<6)
+#define F_EXIT_LOOP     (1<<7)
 
 struct proc {
 	int pid;
@@ -83,7 +84,7 @@ void setup_ctrl(void);
 void accept_ctrl(int sfd);
 void handle_conn(struct conn* cn);
 void wakeupin(int ttw);
-void stop_all_procs(void);
+void stop_all_procs(int code);
 int dispatch_cmd(struct conn* cn, struct ucmsg* msg);
 void request(int flag);
 

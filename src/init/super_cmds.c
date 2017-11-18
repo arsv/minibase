@@ -182,9 +182,7 @@ static int rep_pid(CN, struct proc* rc)
 
 static int reboot(char code)
 {
-	rbcode = code;
-
-	stop_all_procs();
+	stop_all_procs(code);
 
 	return NOERROR;
 }
