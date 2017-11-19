@@ -11,14 +11,14 @@ Run ../misc/sockmod in current direction with devel config.
 It is possible to run wsupp as a standalone process, but it won't be able
 to trigger dhcp, so dhcp (the one from ../temp/wifi/, or ifctl -q) should
 be run manually if a usable connection is needed. The control tool will
-not be able to auto-start the service, and won't handle -x/-y options
-because those are ifmon commands.
+not be able to auto-start the service, and won't handle start/stop commands
+because those are actually passed to ifmon.
 
-When wifi attempts to auto-start the service, it expects ./run/wsupp
-to become writable soon after it appears. Without sockmod running,
-the service will be started but wifi won't be able to connect to the
-control socket. Chmod or chown it manually and retry. Pre-configure
-iface with ifctl (or use wifi -y) to skip auto-start.
+When auto-starting the service, wifi expects ./run/wsupp to become writable
+soon after it appears. Without sockmod running, the service will be started
+but the socket won't be chmod()ed and wifi won't be able to connect.
+Chmod or chown it manually and retry. Pre-configure iface with ifctl
+(or use wifi start) to skip auto-start.
 
 Avoid running wsupp on devices already handled by wpa_supplicant.
 There's no interlocking. In systemd-based distros, avoid running ifmon
