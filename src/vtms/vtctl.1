@@ -1,0 +1,21 @@
+.TH vtctl 1
+'''
+.SH NAME
+\fBvtctl\fR \- virtual terminal control tool
+'''
+.SH SYNOPSIS
+.IP "\fBvtctl\fR" 4
+Show allocated VTs.
+.IP "\fBvtctl\fR \fIN\fR" 4
+Switch to VT \fIN\fR.
+.IP "\fBvtclt\fR {\fBlock\fR,\fBunlock\fR}" 4
+VT switch locking.
+.IP "\fBvtctl\fR \fBback\fR" 4
+Switch to the last active non-greeter VT.
+'''
+.SH FILES
+.IP "/run/ctrl/vtmux" 4
+Control socket.
+'''
+.SH SEE ALSO
+\fBvtmux\fR(8), \fBkeymon\fR(8).

@@ -1,0 +1,19 @@
+.TH vtmux 8
+'''
+.SH NAME
+\fBvtmux\fR \- virtual terminal multiplexer
+'''
+.SH DESCRIPTION
+This service manages access to VT/KMS/input devices, and allows switching
+between several KMS- or VT-grabbing applications running at the same time
+(aka fast user switching).
+'''
+.SH FILES
+.IP "/etc/vtmux/tty\fIN\fR" 4
+Executable to run on tty\fIN\fR (normally a script), one for each
+configured TTY.
+.IP "/run/ctrl/vtmux" 4
+Control socket.
+'''
+.SH SEE ALSO
+\fBvtctl\fR(1)
