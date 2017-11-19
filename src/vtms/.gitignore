@@ -1,4 +1,4 @@
-vtmux
-vtctl
-unlock
-ctrlvt
+/vtmux
+/vtctl
+/unlock
+/ctrlvt

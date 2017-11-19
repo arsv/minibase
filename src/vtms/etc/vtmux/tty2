@@ -1,0 +1,9 @@
+#!/sbin/msh
+
+close 3
+
+cd /
+
+setenv PATH "/usr/bin:/bin:/usr/sbin:/sbin"
+
+exec /bin/busybox sh

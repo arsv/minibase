@@ -1,0 +1,21 @@
+#!/sbin/msh
+
+setenv USER user
+setenv HOME /home/user
+setenv SHELL /bin/sh
+
+cd $HOME
+
+setgid $USER
+setuid $USER
+
+setenv XDG_RUNTIME_DIR /tmp/$USER
+
+mkdir $XDG_RUNTIME_DIR 0700 $USER:$USER
+
+setenv WESTON_TTY_FD 0
+setenv WESTON_LAUNCHER_SOCK 3
+
+waitfor /dev/dri/card0
+
+exec /usr/bin/weston
