@@ -24,31 +24,12 @@ static void no_other_options(CTX)
 		fail("bad options", NULL, 0);
 }
 
-static int use_opt(CTX, int opt)
-{
-	int ret = ctx->opts & opt;
-	ctx->opts &= ~opt;
-	return ret;
-}
-
 static char* shift_arg(CTX)
 {
 	if(ctx->argi < ctx->argc)
 		return ctx->argv[ctx->argi++];
 	else
 		return NULL;
-}
-
-static char* shift_int(CTX, int* val)
-{
-	char *arg, *p;
-
-	if(!(arg = shift_arg(ctx)))
-		return arg;
-	if(!(p = parseint(arg, val)) || *p)
-		fail("integer argument required", NULL, 0);
-
-	return arg;
 }
 
 static void init_args(CTX, int argc, char** argv)
@@ -94,12 +75,13 @@ static void cmd_status(CTX)
 	recv_dump(ctx, NULL, dump_status);
 }
 
-static void cmd_switch(CTX)
+static void cmd_switch(CTX, char* ttystr)
 {
 	int tty;
+	char* p;
 
-	if(!shift_int(ctx, &tty))
-		fail("argument required", NULL, 0);
+	if(!(p = parseint(ttystr, &tty)) || *p)
+		fail("bad tty id", ttystr, 0);
 
 	no_other_options(ctx);
 
@@ -152,19 +134,32 @@ static void cmd_unlock(CTX)
 }
 
 static const struct cmdrec {
-	int opt;
+	char name[8];
 	void (*cmd)(CTX);
 } commands[] = {
-	{ OPT_s, cmd_spawn    },
-	{ OPT_b, cmd_swback   },
-	{ OPT_k, cmd_swlock   },
-	{ OPT_u, cmd_unlock   },
-	{     0, NULL         }
+	{ "spawn",  cmd_spawn  },
+	{ "back",   cmd_swback },
+	{ "lock",   cmd_swlock },
+	{ "unlock", cmd_unlock }
 };
+
+static void dispatch(CTX, char* name)
+{
+	const struct cmdrec* cr;
+
+	if(*name >= '1' && *name <= '9')
+		cmd_switch(ctx, name);
+
+	for(cr = commands; cr < commands + ARRAY_SIZE(commands); cr++)
+		if(!strncmp(cr->name, name, sizeof(cr->name)))
+			return cr->cmd(ctx);
+
+	fail("unknown command", name, 0);
+}
 
 int main(int argc, char** argv)
 {
-	const struct cmdrec* cr;
+	char* name;
 
 	struct top context, *ctx = &context;
 	memzero(&context, sizeof(context));
@@ -172,16 +167,10 @@ int main(int argc, char** argv)
 	init_args(ctx, argc, argv);
 	init_socket(ctx);
 
-	for(cr = commands; cr->opt; cr++)
-		if(use_opt(ctx, cr->opt))
-			break;
-
-	if(cr->opt)
-		cr->cmd(ctx);
-	else if(argc > 1)
-		cmd_switch(ctx);
-	else
+	if(!(name = shift_arg(ctx)))
 		cmd_status(ctx);
+	else
+		dispatch(ctx, name);
 
 	return 0;
 }
