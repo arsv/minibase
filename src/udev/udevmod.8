@@ -1,21 +1,44 @@
 .TH udevmod 8
 '''
 .SH NAME
-\fBudevmod\fR \- auto-load kernel modules on udev events
+\fBudevmod\fR \- udev event monitor
 '''
 .SH DESCRIPTION
+This service listens to udev events and performs two generic actions that
+are not specific to a particular device class: auto-loads modules and sets
+access permissions of the device nodes.
+.P
 Some drivers within the kernel include special MODALIAS entry in their udev
 events to let the userspace figure out a suitable driver for un-handled devices
-sitting on some enumerable buses. \fBudevmod\fR listens for these events and
-spawns \fBmodprobe\fR to check for modules.
+sitting on some enumerable buses. When such events arrive, udevmod spawns
+\fBmodprobe\fR to check for modules.
 .P
 In common PC systems, this service is responsible for loading PCI device
 drivers, including DRI modules for video output.
 .P
-No configuration is needed to run it. The aliases involved usually come from
-/lib/modules/$release/modules.alias and indirectly from the kernel sources.
+Some device nodes in /dev may need non-standard permissions to be usable,
+or to fit the system configuration better. If configured to do so, udevmod
+will \fBchmod\fR(2) and \fBchown\fR(2) the nodes as they appear in /dev.
+'''
+.SH CONFIGURATION
+A single text configuration file, /etc/devices, describes access modes
+for device nodes:
+.P
+.nf
+	# Permissions for device with exact name
+	rtc0 root:rtc 0660
+
+	# Permissions for any device with a given subsystem
+	~input root:input 0660
+.fi
+.P
+Module auto-loading is not configurable within udevmod, every MODALIAS
+will be passed to modprobe. However, \fBmodprobe\fR(1) itself may be
+configured to not load the module.
 '''
 .SH FILES
+.IP "/etc/devices" 4
+Configuration file.
 .IP "/sbin/modprobe" 4
 Path to \fBmodprobe\fR(8) executable.
 .IP "/sys/devices/*/modalias" 4

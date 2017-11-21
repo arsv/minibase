@@ -1,157 +1,100 @@
 #include <bits/socket/netlink.h>
 #include <sys/file.h>
 #include <sys/proc.h>
+#include <sys/ppoll.h>
 #include <sys/creds.h>
 #include <sys/ioctl.h>
 #include <sys/fpath.h>
 #include <sys/dents.h>
 #include <sys/socket.h>
 #include <sys/signal.h>
+#include <sys/mman.h>
 
 #include <errtag.h>
-#include <printf.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
 
 #include "common.h"
+#include "udevmod.h"
+
+/* This service does two things that require monitoring udev events:
+
+     * modprobe MODALIAS-es
+     * chmod/chown device nodes
+
+   Common code here walks through /sys to pick up pre-registered devices
+   and then switches to listening for udev events. There's hardly anything
+   in common between the other two parts, so those got split into their own
+   files. */
 
 ERRTAG("udevmod");
 
-#define OPTS "sv"
-#define OPT_s (1<<0)
-#define OPT_v (1<<1)
-
 #define UDEV_MGRP_KERNEL   (1<<0)
 
-struct top {
-	int udev;
-	char** envp;
-	int opts;
+/* Several events often come at once, so whatever files have been loaded
+   should preferably be kept through the processing of the whole bunch.
+   However, we do not want to keep the loaded for long. With any files
+   loaded, we do a timed wait and if there are no events for ~1s, unload
+   them. */
 
-	int fd;  /* of a running modprobe -p process */
-	int pid;
-};
-
-struct rfn {
-	int at;
-	char* dir;
-	char* name;
-};
-
-#define CTX struct top* ctx
-#define FN struct rfn* fn
-#define AT(dd) dd->at, dd->name
-
-/* During initial device scan, udevmod will try dozens of modaliases
-   in quick succession, most of them invalid. There is no point in
-   spawning that many modprobe processes. Instead, we spawn one and
-   pipe it aliases to check.
-
-   After the initial scan, this becomes pointless since udev events
-   are rare and the ones with modaliases tend to arrive one at a time,
-   so we switch to spawning modprobe on each event. */
-
-static void open_modprobe(CTX)
+static void unload(struct mbuf* mb)
 {
-	int fds[2];
-	int ret, pid;
+	if(!mb->buf) return;
 
-	if((ret = sys_pipe(fds)) < 0)
-		fail("pipe", NULL, ret);
-	if((pid = sys_fork()) < 0)
-		fail("fork", NULL, pid);
+	sys_munmap(mb->buf, mb->len);
 
-	char* arg = (ctx->opts & OPT_v) ? "-qbpv" : "-qbp";
-
-	if(pid == 0) {
-		char* argv[] = { "/sbin/modprobe", arg, NULL };
-		sys_dup2(fds[0], STDIN);
-		sys_close(fds[1]);
-		ret = sys_execve(*argv, argv, ctx->envp);
-		fail("execve", *argv, ret);
-	}
-
-	sys_close(fds[0]);
-
-	ctx->pid = pid;
-	ctx->fd = fds[1];
+	mb->buf = NULL;
+	mb->len = 0;
 }
 
-static void stop_modprobe(CTX)
+static int notempty(struct mbuf* mb)
 {
-	int pid = ctx->pid;
-	int ret, status;
-	int fd = ctx->fd;
-
-	if(fd < 0) fd = -fd;
-
-	sys_close(fd);
-
-	if((ret = sys_waitpid(pid, &status, 0)) < 0)
-		fail("waitpid", NULL, ret);
-
-	ctx->fd = -1;
-	ctx->pid = 0;
+	return !!(mb->buf);
 }
 
-static void run_modprobe(CTX, char* name)
+static void wait_drop_files(CTX, int fd)
 {
-	int pid, ret, status;
-
-	if((pid = sys_fork()) < 0) {
-		warn("fork", NULL, pid);
-		return;
-	}
-
-	if(pid == 0) {
-		char* argv[] = { "/sbin/modprobe", "-qb", name, NULL };
-		ret = sys_execve(*argv, argv, ctx->envp);
-		fail("execve", *argv, ret);
-	} else {
-		if((ret = sys_waitpid(pid, &status, 0)) < 0)
-			warn("waitpid", NULL, ret);
-	}
-}
-
-static void out_modprobe(CTX, char* name)
-{
-	int fd = ctx->fd;
-	int nlen = strlen(name);
+	struct pollfd pfd = { .fd = fd, .events = POLLIN };
+	struct timespec ts = { 1, 0 };
 	int ret;
 
-	if(fd <= 0) return;
+	if(notempty(&ctx->config))
+		;
+	else if(notempty(&ctx->passwd))
+		;
+	else if(notempty(&ctx->group))
+		;
+	else return; /* no need to wait */
 
-	name[nlen] = '\n';
+	if((ret = sys_ppoll(&pfd, 1, &ts, NULL)) != 0)
+		return;
 
-	ret = sys_write(ctx->fd, name, nlen + 1);
-
-	name[nlen] = '\0';
-
-	if(ret == -EPIPE) ctx->fd = -ctx->fd;
+	unload(&ctx->config);
+	unload(&ctx->passwd);
+	unload(&ctx->group);
 }
 
-static void modprobe(CTX, char* name)
-{
-	if(ctx->pid)
-		out_modprobe(ctx, name);
-	else
-		run_modprobe(ctx, name);
-}
+/* Generally udev events either carry a MODALIAS (unknown device, asking
+   for a module) or have DEVNAME (device has been picked up by a module).
+   Apparently it cannot be both at the same time. There are however events
+   without MODALIAS and without DEVNAME. */
 
-static char* get_modalias(char* buf, int len)
+static char* getval(char* buf, int len, char* key)
 {
 	char* end = buf + len;
 	char* p = buf;
 	char* q;
+	int klen = strlen(key);
 
 	while(p < end) {
 		if(!(q = strchr(p, '=')))
 			goto next;
-		*q++ = '\0';
+		if(q - p < klen)
+			goto next;
 
-		if(!strcmp(p, "MODALIAS"))
-			return q;
+		if(!strncmp(p, key, klen))
+			return q + 1;
 
 		next: p += strlen(p) + 1;
 	}
@@ -164,7 +107,9 @@ static void recv_event(CTX)
 	int fd = ctx->udev;
 	int rd, max = 1024;
 	char buf[max+2];
-	char* alias;
+	char *alias, *subsystem, *devname;
+
+	wait_drop_files(ctx, fd);
 
 	if((rd = sys_recv(fd, buf, max, 0)) < 0)
 		fail("recv", "udev", rd);
@@ -174,10 +119,13 @@ static void recv_event(CTX)
 	if(strncmp(buf, "add@", 4))
 		return;
 
-	if(!(alias = get_modalias(buf, rd)))
-		return;
+	if((alias = getval(buf, rd, "MODALIAS")))
+		return modprobe(ctx, alias);
 
-	modprobe(ctx, alias);
+	subsystem = getval(buf, rd, "SUBSYSTEM");
+
+	if((devname = getval(buf, rd, "DEVNAME")))
+		trychown(ctx, subsystem, devname);
 }
 
 static void open_udev(CTX)
@@ -310,8 +258,6 @@ int main(int argc, char** argv, char** envp)
 	struct top context, *ctx = &context;
 	int i = 1, opts = 0;
 
-	if(i < argc && argv[i][0] == '-')
-		opts = argbits(OPTS, argv[i++] + 1);
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
@@ -326,8 +272,6 @@ int main(int argc, char** argv, char** envp)
 	open_modprobe(ctx);
 	scan_devices(ctx);
 	stop_modprobe(ctx);
-
-	if(opts & OPT_s) return 0;
 
 	while(1) recv_event(ctx);
 }
