@@ -187,9 +187,9 @@ static void parse_line(struct lbuf* lb, char* ls, char* le)
 void load_config(void)
 {
 	struct mbuf mb;
-	struct lbuf lb = { CONFIG, 0 };
+	struct lbuf lb = { KEYCFG, 0 };
 
-	read_whole(&mb, CONFIG);
+	read_whole(&mb, KEYCFG);
 
 	char* buf = mb.buf;
 	char* end = mb.buf + mb.len;

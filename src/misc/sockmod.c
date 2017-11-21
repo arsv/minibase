@@ -220,7 +220,7 @@ static int lookup(CTX, char* name, struct access* ac)
 	struct line ln;
 	int gid;
 
-	read_file(ctx, config, CONFIG);
+	read_file(ctx, config, SOCKCFG);
 
 	if(find_entry(ctx, config, name, &ln))
 		return -1;

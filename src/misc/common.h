@@ -1,3 +1,4 @@
 #include <dirs.h>
 
-#define CONFIG HERE "/etc/sockmod"
+#define SOCKCFG HERE "/etc/sockmod"
+#define KEYCFG  HERE "/etc/keymon"

@@ -1,3 +1,4 @@
-sockmod
-rootsh
-tserv
+/sockmod
+/keymon
+/rootsh
+/acpid
