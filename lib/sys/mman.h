@@ -6,17 +6,24 @@ inline static int mmap_error(void* ptr)
 {
 	long ret = (long)ptr;
 
-	return (ret < 0 && ret > -2048);
+	if(ret >= 0)
+		return 0;
+	if(ret < -2048)
+		return 0;
+
+	return (int)ret;
 }
 
 inline static int brk_error(void* brk, void* end)
 {
-	if(mmap_error(brk))
-		return 1;
-	if(mmap_error(end))
-		return 1;
+	int ret;
+
+	if((ret = mmap_error(brk)))
+		return ret;
+	if((ret = mmap_error(end)))
+		return ret;
 	if(end <= brk)
-		return 1;
+		return -EINVAL;
 
 	return 0;
 }
