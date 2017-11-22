@@ -1,7 +1,13 @@
-service = ifmon wsupp
-command = wifi ipcfg ipinfo ifctl
-
 include ../rules.mk
+
+$(eval $(call service,ifmon))
+$(eval $(call command,ifctl))
+
+$(eval $(call service,wsupp))
+$(eval $(call service,wifi))
+
+$(eval $(call command,ipcfg))
+$(eval $(call command,ipinfo))
 
 wsupp: wsupp.o wsupp_netlink.o wsupp_eapol.o wsupp_crypto.o wsupp_cntrl.o \
 	wsupp_slots.o wsupp_sta_ies.o wsupp_config.o wsupp_apsel.o \

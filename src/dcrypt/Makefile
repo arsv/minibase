@@ -1,7 +1,12 @@
-initrd = passblk 
-command = dektool dmcrypt blkid deitool
-
 include ../rules.mk
+
+$(eval $(call initrd,passblk,8))
+$(eval $(call command,dektool,8))
+$(eval $(call command,deitool,8))
+$(eval $(call command,dmcrypt,8))
+$(eval $(call command,blkid,8))
+
+$(eval $(call man,blktab,5))
 
 dektool: dektool.o keytool.o
 deitool: deitool.o keytool.o
