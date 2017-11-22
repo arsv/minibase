@@ -30,8 +30,6 @@ struct part {
 	short here;
 	char part[10];
 	char label[20];
-	short keyidx;
-	char fs[10];
 	char name[30];
 	uint64_t rdev;
 	uint64_t size;

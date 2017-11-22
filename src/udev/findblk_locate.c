@@ -99,6 +99,9 @@ void recv_udev_event(void)
 
 void wait_udev(void)
 {
+	if(any_missing_devs())
+		warn("waiting for devices", NULL, 0);
+
 	while(any_missing_devs())
 		recv_udev_event();
 }
@@ -203,18 +206,7 @@ static void link_part(struct part* pt)
 	pp = fmtstr(pp, pe, name);
 	FMTEND(pp, pe);
 
-	if(pt->keyidx) {
-		FMTBUF(dp, de, dmdev, 100);
-		dp = fmtstr(dp, de, "/dev/");
-		dp = fmtstr(dp, de, "dm-");
-		dp = fmtint(dp, de, pt->dmi);
-		FMTEND(dp, de);
-
-		sys_symlink(dmdev, link);
-		set_sticky(dmdev);
-	} else {
-		sys_symlink(path, link);
-	}
+	sys_symlink(path, link);
 
 	set_sticky(path);
 }
@@ -263,15 +255,3 @@ int any_missing_devs(void)
 
 	return 0;
 }
-
-int any_encrypted_parts(void)
-{
-	struct part* pt;
-
-	for(pt = parts; pt < parts + nparts; pt++)
-		if(pt->keyidx)
-			return 1;
-
-	return 0;
-}
-

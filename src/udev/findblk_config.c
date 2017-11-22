@@ -159,23 +159,6 @@ static void key_gpt(struct ctx* ctx)
 	add_hex_id(ctx, BY_GPT, 16);
 }
 
-static void set_key_index(struct ctx* ctx, struct part* pt, int keyidx)
-{
-	int ret;
-
-	if(!keyidx)
-		return;
-
-	if((ret = check_keyindex(keyidx))) {
-		if(ret == -ENOKEY)
-			parse_error(ctx, "key index out of range", NULL);
-		else
-			parse_error(ctx, "encrypted partition", NULL);
-	}
-
-	pt->keyidx = keyidx;
-}
-
 static struct part* add_part_entry(struct ctx* ctx, int mode)
 {
 	if(nparts >= NPARTS)
@@ -206,7 +189,6 @@ static struct part* add_part_entry(struct ctx* ctx, int mode)
 
 static void key_part(struct ctx* ctx)
 {
-	int keyidx = 0;
 	struct part* pt;
 
 	if(!(pt = add_part_entry(ctx, PARTS)))
@@ -216,15 +198,10 @@ static void key_part(struct ctx* ctx)
 
 	copy_sized(ctx, pt->part, sizeof(pt->part), 1);
 	copy_sized(ctx, pt->label, sizeof(pt->label), 2);
-	parse_kidx(ctx, &keyidx, 3);
-	copy_sized(ctx, pt->fs, sizeof(pt->fs), 4);
-
-	set_key_index(ctx, pt, keyidx);
 }
 
 static void key_whole(struct ctx* ctx)
 {
-	int keyidx = 0;
 	struct part* pt;
 
 	if(!(pt = add_part_entry(ctx, WHOLE)))
@@ -233,10 +210,6 @@ static void key_whole(struct ctx* ctx)
 		parse_error(ctx, "invalid arguments", NULL);
 
 	copy_sized(ctx, pt->label, sizeof(pt->label), 1);
-	parse_kidx(ctx, &keyidx, 2);
-	copy_sized(ctx, pt->fs, sizeof(pt->fs), 3);
-
-	set_key_index(ctx, pt, keyidx);
 }
 
 static const struct kwd {
