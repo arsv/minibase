@@ -7,7 +7,11 @@
 
 include $/config.mk
 
-subdirs = $(dir $(sort $(wildcard */Makefile)))
+subdirs := $(dir $(sort $(wildcard */Makefile)))
+
+ifdef skip
+subdirs := $(filter-out $(patsubst %,%/,$(skip)),$(subdirs))
+endif
 
 build := $(patsubst %,build-%,$(subdirs)) 
 clean := $(patsubst %,clean-%,$(subdirs)) clean-hello
@@ -43,3 +47,6 @@ $1%.o:
 endef
 
 $(foreach d,$(subdirs),$(eval $(call subtargets,$d)))
+
+test:
+	@echo $(subdirs)

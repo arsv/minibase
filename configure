@@ -3,7 +3,7 @@
 arch=
 cross=
 
-unset cc ar strip tp lto
+unset cc ar strip tp lto skip
 
 commanddir=/sbin
 servicedir=/sbin/service
@@ -27,6 +27,7 @@ for arg in "$@"; do
 		cc=*) eval "$arg" ;;
 		ar=*) eval "$arg" ;;
 		strip=*) eval "$arg" ;;
+		skip=*) eval "$arg" ;;
 		clang) clang=yes ;;
 		devel) cflags="-Wall -g -DDEVEL" ;;
 		debug) cflags="-Os -g" ;;
@@ -58,6 +59,8 @@ if [ -z "$arch" ]; then
 	test -d "lib/arch/$arch" || die "Unsupported arch $arch"
 fi
 
+skip="${skip/,/ }"
+
 cat > config.mk <<END
 ARCH = $arch
 
@@ -76,6 +79,8 @@ initrddir = $initrddir
 man1dir = $man1dir
 man5dir = $man5dir
 man8dir = $man8dir
+
+skip = $skip
 END
 
 cat > mini-cc <<END
