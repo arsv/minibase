@@ -1,10 +1,9 @@
 include ../rules.mk
 
-$(eval $(call system,super,8))
+$(eval $(call system,switchroot,8))
 $(eval $(call system,reboot))
+$(eval $(call service,super,8))
 $(eval $(call command,svctl,1))
-$(eval $(call initrd,switchroot,8))
-$(eval $(call initrd,reboot))
 $(eval $(call service,badsrv))
 $(eval $(call other,trap))
 $(eval $(call other,tick))

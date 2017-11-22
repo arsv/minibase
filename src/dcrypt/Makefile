@@ -1,6 +1,6 @@
 include ../rules.mk
 
-$(eval $(call initrd,passblk,8))
+$(eval $(call system,passblk,8))
 $(eval $(call command,dektool,8))
 $(eval $(call command,deitool,8))
 $(eval $(call command,dmcrypt,8))

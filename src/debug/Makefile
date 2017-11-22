@@ -1,5 +1,5 @@
 include ../rules.mk
 
-$(eval $(call command,errno,1))
-$(eval $(call command,hexdump,1))
-$(eval $(call command,strings,1))
+$(eval $(call cmdops,errno,1))
+$(eval $(call cmdops,hexdump,1))
+$(eval $(call cmdops,strings,1))

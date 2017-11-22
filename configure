@@ -9,7 +9,7 @@ commanddir=/sbin
 servicedir=/sbin/service
 networkdir=/sbin/network
 systemdir=/sbin/system
-initrddir=/boot/sbin
+cmdopsdir=/sbin/cmdops
 
 man1dir=/usr/share/man1
 man5dir=/usr/share/man5
@@ -74,7 +74,7 @@ commanddir = $commanddir
 servicedir = $servicedir
 networkdir = $networkdir
 systemdir = $systemdir
-initrddir = $initrddir
+cmdopsdir = $cmdopsdir
 
 man1dir = $man1dir
 man5dir = $man5dir

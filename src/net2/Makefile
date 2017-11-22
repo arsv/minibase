@@ -4,7 +4,7 @@ $(eval $(call service,ifmon))
 $(eval $(call command,ifctl))
 
 $(eval $(call service,wsupp))
-$(eval $(call service,wifi))
+$(eval $(call command,wifi))
 
 $(eval $(call command,ipcfg))
 $(eval $(call command,ipinfo))
