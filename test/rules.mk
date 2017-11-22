@@ -1,7 +1,7 @@
 .SUFFIXES:
 .SECONDARY:
 
-/ := $(dir $(wildcard ../configure ../../configure ../../../configure))
+/ := ../../
 
 include $/config.mk
 
