@@ -85,5 +85,5 @@ int main(int argc, char** argv, char** envp)
 
 	pfini(&ctx);
 
-	return 0;
+	exit(&ctx, 0);
 }

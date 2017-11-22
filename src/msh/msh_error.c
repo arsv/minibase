@@ -1,3 +1,5 @@
+#include <sys/proc.h>
+
 #include <string.h>
 #include <format.h>
 #include <errtag.h>
@@ -67,10 +69,25 @@ static void report(CTX, const char* err, char* arg, long ret, int m)
 	writeall(fd, buf, p - buf);
 }
 
+void exit(CTX, int code)
+{
+	int ret;
+
+	if(*ctx->trap) {
+		char* argv[] = { ctx->trap, NULL };
+
+		ret = sys_execve(*argv, argv, ctx->envp);
+
+		report(ctx, "exec", *argv, ret, TAGGED_SAVED);
+	}
+
+	_exit(code);
+}
+
 void quit(CTX, const char* err, char* arg, long ret)
 {
 	report(ctx, err, arg, ret, TAGGED_SAVED);
-	_exit(0xFF);
+	exit(ctx, 0xFF);
 }
 
 int error(CTX, const char* err, char* arg, long ret)
@@ -82,7 +99,7 @@ int error(CTX, const char* err, char* arg, long ret)
 void fatal(CTX, const char* err, char* arg)
 {
 	report(ctx, err, arg, 0, FILE_LINE_SAVED);
-	_exit(0xFF);
+	exit(ctx, 0xFF);
 }
 
 int fchk(long ret, CTX, char* arg)

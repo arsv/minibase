@@ -52,9 +52,9 @@ Terminate current process.
 Replace current process with \fIcommand\fR. See \fBexecve\fR(2).
 .IP "\fBinvoke\fR \fIcommand\fR \fIarg\fR \fIarg\fR ..." 4
 Do like \fBexec\fR but also append arguments passed to \fBmsh\fR itself.
-.IP "\fBonerror\fR \fI/path/to/executable\fR" 4
-Instruct msh to exec into \fIexecutable\fR instead of exiting with non-zero
-status if any error happens while executing the rest of the script.
+.IP "\fBonexit\fR \fI/path/to/executable\fR" 4
+Instruct msh to exec into \fIexecutable\fR instead of exiting on error
+on at the end of script.
 .IP "\fBstdin\fR \fIfile\fR" 4
 .IP "\fBstdout\fR [\fB-ax\fR] \fIfile\fR" 4
 .IP "\fBstderr\fR [\fB-ax\fR] \fIfile\fR" 4

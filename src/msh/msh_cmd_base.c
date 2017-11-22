@@ -38,7 +38,7 @@ int cmd_exit(CTX)
 	else if(shift_int(ctx, &code))
 		return -1;
 
-	_exit(code);
+	exit(ctx, code);
 }
 
 int cmd_invoke(CTX)
@@ -91,7 +91,7 @@ int cmd_warn(CTX)
 int cmd_die(CTX)
 {
 	cmd_warn(ctx);
-	_exit(0xFF);
+	exit(ctx, 0xFF);
 }
 
 /* This assigns executable to be exec()ed into in case of error.
@@ -100,7 +100,7 @@ int cmd_die(CTX)
    exactly one use for this, invoking /sbin/system/reboot in pid 0
    scripts, so anything more that this would be an overkill. */
 
-int cmd_onerror(CTX)
+int cmd_onexit(CTX)
 {
 	char* arg;
 

@@ -61,7 +61,7 @@ struct sh {
 
 	char pid[20];
 
-	char trap[50];   /* see cmd_onerror() */
+	char trap[50];   /* see cmd_onexit() */
 
 	struct mbuf passwd;
 	struct mbuf group;
@@ -98,6 +98,7 @@ int export(CTX, char* var);
 
 void command(CTX);
 
+void exit(CTX, int code) noreturn;
 void quit(CTX, const char* err, char* arg, long ret) noreturn;
 int error(CTX, const char* err, char* arg, long ret);
 void fatal(CTX, const char* err, char* arg) noreturn;

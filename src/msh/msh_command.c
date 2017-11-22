@@ -76,13 +76,6 @@ static const struct cmd* builtin(const char* name)
 	return NULL;
 }
 
-static void exec_into_trap(CTX)
-{
-	char* argv[] = { ctx->trap, NULL };
-	int ret = sys_execve(*argv, argv, ctx->envp);
-	warn("exec", *argv, ret);
-}
-
 void command(CTX)
 {
 	const struct cmd* cc;
@@ -102,8 +95,5 @@ void command(CTX)
 	if(!ret || ctx->dash)
 		return;
 
-	if(*ctx->trap)
-		exec_into_trap(ctx);
-
-	_exit(0xFF);
+	exit(ctx, 0xFF);
 }
