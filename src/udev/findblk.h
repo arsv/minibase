@@ -1,8 +1,5 @@
 #include <bits/ints.h>
 
-/* Common code for findblk and passblk.
-   Load config, locate listed devices. */
-
 #define MAX_CONFIG_SIZE 4092
 
 #define NBDEVS 10

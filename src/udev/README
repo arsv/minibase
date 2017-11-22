@@ -1,0 +1,4 @@
+Tools dealing with udev events and udev-related things.
+
+Note there's a tool similar to findblk in ../dcrypt/
+These two are kept separated despite sharing some code.
