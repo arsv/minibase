@@ -35,7 +35,6 @@ endef
 $(eval $(call destdir,command))
 $(eval $(call destdir,service))
 $(eval $(call destdir,system))
-$(eval $(call destdir,cmdops))
 $(eval $(call destdir,man1))
 $(eval $(call destdir,man5))
 $(eval $(call destdir,man8))
@@ -56,7 +55,6 @@ endef
 
 service = $(call register,service,$1,$2)
 command = $(call register,command,$1,$2)
-cmdops = $(call register,cmdops,$1,$2)
 system = $(call register,system,$1,$2)
 
 # --- other foo

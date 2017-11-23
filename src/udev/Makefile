@@ -2,7 +2,7 @@ include ../rules.mk
 
 $(eval $(call service,lindevd))
 $(eval $(call service,udevmod))
-$(eval $(call system,runwith))
+$(eval $(call command,runwith))
 $(eval $(call system,findblk))
 
 $(eval $(call man,udevmod,8))
