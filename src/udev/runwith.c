@@ -6,13 +6,17 @@
 #include <util.h>
 
 /* This tiny tool is only meant for a single use case: keeping udevmod
-   running in background while {find,pass}blk are searching for the devices
-   while the system is still running from initrd. This is necessary to make
-   sure modules gets loaded while the kernel keeps discovering new devices.
+   running in background while {find,pass}blk are waiting for devices.
+
+   Typical sequence looks like this: the bus finds a device and sends
+   MODALIAS event, udevmod receives the event and loads the module,
+   the module starts and sends DEVNAME event, {find,pass}blk receive
+   the event and do their thing.
 
    Outside of initrd, udevmod runs as a regular supervised service, but
-   in initrd it wouldn't work because the second process in the pair (findblk)
-   is not a service and should not be treated as a service.
+   within initrd this wouldn't work because the second process in the
+   pair (findblk or passblk) is not a service and should not be treated
+   as a service.
 
    This tool could have been an msh built-in, maybe, but there's really no
    use whatsoever for this outside of that single line in initrd/init, and

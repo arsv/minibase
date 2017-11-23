@@ -7,14 +7,14 @@
 
 #include "udevmod.h"
 
-/* During initial device scan, udevmod will try dozens of modaliases
-   in quick succession, most of them invalid. There is no point in
-   spawning that many modprobe processes. Instead, we spawn one and
-   pipe it aliases to check.
+/* During the initial device scan, udevmod will try dozens of modaliases
+   in quick succession, most of them invalid. There is no point in spawning
+   that many modprobe processes. Instead, we spawn one and pipe it aliases
+   to check.
 
-   After the initial scan, this becomes pointless since udev events
-   are rare and the ones with modaliases tend to arrive one at a time,
-   so we switch to spawning modprobe on each event. */
+   After the initial scan, this becomes pointless since udev events are
+   rare and the ones with modaliases tend to arrive one at a time, so we
+   switch to spawning modprobe on each event. */
 
 void open_modprobe(CTX)
 {

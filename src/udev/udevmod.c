@@ -20,13 +20,11 @@
 
 /* This service does two things that require monitoring udev events:
 
-     * modprobe MODALIAS-es
-     * chmod/chown device nodes
+     * modprobes MODALIAS-es
+     * chmods/chowns device nodes
 
-   Common code here walks through /sys to pick up pre-registered devices
-   and then switches to listening for udev events. There's hardly anything
-   in common between the other two parts, so those got split into their own
-   files. */
+   Common code here walks through /sys to pick up pre-registered devices,
+   and then switches to listening for udev events. */
 
 ERRTAG("udevmod");
 
