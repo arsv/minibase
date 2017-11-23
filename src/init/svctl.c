@@ -141,22 +141,32 @@ static void cmd_pidof(CTX)
 	recv_dump(ctx, name, dump_pid);
 }
 
-static void cmd_status(CTX)
+static void cmd_list(CTX)
 {
-	char* name;
-
-	if((name = shift_arg(ctx))) {
-		start_request(ctx, CMD_STATUS, 1, strlen(name));
-		add_str_attr(ctx, ATTR_NAME, name);
-	} else {
-		start_request(ctx, CMD_LIST, 0, 0);
-	}
-
 	no_other_options(ctx);
+
+	start_request(ctx, CMD_LIST, 0, 0);
 	send_request(ctx);
 
 	expect_large(ctx);
-	recv_dump(ctx, name, name ? dump_info : dump_list);
+	recv_dump(ctx, NULL, dump_list);
+}
+
+static void cmd_show(CTX)
+{
+	char* name;
+
+	if(!(name = shift_arg(ctx)))
+		fail("service name required", NULL, 0);
+
+	no_other_options(ctx);
+
+	start_request(ctx, CMD_STATUS, 1, strlen(name));
+	add_str_attr(ctx, ATTR_NAME, name);
+	send_request(ctx);
+
+	expect_large(ctx);
+	recv_dump(ctx, name, dump_info);
 }
 
 static void cmd_reload(CTX)
@@ -209,7 +219,7 @@ static const struct cmdrec {
 	{ "reboot",    cmd_reboot   },
 	{ "shutdown",  cmd_shutdown },
 	{ "poweroff",  cmd_poweroff },
-	{ "status",    cmd_status   }
+	{ "show",      cmd_show     }
 };
 
 typedef void (*cmdptr)(CTX);
@@ -236,7 +246,7 @@ int main(int argc, char** argv)
 	if(argc > 1)
 		cmd = resolve(shift_arg(ctx));
 	else
-		cmd = cmd_status;
+		cmd = cmd_list;
 
 	init_socket(ctx);
 
