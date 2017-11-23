@@ -36,7 +36,7 @@ struct top {
 	struct mbuf group;
 };
 
-#define CTX struct top* ctx
+#define CTX struct top* ctx __unused
 #define FN struct rfn* fn
 #define AT(dd) dd->at, dd->name
 #define MD struct dev* md

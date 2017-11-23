@@ -257,6 +257,7 @@ int main(int argc, char** argv, char** envp)
 {
 	struct top context, *ctx = &context;
 	int i = 1, opts = 0;
+	(void)argv;
 
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
