@@ -32,8 +32,7 @@ static const struct rlpair {
 	{ "rtprio",   RLIMIT_RTPRIO     },
 	{ "rttime",   RLIMIT_RTTIME     },
 	{ "sigpend",  RLIMIT_SIGPENDING },
-	{ "stack",    RLIMIT_STACK      },
-	{ "",         0                 }
+	{ "stack",    RLIMIT_STACK      }
 };
 
 int cmd_rlimit(CTX)
@@ -53,10 +52,10 @@ int cmd_rlimit(CTX)
 	if(moreleft(ctx))
 		return -1;
 
-	for(rp = rlimits; rp->name[0]; rp++)
+	for(rp = rlimits; rp < ARRAY_END(rlimits); rp++)
 		if(!strcmp(rp->name, key))
 			break;
-	if(!rp->name[0])
+	if(rp >= ARRAY_END(rlimits))
 		return error(ctx, "unknown limit", key, 0);
 
 	return fchk(sys_prlimit(0, rp->res, &rl, NULL), ctx, key);

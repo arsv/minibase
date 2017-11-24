@@ -49,8 +49,7 @@ static const struct cap {
 	{ "syslog",             34 },
 	{ "wake-alarm",         35 },
 	{ "block-suspend",      36 },
-	{ "audit-read",         37 },
-	{ "",                   -1 }
+	{ "audit-read",         37 }
 };
 
 #define OPT_a (1<<0)
@@ -65,10 +64,10 @@ static int parsecaps(CTX, int* bits)
 	char* arg;
 
 	while((arg = shift(ctx))) {
-		for(sc = caps; sc->name[0]; sc++)
+		for(sc = caps; sc < ARRAY_END(caps); sc++)
 			if(!strncmp(sc->name, arg, sizeof(sc->name)))
 				break;
-		if(!sc->name[0])
+		if(sc >= ARRAY_END(caps))
 			return error(ctx, "unknown cap", arg, 0);
 
 		int idx = (sc->val / 32);

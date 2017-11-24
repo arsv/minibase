@@ -13,8 +13,7 @@ static const struct secbit {
 	{ "keepcaps", SECURE_KEEP_CAPS            },
 	{ "nosetuid", SECURE_NO_SETUID_FIXUP      },
 	{ "noroot",   SECURE_NOROOT               },
-	{ "noraise",  SECURE_NO_CAP_AMBIENT_RAISE },
-	{ "",         0                           }
+	{ "noraise",  SECURE_NO_CAP_AMBIENT_RAISE }
 };
 
 static int striplock(char* str)
@@ -41,10 +40,10 @@ int cmd_secbits(CTX)
 	while((arg = shift(ctx))) {
 		int lock = striplock(arg);
 
-		for(sb = secbits; sb->name[0]; sb++)
+		for(sb = secbits; sb < ARRAY_END(secbits); sb++)
 			if(!strncmp(sb->name, arg, sizeof(sb->name)))
 				break;
-		if(!sb->name[0])
+		if(sb >= ARRAY_END(secbits))
 			return error(ctx, "unknown bit", arg, 0);
 
 		bits |= (1 << sb->bit);

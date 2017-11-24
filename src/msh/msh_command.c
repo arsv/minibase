@@ -15,7 +15,6 @@ static const struct cmd {
 #define CMD(name) \
 	{ #name, cmd_##name },
 #include "msh_cmd.h"
-	{ "", NULL }
 };
 
 static int child(CTX, char* cmd)
@@ -69,7 +68,7 @@ static const struct cmd* builtin(const char* name)
 	const struct cmd* cc;
 	int maxlen = sizeof(cc->name);
 
-	for(cc = builtins; cc->func; cc++)
+	for(cc = builtins; cc < ARRAY_END(builtins); cc++)
 		if(!strncmp(cc->name, name, maxlen))
 			return cc;
 
