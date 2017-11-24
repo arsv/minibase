@@ -31,12 +31,12 @@ inline static long sys_close(int fd)
 	return syscall1(NR_close, fd);
 }
 
-inline static long sys_read(int fd, char* buf, unsigned long len)
+inline static long sys_read(int fd, void* buf, unsigned long len)
 {
 	return syscall3(NR_read, fd, (long)buf, len);
 }
 
-inline static long sys_write(int fd, const char* buf, int len)
+inline static long sys_write(int fd, const void* buf, int len)
 {
 	return syscall3(NR_write, fd, (long)buf, len);
 }
