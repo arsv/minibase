@@ -1,7 +1,6 @@
 #include <bits/socket/inet.h>
 #include <sys/socket.h>
 #include <sys/file.h>
-#include <sys/mman.h>
 #include <sys/ppoll.h>
 
 #include <errtag.h>
@@ -31,29 +30,21 @@ static void prep_buffers(CTX)
 	ctx->bo.ptr = 0;
 }
 
-static char* read_whole(char* name, uint* size)
+static uint read_whole(char* name, char* buf, uint max)
 {
 	int fd, ret;
-	struct stat st;
-	char* buf;
 
 	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail(NULL, name, fd);
-	if((ret = sys_fstat(fd, &st)) < 0)
-		fail("stat", name, ret);
-	if(st.size > 0x7FFFFFFF)
+
+	if((ret = sys_read(fd, buf, max)) < 0)
+		fail("read", name, ret);
+	if(ret >= max)
 		fail(NULL, name, -E2BIG);
-
-	buf = sys_mmap(NULL, st.size, PROT_READ, MAP_SHARED, fd, 0);
-
-	if((ret = mmap_error(buf)))
-		fail("mmap", name, ret);
-
-	*size = (uint)st.size;
 
 	sys_close(fd);
 
-	return buf;
+	return ret;
 }
 
 static int isspace(int c)
@@ -88,11 +79,13 @@ static void parse_add_ns(CTX, char* p, char* e)
 
 static void read_resolv_conf(CTX)
 {
-	uint size;
-	char* buf = read_whole("/etc/resolv.conf", &size);
-	char* end = buf + size;
 	char* pref = "nameserver ";
 	int preflen = strlen(pref);
+
+	char* buf = outbuf;
+	uint max = sizeof(outbuf);
+	uint size = read_whole("/etc/resolv.conf", buf, max);
+	char* end = buf + size;
 
 	char *ls, *le;
 
@@ -109,8 +102,6 @@ static void read_resolv_conf(CTX)
 		if(ctx->nscount >= ARRAY_SIZE(ctx->nsaddr))
 			break;
 	}
-
-	sys_munmap(buf, size);
 }
 
 static void resolve_ns_name(CTX, char* name)
