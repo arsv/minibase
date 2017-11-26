@@ -7,7 +7,6 @@
 #include <errtag.h>
 #include <format.h>
 #include <string.h>
-#include <printf.h>
 #include <endian.h>
 #include <util.h>
 

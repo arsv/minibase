@@ -7,7 +7,6 @@
 #include <errtag.h>
 #include <format.h>
 #include <string.h>
-#include <printf.h>
 #include <endian.h>
 #include <util.h>
 
@@ -16,11 +15,20 @@
 
 ERRTAG("lookup");
 
-static void prep_buffer(CTX, void* buf, int size)
+char dnsbuf[2048];
+char outbuf[2048];
+
+static void prep_buffers(CTX)
 {
-	ctx->data = buf;
-	ctx->size = size;
+	ctx->data = (byte*)dnsbuf;
+	ctx->size = sizeof(dnsbuf);
 	ctx->len = 0;
+	ctx->ptr = 0;
+
+	ctx->bo.fd = STDOUT;
+	ctx->bo.buf = outbuf;
+	ctx->bo.len = sizeof(outbuf);
+	ctx->bo.ptr = 0;
 }
 
 static char* read_whole(char* name, uint* size)
@@ -187,9 +195,8 @@ int main(int argc, char** argv)
 		fail("too many arguments", NULL, 0);
 
 	char* name = argv[1];
-	char rxbuf[1600];
 
-	prep_buffer(ctx, rxbuf, sizeof(rxbuf));
+	prep_buffers(ctx);
 
 	if(argc > 2)
 		set_nameserver(ctx, argv[2]);
@@ -197,6 +204,8 @@ int main(int argc, char** argv)
 		read_resolv_conf(ctx);
 
 	query(ctx, name);
+
+	bufoutflush(&ctx->bo);
 
 	return 0;
 }

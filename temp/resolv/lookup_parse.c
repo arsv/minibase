@@ -1,11 +1,20 @@
 #include <string.h>
 #include <format.h>
 #include <endian.h>
-#include <printf.h>
 #include <util.h>
 
 #include "dns.h"
 #include "lookup.h"
+
+static void output(CTX, char* str, int len)
+{
+	bufout(&ctx->bo, str, len);
+}
+
+static void outstr(CTX, char* str)
+{
+	output(ctx, str, strlen(str));
+}
 
 static void maybe_reverse(char* p, char* e)
 {
@@ -96,7 +105,7 @@ static void prep_name(CTX, uint off, char* buf, int len)
 	maybe_reverse(buf, p);
 }
 
-static void dump_addr(CTX, char* name, struct dnsres* dr)
+static void address(CTX, char* name, struct dnsres* dr)
 {
 	byte* ip = dr->data;
 	int iplen = ntohs(dr->length);
@@ -104,28 +113,27 @@ static void dump_addr(CTX, char* name, struct dnsres* dr)
 	if(iplen != 4)
 		return;
 
-	tracef("%s %i.%i.%i.%i\n", name, ip[0], ip[1], ip[2], ip[3]);
+	FMTBUF(p, e, ipstr, 40);
+	p = fmtip(p, e, ip);
+	FMTEND(p, e);
+
+	outstr(ctx, name);
+	output(ctx, " ", 1);
+	outstr(ctx, ipstr);
+	output(ctx, "\n", 1);
 }
 
-static void dump_cname(CTX, char* name, uint doff)
+static void dblname(CTX, char* name, char* rel, uint doff)
 {
 	char buf[256];
 	prep_name(ctx, doff, buf, sizeof(buf));
-	tracef("%s = %s\n", name, buf);
-}
 
-static void dump_soa(CTX, char* name, uint doff)
-{
-	char buf[256];
-	prep_name(ctx, doff, buf, sizeof(buf));
-	tracef("%s :: %s\n", name, buf);
-}
-
-static void dump_ptr(CTX, char* name, uint doff)
-{
-	char buf[256];
-	prep_name(ctx, doff, buf, sizeof(buf));
-	tracef("%s <- %s\n", name, buf);
+	outstr(ctx, name);
+	output(ctx, " ", 1);
+	outstr(ctx, rel);
+	output(ctx, " ", 1);
+	outstr(ctx, buf);
+	output(ctx, "\n", 1);
 }
 
 static void dump_resource(CTX, uint start, uint doff, struct dnsres* dr)
@@ -140,11 +148,11 @@ static void dump_resource(CTX, uint start, uint doff, struct dnsres* dr)
 	prep_name(ctx, start, name, sizeof(name));
 
 	switch(type) {
-		case DNS_TYPE_A:     return dump_addr(ctx, name, dr);
-		case DNS_TYPE_CNAME: return dump_cname(ctx, name, doff);
-		case DNS_TYPE_SOA:   return dump_soa(ctx, name, doff);
-		case DNS_TYPE_PTR:   return dump_ptr(ctx, name, doff);
-		default: tracef("unknown resource type %i\n", type);
+		case DNS_TYPE_A:     return address(ctx, name, dr);
+		case DNS_TYPE_CNAME: return dblname(ctx, name, "=",  doff);
+		case DNS_TYPE_SOA:   return dblname(ctx, name, "::", doff);
+		case DNS_TYPE_PTR:   return dblname(ctx, name, "<-", doff);
+		default: warn("unknown resource type", NULL, type);
 	}
 }
 

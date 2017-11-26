@@ -1,4 +1,5 @@
 #include <bits/types.h>
+#include <output.h>
 
 struct top {
 	int fd;
@@ -11,6 +12,8 @@ struct top {
 	uint size;
 	uint len;
 	uint ptr;
+
+	struct bufout bo;
 
 	int nscount;
 	byte nsaddr[4][8];
