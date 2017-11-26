@@ -73,8 +73,10 @@ static void prep_name(CTX, uint off, char* buf, int len)
 	char* s = buf;
 	char* p = buf;
 	char* e = buf + len - 1;
+
 	uint ptr = off;
 	uint end = ctx->len;
+	uint next;
 
 	while(ptr < end) {
 		uint tag = ctx->data[ptr];
@@ -84,20 +86,21 @@ static void prep_name(CTX, uint off, char* buf, int len)
 		int type = (tag >> 6) & 3;
 
 		if(type == 3) {
-			if(ptr + 1 >= end)
-				break;
-			ptr = ((tag & 0x3F) << 8) | ctx->data[ptr+1];
+			if(ptr + 1 >= end) break;
+			next = ((tag & 0x3F) << 8) | ctx->data[ptr+1];
+			if(next >= ptr) break; /* fwd reference */
+			ptr = next;
 		} else if(!type) { /* string */
-			if(ptr + 1 + tag >= end)
-				break;
-
+			if(ptr + 1 + tag >= end) break;
 			if(p > s) p = fmtchar(p, e, '.');
 			p = fmtraw(p, e, ctx->data + ptr + 1, tag);
-
 			ptr += tag + 1;
 		} else {
 			break;
 		}
+
+		if(p >= e)
+			break;
 	}
 
 	*p = '\0';
