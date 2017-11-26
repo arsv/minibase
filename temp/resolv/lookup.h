@@ -15,7 +15,7 @@ struct top {
 
 	struct bufout bo;
 
-	int nscount;
+	uint nscount;
 	byte nsaddr[4][8];
 };
 

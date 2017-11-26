@@ -183,7 +183,7 @@ static int parse_resource(CTX)
 	return nextoff - start;
 }
 
-static void use_nameserver(CTX, uint start, uint doff, struct dnsres* dr)
+static void use_nameserver(CTX, struct dnsres* dr)
 {
 	int type = ntohs(dr->type);
 	int class = ntohs(dr->class);
@@ -215,14 +215,13 @@ static int parse_nsaddrs(CTX)
 		return 0;
 
 	struct dnsres* dr = (struct dnsres*)(ctx->data + droff);
-	uint dataoff = droff + drlen;
 	uint datalen = ntohs(dr->length);
 	uint nextoff = droff + drlen + datalen;
 
 	if(nextoff > ctx->len)
 		return 0;
 
-	use_nameserver(ctx, start, dataoff, dr);
+	use_nameserver(ctx, dr);
 
 	return nextoff - start;
 }

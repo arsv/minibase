@@ -30,7 +30,7 @@ static void prep_buffers(CTX)
 	ctx->bo.ptr = 0;
 }
 
-static uint read_whole(char* name, char* buf, uint max)
+static uint read_whole(char* name, char* buf, int max)
 {
 	int fd, ret;
 
