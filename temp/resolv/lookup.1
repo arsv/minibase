@@ -1,0 +1,14 @@
+.TH lookup 1
+'''
+.SH NAME
+\fBlookup\fR \- DNS name resolution tool
+'''
+.SH SYNOPSIS
+\fBlookup\fR \fIname\fR [\fIserver\fR]
+'''
+.SH NOTES
+To perform reverse lookup, specify IP instead of \fIname\fR.
+.P
+In case \fIserver\fR is not specified, \fBlookup\fR will read /etc/resolv.conf
+and try servers listed there. No other information from resolv.conf is used.
+This tool never reads /etc/hosts and will not resolve names listed there.
