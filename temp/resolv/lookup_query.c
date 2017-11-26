@@ -13,6 +13,8 @@
 #include "dns.h"
 #include "lookup.h"
 
+static void fail_ns_error(char* name, int rc) noreturn;
+
 static void fail_ns_error(char* name, int rc)
 {
 	char* msg;
@@ -229,6 +231,8 @@ struct dnshdr* run_request(CTX, char* name, ushort type)
 	byte txbuf[txlen];
 	int count = ctx->nscount;
 
+	int rc = DNSF_RC_SUCCESS;
+
 	prep_request(ctx, txbuf, &txlen, name, type);
 	
 	for(int i = 0; i < count; i++) {
@@ -237,7 +241,7 @@ struct dnshdr* run_request(CTX, char* name, ushort type)
 		if(!(dh = send_recv(ctx, txbuf, txlen, ip)))
 			continue;
 		
-		int rc = ntohs(dh->flags) & DNSF_RC;
+		rc = ntohs(dh->flags) & DNSF_RC;
 
 		if(rc == DNSF_RC_SERVER)
 			continue;
@@ -253,5 +257,8 @@ struct dnshdr* run_request(CTX, char* name, ushort type)
 		return dh;
 	}
 
-	fail("no usable nameservers", NULL, 0);
+	if(rc != DNSF_RC_SUCCESS) /* report the last error encountered */
+		fail_ns_error(name, rc);
+	else
+		fail("no usable nameservers", NULL, 0);
 }
