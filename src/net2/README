@@ -6,7 +6,7 @@ be running as root. There is no way around this, pretty much anything either
 of the tools does requires root privileges.
 
 Set PATH=.:$PATH to let ifmon run wsupp.
-Run ../misc/sockmod in current direction with devel config.
+Run ../misc/sockmod in current directory with devel config.
 
 It is possible to run wsupp as a standalone process, but it won't be able
 to trigger dhcp, so dhcp (the one from ../temp/wifi/, or ifctl -q) should
