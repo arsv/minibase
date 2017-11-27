@@ -13,6 +13,9 @@ char* parseu64(char* buf, uint64_t* np)
 		else
 			break;
 
+	if(p == buf)
+		return NULL;
+
 	*np = n;
 	return p;
 }

@@ -11,6 +11,9 @@ char* parselong(char* buf, long* np)
 		else
 			break;
 
+	if(p == buf)
+		return NULL;
+
 	*np = n;
 	return p;
 }

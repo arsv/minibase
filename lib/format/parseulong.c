@@ -12,6 +12,9 @@ char* parseulong(char* buf, unsigned long* np)
 		else
 			break;
 
+	if(p == buf)
+		return NULL;
+
 	*np = n;
 	return p;
 }

@@ -11,6 +11,9 @@ char* parseoct(char* buf, int* np)
 		else
 			break;
 
+	if(p == buf)
+		return NULL;
+
 	*np = n;
 	return p;
 }
