@@ -1,3 +1,3 @@
-test = format parse fmterr
+test = format parse fmterr parseip
 
 include ../rules.mk
