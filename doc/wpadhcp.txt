@@ -1,87 +1,72 @@
 DHCP-ing WPA links
 ~~~~~~~~~~~~~~~~~~
-During WPA initialization, the link goes "up" right _before_ EAPOL exchange.
-And while the kernel announces lots of unimportant link state changes, there
-is *no* notification of any kind that the encryption keys have been installed.
-If dhcp is run conventionally, on link-up event, it gets a chance to send its
-packets over unencrypted link, losing them at best and opening itself up to
-a packet forgery attack at worst.
+During WPA initialization, the link goes "up" right before EAPOL exchange,
+and there is no notification of any kind that the encryption keys have been
+installed. If dhcp gets started on link-up event, it is likely to send its
+first packet before the link is fully operational, losing it.
 
-Synchronizing EAPOL and DHCP exchange properly requires either a combined tool,
-or some sort of tight integration between wpa dhcp and wimon, both of which
-are undesirable.
+Synchronizing EAPOL and DHCP exchange properly requires a combined tool,
+or some sort of tight integration between wsupp and ifmon.
 
-Surprisingly, otherwise tightly-intergrated wpa_supplicant leaves the issue
-open, requiring a third-party DHCP implementation and allowing it to start
-before the keys have been set. It's important to note however that any dhcp
-implementation following RFC 951 closely will silently mask the problem because
-of mandated retransmits and long timeouts. The split between wpa_supplicant and
-whatever process handles link initialization (like systemd-networkd etc) does
-not help either, so chances are the whole issue just went unnoticed.
-Fast dhcp client and wimon listening to both rtnl and genl make it apparent.
+wpa_supplicant leaves the issue open, relying on a third-party DHCP with
+no apparently link-ready notifications.
+
+Any dhcp implementation following RFC 951 closely will mask the problem due
+to mandated retransmits and long timeouts. After losing the first packet,
+dhcp will wait off its retransmit timeout (which is often way longer than
+the time needed to complete EAPOL exchange) and send the second packet,
+leasing ip successfully in most cases.
 
 
 Running dhcp under wpa
 ~~~~~~~~~~~~~~~~~~~~~~
-One possible solution is to let wpa spawn dhcp right after the keys have
-been uploaded. It would provide a perfect synchronization, and wpa would
-become much easier to use as a stand-alone tool.
+One possible solution is to let the supplicant spawn dhcp right after the
+keys have been uploaded. It would provide a perfect synchronization, and
+the supplicant would become much easier to use as a stand-alone tool.
 
 Downside 1: this would limit interface configurability a lot, realistically
-down to the assumption that any WPA interface is always dhcp-ed uplink.
-Which may not be a problem by the way.
+down to the assumption that any WPA interface is always a dhcp-configured
+uplink.
 
 Downside 2: renewing DHCP leases. Unless dhcp is a long-running process
 itself (not desirable), something has to watch lft and restart it.
-Something better resembling wimon, not wpa. It's possible to make
-wimon re-new leases only if it's already there, but it's tricky and again
-harms configurability.
 
 Downside 3: large disparity between wired and wireless links.
 
 
 Signalling link readiness
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-Basically some sort of startup notification. Once the keys are ready, wpa
-signals wimon that the links should be dhcp-ed. Tricky, unreliable, and
-enforces tight integration between wimon and wpa.
+Another option is to make the supplicant signal link readiness somehow
+to interface monitor, letting it decide whether or not to run dhcp.
+This would remove wired/wireless disparity and make lease renewal much
+easier.
+
+Downside: requires tight integration between the supplicant and the link
+monitoring tool. Neither RTNL nor GENL support this kind of signalling,
+so it has to go through some other channel which both tool must be ready
+to use.
+
+# This option has been implemented with ifmon and wsupp. To signal link
+# readiness, wsupp sends a pre-configured packet to ifmon's control socket.
 
 
-Phasing out DHCP
-~~~~~~~~~~~~~~~~
-The very idea of using DHCP to configure WPA links makes little to no sense
-considering the features of both protocols. DHCP was designed for vaguely
-defined *ether* networks, with no gatekeepers and no central authority, where
-broadcasting address request and waiting for someone to reply was realistically
-the only feasible way to implement auto-configuration. WPA in contrast is
-heavily centralized and access-controlled. There's Authenticator which knows
-exactly how many active nodes are connected at any given time with sub-second
-precision, and has authority to allow or not allow another node in.
+Phasing out DHCP on wireless links
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+DHCP itself makes little sense in the context of WPA links. DHCP was made
+for bus-like or ether-like decentralized networks, where the host could
+connect at will and without knowning where the "server" is. In this kind
+of environment broadcasting request for address and waiting for somebody
+to reply did make sense.
 
-For WPA networks, there's strong incentive to merge address allocation into
-hostapd, and let it distribute the addresses to clients in e.g. 3rd EAPOL
-packet along with the other stuff that goes there. This would resolve
-synchronization issues, and probably speed up link init as well. This way
-hostapd would become the only source of authority within the network.
+In contrast, WPA link is effectively point-to-point and connects the host
+to a strictly controlled, centralized network. The host cannot connect at
+will and become a part of the network, it must first ask permission to do
+so via EAPOL. Authenticator (AP) that gives the permission to connect could
+just as well give the host some address to use. And AP knows when the host
+disconnects, so there's no point in renewing leases.
 
-As a non-standard extension, this would go well with ECDH and other possible
-protocol improvements, but would require backward-compatible tricks for legacy
-wireless clients, and for wired clients on mixed-media APs. This problem is
-easy to solve however, either by making a shared lease db for hostapd and dhcpd
-or alternatively letting hostapd handle DHCP requests on par with EAPOL ones.
+Downside: not a part of 802.11, so only really an option between a custom
+AP and a custom supplicant.
 
-This approach also aligns well with protocols like PPP that already implement
-address assignment without DHCP.
-
-A possible downside here is either dropping DHCP options, or having to
-re-implement them within hostapd. How much of an issue this happens to be
-is not clear atm, the use of DHCP options is a dubious idea on its own.
-
-
-Status update: ifmon
-~~~~~~~~~~~~~~~~~~~~
-This file was originally written for wimon-wpa pair, which has since been
-replaced with ifmon-wsupp pair. Ifmon retained all RTNL code from wimon,
-scanning code and everything wpa did went into wsupp. The new design goes
-with tightly-integrated ifmon and wsupp. When the keys are finally uploaded
-to the card, wsupp uses ifmon's control interface to trigger DHCP.
+If the custom implementation will retain EAPOL or something resembling EAPOL,
+the AP should send address(-es) in packet 3/4 alongside the initial GTK.
