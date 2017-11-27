@@ -1,12 +1,10 @@
 Networking tools are a pain to deal with in devel environment.
 
 To have everything working as intended, wsupp must be running under ifmon,
-sockmod (see ../misc/sockmod.c) must be watching ./run,  and all three must
-be running as root. There is no way around this, pretty much anything either
-of the tools does requires root privileges.
+and both must be running as root. There is no way around this, pretty much
+anything either of the tools does requires root privileges.
 
 Set PATH=.:$PATH to let ifmon run wsupp.
-Run ../misc/sockmod in current directory with devel config.
 
 It is possible to run wsupp as a standalone process, but it won't be able
 to trigger dhcp, so dhcp (the one from ../temp/wifi/, or ifctl -q) should
