@@ -26,15 +26,12 @@ static void tryfile(char* dir, char* base)
 {
 	int dlen = strlen(dir);
 	int blen = strlen(base);
-	char path[dlen+blen+2];
 
-	char* p = path;
-	char* e = path + sizeof(path) - 1;
-
+	FMTBUF(p, e, path, dlen+1+blen+1);
 	p = fmtstr(p, e, dir);
 	p = fmtstr(p, e, "/");
 	p = fmtstr(p, e, base);
-	*p++ = '\0';
+	FMTEND(p, e);
 
 	struct stat st;
 
