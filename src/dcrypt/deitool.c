@@ -157,16 +157,13 @@ static void setup(CTX, char* iname, char* oname, char* keyf, int kidx)
 
 	load_keyfile(&kf, keyf);
 
-	if(kidx < 1 || 16*kidx > kf.len)
-		fail("bad keyindex", NULL, 0);
-
 	if((fd = sys_open3(oname, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0)
 		fail(NULL, oname, fd);
 
 	ctx->ofd = fd;
 	ctx->oname = oname;
 
-	ctx->key = (uint8_t*)(kf.buf + 16*kidx);
+	ctx->key = get_key_by_idx(&kf, kidx);
 }
 
 int main(int argc, char** argv)

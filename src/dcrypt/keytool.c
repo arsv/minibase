@@ -60,8 +60,8 @@ void hash_passphrase(struct keyfile* kf, char* phrase, int phrlen)
 {
 	void* kek = kf->kek;
 	int klen = sizeof(kf->kek);
-	void* salt = kf->salt;
-	int slen = sizeof(kf->salt);
+	void* salt = kf->buf;
+	int slen = SALTLEN;
 
 	scrypt(kek, klen, phrase, phrlen, salt, slen);
 }
@@ -71,8 +71,8 @@ void unwrap_keyfile(struct keyfile* kf, char* phrase, int phrlen)
 	hash_passphrase(kf, phrase, phrlen);
 	memzero(phrase, sizeof(phrase));
 
-	int slen = sizeof(kf->salt);
-	void* wrapped = kf->wrapped;
+	int slen = SALTLEN;
+	void* wrapped = kf->buf + slen;
 	int wraplen = kf->len - slen;
 
 	aes128_unwrap(kf->kek, wrapped, wraplen);
@@ -83,7 +83,8 @@ void unwrap_keyfile(struct keyfile* kf, char* phrase, int phrlen)
 
 void copy_valid_iv(struct keyfile* kf)
 {
-	memcpy(kf->iv, testpad, sizeof(testpad));
+	int ivoffset = SALTLEN;
+	memcpy(kf->buf + ivoffset, testpad, sizeof(testpad));
 }
 
 void read_keyfile(struct keyfile* kf, char* name)
@@ -103,7 +104,7 @@ void read_keyfile(struct keyfile* kf, char* name)
 		fail("read", name, ret);
 	if(ret < st.size)
 		fail("incomplete read", NULL, 0);
-	if(ret < 16 || ret % 16)
+	if(ret % 32 != 16)
 		fail("invalid keyfile", name, 0);
 
 	kf->len = st.size;
@@ -112,7 +113,7 @@ void read_keyfile(struct keyfile* kf, char* name)
 void write_keyfile(struct keyfile* kf, char* name, int flags)
 {
 	int wr, fd;
-	int slen = 8;
+	int slen = SALTLEN;
 
 	aes128_wrap(kf->kek, kf->buf + slen, kf->len - slen);
 
@@ -124,4 +125,23 @@ void write_keyfile(struct keyfile* kf, char* name, int flags)
 
 	sys_close(fd);
 	memzero(kf->buf, sizeof(kf->buf));
+}
+
+byte* get_key_by_idx(struct keyfile* kf, int idx)
+{
+	if(idx <= 0)
+		fail("non-positive key index", NULL, 0);
+	if(HDRSIZE + KEYSIZE*idx > kf->len)
+		fail("key index out of range", NULL, 0);
+
+	return kf->buf + HDRSIZE + KEYSIZE*(idx - 1);
+}
+
+int is_valid_key_idx(struct keyfile* kf, int idx)
+{
+	if(idx <= 0)
+		return 0;
+	if(HDRSIZE + KEYSIZE*idx > kf->len)
+		return 0;
+	return 1;
 }

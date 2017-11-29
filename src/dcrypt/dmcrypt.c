@@ -239,22 +239,16 @@ static int create_dm_crypt(struct device* dev)
 	int ret;
 
 	char* cipher = "aes-xts-plain64";
-	uint8_t xtskey[32];
-	memcpy(xtskey + 0,  dev->key, 16);
-	memcpy(xtskey + 16, dev->key, 16);
-	int xtslen = 32;
 
 	dm_create(dev);
 
-	if((ret = dm_crypt(dev, cipher, xtskey, xtslen)))
+	if((ret = dm_crypt(dev, cipher, dev->key, KEYSIZE)))
 		goto out;
 	if((ret = dm_suspend(dev->name, 0)))
 		goto out;
 out:
 	if(ret < 0)
 		dm_remove(name);
-
-	memzero(xtskey, sizeof(xtskey));
 
 	return ret;
 }
@@ -281,10 +275,6 @@ static void prepare_device(struct device* dev, char* arg, int* ki)
 	char *p, *base, *name;
 
 	if((p = parseint(arg, &k)) && *p == ':') {
-		if(k <= 0)
-			fail("key index must be positive", NULL, 0);
-		if(16*k > keyfile.len)
-			fail("key index out of range", NULL, 0);
 		*ki = k;
 		arg = p + 1;
 	}
@@ -300,12 +290,12 @@ static void prepare_device(struct device* dev, char* arg, int* ki)
 
 	int kidx = *ki;
 
-	if(16*kidx > keyfile.len)
-		fail("no key left for", dev->name, 0);
+	if(!is_valid_key_idx(&keyfile, kidx))
+		fail("invalid key index for", dev->name, 0);
 
 	dev->base = base;
 	dev->name = name;
-	dev->key = keyfile.key[kidx-1];
+	dev->key = get_key_by_idx(&keyfile, kidx);
 
 	query_dev_inode(dev);
 }

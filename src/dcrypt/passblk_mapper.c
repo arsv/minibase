@@ -181,25 +181,18 @@ static int create_dm_crypt(struct part* pt)
 {
 	char* label = pt->label;
 	void* key = get_key(pt->keyidx);
-	int ret;
-
 	char* cipher = "aes-xts-plain64";
-	uint8_t xtskey[32];
-	memcpy(xtskey + 0,  key, 16);
-	memcpy(xtskey + 16, key, 16);
-	int xtslen = 32;
+	int ret;
 
 	dm_create(pt);
 
-	if((ret = dm_crypt(pt, cipher, xtskey, xtslen)))
+	if((ret = dm_crypt(pt, cipher, key, KEYSIZE)))
 		goto out;
 	if((ret = dm_suspend(label, 0)))
 		goto out;
 out:
 	if(ret < 0)
 		dm_remove(label);
-
-	memzero(xtskey, sizeof(xtskey));
 
 	return ret;
 }

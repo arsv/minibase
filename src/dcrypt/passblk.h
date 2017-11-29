@@ -2,6 +2,10 @@
 
 #define MAX_CONFIG_SIZE 4092
 
+#define KEYSIZE 32
+#define HDRSIZE 16
+#define SALTLEN 8
+
 #define NBDEVS 10
 #define NPARTS 20
 
@@ -86,4 +90,3 @@ void wipe_keyfile(void);
 void term_back(void);
 void clearbox(void);
 void query_part_inodes(void);
-void load_keyfile(void);

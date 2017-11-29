@@ -133,7 +133,7 @@ static void load_keyfile(struct keyfile* kf, char* name)
 	unwrap_keyfile(kf, phrase, phrlen);
 }
 
-static void read_random(char* buf, int size)
+static void read_random(void* buf, int size)
 {
 	int fd, rd;
 	char* random = "/dev/urandom";
@@ -157,7 +157,11 @@ static void fill_key_data(struct keyfile* kf, int total)
 
 static void append_key_data(struct keyfile* kf, int need)
 {
+	if(kf->len + need > sizeof(kf->buf))
+		fail("not enough space in keyfile", NULL, 0);
+
 	read_random(kf->buf + kf->len, need);
+
 	kf->len += need;
 }
 
@@ -173,7 +177,6 @@ static void create(void)
 {
 	struct keyfile* kf = &keyfile;
 	char* name = shift_arg();
-	int size = 16;
 	int count = 1;
 	int force = use_opt(OPT_f);
 
@@ -185,7 +188,7 @@ static void create(void)
 		count = shift_uint();
 	no_other_options();
 
-	ulong total = sizeof(kf->salt) + sizeof(kf->iv) + count*size;
+	ulong total = HDRSIZE + count*KEYSIZE;
 
 	if(total > sizeof(kf->buf))
 		fail("keyring size too large", NULL, 0);
@@ -203,14 +206,13 @@ static void addkey(void)
 {
 	struct keyfile* kf = &keyfile;
 	char* name = shift_arg();
-	int size = 16;
 	int count = shift_uint();
 	no_other_options();
 
 	message("Adding keys to", name);
 
 	load_keyfile(kf, name);
-	append_key_data(kf, count*size);
+	append_key_data(kf, count*KEYSIZE);
 	write_keyfile(kf, name, 0);
 }
 

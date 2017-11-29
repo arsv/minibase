@@ -17,12 +17,9 @@ uint8_t kek[16];
 static struct scrypt sc;
 static const char testpad[] = { 0xA6,0xA6,0xA6,0xA6,0xA6,0xA6,0xA6,0xA6 };
 
-void load_keyfile(void)
+static void load_keyfile(void)
 {
 	char* name = KEYFILE;
-
-	if(kflen)
-		return;
 
 	int flags = O_RDONLY;
 	struct stat st;
@@ -39,7 +36,7 @@ void load_keyfile(void)
 		fail("read", name, ret);
 	if(ret < st.size)
 		fail("incomplete read", NULL, 0);
-	if(ret < 16 || ret % 16)
+	if(ret % 32 != 16)
 		fail("invalid keyfile", name, 0);
 
 	kflen = st.size;
@@ -73,7 +70,7 @@ int try_passphrase(char* phrase, int phrlen)
 	memcpy(kplain, keybuf, kflen);
 
 	char* salt = kplain;
-	int slen = 8;
+	int slen = SALTLEN;
 
 	scrypt(kek, sizeof(kek), phrase, phrlen, salt, slen);
 	memzero(phrase, sizeof(phrase));
@@ -95,7 +92,7 @@ int check_keyindex(int ki)
 	if(!kflen)
 		load_keyfile();
 
-	if(ki < 0 || 16*(ki + 1) > kflen)
+	if(ki < 0 || (HDRSIZE + KEYSIZE*ki) > kflen)
 		return -ENOKEY;
 
 	return 0;
@@ -106,7 +103,7 @@ int check_keyindex(int ki)
 
 void* get_key(int ki)
 {
-	return kplain + 16*ki;
+	return kplain + HDRSIZE + KEYSIZE*(ki-1);
 }
 
 void wipe_keyfile(void)
