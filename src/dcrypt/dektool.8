@@ -4,13 +4,15 @@
 \fBdektool\fR \- disk encryption keys manipulation tool
 '''
 .SH SYNOPSIS
-.IP "\fBdektool\fR \fB-c\fR \fIkeyfile\fR [\fIn\fR]" 4
+.IP "\fBdektool create\fR \fIkeyfile\fR [\fIn\fR]" 4
 Create \fIkeyfile\fR with \fIn\fR keys.
-.IP "\fBdektool\fR \fB-a\fR \fIkeyfile\fR [\fIn\fR]" 4
-Add \fIn\fR keys.
-.IP "\fBdektool\fR \fB-t\fR \fIkeyfile\fR" 4
-Test passphrase.
-.IP "\fBdektool\fR \fB-p\fR \fIkeyfile\fR" 4
+.IP "\fBdektool crover\fR \fIkeyfile\fR [\fIn\fR]" 4
+Same, overwriting \fIkeyfile\fR if necessary.
+.IP "\fBdektool add\fR \fIkeyfile\fR [\fIn\fR]" 4
+Add \fIn\fR keys to \fIkeyfile\fR.
+.IP "\fBdektool test\fR \fIkeyfile\fR" 4
+Try unwrapping \fIkeyfile\fR to test passphrase.
+.IP "\fBdektool repass\fR \fIkeyfile\fR" 4
 Change passphrase.
 '''
 .SH DESCRIPTION
@@ -20,7 +22,7 @@ with a passphrase-derived key. To apply any changes, the existing data in
 the file must be decrypted first, and then the updated data must be encrypted
 again. The tool never leaves the file unencrypted.
 .P
-The keys are 16-byte (128-bit) chunks of random data from /dev/urandom.
+The keys are 32-byte (256-bit) chunks of random data from /dev/urandom.
 There should be one key for each partition being encrypted.
 '''
 .SH SEE ALSO

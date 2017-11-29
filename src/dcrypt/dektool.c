@@ -10,51 +10,38 @@
 
 ERRTAG("dektool");
 
-#define OPTS "actpf"
-#define OPT_a (1<<0)
-#define OPT_c (1<<1)
-#define OPT_t (1<<2)
-#define OPT_p (1<<3)
-#define OPT_f (1<<4)
-
 struct top {
 	int opts;
 	int argc;
 	int argi;
 	char** argv;
-} top;
+	struct keyfile* kf;
+};
 
-struct keyfile keyfile;
+#define CTX struct top* ctx
 
-static void no_other_options(void)
+static void no_other_options(CTX)
 {
-	if(top.argi < top.argc)
+	if(ctx->argi < ctx->argc)
 		fail("too many arguments", NULL, 0);
-	if(top.opts)
+	if(ctx->opts)
 		fail("bad options", NULL, 0);
 }
 
-static int use_opt(int opt)
+static char* shift_arg(CTX)
 {
-	int ret = top.opts & opt;
-	top.opts &= ~opt;
-	return ret;
-}
-
-static char* shift_arg(void)
-{
-	if(top.argi < top.argc)
-		return top.argv[top.argi++];
+	if(ctx->argi < ctx->argc)
+		return ctx->argv[ctx->argi++];
 	else
 		return NULL;
 }
 
-static int shift_uint(void)
+static int shift_uint(CTX)
 {
 	char *a, *p;
 	int val;
 
-	if(!(a = shift_arg()))
+	if(!(a = shift_arg(ctx)))
 		fail("too few arguments", NULL, 0);
 	if(!(p = parseint(a, &val)) || *p)
 		fail("integer argument required:", a, 0);
@@ -64,23 +51,16 @@ static int shift_uint(void)
 	return val;
 }
 
-static int count_args(void)
+static int count_args(CTX)
 {
-	return top.argc - top.argi;
+	return ctx->argc - ctx->argi;
 }
 
-static void init_args(int argc, char** argv)
+static void init_args(CTX, int argc, char** argv)
 {
-	int i = 1;
-
-	if(i < argc && argv[i][0] == '-')
-		top.opts = argbits(OPTS, argv[i++] + 1);
-	else
-		top.opts = 0;
-
-	top.argi = i;
-	top.argc = argc;
-	top.argv = argv;
+	ctx->argi = 1;
+	ctx->argc = argc;
+	ctx->argv = argv;
 }
 
 static void message(char* msg, char* arg)
@@ -104,7 +84,7 @@ static void message(char* msg, char* arg)
 	sys_write(STDOUT, buf, p - buf);
 }
 
-static void prep_passphrase(struct keyfile* kf)
+static void prep_passphrase(CTX)
 {
 	int buflen = 80;
 	char phrase[buflen];
@@ -118,7 +98,7 @@ static void prep_passphrase(struct keyfile* kf)
 
 	memzero(repeat, sizeof(repeat));
 
-	hash_passphrase(kf, phrase, phrlen);
+	hash_passphrase(ctx->kf, phrase, phrlen);
 
 	memzero(phrase, sizeof(phrase));
 }
@@ -165,7 +145,7 @@ static void append_key_data(struct keyfile* kf, int need)
 	kf->len += need;
 }
 
-void check_not_exists(char* name)
+static void check_not_exists(char* name)
 {
 	struct stat st;
 
@@ -173,41 +153,47 @@ void check_not_exists(char* name)
 		fail(NULL, name, -EEXIST);
 }
 
-static void create(void)
+static void create_keyfile(CTX, char* name, int count, int mode)
 {
-	struct keyfile* kf = &keyfile;
-	char* name = shift_arg();
-	int count = 1;
-	int force = use_opt(OPT_f);
-
-	message("Creating new keyfile:", name);
-
-	if(!force)
-		check_not_exists(name);
-	if(count_args())
-		count = shift_uint();
-	no_other_options();
-
+	struct keyfile* kf = ctx->kf;
 	ulong total = HDRSIZE + count*KEYSIZE;
 
 	if(total > sizeof(kf->buf))
 		fail("keyring size too large", NULL, 0);
 
-	fill_key_data(kf, total);
-	prep_passphrase(kf);
+	message("Creating new keyfile:", name);
 
-	if(force)
-		write_keyfile(kf, name, O_CREAT | O_TRUNC);
-	else
-		write_keyfile(kf, name, O_CREAT | O_EXCL);
+	fill_key_data(kf, total);
+	prep_passphrase(ctx);
+
+	write_keyfile(kf, name, O_CREAT | mode);
 }
 
-static void addkey(void)
+static void cmd_create(CTX)
 {
-	struct keyfile* kf = &keyfile;
-	char* name = shift_arg();
-	int count = shift_uint();
-	no_other_options();
+	char* name = shift_arg(ctx);
+	int count = count_args(ctx) ? shift_uint(ctx) : 1;
+	no_other_options(ctx);
+
+	check_not_exists(name);
+	create_keyfile(ctx, name, count, O_EXCL);
+}
+
+static void cmd_crover(CTX)
+{
+	char* name = shift_arg(ctx);
+	int count = count_args(ctx) ? shift_uint(ctx) : 1;
+	no_other_options(ctx);
+
+	create_keyfile(ctx, name, count, O_TRUNC);
+}
+
+static void cmd_addkey(CTX)
+{
+	struct keyfile* kf = ctx->kf;
+	char* name = shift_arg(ctx);
+	int count = shift_uint(ctx);
+	no_other_options(ctx);
 
 	message("Adding keys to", name);
 
@@ -216,11 +202,11 @@ static void addkey(void)
 	write_keyfile(kf, name, 0);
 }
 
-static void trykey(void)
+static void cmd_pcheck(CTX)
 {
-	struct keyfile* kf = &keyfile;
-	char* name = shift_arg();
-	no_other_options();
+	struct keyfile* kf = ctx->kf;
+	char* name = shift_arg(ctx);
+	no_other_options(ctx);
 
 	message("Testing passphrase for", name);
 
@@ -229,11 +215,11 @@ static void trykey(void)
 	message("Success, passphrase is likely correct", NULL);
 }
 
-static void repass(void)
+static void cmd_repass(CTX)
 {
-	struct keyfile* kf = &keyfile;
-	char* name = shift_arg();
-	no_other_options();
+	struct keyfile* kf = ctx->kf;
+	char* name = shift_arg(ctx);
+	no_other_options(ctx);
 
 	message("Changing passphrase for", name);
 	message("Type current passphrase to unwrap the key", NULL);
@@ -242,26 +228,44 @@ static void repass(void)
 
 	message("Key unwrapped, type the new passphrase now", NULL);
 
-	prep_passphrase(kf);
+	prep_passphrase(ctx);
 	write_keyfile(kf, name, 0);
 
 	message("Success, passphrase changed", NULL);
 }
 
+static const struct cmd {
+	char name[8];
+	void (*call)(CTX);
+} commands[] = {
+	{ "create", cmd_create },
+	{ "crover", cmd_crover },
+	{ "add",    cmd_addkey },
+	{ "test",   cmd_pcheck },
+	{ "repass", cmd_repass }
+};
+
 int main(int argc, char** argv)
 {
-	init_args(argc, argv);
+	struct top context, *ctx = &context;
+	struct keyfile keyfile;
+	char* cmd;
+	const struct cmd* cc;
 
-	if(use_opt(OPT_c))
-		create();
-	else if(use_opt(OPT_a))
-		addkey();
-	else if(use_opt(OPT_t))
-		trykey();
-	else if(use_opt(OPT_p))
-		repass();
-	else	
-		fail("no mode specified", NULL, 0);
+	memzero(ctx, sizeof(*ctx));
 
-	return 0;
+	init_args(ctx, argc, argv);
+	ctx->kf = &keyfile;
+
+	if(!(cmd = shift_arg(ctx)))
+		fail("no command specified", NULL, 0);
+
+	for(cc = commands; cc < ARRAY_END(commands); cc++) {
+		if(!strcmp(cc->name, cmd)) {
+			cc->call(ctx);
+			return 0;
+		}
+	}
+
+	fail("unknown command", cmd, 0);
 }
