@@ -15,7 +15,7 @@
 #include "ifmon.h"
 #include "ifmon_dhcp.h"
 
-#define RETRIES 2 /* plus the initial packet */
+#define RETRIES 4 /* plus the initial packet */
 #define TIMEOUT 500 /* ms */
 
 struct dhcpmsg packet;
