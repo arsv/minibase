@@ -16,7 +16,7 @@ typedef int (*qcmp3)(const void* a, const void* b, long opts);
 void qsort(void* base, size_t nmemb, size_t size, qcmp2 cmp);
 void qsortx(void* base, size_t nmemb, size_t size, qcmp3 cmp, long opts);
 
-long writeall(int fd, char* buf, long len);
+long writeall(int fd, void* buf, long len);
 
 long execvpe(char* file, char** argv, char** envp);
 

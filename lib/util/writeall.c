@@ -5,7 +5,7 @@
    In all concievable case that should be the only possible
    cause (and we'll probably get SIGPIPE anyway) */
 
-long writeall(int fd, char* buf, long len)
+long writeall(int fd, void* buf, long len)
 {
 	long wr = 0;
 
