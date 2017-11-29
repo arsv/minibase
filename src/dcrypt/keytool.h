@@ -5,7 +5,7 @@
 struct keyfile {
 	int len;
 	byte kek[16];
-	byte buf[2048];
+	byte buf[1024];
 } keyfile;
 
 int ask(char* tag, char* buf, int len);
