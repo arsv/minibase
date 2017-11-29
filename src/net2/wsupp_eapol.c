@@ -179,12 +179,6 @@ static void pmk_to_ptk()
 /* Ref. IEEE 802.11-2012 Table 11-6 */
 static const char kde_type_gtk[4] = { 0x00, 0x0F, 0xAC, 0x01 };
 
-/* From wpa_supplicant: swap Tx/Rx for Michael MIC. No idea where
-   this comes from, but it's necessary to get the right key.
-
-   Only applies to TKIP. In CCMP mode, the key is 16 bytes and
-   there's no need to swap anything.  */
-
 static int store_gtk(int idx, byte* buf, int len)
 {
 	int explen = ap.tkipgroup ? 32 : 16;
@@ -196,6 +190,9 @@ static int store_gtk(int idx, byte* buf, int len)
 
 	memcpy(GTK, buf, 16);
 
+	/* From wpa_supplicant: swap Tx/Rx for Michael MIC.
+	   No idea where this comes from, but it's necessary
+	   to get the right key. */
 	if(ap.tkipgroup) {
 		memcpy(GTK + 16, buf + 24, 8);
 		memcpy(GTK + 24, buf + 16, 8);
