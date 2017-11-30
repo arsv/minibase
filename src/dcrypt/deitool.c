@@ -4,28 +4,31 @@
 
 #include <errtag.h>
 #include <format.h>
+#include <string.h>
 #include <util.h>
 
 #include "keytool.h"
 
 ERRTAG("deitool");
 
-#define OPTS "de"
+#define OPTS "d"
 #define OPT_d (1<<0)
-#define OPT_e (1<<1)
 
 struct keyfile kf;
 
 typedef void (*cryptf)(struct aes128* A, void* rp, void* wp, uint64_t S);
 
 struct top {
+	int argc;
+	int argi;
+	char** argv;
+	int opts;
+
 	int ifd;
 	int ofd;
 	char* iname;
 	char* oname;
-
-	uint8_t* key;
-	cryptf fn;
+	struct aes128 aes;
 };
 
 char ibuf[512];
@@ -96,43 +99,25 @@ static void aesxts_decrypt(struct aes128* A, void* rp, void* wp, uint64_t S)
 	aesxts(A, rp, wp, S, aes128_decrypt);
 }
 
-static void pipe_data(CTX)
+static void pipe_data(CTX, cryptf fn)
 {
 	int rd, wr;
 	int ifd = ctx->ifd;
 	int ofd = ctx->ofd;
-
-	cryptf fn = ctx->fn;
 	uint64_t S = 0;
-
-	struct aes128 A;
-
-	aes128_init(&A, ctx->key);
+	struct aes128* A = &ctx->aes;
 
 	while((rd = sys_read(ifd, ibuf, 512)) > 0) {
 		if(rd < 512)
 			fail("incomplete read", NULL, 0);
 
-		fn(&A, ibuf, obuf, S);
+		fn(A, ibuf, obuf, S);
 
 		if((wr = writeall(ofd, obuf, 512)) < 0)
 			fail("write", ctx->oname, wr);
 
 		S += 1;
 	}
-
-	aes128_fini(&A);
-}
-
-static int atoi(char* arg)
-{
-	char* p;
-	int val;
-
-	if(!(p = parseint(arg, &val)) || *p)
-		fail("integer argument required:", arg, 0);
-	
-	return val;
 }
 
 static void load_keyfile(struct keyfile* kf, char* name)
@@ -145,7 +130,22 @@ static void load_keyfile(struct keyfile* kf, char* name)
 	unwrap_keyfile(kf, phrase, phrlen);
 }
 
-static void setup(CTX, char* iname, char* oname, char* keyf, int kidx)
+static void init_context(CTX, int argc, char** argv)
+{
+	int i = 1, opts = 0;
+
+	memzero(ctx, sizeof(*ctx));
+
+	if(i < argc && argv[i][0] == '-')
+		opts = argbits(OPTS, argv[i++] + 1);
+
+	ctx->argi = i;
+	ctx->argc = argc;
+	ctx->argv = argv;
+	ctx->opts = opts;
+}
+
+static void set_files(CTX, char* iname, char* oname, char* keyf, int kidx)
 {
 	int fd;
 
@@ -163,39 +163,63 @@ static void setup(CTX, char* iname, char* oname, char* keyf, int kidx)
 	ctx->ofd = fd;
 	ctx->oname = oname;
 
-	ctx->key = get_key_by_idx(&kf, kidx);
+	byte* key = get_key_by_idx(&kf, kidx);
+
+	aes128_init(&ctx->aes, key);
+}
+
+static void fini_context(CTX)
+{
+	aes128_fini(&ctx->aes);
+}
+
+static char* shift_arg(CTX)
+{
+	if(ctx->argi >= ctx->argc)
+		return NULL;
+	return ctx->argv[ctx->argi++];
+}
+
+static char* shift_req(CTX)
+{
+	if(ctx->argi >= ctx->argc)
+		fail("too few arguments", NULL, 0);
+	return ctx->argv[ctx->argi++];
+}
+
+static int maybe_shift_int(CTX, int dflt)
+{
+	char *arg, *p;
+	int val;
+
+	if(!(arg = shift_arg(ctx)))
+		return dflt;
+
+	if(!(p = parseint(arg, &val)) || *p)
+		fail("integer required:", arg, 0);
+
+	return val;
 }
 
 int main(int argc, char** argv)
 {
-	int i = 1, opts = 0;
-	struct top ctx;
+	struct top context, *ctx = &context;
 
-	if(i < argc && argv[i][0] == '-')
-		opts = argbits(OPTS, argv[i++] + 1);
+	init_context(ctx, argc, argv);
 
-	if(i + 3 > argc)
-		fail("too few arguments", NULL, 0);
-	if(i + 4 < argc)
-		fail("too many arguments", NULL, 0);
+	char* iname = shift_req(ctx);
+	char* oname = shift_req(ctx);
+	char* keyf = shift_req(ctx);
+	int kidx = maybe_shift_int(ctx, 1);
 
-	char* iname = argv[i++];
-	char* oname = argv[i++];
-	char* keyf = argv[i++];
-	int kidx = i < argc ? atoi(argv[i++]) : 1;
+	set_files(ctx, iname, oname, keyf, kidx);
 
-	setup(&ctx, iname, oname, keyf, kidx);
-
-	if(opts == OPT_d)
-		ctx.fn = aesxts_decrypt;
-	else if(opts == OPT_e)
-		ctx.fn = aesxts_encrypt;
-	else if(!opts)
-		fail("no mode specified", NULL, 0);
+	if(ctx->opts & OPT_d)
+		pipe_data(ctx, aesxts_decrypt);
 	else
-		fail("bad mode specified", NULL, 0);
+		pipe_data(ctx, aesxts_encrypt);
 
-	pipe_data(&ctx);
+	fini_context(ctx);
 
 	return 0;
 }
