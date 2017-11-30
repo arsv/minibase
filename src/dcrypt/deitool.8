@@ -7,7 +7,7 @@
 \fBdeitool\fR \fB-\fR[\fBde\fR] \fIsource\fR \fIoutput\fR \fIkeyfile\fR [\fIkidx\fR]
 '''
 .SH DESCRIPTION
-This tool applies the same algorithm (single-key XTS-AES128) as \fBpassblk\fR(8)
+This tool applies the same algorithm (XTS-AES-128) as \fBpassblk\fR(8)
 using key \fIkidx\fR from \fIkeyfile\fR. It is meant for preparing encrypted
 partition images without relying on the kernel encryption routines, which
 require root privileges to use and may not even be available on the build
