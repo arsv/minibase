@@ -1,4 +1,8 @@
 #include <sys/file.h>
+#include <sys/fprop.h>
+#include <sys/proc.h>
+#include <sys/prctl.h>
+#include <sys/sched.h>
 
 #include <crypto/aes128.h>
 
@@ -11,8 +15,9 @@
 
 ERRTAG("deitool");
 
-#define OPTS "d"
+#define OPTS "dp"
 #define OPT_d (1<<0)
+#define OPT_p (1<<1)
 
 struct keyfile kf;
 
@@ -29,6 +34,9 @@ struct top {
 	char* iname;
 	char* oname;
 	struct aes128 aes;
+
+	int ncpus;
+	uint64_t size;
 };
 
 char ibuf[512];
@@ -79,7 +87,7 @@ static void aesxts(struct aes128* A, void* rp, void* wp, uint64_t S, aesfn op)
 	uint8_t x[16];
 
 	prep_tweak(T, A, S);
-	
+
 	for(int i = 0; i < 512; i += 16) {
 		blk_xor(x, rp + i, T);
 		op(A, x);
@@ -99,7 +107,7 @@ static void aesxts_decrypt(struct aes128* A, void* rp, void* wp, uint64_t S)
 	aesxts(A, rp, wp, S, aes128_decrypt);
 }
 
-static void pipe_data(CTX, cryptf fn)
+static void pipe_data_single(CTX, cryptf fn)
 {
 	int rd, wr;
 	int ifd = ctx->ifd;
@@ -120,6 +128,71 @@ static void pipe_data(CTX, cryptf fn)
 	}
 }
 
+static void pipe_data_child(CTX, cryptf fn, int n, int i)
+{
+	int ifd = ctx->ifd;
+	int ofd = ctx->ofd;
+	struct aes128* A = &ctx->aes;
+
+	uint64_t off = i*512;
+	uint64_t end = ctx->size;
+	uint64_t S = i;
+
+	int rd, wr;
+
+	while(off < end) {
+		if((rd = sys_pread(ifd, ibuf, 512, off)) < 0)
+			fail("read", ctx->iname, rd);
+		if(rd < 512)
+			fail("incomplete read", NULL, 0);
+
+		fn(A, ibuf, obuf, S);
+
+		if((wr = sys_pwrite(ofd, obuf, 512, off)) < 0)
+			fail("write", ctx->oname, wr);
+
+		S += n;
+		off += n*512;
+	}
+}
+
+static void pipe_data_multi(CTX, cryptf fn)
+{
+	int i, nc = 0, n = ctx->ncpus;
+	int pid, status;
+	int ret, failed = 0;
+
+	for(i = 0; i < n; i++) {
+		if((pid = sys_fork()) < 0) {
+			warn("fork", NULL, pid);
+			failed = 1;
+		} else if(pid == 0) {
+			sys_prctl(PR_SET_PDEATHSIG, SIGTERM, 0, 0, 0);
+			pipe_data_child(ctx, fn, n, i);
+			_exit(0);
+		} else {
+			nc++;
+		}
+	}
+
+	for(i = 0; i < nc; i++) {
+		if((ret = sys_waitpid(-1, &status, 0)) < 0)
+			fail("wait", NULL, ret);
+		if(status)
+			failed = 1;
+	}
+
+	if(failed) _exit(0xFF);
+}
+
+static void pipe_data(CTX, cryptf fn)
+{
+	if(ctx->ncpus > 1)
+		pipe_data_multi(ctx, fn);
+	else
+		pipe_data_single(ctx, fn);
+}
+
 static void load_keyfile(struct keyfile* kf, char* name)
 {
 	char phrase[80];
@@ -128,6 +201,26 @@ static void load_keyfile(struct keyfile* kf, char* name)
 	read_keyfile(kf, name);
 	phrlen = ask("Passphrase: ", phrase, sizeof(phrase));
 	unwrap_keyfile(kf, phrase, phrlen);
+}
+
+static int guess_num_cpus(void)
+{
+	struct cpuset cs;
+	int ret;
+
+	memzero(&cs, sizeof(cs));
+
+	if((ret = sys_sched_getaffinity(0, &cs)) < 0)
+		return 1;
+
+	int w, b, cpus = 0;
+
+	for(w = 0; w < ARRAY_SIZE(cs.bits); w++)
+		for(b = 0; b < 8*sizeof(cs.bits[0]); b++)
+			if(cs.bits[w] & (1UL << b))
+				cpus++;
+
+	return cpus;
 }
 
 static void init_context(CTX, int argc, char** argv)
@@ -143,17 +236,28 @@ static void init_context(CTX, int argc, char** argv)
 	ctx->argc = argc;
 	ctx->argv = argv;
 	ctx->opts = opts;
+
+	if(opts & OPT_p)
+		ctx->ncpus = guess_num_cpus();
+	else
+		ctx->ncpus = 1;
 }
 
 static void set_files(CTX, char* iname, char* oname, char* keyf, int kidx)
 {
-	int fd;
+	int fd, ret;
+	struct stat st;
 
 	if((fd = sys_open(iname, O_RDONLY)) < 0)
 		fail(NULL, iname, fd);
+	if((ret = sys_fstat(fd, &st)) < 0)
+		fail("stat", iname, ret);
+	if(st.size % 512)
+		fail(iname, "size is not in 512-blocks", 0);
 
 	ctx->ifd = fd;
 	ctx->iname = iname;
+	ctx->size = st.size;
 
 	load_keyfile(&kf, keyf);
 
@@ -163,14 +267,14 @@ static void set_files(CTX, char* iname, char* oname, char* keyf, int kidx)
 	ctx->ofd = fd;
 	ctx->oname = oname;
 
+	if(ctx->ncpus <= 1)
+		;
+	else if((ret = sys_ftruncate(fd, st.size)) < 0)
+		fail("truncate", oname, ret);
+
 	byte* key = get_key_by_idx(&kf, kidx);
 
 	aes128_init(&ctx->aes, key);
-}
-
-static void fini_context(CTX)
-{
-	aes128_fini(&ctx->aes);
 }
 
 static char* shift_arg(CTX)
@@ -218,8 +322,6 @@ int main(int argc, char** argv)
 		pipe_data(ctx, aesxts_decrypt);
 	else
 		pipe_data(ctx, aesxts_encrypt);
-
-	fini_context(ctx);
 
 	return 0;
 }
