@@ -1,6 +1,6 @@
 #include <syscall.h>
 #include <bits/stat.h>
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <bits/fcntl.h>
 #include <bits/stdio.h>
 
@@ -158,4 +158,24 @@ inline static long sys_pipe(int* fds)
 inline static long sys_pipe2(int* fds, int flags)
 {
 	return syscall2(NR_pipe2, (long)fds, flags);
+}
+
+inline static long sys_pread(int fd, void* buf, ulong len, uint64_t off)
+{
+#if BITS == 32
+	union { uint64_t ll, long l[2] } x = { .ll = off };
+	return syscall5(NR_pread, fd, buf, len, x.l[0], x.l[1]);
+#else
+	return syscall4(NR_pread, fd, (long)buf, (long)len, off);
+#endif
+}
+
+inline static long sys_pwrite(int fd, void* buf, ulong len, uint64_t off)
+{
+#if BITS == 32
+	union { uint64_t ll, long l[2] } x = { .ll = off };
+	return syscall5(NR_pwrite, fd, buf, len, x.l[0], x.l[1]);
+#else
+	return syscall4(NR_pwrite, fd, (long)buf, (long)len, off);
+#endif
 }
