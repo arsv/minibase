@@ -250,8 +250,11 @@ static void reset_input(CTX)
 	set_scroll_redraw(ctx, 0);
 }
 
-static void execute(CTX)
+static void enter_cmd(CTX)
 {
+	char* cmd = ctx->buf + ctx->sep;
+	int len = ctx->ptr - ctx->sep;
+
 	/* Dump the whole input, but only if it does not fit on the screen;
 	   otherwise it would erase then print the same stuff. */
 
@@ -265,7 +268,7 @@ static void execute(CTX)
 
 	leave_term(ctx);
 
-	// parse and run command
+	parse(ctx, cmd, len);
 
 	enter_term(ctx);
 
@@ -441,7 +444,7 @@ static void handle_ctrl(CTX, int c)
 		case 0x08: return backspace(ctx);
 		case 0x0B: return control_k(ctx);
 		case 0x0C: return redraw_flush(ctx);
-		case 0x0D: return execute(ctx);
+		case 0x0D: return enter_cmd(ctx);
 		case 0x15: return control_u(ctx);
 		case 0x17: return control_w(ctx);
 	}

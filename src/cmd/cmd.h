@@ -41,3 +41,7 @@ void update_winsz(CTX);
 int handle_input(CTX, char* buf, int len);
 
 void prep_prompt(CTX);
+
+void parse(CTX, char* buf, int len);
+
+void execute(CTX, int argc, char** argv);
