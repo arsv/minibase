@@ -3,9 +3,11 @@ Booting the system with minibase
 Happy path only. Note some of the tools are not ready at the time of writing.
 
 * The kernel loads initrd, starts /init (msh script)
+* init starts udevmod in background (using `runwith`) to load modules
 * init runs findblk or passblk to find system partitions
-	* passblk (or findblk) waits for devices to appear if necessary
+	* pass/findblk waits for devices to appear if necessary
 	* passblk prompts for passphrase and sets up disk encryption
+* once partitions are located, runwith kills udevmod and exits
 * init calls mount on all system partitions
 * init execs into switchroot
 
@@ -26,10 +28,13 @@ Happy path only. Note some of the tools are not ready at the time of writing.
 
 * super runs as pid 1 for the whole time the system is up
 * super (re)spawns all long-running services
-	* udevd
-	* wimon
+	* udevmod
+	* sysklogd
+	* ifmon
 	* vtmux
 	...
+* long-running services keep the system running, super respawns
+  them if necessary
 * on SIGTERM/SIGINT/svctl request, super kills all spawned services
   and waits for them to terminate
 * super execs into /sbin/system/reboot
@@ -40,7 +45,7 @@ Happy path only. Note some of the tools are not ready at the time of writing.
 
 User session startup sequence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-* vtmux gets a command to start a new session
+* vtmux receives a command to start a new session
 * vtmux spawns /etc/vts/$name with all fds directed to /dev/ttyN
 * $name is a host-specific msh script
 * $name changes its credentials (uid, gid, groups, maybe also caps)
@@ -54,7 +59,7 @@ the 3rd field in /etc/group.
 
 Service startup sequence
 ~~~~~~~~~~~~~~~~~~~~~~~~
-* super spawns /etc/super/$name which is a msh script
+* super spawns /etc/super/$name (msh script)
 * $name sets up process environment, uids, gids and so on
 * $name execs into the actual service executable
 
@@ -65,29 +70,28 @@ Handling errors in pid 1 scripts
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Normally msh aborts on any errors. This is not acceptable when the script
 runs as pid 1 since that would cause immediate panic. For this particular
-case, msh got `onerror` build-in. The expected usage is always
+case, msh got `onexit` built-in. The expected usage is always
 
-	onerror /path/to/reboot
+	onexit /path/to/reboot
 
 but having it as an explicit command removes the need to hard-code any paths
-into msh. This way, instead of aborting, msh execs into reboot on any error,
-and the system gets terminated properly.
+into msh. This way, instead of calling exit(), msh execs into reboot, and
+the system gets terminated properly.
 
 Another idea considered and rejected was a small wrapper executable what would
 "catch" non-zero msh exits and exec into reboot. This would avoid the need to
 have a single-use built-in, however it would also prevent msh from running as
 pid 1 and using its *other* builtins to set up environment for subsequent
-processes. Turns out onerror implementation within msh is much easier than any
+processes. Turns out onexit implementation within msh is much easier than any
 workaround not involving msh.
 
 
 System shutdown and /path/to/reboot
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Initially the path that super exec()ed into was hard-coded. Following onerror
-design in msh, the hard-coded path was replaced with an explicit argument for
-super. This allows somewhat unusual directory layouts like /sbin/system/reboot
-without forcing them onto all minibase users. Some people may prefer plain
-/sbin/reboot instead.
+Initially the path that super exec()ed into was hard-coded. With `onexit`
+implemented in msh, the hard-coded path was replaced with an explicit argument
+for `super`. This allows somewhat unusual directory layouts like
+/sbin/system/reboot without forcing them onto all minibase users.
 
-Having /sbin/reboot dangling in ps output isn't pretty, so measures were taken
-in super to erase it from argv.
+Having the path to reboot dangling in ps output isn't pretty, so measures were
+taken to erase it from argv in `super`.
