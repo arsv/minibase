@@ -25,6 +25,9 @@ struct top {
 	int viswi;
 	int redraw;
 
+	int esc;
+	int tab;
+
 	char* outbuf;
 	int outptr;
 	int outlen;
@@ -48,3 +51,7 @@ void execute(CTX, int argc, char** argv);
 
 int extend(CTX, int len);
 void* alloc(CTX, int len);
+
+void single_tab(CTX);
+void double_tab(CTX);
+void cancel_tab(CTX);

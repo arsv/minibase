@@ -435,6 +435,21 @@ static void control_k(CTX)
 	outcsi(ctx, 0, 0, 'K');
 }
 
+static void tabulator(CTX)
+{
+	if(ctx->tab) {
+		double_tab(ctx);
+	} else {
+		single_tab(ctx);
+		ctx->tab = 1;
+	}
+}
+
+static void escape(CTX)
+{
+	ctx->esc = ctx->esc ? 2 : 1;
+}
+
 static void handle_ctrl(CTX, int c)
 {
 	switch(c) {
@@ -442,25 +457,24 @@ static void handle_ctrl(CTX, int c)
 		case 0x04: return control_d(ctx);
 		case 0x05: return control_e(ctx);
 		case 0x08: return backspace(ctx);
+		case 0x09: return tabulator(ctx);
 		case 0x0B: return control_k(ctx);
 		case 0x0C: return redraw_flush(ctx);
 		case 0x0D: return enter_cmd(ctx);
 		case 0x15: return control_u(ctx);
 		case 0x17: return control_w(ctx);
+		case 0x1B: return escape(ctx);
 	}
 }
 
 static int try_escape_seq(CTX, char* buf, char* end)
 {
-	long len = end - buf;
 	char* p;
 
-	if(len < 2)
-		return 0;
-	if(buf[1] != '[')
+	if(buf[0] != '[')
 		return 1; /* silently drop Escape */
 
-	for(p = buf + 2; p < end; p++)
+	for(p = buf + 1; p < end; p++)
 		if(*p >= '0' && *p <= '9')
 			continue;
 		else if(*p == ';')
@@ -502,23 +516,32 @@ int handle_input(CTX, char* buf, int len)
 	while(ptr < end) {
 		byte c = (*ptr & 0xFF);
 
-		if(c == 0x1B) { /* Escape */
-			if((got = try_escape_seq(ctx, ptr, end)))
-				ptr += got;
-			else break;
-		} else if(!(c & 0x80)) {
-			if(c == 0x7F)
-				backspace(ctx);
-			else if(c < 0x20)
-				handle_ctrl(ctx, c);
-			else
-				insert(ctx, ptr, 1);
+		if(c != 0x09 && ctx->tab) {
+			ctx->tab = 0;
+			cancel_tab(ctx);
+		}
+
+		if(c == 0x7F) {
+			backspace(ctx);
 			ptr++;
-		} else { /* multi-byte utf8 sequence */
+		} else if(c < 0x20) {
+			handle_ctrl(ctx, c);
+			ptr++;
+		} else if(c & 0x80) { /* multi-byte utf8 sequence */
 			if((got = try_multibyte(ctx, ptr, end)))
 				ptr += got;
 			else break;
+		} else if(ctx->esc) {
+			if((got = try_escape_seq(ctx, ptr, end)))
+				ptr += got;
+			else break;
+		} else {
+			insert(ctx, ptr, 1);
+			ptr++;
 		}
+
+		if(c != 0x1B) /* Esc */
+			ctx->esc = 0;
 
 		flush(ctx);
 	}
