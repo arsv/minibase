@@ -1,18 +1,44 @@
 #include <sys/fpath.h>
+#include <sys/mman.h>
+
 #include <string.h>
 #include <util.h>
+
 #include "cmd.h"
 
-noreturn void exit(CTX, int code)
+int extend(CTX, int len)
 {
-	fini_input(ctx);
-	_exit(code);
+	void* ptr = ctx->hptr + len;
+
+	if(ptr > ctx->hend) {
+		long need = ctx->hend - ptr;
+
+		need += (PAGE - need % PAGE) % PAGE;
+
+		char* brk = ctx->hend;
+		char* end = sys_brk(brk + need);
+
+		if(brk_error(brk, end)) {
+			warn("cannot allocate memory", NULL, 0);
+			return -1;
+		}
+
+		ctx->hend = end;
+	}
+
+	ctx->hptr = ptr;
+
+	return 0;
 }
 
-noreturn void quit(CTX, const char* msg, char* arg, int err)
+void* alloc(CTX, int len)
 {
-	fini_input(ctx);
-	fail(msg, arg, err);
+	void* ret = ctx->hptr;
+
+	if(extend(ctx, len))
+		return NULL;
+
+	return ret;
 }
 
 static int maybe_cut_cwd(CTX, int ptr)

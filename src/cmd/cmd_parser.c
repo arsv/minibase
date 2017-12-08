@@ -12,9 +12,9 @@ struct arg {
 	char zstr[];
 };
 
-static void collect(CTX, int argc, char* hptr)
+static void collect(CTX, int argc, char* base)
 {
-	void* ptr = hptr;
+	void* ptr = base;
 	void* end = ctx->hptr;
 
 	if(!argc) return;
@@ -48,63 +48,40 @@ err:
 	warn("parser error", NULL, 0);
 }
 
-static int extend(CTX, int len)
-{
-	if(ctx->hptr + len < ctx->hend)
-		return 0;
-	if(len >= PAGE) {
-		warn("argument too long", NULL, 0);
-		return -1;
-	}
-
-	char* brk = ctx->hend;
-	char* end = sys_brk(brk + PAGE);
-
-	if(end <= brk) {
-		warn("cannot allocate memory", NULL, 0);
-		return -1;
-	}
-
-	ctx->hend = end;
-
-	return 0;
-}
-
 static int addchar(CTX, char c)
 {
-	int ret;
+	char* dst;
 
-	if((ret = extend(ctx, 1)))
-		return ret;
+	if(!(dst = alloc(ctx, 1)))
+		return -1;
 
-	*(ctx->hptr++) = c;
+	*dst = c;
 
 	return 0;
 }
 
 static int append(CTX, void* buf, int len)
 {
-	int ret;
+	char* dst;
 
-	if((ret = extend(ctx, 1)))
-		return ret;
+	if(!(dst = alloc(ctx, len)))
+		return -1;
 
-	char* dst = ctx->hptr;
 	memcpy(dst, buf, len);
-	ctx->hptr = dst + len;
 
 	return 0;
 }
 
 static void* startarg(CTX)
 {
-	struct arg empty = { .len = 0 };
-	char* ptr = ctx->hptr;
+	struct arg* dst;
 
-	if(append(ctx, &empty, sizeof(empty)))
+	if(!(dst = alloc(ctx, sizeof(*dst))))
 		return NULL;
 
-	return ptr;
+	dst->len = 0;
+
+	return dst;
 }
 
 static int endarg(CTX, void* ptr)

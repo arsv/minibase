@@ -5,9 +5,9 @@ struct top {
 	char** argv;
 	char** envp;
 
-	char* hbrk;
-	char* hptr;
-	char* hend;
+	void* hbrk;
+	void* hptr;
+	void* hend;
 
 	int sigfd;
 	int cols;
@@ -45,3 +45,6 @@ void prep_prompt(CTX);
 void parse(CTX, char* buf, int len);
 
 void execute(CTX, int argc, char** argv);
+
+int extend(CTX, int len);
+void* alloc(CTX, int len);

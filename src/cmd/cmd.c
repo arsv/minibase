@@ -15,6 +15,18 @@
 
 ERRTAG("cmd");
 
+noreturn void exit(CTX, int code)
+{
+	fini_input(ctx);
+	_exit(code);
+}
+
+noreturn void quit(CTX, const char* msg, char* arg, int err)
+{
+	fini_input(ctx);
+	fail(msg, arg, err);
+}
+
 static void sigprocmask(int how, sigset_t* mask)
 {
 	int ret;
@@ -58,14 +70,14 @@ static void setup_buffers(CTX)
 
 	ctx->outbuf = ptr;
 	ctx->outptr = 0;
-	ctx->outlen = 512; ptr += 512;
+	ctx->outlen = 512;
+	ptr += 512;
 
 	ctx->buf = ptr;
-	ctx->max = 1024; ptr += 1024;
-	ctx->ptr = 0;
 	ctx->sep = 0;
-
-	ctx->hptr = ptr;
+	ctx->ptr = 0;
+	ctx->max = 1024;
+	ptr += 1024;
 }
 
 static void setup(CTX, int argc, char** argv, char** envp)
