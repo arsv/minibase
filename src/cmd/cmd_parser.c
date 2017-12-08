@@ -128,15 +128,126 @@ static int endarg(CTX, void* ptr)
 	return 0;
 }
 
+static char* backslash(CTX, char* p, char* e)
+{
+	if(p >= e) {
+		warn("trailing backslash", NULL, 0);
+		return NULL;
+	}
+
+	int c = *p++;
+
+	if(c == 'n')
+		addchar(ctx, '\n');
+	else if(c == 't')
+		addchar(ctx, '\t');
+	else
+		addchar(ctx, c);
+
+	return p;
+}
+
+static char* longvar(CTX, char* p, char* e)
+{
+	char* s = p;
+
+	for(; p < e; p++) {
+		if(*p >= 'a' && *p <= 'z')
+			continue;
+		if(*p >= 'A' && *p <= 'Z')
+			continue;
+		if(*p >= '0' && *p <= '9')
+			continue;
+		if(*p == '_')
+			continue;
+		break;
+	}
+
+	long len = p - s;
+	char name[len+1];
+	memcpy(name, s, len);
+	name[len] = '\0';
+
+	char* value = getenv(ctx->envp, name);
+
+	if(!value) {
+		warn("undefined variable", name, 0);
+		return NULL;
+	}
+
+	int vlen = strlen(value);
+
+	append(ctx, value, vlen);
+
+	return p;
+}
+
+static char* shortvar(CTX, char* p, char* e, int c)
+{
+	char name[] = { '$', c, '\0' };
+	warn("undefined variable", name, 0);
+	return NULL;
+}
+
 static char* variable(CTX, char* p, char* e)
 {
-	tracef("variable\n");
+	if(p >= e) {
+		warn("trailing $", NULL, 0);
+		return NULL;
+	}
+
+	int c = *p;
+
+	if(c <= 0x20 || c >= 0x7F) {
+		warn("illegal variable name", NULL, 0);
+		return NULL;
+	};
+
+	if(c >= 'a' && c <= 'z')
+		return longvar(ctx, p, e);
+	if(c >= 'A' && c <= 'Z')
+		return longvar(ctx, p, e);
+
+	return shortvar(ctx, p, e, c);
+}
+
+static char* squote(CTX, char* p, char* e)
+{
+	while(p < e) {
+		int c = *p++;
+
+		if(c == '\'')
+			return p;
+		else if(c == '\\')
+			p = backslash(ctx, p, e);
+		else
+			addchar(ctx, c);
+
+		if(!p) return p;
+	}
+
+	warn("unclosed double quotes", NULL, 0);
 	return NULL;
 }
 
 static char* dquote(CTX, char* p, char* e)
 {
-	tracef("dquote\n");
+	while(p < e) {
+		int c = *p++;
+
+		if(c == '"')
+			return p;
+		else if(c == '\\')
+			p = backslash(ctx, p, e);
+		else if(c == '$')
+			p = variable(ctx, p, e);
+		else
+			addchar(ctx, c);
+
+		if(!p) return p;
+	}
+
+	warn("unclosed double quotes", NULL, 0);
 	return NULL;
 }
 
@@ -159,8 +270,12 @@ static char* argument(CTX, char* p, char* e)
 			return p - 1;
 		if(isspace(c) || !c)
 			break;
+		else if(c == '\\')
+			p = backslash(ctx, p, e);
 		else if(c == '$')
 			p = variable(ctx, p, e);
+		else if(c == '\'')
+			p = squote(ctx, p, e);
 		else if(c == '"')
 			p = dquote(ctx, p, e);
 		else if(addchar(ctx, c))
