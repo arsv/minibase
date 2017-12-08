@@ -15,18 +15,19 @@ are supposed to be with \fBinotify\fR(2) and doing \fBchmod\fR(2) or
 \fBchown\fR(2) on newly-created files if necessary.
 '''
 .SH CONFIGURATION
-The only configuration file is /etc/sockmod, a plain text field in
-the following format:
+The only configuration file is /etc/sockmod, a plain text file in the
+following format:
 .P
 .nf
     \fIname\fB:\fR \fIgroup\fR
 .fi
 .P
-This line instructructs \fBsockmod\fR to make /run/ctrl/\fIname\fR
-connectable for \fIgroup\fR. A special group name \fB*\fR (asterisk)
-can be used to make the socket connectable for all users.
+This line instructs \fBsockmod\fR to make /run/ctrl/\fIname\fR
+connectable (writable) for \fIgroup\fR.
+A special group name \fB*\fR (asterisk) can be used to make the socket
+connectable for all users.
 .P
-Comments starting with \fB#\fR and empty lines are ignored.
+Lines starting with \fB#\fR and empty lines are ignored.
 '''
 .SH FILES
 .IP "/etc/sockmod" 4
