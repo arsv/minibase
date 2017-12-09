@@ -38,17 +38,17 @@ static void sigprocmask(int how, sigset_t* mask)
 static void setup_signals(CTX)
 {
 	sigset_t mask;
+	int fd;
 
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGWINCH);
 	sigaddset(&mask, SIGINT);
 	sigaddset(&mask, SIGQUIT);
+	sigaddset(&mask, SIGCHLD);
 
 	sigprocmask(SIG_BLOCK, &mask);
 
-	int fd, flags = SFD_NONBLOCK | SFD_CLOEXEC;
-
-	if((fd = sys_signalfd(-1, &mask, flags)) < 0)
+	if((fd = sys_signalfd(-1, &mask, SFD_CLOEXEC)) < 0)
 		fail("signalfd", NULL, fd);
 
 	ctx->sigfd = fd;
