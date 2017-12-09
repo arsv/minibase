@@ -12,16 +12,69 @@
 
 #include "cmd.h"
 
-struct builtin;
-
-static struct builtin* find_builtin(char* name)
+static void cmd_cd(CTX, int argc, char** argv)
 {
+	int ret;
+
+	if(argc < 2)
+		return warn("too few arguments", NULL, 0);
+	if(argc > 2)
+		return warn("too many arguments", NULL, 0);
+
+	if((ret = sys_chdir(argv[1])) < 0)
+		return warn(NULL, argv[1], ret);
+
+	prep_prompt(ctx);
+}
+
+static void cmd_echo(CTX, int argc, char** argv)
+{
+	if(argc < 2)
+		return warn("too few arguments", NULL, 0);
+	if(argc > 2)
+		return warn("too many arguments", NULL, 0);
+
+	char* buf = argv[1];
+	int len = strlen(buf);
+
+	buf[len] = '\n';
+
+	writeall(STDOUT, buf, len + 1);
+
+	buf[len] = '\0';
+}
+
+static void cmd_exit(CTX, int argc, char** argv)
+{
+	if(argc > 1)
+		return warn("too many arguments", NULL, 0);
+
+	_exit(0x00);
+}
+
+static const struct builtin {
+	char name[8];
+	void (*call)(CTX, int argc, char** argv);
+} builtins[] = {
+	{ "cd",   cmd_cd   },
+	{ "echo", cmd_echo },
+	{ "exit", cmd_exit },
+};
+
+static const struct builtin* find_builtin(char* name)
+{
+	const struct builtin* bi;
+
+	for(bi = builtins; bi < ARRAY_END(builtins); bi++)
+		if(!strncmp(name, bi->name, sizeof(bi->name)))
+			return bi;
+
 	return NULL;
 }
 
-static void runbi(CTX, const struct builtin* fn, int argc, char** argv)
+static void runbi(CTX, const struct builtin* bi, int argc, char** argv)
 {
-
+	bi->call(ctx, argc, argv);
 }
 
 static int trywaitpid(int pid, int* status)
@@ -137,12 +190,12 @@ static int lookslikepath(const char* file)
 
 void execute(CTX, int argc, char** argv)
 {
-	const struct builtin* fn;
+	const struct builtin* bi;
 
 	if(lookslikepath(*argv))
 		return spawn(ctx, *argv, argv);
-	if((fn = find_builtin(*argv)))
-		return runbi(ctx, fn, argc, argv);
+	if((bi = find_builtin(*argv)))
+		return runbi(ctx, bi, argc, argv);
 
 	return pathwalk(ctx, argv);
 }
