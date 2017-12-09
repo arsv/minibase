@@ -62,15 +62,15 @@ static void setup_buffers(CTX)
 	if(brk_error(brk, end))
 		fail("cannot initialize heap", NULL, 0);
 
-	ctx->hbrk = brk;
-	ctx->hptr = brk;
-	ctx->hend = end;
+	ctx->heap.brk = brk;
+	ctx->heap.ptr = brk;
+	ctx->heap.end = end;
 
 	char* ptr = brk;
 
-	ctx->outbuf = ptr;
-	ctx->outptr = 0;
-	ctx->outlen = 512;
+	ctx->out.buf = ptr;
+	ctx->out.ptr = 0;
+	ctx->out.len = 512;
 	ptr += 512;
 
 	ctx->buf = ptr;

@@ -14,8 +14,9 @@ struct arg {
 
 static void collect(CTX, int argc, char* base)
 {
+	struct heap* hp = &ctx->heap;
 	void* ptr = base;
-	void* end = ctx->hptr;
+	void* end = hp->ptr;
 
 	if(!argc) return;
 
@@ -92,7 +93,8 @@ static int endarg(CTX, void* ptr)
 	if((ret = addchar(ctx, '\0')))
 		return ret;
 
-	void* end = ctx->hptr;
+	struct heap* hp = &ctx->heap;
+	void* end = hp->ptr;
 	long len = end - ptr;
 
 	if(len & ~0xFFFF) {
@@ -275,7 +277,8 @@ static char* skipspace(char* p, char* e)
 
 void parse(CTX, char* buf, int len)
 {
-	char* base = ctx->hptr;
+	struct heap* hp = &ctx->heap;
+	char* base = hp->ptr;
 
 	char* p = buf;
 	char* e = buf + len;
@@ -289,7 +292,7 @@ void parse(CTX, char* buf, int len)
 			collect(ctx, argc, base);
 			p++;
 			argc = 0;
-			ctx->hptr = base;
+			hp->ptr = base;
 		} else {
 			void* argp;
 
@@ -305,5 +308,5 @@ void parse(CTX, char* buf, int len)
 	}
 
 	collect(ctx, argc, base);
-	ctx->hptr = base;
+	hp->ptr = base;
 }

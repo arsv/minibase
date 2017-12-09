@@ -8,14 +8,15 @@
 
 int extend(CTX, int len)
 {
-	void* ptr = ctx->hptr + len;
+	struct heap* hp = &ctx->heap;
+	void* ptr = hp->ptr + len;
 
-	if(ptr > ctx->hend) {
-		long need = ctx->hend - ptr;
+	if(ptr > hp->end) {
+		long need = hp->end - ptr;
 
 		need += (PAGE - need % PAGE) % PAGE;
 
-		char* brk = ctx->hend;
+		char* brk = hp->end;
 		char* end = sys_brk(brk + need);
 
 		if(brk_error(brk, end)) {
@@ -23,17 +24,18 @@ int extend(CTX, int len)
 			return -1;
 		}
 
-		ctx->hend = end;
+		hp->end = end;
 	}
 
-	ctx->hptr = ptr;
+	hp->ptr = ptr;
 
 	return 0;
 }
 
 void* alloc(CTX, int len)
 {
-	void* ret = ctx->hptr;
+	struct heap* hp = &ctx->heap;
+	void* ret = hp->ptr;
 
 	if(extend(ctx, len))
 		return NULL;

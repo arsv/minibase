@@ -20,24 +20,28 @@ static void leave_term(CTX);
 
 static void flush(CTX)
 {
-	if(!ctx->outptr)
+	struct outbuf* out = &ctx->out;
+
+	if(!out->ptr)
 		return;
 
-	writeall(STDOUT, ctx->outbuf, ctx->outptr);
+	writeall(STDOUT, out->buf, out->ptr);
 
-	ctx->outptr = 0;
+	out->ptr = 0;
 }
 
 static void outraw(CTX, char* buf, int len)
 {
-	if(len + ctx->outptr > ctx->outlen)
+	struct outbuf* out = &ctx->out;
+
+	if(len + out->ptr > out->len)
 		flush(ctx);
 
-	if(len > ctx->outlen) {
+	if(len > out->len) {
 		writeall(STDOUT, buf, len);
 	} else {
-		memcpy(ctx->outbuf + ctx->outptr, buf, len);
-		ctx->outptr += len;
+		memcpy(out->buf + out->ptr, buf, len);
+		out->ptr += len;
 	}
 }
 
@@ -264,7 +268,7 @@ static void enter_cmd(CTX)
 		outbuf(ctx, 0, ctx->ptr);
 	}
 
-	ctx->hptr = ctx->buf + ctx->ptr;
+	ctx->heap.ptr = ctx->buf + ctx->ptr;
 
 	leave_term(ctx);
 
@@ -272,7 +276,7 @@ static void enter_cmd(CTX)
 
 	enter_term(ctx);
 
-	ctx->hptr = ctx->buf + ctx->max;
+	ctx->heap.ptr = ctx->buf + ctx->max;
 
 	reset_input(ctx);
 }

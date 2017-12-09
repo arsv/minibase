@@ -1,13 +1,24 @@
 #include <bits/ioctl/tty.h>
 
+struct heap {
+	void* brk;
+	void* ptr;
+	void* end;
+};
+
+struct outbuf {
+	char* buf;
+	int ptr;
+	int len;
+};
+
 struct top {
 	int argc;
 	char** argv;
 	char** envp;
 
-	void* hbrk;
-	void* hptr;
-	void* hend;
+	struct heap heap;
+	struct outbuf out;
 
 	int sigfd;
 	int cols;
@@ -27,10 +38,6 @@ struct top {
 
 	int esc;
 	int tab;
-
-	char* outbuf;
-	int outptr;
-	int outlen;
 };
 
 #define CTX struct top* ctx __unused
