@@ -42,7 +42,7 @@ struct action {
 	short mode;
 	short code;
 	char cmd[20];
-	char arg[8];
+	char arg[32];
 	int time;
 	int minor;
 };

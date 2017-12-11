@@ -326,14 +326,14 @@ static int enter_sleep_mode(void)
 static void cmd_reboot(void)
 {
 	term_fini();
-	spawn("svctl", "-R");
+	spawn("svctl", "reboot");
 	term_back();
 }
 
 static void cmd_poweroff(void)
 {
 	term_fini();
-	spawn("svctl", "-P");
+	spawn("svctl", "poweroff");
 	term_back();
 }
 
@@ -363,7 +363,7 @@ static void cmd_lock(void)
 		return;
 
 	term_fini();
-	spawn("vtctl", "-k");
+	spawn("vtctl", "lock");
 	ret = enter_sleep_mode();
 	term_back();
 
@@ -383,7 +383,7 @@ static void cmd_lock(void)
 	}
 
 	term_fini();
-	spawn("vtctl", "-u");
+	spawn("vtctl", "unlock");
 	switch_back_exit();
 	term_back();
 }

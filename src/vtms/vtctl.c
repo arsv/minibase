@@ -147,7 +147,7 @@ static void dispatch(CTX, char* name)
 {
 	const struct cmdrec* cr;
 
-	if(*name >= '1' && *name <= '9')
+	if(*name >= '0' && *name <= '9')
 		cmd_switch(ctx, name);
 
 	for(cr = commands; cr < commands + ARRAY_SIZE(commands); cr++)
