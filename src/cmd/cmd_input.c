@@ -198,7 +198,7 @@ static void add_trim_tail(CTX, int cur, int len, int vtail)
    which becomes important when we're trying to insert something
    in the middle of the line. */
 
-static void insert(CTX, char* inp, int len)
+void insert(CTX, char* inp, int len)
 {
 	char* buf = ctx->buf;
 	int ptr = ctx->ptr;
@@ -441,12 +441,10 @@ static void control_k(CTX)
 
 static void tabulator(CTX)
 {
-	if(ctx->tab) {
+	if(ctx->tab)
 		double_tab(ctx);
-	} else {
+	else
 		single_tab(ctx);
-		ctx->tab = 1;
-	}
 }
 
 static void escape(CTX)
@@ -520,10 +518,8 @@ int handle_input(CTX, char* buf, int len)
 	while(ptr < end) {
 		byte c = (*ptr & 0xFF);
 
-		if(c != 0x09 && ctx->tab) {
-			ctx->tab = 0;
+		if(c != 0x09 && ctx->tab)
 			cancel_tab(ctx);
-		}
 
 		if(c == 0x7F) {
 			backspace(ctx);

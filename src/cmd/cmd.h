@@ -12,6 +12,13 @@ struct outbuf {
 	int len;
 };
 
+struct tabtab {
+	char* buf;
+	int size;
+	int sep;
+	int ptr;
+};
+
 struct top {
 	int argc;
 	char** argv;
@@ -19,6 +26,7 @@ struct top {
 
 	struct heap heap;
 	struct outbuf out;
+	struct tabtab tts;
 
 	int sigfd;
 	int cols;
@@ -51,9 +59,9 @@ void update_winsz(CTX);
 int handle_input(CTX, char* buf, int len);
 
 void prep_prompt(CTX);
+void insert(CTX, char* inp, int len);
 
 void parse(CTX, char* buf, int len);
-
 void execute(CTX, int argc, char** argv);
 
 int extend(CTX, int len);
