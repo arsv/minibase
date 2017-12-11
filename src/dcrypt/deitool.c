@@ -15,9 +15,9 @@
 
 ERRTAG("deitool");
 
-#define OPTS "dp"
+#define OPTS "ds"
 #define OPT_d (1<<0)
-#define OPT_p (1<<1)
+#define OPT_s (1<<1)
 
 struct keyfile kf;
 
@@ -236,10 +236,10 @@ static void init_context(CTX, int argc, char** argv)
 	ctx->argv = argv;
 	ctx->opts = opts;
 
-	if(opts & OPT_p)
-		ctx->ncpus = guess_num_cpus();
-	else
+	if(opts & OPT_s)
 		ctx->ncpus = 1;
+	else
+		ctx->ncpus = guess_num_cpus();
 }
 
 static void set_files(CTX, char* iname, char* oname, char* keyf, int kidx)
