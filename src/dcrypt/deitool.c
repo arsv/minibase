@@ -21,8 +21,6 @@ ERRTAG("deitool");
 
 struct keyfile kf;
 
-typedef void (*cryptf)(struct aes128* A, void* rp, void* wp, uint64_t S);
-
 struct top {
 	int argc;
 	int argi;
@@ -33,7 +31,8 @@ struct top {
 	int ofd;
 	char* iname;
 	char* oname;
-	struct aes128 aes;
+	struct aes128 K1; /* data key */
+	struct aes128 K2; /* tweak key */
 
 	int ncpus;
 	uint64_t size;
@@ -43,6 +42,8 @@ char ibuf[512];
 char obuf[512];
 
 #define CTX struct top* ctx
+
+typedef void (*cryptf)(CTX, void* rp, void* wp, uint64_t S);
 
 static void prep_tweak(uint8_t T[16], struct aes128* A, uint64_t S)
 {
@@ -81,30 +82,30 @@ static void blk_xor(uint8_t x[16], uint8_t a[16], uint8_t b[16])
 
 typedef void (*aesfn)(struct aes128*, uint8_t*);
 
-static void aesxts(struct aes128* A, void* rp, void* wp, uint64_t S, aesfn op)
+static void aesxts(CTX, void* rp, void* wp, uint64_t S, aesfn op)
 {
 	uint8_t T[16];
 	uint8_t x[16];
 
-	prep_tweak(T, A, S);
+	prep_tweak(T, &ctx->K2, S);
 
 	for(int i = 0; i < 512; i += 16) {
 		blk_xor(x, rp + i, T);
-		op(A, x);
+		op(&ctx->K1, x);
 		blk_xor(wp + i, x, T);
 
 		next_tweak(T);
 	}
 }
 
-static void aesxts_encrypt(struct aes128* A, void* rp, void* wp, uint64_t S)
+static void aesxts_encrypt(CTX, void* rp, void* wp, uint64_t S)
 {
-	aesxts(A, rp, wp, S, aes128_encrypt);
+	aesxts(ctx, rp, wp, S, aes128_encrypt);
 }
 
-static void aesxts_decrypt(struct aes128* A, void* rp, void* wp, uint64_t S)
+static void aesxts_decrypt(CTX, void* rp, void* wp, uint64_t S)
 {
-	aesxts(A, rp, wp, S, aes128_decrypt);
+	aesxts(ctx, rp, wp, S, aes128_decrypt);
 }
 
 static void pipe_data_single(CTX, cryptf fn)
@@ -113,13 +114,12 @@ static void pipe_data_single(CTX, cryptf fn)
 	int ifd = ctx->ifd;
 	int ofd = ctx->ofd;
 	uint64_t S = 0;
-	struct aes128* A = &ctx->aes;
 
 	while((rd = sys_read(ifd, ibuf, 512)) > 0) {
 		if(rd < 512)
 			fail("incomplete read", NULL, 0);
 
-		fn(A, ibuf, obuf, S);
+		fn(ctx, ibuf, obuf, S);
 
 		if((wr = writeall(ofd, obuf, 512)) < 0)
 			fail("write", ctx->oname, wr);
@@ -132,7 +132,6 @@ static void pipe_data_child(CTX, cryptf fn, int n, int i)
 {
 	int ifd = ctx->ifd;
 	int ofd = ctx->ofd;
-	struct aes128* A = &ctx->aes;
 
 	uint64_t off = i*512;
 	uint64_t end = ctx->size;
@@ -146,7 +145,7 @@ static void pipe_data_child(CTX, cryptf fn, int n, int i)
 		if(rd < 512)
 			fail("incomplete read", NULL, 0);
 
-		fn(A, ibuf, obuf, S);
+		fn(ctx, ibuf, obuf, S);
 
 		if((wr = sys_pwrite(ofd, obuf, 512, off)) < 0)
 			fail("write", ctx->oname, wr);
@@ -274,7 +273,8 @@ static void set_files(CTX, char* iname, char* oname, char* keyf, int kidx)
 
 	byte* key = get_key_by_idx(&kf, kidx);
 
-	aes128_init(&ctx->aes, key);
+	aes128_init(&ctx->K1, key + 0);
+	aes128_init(&ctx->K2, key + 16);
 }
 
 static char* shift_arg(CTX)
