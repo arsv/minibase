@@ -174,10 +174,8 @@ static int dm_single(char* name, uint64_t size, char* targ, char* opts)
 static int dm_crypt(struct device* dev, char* cipher, void* key, int keylen)
 {
 	int ciphlen = strlen(cipher);
-	char buf[ciphlen + 2*keylen + 50];
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
 
+	FMTBUF(p, e, buf, ciphlen + 2*keylen + 50);
 	p = fmtstr(p, e, cipher);
 	p = fmtstr(p, e, " ");
 	p = fmtbytes(p, e, key, keylen);
@@ -186,7 +184,7 @@ static int dm_crypt(struct device* dev, char* cipher, void* key, int keylen)
 	p = fmtstr(p, e, ":");
 	p = fmtlong(p, e, minor(dev->rdev));
 	p = fmtstr(p, e, " 0 1 allow_discards");
-	*p++ = '\0';
+	FMTEND(p, e);
 
 	return dm_single(dev->name, dev->size, "crypt", buf);
 }
