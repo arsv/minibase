@@ -215,6 +215,41 @@ static void cmd_pcheck(CTX)
 	message("Success, passphrase is likely correct", NULL);
 }
 
+static void cmd_dump(CTX)
+{
+	struct keyfile* kf = ctx->kf;
+	char* name = shift_arg(ctx);
+	int kidx = 0, count;
+
+	if(count_args(ctx))
+		kidx = shift_uint(ctx);
+
+	no_other_options(ctx);
+
+	load_keyfile(kf, name);
+
+	if(kidx)
+		count = 1;
+	else
+		count = (kf->len - HDRSIZE) / KEYSIZE;
+
+	FMTBUF(p, e, out, count*(2*KEYSIZE+1));
+
+	if(kidx) {
+		p = fmtbytes(p, e, get_key_by_idx(kf, kidx), KEYSIZE);
+		p = fmtstr(p, e, "\n");
+	} else for(int i = 1; i <= count; i++) {
+		p = fmtbytes(p, e, get_key_by_idx(kf, i), KEYSIZE);
+		p = fmtstr(p, e, "\n");
+	};
+
+	FMTEND(p, e);
+
+	writeall(STDOUT, out, p - out);
+
+
+}
+
 static void cmd_repass(CTX)
 {
 	struct keyfile* kf = ctx->kf;
@@ -242,6 +277,7 @@ static const struct cmd {
 	{ "crover", cmd_crover },
 	{ "add",    cmd_addkey },
 	{ "test",   cmd_pcheck },
+	{ "dump",   cmd_dump   },
 	{ "repass", cmd_repass }
 };
 
