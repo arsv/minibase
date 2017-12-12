@@ -270,6 +270,8 @@ static void enter_cmd(CTX)
 
 	ctx->heap.ptr = ctx->buf + ctx->ptr;
 
+	hist_store(ctx);
+
 	leave_term(ctx);
 
 	parse(ctx, cmd, len);
@@ -279,6 +281,12 @@ static void enter_cmd(CTX)
 	ctx->heap.ptr = ctx->buf + ctx->max;
 
 	reset_input(ctx);
+}
+
+void replace(CTX, char* buf, int len)
+{
+	reset_input(ctx);
+	insert(ctx, buf, len);
 }
 
 static int cursor_column(CTX)
@@ -463,6 +471,8 @@ static void handle_ctrl(CTX, int c)
 		case 0x0B: return control_k(ctx);
 		case 0x0C: return redraw_flush(ctx);
 		case 0x0D: return enter_cmd(ctx);
+		case 0x0E: return hist_next(ctx);
+		case 0x10: return hist_prev(ctx);
 		case 0x15: return control_u(ctx);
 		case 0x17: return control_w(ctx);
 		case 0x1B: return escape(ctx);
@@ -490,6 +500,10 @@ static int try_escape_seq(CTX, char* buf, char* end)
 		move_left(ctx);
 	if(*p == 'C')
 		move_right(ctx);
+	if(*p == 'A')
+		hist_prev(ctx);
+	if(*p == 'B')
+		hist_next(ctx);
 
 	return p - buf + 1;
 }

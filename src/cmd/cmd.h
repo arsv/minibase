@@ -19,6 +19,16 @@ struct tabtab {
 	int ptr;
 };
 
+struct history {
+	char* buf;
+	int size;
+
+	int len;
+	int cur;
+
+	int temp;
+};
+
 struct top {
 	int argc;
 	char** argv;
@@ -27,6 +37,7 @@ struct top {
 	struct heap heap;
 	struct outbuf out;
 	struct tabtab tts;
+	struct history hst;
 
 	int sigfd;
 	int cols;
@@ -60,6 +71,7 @@ int handle_input(CTX, char* buf, int len);
 
 void prep_prompt(CTX);
 void insert(CTX, char* inp, int len);
+void replace(CTX, char* buf, int len);
 
 void parse(CTX, char* buf, int len);
 void execute(CTX, int argc, char** argv);
@@ -70,3 +82,7 @@ void* alloc(CTX, int len);
 void single_tab(CTX);
 void double_tab(CTX);
 void cancel_tab(CTX);
+
+void hist_prev(CTX);
+void hist_next(CTX);
+void hist_store(CTX);
