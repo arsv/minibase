@@ -13,10 +13,11 @@ struct outbuf {
 };
 
 struct tabtab {
-	char* buf;
+	void* buf;
 	int size;
-	int sep;
 	int ptr;
+	int idx;
+	int count;
 };
 
 struct history {
@@ -82,6 +83,7 @@ void* alloc(CTX, int len);
 void single_tab(CTX);
 void double_tab(CTX);
 void cancel_tab(CTX);
+void list_cwd(CTX);
 
 void hist_prev(CTX);
 void hist_next(CTX);

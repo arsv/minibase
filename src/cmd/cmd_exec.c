@@ -12,21 +12,6 @@
 
 #include "cmd.h"
 
-static void cmd_cd(CTX, int argc, char** argv)
-{
-	int ret;
-
-	if(argc < 2)
-		return warn("too few arguments", NULL, 0);
-	if(argc > 2)
-		return warn("too many arguments", NULL, 0);
-
-	if((ret = sys_chdir(argv[1])) < 0)
-		return warn(NULL, argv[1], ret);
-
-	prep_prompt(ctx);
-}
-
 static void cmd_echo(CTX, int argc, char** argv)
 {
 	if(argc < 2)
@@ -44,6 +29,48 @@ static void cmd_echo(CTX, int argc, char** argv)
 	buf[len] = '\0';
 }
 
+static void cmd_cd(CTX, int argc, char** argv)
+{
+	int ret;
+	char* dir;
+
+	if(argc == 1) {
+		if(!(dir = getenv(ctx->envp, "HOME")))
+			dir = "/";
+	} else if(argc == 2) {
+		dir = argv[1];
+	} else {
+		return warn("too many arguments", NULL, 0);
+	}
+
+	if((ret = sys_chdir(dir)) < 0)
+		return warn(NULL, dir, ret);
+
+	prep_prompt(ctx);
+}
+
+static void cmd_dot(CTX, int argc, char** argv)
+{
+	if(argc > 1)
+		return warn("too many arguments", NULL, 0);
+
+	list_cwd(ctx);
+
+	prep_prompt(ctx);
+}
+
+static void cmd_ddot(CTX, int argc, char** argv)
+{
+	int ret;
+
+	if(argc > 1)
+		return warn("too many arguments", NULL, 0);
+	if((ret = sys_chdir("..")) < 0)
+		return warn(NULL, "..", ret);
+
+	prep_prompt(ctx);
+}
+
 static void cmd_exit(CTX, int argc, char** argv)
 {
 	if(argc > 1)
@@ -56,6 +83,8 @@ static const struct builtin {
 	char name[8];
 	void (*call)(CTX, int argc, char** argv);
 } builtins[] = {
+	{ ".",    cmd_dot  },
+	{ "..",   cmd_ddot },
 	{ "cd",   cmd_cd   },
 	{ "echo", cmd_echo },
 	{ "exit", cmd_exit },

@@ -96,21 +96,16 @@ static void recv_sigfd(CTX)
 	struct sigevent se;
 	int rd;
 
-	while((rd = sys_read(fd, &se, sizeof(se))) > 0) {
-		if(rd < sizeof(se))
-			quit(ctx, "bad sigevent size", NULL, rd);
-
-		switch(se.signo) {
-			case SIGWINCH: update_winsz(ctx); break;
-			case SIGINT:
-			case SIGTERM: exit(ctx, 0xFF);
-		}
-	}
-
-	if(rd == -EAGAIN)
-		return;
-	else if(rd < 0) /* should never happen */
+	if((rd = sys_read(fd, &se, sizeof(se))) < 0)
 		quit(ctx, "read", "signalfd", rd);
+	if(rd < sizeof(se))
+		quit(ctx, "bad sigevent size", NULL, rd);
+
+	switch(se.signo) {
+		case SIGWINCH: update_winsz(ctx); break;
+		case SIGINT:
+		case SIGTERM: exit(ctx, 0xFF);
+	}
 }
 
 static void recv_stdin(CTX, char* buf, int* offp, int len)
