@@ -28,6 +28,11 @@ inline static int brk_error(void* brk, void* end)
 	return 0;
 }
 
+inline static size_t pagealign(size_t sz)
+{
+	return ((sz + PAGE - 1) & ~(PAGE - 1));
+}
+
 inline static void* sys_brk(void* ptr)
 {
 	return (void*)syscall1(NR_brk, (long)ptr);

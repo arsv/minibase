@@ -27,11 +27,6 @@ static int blocklen;
 static int datalen;
 static int modified;
 
-static int pagealign(long size)
-{
-	return size + (PAGE - size % PAGE) % PAGE;
-}
-
 void save_config(void)
 {
 	int fd;
