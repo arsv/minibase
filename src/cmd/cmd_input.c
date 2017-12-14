@@ -460,10 +460,16 @@ static void control_k(CTX)
 
 static void tabulator(CTX)
 {
-	if(ctx->tab)
+	if(ctx->tab) {
+		leave_term(ctx);
 		double_tab(ctx);
-	else
+		enter_term(ctx);
+
+		ctx->redraw = 1;
+		redraw_flush(ctx);
+	} else {
 		single_tab(ctx);
+	}
 }
 
 static void escape(CTX)

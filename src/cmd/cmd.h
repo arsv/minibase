@@ -13,11 +13,13 @@ struct outbuf {
 };
 
 struct tabtab {
-	void* buf;
-	int size;
-	int ptr;
-	int idx;
-	int count;
+	void* buf;     /* mmaped; may get remapped in process */
+	int size;      /* ... of the buffer */
+	int ptr;       /* Start of unallocated space */
+        /* the buffer contains a bunch of struct fname-s followed by index */
+	int idx;       /* Offset into buf at which the index starts */
+	int count;     /* Number of (int) entries there. */
+	int needexe;   /* Ignore non-executable files when Tab'ing a command */
 };
 
 struct history {
@@ -88,3 +90,19 @@ void list_cwd(CTX);
 void hist_prev(CTX);
 void hist_next(CTX);
 void hist_store(CTX);
+
+/* This structure is only used in _tabtab but hardly warrants its own header */
+
+struct exparg {
+	char* buf;
+	char* dir;
+	char* base;
+	char* end;
+	int noslash;
+	int initial;
+	char quote;
+	int blen;
+};
+
+int expand_arg(CTX, struct exparg* xa);
+void free_exparg(struct exparg* xa);

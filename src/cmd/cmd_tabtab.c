@@ -27,6 +27,7 @@
    The index is int[count] containg offsets of individusl struct fname's. */
 
 #define TT struct tabtab* tt
+#define XA struct exparg* xa
 
 struct fname {
 	ushort len;
@@ -106,11 +107,13 @@ static void dump_dirlist(TT, int cols)
 	bufoutflush(&bo);
 }
 
+static void reset_dirlist(TT)
+{
+	memzero(tt, sizeof(*tt));
+}
+
 static int init_buffer(TT)
 {
-	tt->count = 0;
-	tt->ptr = 0;
-
 	if(tt->buf)
 		return 0;
 
@@ -217,17 +220,42 @@ static void free_dirlist(TT)
 	memzero(tt, sizeof(*tt));
 }
 
-static void check_dent(TT, struct dirent* de, char* pref, int plen)
+static int gotprefix(struct dirent* de, char* pref, int plen)
 {
 	char* name = de->name;
 	int nlen = strlen(de->name);
 
 	if(!pref)
-		;
+		return 1;
 	else if(nlen < plen)
-		return;
+		return 0;
 	else if(strncmp(name, pref, plen))
-		return;
+		return 0;
+
+	return 1;
+}
+
+static int executable(int at, struct dirent* de)
+{
+	char* name = de->name;
+	struct stat st;
+	int flags = AT_NO_AUTOMOUNT;
+
+	if((sys_fstatat(at, name, &st, flags)) < 0)
+		return 0;
+
+	if((st.mode & S_IFMT) != S_IFREG)
+		return 0;
+	if(!(st.mode & 0111))
+		return 0;
+
+	return 1;
+}
+
+static void save_name(TT, struct dirent* de)
+{
+	char* name = de->name;
+	int nlen = strlen(name);
 
 	struct fname* fn;
 	int total = sizeof(*fn) + nlen + 1;
@@ -242,7 +270,7 @@ static void check_dent(TT, struct dirent* de, char* pref, int plen)
 	tt->count++;
 }
 
-static int prep_dirlist(TT, char* dir, char* pref, int plen)
+static int scan_directory(TT, char* dir, char* pref, int plen, int exe)
 {
 	int fd, rd, ret;
 	char dirbuf[2048];
@@ -264,25 +292,46 @@ static int prep_dirlist(TT, char* dir, char* pref, int plen)
 
 			ptr += de->reclen;
 
-			if(de->name[0] == '.')
+			if(dotddot(de->name))
+				continue;
+			if(plen && *pref == '.')
+				;
+			else if(de->name[0] == '.')
 				continue;
 
-			check_dent(tt, de, pref, plen);
+			if(!gotprefix(de, pref, plen))
+				continue;
+			if(exe && !executable(fd, de))
+				continue;
+
+			save_name(tt, de);
 		}
 	}
-
-	index_entries(tt);
 out:
 	sys_close(fd);
 
 	return ret;
 }
 
+static int prep_dirlist(TT, char* dir, char* pref, int plen, int exe)
+{
+	int ret;
+
+	reset_dirlist(tt);
+
+	if((ret = scan_directory(tt, dir, pref, plen, exe)) < 0)
+		return ret;
+
+	index_entries(tt);
+
+	return 0;
+}
+
 void list_cwd(CTX)
 {
 	struct tabtab* tt = &ctx->tts;
 
-	if(prep_dirlist(tt, ".", NULL, 0))
+	if(prep_dirlist(tt, ".", NULL, 0, 0))
 		return;
 
 	dump_dirlist(tt, ctx->cols);
@@ -290,9 +339,143 @@ void list_cwd(CTX)
 	free_dirlist(tt);
 }
 
+static void try_path_dir(TT, XA, char* dir, int dlen)
+{
+	char buf[dlen + 1];
+
+	memcpy(buf, dir, dlen);
+	buf[dlen] = '\0';
+
+	scan_directory(tt, buf, xa->base, xa->blen, 1);
+}
+
+static void complete_command(CTX, TT, XA)
+{
+	char* path;
+
+	if(!(path = getenv(ctx->envp, "PATH")))
+		return;
+
+	char* p = path;
+	char* e = path + strlen(path);
+
+	while(p < e) {
+		char* q = strecbrk(p, e, ':');
+
+		if(q > p)
+			try_path_dir(tt, xa, p, q - p);
+
+		p = q + 1;
+	}
+}
+
+static void complete_filename(TT, XA)
+{
+	prep_dirlist(tt, xa->dir, xa->base, xa->blen, xa->initial);
+}
+
+/* When completing "fi" yields a single result, [ "file" ], insert
+   the missing part and add a space to indicate end of argument. */
+
+static void insert_single(CTX, TT, XA)
+{
+	int* index = tt->buf + tt->idx;
+	struct fname* fn = tt->buf + index[0];
+	char* name = fn->name;
+	int nlen = strlen(name);
+
+	int plen = xa->blen;
+	char quote = xa->quote;
+
+	if(nlen < plen) /* the name is shorter than typed prefix */
+		return; /* should never happen */
+
+	insert(ctx, name + plen, nlen - plen); /* add the missing part */
+
+	if(fn->isdir) {
+		insert(ctx, "/", 1);
+	} else {
+		if(quote) /* when completing |"filen|, close the quote |ame"| */
+			insert(ctx, &quote, 1);
+		insert(ctx, " ", 1);
+	}
+}
+
+/* comm="filename" name="filled" -> 3 "fil" */
+
+static int maxprefix(char* comm, int clen, char* name, int nlen)
+{
+	int i;
+
+	if(nlen < clen)
+		clen = nlen;
+
+	for(i = 0; i < clen; i++)
+		if(comm[i] != name[i])
+			break;
+
+	return i;
+}
+
+/* When completing "fi" yields [ "file-a", "file-b", "file-c" ],
+   insert the common part "le-" immediately. */
+
+static void maybe_insert_common(CTX, TT, XA)
+{
+	void* buf = tt->buf;
+	int i, count = tt->count; /* always >1 here */
+	int* index = buf + tt->idx;
+	int plen = xa->blen;
+
+	struct fname* fn = tt->buf + index[0];
+	char* comm = fn->name;        /* common prefix  */
+	int clen = strlen(fn->name);  /* and its length */
+
+	for(i = 1; i < count; i++) {
+		fn = buf + index[i];
+
+		char* name = fn->name;
+		int nlen = strlen(name);
+
+		clen = maxprefix(comm, clen, name, nlen);
+	}
+
+	if(clen <= plen)
+		return;
+
+	insert(ctx, comm + plen, clen - plen);
+}
+
 void single_tab(CTX)
 {
+	struct exparg xa;
+	struct tabtab* tt = &ctx->tts;
 
+	if(expand_arg(ctx, &xa))
+		return;
+
+	reset_dirlist(tt);
+
+	if(xa.noslash && xa.initial)
+		complete_command(ctx, tt, &xa);
+	else
+		complete_filename(tt, &xa);
+
+	index_entries(tt);
+
+	int count = tt->count;
+
+	if(count == 1)
+		insert_single(ctx, tt, &xa);
+	else if(count > 1)
+		maybe_insert_common(ctx, tt, &xa);
+
+	if(count >= 2)
+		ctx->tab = 1;
+	else
+		free_dirlist(tt);
+
+	free_exparg(&xa);
 }
 
 void double_tab(CTX)
