@@ -7,6 +7,13 @@
 
 #include "cmd.h"
 
+/* Primary command parser. Takes complete command line, turns it
+   into argc, argv[] and calls execute().
+
+   The parts for argv[] are assembled in the heap, right after
+   the original string. Quotes etc prevent us from using the source
+   string directly, and variable substitution happens here as well. */
+
 struct arg {
 	ushort len;
 	char zstr[];
@@ -29,7 +36,7 @@ static void collect(CTX, int argc, char* base)
 
 		struct arg* argp = ptr;
 		ushort len = argp->len;
-		
+
 		if(len < 2)
 			goto err;
 		if(ptr + len > end)
@@ -38,7 +45,7 @@ static void collect(CTX, int argc, char* base)
 		argv[i] = argp->zstr;
 		ptr += len;
 	}
-	
+
 	if(ptr < end)
 		goto err;
 

@@ -16,7 +16,18 @@
 static void enter_term(CTX);
 static void leave_term(CTX);
 
-/* Input handling */
+/* Input handling a-la readline or libedit. We try hard to keep the edits
+   on a single line to avoid dealing with terminal quirks when it comes to
+   backspacing across a line wrap. Which is outright broken in the Linux
+   console for instance.
+
+                                        v-- cur = cursor position
+       /home/alex/devel> stat ~/some/pat▒/here.c...........
+   buf-^                 ^sep                   ^ptr       ^max
+
+   The line itself may be very long, only the part between show and ends
+   is visible on the screen. All offsets are byte offsets; viswi and cols
+   count visual character cells. */
 
 static void flush(CTX)
 {

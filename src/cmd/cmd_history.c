@@ -3,6 +3,19 @@
 #include <string.h>
 #include "cmd.h"
 
+/* History was originally meant to be stored in a file, but got
+   changed to a memory buffer. Short-term history is a nice thing
+   to have but presisiting it makes little sense given typical
+   use cases for this shell.
+
+   Still, the format is just a plaintext file with \n-separated lines.
+
+   When Up key is pressed with non-empty, not-yet-saved command in the
+   edit buffer, it gets temporarily added to the history to allow going
+   Down to edit it, but the first command actually Enter'ed overwrites it.
+   This is tracked with hst->temp which points to the tail of the buffer
+   that should be dropped. */
+
 #define MAXHISTORY 4*PAGE
 #define TRIMCHUNK 1*PAGE /* should be less than MAXHISTORY */
 

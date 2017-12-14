@@ -11,6 +11,21 @@
 #include "cmd.h"
 #include "unicode.h"
 
+/* Tab completition, filenames only. On the first keypress, relevant
+   directories are scanned and full basenames of possible options are
+   stored in struct tabtab, sorted and indexed. The second Tab dumps
+   the stored index.
+
+   The mmaped block in TT may need to grow. To avoid the hassle of
+   keeping pointers valid across mremap, only offsets are stored.
+
+           i0  i1  i2  i3      ic
+           v   v   v   v       v
+    buf -> FN0 FN1 FN2 FN3 ... FNc i0 i1 ... ic          FN = struct fname
+                                   ^ idx       ^ptr      c = (count-1)
+
+   The index is int[count] containg offsets of individusl struct fname's. */
+
 #define TT struct tabtab* tt
 
 struct fname {
