@@ -49,6 +49,29 @@ static void cmd_cd(CTX, int argc, char** argv)
 	prep_prompt(ctx);
 }
 
+static void cmd_set(CTX, int argc, char** argv)
+{
+	if(argc < 2)
+		return envp_dump_all(ctx);
+	if(argc == 2)
+		return envp_dump(ctx, argv[1]);
+	if(argc == 3)
+		return envp_set(ctx, argv[1], argv[2]);
+
+	warn("too many arguments", NULL, 0);
+}
+
+static void cmd_unset(CTX, int argc, char** argv)
+{
+	int i;
+
+	if(argc < 2)
+		return warn("too few arguments", NULL, 0);
+
+	for(i = 1; i < argc; i++)
+		envp_unset(ctx, argv[i]);
+}
+
 static void cmd_dot(CTX, int argc, char** argv)
 {
 	if(argc > 1)
@@ -83,11 +106,13 @@ static const struct builtin {
 	char name[8];
 	void (*call)(CTX, int argc, char** argv);
 } builtins[] = {
-	{ ".",    cmd_dot  },
-	{ "..",   cmd_ddot },
-	{ "cd",   cmd_cd   },
-	{ "echo", cmd_echo },
-	{ "exit", cmd_exit },
+	{ ".",     cmd_dot   },
+	{ "..",    cmd_ddot  },
+	{ "cd",    cmd_cd    },
+	{ "set",   cmd_set   },
+	{ "unset", cmd_unset },
+	{ "echo",  cmd_echo  },
+	{ "exit",  cmd_exit  },
 };
 
 static const struct builtin* find_builtin(char* name)

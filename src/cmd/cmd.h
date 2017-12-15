@@ -1,4 +1,5 @@
 #include <bits/ioctl/tty.h>
+#include <cdefs.h>
 
 struct heap {
 	void* brk;
@@ -32,6 +33,17 @@ struct history {
 	int temp;
 };
 
+struct environ {
+	void* buf;
+	int size;
+
+	int sep;
+	int ptr;
+
+	int count;
+	char** orig;
+};
+
 struct top {
 	int argc;
 	char** argv;
@@ -41,6 +53,7 @@ struct top {
 	struct outbuf out;
 	struct tabtab tts;
 	struct history hst;
+	struct environ env;
 
 	int sigfd;
 	int cols;
@@ -91,6 +104,11 @@ void list_cwd(CTX);
 void hist_prev(CTX);
 void hist_next(CTX);
 void hist_store(CTX);
+
+void envp_dump(CTX, char* name);
+void envp_set(CTX, char* name, char* value);
+void envp_unset(CTX, char* name);
+void envp_dump_all(CTX);
 
 /* This structure is only used in _tabtab but hardly warrants its own header */
 
