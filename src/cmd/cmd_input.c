@@ -582,6 +582,13 @@ int handle_input(CTX, char* buf, int len)
 	return ptr - buf;
 }
 
+void cancel_input(CTX)
+{
+	outstr(ctx, "\n");
+	reset_input(ctx);
+	redraw_flush(ctx);
+}
+
 /* Init and fini routines */
 
 static void ttyioctl(char* tag, int req, void* ptr)

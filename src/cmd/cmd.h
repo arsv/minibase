@@ -71,6 +71,7 @@ void init_input(CTX);
 void fini_input(CTX);
 void update_winsz(CTX);
 int handle_input(CTX, char* buf, int len);
+void cancel_input(CTX);
 
 void prep_prompt(CTX);
 void insert(CTX, char* inp, int len);

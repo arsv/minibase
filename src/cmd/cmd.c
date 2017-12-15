@@ -103,7 +103,7 @@ static void recv_sigfd(CTX)
 
 	switch(se.signo) {
 		case SIGWINCH: update_winsz(ctx); break;
-		case SIGINT:
+		case SIGINT: cancel_input(ctx); break;
 		case SIGTERM: exit(ctx, 0xFF);
 	}
 }
