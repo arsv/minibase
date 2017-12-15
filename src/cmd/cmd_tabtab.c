@@ -26,9 +26,6 @@
 
    The index is int[count] containg offsets of individusl struct fname's. */
 
-#define TT struct tabtab* tt
-#define XA struct exparg* xa
-
 struct fname {
 	ushort len;
 	char isdir;

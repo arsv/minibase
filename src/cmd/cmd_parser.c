@@ -237,6 +237,21 @@ static char* dquote(CTX, char* p, char* e)
 	return NULL;
 }
 
+static char* tilde(CTX, char* p, char* e)
+{
+	char* s = p++; /* skip tilde */
+	char* home;
+
+	if(p < e && *p != '/')
+		return s;
+	if(!(home = getenv(ctx->envp, "HOME")))
+		return s;
+
+	append(ctx, home, strlen(home));
+
+	return p;
+}
+
 static int isspace(int c)
 {
 	return (c == ' ' || c == '\t' || c == '\n' || !c);
@@ -249,7 +264,10 @@ static int isargsep(int c)
 
 static char* argument(CTX, char* p, char* e)
 {
-	while(p < e) {
+	if(p < e && *p == '~')
+		p = tilde(ctx, p, e);
+
+	while(p && p < e) {
 		char c = *p++;
 
 		if(isargsep(c))
@@ -266,8 +284,6 @@ static char* argument(CTX, char* p, char* e)
 			p = dquote(ctx, p, e);
 		else if(addchar(ctx, c))
 			return NULL;
-
-		if(!p) return p;
 	}
 
 	return p;

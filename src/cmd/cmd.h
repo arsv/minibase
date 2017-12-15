@@ -114,14 +114,20 @@ void envp_dump_all(CTX);
 
 struct exparg {
 	char* buf;
+	int ptr;
+	int end;
+
 	char* dir;
 	char* base;
-	char* end;
+	int blen;
+
 	int noslash;
 	int initial;
 	char quote;
-	int blen;
 };
 
 int expand_arg(CTX, struct exparg* xa);
 void free_exparg(struct exparg* xa);
+
+#define TT struct tabtab* tt
+#define XA struct exparg* xa
