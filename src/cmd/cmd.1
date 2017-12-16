@@ -1,0 +1,46 @@
+.TH cmd 1
+'''
+.SH NAME
+\fBcmd\fR \- simple interactive shell
+'''
+.SH DESCRIPTION
+This interactive shell allows the user to run abitrary commands
+with basic line editing.
+'''
+.SH BUILTINS
+These commands are run in the context of the shell process.
+'''
+.IP "\fB.\fR (dot)" 4
+List contents of current directory.
+.IP "\fB..\fR (dot dot)" 4
+Go up a directory, same as \fBcd ..\fR
+.IP "\fBcd\fR \fIdirectory\fR" 4
+Go to \fIdirectory\fR.
+.IP "\fBecho\fR \fImessage\fR" 4
+Write \fImessage\fR to stdout.
+.IP "\fBset\fR [\fIVAR\fR]" 4
+Show the value of \fIVAR\fR, or list all variables.
+.IP "\fBset\fR \fIVAR\fR \fIvalue\fR" 4
+Set \fIVAR\fR to \fIvalue\fR.
+.IP "\fBunset\fR \fIVAR\fR" 4
+Remove \fIVAR\fR from environment.
+.IP "\fBexit\fR" 4
+Exit the shell.
+'''
+.SH ENVIRONMENT
+.IP "PATH" 8
+Colon-separated list of directories to look for commands.
+.IP "HOME" 8
+User's home directory, used to expand ~/ in paths.
+'''
+.SH NOTES
+Common POSIX shell features not supported in msh: redirections (>file),
+pipes (|cmd), globbing (*), background execution (&), jobs, control flow
+(while, case), advanced variable substituion (${var...}), backticks.
+.P
+Like in \fBmsh\fR, variable references ($var) are always treated as
+a single token regardless of the stored value, more like "$var" works
+in POSIX shell.
+'''
+.SH SEE ALSO
+\fBmsh\fR(1), \fBexecvp\fR(3).
