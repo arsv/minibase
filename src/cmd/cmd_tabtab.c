@@ -3,9 +3,7 @@
 #include <sys/dents.h>
 
 #include <string.h>
-#include <format.h>
 #include <output.h>
-#include <printf.h>
 #include <util.h>
 
 #include "cmd.h"
@@ -28,38 +26,84 @@
 
 struct fname {
 	ushort len;
+	ushort vis;
 	char isdir;
 	char name[];
 };
 
-static int max_entry_viswi(TT)
+static struct fname* get_fname(TT, int i)
 {
-	int i, n = tt->count;
-	int* index = (int*)(tt->buf + tt->idx);
-	int entvi, maxvi = 0;
+	void* buf = tt->buf;
+	int* index = (int*)(buf + tt->idx);
 
-	for(i = 0; i < n; i++) {
-		struct fname* fn = (tt->buf + index[i]);
+	return (buf + index[i]);
+}
 
-		char* name = fn->name;
-		int nlen = fn->len - sizeof(*fn) - 1;
+/* Double Tab (and the . command) requires us to dump the collected
+   fnames in some readable form. Following bash example, we try to
+   columnize the output. */
 
-		entvi = visual_width(name, nlen);
+static void set_visual_widths(TT)
+{
+	int i, count = tt->count;
 
-		if(fn->isdir)
-			entvi++;
+	for(i = 0; i < count; i++) {
+		struct fname* fn = get_fname(tt, i);
+		fn->vis = visual_width(fn->name, strlen(fn->name));
+		if(fn->isdir) fn->vis++;
+	}
+}
 
-		if(entvi > maxvi)
-			maxvi = entvi;
+static int set_column_widths(TT, int* cw, int n)
+{
+	int i, count = tt->count, sum = 0;
+
+	memzero(cw, n*sizeof(*cw));
+
+	for(i = 0; i < count; i++) {
+		int c = i % n;
+
+		struct fname* fn = get_fname(tt, i);
+		int vw = fn->vis;
+
+		if(vw > cw[c]) cw[c] = vw;
 	}
 
-	return maxvi;
+	for(i = 0; i < n - 1; i++)
+		sum += cw[i] + 2;
+
+	return sum + cw[i];
+}
+
+static int prep_columns(TT, int* cw, int maxn, int cols)
+{
+	int n;
+
+	if(maxn > tt->count)
+		maxn = tt->count;
+
+	for(n = maxn; n > 1; n--)
+		if(set_column_widths(tt, cw, n) <= cols)
+			break;
+
+	return n;
+}
+
+static void dump_padded(struct bufout* bo, struct fname* fn, int ww)
+{
+	int i, viswi = fn->vis;
+
+	bufout(bo, fn->name, strlen(fn->name));
+
+	if(fn->isdir)
+		bufout(bo, "/", 1);
+	for(i = viswi; i < ww; i++)
+		bufout(bo, " ", 1);
 }
 
 static void dump_dirlist(TT, int cols)
 {
-	int i, n = tt->count;
-	int* index = (int*)(tt->buf + tt->idx);
+	int i, count = tt->count;
 	char outbuf[2048];
 
 	struct bufout bo = {
@@ -69,40 +113,29 @@ static void dump_dirlist(TT, int cols)
 		.buf = outbuf
 	};
 
-	int ts = max_entry_viswi(tt) + 2;
+	set_visual_widths(tt);
 
-	int viswi = 0;
-	char pad[ts];
+	int cw[10];
+	int nc = prep_columns(tt, cw, 10, cols);
 
-	memset(pad, ' ', ts);
+	for(i = 0; i < count; i++) {
+		struct fname* fn = get_fname(tt, i);
+		int col = i % nc;
 
-	for(i = 0; i < n; i++) {
-		struct fname* fn = (tt->buf + index[i]);
-
-		FMTBUF(p, e, out, fn->len);
-		p = fmtstr(p, e, fn->name);
-		if(fn->isdir) p = fmtstr(p, e, "/");
-		FMTEND(p, e);
-
-		int fnvw = visual_width(out, p - out);
-		int lead = viswi ? 2 : 0;
-
-		lead += (ts - ((viswi + lead) % ts)) % ts;
-
-		if(viswi + lead + fnvw + 2 < cols) {
-			viswi += lead + fnvw;
-			bufout(&bo, pad, lead);
-		} else {
-			viswi = fnvw;
+		if(col)
+			bufout(&bo, "  ", 2);
+		else if(i)
 			bufout(&bo, "\n", 1);
-		}
-		bufout(&bo, out, p - out);
+
+		dump_padded(&bo, fn, cw[col]);
 	}
 
 	if(i) bufout(&bo, "\n", 1);
 
 	bufoutflush(&bo);
 }
+
+/* Directory listing code: scan given directory, put filenames into TT. */
 
 static void reset_dirlist(TT)
 {
@@ -376,8 +409,7 @@ static void complete_filename(TT, XA)
 
 static void insert_single(CTX, TT, XA)
 {
-	int* index = tt->buf + tt->idx;
-	struct fname* fn = tt->buf + index[0];
+	struct fname* fn = get_fname(tt, 0);
 	char* name = fn->name;
 	int nlen = strlen(name);
 
@@ -419,17 +451,15 @@ static int maxprefix(char* comm, int clen, char* name, int nlen)
 
 static void maybe_insert_common(CTX, TT, XA)
 {
-	void* buf = tt->buf;
 	int i, count = tt->count; /* always >1 here */
-	int* index = buf + tt->idx;
 	int plen = xa->blen;
 
-	struct fname* fn = tt->buf + index[0];
+	struct fname* fn = get_fname(tt, 0);
 	char* comm = fn->name;        /* common prefix  */
 	int clen = strlen(fn->name);  /* and its length */
 
 	for(i = 1; i < count; i++) {
-		fn = buf + index[i];
+		fn = get_fname(tt, i);
 
 		char* name = fn->name;
 		int nlen = strlen(name);
