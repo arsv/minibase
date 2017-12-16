@@ -42,6 +42,8 @@ Some tools are missing, and some still need work.
     everyone keeps asking about [weston only atm].
   * Non-graphical greeter stub.
 
+  * Simple interactive shell (cmd).
+
   * Networking interface manager (ifmon), also handles DHCP.
   * Wi-Fi (WPA2-PSK) supplicant and connection manager (wsupp).
   * manual interface setup tools (ip4cfg, ip4info) [incomplete].
@@ -49,10 +51,18 @@ Some tools are missing, and some still need work.
 
   - No package manager / download tool yet.
 
-  - No interactive shell yet.
-
 With everything in place, the system should be able to boot, on minibase
 alone, up to the point where it's ready to download, install and start GUI.
+
+
+Quickstart
+~~~~~~~~~~
+Bootable images for Qemu: https://github.com/arsv/minibase-br/releases
+Get sys-crypt, inspect and run supplied script.
+Check README in that repository.
+
+Start reading the sources at temp/compat, src/cmdops, src/debug.
+Build, strip and strace the tools.
 
 
 How to build and try the tools
@@ -63,8 +73,6 @@ To see how a proper build looks like, run
     make
     make install     # default DESTDIR is ./out
 
-See https://github.com/arsv/miniroot for a bootable buildroot system.
-
 To try the tools without booting anything, configure and build
 the project in devel mode:
 
@@ -73,17 +81,13 @@ the project in devel mode:
     make
 
 Most tools can then be run from their source directories.
+
 Tools that need configuration often have devel-mode configuration right
 in their respective directories. Modifying the code, rebuilding and trying
 again should work as well.
 
-Some (like ifmon) need root privileges, but should work just fine under su
-on conventional systems from their source directories. The usual warnings
-about running stuff as root apply.
-
-The only big exception is vtmux. It cannot be test-run on a system that is
-supposed to remain usable during the process. A standalone box with some
-sort of remote (SSH) connection is the bare minimum.
+Some tools (ifmon vtmux etc) need root privileges to run.
+See READMEs in subdirectories for instructions.
 
 
 Just how small exactly?
@@ -97,14 +101,15 @@ that prompts for passphrase and sets up encrypted block devices.
 It is likely to grow a bit however. Curses UI takes so much space.
 
 vtmux (logind equivalent) is about 12 KiB. msh is about 16 KiB.
+cmd (interactive shell) is about 18 KiB.
 
 
 What's the intended hardware for this?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 minibase is written primarily with a personal laptop in mind.
 
-This choice only affects certain tools (super, ifmon, vtmux) which either
-allow or expect some user interaction. For unattended or headless systems,
+This choice only affects certain tools (ifmon, vtmux) which either allow
+or expect some user interaction. For unattended or headless systems,
 it would be better to replace them with simpler equivalents, which may get
 written at some point but are not a priority right now.
 
@@ -158,7 +163,7 @@ Licensing
 ~~~~~~~~~
 GNU Public License version 3, see COPYING.
 
-Limited closed-box license (along the lines of Apache 2 w/ export restrictions)
+Limited closed-box license (along the lines of Apache 2 + export restrictions)
 may or may not get added in the future.
 
 The code in lib/sys, lib/bits and lib/arch constitutes the public interface
