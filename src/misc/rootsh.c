@@ -41,7 +41,7 @@ static int child(int fd, char** envp)
 	if((ret = sys_ioctl(STDOUT, TIOCSCTTY, 0)) < 0)
 		fail("ioctl", "TIOCSCTTY", ret);
 
-	char* argv[] = { "busybox", "sh", NULL };
+	char* argv[] = { "cmd", NULL };
 
 	ret = execvpe(*argv, argv, envp);
 
