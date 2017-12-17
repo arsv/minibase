@@ -1,5 +1,7 @@
+#include <bits/ioctl/tty.h>
 #include <crypto/aes128.h>
 #include <crypto/scrypt.h>
+#include <sys/ioctl.h>
 #include <sys/file.h>
 #include <sys/mman.h>
 
@@ -12,15 +14,45 @@
 
 static const char testpad[] = { 0xA6,0xA6,0xA6,0xA6,0xA6,0xA6,0xA6,0xA6 };
 
+static void clear_echo(struct termios* to, int* flag)
+{
+	struct termios ts;
+
+	if(sys_ioctl(STDIN, TCGETS, &ts) < 0)
+		return;
+
+	memcpy(to, &ts, sizeof(ts));
+
+	ts.lflag &= ~ECHO;
+	ts.lflag |= ECHONL;
+
+	if(sys_ioctl(STDIN, TCSETS, &ts) < 0)
+		return;
+
+	*flag = 1;
+}
+
+static void reset_echo(struct termios* ts, int* flag)
+{
+	if(!*flag) return;
+
+	sys_ioctl(STDIN, TCSETS, ts);
+}
+
 int ask(char* tag, char* buf, int len)
 {
-	int rd;
+	int rd, noecho;
+	struct termios ts;
 
 	sys_write(STDOUT, tag, strlen(tag));
 
-	if((rd = sys_read(STDIN, buf, len)) < 0)
+	clear_echo(&ts, &noecho);
+	rd = sys_read(STDIN, buf, len);
+	reset_echo(&ts, &noecho);
+
+	if(rd < 0)
 		fail("read", "stdin", rd);
-	if((rd >= len))
+	if(rd >= len)
 		fail("passphrase too long", NULL, 0);
 
 	if(rd && buf[rd-1] == '\n')
