@@ -611,6 +611,11 @@ static void leave_term(CTX)
 	sys_write(STDOUT, "\n", 1);
 }
 
+/* TCGETS return 0 cols for serial terminals. For now, when this happens,
+   we just assume the terminal is a standard 80-column one. It is possible
+   to handle this case properly assuming the terminal handles erase over
+   left border well, which is even worse than assuming 80 columns. */
+
 void init_input(CTX)
 {
 	struct termios ts;
@@ -625,7 +630,7 @@ void init_input(CTX)
 	memcpy(&ctx->tsi, &ts, sizeof(ts));
 
 	ttyioctl("TIOCGWINSZ", TIOCGWINSZ, &ws);
-	ctx->cols = ws.col;
+	ctx->cols = ws.col ? ws.col : 80;
 
 	enter_term(ctx);
 
@@ -645,7 +650,7 @@ void update_winsz(CTX)
 	if(sys_ioctl(STDIN, TIOCGWINSZ, &ws) < 0)
 		return;
 
-	ctx->cols = ws.col;
+	ctx->cols = ws.col ? ws.col : 80;
 
 	char* buf = ctx->buf;
 	int cur = ctx->cur;
