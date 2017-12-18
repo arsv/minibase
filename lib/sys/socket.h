@@ -34,7 +34,12 @@ inline static long sys_bind(int fd, void* addr, int len)
 
 inline static long sys_accept(int fd, void* addr, int* len)
 {
-	return syscall3(NR_accept, fd, (long)addr, (long)len);
+	return syscall4(NR_accept4, fd, (long)addr, (long)len, 0);
+}
+
+inline static long sys_accept4(int fd, void* addr, int* len, int flags)
+{
+	return syscall4(NR_accept4, fd, (long)addr, (long)len, flags);
 }
 
 inline static long sys_listen(int fd, int backlog)
