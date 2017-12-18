@@ -131,12 +131,12 @@ static void handle_dead(struct term* vt, int status)
 		vt->ctlfd = -1;
 	}
 
-	if(!status) {
+	if(!status)
 		finalize(vt);
-	} else {
+	else
 		vt->pid = 0; /* and wait for user to invoke final_enter() */
-		pollset = 0;
-	}
+
+	pollset = 0;
 }
 
 static void switch_to_smth(void)

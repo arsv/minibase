@@ -240,14 +240,13 @@ void accept_ctrl(void)
 	while((cfd = sys_accept(ctrlfd, &addr, &addr_len)) > 0) {
 		if((cn = grab_conn_slot())) {
 			cn->fd = cfd;
+			pollset = 0;
 		} else {
 			warn("dropping connection", NULL, 0);
 			sys_shutdown(cfd, SHUT_RDWR);
 			sys_close(cfd);
 		}
 	}
-
-	pollset = 0;
 }
 
 void setup_ctrl(void)

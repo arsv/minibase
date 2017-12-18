@@ -98,6 +98,8 @@ static int start_cmd_on(struct term* vt, int tty, char* path)
 	vt->pid = pid;
 	vt->tty = tty;
 
+	pollset = 0;
+
 	return 0;
 out2:
 	sys_close(sk[0]);
