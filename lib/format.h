@@ -60,6 +60,7 @@ char* parsebyte(char* p, byte* v);
 char* parsebytes(char* p, byte* buf, uint len);
 char* parseoct(char* p, int* np);
 char* parsehex(char* p, int* np);
+char* parsexlong(char* p, ulong* np);
 
 char* parsemac(char* p, byte* mac);
 char* parseip(char* p, byte* ip);
