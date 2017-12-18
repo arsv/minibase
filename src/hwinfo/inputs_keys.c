@@ -5,7 +5,7 @@
 
 #include "inputs.h"
 
-static const char* names[] = {
+static const char* key[] = {
 	[KEY_RESERVED] = "reserved",
 	[KEY_ESC] = "Esc",
 	[KEY_1] = "1",
@@ -519,10 +519,4 @@ static const char* names[] = {
 	[KEY_ONSCREEN_KEYBOARD] = "onscreen-keyboard"
 };
 
-const struct ev ev_key = {
-	.type = EV_KEY,
-	.size = 128,
-	.tag = "KEY",
-	.names = names,
-	.count = ARRAY_SIZE(names)
-};
+EVNAMES("KEY", key);
