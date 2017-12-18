@@ -49,33 +49,22 @@ int open_tty_device(int tty)
 	return fd;
 }
 
-/* All child_* functions run in the child process. */
-
-static void child_prep_fds(int ttyfd, int ctlfd)
-{
-	sys_dup2(ttyfd, 0);
-	sys_dup2(ttyfd, 1);
-	sys_dup2(ttyfd, 2);
-	sys_dup2(ctlfd, 3);
-}
-
-static void child_set_ctty(void)
-{
-	int ret;
-
-	if((ret = sys_setsid()) < 0)
-		warn("setsid", NULL, ret);
-	if((ret = sys_ioctl(STDOUT, TIOCSCTTY, 0)) < 0)
-		warn("ioctl", "TIOCSCTTY", ret);
-}
+/* This function runs in the context of the child process. */
 
 static int child_proc(int ttyfd, int ctlfd, char* path)
 {
 	char* argv[] = { path, NULL };
 	int ret;
 
-	child_prep_fds(ttyfd, ctlfd);
-	child_set_ctty();
+	sys_dup2(ttyfd, 0);
+	sys_dup2(ttyfd, 1);
+	sys_dup2(ttyfd, 2);
+	sys_dup2(ctlfd, 3);
+
+	if((ret = sys_setsid()) < 0)
+		warn("setsid", NULL, ret);
+	if((ret = sys_ioctl(STDOUT, TIOCSCTTY, 0)) < 0)
+		warn("ioctl", "TIOCSCTTY", ret);
 
 	ret = sys_execve(*argv, argv, environ);
 	fail("exec", path, ret);
