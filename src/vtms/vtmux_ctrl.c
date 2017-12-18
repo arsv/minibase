@@ -199,7 +199,7 @@ static void shutdown_conn(struct conn* cn)
 	sys_shutdown(cn->fd, SHUT_RDWR);
 }
 
-void handle_conn(struct conn* cn)
+void recv_conn(struct conn* cn)
 {
 	int ret, fd = cn->fd;
 

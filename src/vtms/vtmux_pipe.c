@@ -275,7 +275,7 @@ static void dispatch_req(struct term* cvt, void* buf, uint len)
    for reply. But, the protocol does not prevent sending cmds
    in bulk, and dropping the loop here does not save us much. */
 
-void handle_pipe(struct term* cvt)
+void recv_pipe(struct term* cvt)
 {
 	int rd, fd = cvt->ctlfd;
 	char buf[100];

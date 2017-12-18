@@ -86,9 +86,9 @@ int wait_poll(void);
 
 void accept_ctrl(void);
 void setup_ctrl(void);
-void handle_conn(struct conn* cn);
+void recv_conn(struct conn* cn);
 
-void handle_pipe(struct term* vt);
+void recv_pipe(struct term* vt);
 void final_enter(struct term* vt);
 
 void clear_ctrl(void);
