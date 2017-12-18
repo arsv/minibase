@@ -83,7 +83,7 @@ static int child_proc(int ttyfd, int ctlfd, char* path)
 
 /* This runs with $tty already active. */
 
-static int start_cmd_on(struct term* cvt, int tty, char* path)
+static int start_cmd_on(struct term* vt, int tty, char* path)
 {
 	int ttyfd, sk[2];
 	int ret, pid;
@@ -104,10 +104,10 @@ static int start_cmd_on(struct term* cvt, int tty, char* path)
 
 	sys_close(sk[1]);
 
-	cvt->ctlfd = sk[0];
-	cvt->ttyfd = ttyfd;
-	cvt->pid = pid;
-	cvt->tty = tty;
+	vt->ctlfd = sk[0];
+	vt->ttyfd = ttyfd;
+	vt->pid = pid;
+	vt->tty = tty;
 
 	return 0;
 out2:
@@ -138,22 +138,22 @@ int spawn(int tty, char* cmd)
 	FMTEND(p, e);
 
 	int old = activetty;
-	struct term* cvt;
+	struct term* vt;
 	int ret = -EAGAIN;
 
 	if((ret = check_cmd_exists(path)) < 0)
 		return ret;
-	if(!(cvt = grab_term_slot()))
+	if(!(vt = grab_term_slot()))
 		return -EMFILE;
 
 	if((ret = activate(tty)) < 0)
 		goto fail;
-	if(!(ret = start_cmd_on(cvt, tty, path)))
+	if(!(ret = start_cmd_on(vt, tty, path)))
 		goto done;
 
 	activate(old);
 fail:
-	free_term_slot(cvt);
+	free_term_slot(vt);
 done:
 	return ret;
 }

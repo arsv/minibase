@@ -46,12 +46,12 @@ struct pmsg_open {
 	char path[];
 };
 
-static void reply(struct term* cvt, int errno)
+static void reply(struct term* vt, int errno)
 {
-	sys_send(cvt->ctlfd, (void*)&errno, sizeof(errno), 0);
+	sys_send(vt->ctlfd, (void*)&errno, sizeof(errno), 0);
 }
 
-static void reply_send_fd(struct term* cvt, int errno, int fdts)
+static void reply_send_fd(struct term* vt, int errno, int fdts)
 {
 	int ret;
 
@@ -76,18 +76,18 @@ static void reply_send_fd(struct term* cvt, int errno, int fdts)
 		.controllen = sizeof(ancillary)
 	};
 
-	if((ret = sys_sendmsg(cvt->ctlfd, &msg, 0)) < 0)
+	if((ret = sys_sendmsg(vt->ctlfd, &msg, 0)) < 0)
 		warn("sendmsg", NULL, ret);
 }
 
 static void send_notification(int tty, int cmd)
 {
-	struct term* cvt;
+	struct term* vt;
 
-	if(!(cvt = find_term_by_tty(tty)))
+	if(!(vt = find_term_by_tty(tty)))
 		return;
 
-	reply(cvt, cmd);
+	reply(vt, cmd);
 }
 
 void notify_activated(int tty)
@@ -241,33 +241,33 @@ static int is_zstr(char* buf, int len)
    For DRIs, the active tty may not have yet opened this particular device,
    so the background one will become master despite being in background. */
 
-static void req_open(struct term* cvt, void* buf, uint len)
+static void req_open(struct term* vt, void* buf, uint len)
 {
 	struct pmsg_open* msg = buf;
 	int ret;
 
 	if(len < sizeof(*msg))
-		return reply(cvt, -EINVAL);
+		return reply(vt, -EINVAL);
 	if(!is_zstr(msg->path, len - sizeof(*msg)))
-		return reply(cvt, -EINVAL);
+		return reply(vt, -EINVAL);
 
-	if((ret = open_managed_dev(msg->path, msg->mode, cvt)) < 0)
-		return reply(cvt, ret);
+	if((ret = open_managed_dev(msg->path, msg->mode, vt)) < 0)
+		return reply(vt, ret);
 
-	return reply_send_fd(cvt, PIPE_REP_OK, ret);
+	return reply_send_fd(vt, PIPE_REP_OK, ret);
 }
 
-static void dispatch_req(struct term* cvt, void* buf, uint len)
+static void dispatch_req(struct term* vt, void* buf, uint len)
 {
 	struct pmsg* msg = buf;
 
 	if(len < sizeof(*msg))
-		return reply(cvt, -EINVAL);
+		return reply(vt, -EINVAL);
 
 	if(msg->code == PIPE_CMD_OPEN)
-		req_open(cvt, buf, len);
+		req_open(vt, buf, len);
 	else
-		reply(cvt, -ENOSYS);
+		reply(vt, -ENOSYS);
 }
 
 /* For any sane clients, there should be exactly one pending
@@ -275,14 +275,14 @@ static void dispatch_req(struct term* cvt, void* buf, uint len)
    for reply. But, the protocol does not prevent sending cmds
    in bulk, and dropping the loop here does not save us much. */
 
-void recv_pipe(struct term* cvt)
+void recv_pipe(struct term* vt)
 {
-	int rd, fd = cvt->ctlfd;
+	int rd, fd = vt->ctlfd;
 	char buf[100];
 	int maxlen = sizeof(buf);
 
 	while((rd = sys_recv(fd, buf, maxlen, MSG_DONTWAIT)) > 0) {
-		dispatch_req(cvt, buf, rd);
+		dispatch_req(vt, buf, rd);
 	} if(rd < 0 && rd != -EAGAIN) {
 		warn("recv", NULL, rd);
 	}

@@ -217,10 +217,10 @@ void wait_pids(int shutdown)
 int count_running(void)
 {
 	int count = 0;
-	struct term* cvt;
+	struct term* vt;
 
-	for(cvt = terms; cvt < terms + nterms; cvt++)
-		if(cvt->pid > 0)
+	for(vt = terms; vt < terms + nterms; vt++)
+		if(vt->pid > 0)
 			count++;
 
 	return count;
@@ -228,11 +228,11 @@ int count_running(void)
 
 static void kill_all_terms(int sig)
 {
-	struct term* cvt;
+	struct term* vt;
 
-	for(cvt = terms; cvt < terms + nterms; cvt++)
-		if(cvt->pid > 0)
-			sys_kill(cvt->pid, sig);
+	for(vt = terms; vt < terms + nterms; vt++)
+		if(vt->pid > 0)
+			sys_kill(vt->pid, sig);
 }
 
 void terminate_children(void)
