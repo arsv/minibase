@@ -143,13 +143,12 @@ static void switch_to_smth(void)
 {
 	struct term* vt;
 
-	if(!(vt = find_term_by_tty(primarytty)))
-		;
-	else if(vt->pid && vt->tty != activetty)
-		switchto(primarytty);
+	if((vt = find_term_by_tty(primarytty)))
+		if(vt->pid && vt->tty != activetty)
+			return (void)switchto(primarytty);
 
 	for(vt = terms + 1; vt < terms + nterms; vt++)
-		if(vt->pid)
+		if(vt->pid && vt->tty != activetty)
 			break;
 
 	if(vt >= terms + nterms)
