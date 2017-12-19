@@ -314,7 +314,7 @@ static void switch_back_exit(void)
 {
 	int ret;
 
-	if(!(ret = spawn("vtctl", "-b")))
+	if(!(ret = spawn("vtctl", "back")))
 		_exit(0);
 }
 
