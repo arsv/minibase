@@ -1,0 +1,13 @@
+.TH ps 1
+'''
+.SH NAME
+\fBps\fR \- process list
+'''
+.SH OPTIONS
+.IP "\fB-k\fR" 4
+Show in-kernel processes instead of userspace processes.
+'''
+.SH NOTES
+All proper userspace processes are descendants of pid 1 (init).
+In-kernel processes have their own hierarchy, typically rooted
+at pid 2 (kthreadd).
