@@ -20,12 +20,23 @@ struct proc {
 	int pid;
 	int ppid;
 	int uid;
+	int euid;
 
 	/* both *idx nodes are indexes into top.procs[] */
 	int ridx; /* right, first child */
 	int didx; /* down, next sibling */
 
 	char name[];
+};
+
+struct trec {
+	char* buf;
+	int sep;
+	int len;
+	int end;
+
+	int uid;
+	int euid;
 };
 
 struct top {
@@ -37,6 +48,10 @@ struct top {
 
 	int nprocs;
 	struct proc** procs;
+
+	char* passwd;
+	int pwlen;
+	int pwerr;
 
 	struct bufout bo;
 };
@@ -117,6 +132,16 @@ static void set_int(char* p, int* dst)
 	(void)parseint(p, dst);
 }
 
+static void set_uids(char* p, int* uid, int* euid)
+{
+	if(!(p = parseint(p, uid)))
+		return;
+	while(*p && isspace(*p))
+		p++;
+
+	(void)parseint(p, euid);
+}
+
 static void parse_status(CTX, char* buf, int len)
 {
 	char* end = buf + len;
@@ -124,7 +149,7 @@ static void parse_status(CTX, char* buf, int len)
 	char* le;
 
 	char* name = NULL;
-	int pid = 0, ppid = 0, uid = 0;
+	int pid = 0, ppid = 0, euid = 0, uid = 0;
 
 	for(ls = buf; ls < end; ls = le + 1) {
 		if((le = strecbrk(ls, end, '\n')) >= end)
@@ -146,7 +171,7 @@ static void parse_status(CTX, char* buf, int len)
 		else if(!strcmp(key, "PPid"))
 			set_int(val, &ppid);
 		else if(!strcmp(key, "Uid"))
-			set_int(val, &uid);
+			set_uids(val, &uid, &euid);
 	}
 
 	if(!name) return;
@@ -159,6 +184,7 @@ static void parse_status(CTX, char* buf, int len)
 	ps->pid = pid;
 	ps->ppid = ppid;
 	ps->uid = uid;
+	ps->euid = euid;
 
 	ps->ridx = -1;
 	ps->didx = -1;
@@ -265,59 +291,183 @@ static void build_ps_tree(CTX)
 	}
 }
 
+/* User name resolution */
+
+static int read_passwd(CTX)
+{
+	int fd, ret;
+	struct stat st;
+	char* name = "/etc/passwd";
+
+	ctx->pwerr = -1;
+
+	if((fd = sys_open(name, O_RDONLY)) < 0)
+		return fd;
+	if((ret = sys_fstat(fd, &st)) < 0)
+		goto out;
+
+	const int prot = PROT_READ;
+	const int flags = MAP_PRIVATE;
+
+	void* buf = sys_mmap(NULL, st.size, prot, flags, fd, 0);
+
+	if((ret = mmap_error(buf)))
+		goto out;
+
+	ctx->passwd = buf;
+	ctx->pwlen = st.size;
+	ctx->pwerr = ret = 0;
+out:
+	sys_close(fd);
+
+	return ret;
+}
+
+static int make_uid_str(char* buf, int len, int uid)
+{
+	char* p = buf;
+	char* e = buf + len;
+
+	p = fmtint(p, e, uid);
+
+	return p - buf;
+}
+
+char* fmt_user(char* p, char* e, CTX, int uid)
+{
+	char uidstr[20];
+	int uidlen = make_uid_str(uidstr, sizeof(uidstr), uid);
+
+	if(ctx->passwd)
+		;
+	else if(ctx->pwerr)
+		goto asint;
+	else if(read_passwd(ctx) < 0)
+		goto asint;
+
+	char* buf = ctx->passwd;
+	char* end = buf + ctx->pwlen;
+
+	char* ls;
+	char* le;
+
+	for(ls = buf; ls < end; ls = le + 1) {
+		le = strecbrk(ls, end, '\n');
+
+		char* ns = ls;                     /* 1st field, name */
+		char* ne = strecbrk(ls, le, ':');
+		char* ps = ne + 1;                 /* 2nd field, password */
+		char* pe = strecbrk(ps, le, ':');
+		char* is = pe + 1;                 /* 3rd field, id */
+		char* ie = strecbrk(is, le, ':');
+
+		int ilen = ie - is;
+
+		if(ilen != uidlen)
+			continue;
+		if(strncmp(uidstr, is, ilen))
+			continue;
+
+		return fmtraw(p, e, ns, ne - ns);
+	}
+asint:
+	return fmtint(p, e, uid);
+}
+
 /* Output, depth-first tree traversal. Top-level entries are treated
    differently from the reset because they don't get any prefix. */
 
-static void dump_proc(struct bufout* bo, struct proc* ps, char* pref, int plen)
+static void dump_proc(CTX, struct bufout* bo, struct trec* tr, struct proc* ps)
 {
-	FMTBUF(p, e, buf, strlen(ps->name) + 20);
+	bufout(bo, tr->buf, tr->len);
+
+	char* name = ps->name;
+	int len = strlen(name);
+
+	FMTBUF(p, e, buf, len + 100);
+
 	p = fmtint(p, e, ps->pid);
 	p = fmtstr(p, e, " ");
 	p = fmtstr(p, e, ps->name);
-	FMTENL(p, e);
 
-	bufout(bo, pref, plen);
+	if(tr->uid != ps->uid || tr->euid != ps->euid) {
+		p = fmtstr(p, e, " :");
+		p = fmt_user(p, e, ctx, ps->uid);
+		if(ps->euid != ps->uid) {
+			p = fmtstr(p, e, "/");
+			p = fmt_user(p, e, ctx, ps->euid);
+		}
+	}
+
+	*p++ = '\n';
+
 	bufout(bo, buf, p - buf);
 }
 
-static char* prep_curr_pref(char* p, char* e, int didx)
+static void prep_curr_pref(struct trec* tr, int didx, struct trec* tp)
 {
+	char* p = tr->buf + tr->sep;
+	char* e = tr->buf + tr->end;
+
 	if(didx > 0)
 		p = fmtstr(p, e, "├ ");
 	else
 		p = fmtstr(p, e, "└ ");
 
-	return p;
+	tr->len = p - tr->buf;
+
+	tr->uid = tp->uid;
+	tr->euid = tp->euid;
 }
 
-static char* prep_next_pref(char* p, char* e, int didx)
+static void prep_next_pref(struct trec* tr, int didx, struct proc* ps)
 {
+	char* p = tr->buf + tr->sep;
+	char* e = tr->buf + tr->end;
+
 	if(didx > 0)
 		p = fmtstr(p, e, "│ ");
 	else
 		p = fmtstr(p, e, "  ");
 
-	return p;
+	tr->len = p - tr->buf;
+
+	tr->uid = ps->uid;
+	tr->euid = ps->euid;
 }
 
-static void dump_rec(CTX, int pi, char* prev, int plen)
+static void prep_tree_rec(struct trec* tr, struct trec* tp, char* buf, int size)
+{
+	tr->buf = buf;
+	tr->end = size;
+
+	char* p = buf;
+	char* e = buf + size;
+
+	p = fmtraw(p, e, tp->buf, tp->len);
+
+	tr->sep = p - buf;
+	tr->len = p - buf;
+}
+
+static void dump_rec(CTX, struct trec* tp, int pi)
 {
 	struct bufout* bo = &ctx->bo;
-	char pref[plen+5];
-	char* p = pref;
-	char* e = pref + sizeof(pref);
-	char* q = fmtraw(p, e, prev, plen);
+	struct trec trec, *tr = &trec;
+	char pref[tp->len+5];
+
+	prep_tree_rec(tr, tp, pref, sizeof(pref));
 
 	while(pi >= 0) {
 		struct proc* ps = ctx->procs[pi];
 		int didx = ps->didx;
 		int ridx = ps->ridx;
 
-		p = prep_curr_pref(q, e, didx);
-		dump_proc(bo, ps, pref, p - pref);
+		prep_curr_pref(tr, didx, tp);
+		dump_proc(ctx, bo, tr, ps);
 
-		p = prep_next_pref(q, e, didx);
-		dump_rec(ctx, ridx, pref, p - pref);
+		prep_next_pref(tr, didx, ps);
+		dump_rec(ctx, tr, ridx);
 
 		pi = didx;
 	}
@@ -328,12 +478,16 @@ static void dump_top(CTX, int pi)
 	struct bufout* bo = &ctx->bo;
 	struct proc* ps = ctx->procs[pi];
 
-	char* pref = "";
-	int plen = 0;
+	struct trec tr = {
+		.buf = "",
+		.sep = 0,
+		.len = 0,
+		.uid = 0,
+		.euid = 0
+	};
 
-	dump_proc(bo, ps, pref, plen);
-
-	dump_rec(ctx, ps->ridx, pref, plen);
+	dump_proc(ctx, bo, &tr, ps);
+	dump_rec(ctx, &tr, ps->ridx);
 }
 
 static void dump_kernel(CTX)
