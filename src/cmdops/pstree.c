@@ -8,7 +8,7 @@
 #include <output.h>
 #include <util.h>
 
-ERRTAG("ps");
+ERRTAG("pstree");
 
 #define OPTS "k"
 #define OPT_k (1<<0)
