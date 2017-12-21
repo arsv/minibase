@@ -5,7 +5,6 @@
 #include <errtag.h>
 #include <format.h>
 #include <string.h>
-#include <printf.h>
 #include <output.h>
 #include <util.h>
 
@@ -22,9 +21,12 @@ struct proc {
 	int uid;
 	int euid;
 
-	/* both *idx nodes are indexes into top.procs[] */
+	/* idx nodes are indexes into top.procs[] */
+	int pidx; /* parent node */
 	int ridx; /* right, first child */
 	int didx; /* down, next sibling */
+
+	int mark;
 
 	char name[];
 };
@@ -186,8 +188,10 @@ static void parse_status(CTX, char* buf, int len)
 	ps->uid = uid;
 	ps->euid = euid;
 
+	ps->pidx = -1;
 	ps->ridx = -1;
 	ps->didx = -1;
+	ps->mark = 0;
 
 	memcpy(ps->name, name, nlen + 1);
 
@@ -279,6 +283,8 @@ static void build_ps_tree(CTX)
 			if(psj->ppid != pid)
 				continue;
 
+			psj->pidx = i;
+
 			if(ridx < 0)
 				ridx = j;
 			if(chi)
@@ -289,6 +295,100 @@ static void build_ps_tree(CTX)
 
 		psi->ridx = ridx;
 	}
+}
+
+/* Selective output, only show nodes with given names and
+   the branches leading to them. This is done by marking
+   the nodes we want to see and re-linking the tree to remove
+   everything else. */
+
+static void mark_upwards(CTX, int i)
+{
+	struct proc** idx = ctx->procs;
+
+	while(i >= 0) {
+		struct proc* ps = idx[i];
+
+		if(ps->mark) break;
+
+		ps->mark = 1;
+
+		i = ps->pidx;
+	}
+}
+
+static void find_mark_upwards(CTX, char* name)
+{
+	int i, nprocs = ctx->nprocs;
+	struct proc** idx = ctx->procs;
+	int nlen = strlen(name);
+
+	for(i = 0; i < nprocs; i++)
+		if(!strncmp(name, idx[i]->name, nlen))
+			mark_upwards(ctx, i);
+}
+
+static void trim_subtree(CTX, int pi)
+{
+	struct proc** idx = ctx->procs;
+	struct proc* pp = idx[pi];
+
+	int i = pp->ridx;
+	int last = -1;
+
+	while(i >= 0) {
+		struct proc* ps = idx[i];
+
+		if(!ps->mark)
+			goto next;
+
+		if(last < 0)
+			pp->ridx = i;
+		else
+			idx[last]->didx = i;
+
+		last = i;
+
+		if(ps->ridx >= 0)
+			trim_subtree(ctx, i);
+
+		next: i = ps->didx;
+	}
+
+	if(last >= 0)
+		idx[last]->didx = -1;
+	else
+		pp->ridx = -1;
+}
+
+static void trim_unmarked_branches(CTX)
+{
+	int i, nprocs = ctx->nprocs;
+	struct proc** idx = ctx->procs;
+
+	for(i = 0; i < nprocs; i++) {
+		struct proc* ps = idx[i];
+
+		if(ps->ppid)
+			continue;
+		if(!ps->mark)
+			continue;
+		if(ps->ridx < 0)
+			continue;
+
+		trim_subtree(ctx, i);
+	}
+}
+
+static void only_leave_named(CTX, int nargs, char** args)
+{
+	if(nargs <= 0)
+		return;
+
+	for(int i = 0; i < nargs; i++)
+		find_mark_upwards(ctx, args[i]);
+
+	trim_unmarked_branches(ctx);
 }
 
 /* User name resolution */
@@ -535,6 +635,8 @@ int main(int argc, char** argv)
 	read_proc_list(ctx);
 
 	build_ps_tree(ctx);
+
+	only_leave_named(ctx, argc - i, argv + i);
 
 	dump_proc_list(ctx);
 
