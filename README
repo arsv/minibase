@@ -30,7 +30,7 @@ Some tools are missing, and some still need work.
   * Support tooling for disc encryption (dektool, dmcrypt)
   - No fsck for any fs yet.
   
-  * Process supervisor suite (init, super, reboot, svc),
+  * Process supervisor suite (init, super, reboot, svctl),
     split-stage implementation similar to daemontools or runit.
   
   * udevd stub.
@@ -58,11 +58,10 @@ alone, up to the point where it's ready to download, install and start GUI.
 Quickstart
 ~~~~~~~~~~
 Bootable images for Qemu: https://github.com/arsv/minibase-br/releases
-Get sys-crypt, inspect and run supplied script.
-Check README in that repository.
+Get sys-crypt, inspect and run supplied script. The password is "swordfish".
+Check README in that repository on how to use it.
 
 Start reading the sources at temp/compat, src/cmdops, src/debug.
-Build, strip and strace the tools.
 
 
 How to build and try the tools
@@ -94,7 +93,7 @@ Just how small exactly?
 ~~~~~~~~~~~~~~~~~~~~~~~
 The largest individual executable so far is wsupp, the WPA supplicant.
 Statically linked for x86_64, it's about 27 KiB in size. Realistically
-it also needs ifmon (20 KiB) to work, and the client tool, wifi (12 KiB).
+it also needs ifmon (20 KiB) to work, and the client tool wifi (12 KiB).
 
 The second largest executable is passblk (21 KiB), initrd-only tool
 that prompts for passphrase and sets up encrypted block devices.
