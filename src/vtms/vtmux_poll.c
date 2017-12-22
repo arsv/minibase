@@ -180,7 +180,7 @@ static int update_poll_fds(void)
 
 void check_polled_fds(int n)
 {
-	uint i;
+	int i;
 
 	recv_ctrl(&pfds[0]);
 
@@ -202,7 +202,7 @@ void check_polled_fds(int n)
 
 void poll_inputs(void)
 {
-	int ret, n;
+	int ret, n = 0;
 
 	pollset = 0;
 
