@@ -135,7 +135,7 @@ static void fill_key_data(struct keyfile* kf, int total)
 	kf->len = total;
 }
 
-static void append_key_data(struct keyfile* kf, int need)
+static void append_key_data(struct keyfile* kf, uint need)
 {
 	if(kf->len + need > sizeof(kf->buf))
 		fail("not enough space in keyfile", NULL, 0);

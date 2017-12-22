@@ -212,7 +212,7 @@ static int guess_num_cpus(void)
 	if((ret = sys_sched_getaffinity(0, &cs)) < 0)
 		return 1;
 
-	int w, b, cpus = 0;
+	uint w, b, cpus = 0;
 
 	for(w = 0; w < ARRAY_SIZE(cs.bits); w++)
 		for(b = 0; b < 8*sizeof(cs.bits[0]); b++)

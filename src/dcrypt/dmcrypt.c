@@ -301,7 +301,7 @@ static void prepare_device(struct device* dev, char* arg, int* ki)
 static void setup_devices(int n, char** reqs, int opts)
 {
 	struct device devs[n];
-	int ret, i, kidx = 1;
+	int ret = 0, i, kidx = 1;
 
 	memzero(devs, sizeof(devs));
 
