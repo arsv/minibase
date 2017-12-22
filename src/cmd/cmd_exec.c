@@ -172,7 +172,7 @@ static void spawn(CTX, char* exe, char** argv)
 		_exit(child(exe, argv, ctx->envp));
 
 	while((rd = sys_read(fd, &se, sizeof(se))) > 0) {
-		if(rd < sizeof(se))
+		if(rd < (int)sizeof(se))
 			quit(ctx, "bad sigevent size", NULL, rd);
 
 		if(se.signo == SIGINT)

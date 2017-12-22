@@ -98,7 +98,7 @@ static void recv_sigfd(CTX)
 
 	if((rd = sys_read(fd, &se, sizeof(se))) < 0)
 		quit(ctx, "read", "signalfd", rd);
-	if(rd < sizeof(se))
+	if(rd < (int)sizeof(se))
 		quit(ctx, "bad sigevent size", NULL, rd);
 
 	switch(se.signo) {
