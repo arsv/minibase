@@ -344,7 +344,7 @@ static void list_all_inputs(int opts)
 
 			if((id = name2id(de->name)) < 0)
 				continue;
-			if(id > 8*sizeof(mask))
+			if(id > (int)(8*sizeof(mask)))
 				continue;
 
 			mask[id/8] |= (1 << (id%8));
