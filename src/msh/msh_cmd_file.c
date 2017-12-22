@@ -7,18 +7,15 @@
 #include "msh.h"
 #include "msh_cmd.h"
 
-static int wflags(CTX, char* str, int* dst)
+static int wflags(CTX, char* str, int* flags)
 {
-	int flags = O_WRONLY;
-
 	switch(str[0]) {
-		case '\0': flags |= O_CREAT | O_TRUNC; break;
-		case 'a':  flags |= O_CREAT | O_APPEND; break;
+		case '\0': *flags |= O_CREAT | O_TRUNC; break;
+		case 'a':  *flags |= O_CREAT | O_APPEND; break;
 		case 'x': break;
 		default: return error(ctx, "open", "unknown flags", 0);
 	}
 
-	*dst = flags;
 	return 0;
 }
 
@@ -40,7 +37,7 @@ static int open_onto_fd(CTX, int tofd, char* name, int fl, int md)
 static int open_output(CTX, int tofd)
 {
 	char* name;
-	int flags;
+	int flags = O_WRONLY;
 
 	if(noneleft(ctx))
 		return -1;
