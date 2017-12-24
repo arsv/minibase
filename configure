@@ -3,7 +3,7 @@
 arch=
 cross=
 
-unset cc ar strip tp lto skip
+unset cc ar strip tp lto
 
 commanddir=/sbin
 servicedir=/sbin/service
@@ -18,23 +18,23 @@ cflags=-Os
 
 die() { echo "$@" >&2; exit 1; }
 
-for arg in "$@"; do
-	case "$arg" in
+while [ $# -gt 0 ]; do
+	case "$1" in
 		*dir=*) eval "$arg" ;;
 		cross=*) eval "$arg" ;;
 		x86_64|arm|arm64|riscv) arch=$arg ;;
 		cc=*) eval "$arg" ;;
 		ar=*) eval "$arg" ;;
 		strip=*) eval "$arg" ;;
-		skip=*) eval "$arg" ;;
 		clang) clang=yes ;;
 		devel) cflags="-Wall -g -DDEVEL" ;;
 		debug) cflags="-Os -g" ;;
 		wextra) cflags="$cflags -Wextra" ;;
 		werror) cflags="$cflags -Werror" ;;
 		lto) lto="-flto " ;;
+		only) shift; only="$@"; break ;;
 		*) die "Unexpected argument $arg" ;;
-	esac
+	esac; shift
 done
 
 test -z "$ar" && ar="${cross:+$cross-}ar"
@@ -58,8 +58,6 @@ if [ -z "$arch" ]; then
 	test -d "lib/arch/$arch" || die "Unsupported arch $arch"
 fi
 
-skip="${skip/,/ }"
-
 cat > config.mk <<END
 ARCH = $arch
 
@@ -77,9 +75,14 @@ systemdir = $systemdir
 man1dir = $man1dir
 man5dir = $man5dir
 man8dir = $man8dir
-
-skip = $skip
 END
+
+if [ -n "$only" ]; then
+cat >> config.mk <<END
+
+only = $only
+END
+fi
 
 cat > mini-cc <<END
 #!/bin/sh

@@ -9,10 +9,6 @@ include $/config.mk
 
 subdirs := $(dir $(sort $(wildcard */Makefile)))
 
-ifdef skip
-subdirs := $(filter-out $(patsubst %,%/,$(skip)),$(subdirs))
-endif
-
 build := $(patsubst %,build-%,$(subdirs)) 
 clean := $(patsubst %,clean-%,$(subdirs)) clean-hello
 install := $(patsubst %,install-%,$(subdirs))
