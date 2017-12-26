@@ -12,6 +12,12 @@
 
 #include "cmd.h"
 
+/* Exec and built-ins. The parser calls execute(argc,argv) and this
+   code decides what to do with those.
+
+   Everything here happens with the terminal already in canonical
+   mode and the cursor at the start of an empty line. */
+
 static void cmd_echo(CTX, int argc, char** argv)
 {
 	if(argc < 2)
@@ -188,6 +194,12 @@ static void spawn(CTX, char* exe, char** argv)
 	if(WIFSIGNALED(status))
 		warn("killed by signal", NULL, WTERMSIG(status));
 }
+
+/* Interactive shell gets to deal with mistyped commands a lot,
+   and should handle them well. The code below is effectively execvpe()
+   but it does access() check before trying to fork. This way there's no
+   extra fork() if there's nothing to exec, and no confusion between exec
+   failures and abnormal exit of the command being run. */
 
 static int try_cmd_at(CTX, char** argv, char* ds, char* de)
 {

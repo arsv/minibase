@@ -13,21 +13,21 @@
 #include "cmd.h"
 #include "unicode.h"
 
-static void enter_term(CTX);
-static void leave_term(CTX);
-
-/* Input handling a-la readline or libedit. We try hard to keep the edits
-   on a single line to avoid dealing with terminal quirks when it comes to
-   backspacing across a line wrap. Which is outright broken in the Linux
-   console for instance.
+/* Input handling a-la readline or libedit. The code tries to keep the text
+   being edited on a single line to avoid dealing with terminal quirks when
+   it comes to backspacing across a line wrap. Which is outright broken
+   in the Linux console for instance.
 
                                         v-- cur = cursor position
        /home/alex/devel> stat ~/some/pat▒/here.c...........
    buf-^                 ^sep                   ^ptr       ^max
 
-   The line itself may be very long, only the part between show and ends
-   is visible on the screen. All offsets are byte offsets; viswi and cols
-   count visual character cells. */
+   The line itself may be very long, only the part between $show and $ends
+   is visible on the screen. All offsets are byte offsets; $viswi and $cols
+   count visual character positions. */
+
+static void enter_term(CTX);
+static void leave_term(CTX);
 
 static void flush(CTX)
 {
@@ -58,7 +58,8 @@ static void outraw(CTX, char* buf, int len)
 
 static void outbuf(CTX, int from, int to)
 {
-	/* TODO: range checks */
+	/* may be worth checking ranges here, although it should
+	   never be called with invalid values */
 	outraw(ctx, ctx->buf + from, to - from);
 }
 

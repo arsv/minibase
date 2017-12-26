@@ -9,10 +9,11 @@
 #include "cmd.h"
 #include "unicode.h"
 
-/* Tab completition, filenames only. On the first keypress, relevant
-   directories are scanned and full basenames of possible options are
-   stored in struct tabtab, sorted and indexed. The second Tab dumps
-   the stored index.
+/* Tab completition, commands and filenames only.
+   
+   On the first keypress, relevant directories are scanned and full
+   basenames of possible options are stored in struct tabtab, sorted
+   and indexed. The second Tab dumps the stored index.
 
    The mmaped block in TT may need to grow. To avoid the hassle of
    keeping pointers valid across mremap, only offsets are stored.
