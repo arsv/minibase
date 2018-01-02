@@ -17,9 +17,3 @@ _exit:
 	movq    %rcx, %r10
 	syscall
 	hlt
-
-.type _exit,@function
-.size _exit,.-_exit
-
-.type _start,@function
-.size _start,_exit-_start

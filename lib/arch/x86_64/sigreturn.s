@@ -6,5 +6,4 @@ sigreturn:
 	movq    $NR_rt_sigreturn, %rax
 	syscall
 
-.type sigreturn,@function
 .size sigreturn,.-sigreturn
