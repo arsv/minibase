@@ -1,6 +1,7 @@
+#include <bits/ints.h>
 #include <format.h>
 
-char* fmtxlong(char* buf, char* end, long num)
+char* fmtx64(char* buf, char* end, uint64_t num)
 {
 	static const char digits[] = "0123456789ABCDEF";
 
@@ -13,10 +14,20 @@ char* fmtxlong(char* buf, char* end, long num)
 	int i;
 	char* e = buf + len;
 	char* p = e - 1; /* len >= 1 so e > buf */
-	
+
 	for(i = 0; i < len; i++, p--, num >>= 4)
 		if(p < end)
 			*p = digits[num & 0x0F];
 
-	return e; 
+	return e;
 }
+
+#if BITS == 64
+
+char* fmtxlong(char* buf, char* end, ulong num)
+	__attribute__((alias("fmtx64")));
+
+char* fmtxint(char* buf, char* end, uint num)
+	__attribute__((alias("fmtx64")));
+
+#endif

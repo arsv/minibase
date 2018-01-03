@@ -28,15 +28,18 @@ char* fmtbytes(char* p, char* e, const void* data, uint len);
 
 char* fmti32(char* p, char* e,  int32_t num);
 char* fmtu32(char* p, char* e, uint32_t num);
+char* fmtx32(char* p, char* e, uint32_t num);
 
 char* fmti64(char* p, char* e,  int64_t num);
 char* fmtu64(char* p, char* e, uint64_t num);
+char* fmtx64(char* p, char* e, uint64_t num);
 
 char* fmtint(char* p, char* e, int num);
 char* fmtuint(char* p, char* e, uint num);
+char* fmtxint(char* p, char* e, uint num);
 char* fmtlong(char* p, char* e, long num);
 char* fmtulong(char* p, char* e, ulong num);
-char* fmtxlong(char* p, char* e, long num);
+char* fmtxlong(char* p, char* e, ulong num);
 char* fmthex(char* p, char* e, uint n);
 char* fmtpad(char* p, char* e, int width, char* q);
 char* fmtpad0(char* p, char* e, int width, char* q);
