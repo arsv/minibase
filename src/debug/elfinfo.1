@@ -1,0 +1,40 @@
+.TH elfinfo 1
+'''
+.SH NAME
+\fBelfinfo\fR \- dump some ELF file information
+'''
+.SH SYNOPSIS
+\fBelfinfo\fR \fIcommand\fR \fIfile\fR
+.P
+Available commands:
+.P
+.IP "\fBinterp\fR (also \fBld\fR)" 4
+Show program interpreter aka dynamic linker.
+.IP "\fBsoname\fR (also \fBso\fR)" 4
+Show soname of a dynamic library.
+.IP "\fBneeded\fR (also \fBlibs\fR)" 4
+List dynamic libraries needed to run this file.
+.IP "\fBsections\fR (also \fBsec\fR)" 4
+Dump sections table.
+.IP "\fBprogram\fR (also \fBprog\fR)" 4
+Dump program table.
+.IP "\fBdynamic\fR (also \fBdyn\fR" 4
+Dump dynamic table.
+.IP "\fBsymbols\fR (also \fBsym\fR)" 4
+List symbols in the file. This command skips file and sections symbols.
+.IP "\fBsources\fR (also \fBsrc\fR)" 4
+List source file names.
+'''
+.SH DESCRIPTION
+This tool does little more than decoding and formatting the structures
+of an ELF file. Refer to the ELF specification for meaning of that data.
+.P
+PIEs (position-independent executables) are dynamic libraries in ELF terms,
+not executables.
+'''
+.SH SEE ALSO
+\fBreadelf\fR(1) from GNU binutils.
+.P
+Executable and Linking Format (ELF) Specification,
+.br
+http://refspecs.linuxbase.org/elf/elf.pdf
