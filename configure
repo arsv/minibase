@@ -1,9 +1,6 @@
 #!/bin/sh
 
-arch=
-cross=
-
-unset cc ar strip tp lto
+unset arch cross cc ar strip tp lto
 
 commanddir=/sbin
 servicedir=/sbin/service
@@ -20,12 +17,12 @@ die() { echo "$@" >&2; exit 1; }
 
 while [ $# -gt 0 ]; do
 	case "$1" in
-		*dir=*) eval "$arg" ;;
-		cross=*) eval "$arg" ;;
-		x86_64|arm|arm64|riscv) arch=$arg ;;
-		cc=*) eval "$arg" ;;
-		ar=*) eval "$arg" ;;
-		strip=*) eval "$arg" ;;
+		*dir=*) eval "$1" ;;
+		cross=*) eval "$1" ;;
+		x86_64|arm|arm64|riscv) arch=$1 ;;
+		cc=*) eval "$1" ;;
+		ar=*) eval "$1" ;;
+		strip=*) eval "$1" ;;
 		clang) clang=yes ;;
 		devel) cflags="-Wall -g -DDEVEL" ;;
 		debug) cflags="-Os -g" ;;
@@ -33,7 +30,7 @@ while [ $# -gt 0 ]; do
 		werror) cflags="$cflags -Werror" ;;
 		lto) lto="-flto " ;;
 		only) shift; only="$@"; break ;;
-		*) die "Unexpected argument $arg" ;;
+		*) die "Unexpected argument $1" ;;
 	esac; shift
 done
 
