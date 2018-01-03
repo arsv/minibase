@@ -80,7 +80,7 @@ inline static long sys_seek(int fd, int64_t off)
 	int32_t lo = (int32_t)off;
 	long ret;
 
-	return syscall(NR__llseek, fd, hi, lo, &pos, SEEK_SET);
+	return syscall5(NR__llseek, fd, hi, lo, (long)&pos, SEEK_SET);
 }
 #else
 inline static long sys_seek(int fd, int64_t off)
@@ -104,7 +104,7 @@ inline static long sys_llseek(int fd, int64_t off, int64_t* pos, int whence)
 	int32_t lo = (int32_t)off;
 	long ret;
 
-	return syscall(NR__llseek, fd, hi, lo, pos, whence);
+	return syscall5(NR__llseek, fd, hi, lo, (long)pos, whence);
 }
 #else
 inline static long sys_llseek(int fd, int64_t off, int64_t* pos, int whence)
@@ -163,8 +163,8 @@ inline static long sys_pipe2(int* fds, int flags)
 inline static long sys_pread(int fd, void* buf, ulong len, uint64_t off)
 {
 #if BITS == 32
-	union { uint64_t ll, long l[2] } x = { .ll = off };
-	return syscall5(NR_pread, fd, buf, len, x.l[0], x.l[1]);
+	union { uint64_t ll; long l[2]; } x = { .ll = off };
+	return syscall5(NR_pread64, fd, (long)buf, len, x.l[0], x.l[1]);
 #else
 	return syscall4(NR_pread, fd, (long)buf, (long)len, off);
 #endif
@@ -173,8 +173,8 @@ inline static long sys_pread(int fd, void* buf, ulong len, uint64_t off)
 inline static long sys_pwrite(int fd, void* buf, ulong len, uint64_t off)
 {
 #if BITS == 32
-	union { uint64_t ll, long l[2] } x = { .ll = off };
-	return syscall5(NR_pwrite, fd, buf, len, x.l[0], x.l[1]);
+	union { uint64_t ll; long l[2]; } x = { .ll = off };
+	return syscall5(NR_pwrite64, fd, (long)buf, len, x.l[0], x.l[1]);
 #else
 	return syscall4(NR_pwrite, fd, (long)buf, (long)len, off);
 #endif
