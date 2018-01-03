@@ -18,13 +18,13 @@
 
 struct tm;
 
-char* fmtraw(char* p, char* e, void* data, int len);
+char* fmtraw(char* p, char* e, const void* data, int len);
 
 char* fmterr(char* p, char* e, int err);
 
 char* fmtchar(char* p, char* e, char c);
 char* fmtbyte(char* p, char* e, char c);
-char* fmtbytes(char* p, char* e, void* data, uint len);
+char* fmtbytes(char* p, char* e, const void* data, uint len);
 
 char* fmti32(char* p, char* e,  int32_t num);
 char* fmtu32(char* p, char* e, uint32_t num);

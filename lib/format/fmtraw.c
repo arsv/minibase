@@ -1,7 +1,7 @@
 #include <format.h>
 #include <string.h>
 
-char* fmtraw(char* p, char* e, void* data, int len)
+char* fmtraw(char* p, char* e, const void* data, int len)
 {
 	if(len > e - p)
 		len = e - p;
