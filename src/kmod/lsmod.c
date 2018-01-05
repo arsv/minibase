@@ -20,6 +20,8 @@ struct lineidx {
 	char** s;
 };
 
+char outbuf[PAGE];
+
 static void nomem(void)
 {
 	fail("cannot allocate memory", NULL, 0);
@@ -175,15 +177,21 @@ static int strpeq(struct strptr* str, char* a)
 	return !strncmp(str->ptr, a, strplen(str));
 }
 
-static void writestr(struct strptr* str)
+static void outstr(struct bufout* bo, struct strptr* str)
 {
-	writeout(str->ptr, strplen(str));
+	bufout(bo, str->ptr, strplen(str));
 }
 
 static void list_mods(struct strptr* mods)
 {
 	struct lineidx lx;
 	char* end = mods->end;
+	struct bufout bo = {
+		.fd = STDOUT,
+		.buf = outbuf,
+		.ptr = 0,
+		.len = sizeof(outbuf)
+	};
 
 	index_lines(&lx, mods);
 
@@ -196,7 +204,7 @@ static void list_mods(struct strptr* mods)
 		if((n = split(ls, le, parts, 5)) < 4)
 			continue;
 
-		writestr(&parts[0]);
+		outstr(&bo, &parts[0]);
 
 		if(strpeq(&parts[2], "0"))
 			goto nl;
@@ -205,15 +213,15 @@ static void list_mods(struct strptr* mods)
 		if(strplen(&parts[3]) <= 1)
 			goto nl;
 
-		writeout(" (", 2);
+		bufout(&bo, " (", 2);
 		parts[3].end--; /* skip trailing comma */
-		writestr(&parts[3]);
-		writeout(")", 1);
+		outstr(&bo, &parts[3]);
+		bufout(&bo, ")", 1);
 	nl:
-		writeout("\n", 1);
+		bufout(&bo, "\n", 1);
 	}
 
-	flushout();
+	bufoutflush(&bo);
 }
 
 int main(void)
