@@ -15,17 +15,17 @@
 
 ERRTAG("df");
 
+struct top {
+	struct bufout bo;
+	char* statfile;
+	char* statdev;
+	int opts;
+};
+
+#define CTX struct top* ctx
+
 char minbuf[4096]; /* mountinfo */
-
-long xopen(const char* fname, int flags)
-{
-	return xchk(sys_open(fname, flags), "cannot open", fname);
-}
-
-void xwriteout(char* buf, int len)
-{
-	xchk(writeout(buf, len), "write", NULL);
-}
+char outbuf[4096];
 
 static char* fmt4is(char* p, char* e, int n)
 {
@@ -77,6 +77,16 @@ static char* fmtmem(char* p, char* e, unsigned long n, int mu)
 	return p;
 }
 
+static void output(CTX, const char* buf, int len)
+{
+	bufout(&ctx->bo, (char*)buf, len);
+}
+
+static void outstr(CTX, const char* str)
+{
+	output(ctx, str, strlen(str));
+}
+
 /* The output should look like something like this:
 
    Size   Used    Free         Mountpoint
@@ -84,7 +94,7 @@ static char* fmtmem(char* p, char* e, unsigned long n, int mu)
 
    The numbers should be aligned on decimal point. */
 
-static void wrheader()
+static void init_output(CTX)
 {
 	static const char hdr[] =
 	    /* |1234.1x_| */
@@ -95,7 +105,19 @@ static void wrheader()
 	       "    Use   "
 	       "Mountpoint\n";
 
-	xwriteout((char*)hdr, sizeof(hdr));
+	struct bufout* bo = &ctx->bo;
+
+	bo->fd = STDOUT;
+	bo->buf = outbuf;
+	bo->ptr = 0;
+	bo->len = sizeof(outbuf);
+
+	output(ctx, hdr, sizeof(hdr));
+}
+
+static void fini_output(CTX)
+{
+	bufoutflush(&ctx->bo);
 }
 
 static char* fmtstatfs(char* p, char* e, struct statfs* st)
@@ -131,32 +153,30 @@ static char* fmtstatfs(char* p, char* e, struct statfs* st)
    the output lines are consistent (i.e. the numbers do in fact correspond
    to the mountpoint shown). */
 
-static void reportfs(char* statfile, char* mountpoint, int opts)
+static void reportfs(CTX, char* mountpoint)
 {
 	struct statfs st;
-	char* tag = mountpoint ? mountpoint : statfile;
+	int opts = ctx->opts;
+	char* file = mountpoint ? mountpoint : ctx->statfile;
+	int ret;
 
-	xchk(sys_statfs(tag, &st), "statfs", tag);
-
+	if((ret = sys_statfs(file, &st)) < 0)
+		fail("statfs", file, ret);
 	if(!st.blocks && !(opts & SET_x))
 		return;
 
-	char buf[100];
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
-
+	FMTBUF(p, e, buf, 100);
 	p = fmtstatfs(p, e, &st);
+	FMTEND(p, e);
 
-	xwriteout(buf, p - buf);
+	output(ctx, buf, p - buf);
 
-	if(mountpoint) {
-		xwriteout(mountpoint, strlen(mountpoint));
-	} else {
-		xwriteout("? ", 2);
-		xwriteout(statfile, strlen(statfile));
-	}
+	if(!mountpoint)
+		outstr(ctx, "? ");
 
-	xwriteout("\n", 1);
+	outstr(ctx, file);
+
+	outstr(ctx, "\n");
 }
 
 /* Device major 0 means virtual. Used/free space counts are meaningless
@@ -167,16 +187,20 @@ static void reportfs(char* statfile, char* mountpoint, int opts)
    and stuff that's completely virtual like cgroups fs and such.
    Those are filtered out in reportfs on f_blocks = 0. */
 
-static int checkdev(char* dev, int opts)
+static int skipdev(CTX, char* dev)
 {
+	char* statdev = ctx->statdev;
+	int opts = ctx->opts;
 	int nodev = (dev[0] == '0' && dev[1] == ':');
 
+	if(statdev)
+		return strcmp(dev, statdev);
 	if(nodev && !(opts & (OPT_a | OPT_m)))
-		return 0;
+		return 1;
 	if(!nodev && (opts & OPT_m))
-		return 0;
+		return 1;
 
-	return 1;
+	return 0;
 }
 
 /* The data is reported by reading /proc/self/mountinfo linewise,
@@ -222,15 +246,18 @@ static int splitline(char* line, char** parts, int n)
 	return (i < n);
 }
 
-static void scanall(char* statfile, const char* dev, int opts)
+static void scanall(CTX)
 {
-	const char* mountinfo = "/proc/self/mountinfo";
-	long fd = xchk(sys_open(mountinfo, O_RDONLY), "cannot open", mountinfo);
-	long rd;
-	long of = 0;
+	const char* name = "/proc/self/mountinfo";
+	long fd, rd, off = 0;
+	char* buf = minbuf;
+	int buflen = sizeof(minbuf);
 	char* mp[MP];
 
-	while((rd = sys_read(fd, minbuf + of, sizeof(minbuf) - of)) > 0) {
+	if((fd = sys_open(name, O_RDONLY)) < 0)
+		fail(NULL, name, fd);
+
+	while((rd = sys_read(fd, buf + off, buflen - off)) > 0) {
 		char* p = minbuf;
 		char* e = minbuf + rd;
 		char* q;
@@ -244,28 +271,31 @@ static void scanall(char* statfile, const char* dev, int opts)
 			char* linedev = mp[2];
 			char* linemp = mp[4];
 
-			if(!dev && checkdev(linedev, opts)) {
-				reportfs(linemp, linemp, opts);
-			} else if(dev && !strcmp(linedev, dev)) {
-				reportfs(statfile, linemp, opts);
+			if(skipdev(ctx, linedev))
+				continue;
+
+			reportfs(ctx, linemp);
+
+			if(ctx->statdev)
 				goto done;
-			}
 		} if(p < e) {
-			of = e - p;
-			memcpy(minbuf, p, of);
+			off = e - p;
+			memcpy(buf, p, off);
 		}
+
+		if(rd < buflen - off) break;
 	}
-
 	/* specific file was given but we could not find the mountpoint */
-	if(dev) reportfs(statfile, NULL, opts);
-
-done:	sys_close(fd);
+	if(ctx->statdev)
+		reportfs(ctx, NULL);
+done:
+	sys_close(fd);
 }
 
 /* statfs(file) provides all the data needed except for mountpoint, which
    we've got to fish out of /proc/self/mountinfo using device maj:min
    reported by stat(fs) as the key.
-   
+
    This only applies to explicit file arguments of course. */
 
 static char* fmtdev(char* p, char* e, uint64_t dev)
@@ -280,36 +310,43 @@ static char* fmtdev(char* p, char* e, uint64_t dev)
 	return p;
 }
 
-static void scan(char* statfile, int opts)
+static void scan(CTX, char* statfile)
 {
+	int ret;
 	struct stat st;
 
-	char buf[20];
-	char* end = buf + sizeof(buf) - 1;
+	if((ret = sys_stat(statfile, &st)) < 0)
+		fail(NULL, statfile, ret);
 
-	xchk(sys_stat(statfile, &st), "cannot stat", statfile);
+	FMTBUF(p, e, buf, 20);
+	p = fmtdev(p, e, st.dev);
+	FMTEND(p, e);
 
-	char* p = fmtdev(buf, end, st.dev); *p++ = '\0';
+	ctx->opts |= SET_x;
+	ctx->statfile = statfile;
+	ctx->statdev = buf;
 
-	scanall(statfile, buf, opts);
+	scanall(ctx);
 }
 
 int main(int argc, char** argv)
 {
-	int opts = 0;
+	struct top context, *ctx = &context;
 	int i = 1;
 
-	if(i < argc && argv[i][0] == '-')
-		opts = argbits(OPTS, argv[i++] + 1);
+	memzero(ctx, sizeof(*ctx));
 
-	wrheader();
+	if(i < argc && argv[i][0] == '-')
+		ctx->opts = argbits(OPTS, argv[i++] + 1);
+
+	init_output(ctx);
 
 	if(i >= argc)
-		scanall(NULL, NULL, opts);
+		scanall(ctx);
 	else for(; i < argc; i++)
-		scan(argv[i], opts | SET_x);
+		scan(ctx, argv[i]);
 
-	flushout();
+	fini_output(ctx);
 
 	return 0;
 }
