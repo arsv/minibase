@@ -14,8 +14,9 @@
 ERRTAG("genlfams");
 
 char rxbuf[4096];
+char outbuf[4096];
 
-static void dump_group(struct nlattr* mg)
+static void dump_group(struct bufout* bo, struct nlattr* mg)
 {
 	char buf[200];
 	char* p = buf;
@@ -33,10 +34,10 @@ static void dump_group(struct nlattr* mg)
 	p = fmtstr(p, e, name);
 	*p++ = '\n';
 
-	writeout(buf, p - buf);
+	bufout(bo, buf, p - buf);
 }
 
-static void dump_groups(struct nlgen* msg)
+static void dump_groups(struct bufout* bo, struct nlgen* msg)
 {
 	struct nlattr* mg;
 	struct nlattr* at;
@@ -45,11 +46,11 @@ static void dump_groups(struct nlgen* msg)
 		return;
 
 	for(at = nl_sub_0(mg); at; at = nl_sub_n(mg, at))
-		dump_group(at);
+		dump_group(bo, at);
 }
 
 
-static void dump_family(struct nlgen* msg)
+static void dump_family(struct bufout* bo, struct nlgen* msg)
 {
 	char buf[100];
 	char* p = buf;
@@ -67,9 +68,9 @@ static void dump_family(struct nlgen* msg)
 	p = fmtstr(p, e, name);
 	*p++ = '\n';
 
-	writeout(buf, p - buf);
+	bufout(bo, buf, p - buf);
 
-	dump_groups(msg);
+	dump_groups(bo, msg);
 }
 
 int main(void)
@@ -89,10 +90,17 @@ int main(void)
 	if((ret = nl_send_dump(&nl)) < 0)
 		fail("send", NULL, ret);
 
-	while((msg = nl_recv_genl_multi(&nl)))
-		dump_family(msg);
+	struct bufout bo = {
+		.fd = STDOUT,
+		.buf = outbuf,
+		.ptr = 0,
+		.len = sizeof(outbuf)
+	};
 
-	flushout();
+	while((msg = nl_recv_genl_multi(&nl)))
+		dump_family(&bo, msg);
+
+	bufoutflush(&bo);
 
 	return 0;
 }
