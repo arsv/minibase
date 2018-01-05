@@ -27,7 +27,19 @@ struct sym {
 	uint64_t size;
 };
 
-static void load_symbol(CTX, struct sym* sm, void* ptr)
+#define SH struct shdr* sh
+#define SM struct sym* sm
+#define PAD struct ypad* pad
+
+static int symbol_stride(CTX)
+{
+	if(ctx->elf64)
+		return sizeof(struct elf64sym);
+	else
+		return sizeof(struct elf32sym);
+}
+
+static void load_symbol(CTX, SM, void* ptr)
 {
 	int elf64 = ctx->elf64;
 	int elfxe = ctx->elfxe;
@@ -60,7 +72,7 @@ static int hex_digits_in(uint64_t x)
 	return n;
 }
 
-static void prep_symbol(CTX, struct sym* sm, struct ypad* pad)
+static void prep_symbol(CTX, SM, PAD)
 {
 	int addr = hex_digits_in(sm->addr);
 	int size = dec_digits_in(sm->size);
@@ -71,7 +83,7 @@ static void prep_symbol(CTX, struct sym* sm, struct ypad* pad)
 		pad->size = size;
 }
 
-static void prep_symbol_padding(CTX, struct shdr* sh, struct ypad* pad)
+static void prep_symbol_padding(CTX, SH, PAD)
 {
 	int elf64 = ctx->elf64;
 	void* ptr = ctx->buf + sh->offset;
@@ -85,7 +97,7 @@ static void prep_symbol_padding(CTX, struct shdr* sh, struct ypad* pad)
 	}
 }
 
-static char* fmt_addr(char* p, char* e, struct sym* sm, struct ypad* pad)
+static char* fmt_addr(char* p, char* e, SM, PAD)
 {
 	if(sm->shndx) {
 		p = fmtstr(p, e, "0x");
@@ -98,7 +110,7 @@ static char* fmt_addr(char* p, char* e, struct sym* sm, struct ypad* pad)
 	return p;
 }
 
-static char* fmt_info(char* p, char* e, struct sym* sm)
+static char* fmt_info(char* p, char* e, SM)
 {
 	uint32_t info = sm->info;
 	int bind = ELF_SYM_BIND(info);
@@ -146,7 +158,7 @@ static char* fmt_name(char* p, char* e, uint32_t off, CTX)
 	return p;
 }
 
-static void dump_source(CTX, struct sym* sm)
+static void dump_source(CTX, SM)
 {
 	const char* str;
 
@@ -159,7 +171,7 @@ static void dump_source(CTX, struct sym* sm)
 	output(ctx, "\n", 1);
 }
 
-static void dump_symbol(CTX, struct sym* sm, struct ypad* pad)
+static void dump_symbol(CTX, SM, PAD)
 {
 	FMTBUF(p, e, buf, 100);
 
@@ -183,23 +195,30 @@ static void dump_symbol(CTX, struct sym* sm, struct ypad* pad)
 	ctx->count++;
 }
 
-static void dump_source_section(CTX, struct shdr* sh)
+static int special_symbol_type(SM)
 {
-	int elf64 = ctx->elf64;
+	int type = ELF_SYM_TYPE(sm->info);
+
+	if(!sm->info && !sm->name)
+		return 1; /* skip empty symbols */
+	if(type == STT_FILE || type == STT_SECTION)
+		return 1; /* skip sources and sections */
+
+	return 0;
+}
+
+static void dump_source_section(CTX, SH)
+{
 	void* ptr = ctx->buf + sh->offset;
 	void* end = ptr + sh->size;
-	int stride = elf64 ? sizeof(struct elf64sym) : sizeof(struct elf32sym);
+	int stride = symbol_stride(ctx);
 	struct sym sym;
 
 	for(; ptr < end; ptr += stride) {
 		load_symbol(ctx, &sym, ptr);
 
-		int type = ELF_SYM_TYPE(sym.info);
-
-		if(!sym.info && !sym.name)
-			continue; /* skip empty symbols */
-		if(type != STT_FILE)
-			continue; /* only need files here */
+		if(special_symbol_type(&sym))
+			continue;
 
 		dump_source(ctx, &sym);
 
@@ -207,16 +226,18 @@ static void dump_source_section(CTX, struct shdr* sh)
 	}
 }
 
-static void dump_symbol_section(CTX, struct shdr* sh, struct ypad* pad)
+static void dump_symbol_section(CTX, SH, PAD, int ndx)
 {
-	int elf64 = ctx->elf64;
 	void* ptr = ctx->buf + sh->offset;
 	void* end = ptr + sh->size;
-	int stride = elf64 ? sizeof(struct elf64sym) : sizeof(struct elf32sym);
+	int stride = symbol_stride(ctx);
 	struct sym sym;
 
 	for(; ptr < end; ptr += stride) {
 		load_symbol(ctx, &sym, ptr);
+
+		if(ndx && sym.shndx != ndx)
+			continue;
 
 		int type = ELF_SYM_TYPE(sym.info);
 
@@ -231,7 +252,7 @@ static void dump_symbol_section(CTX, struct shdr* sh, struct ypad* pad)
 	}
 }
 
-static int load_section(CTX, struct shdr* sh, int i, int type)
+static int load_section(CTX, SH, int i, int type)
 {
 	int elf64 = ctx->elf64;
 	int elfxe = ctx->elfxe;
@@ -242,7 +263,7 @@ static int load_section(CTX, struct shdr* sh, int i, int type)
 
 	copy_u32(elfshdr, ptr, type,   &sh->type);
 
-	if(sh->type != type) return -1;
+	if(type && sh->type != type) return -1;
 
 	copy_u32(elfshdr, ptr, name,   &sh->name);
 	copy_x64(elfshdr, ptr, offset, &sh->offset);
@@ -290,7 +311,96 @@ void dump_symbols(CTX)
 
 	for(i = 0; i < shnum; i++)
 		if(load_section(ctx, sh, i, SHT_SYMTAB) >= 0)
-			dump_symbol_section(ctx, sh, &pad);
+			dump_symbol_section(ctx, sh, &pad, 0);
+
+	if(!ctx->count)
+		fail("no symbols found", NULL, 0);
+}
+
+static void prep_symbol_marking(CTX, SH, PAD, byte* marks)
+{
+	void* ptr = ctx->buf + sh->offset;
+	void* end = ptr + sh->size;
+	int stride = symbol_stride(ctx);
+	uint16_t shnum = ctx->shnum;
+	struct sym sym;
+
+	for(; ptr < end; ptr += stride) {
+		load_symbol(ctx, &sym, ptr);
+
+		if(special_symbol_type(&sym))
+			continue;
+
+		prep_symbol(ctx, &sym, pad);
+
+		int shndx = sym.shndx;
+
+		if(!shndx || shndx >= shnum)
+			continue;
+
+		marks[shndx] = 1;
+	}
+}
+
+void dump_section_comment(CTX, int s)
+{
+	const char* namestr;
+	struct shdr hdr, *sh = &hdr;
+
+	if(load_section(ctx, sh, s, 0) < 0)
+		namestr = NULL;
+	else
+		namestr = lookup_string(ctx, sh->name);
+
+	if(namestr) {
+		outstr(ctx, "# Section ");
+		outstr(ctx, namestr);
+	} else {
+		outstr(ctx, "# Section ");
+
+		FMTBUF(p, e, buf, 20);
+		p = fmtint(p, e, s);
+		FMTEND(p, e);
+
+		output(ctx, buf, p - buf);
+
+		outstr(ctx, " (invalid name)");
+	}
+
+	outstr(ctx, "\n");
+}
+
+void dump_sect_syms(CTX)
+{
+	struct shdr hdr, *sh = &hdr;
+	uint16_t i, s, shnum = ctx->shnum;
+	struct ypad pad;
+	byte marks[shnum];
+
+	memzero(&pad, sizeof(pad));
+	memzero(marks, sizeof(marks));
+
+	ctx->count = 0;
+	ctx->sectmarks = marks;
+
+	for(i = 0; i < shnum; i++)
+		if(load_section(ctx, sh, i, SHT_SYMTAB) >= 0)
+			prep_symbol_marking(ctx, sh, &pad, marks);
+
+	for(s = 0; s < shnum; s++) {
+		if(!marks[s])
+			continue;
+
+		locate_strings_section(ctx);
+
+		dump_section_comment(ctx, s);
+
+		locate_strtab_section(ctx);
+
+		for(i = 0; i < shnum; i++)
+			if(load_section(ctx, sh, i, SHT_SYMTAB) >= 0)
+				dump_symbol_section(ctx, sh, &pad, s);
+	}
 
 	if(!ctx->count)
 		fail("no symbols found", NULL, 0);

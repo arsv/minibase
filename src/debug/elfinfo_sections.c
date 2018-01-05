@@ -91,7 +91,7 @@ static void dump_section(CTX, int i, struct spad* sp)
 	uint64_t shoff = ctx->shoff;
 	uint16_t shentsize = ctx->shentsize;
 
-	void* sh = ctx->buf + shoff + i*shentsize;
+	void* ptr = ctx->buf + shoff + i*shentsize;
 	int elf64 = ctx->elf64;
 	int elfxe = ctx->elfxe;
 
@@ -99,11 +99,11 @@ static void dump_section(CTX, int i, struct spad* sp)
 	uint64_t addr, size, flags;
 	const char* namestr;
 
-	take_u32(elfshdr, sh, name);
-	take_u32(elfshdr, sh, type);
-	take_x64(elfshdr, sh, addr);
-	take_x64(elfshdr, sh, size);
-	take_x64(elfshdr, sh, flags);
+	take_u32(elfshdr, ptr, name);
+	take_u32(elfshdr, ptr, type);
+	take_x64(elfshdr, ptr, addr);
+	take_x64(elfshdr, ptr, size);
+	take_x64(elfshdr, ptr, flags);
 
 	if(!type) return;
 
@@ -125,6 +125,8 @@ static void dump_section(CTX, int i, struct spad* sp)
 	} else if(sp->addr) {
 		p = fmt_space(p, e, 3 + sp->addr);
 	}
+
+	tracef("s=%i name=%i at %lX\n", i, name, shoff + i*shentsize);
 
 	if((namestr = lookup_string(ctx, name))) {
 		p = fmtstr(p, e, " ");

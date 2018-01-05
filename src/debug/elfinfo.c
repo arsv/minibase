@@ -28,6 +28,11 @@ void output(CTX, const char* buf, ulong len)
 	bufout(&ctx->bo, (char*)buf, len);
 }
 
+void outstr(CTX, const char* str)
+{
+	output(ctx, str, strlen(str));
+}
+
 static void fini_output(CTX)
 {
 	bufoutflush(&ctx->bo);
@@ -186,6 +191,8 @@ static const struct cmd {
 	{ "soname",    dump_dynamic_soname },
 	{ "libs",      dump_dynamic_libs   },
 	{ "needed",    dump_dynamic_libs   },
+	{ "ss",        dump_sect_syms      },
+	{ "sect-syms", dump_sect_syms      },
 };
 
 static void dispatch(CTX, char* cmd, char* name)

@@ -32,12 +32,15 @@ struct top {
 	uint64_t strings_off;
 	uint64_t strings_len;
 
+	byte* sectmarks;
+
 	uint count;
 };
 
 #define CTX struct top* ctx
 
 void output(CTX, const char* buf, ulong len);
+void outstr(CTX, const char* str);
 void dump_general_info(CTX);
 void dump_program_header(CTX);
 void dump_program_interp(CTX);
@@ -47,6 +50,7 @@ void dump_dynamic_soname(CTX);
 void dump_dynamic_libs(CTX);
 void dump_symbols(CTX);
 void dump_sources(CTX);
+void dump_sect_syms(CTX);
 
 int got_any_dynamic_entries(CTX);
 
