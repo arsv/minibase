@@ -30,6 +30,7 @@ ERRTAG("ip4info");
 
 struct heap hp;
 struct netlink nl;
+struct bufout bo;
 
 struct ip4addr {
 	uint ifi;
@@ -46,7 +47,9 @@ struct ip4link {
 char ifbuf[1024];
 
 char txbuf[512];
-char rxbuf[6*1024];
+char rxbuf[5*1024];
+
+char outbuf[1024];
 
 static struct nlattr* ifa_get(struct ifaddrmsg* msg, uint16_t key)
 {
@@ -205,13 +208,13 @@ void show_iface(struct ip4link* lk, struct ip4addr** ips)
 	}
 
 	*p++ = '\n';
-	writeout(ifbuf, p - ifbuf);
+	bufout(&bo, ifbuf, p - ifbuf);
 }
 
 void banner(char* msg)
 {
-	writeout(msg, strlen(msg));
-	writeout("\n", 1);
+	bufout(&bo, msg, strlen(msg));
+	bufout(&bo, "\n", 1);
 }
 
 void list_ipconf(void)
@@ -329,7 +332,8 @@ void show_route(struct rtmsg* msg)
 	p = fmt_route_misc(p, e, msg);
 
 	*p++ = '\n';
-	writeout(ifbuf, p - ifbuf);
+
+	bufout(&bo, ifbuf, p - ifbuf);
 }
 
 void list_routes(void)
@@ -351,7 +355,7 @@ void list_routes(void)
 
 void empty_line(void)
 {
-	writeout("\n", 1);
+	bufout(&bo, "\n", 1);
 }
 
 void setup(void)
@@ -362,6 +366,11 @@ void setup(void)
 	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
 	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
 	nl_connect(&nl, NETLINK_ROUTE, 0);
+
+	bo.fd = STDOUT;
+	bo.buf = outbuf;
+	bo.ptr = 0;
+	bo.len = sizeof(outbuf);
 }
 
 int main(int argc, char** argv)
@@ -380,7 +389,7 @@ int main(int argc, char** argv)
 	list_ipconf();
 	list_routes();
 
-	flushout();
+	bufoutflush(&bo);
 
 	return 0;
 }
