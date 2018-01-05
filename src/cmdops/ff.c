@@ -67,6 +67,7 @@ struct top {
 	void* brk;
 	struct pattern* patt;
 	int pcnt;
+	struct bufout bo;
 };
 
 struct dir {
@@ -82,6 +83,30 @@ struct dir {
 #define DC struct dir* dc
 
 static char dirbuf[2*PAGE];
+static char outbuf[PAGE];
+
+static void init_output(TC)
+{
+	struct bufout* bo = &tc->bo;
+
+	bo->fd = STDOUT;
+	bo->buf = outbuf;
+	bo->ptr = 0;
+	bo->len = sizeof(outbuf);
+}
+
+static void fini_outout(TC)
+{
+	bufoutflush(&tc->bo);
+}
+
+static void outstrnl(TC, char* str)
+{
+	struct bufout* bo = &tc->bo;
+
+	bufout(bo, str, strlen(str));
+	bufout(bo, "\n", 1);
+}
 
 static void* setbrk(void* old, int incr)
 {
@@ -261,12 +286,10 @@ static void print_indexed(DC)
 	for(int i = 0; i < dc->count; i++) {
 		struct shortent* se = dc->idx[i];
 
-		if(se->isdir) {
+		if(se->isdir)
 			scan_dir(tc, at, se->name + se->pre, se->name);
-		} else {
-			writeout(se->name, strlen(se->name));
-			writeout("\n", 1);
-		}
+		else
+			outstrnl(tc, se->name);
 	}
 }
 
@@ -341,6 +364,7 @@ int main(int argc, char** argv)
 	tc->patt = patt;
 	tc->pcnt = argc;
 
+	init_output(tc);
 	prep_patterns(tc, argc, argv);
 
 	if(start)
@@ -348,7 +372,7 @@ int main(int argc, char** argv)
 	else
 		scan_dir(tc, AT_FDCWD, ".", NULL);
 
-	flushout();
+	fini_outout(tc);
 
 	return 0;
 }
