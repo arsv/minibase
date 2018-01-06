@@ -459,6 +459,15 @@ static void control_k(CTX)
 	outcsi(ctx, 0, 0, 'K');
 }
 
+static void control_l(CTX)
+{
+	outcsi(ctx, 0, 0, 'H');
+	outcsi(ctx, 0, 0, 'J');
+
+	ctx->redraw = 1;
+	redraw_flush(ctx);
+}
+
 static void tabulator(CTX)
 {
 	if(ctx->tab) {
@@ -487,7 +496,7 @@ static void handle_ctrl(CTX, int c)
 		case 0x08: return backspace(ctx);
 		case 0x09: return tabulator(ctx);
 		case 0x0B: return control_k(ctx);
-		case 0x0C: return redraw_flush(ctx);
+		case 0x0C: return control_l(ctx);
 		case 0x0D: return enter_cmd(ctx);
 		case 0x0E: return hist_next(ctx);
 		case 0x10: return hist_prev(ctx);
