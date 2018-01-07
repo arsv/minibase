@@ -4,12 +4,11 @@ minibase is a set of small userspace tools for Linux intended to
 boot the system and provide a lightweight but reliable foundation
 to build the rest of the system on.
 
-The tools are written in raw syscalls, statically linked, and have
-no external dependencies, not even libc. Any reasonably recent gcc
-or clang toolchain targeting the right CPU architecture can be used
-to build the package. Once built, the executables should run on any
-CPU-compatible Linux system providing the right syscalls (for most
-tools, that means kernel version 3.x and above).
+The tools are written using inline syscalls and small custom base
+library. Standard libc is needed to build them; only a freestanding
+compiler and a linker.
+
+The resulting executables are always statically linked.
 
 Currently supported targets: x86_64 arm arm64 rv64.
 
@@ -161,9 +160,7 @@ The tools are *NOT* meant to be POSIX-, GNU-, or anything else compatible.
 Licensing
 ~~~~~~~~~
 GNU Public License version 3, see COPYING.
-
-Limited closed-box license (along the lines of Apache 2 + export restrictions)
-may or may not get added in the future.
+Limited closed-box license (~Apache 2) may or may not get added in the future.
 
 The code in lib/sys, lib/bits and lib/arch constitutes the public interface
 of the Linux kernel. No claims are made for that code, and it should not be
@@ -175,11 +172,14 @@ The code in lib/crypto is mostly BSD-licensed. See README there.
 
 Credits
 ~~~~~~~
-The whole project was inspired and initially heavily influenced by busybox.
+Dietlibc and "Writing Small and Fast Software" by Felix von Leitner.
+https://www.fefe.de/dietlibc/diet.pdf
+
+The project was initially heavily influenced by busybox.
 Certain decision from skarnet/s6 project also played significant role.
 
 Syscall code (static inline functions with asm volatile blocks)
-follows musl. Because musl folks got it right.
+follows musl, because musl folks got it right.
 
 The Rust coreutils project provided great deal of inspiration,
 specifically by showing how not to write coreutils.
