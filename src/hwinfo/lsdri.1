@@ -1,0 +1,18 @@
+.TH lsdri 1
+'''
+.SH NAME
+\fBlsdri\fR \- list available DRI devices (video cards and GPUs)
+'''
+.SH SYNOPSIS
+\fBlsdri\fR [\fB-a\fR]
+'''
+.SH NOTES
+This tool only does several ioctls and formats the obtained data.
+Refer to \fBdrm-kms\fR(7) for explanation on how different parts of
+DRI and KMS fit together.
+.P
+With no options, \fBlsdri\fR skips inactive parts (connectors that aren't
+connected, idling crts and such). Use \fB-a\fR to include those.
+'''
+.SH SEE ALSO
+\fBdrm-kms\fR(7).
