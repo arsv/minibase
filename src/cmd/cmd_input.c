@@ -461,6 +461,7 @@ static void control_k(CTX)
 
 static void control_l(CTX)
 {
+	outcsi(ctx, 0, 0, 'm');
 	outcsi(ctx, 0, 0, 'H');
 	outcsi(ctx, 0, 0, 'J');
 

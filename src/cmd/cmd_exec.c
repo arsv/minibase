@@ -35,6 +35,27 @@ static void cmd_echo(CTX, int argc, char** argv)
 	buf[len] = '\0';
 }
 
+static void cmd_write(CTX, int argc, char** argv)
+{
+	int fd, wr;
+
+	if(argc < 3)
+		return warn("too few arguments", NULL, 0);
+	if(argc > 3)
+		return warn("too many arguments", NULL, 0);
+
+	char* text = argv[1];
+	char* name = argv[2];
+
+	if((fd = sys_open(name, O_WRONLY)) < 0)
+		return warn(NULL, name, fd);
+
+	if((wr = writeall(fd, text, strlen(text))) < 0)
+		warn("write", name, wr);
+
+	sys_close(fd);
+}
+
 static void cmd_cd(CTX, int argc, char** argv)
 {
 	int ret;
@@ -118,6 +139,7 @@ static const struct builtin {
 	{ "set",   cmd_set   },
 	{ "unset", cmd_unset },
 	{ "echo",  cmd_echo  },
+	{ "write", cmd_write },
 	{ "exit",  cmd_exit  },
 };
 
