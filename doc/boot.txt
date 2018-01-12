@@ -1,6 +1,9 @@
 Booting the system with minibase
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Happy path only. Note some of the tools are not ready at the time of writing.
+Happy path only. Generic boot sequence for PC-like systems that may
+need to load modules, wait for devices and deal with non-persistent
+device names in order to locate system partitions.
+See Embedded section below for non-initrd boot.
 
 * The kernel loads initrd, starts /init (msh script)
 * init starts udevmod in background (using `runwith`) to load modules
@@ -21,7 +24,7 @@ Happy path only. Note some of the tools are not ready at the time of writing.
 * start sets up basic process environment
 * start performs one-time system configuration
 	* sysctl and related stuff
-	* hwclock
+	* hwclock if necessary
 	* loadkeys, setfonts if necessary
 	* possibly iptables
 * start execs into /sbin/system/super
@@ -95,3 +98,28 @@ for `super`. This allows somewhat unusual directory layouts like
 
 Having the path to reboot dangling in ps output isn't pretty, so measures were
 taken to erase it from argv in `super`.
+
+
+Embedded systems
+~~~~~~~~~~~~~~~~
+In case device nodes for system partitions are predictable (because
+of device trees for instance) and the kernel is capable of finding
+them without userspace help, initrd is not needed and the boot sequence
+becomes much simpler.
+
+* The kernel boots, mounts / and spawns /sbin/init (msh script)
+
+* /sbin/init mounts all necessary file systems,
+  waiting for devices using msh waitfor built-in if necessary.
+* sets up basic process environment
+* performs one-time system configuration
+	* sysctl and related stuff
+	* hwclock if necessary
+	* loadkeys, setfonts if necessary
+	* possibly iptables
+* finally execs into /sbin/system/super
+
+Once super is running, the system behaves just like in the PC case.
+udevmod (if needed at all) is only run as a regular service.
+Neither findblk nor passblk are used in this case, all devices are
+located using their /dev node names.
