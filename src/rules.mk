@@ -6,7 +6,7 @@
 include $/config.mk
 
 DESTDIR ?= ./out
-clean = *.o
+clean = *.o *.d
 
 all:
 
@@ -80,3 +80,5 @@ install-man: install-$1.$2
 install-$1.$2: $1.$2 | $$(destman$2dir)
 	cp -t $$(destman$2dir) $1.$2
 endef
+
+-include *.d

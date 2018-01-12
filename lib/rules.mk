@@ -5,7 +5,7 @@ objs = $(patsubst %.c,%.o,$(sort $(wildcard *.c)))
 
 include $/config.mk
 
-clean = *.o
+clean = *.o *.d
 
 objs: $(objs)
 

@@ -114,7 +114,7 @@ cat >> mini-cc <<END
 exec $cc -ffreestanding \\
         -fno-asynchronous-unwind-tables -fno-stack-protector -fno-vectorize \\
 	-static -nopie -fno-pic -fno-plt $lto \\
-	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib \\
+	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib -MD \\
 	-Wno-unused-command-line-argument -Wno-gnu \\
 	$cflags "\$@" \\
 	-nostdlib \${needslib:+\$base/lib/all.a}
@@ -124,7 +124,7 @@ cat >> mini-cc <<END
 exec $cc -ffreestanding \\
 	-fno-asynchronous-unwind-tables -fno-stack-protector \\
 	-static -no-pie -fno-pie -fno-PIE -fno-pic -fno-PIC -fno-plt $lto \\
-	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib \\
+	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib -MD \\
 	$cflags "\$@" \\
 	-nostdlib -Wl,-\\( \${needslib:+\$base/lib/all.a -lgcc} -Wl,-\\)
 END

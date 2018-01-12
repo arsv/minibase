@@ -14,4 +14,6 @@ include $/config.mk
 all: $(all)
 
 clean:
-	rm -f *.o $(all)
+	rm -f *.o *.d $(all)
+
+-include *.d

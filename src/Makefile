@@ -35,7 +35,7 @@ hello.o: hello.c
 	$(CC)$(if $(CFLAGS), $(CLFAGS)) -c $<
 
 clean-hello:
-	rm -f hello hello.o
+	rm -f hello hello.o hello.d
 
 define subtargets
 $1%.o:

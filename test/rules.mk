@@ -19,4 +19,6 @@ run-%:
 	./$*
 
 clean:
-	rm -f *.o $(test)
+	rm -f *.o *.d $(test)
+
+-include *.d

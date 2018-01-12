@@ -32,7 +32,7 @@ build-$1: $$(srcs-$1)
 build: build-$1
 
 objs += $$(objs-$1)
-clean += $1*.o
+clean += $1*.o $1*.d
 endef
 
 subdirs = $(filter-out arch/, $(sort $(dir $(wildcard */Makefile))))
