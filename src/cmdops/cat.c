@@ -24,9 +24,10 @@ ERRLIST(NENOENT NEAGAIN NEBADF NEFAULT NEINTR NEINVAL NEIO NEISDIR NEDQUOT
    the *contents* of output, leaving the inode data intact, while
    cpy replaces the *inode* with a new one. */
 
-#define OPTS "oa"
+#define OPTS "oae"
 #define OPT_o (1<<0)
 #define OPT_a (1<<1)
+#define OPT_e (1<<2)
 
 struct top {
 	int ofd;
@@ -152,10 +153,15 @@ int main(int argc, char** argv)
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
+	if((opts & OPT_e) && (opts & (OPT_o | OPT_a)))
+		fail("cannot mix -e and -ao", NULL, 0);
+
 	if(opts & (OPT_o | OPT_a)) {
 		if(i >= argc)
 			fail("argument required", NULL, 0);
 		open_output(&ctx, argv[i++], opts);
+	} else if(opts & OPT_e) {
+		ctx.ofd = STDERR;
 	}
 
 	if(i >= argc) {
