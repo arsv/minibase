@@ -166,8 +166,8 @@ void final_enter(struct term* vt)
 	if(tty != activetty)
 		return; /* very unlikely but still */
 
-	if(tty == primarytty)
-		switchto(primarytty); /* try to restart */
+	if(tty == primarytty && pinned(tty))
+		spawn_pinned(tty);
 	else
 		switch_to_smth();
 }
