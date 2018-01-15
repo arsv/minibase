@@ -4,8 +4,8 @@ This protocol is used by vtmux and must be followed by any clients willing
 to use DRI or input devices while running under vtmux.
 
 
-1. Identification and control channel
-
+Identification and control channel
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The application is spawned with an open fd referring to the VT manager ctrl
 channel. The fd is always 3 in vtmux, while in weston-launcher its value is
 passed via WESTON_LAUNCHER_SOCK environment variable.
@@ -19,8 +19,8 @@ to close fd 3 in the startup script. Any DRI clients should mark it CLOEXEC
 as soon as possible. Passing fd 3 to children is a security risk.
 
 
-2. Communication protocol
-
+Communication protocol
+~~~~~~~~~~~~~~~~~~~~~~
 The ctrl fd is a SOCK_SEQPACKET. The generic framing for both requests and
 replies is this:
 
@@ -36,8 +36,8 @@ The manager may also send spontaneous notifications.
 Negative code indicate error the usual way (-ENOENT etc).
 
 
-3. Opening managed devices
-
+Opening managed devices
+~~~~~~~~~~~~~~~~~~~~~~~
 Instead of attempting to open /dev/dri/card* or /dev/input/event* directly
 via syscalls to the kernel, the client must request them from the manager
 by sending the the following message:
@@ -58,8 +58,8 @@ The client should probably just close its copy of the fd.
 A successful attempt to open /dev/dri/cardN yields a mastering fd.
 
 
-4. VT switches
-
+VT switches
+~~~~~~~~~~~
 Whenever client's VT becomes a background one, the manager yanks DRI master
 from the DRI fds, disables input fds, and sends
 
@@ -81,15 +81,64 @@ to the client. This notification means DRI mastering has been restored,
 and the client should try re-opening all input devices it needs.
 
 
+Adapting logind integration code
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Most projects that need managed device access in Linux come with logind
+integration nowadays. Logind code does effectively the same thing and if
+it's there already, adding weston-launch support should not require major
+changes to the application. However, the meaning of messages being transmitted
+differ between the two, which may cause some confusion.
 
-That's it. There's nothing more to this protocol. Porting application to work
-with vtmux effectively means replacing open() calls RPC over the ctrl fd in
-relevant places, and implementing reaction to PIPE_REP_(DE)ACTIVATE.
+When VT switch happens, WL sends a single message (ACTIVATE or DEACTIVATE)
+to notify the application that the switch happened and *all* its devices have
+been enabled or disabled. Logind sends one message per device, indicating that
+one particular device has been enabled or disabled. Some applications (Xorg)
+do not bother with partial resumes and wait until messages for all devices
+arrive to resume normal operations. The code that does this is not needed for
+weston-launch protocol.
 
-A good implementation should be able to handle notifications intermixed with
-replies to CMD_OPEN. However, not doing this (i.e. always expecting REP_OK
-as the first packet to come after sending CMD_OPEN) should work well enough
-in practice -- VT switching is generally slow enough.
+When resuming a VT, logind re-opens input devices and sends new file
+descriptors to the application. Weston-launch does not re-open any devices
+itself, it's up to the application to send relevant OPEN commands after getting
+ACTIVATE notification. For most applications, closing all inputs on DEACTIVATE
+and tring to open all available nodes on ACTIVATE is the right thing to do.
+There are no guarantees that the nodes will remain the same across VT switch.
 
-Note that unmodified weston-launch tool itself cannot be used to run
-arbitrary clients because of hard-coded "weston" command.
+
+Implementation notes
+~~~~~~~~~~~~~~~~~~~~
+DEACTIVATE message always arrives late, after the devices have been disabled.
+The application should be ready to get unexpected EPERM when doing mastering
+ioctls on DRI devices, marking the device as inactive when this happens.
+The device should only be re-activated when ACTIVATE arrives.
+
+Disabled inputs just stop sending events. On DEACTIVATE, all inputs should
+be closed. On ACTIVATE, the application should scan and open available input
+nodes.
+
+DEACTIVATE and ACTIVATE notification *may* arrive in-between OPEN request
+and OPEN reply. The application should be able to copy with this. At the very
+least, upon getting cmd > 0 in reply to OPEN, it should repeat recv().
+
+Handling interrupted switch properly is tricky, and not necessary in most
+cases. VT switching is usually initiated by the user, who should be able
+to retry after a mis-switch. Check src/vtms/stubvt.c for example.
+
+
+Security warning
+~~~~~~~~~~~~~~~~
+The launch tool (weston-launch or vtmux) performs low-key privilege
+escalation for the application it spawns, just like sudo does.
+There must be restrictions on which executables can be spawned this way.
+
+weston-launch comes with a hard-coded absolute path to the executable it is
+allowed to spawn. vtmux comes with a hard-coded absolute path of a directory,
+and only spawns executables from that directory.
+These paths must be at least write-protected from regular users.
+
+weston-launch may be installed suid root. In this case, it trusts the "/"
+inode and must be protected against chroot tricks.
+
+For debug purposes, it may be beneficial to have a copy of weston-launch
+with runtime-configurable command. Such tool is dangerous and should only
+be used in restricted environments.
