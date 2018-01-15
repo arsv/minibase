@@ -186,57 +186,6 @@ void disable_all_devs_for(int tty)
 			disable(md, PERMANENTLY);
 }
 
-/* Session switch sequence:
-
-        * disengage DRIs and inputs of the current session
-        * perform VT switch
-        * engage DRIs and inputs of another session
-
-   There are slight variations to this sequence when a session
-   is being created or destroyed, those are handled separately
-   but with calls to the common code here.
-
-   Regardless of which VT is actually active (see lock_switch
-   comments above) fds are fully controlled by vtmux, so activetty
-   here is always the one that has them. */
-
-static void disengage(int tty)
-{
-	struct mdev* md;
-
-	for(md = mdevs; md < mdevs + nmdevs; md++) {
-		if(md->tty != tty)
-			continue;
-		if(md->fd <= 0)
-			continue;
-
-		disable(md, TEMPORARILY);
-	}
-
-	notify_deactivated(tty);
-}
-
-/* Only need to activate DRIs here. It's up to the client to re-open inputs.
-   (at least for now until EVIOCREVOKE gets un-revoke support in the kernel) */
-
-static void engage(int tty)
-{
-	struct mdev* md;
-
-	for(md = mdevs; md < mdevs + nmdevs; md++) {
-		if(md->tty != tty)
-			continue;
-		if(md->fd <= 0)
-			continue;
-		if(major(md->dev) != DRI_MAJOR)
-			continue;
-
-		ioctl(md->fd, DRM_IOCTL_SET_MASTER, NULL, "SET_MASTER");
-	}
-
-	notify_activated(tty);
-}
-
 /* Helpers for the WTF code below */
 
 void switch_sigalrm(void)
@@ -318,6 +267,57 @@ out:
 	clr_switch_timer(&old);
 
 	return ret;
+}
+
+/* Session switch sequence:
+
+        * disengage DRIs and inputs of the current session
+        * perform VT switch
+        * engage DRIs and inputs of another session
+
+   There are slight variations to this sequence when a session
+   is being created or destroyed, those are handled separately
+   but with calls to the common code here.
+
+   Regardless of which VT is actually active (see lock_switch
+   comments above) fds are fully controlled by vtmux, so activetty
+   here is always the one that has them. */
+
+static void disengage(int tty)
+{
+	struct mdev* md;
+
+	for(md = mdevs; md < mdevs + nmdevs; md++) {
+		if(md->tty != tty)
+			continue;
+		if(md->fd <= 0)
+			continue;
+
+		disable(md, TEMPORARILY);
+	}
+
+	notify_deactivated(tty);
+}
+
+/* Only need to activate DRIs here. It's up to the client to re-open inputs.
+   (at least for now until EVIOCREVOKE gets un-revoke support in the kernel) */
+
+static void engage(int tty)
+{
+	struct mdev* md;
+
+	for(md = mdevs; md < mdevs + nmdevs; md++) {
+		if(md->tty != tty)
+			continue;
+		if(md->fd <= 0)
+			continue;
+		if(major(md->dev) != DRI_MAJOR)
+			continue;
+
+		ioctl(md->fd, DRM_IOCTL_SET_MASTER, NULL, "SET_MASTER");
+	}
+
+	notify_activated(tty);
 }
 
 int activate(int tty)
