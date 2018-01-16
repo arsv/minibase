@@ -33,6 +33,7 @@ ERRTAG("udevmod");
 #define OPT_s (1<<0)
 
 #define UDEV_MGRP_KERNEL   (1<<0)
+#define UDEV_MGRP_LIBUDEV  (1<<1)
 
 /* Several events often come at once, so whatever files have been loaded
    should preferably be kept through the processing of the whole bunch.
@@ -137,6 +138,37 @@ static void dev_removed(CTX, struct mbuf* uevent)
 		clear_input(ctx, uevent);
 }
 
+/* Clients relying on udevd to modify device nodes anyhow subscribe to
+   UDEV_MGRP_LIBUDEV not UDEV_MGRP_KERNEL and expect udevd to re-transmit
+   the events once it's done processing them. This is necessary to avoid
+   races between clients tryng to use the device and udevd trying to modify
+   chmod/chown/whatever the node.
+
+   This is mostly for conventional libudev clients.
+   None of minibase tools rely on udevd to do anything about device nodes.
+
+   The original udevd prepends a libudev-specific header to re-transmitted
+   messages, but current libudev will happily accept raw kernel messages
+   as well. Not sure whether it's intentional or not but it works. */
+
+static void rebroadcast(CTX, char* buf, int len)
+{
+	int ret, fd = ctx->udev;
+	struct sockaddr_nl addr = {
+		.family = AF_NETLINK,
+		.pad = 0,
+		.pid = ctx->pid,
+		.groups = UDEV_MGRP_LIBUDEV
+	};
+
+	if((ret = sys_sendto(fd, buf, len, 0, &addr, sizeof(addr))) >= 0)
+		return;
+	if(ret == -ECONNREFUSED)
+		return;
+
+	warn("send", NULL, ret);
+}
+
 static void recv_event(CTX)
 {
 	int fd = ctx->udev;
@@ -156,11 +188,15 @@ static void recv_event(CTX)
 		dev_removed(ctx, &uevent);
 	else if(!strncmp(buf, "add@", 4))
 		dev_added(ctx, &uevent);
+
+	if(!ctx->startup)
+		rebroadcast(ctx, buf, rd);
 }
 
 static void open_udev(CTX)
 {
 	int fd, ret;
+	int pid = sys_getpid();
 
 	int domain = PF_NETLINK;
 	int type = SOCK_DGRAM;
@@ -171,13 +207,14 @@ static void open_udev(CTX)
 
 	struct sockaddr_nl addr = {
 		.family = AF_NETLINK,
-		.pid = sys_getpid(),
+		.pid = pid,
 		.groups = UDEV_MGRP_KERNEL
 	};
 
 	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
 		fail("bind", "udev", ret);
 
+	ctx->pid = pid;
 	ctx->udev = fd;
 }
 
