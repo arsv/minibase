@@ -18,15 +18,19 @@
 #include "common.h"
 #include "udevmod.h"
 
-/* This service does two things that require monitoring udev events:
+/* This service does few things that require monitoring udev events:
 
      * modprobes MODALIAS-es
      * chmods/chowns device nodes
+     * writes device id data for libinput
 
    Common code here walks through /sys to pick up pre-registered devices,
    and then switches to listening for udev events. */
 
 ERRTAG("udevmod");
+
+#define OPTS "s"
+#define OPT_s (1<<0)
 
 #define UDEV_MGRP_KERNEL   (1<<0)
 
@@ -78,11 +82,14 @@ static void wait_drop_files(CTX, int fd)
    Apparently it cannot be both at the same time. There are however events
    without MODALIAS and without DEVNAME. */
 
-static char* getval(char* buf, int len, char* key)
+char* getval(struct mbuf* uevent, char* key)
 {
-	char* end = buf + len;
+	char* buf = uevent->buf;
+	char* end = buf + uevent->len;
+
 	char* p = buf;
 	char* q;
+
 	int klen = strlen(key);
 
 	while(p < end) {
@@ -100,12 +107,41 @@ static char* getval(char* buf, int len, char* key)
 	return NULL;
 }
 
+static void dev_added(CTX, struct mbuf* uevent)
+{
+	char *alias, *subsystem, *devname;
+
+	if((alias = getval(uevent, "MODALIAS")))
+		return modprobe(ctx, alias);
+
+	if(!(subsystem = getval(uevent, "SUBSYSTEM")))
+		return;
+	if(!(devname = getval(uevent, "DEVNAME")))
+		return;
+
+	trychown(ctx, subsystem, devname);
+
+	if(ctx->startup)
+		return;
+	if(!strcmp(subsystem, "input"))
+		probe_input(ctx, uevent);
+}
+
+static void dev_removed(CTX, struct mbuf* uevent)
+{
+	char* subsystem = getval(uevent, "SUBSYSTEM");
+
+	if(ctx->startup)
+		return;
+	if(!strcmp(subsystem, "input"))
+		clear_input(ctx, uevent);
+}
+
 static void recv_event(CTX)
 {
 	int fd = ctx->udev;
 	int rd, max = 1024;
 	char buf[max+2];
-	char *alias, *subsystem, *devname;
 
 	wait_drop_files(ctx, fd);
 
@@ -114,16 +150,12 @@ static void recv_event(CTX)
 
 	buf[rd] = '\0';
 
-	if(strncmp(buf, "add@", 4))
-		return;
+	struct mbuf uevent = { .buf = buf, .len = rd };
 
-	if((alias = getval(buf, rd, "MODALIAS")))
-		return modprobe(ctx, alias);
-
-	subsystem = getval(buf, rd, "SUBSYSTEM");
-
-	if((devname = getval(buf, rd, "DEVNAME")))
-		trychown(ctx, subsystem, devname);
+	if(!strncmp(buf, "remove@", 7))
+		dev_removed(ctx, &uevent);
+	else if(!strncmp(buf, "add@", 4))
+		dev_added(ctx, &uevent);
 }
 
 static void open_udev(CTX)
@@ -255,8 +287,9 @@ int main(int argc, char** argv, char** envp)
 {
 	struct top context, *ctx = &context;
 	int i = 1, opts = 0;
-	(void)argv;
 
+	if(i < argc && argv[i][0] == '-')
+		opts = argbits(OPTS, argv[i++] + 1);
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
@@ -264,6 +297,7 @@ int main(int argc, char** argv, char** envp)
 
 	ctx->envp = envp;
 	ctx->opts = opts;
+	ctx->startup = (opts & OPT_s);
 
 	open_udev(ctx);
 
@@ -271,6 +305,8 @@ int main(int argc, char** argv, char** envp)
 	open_modprobe(ctx);
 	scan_devices(ctx);
 	stop_modprobe(ctx);
+
+	init_inputs(ctx);
 
 	while(1) recv_event(ctx);
 }

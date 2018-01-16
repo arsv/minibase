@@ -23,6 +23,19 @@ struct dev {
 	int subsyslen;
 };
 
+#define BITSET(name,n) ulong name[(n+sizeof(long)-1)/sizeof(long)]
+
+struct evbits {
+	BITSET(ev,   32);
+	BITSET(key, 256);
+	BITSET(rel,  16);
+	BITSET(abs,  64);
+	BITSET(led,  10);
+	BITSET(sw,   16);
+};
+
+#undef BITSET
+
 struct top {
 	int udev;
 	char** envp;
@@ -30,6 +43,8 @@ struct top {
 
 	int fd;  /* of a running modprobe -p process */
 	int pid;
+
+	int startup;
 
 	struct mbuf config;
 	struct mbuf passwd;
@@ -48,3 +63,8 @@ void modprobe(CTX, char* alias);
 
 void trychown(CTX, char* subsystem, char* devname);
 
+void init_inputs(CTX);
+void probe_input(CTX, struct mbuf* uevent);
+void clear_input(CTX, struct mbuf* uevent);
+
+char* getval(struct mbuf* uevent, char* key);
