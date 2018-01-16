@@ -31,7 +31,7 @@ static void dump(char* buf, int len)
 	sys_write(STDOUT, buf, p - buf);
 }
 
-static int open_udev(void)
+static int open_udev(int groups)
 {
 	int fd, ret;
 
@@ -45,7 +45,7 @@ static int open_udev(void)
 	struct sockaddr_nl addr = {
 		.family = AF_NETLINK,
 		.pid = sys_getpid(),
-		.groups = UDEV_MGRP_KERNEL
+		.groups = groups
 	};
 
 	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
@@ -60,11 +60,21 @@ int main(int argc, char** argv)
 	int fd, rd;
 	char buf[2048];
 	int max = sizeof(buf) - 2;
+	int groups;
 
-	if(argc > 1)
+	if(argc < 2)
+		groups = UDEV_MGRP_KERNEL;
+	else if(!strcmp(argv[1], "user"))
+		groups = UDEV_MGRP_LIBUDEV;
+	else if(!strcmp(argv[1], "both"))
+		groups = UDEV_MGRP_KERNEL | UDEV_MGRP_LIBUDEV;
+	else
+		fail("bad group spec", argv[1], 0);
+
+	if(argc > 2)
 		fail("too many arguments", NULL, 0);
 
-	fd = open_udev();
+	fd = open_udev(groups);
 
 	while((rd = sys_recv(fd, buf, max, 0)) > 0)
 		dump(buf, rd);
