@@ -441,8 +441,7 @@ static int count_to_sep(int argc, char** argv, int* start)
 
 static void set_commands(CTX, int argc, char** argv)
 {
-	int e, i = 1, opts = 0;
-	char* display;
+	int i = 1, opts = 0;
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
