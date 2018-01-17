@@ -156,7 +156,7 @@ static void dump_crtc(CTX, struct drm_mode_crtc* crt)
 
 static void dump_encoder(CTX, struct drm_mode_get_encoder* enc)
 {
-	int et = enc->encoder_type;
+	uint et = enc->encoder_type;
 
 	if(!ctx->all && !enc->crtc_id)
 		return;
@@ -166,7 +166,7 @@ static void dump_encoder(CTX, struct drm_mode_get_encoder* enc)
 	p = fmtstr(p, e, "  encoder #");
 	p = fmtint(p, e, enc->encoder_id);
 
-	if(et >= 0 && et < ARRAY_SIZE(enctypes)) {
+	if(et < ARRAY_SIZE(enctypes)) {
 		p = fmtstr(p, e, " ");
 		p = fmtstr(p, e, enctypes[et]);
 	} else {
@@ -186,7 +186,7 @@ static void dump_encoder(CTX, struct drm_mode_get_encoder* enc)
 
 static void dump_conn(CTX, struct drm_mode_get_connector* res)
 {
-	int ct = res->connector_type;
+	uint ct = res->connector_type;
 
 	if(!ctx->all && !res->encoder_id)
 		return;
@@ -196,7 +196,7 @@ static void dump_conn(CTX, struct drm_mode_get_connector* res)
 	p = fmtstr(p, e, "  connector #");
 	p = fmtint(p, e, res->connector_id);
 
-	if(ct >= 0 && ct < ARRAY_SIZE(conntypes)) {
+	if(ct < ARRAY_SIZE(conntypes)) {
 		p = fmtstr(p, e, " ");
 		p = fmtstr(p, e, conntypes[ct]);
 	} else {
@@ -229,7 +229,7 @@ static void dump_mode(CTX, struct drm_mode_modeinfo* mode)
 	output(ctx, buf, p - buf);
 }
 
-static void query_crtc(CTX, int id)
+static void query_crtc(CTX, uint id)
 {
 	struct drm_mode_crtc crt;
 
@@ -242,7 +242,7 @@ static void query_crtc(CTX, int id)
 	dump_crtc(ctx, &crt);
 }
 
-static void query_encoder(CTX, int id)
+static void query_encoder(CTX, uint id)
 {
 	struct drm_mode_get_encoder enc;
 
@@ -255,7 +255,7 @@ static void query_encoder(CTX, int id)
 	dump_encoder(ctx, &enc);
 }
 
-static void query_connector(CTX, int ci)
+static void query_connector(CTX, uint ci)
 {
 	struct drm_mode_get_connector res;
 
@@ -273,7 +273,7 @@ static void query_connector(CTX, int ci)
 
 	dump_conn(ctx, &res);
 
-	for(int i = 0; i < res.count_modes; i++) {
+	for(uint i = 0; i < res.count_modes; i++) {
 		struct drm_mode_modeinfo* modes = (void*)res.modes_ptr;
 		dump_mode(ctx, &modes[i]);
 	}
@@ -298,18 +298,18 @@ static void query_resources(CTX)
 
 	dump_resources(ctx, &res, &plr);
 
-	for(int i = 0; i < res.count_crtcs; i++) {
-		int ci = GET_ARRAY(res, crtc_id_ptr, uint32_t, i);
+	for(uint i = 0; i < res.count_crtcs; i++) {
+		uint ci = GET_ARRAY(res, crtc_id_ptr, uint32_t, i);
 		query_crtc(ctx, ci);
 	}
 
-	for(int i = 0; i < res.count_encoders; i++) {
-		int ei = GET_ARRAY(res, encoder_id_ptr, uint32_t, i);
+	for(uint i = 0; i < res.count_encoders; i++) {
+		uint ei = GET_ARRAY(res, encoder_id_ptr, uint32_t, i);
 		query_encoder(ctx, ei);
 	}
 
-	for(int i = 0; i < res.count_connectors; i++) {
-		int ci = GET_ARRAY(res, connector_id_ptr, uint32_t, i);
+	for(uint i = 0; i < res.count_connectors; i++) {
+		uint ci = GET_ARRAY(res, connector_id_ptr, uint32_t, i);
 		query_connector(ctx, ci);
 	}
 }
@@ -373,7 +373,8 @@ static void scan_devices(uint* mask)
 {
 	char* dir = "/dev/dri";
 	char buf[1024];
-	int fd, rd, i;
+	int fd, rd;
+	uint i;
 	char* p;
 
 	if((fd = sys_open(dir, O_DIRECTORY)) < 0)
@@ -394,7 +395,7 @@ static void scan_devices(uint* mask)
 
 			p = de->name + 4;
 
-			if(!(p = parseint(p, &i)) || *p)
+			if(!(p = parseuint(p, &i)) || *p)
 				continue;
 
 			if(i >= 8*sizeof(mask)) {
@@ -431,13 +432,13 @@ int main(int argc, char** argv)
 
 	scan_devices(&mask);
 
-	for(i = 0; i < 8*sizeof(mask); i++) {
-		if(!(mask & (1<<i)))
+	for(uint b = 0; b < 8*sizeof(mask); b++) {
+		if(!(mask & (1<<b)))
 			continue;
 		if(prev)
 			outnl(ctx);
 
-		report_device(ctx, i);
+		report_device(ctx, b);
 
 		prev = 1;
 	}
