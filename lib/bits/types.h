@@ -30,12 +30,14 @@ typedef int64_t off_t;
    The proper way to fix this is to make file sizes unsigned and change seek
    modes to { SEEK_SET, SEEK_FWD, SEEK_REV, SEEK_END }, all taking unsigned
    offsets. Too bad the wrong decision is already burned into the syscall
-   interface. */
+   interface.
+
+   Return: -1 if msz < fsz, +1 if msz > fsz. */
 
 inline static int mem_off_cmp(size_t msz, off_t fsz)
 {
 	if(fsz < 0)
-		return -1;
+		return 1;
 
 #if BITS == 32 /* sizeof(msz) < sizeof(fsz) */
 	off_t smsz = (off_t)msz;
