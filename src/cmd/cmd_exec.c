@@ -101,6 +101,8 @@ static void cmd_unset(CTX, int argc, char** argv)
 
 static void cmd_dot(CTX, int argc, char** argv)
 {
+	(void)argv;
+
 	if(argc > 1)
 		return warn("too many arguments", NULL, 0);
 
@@ -111,6 +113,7 @@ static void cmd_dot(CTX, int argc, char** argv)
 
 static void cmd_ddot(CTX, int argc, char** argv)
 {
+	(void)argv;
 	int ret;
 
 	if(argc > 1)
@@ -123,6 +126,8 @@ static void cmd_ddot(CTX, int argc, char** argv)
 
 static void cmd_exit(CTX, int argc, char** argv)
 {
+	(void)argv;
+
 	if(argc > 1)
 		return warn("too many arguments", NULL, 0);
 

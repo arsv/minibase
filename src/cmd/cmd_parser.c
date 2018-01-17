@@ -168,8 +168,9 @@ static char* longvar(CTX, char* p, char* e)
 	return p;
 }
 
-static char* shortvar(CTX, char* p, char* e, int c)
+static char* shortvar(CTX, int c)
 {
+	/* not implemented, and probably shouldn't? */
 	char name[] = { '$', c, '\0' };
 	warn("undefined variable", name, 0);
 	return NULL;
@@ -194,7 +195,7 @@ static char* variable(CTX, char* p, char* e)
 	if(c >= 'A' && c <= 'Z')
 		return longvar(ctx, p, e);
 
-	return shortvar(ctx, p, e, c);
+	return shortvar(ctx, c);
 }
 
 static char* squote(CTX, char* p, char* e)
