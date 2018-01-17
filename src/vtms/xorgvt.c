@@ -61,8 +61,23 @@ struct top {
 
 #define CTX struct top* ctx
 
+static void maybe_stop(int pid)
+{
+	int ret, status;
+
+	if(pid <= 0)
+		return;
+
+	sys_kill(pid, SIGTERM);
+
+	if((ret = sys_waitpid(pid, &status, 0)) < 0)
+		warn("waitpid", NULL, ret);
+}
+
 static void quit(CTX, const char* msg, char* arg, int err)
 {
+	maybe_stop(ctx->spid);
+	maybe_stop(ctx->cpid);
 	fail(msg, arg, err);
 }
 
