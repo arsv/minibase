@@ -37,7 +37,7 @@ struct top {
 	uint count;
 };
 
-#define CTX struct top* ctx
+#define CTX struct top* ctx __unused
 
 void output(CTX, const char* buf, ulong len);
 void outstr(CTX, const char* str);

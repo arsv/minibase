@@ -42,13 +42,14 @@ static void mmap_whole(CTX, char* name)
 {
 	int fd, ret;
 	struct stat st;
+	ulong max = ~0ULL;
 
 	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail(NULL, name, fd);
 	if((ret = sys_fstat(fd, &st)) < 0)
 		fail("stat", name, ret);
 
-	if(st.size > (1ULL << (BITS-1)))
+	if(mem_off_cmp(max, st.size) < 0)
 		fail(NULL, name, -E2BIG);
 
 	int prot = PROT_READ;
@@ -85,7 +86,7 @@ static void check_header(CTX)
 		fail("unknown ELF class", NULL, hdr->class);
 	}
 
-	if(len < size)
+	if(mem_off_cmp(len, size) < 0)
 		fail("file truncated", NULL, 0);
 
 	if(hdr->version != 1)

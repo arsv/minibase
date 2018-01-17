@@ -32,7 +32,7 @@ static const char* const types[] = {
 	[8] = "NUM"
 };
 
-static const char* typename(int type)
+static const char* typename(uint type)
 {
 	if(type < ARRAY_SIZE(types))
 		return types[type];
@@ -49,7 +49,7 @@ static const char* typename(int type)
 
 static char* fmt_type(char* p, char* e, struct phdr* ph)
 {
-	int type = ph->type;
+	uint type = ph->type;
 	const char* name;
 
 	if((name = typename(type)))

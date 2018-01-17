@@ -30,8 +30,7 @@ static const struct machine {
 	{ 94,  "Xtensa",    32,  0 },
 	{ 106, "Blackfin",  32,  0 },
 	{ 224, "AMD GPU",   32,  0 },
-	{ 243, "RISC-V",     0, LE },
-	{ 0,    NULL        }
+	{ 243, "RISC-V",     0, LE }
 };
 
 static char* fmt_machine(char* p, char* e, int machine, CTX)
@@ -81,7 +80,7 @@ static const char* const types[] = {
 	[4] = "core dump"
 };
 
-static char* fmt_type(char* p, char* e, int type)
+static char* fmt_type(char* p, char* e, uint type)
 {
 	if(type < ARRAY_SIZE(types))
 		return fmtstr(p, e, types[type]);

@@ -252,7 +252,7 @@ static void dump_symbol_section(CTX, SH, PAD, int ndx)
 	}
 }
 
-static int load_section(CTX, SH, int i, int type)
+static int load_section(CTX, SH, int i, uint type)
 {
 	int elf64 = ctx->elf64;
 	int elfxe = ctx->elfxe;

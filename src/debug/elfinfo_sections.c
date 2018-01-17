@@ -56,7 +56,7 @@ void locate_strings_section(CTX)
 	use_strings_at_offset(ctx, offset, size);
 }
 
-static char* fmt_type(char* p, char* e, int type)
+static char* fmt_type(char* p, char* e, uint type)
 {
 	if(type < ARRAY_SIZE(types)) {
 		p = fmtraw(p, e, types[type], sizeof(*types));
