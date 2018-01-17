@@ -23,6 +23,7 @@
      * modprobes MODALIAS-es
      * chmods/chowns device nodes
      * writes device id data for libinput
+     * re-transmits udev events for userspace listeners
 
    Common code here walks through /sys to pick up pre-registered devices,
    and then switches to listening for udev events. */
@@ -37,9 +38,10 @@ ERRTAG("udevmod");
 
 /* Several events often come at once, so whatever files have been loaded
    should preferably be kept through the processing of the whole bunch.
-   However, we do not want to keep the loaded for long. With any files
-   loaded, we do a timed wait and if there are no events for ~1s, unload
-   them. */
+   However, keeping them in memory for long is not good.
+
+   So with any files loaded, do a timed wait and if there are no events
+   for ~1s, unload them. */
 
 static void unload(struct mbuf* mb)
 {
@@ -78,10 +80,9 @@ static void wait_drop_files(CTX, int fd)
 	unload(&ctx->group);
 }
 
-/* Generally udev events either carry a MODALIAS (unknown device, asking
-   for a module) or have DEVNAME (device has been picked up by a module).
-   Apparently it cannot be both at the same time. There are however events
-   without MODALIAS and without DEVNAME. */
+/* No point in doing a single-pass parsing for the events, it's easy
+   enough to just pick the values as needed. Key here is something
+   like MODALIAS or DEVPATH. */
 
 char* getval(struct mbuf* uevent, char* key)
 {
@@ -107,6 +108,11 @@ char* getval(struct mbuf* uevent, char* key)
 
 	return NULL;
 }
+
+/* Generally udev events either carry a MODALIAS (unknown device, asking
+   for a module) or have DEVNAME (device has been picked up by a module).
+   Apparently it cannot be both at the same time. There are however events
+   without MODALIAS and without DEVNAME. */
 
 static void dev_added(CTX, struct mbuf* uevent)
 {
@@ -164,7 +170,7 @@ static void rebroadcast(CTX, char* buf, int len)
 	if((ret = sys_sendto(fd, buf, len, 0, &addr, sizeof(addr))) >= 0)
 		return;
 	if(ret == -ECONNREFUSED)
-		return;
+		return; /* this is ok apparently */
 
 	warn("send", NULL, ret);
 }
@@ -218,6 +224,31 @@ static void open_udev(CTX)
 	ctx->udev = fd;
 }
 
+/* During startup, modaliases for pre-existing devices are picked
+   up by scanning /sys/devices recursively and reading "modalias"
+   files there. */
+
+static void pick_modalias(CTX, FN)
+{
+	int fd, rd;
+	char buf[100];
+	int len = sizeof(buf) - 1;
+
+	if((fd = sys_openat(AT(fn), O_RDONLY)) < 0)
+		return;
+
+	if((rd = sys_read(fd, buf, len)) > 0) {
+		if(buf[rd-1] == '\n')
+			buf[rd-1] = '\0';
+		else
+			buf[rd] = '\0';
+
+		modprobe(ctx, buf);
+	}
+
+	sys_close(fd);
+}
+
 static int pathlen(FN)
 {
 	int len = strlen(fn->name);
@@ -240,27 +271,6 @@ static void makepath(char* buf, int len, FN)
 
 	p = fmtstr(p, e, fn->name);
 	*p = '\0';
-}
-
-static void pick_file(CTX, FN)
-{
-	int fd, rd;
-	char buf[100];
-	int len = sizeof(buf) - 1;
-
-	if((fd = sys_openat(AT(fn), O_RDONLY)) < 0)
-		return;
-
-	if((rd = sys_read(fd, buf, len)) > 0) {
-		if(buf[rd-1] == '\n')
-			buf[rd-1] = '\0';
-		else
-			buf[rd] = '\0';
-
-		modprobe(ctx, buf);
-	}
-
-	sys_close(fd);
 }
 
 static void scan_dir(CTX, FN)
@@ -295,7 +305,7 @@ static void scan_dir(CTX, FN)
 			else if(de->type != DT_REG)
 				continue;
 			if(!strcmp(de->name, "modalias"))
-				pick_file(ctx, &next);
+				pick_modalias(ctx, &next);
 		}
 	}
 
@@ -308,6 +318,9 @@ static void scan_devices(CTX)
 
 	scan_dir(ctx, &start);
 }
+
+/* modprobe running in pipe mode may die. That's not good, may
+   be that pipe mode not supported, but it should not kill udevmod. */
 
 static void suppress_sigpipe(void)
 {

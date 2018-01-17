@@ -12,6 +12,22 @@
 #include "common.h"
 #include "udevmod.h"
 
+/* Allow chowning/chmodding certain node, mdev-style.
+
+   This is mostly a compatibility feature. Within minibase, device
+   access happens through privileged services (mountd, vtmux etc)
+   which are fine with the default permissions.
+
+   Config file format follows mdev:
+
+	# Permissions for device with exact name
+	rtc0 root:rtc 0660
+
+	# Permissions for any device with a given subsystem
+	~input root:input 0660
+
+   Names are /dev-relative, so that's /dev/rtc0 above. */
+
 static int load_file(struct mbuf* mb, const char* name)
 {
 	int fd, ret;

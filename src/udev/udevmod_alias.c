@@ -10,7 +10,7 @@
 /* During the initial device scan, udevmod will try dozens of modaliases
    in quick succession, most of them invalid. There is no point in spawning
    that many modprobe processes. Instead, we spawn one and pipe it aliases
-   to check.
+   to check. This needs pipe-mode support from modprobe of course.
 
    After the initial scan, this becomes pointless since udev events are
    rare and the ones with modaliases tend to arrive one at a time, so we
