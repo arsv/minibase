@@ -333,16 +333,19 @@ static void query_info(CTX)
 	IOCTL(DRM_IOCTL_GET_UNIQUE, &unique);
 
 	outstr(ctx, ctx->path);
-	outstr(ctx, ":\n");
-	outstr(ctx, "  ");
-	output(ctx, version.name, version.name_len);
-	outstr(ctx, " ");
-	output(ctx, unique.unique, unique.unique_len);
-	outstr(ctx, " ");
+	outstr(ctx, ": ");
 	output(ctx, version.desc, version.desc_len);
-	outstr(ctx, " (");
+	outstr(ctx, "\n");
+
+	outstr(ctx, "  driver ");
+	output(ctx, version.name, version.name_len);
+	outstr(ctx, " date ");
 	output(ctx, version.date, version.date_len);
-	outstr(ctx, ")\n");
+	outstr(ctx, "\n");
+
+	outstr(ctx, "  unique ");
+	output(ctx, unique.unique, unique.unique_len);
+	outstr(ctx, "\n");
 }
 
 static void report_device(CTX, int di)
