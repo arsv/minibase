@@ -56,6 +56,7 @@ char* fmtip(char* p, char* e, uint8_t ip[4]);
 char* fmtmac(char* p, char* e, uint8_t mac[6]);
 
 char* parseint(char* p, int* np);
+char* parseuint(char* p, uint* np);
 char* parselong(char* p, long* np);
 char* parseulong(char* p, ulong* np);
 char* parseu64(char* p, uint64_t* np);
