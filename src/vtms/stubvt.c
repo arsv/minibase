@@ -22,9 +22,9 @@ static struct inp {
 	int fd;
 } inputs[30];
 
-static int counter;
-static int ninputs;
-static int paused;
+static uint counter;
+static uint ninputs;
+static uint paused;
 
 static int recv_notification(void)
 {
@@ -199,7 +199,7 @@ static void deactivate(void)
 
 	paused = WESTON_LAUNCHER_DEACTIVATE;
 
-	for(int i = 0; i < ninputs; i++) {
+	for(uint i = 0; i < ninputs; i++) {
 		struct inp* in = &inputs[i];
 
 		if(in->fd <= 0)
