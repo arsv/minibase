@@ -26,6 +26,12 @@ static const struct key {
 	{ "Space",       KEY_SPACE           },
 	{ "Del",         KEY_DELETE          },
 	{ "Delete",      KEY_DELETE          },
+	{ "PgUp",        KEY_PAGEUP          },
+	{ "PgDown",      KEY_PAGEDOWN        },
+	{ "Up",          KEY_UP              },
+	{ "Down",        KEY_DOWN            },
+	{ "Left",        KEY_LEFT            },
+	{ "Right",       KEY_RIGHT           },
 
 	{ "F1",          KEY_F1              },
 	{ "F2",          KEY_F2              },
@@ -59,8 +65,7 @@ static const struct key {
 	{ "Battery",     KEY_BATTERY         },
 	{ "Bluetooth",   KEY_BLUETOOTH       },
 	{ "WLAN",        KEY_WLAN            },
-	{ "UWB",         KEY_UWB             },
-	{ "",            0                   }
+	{ "UWB",         KEY_UWB             }
 };
 
 static const struct sw {
