@@ -124,10 +124,11 @@ static int check_managed_dev(int fd, uint64_t* dev)
 	return 0;
 }
 
-/* Device id is used as a key for cmd_close, so reject requests
-   to open the same device twice. For DRI devices, multiple fds
-   would also mess up mastering. Inputs would be ok, but there's
-   still no point in opening them more than once. */
+/* Having several fd for the same device would mess up DRI ioctls,
+   and overall makes little sense. However, Xorg likes to request
+   the same devices twice, and fails badly if the second request
+   gets rejected. So instead of rejecting it, a copy of the same
+   fd is returned. */
 
 static int check_for_duplicate(struct mdev* md, uint64_t dev, int tty)
 {
@@ -141,7 +142,7 @@ static int check_for_duplicate(struct mdev* md, uint64_t dev, int tty)
 		if(mx->dev != dev)
 			continue;
 
-		return -ENFILE;
+		return mx->fd;
 	}
 
 	return 0;
@@ -200,8 +201,12 @@ static int open_managed_dev(char* path, int mode, struct term* vt)
 
 	if((ret = check_managed_dev(dfd, &md->dev)) < 0)
 		goto close;
-	if((ret = check_for_duplicate(md, md->dev, tty)) < 0)
-		goto close;
+
+	if((ret = check_for_duplicate(md, md->dev, tty)) > 0) {
+		sys_close(dfd);
+		free_mdev_slot(md);
+		return ret;
+	}
 
 	md->fd = dfd;
 	md->tty = tty;
