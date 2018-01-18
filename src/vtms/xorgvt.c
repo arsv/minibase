@@ -30,27 +30,21 @@
 
 ERRTAG("xorgvt");
 
-#define OPTS "sav"
-#define OPT_s (1<<0)
-#define OPT_a (1<<1)
-#define OPT_v (1<<2)
+#define SERVER_BASE "/etc/X11"
+#define CLIENT_BASE "/etc/X11/session"
 
 struct top {
 	int opts;
 
 	char** envp;
 
-	char* server;
-	char* client;
-	char* display;
-
-	char** sargs;
-	int sargn;
-	char** cargs;
-	int cargn;
+	char display[16];
+	char server[64];
+	char client[64];
 
 	int spid;
 	int cpid;
+	int vtno;
 
 	int ctlfd;
 	int sigfd;
@@ -128,16 +122,17 @@ static void inclient(CTX)
 
 }
 
-static int spawn(CTX, char** argv, char** envp, void (*setup)(CTX))
+static int spawn(CTX, char* path, char** envp, void (*setup)(CTX))
 {
 	int pid;
 
 	if((pid = sys_fork()) < 0)
 		fail("fork", NULL, pid);
 	if(pid == 0) {
+		char* argv[] = { path, NULL };
 		setup(ctx);
-		int ret = execvpe(*argv, argv, envp);
-		fail(NULL, *argv, ret);
+		int ret = execvpe(path, argv, envp);
+		fail(NULL, path, ret);
 	}
 
 	return pid;
@@ -201,28 +196,15 @@ static void start_client(CTX)
 	char** origenvp = ctx->envp;
 	int origenvc = count_env(origenvp);
 
-	FMTBUF(p, e, display, 30);
-	p = fmtstr(p, e, "DISPLAY=");
-	p = fmtstr(p, e, ctx->display);
-	FMTEND(p, e);
-
-	int argc = 1 + ctx->cargn + 1;
-	int argi = 0;
-	char* argv[argc];
-
-	addarg(argc, argv, &argi, ctx->client);
-	append(argc, argv, &argi, ctx->cargs, ctx->cargn);
-	endarg(argc, argv, &argi);
-
 	int envc = origenvc + 3;
 	int envi = 0;
 	char* envp[envc];
 
 	filter(envc, envp, &envi, origenvp);
-	addarg(envc, envp, &envi, display);
+	addarg(envc, envp, &envi, ctx->display);
 	endarg(envc, envp, &envi);
 
-	ctx->cpid = spawn(ctx, argv, envp, inclient);
+	ctx->cpid = spawn(ctx, ctx->client, envp, inclient);
 }
 
 /* Server takes some time to initialize and xinit must wait until
@@ -231,24 +213,18 @@ static void start_client(CTX)
 
 static void start_server(CTX)
 {
-	char** envp = ctx->envp;
+	char** origenvp = ctx->envp;
+	int origenvc = count_env(origenvp);
 
-	int argc = 3 + ctx->sargn + 1;
-	int argi = 0;
-	char* argv[argc];
+	int envc = origenvc + 3;
+	int envi = 0;
+	char* envp[envc];
 
-	addarg(argc, argv, &argi, ctx->server);
-	addarg(argc, argv, &argi, ctx->display);
+	append(envc, envp, &envi, origenvp, origenvc);
+	addarg(envc, envp, &envi, ctx->display);
+	endarg(envc, envp, &envi);
 
-	if(ctx->opts & OPT_v) {
-		addarg(argc, argv, &argi, "-verbose");
-		addarg(argc, argv, &argi, "4");
-	}
-
-	append(argc, argv, &argi, ctx->sargs, ctx->sargn);
-	endarg(argc, argv, &argi);
-
-	ctx->spid = spawn(ctx, argv, envp, inserver);
+	ctx->spid = spawn(ctx, ctx->server, envp, inserver);
 }
 
 static void wait_x_signal(CTX)
@@ -344,69 +320,29 @@ static int wait_sigchld(CTX)
 	return WEXITSTATUS(cstatus);
 }
 
-/* Quick check to make sure both commands are available in PATH.
-   No point in starting rather heavy X server only to have the client
-   diying immediately after. */
+/* Quick check for required files to avoid forking and spawning
+   the server just to find out that client's missing. */
 
-static int try_cmd_at(char* cmd, char* ds, char* de)
-{
-	int clen = strlen(cmd);
-	long dlen = de - ds;
-	char* dir = ds;
-
-	FMTBUF(p, e, path, clen + dlen + 2);
-	p = fmtraw(p, e, dir, dlen);
-	p = fmtchar(p, e, '/');
-	p = fmtraw(p, e, cmd, clen);
-	FMTEND(p, e);
-
-	return sys_access(path, X_OK);
-}
-
-static int check_in_path(char* cmd, char** envp)
-{
-	char* path;
-
-	if(!(path = getenv(envp, "PATH")))
-		return -ENOENT;
-
-	char* p = path;
-	char* e = path + strlen(path);
-
-	while(p < e) {
-		char* q = strecbrk(p, e, ':');
-
-		if(try_cmd_at(cmd, p, q) >= 0)
-			return 0;
-
-		p = q + 1;
-	}
-
-	return -ENOENT;
-}
-
-static int looks_like_path(const char* file)
-{
-	const char* p;
-
-	for(p = file; *p; p++)
-		if(*p == '/')
-			return 1;
-
-	return 0;
-}
-
-static void check_command(CTX, char* cmd)
+static void check_command(char* path)
 {
 	int ret;
 
-	if(looks_like_path(cmd))
-		ret = sys_access(cmd, X_OK);
-	else
-		ret = check_in_path(cmd, ctx->envp);
+	if((ret = sys_access(path, X_OK)) < 0)
+		fail(NULL, path, ret);
+}
 
-	if(ret < 0)
-		fail(NULL, cmd, ret);
+static int looks_like_basename(char* file)
+{
+	char* p;
+
+	if(!*file)
+		return 0;
+
+	for(p = file; *p; p++)
+		if(*p == '/')
+			return 0;
+
+	return 1;
 }
 
 static int looks_like_display(char* s)
@@ -423,77 +359,84 @@ static int looks_like_display(char* s)
 	return 1;
 }
 
-static char* shift(int argc, char** argv, int* argi)
+static void set_default_display(CTX)
 {
-	int i = *argi;
+	char* p = ctx->display;
+	char* e = p + sizeof(ctx->display) - 1;
 
-	if(i >= argc)
-		fail("too few arguments", NULL, 0);
-	if(!strcmp(argv[i], "--"))
-		fail("missing argument before --", NULL, 0);
+	p = fmtstr(p, e, "DISPLAY=");
+	p = fmtstr(p, e, ":");
+	p = fmtint(p, e, ctx->vtno);
 
-	*argi = i + 1;
-
-	return argv[i];
+	*p = '\0';
 }
 
-static int count_to_sep(int argc, char** argv, int* start)
+static void set_display(CTX, char* str)
 {
-	int s = *start;
-	int i = s;
+	if(!looks_like_display(str))
+		fail("invalid display spec:", str, 0);
 
-	while(i < argc && strcmp(argv[i], "--"))
-		i++;
+	char* p = ctx->display;
+	char* e = p + sizeof(ctx->display);
 
-	int n = i - s;
+	p = fmtstr(p, e, "DISPLAY=");
+	p = fmtstr(p, e, str);
 
-	if(i < argc) i++;
+	if(p >= e)
+		fail("display name too long", NULL, 0);
 
-	*start = i;
-
-	return n;
+	*p = '\0';
 }
+
+static void set_command(char* buf, uint len, const char* pref, char* val)
+{
+	if(val && !looks_like_basename(val))
+		fail("must be basename:", val, 0);
+
+	char* p = buf;
+	char* e = p + len;
+
+	p = fmtstr(p, e, "/etc/X11/");
+	p = fmtstr(p, e, pref);
+	if(val) p = fmtstr(p, e, val);
+
+	if(p < e)
+		;
+	else if(val)
+		fail("value too long:", val, 0);
+	else
+		fail("out of buffer space", NULL, 0);
+
+	*p = '\0';
+}
+
+#define SET(field, pref, val) \
+	set_command(field, sizeof(field), pref, val)
 
 static void set_commands(CTX, int argc, char** argv)
 {
-	int i = 1, opts = 0;
+	int i = 1;
 
 	if(i < argc && argv[i][0] == '-')
-		opts = argbits(OPTS, argv[i++] + 1);
+		fail("no options allowed", NULL, 0);
 
-	ctx->opts = opts;
+	if(i < argc && argv[i][0] == '+')
+		SET(ctx->server, "server-", argv[i++] + 1);
+	else
+		SET(ctx->server, "server", NULL);
 
-	if(opts & OPT_a && (opts & (OPT_s | OPT_v)))
-		fail("cannot use -a with -sv", NULL, 0);
+	if(i < argc && argv[i][0] == ':')
+		set_display(ctx, argv[i++]);
+	else
+		set_default_display(ctx);
 
-	if(opts & OPT_a) {
-		ctx->server = shift(argc, argv, &i);
-		ctx->display = shift(argc, argv, &i);
+	if(i < argc)
+		SET(ctx->client, "start-", argv[i++]);
+	else
+		SET(ctx->client, "client", NULL);
 
-		ctx->sargs = argv + i;
-		ctx->sargn = count_to_sep(argc, argv, &i);
-
-		ctx->client = shift(argc, argv, &i);
-		ctx->cargs = argv + i;
-		ctx->cargn = argc - i;
-	} else {
-		if(opts & OPT_s)
-			ctx->server = shift(argc, argv, &i);
-		else
-			ctx->server = "Xorg";
-
-		ctx->display = shift(argc, argv, &i);
-
-		ctx->client = shift(argc, argv, &i);
-		ctx->cargs = argv + i;
-		ctx->cargn = count_to_sep(argc, argv, &i);
-
-		ctx->sargs = argv + i;
-		ctx->sargn = argc - i;
-	}
-
-	if(!looks_like_display(ctx->display))
-		fail("invalid display spec", ctx->display, 0);
+	if(i < argc)
+		fail("too many arguments", NULL, 0);
 }
 
 static void set_launcher_sock_fd(CTX)
@@ -521,6 +464,7 @@ static void set_launcher_sock_fd(CTX)
 	if(!S_ISCHR(st.mode) || major(st.rdev) != TTY_MAJOR)
 		fail("stdin is not a TTY", NULL, 0);
 
+	ctx->vtno = minor(st.rdev);
 	ctx->ctlfd = fd;
 }
 
@@ -558,11 +502,11 @@ int main(int argc, char** argv, char** envp)
 
 	ctx->envp = envp;
 
-	set_commands(ctx, argc, argv);
 	set_launcher_sock_fd(ctx);
+	set_commands(ctx, argc, argv);
 
-	check_command(ctx, ctx->server);
-	check_command(ctx, ctx->client);
+	check_command(ctx->server);
+	check_command(ctx->client);
 
 	open_signalfd(ctx);
 	start_server(ctx);

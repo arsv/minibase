@@ -4,18 +4,7 @@
 \fBxorgvt\fR \- start Xorg server with a client on a VT
 '''
 .SH SYNOPSIS
-.IP "\fBxorgvt\fR [\fB-v\fR] \fB:\fIN\fR \fIclient\fR [\fIargs\fR] \
-[\fB--\fR \fIserver-args\fR]" 4
-Run \fBXorg\fR with \fIclient\fR.
-.IP "\fBxorgvt\fR \fB-s\fR \fIserver\fR \fB:\fIN\fR \fIclient\fR \
-[\fIargs\fR] [\fB--\fR \fIserver-args\fR]" 4
-Run specified server instead of \fBXorg\fR.
-.IP "\fBxorgvt\fR \fB-a\fR \fIserver\fR \fB:\fIN\fR [\fIargs\fR] \
-\fB--\fR \fIclient\fR [\fIargs\fR]" 4
-Same, with complete command specification for both client and server.
-.P
-\fIclient\fR should be a window manager or a desktop environment startup
-executable. \fIN\fR is display number.
+\fBxorgvt\fR [\fB+\fIversion\fR] [\fB:\fIN\fR] [\fIclient\fR]
 '''
 .SH DESCRIPTION
 This tool is a special version of \fBxinit\fR(1) inteded for running Xorg
@@ -27,13 +16,15 @@ X servers do not spawn their clients. Instead, a dedicated tool (\fBxinit\fR
 or in this case \fBxorgvt\fR) is used to spawn the server and the top client
 as sibling processes and monitor them until either exits.
 '''
-.SH OPTIONS
-.IP "\fB-a\fR" 4
-Alternative command specification, see above.
-.IP "\fB-s\fR" 4
-Explicit X server specification, see above.
-.IP "\fB-v\fR" 4
-Verbose mode; pass \fB-verbose 4\fR to \fIserver\fR.
+.SH FILES
+.IP "\fB/etc/X11/server" 4
+Default server startup script.
+.IP "\fB/etc/X11/server-\fIversion\fR" 4
+Custom server startup script.
+.IP "\fB/etc/X11/client" 4
+Default client startup script.
+.IP "\fB/etc/X11/start-\fIclient\fR" 4
+Custom client startup script.
 '''
 .SH ENVIRONMENT
 .IP "\fBPATH\fR" 4
@@ -43,7 +34,8 @@ Must be set to "3".
 .IP "\fBWESTON_\fR*" 4
 Any variable such will be removed from \fIclient\fR's environment.
 .IP "\fBDISPLAY\fR" 4
-X display number. Will be set to "\fB:\fIN\fR" for \fIclient\fR.
+X display number. Will be set to "\fB:\fIN\fR" for both \fIclient\fR
+and \fIserver\fR.
 '''
 .SH SEE ALSO
 \fBxinit\fR(1)
