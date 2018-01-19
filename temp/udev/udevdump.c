@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 
 #include <errtag.h>
+#include <format.h>
 #include <string.h>
 #include <util.h>
 
@@ -15,11 +16,23 @@
 
 ERRTAG("udevdump");
 
+struct libudevhdr {
+        char prefix[8];
+	uint magic;
+        uint header_size;
+        uint properties_off;
+        uint properties_len;
+        uint filter_subsystem_hash;
+        uint filter_devtype_hash;
+        uint filter_tag_bloom_hi;
+        uint filter_tag_bloom_lo;
+};
+
 /* UDEV events arrive one at a time. Kernel-generated udev messages are
    simple chunks of 0-terminated strings, each string except the first
    being VAR=val. */
 
-static void dump(char* buf, int len)
+static void dump_kernel(char* buf, uint len)
 {
 	char* p;
 
@@ -29,6 +42,45 @@ static void dump(char* buf, int len)
 	*p++ = '\n';
 
 	sys_write(STDOUT, buf, p - buf);
+}
+
+static void dump_libudev(char* buf, uint len)
+{
+	struct libudevhdr* hdr = (struct libudevhdr*) buf;
+
+	if(len < sizeof(*hdr))
+		return warn("invalid libudev header", NULL, 0);
+
+	uint off = hdr->properties_off;
+
+	if(off > len)
+		return warn("truncated libudev packet", NULL, 0);
+
+	FMTBUF(p, e, header, 100);
+	p = fmtstr(p, e, "[libudev header ");
+	p = fmtxint(p, e, hdr->magic);
+	p = fmtstr(p, e, " size ");
+	p = fmtuint(p, e, hdr->header_size);
+	p = fmtstr(p, e, " off ");
+	p = fmtuint(p, e, hdr->properties_off);
+	p = fmtstr(p, e, " len ");
+	p = fmtuint(p, e, hdr->properties_len);
+	p = fmtstr(p, e, "]");
+	p = fmtstr(p, e, " payload ");
+	p = fmtint(p, e, len - off);
+	FMTENL(p, e);
+	
+	writeall(STDOUT, header, p - header);
+
+	dump_kernel(buf + off, len - off);
+}
+
+static void dump(char* buf, uint len)
+{
+	if(len >= 8 && !memcmp(buf, "libudev", 7))
+		dump_libudev(buf, len);
+	else
+		dump_kernel(buf, len);
 }
 
 static int open_udev(int groups)
