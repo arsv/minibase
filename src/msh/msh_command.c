@@ -43,7 +43,7 @@ static int describe(CTX, int status)
 	return error(ctx, msg, buf, 0);
 }
 
-static int spawn(CTX, int dash)
+static int spawn(CTX)
 {
 	long pid = sys_fork();
 	char* cmd = *ctx->argv;
@@ -57,7 +57,7 @@ static int spawn(CTX, int dash)
 	if((pid = sys_waitpid(pid, &status, 0)) < 0)
 		quit(ctx, "wait", cmd, pid);
 
-	if(!status || dash)
+	if(!status || ctx->dash)
 		return 0;
 
 	return describe(ctx, status);
@@ -78,18 +78,18 @@ static const struct cmd* builtin(const char* name)
 void command(CTX)
 {
 	const struct cmd* cc;
-	int ret, dash;
+	int ret;
 
 	if(!ctx->argc)
 		return;
 
-	if((dash = (ctx->argv[0][0] == '-')))
+	if((ctx->dash = (ctx->argv[0][0] == '-')))
 		ctx->argv[0]++;
 
 	if((cc = builtin(ctx->argv[0])))
 		ret = cc->func(ctx);
 	else
-		ret = spawn(ctx, dash);
+		ret = spawn(ctx);
 
 	if(!ret || ctx->dash)
 		return;
