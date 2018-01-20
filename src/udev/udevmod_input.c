@@ -6,6 +6,7 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
 #include <sys/dents.h>
+#include <sys/sync.h>
 
 #include <format.h>
 #include <string.h>
@@ -172,6 +173,7 @@ static int load_event_bits(char* name, struct evbits* in)
 	if((rd = sys_read(fd, buf, sizeof(buf))) > 0)
 		parse_bits(buf, rd, in, '\n');
 
+	sys_fsync(fd);
 	sys_close(fd);
 
 	return 0;
@@ -362,9 +364,10 @@ void init_inputs(CTX)
 
 	makedir(HERE "/run/udev");
 	makedir(HERE "/run/udev/data");
-	touch(HERE "/run/udev/control");
 
 	scan_devices(ctx);
+
+	touch(HERE "/run/udev/control");
 }
 
 /* These two are called for incoming messages with subsystem="input".
