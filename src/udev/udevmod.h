@@ -5,6 +5,12 @@ struct mbuf {
 	uint len;
 };
 
+struct ubuf {
+	char* buf;
+	uint ptr;
+	uint len;
+};
+
 struct rfn {
 	int at;
 	char* dir;
@@ -49,6 +55,12 @@ struct top {
 	struct mbuf config;
 	struct mbuf passwd;
 	struct mbuf group;
+
+	uint sep;
+	uint ptr;
+	char uevent[512+2];
+
+	char saveid[16];
 };
 
 #define CTX struct top* ctx __unused
@@ -64,7 +76,7 @@ void modprobe(CTX, char* alias);
 void trychown(CTX, char* subsystem, char* devname);
 
 void init_inputs(CTX);
-void probe_input(CTX, struct mbuf* uevent);
-void clear_input(CTX, struct mbuf* uevent);
+void probe_input(CTX);
+void clear_input(CTX);
 
-char* getval(struct mbuf* uevent, char* key);
+char* getval(CTX, char* key);

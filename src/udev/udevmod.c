@@ -84,10 +84,10 @@ static void wait_drop_files(CTX, int fd)
    enough to just pick the values as needed. Key here is something
    like MODALIAS or DEVPATH. */
 
-char* getval(struct mbuf* uevent, char* key)
+char* getval(CTX, char* key)
 {
-	char* buf = uevent->buf;
-	char* end = buf + uevent->len;
+	char* buf = ctx->uevent;
+	char* end = buf + ctx->sep;
 
 	char* p = buf;
 	char* q;
@@ -114,34 +114,31 @@ char* getval(struct mbuf* uevent, char* key)
    Apparently it cannot be both at the same time. There are however events
    without MODALIAS and without DEVNAME. */
 
-static void dev_added(CTX, struct mbuf* uevent)
+static void dev_added(CTX)
 {
 	char *alias, *subsystem, *devname;
 
-	if((alias = getval(uevent, "MODALIAS")))
-		return modprobe(ctx, alias);
-
-	if(!(subsystem = getval(uevent, "SUBSYSTEM")))
+	if((alias = getval(ctx, "MODALIAS")))
+		modprobe(ctx, alias);
+	if(!(subsystem = getval(ctx, "SUBSYSTEM")))
 		return;
-	if(!(devname = getval(uevent, "DEVNAME")))
-		return;
-
-	trychown(ctx, subsystem, devname);
+	if((devname = getval(ctx, "DEVNAME")))
+		trychown(ctx, subsystem, devname);
 
 	if(ctx->startup)
 		return;
 	if(!strcmp(subsystem, "input"))
-		probe_input(ctx, uevent);
+		probe_input(ctx);
 }
 
-static void dev_removed(CTX, struct mbuf* uevent)
+static void dev_removed(CTX)
 {
-	char* subsystem = getval(uevent, "SUBSYSTEM");
+	char* subsystem = getval(ctx, "SUBSYSTEM");
 
 	if(ctx->startup)
 		return;
 	if(!strcmp(subsystem, "input"))
-		clear_input(ctx, uevent);
+		clear_input(ctx);
 }
 
 /* Clients relying on udevd to modify device nodes anyhow subscribe to
@@ -157,15 +154,22 @@ static void dev_removed(CTX, struct mbuf* uevent)
    messages, but current libudev will happily accept raw kernel messages
    as well. Not sure whether it's intentional or not but it works. */
 
-static void rebroadcast(CTX, char* buf, int len)
+static void rebroadcast(CTX)
 {
 	int ret, fd = ctx->udev;
+
+	char* buf = ctx->uevent;
+	int len = ctx->ptr;
+
 	struct sockaddr_nl addr = {
 		.family = AF_NETLINK,
 		.pad = 0,
 		.pid = ctx->pid,
 		.groups = UDEV_MGRP_LIBUDEV
 	};
+
+	if(ctx->startup)
+		return;
 
 	if((ret = sys_sendto(fd, buf, len, 0, &addr, sizeof(addr))) >= 0)
 		return;
@@ -177,9 +181,9 @@ static void rebroadcast(CTX, char* buf, int len)
 
 static void recv_event(CTX)
 {
-	int fd = ctx->udev;
-	int rd, max = 1024;
-	char buf[max+2];
+	int rd, fd = ctx->udev;
+	int max = sizeof(ctx->uevent) - 2;
+	char* buf = ctx->uevent;
 
 	wait_drop_files(ctx, fd);
 
@@ -188,15 +192,15 @@ static void recv_event(CTX)
 
 	buf[rd] = '\0';
 
-	struct mbuf uevent = { .buf = buf, .len = rd };
+	ctx->sep = rd;
+	ctx->ptr = rd;
 
 	if(!strncmp(buf, "remove@", 7))
-		dev_removed(ctx, &uevent);
+		dev_removed(ctx);
 	else if(!strncmp(buf, "add@", 4))
-		dev_added(ctx, &uevent);
+		dev_added(ctx);
 
-	if(!ctx->startup)
-		rebroadcast(ctx, buf, rd);
+	rebroadcast(ctx);
 }
 
 static void open_udev(CTX)

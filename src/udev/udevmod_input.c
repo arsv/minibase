@@ -10,24 +10,54 @@
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <dirs.h>
 
 #include "common.h"
 #include "udevmod.h"
 
-/* Libinput and applications based on libinput rely on files in /run/udev/data
-   to provide input device classification (keyboard, pointer etc).
-   In conventional systems that data is written by udevd with a bunch of rule
-   files. This code below emlulates relevant functionality, allowing libudev
-   applications to run on otherwise udev-free systems.
+/* Most apps written with libudev need their input devices tagged
+   with ID_INPUT*. Non-marked devices will be ignored.
 
-   Note this is an ugly hack that should not exist in a properly written
-   system. There is no reason for libinput to rely on 3rd-party files to
-   get the data it could just as well query itself from /sys.
+   The tags must be added to the events before re-broadcasting them,
+   but also stored under /run/udev/data for libudev to read while
+   pre-scanning devices. Note libudev will *not* read those files
+   during normal event processing, the events must carry all the data
+   with them.
 
-   Current implementation does only the absolute minimum necessary to run
-   unpatched weston with unpatched libinput. */
+   There's clearly some confusion between eventN and inputM. It looks
+   like inputM are the primary devices however not reporting eventN
+   (with corresponding ID_INPUT_* tags set!) breaks things. For the lack
+   of better options, the code below adds the tags both for inputM and
+   eventN devices.
+
+   In systemd-udevd, this tagging happens via ENV{...} clauses and it's
+   not really input-specific. In minibase however there are no other
+   uses so it's limited to input devices for now.
+
+   The whole idea is stupid and inherently racy. The code here is just
+   a stopgap to allow running unpatched clients until better fixes are
+   implemented. The right way to fix this is to remove libudev/libinput
+   dependencies and make the clients pick event bits directly from /sys. */
 
 #define IN(k) in->k, ARRAY_SIZE(in->k)
+
+static void append(CTX, char* str)
+{
+	int len = strlen(str);
+
+	int size = sizeof(ctx->uevent) - 2;
+	int left = size - ctx->ptr;
+
+	if(len + 1 >= left)
+		return warn("no space for", str, 0);
+
+	char* ptr = ctx->uevent + ctx->ptr;
+
+	memcpy(ptr, str, len);
+	ptr[len] = '\0';
+
+	ctx->ptr += len + 1;
+}
 
 static int hasbit(ulong* mask, int size, int bit)
 {
@@ -41,27 +71,25 @@ static int hasbit(ulong* mask, int size, int bit)
 	return !!(mask[w] & (1UL<<b));
 }
 
-static char* probe_ptr(char* p, char* e, struct evbits* in)
+static void probe_ptr(CTX, struct evbits* in)
 {
 	if(hasbit(IN(rel), REL_X) && hasbit(IN(rel), REL_Y))
-		p = fmtstr(p, e, "E:ID_INPUT_MOUSE=1\n");
+		append(ctx, "ID_INPUT_MOUSE=1");
 	if(hasbit(IN(abs), ABS_X) && hasbit(IN(abs), ABS_Y))
-		p = fmtstr(p, e, "E:ID_INPUT_TOUCHPAD=1\n");
-
-	return p;
+		append(ctx, "ID_INPUT_TOUCHPAD=1");
 }
 
-static char* probe_key(char* p, char* e, struct evbits* in)
+static void probe_key(CTX, struct evbits* in)
 {
+	if(nonzero(IN(key)))
+		append(ctx, "ID_INPUT_KEY=1");
+
 	if(!hasbit(IN(key), KEY_ENTER))
-		return p;
+		return;
 	if(!hasbit(IN(key), KEY_SPACE))
-		return p;
+		return;
 
-	p = fmtstr(p, e, "E:ID_INPUT_KEY=1\n");
-	p = fmtstr(p, e, "E:ID_INPUT_KEYBOARD=1\n");
-
-	return p;
+	append(ctx, "ID_INPUT_KEYBOARD=1");
 }
 
 static void set_bits(ulong* mask, int n, char* str)
@@ -88,7 +116,7 @@ static int prefixed(char* name, char* pref)
 	return plen;
 }
 
-static void parse_bits(char* buf, int len, struct evbits* in)
+static void parse_bits(char* buf, int len, struct evbits* in, char eol)
 {
 	char* p = buf;
 	char* q;
@@ -98,7 +126,9 @@ static void parse_bits(char* buf, int len, struct evbits* in)
 	memzero(in, sizeof(*in));
 
 	while(p < e) {
-		q = strecbrk(p, e, '\n'); *q = '\0';
+		q = strecbrk(p, e, eol);
+
+		if(eol) *q = '\0';
 
 		if((pl = prefixed(p, "KEY=")) > 0)
 			set_bits(IN(key), p + pl);
@@ -111,18 +141,26 @@ static void parse_bits(char* buf, int len, struct evbits* in)
 		else if((pl = prefixed(p, "SW=")) > 0)
 			set_bits(IN(sw), p + pl);
 
+		if(eol) *q = eol;
+
 		p = q + 1;
 	}
 }
 
-static int load_event_bits(char* devname, struct evbits* in)
+/* For eventN devices, load the bits from corresponding inputM
+   entry in /sys (accessible via /sys/class/input/eventN/device).
+
+   For inputM devices, the bits are already in the event body
+   so there's no point in reading anything from /sys. */
+
+static int load_event_bits(char* name, struct evbits* in)
 {
 	char buf[1024];
 	int fd, rd;
 
 	FMTBUF(p, e, path, 100);
 	p = fmtstr(p, e, "/sys/class/input/");
-	p = fmtstr(p, e, devname);
+	p = fmtstr(p, e, name);
 	p = fmtstr(p, e, "/device/uevent");
 	FMTEND(p, e);
 
@@ -132,48 +170,94 @@ static int load_event_bits(char* devname, struct evbits* in)
 	memzero(in, sizeof(*in));
 
 	if((rd = sys_read(fd, buf, sizeof(buf))) > 0)
-		parse_bits(buf, rd, in);
+		parse_bits(buf, rd, in, '\n');
 
 	sys_close(fd);
 
 	return 0;
 }
 
-static void write_udev_data(char* dataname, char* buf, int len)
+static void read_event_bits(CTX, struct evbits* in)
+{
+	char* buf = ctx->uevent;
+	int len = ctx->sep;
+
+	parse_bits(buf, len, in, '\0');
+}
+
+static void probe(CTX, char* name)
+{
+	struct evbits bits;
+
+	if(!strncmp(name, "input", 5))
+		read_event_bits(ctx, &bits);
+	else if(load_event_bits(name, &bits) < 0)
+		return;
+
+	int ptr = ctx->ptr;
+
+	append(ctx, "ID_INPUT=1");
+
+	int tmp = ctx->ptr;
+
+	probe_ptr(ctx, &bits);
+	probe_key(ctx, &bits);
+
+	if(ctx->ptr == tmp) /* no useful information beyond ID_INPUT=1 */
+		ctx->ptr = ptr;
+}
+
+/* Only the tag added by udevd should be stored in /run/udev/data.
+   Libudev will read corresponding uevent from /sys for the stuff
+   that normally comes from the kernel.
+
+   The format for these files does not match the wire messages.
+   Lines are \n-terminated, values set with ENV{...} need E: prefix.
+   See udevd sources.
+
+   Naming is tricky here, cM:N (chr-major-minor) or bM:N (blk-major-minor)
+   for devices or nN (net-ifi) for netdevs or else +subsystem:basename.
+   Which ones libudev/libinput will try to read isn't always obvious,
+   typically it's cM:N for the corresponding eventX device even when dealing
+   with inputY, but sometimes it's +input:inputY. */
+
+static void write_udev_data(CTX, char* path)
 {
 	int fd;
 	int flags = O_WRONLY | O_CREAT | O_TRUNC;
 	int mode = 0644;
 
-	if((fd = sys_open3(dataname, flags, mode)) < 0)
+	if(ctx->ptr <= ctx->sep)
+		return;
+	if((fd = sys_open3(path, flags, mode)) < 0)
 		return;
 
-	writeall(fd, buf, len);
+	int len = ctx->ptr - ctx->sep;
+	char* buf = ctx->uevent + ctx->sep;
+	char* end = buf + len;
+
+	int lines = 0;
+	char *ls, *le;
+
+	for(ls = buf; ls < end; ls = le + 1) {
+		le = strecbrk(ls, end, '\0');
+		lines++;
+	}
+
+	FMTBUF(p, e, data, len + 4*lines);
+
+	for(ls = buf; ls < end; ls = le + 1) {
+		le = strecbrk(ls, end, '\0');
+		p = fmtstr(p, e, "E:");
+		p = fmtraw(p, e, ls, le - ls);
+		p = fmtstr(p, e, "\n");
+	}
+
+	FMTEND(p, e);
+
+	writeall(fd, data, p - data);
 
 	sys_close(fd);
-}
-
-static void probe(char* dataname, char* devname)
-{
-	struct evbits bits;
-
-	char data[200];
-	char* p = data;
-	char* e = data + sizeof(data);
-	char* s;
-
-	if(load_event_bits(devname, &bits) < 0)
-		return;
-
-	s = p = fmtstr(p, e, "E:ID_INPUT=1\n");
-
-	p = probe_ptr(p, e, &bits);
-	p = probe_key(p, e, &bits);
-
-	if(p <= s) /* no useful information beyond ID_INPUT=1 */
-		return;
-
-	write_udev_data(dataname, data, p - data);
 }
 
 static int stat_dev_input(char* name, struct stat* st)
@@ -186,16 +270,21 @@ static int stat_dev_input(char* name, struct stat* st)
 	return sys_stat(path, st);
 }
 
-static void probe_device(char* name)
+static void probe_device(CTX, char* name)
 {
 	struct stat st;
 
 	if(stat_dev_input(name, &st) < 0)
 		return;
 
+	ctx->ptr = 0;
+	ctx->sep = 0;
+
+	probe(ctx, name);
+
 	FMTBUF(p, e, path, 100);
 
-	p = fmtstr(p, e, RUNUDEVDATA);
+	p = fmtstr(p, e, HERE "/run/udev/data");
 	p = fmtstr(p, e, "/c");
 	p = fmtuint(p, e, major(st.rdev));
 	p = fmtstr(p, e, ":");
@@ -203,10 +292,10 @@ static void probe_device(char* name)
 
 	FMTEND(p, e);
 
-	probe(path, name);
+	write_udev_data(ctx, path);
 }
 
-static void scan_devices(void)
+static void scan_devices(CTX)
 {
 	char* dir = "/dev/input";
 	int len = 1024;
@@ -234,7 +323,7 @@ static void scan_devices(void)
 			if(strncmp(de->name, "event", 5))
 				continue;
 
-			probe_device(de->name);
+			probe_device(ctx, de->name);
 		}
 	} if(rd < 0) {
 		warn("getdents", dir, rd);
@@ -255,15 +344,27 @@ static void makedir(char* dir)
 	fail(NULL, dir, ret);
 }
 
+static void touch(char* path)
+{
+	int fd;
+	int mode = 0644;
+
+	if((fd = sys_open3(path, O_WRONLY | O_CREAT, mode)) < 0)
+		warn(NULL, path, fd);
+
+	sys_close(fd);
+}
+
 void init_inputs(CTX)
 {
 	if(ctx->startup)
 		return;
 
-	makedir(RUNUDEV);
-	makedir(RUNUDEVDATA);
+	makedir(HERE "/run/udev");
+	makedir(HERE "/run/udev/data");
+	touch(HERE "/run/udev/control");
 
-	scan_devices();
+	scan_devices(ctx);
 }
 
 /* These two are called for incoming messages with subsystem="input".
@@ -287,24 +388,24 @@ void init_inputs(CTX)
         KEY=800000000000 0 0 1500b00000c00 4000000200300000 e000000000000 0
         MSC=10
         MODALIAS=input:...
- 
+
    The data gets written for eventN but the bits needed to do so comes
    in inputM message. The code reacts to the eventN message and has to
    read the corresponding inputM uevent from /sys.
 
-   Note N and M do not match in most cases! */
+   Note N and M do not need to match! */
 
-static int make_data_path(char* path, int size, struct mbuf* uevent)
+static int make_data_path(CTX, char* path, int size)
 {
 	char* p = path;
 	char* e = path + size - 1;
 
-	char* maj = getval(uevent, "MAJOR");
-	char* min = getval(uevent, "MINOR");
+	char* maj = getval(ctx, "MAJOR");
+	char* min = getval(ctx, "MINOR");
 
 	if(!maj || !min) return -1; /* inputM or something else entirely */
 
-	p = fmtstr(p, e, RUNUDEVDATA);
+	p = fmtstr(p, e, HERE "/run/udev/data");
 	p = fmtstr(p, e, "/c");
 	p = fmtstr(p, e, maj);
 	p = fmtstr(p, e, ":");
@@ -315,25 +416,25 @@ static int make_data_path(char* path, int size, struct mbuf* uevent)
 	return 0;
 }
 
-void probe_input(CTX, struct mbuf* uevent)
+void probe_input(CTX)
 {
 	char path[100];
-	char* name;
+	char* name = basename(ctx->uevent);
 
-	if(!(name = getval(uevent, "DEVNAME")))
-		return;
-	if(make_data_path(path, sizeof(path), uevent) < 0)
+	probe(ctx, name);
+
+	if(make_data_path(ctx, path, sizeof(path)) < 0)
 		return;
 
-	probe(path, basename(name));
+	write_udev_data(ctx, path);
 }
 
-void clear_input(CTX, struct mbuf* uevent)
+void clear_input(CTX)
 {
 	char path[100];
 
-	if(make_data_path(path, sizeof(path), uevent) < 0)
+	if(make_data_path(ctx, path, sizeof(path)) < 0)
 		return;
-	
+
 	sys_unlink(path);
 }
