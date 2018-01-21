@@ -5,7 +5,7 @@
 
 include $/config.mk
 
-DESTDIR ?= ./out
+DESTDIR ?= $/out
 clean = *.o *.d
 
 all:
