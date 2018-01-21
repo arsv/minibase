@@ -7,9 +7,9 @@ servicedir=/sbin/service
 networkdir=/sbin/network
 systemdir=/sbin/system
 
-man1dir=/usr/share/man1
-man5dir=/usr/share/man5
-man8dir=/usr/share/man8
+man1dir=/sman/man1
+man5dir=/sman/man5
+man8dir=/sman/man8
 
 cflags=-Os
 
