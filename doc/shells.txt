@@ -44,7 +44,7 @@ it less likely to be used for trivial cases when things like startup time
 become noticeable. Careful choice of built-ins can also extend its capability
 pretty far, perhaps completely covering system startup for instance.
 
-This thing is already in minibase, it's called msh.
+This thing is already in minibase, it's called `msh`.
 
 
 The scripting language
@@ -67,8 +67,8 @@ process.
 # Note "much simplified" Perl means no CPAN and NO F*#$%&% MODULES.
 
 Another option could be Lua, with built-ins necessary to make it into
-a system scripting language. Stuff like process control, non-portable file
-ops, easy access to common /etc formats.
+a system scripting language. Stuff like process control, non-portable
+file ops, easy access to common /etc formats and so on.
 
 
 The interactive shell
@@ -77,21 +77,44 @@ This is the only one of them that needs to deal with keyboard input and
 human-readable output on regular basis. The key point: it does not need
 to look like anything resembling bash or POSIX shell at all!
 
-Instead it should look more like a cross between mc and vi.
+That's because interactive shell is primarily a (mini-)IDE.
+Its purpose is navigating file system, editing the code, running it,
+and dealing with the output produced. Think a cross between mc, tmux
+and kilo.
 
-There's no need for it to have anything resembling a programming language
-at all, there are two of them already. It may provide some sort of editor
-to edit and debug scripts into languages (aka command line) but it should
-also be able to highlight files matching a pattern and run a command on them
-the same way vi(m) runs interactive search&replace.
+# Side note: the idea that interactive shell is in fact IDE is not really
+# new, and not really obscure. But it's not always clearly stated.
+# The features that set the new advanced shells like zsh or fish apart,
+# like extended completition support or fancy prompts or git integration,
+# those aren't feature of an interpreting language. Those are IDE features.
 
-It should definitely spare the user from typing ls all the time, or using
-find for that matter. Between this and the scripting language, find and ls
-should disappear as standalone commands.
+Whether or not this IDE should come with a built-in language is debatable,
+and my opinion is that it shouldn't. Instead it should be a code editor
+for the system scripting language(s) and/or msh.
 
-The interactive shell should also handle background jobs somehow.
-Not the bash way probably, because it makes no sense. More likely that it
-should be able to switch between running commands like screen or tmux or
-dtach. It is not yet clear how exactly it should work. TTY multiplexer is
-a things on its own, so most likely it's got to be at least two processes
-interacting to achieve switching.
+Interactive shell should definitely spare the user from typing ls all the
+time, or using find for that matter. Between this and the scripting language,
+find and ls should probably disappear as standalone commands at some point.
+
+It is not yet clear who the final design will look like but preminary work
+seem to indicate this shell should be a client for a indirect exec service
+similar to suhub, probably with backing ptys.
+
+
+The recovery shell
+~~~~~~~~~~~~~~~~~~
+Finally there's an emergency tool that shouldn't really exist in a properly
+set up system, but may be extremely useful in restricted settings. It's a
+small conventional direct-exec shell with command line interface, currently
+called `cmd`.
+
+The point in having this tool is to allow the user to run simple commands
+without relying on indirect exec service or ptys or whatever. 
+Think initrd that drops the user into a shell if it cannot locate the root
+paritition. Or a router that isn't supposed to be used interactively at all,
+but needs to provide a serial or ssh shell. That's the use cases for the
+recovery shell.
+
+This thing is not supposed to be used as the primary user shell, ever,
+only as a fallback. The reason it is used in minibase-br right now is the
+lack of anything better.
