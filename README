@@ -54,11 +54,18 @@ With everything in place, the system should be able to boot, on minibase
 alone, up to the point where it's ready to download, install and start GUI.
 
 
-Quickstart
-~~~~~~~~~~
-Bootable images for Qemu: https://github.com/arsv/minibase-br/releases
-Get sys-crypt, inspect and run supplied script. The password is "swordfish".
-Check README in that repository on how to use it.
+Quick start
+~~~~~~~~~~~
+Bootable images for Qemu (buildroot, minibase, Xorg, Weston) along
+with the build scripts are maintained in a dedicated repository:
+
+    https://github.com/arsv/minibase-br/
+
+Get either sys-plain or sys-crypt from Releases.
+Check README in that repository on how to use them.
+
+Inspect build scripts, rootfs and initrd contents to understand how
+the system boots. Check doc/boot.txt here as well.
 
 Start reading the sources at temp/compat, src/cmdops, src/debug.
 
