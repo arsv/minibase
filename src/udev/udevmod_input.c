@@ -196,11 +196,11 @@ static void probe(CTX, char* name)
 	else if(load_event_bits(name, &bits) < 0)
 		return;
 
-	int ptr = ctx->ptr;
+	uint ptr = ctx->ptr;
 
 	append(ctx, "ID_INPUT=1");
 
-	int tmp = ctx->ptr;
+	uint tmp = ctx->ptr;
 
 	probe_ptr(ctx, &bits);
 	probe_key(ctx, &bits);
