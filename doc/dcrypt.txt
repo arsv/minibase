@@ -154,16 +154,16 @@ doable, but it would complicate key-handling a lot.
 A tricker option is to ramp up false-positive rate by e.g. only keeping
 fixing values in the first N bytes of IV and randomizing the rest.
 This should be enough to catch simple typos during passphrase entry,
-and attempt to mount the fs would further validate the key correctness.
+and attempt to mount the fs would further validate key correctness.
+
 There would be a small chance of messing up the keyfile when adding/editing
 keys, but that's what key backups are for. The attacker presumably would not
-be able to recover the passphrase because of the false positives.
+be able to brute-force the passphrase because of the false positives.
 
 However, it is not clear whether this would actually work, in the sense that
 a dictionary attack would be able to produce enough false positives with a
 matching IV to conceal the original passphrase if N is high enough to be of
-any use for filter out typos. Quick checks imply even N=1 works pretty well,
-but this needs further testing.
+any use for detecting typos.
 
 
 Another issue with hand-cranks is the possibility of disclosing device
