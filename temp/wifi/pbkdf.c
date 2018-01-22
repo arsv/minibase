@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <sys/file.h>
 #include <crypto/pbkdf2.h>
 

@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <bits/caps.h>
 #include <syscall.h>
 

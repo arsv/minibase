@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 #define TTY_MAJOR     4
 #define LOOP_MAJOR    7

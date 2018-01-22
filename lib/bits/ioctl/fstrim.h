@@ -1,5 +1,5 @@
+#include <bits/types.h>
 #include <bits/ioctl.h>
-#include <bits/ints.h>
 
 struct fstrim_range {
 	uint64_t start;

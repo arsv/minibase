@@ -1,5 +1,5 @@
 #include <syscall.h>
-#include <bits/ints.h>
+#include <bits/types.h>
 
 #define RLIMIT_CPU          0
 #define RLIMIT_FSIZE        1

@@ -1,5 +1,5 @@
 #include <syscall.h>
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <bits/fcntl.h>
 
 #define IN_CLOEXEC       (1<<19)

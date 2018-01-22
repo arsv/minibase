@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <format.h>
 
 char* parsebytes(char* p, byte* dst, uint len)

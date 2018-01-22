@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 #define MAX_CONFIG_SIZE 4092
 

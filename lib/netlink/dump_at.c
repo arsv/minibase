@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 #include <string.h>
 #include <printf.h>

@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <format.h>
 
 char* parseu64(char* buf, uint64_t* np)

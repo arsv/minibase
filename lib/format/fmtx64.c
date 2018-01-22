@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <format.h>
 
 char* fmtx64(char* buf, char* end, uint64_t num)

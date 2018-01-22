@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <bits/signal.h>
 #include <sigset.h>
 

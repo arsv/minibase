@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 #define DRM_EVENT_VBLANK 0x01
 #define DRM_EVENT_FLIP_COMPLETE 0x02

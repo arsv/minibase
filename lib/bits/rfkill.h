@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 #define RFKILL_TYPE_WLAN       1
 #define RFKILL_TYPE_BLUETOOTH  2

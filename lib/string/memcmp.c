@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <string.h>
 
 int memcmp(const void* av, const void* bv, size_t len)

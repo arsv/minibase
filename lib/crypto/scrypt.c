@@ -28,8 +28,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE. */
 
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <bits/errno.h>
+
 #include <crypto/pbkdf2.h>
 #include <endian.h>
 #include <string.h>

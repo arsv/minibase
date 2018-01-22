@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 inline static uint16_t swabs(uint16_t n)
 {

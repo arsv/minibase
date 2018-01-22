@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 #define AF_UNIX 1
 #define PF_UNIX 1

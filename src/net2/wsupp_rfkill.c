@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <bits/rfkill.h>
 #include <bits/ioctl/socket.h>
 #include <sys/ioctl.h>

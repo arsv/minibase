@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 struct sha1 {
 	uint32_t H[5];

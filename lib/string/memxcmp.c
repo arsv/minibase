@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <string.h>
 
 /* Constant-time memcmp, for crypto stuff */

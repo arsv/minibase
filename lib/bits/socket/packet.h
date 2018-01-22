@@ -1,7 +1,7 @@
 #ifndef __BITS_PACKET_H__
 #define __BITS_PACKET_H__
 
-#include <bits/ints.h>
+#include <bits/types.h>
 
 #define AF_PACKET 17
 #define PF_PACKET 17

@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 /* Ethernet frame type for EAPOL packets */
 

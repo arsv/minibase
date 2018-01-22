@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 #define IPVERSION 4
 #define IPV4IHL5 0x45 /* version 4, header len 5x32bit */

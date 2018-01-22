@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 void pbkdf2_sha1(void* psk, int len,
                void* pass, int passlen,

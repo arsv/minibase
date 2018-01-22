@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <format.h>
 
 char* fmtbytes(char* p, char* e, const void* data, uint len)

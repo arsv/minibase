@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <format.h>
 
 /* Format 32-bit integers. Only matters for 32-bit arches where

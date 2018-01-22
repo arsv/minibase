@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 void PRF480(uint8_t out[60], uint8_t key[32], char* str,
             uint8_t mac1[6], uint8_t mac2[6],

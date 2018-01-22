@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 #include <crypto/sha1.h>
 #include <crypto/aes128.h>

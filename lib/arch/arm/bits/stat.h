@@ -1,7 +1,7 @@
 #ifndef __BITS_STAT_H__
 #define __BITS_STAT_H__
 
-#include <bits/ints.h>
+#include <bits/types.h>
 #include <bits/time.h>
 
 struct stat {

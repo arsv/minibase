@@ -1,4 +1,4 @@
-#include <bits/ints.h>
+#include <bits/types.h>
 
 #define LO_NAME_SIZE  64
 #define LO_KEY_SIZE   32
