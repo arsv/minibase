@@ -78,7 +78,6 @@ inline static long sys_seek(int fd, int64_t off)
 	int64_t pos;
 	int32_t hi = (off >> 32);
 	int32_t lo = (int32_t)off;
-	long ret;
 
 	return syscall5(NR__llseek, fd, hi, lo, (long)&pos, SEEK_SET);
 }
@@ -102,7 +101,6 @@ inline static long sys_llseek(int fd, int64_t off, int64_t* pos, int whence)
 {
 	int32_t hi = (off >> 32);
 	int32_t lo = (int32_t)off;
-	long ret;
 
 	return syscall5(NR__llseek, fd, hi, lo, (long)pos, whence);
 }
@@ -120,8 +118,10 @@ inline static long sys_llseek(int fd, int64_t off, int64_t* pos, int whence)
 }
 #endif
 
-#ifndef NR_fstatat
-#define NR_fstatat NR_newfstatat
+#ifdef NR_newfstatat
+# define NR_fstatat NR_newfstatat
+#else
+# define NR_fstatat NR_fstatat64
 #endif
 
 inline static long sys_stat(const char *path, struct stat *st)
@@ -131,7 +131,11 @@ inline static long sys_stat(const char *path, struct stat *st)
 
 inline static long sys_fstat(int fd, struct stat* st)
 {
+#ifdef NR_fstat64
+	return syscall2(NR_fstat64, fd, (long)st);
+#else
 	return syscall2(NR_fstat, fd, (long)st);
+#endif
 }
 
 inline static long sys_fstatat(int dirfd, const char *path,

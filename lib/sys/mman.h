@@ -40,7 +40,11 @@ inline static void* sys_brk(void* ptr)
 
 inline static void* sys_mmap(void* addr, size_t length, int prot, int flags, int fd, size_t offset)
 {
+#ifdef NR_mmap2
+	return (void*)syscall6(NR_mmap2, (long)addr, length, prot, flags, fd, offset);
+#else
 	return (void*)syscall6(NR_mmap, (long)addr, length, prot, flags, fd, offset);
+#endif
 }
 
 inline static void* sys_mremap(void* old, size_t oldsize, size_t newsize, int flags)

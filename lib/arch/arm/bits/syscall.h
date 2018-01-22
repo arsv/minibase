@@ -359,6 +359,5 @@
 #define NR_copy_file_range            391
 #define NR_preadv2                    392
 #define NR_pwritev2                   393
-#define NR_newfstatat                1054
 
 #endif

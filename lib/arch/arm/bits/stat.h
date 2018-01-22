@@ -6,7 +6,8 @@
 
 struct stat {
 	uint64_t dev;
-	uint64_t ino;
+	uint32_t __0;
+	uint32_t ino;
 	uint32_t mode;
 	uint32_t nlink;
 	 int32_t uid;
