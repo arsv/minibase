@@ -42,7 +42,7 @@ static void mmap_whole(CTX, char* name)
 {
 	int fd, ret;
 	struct stat st;
-	ulong max = ~0ULL;
+	ulong max = ~0UL;
 
 	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail(NULL, name, fd);
