@@ -1,6 +1,5 @@
 #include <bits/elf.h>
 #include <format.h>
-#include <printf.h>
 #include <util.h>
 #include "elfinfo.h"
 
@@ -125,8 +124,6 @@ static void dump_section(CTX, int i, struct spad* sp)
 	} else if(sp->addr) {
 		p = fmt_space(p, e, 3 + sp->addr);
 	}
-
-	tracef("s=%i name=%i at %lX\n", i, name, shoff + i*shentsize);
 
 	if((namestr = lookup_string(ctx, name))) {
 		p = fmtstr(p, e, " ");
