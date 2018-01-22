@@ -31,10 +31,10 @@ static char outbuf[4096];
 	res.ptr = alloca(res.count)
 
 #define SET_ARRAY(res, ptr, count, type) \
-	res.ptr = (uint64_t)alloca(res.count * sizeof(type))
+	res.ptr = (uint64_t)(ulong)alloca(res.count * sizeof(type))
 
 #define GET_ARRAY(res, ptr, type, i) \
-	(((type*)(res.ptr))[i])
+	(((type*)(ulong)(res.ptr))[i])
 
 #define IOCTL(cmd, arg) ioctl(ctx, cmd, arg, #cmd)
 
@@ -274,7 +274,7 @@ static void query_connector(CTX, uint ci)
 	dump_conn(ctx, &res);
 
 	for(uint i = 0; i < res.count_modes; i++) {
-		struct drm_mode_modeinfo* modes = (void*)res.modes_ptr;
+		struct drm_mode_modeinfo* modes = (void*)(ulong)res.modes_ptr;
 		dump_mode(ctx, &modes[i]);
 	}
 }
