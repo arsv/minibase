@@ -1,6 +1,6 @@
 #!/bin/sh
 
-unset arch cross cc ar strip tp lto
+unset arch cross target cc ar strip tp lto
 
 commanddir=/sbin
 servicedir=/sbin/service
@@ -18,8 +18,9 @@ die() { echo "$@" >&2; exit 1; }
 while [ $# -gt 0 ]; do
 	case "$1" in
 		*dir=*) eval "$1" ;;
-		cross=*) eval "$1" ;;
-		x86_64|arm|arm64|riscv) arch=$1 ;;
+		cross=*) eval "$1"; cross="${cross}-" ;;
+		target=*) eval "$1"; cross="${cross:-$target-}" ;;
+		arch=*) eval "$1" ;;
 		cc=*) eval "$1" ;;
 		ar=*) eval "$1" ;;
 		strip=*) eval "$1" ;;
@@ -34,13 +35,13 @@ while [ $# -gt 0 ]; do
 	esac; shift
 done
 
-test -z "$ar" && ar="${cross:+$cross-}ar"
-test -z "$strip" && strip="${cross:+$cross-}strip"
+test -z "$ar" && ar="${cross}ar"
+test -z "$strip" && strip="${cross}strip"
 
 if [ -n "$clang" -a -z "$cc" ]; then
-	cc="clang${cross:+--target=$cross}"
+	cc="clang${target:+ --target=$target}"
 elif [ -z "$cc" ]; then
-	cc="${cross:+$cross-}gcc"
+	cc="${cross}gcc"
 fi
 
 if [ -z "$arch" ]; then
