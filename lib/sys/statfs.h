@@ -1,17 +1,18 @@
+#include <bits/types.h>
 #include <syscall.h>
 
 struct statfs {
-	long type;
-	long bsize;
-	unsigned long blocks;
-	unsigned long bfree;
-	unsigned long bavail;
-	unsigned long files;
-	unsigned long ffree;
+	ulong type;
+	ulong bsize;
+	ulong blocks;
+	ulong bfree;
+	ulong bavail;
+	ulong files;
+	ulong ffree;
 	int fsid;
-	long namelen;
-	long frsize;
-	long flags;
+	ulong namelen;
+	ulong frsize;
+	ulong flags;
 	long spare[4];
 };
 
