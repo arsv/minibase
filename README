@@ -178,6 +178,18 @@ the kernel sources (GPLv2) or the musl libc (MIT license).
 The code in lib/crypto is mostly BSD-licensed. See README there.
 
 
+Contributing
+~~~~~~~~~~~~
+Do not. I will probably not accept patches at least until version 1.0.
+
+This is a non-conventional, highly opionated personal project that is nowhere
+near complete. Lots of code has been, and lots of code will be re-written over
+and over again while I'm figuring out how I'd like to see it done. Third party
+contributions will likely do more harm than good at this point.
+
+If you'd really like to see something implemented or fixed, open an issue.
+
+
 Credits
 ~~~~~~~
 Dietlibc and "Writing Small and Fast Software" by Felix von Leitner.
