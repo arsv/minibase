@@ -38,97 +38,7 @@ static char* skip_to_fmt(char* s)
 	return s;
 }
 
-static char* fmt_s(char* p, char* e, struct spec* sp, va_list ap)
-{
-	char* str = va_arg(ap, char*);
-
-	if(!str)
-		str = "(null)";
-
-	if(sp->flags & Fd)
-		return fmtstrn(p, e, str, sp->prec);
-	else
-		return fmtstr(p, e, str);
-}
-
-static char* fmt_c(char* p, char* e, struct spec* sp, va_list ap)
-{
-	(void)sp;
-
-	return fmtchar(p, e, va_arg(ap, unsigned));
-}
-
-static char* fmt_i(char* p, char* e, struct spec* sp, va_list ap)
-{
-	if(sp->flags & Fl)
-		return fmtlong(p, e, va_arg(ap, long));
-	else
-		return fmtint(p, e, va_arg(ap, int));
-}
-
-static char* fmt_u(char* p, char* e, struct spec* sp, va_list ap)
-{
-	if(sp->flags & Fl)
-		return fmtulong(p, e, va_arg(ap, unsigned long));
-	else
-		return fmtuint(p, e, va_arg(ap, unsigned));
-}
-
-static char* fmt_x(char* p, char* e, struct spec* sp, va_list ap)
-{
-	if(sp->flags & Fl)
-		return fmtxlong(p, e, va_arg(ap, unsigned long));
-	else
-		return fmtxlong(p, e, va_arg(ap, unsigned));
-}
-
-static char* fmt_p(char* p, char* e, struct spec* sp, va_list ap)
-{
-	(void)sp;
-
-	p = fmtstr(p, e, "0x");
-	p = fmtxlong(p, e, (long)va_arg(ap, void*));
-
-	return p;
-}
-
-static char* dispatch(char* p, char* e, struct spec* sp, va_list ap)
-{
-	switch(sp->c) {
-		case 's': return fmt_s(p, e, sp, ap);
-		case 'c': return fmt_c(p, e, sp, ap);
-		case 'i': return fmt_i(p, e, sp, ap);
-		case 'u': return fmt_u(p, e, sp, ap);
-		case 'X':
-		case 'x': return fmt_x(p, e, sp, ap);
-		case 'p': return fmt_p(p, e, sp, ap);
-		default: return NULL;
-	}
-}
-
-static char* format(char* p, char* e, struct spec* sp, va_list ap)
-{
-	char* q;
-
-	if(!(q = dispatch(p, e, sp, ap)))
-		return q;
-
-	int width = sp->width;
-	int flags = sp->flags;
-
-	if(q - p >= width)
-		return q;
-	if(flags & F0)
-		return fmtpad0(p, e, width, q);
-	if(flags & Fm)
-		return fmtpadr(p, e, width, q);
-	else
-		return fmtpad(p, e, width, q);
-
-	return q;
-}
-
-static char* intpart(char* q, short* dst, va_list ap)
+static char* maybeint(char* q, int* dst)
 {
 	if(*q >= '0' && *q <= '9') {
 		int num = 0;
@@ -137,9 +47,6 @@ static char* intpart(char* q, short* dst, va_list ap)
 			num = num*10 + (*q++ - '0');
 
 		*dst = num;
-	} else if(*q == '*') {
-		q++;
-		*dst = va_arg(ap, int);
 	} else {
 		*dst = 0;
 	}
@@ -147,47 +54,102 @@ static char* intpart(char* q, short* dst, va_list ap)
 	return q;
 }
 
-static char* parse(char* q, struct spec* sp, va_list ap)
-{
-	short flags = 0;
+/* "If ap is passed to a function that uses va_arg(ap,type), then the value
+    of ap is undefined after the return of that function." -- va_arg(3)
 
-	q++; /* skip % */
-
-	if(*q == '-') { flags |= Fm; q++; }
-	if(*q == '0') { flags |= F0; q++; }
-
-	q = intpart(q, &sp->width, ap);
-
-	if(*q == '.') { flags |= Fd; q++; }
-
-	q = intpart(q, &sp->prec, ap);
-
-	if(*q == 'l') { flags |= Fl; q++; }
-
-	sp->c = *q++;
-	sp->flags = flags;
-
-	return q;
-}
+    This one has to be a big crappy function. */
 
 static char* pprintf(char* p, char* e, const char* fmt, va_list ap)
 {
 	char* f = (char*)fmt;
-	struct spec sp;
+	char* str;
 
 	while(*f) {
-		if(*f == '%') {
-			if(!(f = parse(f, &sp, ap)))
-				break;
-			if(!(p = format(p, e, &sp, ap)))
-				break;
-		} else {
+		if(*f != '%') {
 			char* t = f;
 			f = skip_to_fmt(f);
 			p = fmtraw(p, e, t, f - t);
-		}
-	}
+			continue;
+		};
 
+		int flags = 0, width = 0, prec = 0;
+
+		f++; /* skip % */
+
+		/* parse format spec */
+
+		if(*f == '-') { flags |= Fm; f++; }
+		if(*f == '0') { flags |= F0; f++; }
+
+		if(*f == '*')
+			width = va_arg(ap, int);
+		else
+			f = maybeint(f, &width);
+
+		if(*f == '.') { flags |= Fd; f++; }
+
+		if(*f == '*')
+			prec = va_arg(ap, int);
+		else
+			f = maybeint(f, &prec);
+
+		if(*f == 'l') { flags |= Fl; f++; }
+
+		/* pull and format argument */
+
+		char* q;
+
+		switch(*f++) {
+			case 's':
+				if(!(str = va_arg(ap, char*)))
+					str = "(null)";
+				if(flags & Fd)
+					q = fmtstrn(p, e, str, prec);
+				else
+					q = fmtstr(p, e, str);
+				break;
+			case 'c':
+				q = fmtchar(p, e, va_arg(ap, uint));
+				break;
+			case 'i':
+				if(flags & Fl)
+					q = fmtlong(p, e, va_arg(ap, long));
+				else
+					q = fmtint(p, e, va_arg(ap, int));
+				break;
+			case 'u':
+				if(flags & Fl)
+					q = fmtulong(p, e, va_arg(ap, ulong));
+				else
+					q = fmtuint(p, e, va_arg(ap, uint));
+				break;
+			case 'X':
+			case 'x':
+				if(flags & Fl)
+					q = fmtxlong(p, e, va_arg(ap, ulong));
+				else
+					q = fmtxlong(p, e, va_arg(ap, uint));
+				break;
+			case 'p': 
+				q = fmtstr(p, e, "0x");
+				q = fmtxlong(p, e, (long)va_arg(ap, void*));
+				break;
+			default:
+				goto out;
+		}
+
+		/* pad the result if necessary */
+
+		if(q - p >= width)
+			p = q;
+		else if(flags & F0)
+			p = fmtpad0(p, e, width, q);
+		else if(flags & Fm)
+			p = fmtpadr(p, e, width, q);
+		else
+			p = fmtpad(p, e, width, q);
+	}
+out:
 	return p;
 }
 
