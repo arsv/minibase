@@ -2,4 +2,5 @@ fmterr
 format
 parse
 parseip
+stdarg
 printf
