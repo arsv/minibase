@@ -27,7 +27,7 @@ static int cmp(const void* a, const void* b, long sz)
 
 static char* put_array(char* p, char* e, void* a, size_t n, size_t sz)
 {
-	int i;
+	uint i;
 	void* v = a;
 
 	p = fmtstr(p, e, " { ");
