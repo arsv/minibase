@@ -170,13 +170,8 @@ static char* parse(char* q, struct spec* sp, va_list ap)
 	return q;
 }
 
-int vfdprintf(int fd, const char* fmt, va_list ap)
+static char* pprintf(char* p, char* e, const char* fmt, va_list ap)
 {
-	char buf[PRINTFBUF];
-	int bufsize = sizeof(buf);
-	char* p = buf;
-	char* e = buf + bufsize;
-
 	char* f = (char*)fmt;
 	struct spec sp;
 
@@ -193,6 +188,28 @@ int vfdprintf(int fd, const char* fmt, va_list ap)
 		}
 	}
 
+	return p;
+}
+
+long vsnprintf(char* buf, ulong len, const char* fmt, va_list ap)
+{
+	char* p = buf;
+	char* e = buf + len;
+
+	p = pprintf(p, e, fmt, ap);
+
+	return p - buf;
+}
+
+int vfdprintf(int fd, const char* fmt, va_list ap)
+{
+	char buf[PRINTFBUF];
+	int bufsize = sizeof(buf);
+	char* p = buf;
+	char* e = buf + bufsize;
+
+	p = pprintf(p, e, fmt, ap);
+
 	return writeall(fd, buf, p - buf);
 }
 
@@ -203,6 +220,18 @@ int printf(const char* fmt, ...)
 
 	va_start(ap, fmt);
 	ret = vfdprintf(STDOUT, fmt, ap);
+	va_end(ap);
+
+	return ret;
+}
+
+int snprintf(char* buf, ulong len, const char* fmt, ...)
+{
+	int ret;
+	va_list ap;
+
+	va_start(ap, fmt);
+	ret = vsnprintf(buf, len, fmt, ap);
 	va_end(ap);
 
 	return ret;
