@@ -51,6 +51,10 @@ if [ -z "$arch" ]; then
 		aarch64) arch=arm64 ;;
 		riscv64) arch=riscv ;;
 		riscv32) die "RV32 is not supported" ;;
+		mips64el)  arch=mips64 ;;
+		mipsn32)   arch=mips32 ;;
+		mipsn32el) arch=mips32 ;;
+		mipsel)    arch=mips ;;
 	esac
 	test -n "$arch" || die "Cannot determine target arch"
 	test -d "lib/arch/$arch" || die "Unsupported arch $arch"
@@ -124,7 +128,7 @@ else
 cat >> mini-cc <<END
 exec $cc -ffreestanding \\
 	-fno-asynchronous-unwind-tables -fno-stack-protector \\
-	-static -no-pie -fno-pie -fno-PIE -fno-pic -fno-PIC -fno-plt $lto \\
+	-static -fno-pie -fno-PIE -fno-pic -fno-PIC $lto \\
 	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib -MD \\
 	$cflags "\$@" \\
 	-nostdlib -Wl,-\\( \${needslib:+\$base/lib/all.a -lgcc} -Wl,-\\)
