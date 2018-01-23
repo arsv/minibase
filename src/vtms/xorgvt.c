@@ -77,13 +77,8 @@ static void quit(CTX, const char* msg, char* arg, int err)
 
 static void sig_ignore(int sig)
 {
+	SIGHANDLER(sa, SIG_IGN, 0);
 	int ret;
-
-	struct sigaction sa = {
-		.handler = SIG_IGN,
-		.flags = 0,
-		.restorer = NULL
-	};
 
 	if((ret = sys_sigaction(sig, &sa, NULL)) < 0)
 		warn("signal", NULL, ret);

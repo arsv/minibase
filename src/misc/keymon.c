@@ -45,11 +45,7 @@ static void sigprocmask(int how, sigset_t* mask, sigset_t* out)
 
 void setup_signals(void)
 {
-	struct sigaction sa = {
-		.handler = sighandler,
-		.flags = SA_RESTART | SA_RESTORER,
-		.restorer = sigreturn
-	};
+	SIGHANDLER(sa, sighandler, SA_RESTART);
 
 	sigemptyset(&sa.mask);
 	sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);

@@ -63,12 +63,7 @@ static int sigaction(int sig, struct sigaction* sa, char* tag)
 
 int setup_signals(void)
 {
-	struct sigaction sa = {
-		.handler = sighandler,
-		.flags = SA_RESTART | SA_RESTORER,
-		.restorer = sigreturn
-	};
-
+	SIGHANDLER(sa, sighandler, SA_RESTART);
 	int ret = 0;
 
 	sigemptyset(&sa.mask);

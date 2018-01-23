@@ -58,20 +58,13 @@ static void sigprocmask(int how, sigset_t* mask, sigset_t* save)
 
 static void setup_signals(CTX)
 {
-	struct sigaction sa = {
-		.handler = sighandler,
-		.flags = SA_RESTORER,
-		.restorer = sigreturn
-	};
-
-	sigset_t* mask = &sa.mask;
-	sigemptyset(mask);
+	SIGHANDLER(sa, sighandler, 0);
 
 	sigprocmask(SIG_BLOCK, &sa.mask, &ctx->defsigset);
 
-	sigaddset(mask, SIGINT);
-	sigaddset(mask, SIGTERM);
-	sigaddset(mask, SIGALRM);
+	sigaddset(&sa.mask, SIGINT);
+	sigaddset(&sa.mask, SIGTERM);
+	sigaddset(&sa.mask, SIGALRM);
 
 	sigaction(SIGINT,  &sa, NULL);
 	sigaction(SIGTERM, &sa, NULL);

@@ -65,13 +65,8 @@ static void sigprocmask(int sig, sigset_t* mask, sigset_t* mold)
 
 void setup_signals(void)
 {
-	struct sigaction sa = {
-		.handler = sighandler,
-		.flags = SA_RESTART | SA_RESTORER,
-		.restorer = sigreturn
-	};
+	SIGHANDLER(sa, sighandler, SA_RESTART);
 
-	sigemptyset(&sa.mask);
 	sigaddset(&sa.mask, SIGCHLD);
 	sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
 

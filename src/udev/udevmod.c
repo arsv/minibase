@@ -328,11 +328,7 @@ static void scan_devices(CTX)
 
 static void suppress_sigpipe(void)
 {
-	struct sigaction sa = {
-		.handler = SIG_IGN,
-		.flags = 0,
-		.restorer = NULL
-	};
+	SIGHANDLER(sa, SIG_IGN, 0);
 
 	sys_sigaction(SIGPIPE, &sa, NULL);
 }

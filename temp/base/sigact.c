@@ -24,14 +24,9 @@ int main(void)
 {
 	int self = sys_getpid();
 
-	struct sigaction sa = {
-		.handler = sighandler,
-		.flags = SA_RESTORER,
-		.restorer = sigreturn,
-		.mask = EMPTYSIGSET
-	};
-
+	SIGHANDLER(sa, sighandler, 0);
 	sys_sigaction(SIGCHLD, &sa, NULL);
+
 	sys_kill(self, SIGCHLD);
 
 	return 0;

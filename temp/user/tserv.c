@@ -24,11 +24,7 @@ static void sighandler(int sig)
 
 static void setup_signals(void)
 {
-	struct sigaction sa = {
-		.handler = sighandler,
-		.flags = SA_RESTORER,
-		.restorer = sigreturn
-	};
+	SIGHANDLER(sa, sighandler, 0);
 
 	sys_sigaction(SIGINT, &sa, NULL);
 	sys_sigaction(SIGTERM, &sa, NULL);

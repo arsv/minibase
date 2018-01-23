@@ -61,13 +61,8 @@ static void sigalarm(int sig)
 
 static void setup_alarm(void)
 {
-	struct sigaction sa = {
-		.handler = sigalarm,
-		.flags = SA_RESTORER,
-		.restorer = sigreturn
-	};
+	SIGHANDLER(sa, sigalarm, 0);
 
-	sigemptyset(&sa.mask);
 	sys_sigaction(SIGALRM, &sa, NULL);
 
 	sys_alarm(1);

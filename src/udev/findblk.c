@@ -33,11 +33,7 @@ static void sighandler(int sig)
 
 static void setup(void)
 {
-	struct sigaction sa = {
-		.handler = sighandler,
-		.flags = SA_RESTORER,
-		.restorer = sigreturn
-	};
+	SIGHANDLER(sa, sighandler, 0);
 
 	sys_sigaction(SIGALRM, &sa, NULL);
 }

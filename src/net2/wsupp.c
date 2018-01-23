@@ -51,13 +51,7 @@ static void sigaction(int sig, struct sigaction* sa)
 
 static void setup_signals(void)
 {
-	struct sigaction sa = {
-		.handler = sighandler,
-		.flags = SA_RESTORER,
-		.restorer = sigreturn
-	};
-
-	sigemptyset(&defsigset);
+	SIGHANDLER(sa, sighandler, 0);
 
 	sigaddset(&sa.mask, SIGINT);
 	sigaddset(&sa.mask, SIGTERM);

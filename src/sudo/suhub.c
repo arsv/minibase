@@ -148,21 +148,15 @@ static void sigprocmask(int how, sigset_t* mask, sigset_t* out)
 
 static void setup_signals(void)
 {
-	struct sigaction sa = {
-		.handler = sighandler,
-		.flags = SA_RESTORER,
-		.restorer = sigreturn
-	};
-	sigset_t* mask = &sa.mask;
+	SIGHANDLER(sa, sighandler, 0);
 
-	sigemptyset(mask);
-	sigaddset(mask, SIGCHLD);
+	sigaddset(&sa.mask, SIGCHLD);
 
-	sigprocmask(SIG_BLOCK, mask, &defsigset);
+	sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
 
-	sigaddset(mask, SIGALRM);
-	sigaddset(mask, SIGTERM);
-	sigaddset(mask, SIGINT);
+	sigaddset(&sa.mask, SIGALRM);
+	sigaddset(&sa.mask, SIGTERM);
+	sigaddset(&sa.mask, SIGINT);
 
 	sigaction(SIGINT,  &sa, NULL);
 	sigaction(SIGTERM, &sa, NULL);
