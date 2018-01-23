@@ -152,11 +152,7 @@ inline static long sys_lstat(const char *path, struct stat *st)
 
 inline static long sys_pipe(int* fds)
 {
-#ifdef NR_pipe2
 	return syscall2(NR_pipe2, (long)fds, 0);
-#else
-	return syscall1(NR_pipe, (long)fds);
-#endif
 }
 
 inline static long sys_pipe2(int* fds, int flags)
