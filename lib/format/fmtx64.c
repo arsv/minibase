@@ -5,19 +5,23 @@ char* fmtx64(char* buf, char* end, uint64_t num)
 {
 	static const char digits[] = "0123456789ABCDEF";
 
-	int len = 0;
-	long n;
+	ulong len = 1;
+	uint64_t n = num;
 
-	for(len = 1, n = num; n >= 0x10; len++)
-		n >>= 4;
+	for(; n >= 0x10; n >>= 4)
+		len++;
 
-	int i;
+	ulong i;
 	char* e = buf + len;
 	char* p = e - 1; /* len >= 1 so e > buf */
 
-	for(i = 0; i < len; i++, p--, num >>= 4)
+	for(i = 0; i < len; i++) {
 		if(p < end)
 			*p = digits[num & 0x0F];
+		if(p >= buf)
+			p--;
+		num >>= 4;
+	}
 
 	return e;
 }
