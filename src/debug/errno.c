@@ -133,7 +133,6 @@ static const char errors[] =
 	NENAVAIL "No XENIX semaphores available\0"
 	NEISNAM "Is a named type file\0"
 	NEREMOTEIO "Remote I/O error\0"
-	NEDQUOT "Quota exceeded\0"
 	NENOMEDIUM "No medium found\0"
 	NEMEDIUMTYPE "Wrong medium type\0"
 	NECANCELED "Operation Canceled\0"
@@ -141,6 +140,9 @@ static const char errors[] =
 	NEKEYEXPIRED "Key has expired\0"
 	NEKEYREVOKED "Key has been revoked\0"
 	NEKEYREJECTED "Key was rejected by service\0"
+#ifdef NEDQUOT
+	NEDQUOT "Quota exceeded\0"
+#endif
 	"\0";
 
 static int error_code(const char* p)
