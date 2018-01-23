@@ -1,3 +1,3 @@
-test = qsort
+test = endian qsort
 
 include ../rules.mk
