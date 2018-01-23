@@ -1,23 +1,55 @@
 #include <sys/file.h>
-#include <printf.h>
 #include <format.h>
 #include <string.h>
+#include <util.h>
 
 static int invalid(char* file, int line, char* msg)
 {
-	printf("%s:%i: FAIL %s\n", file, line, msg);
+	FMTBUF(p, e, buf, 100);
+	p = fmtstr(p, e, file);
+	p = fmtstr(p, e, ":");
+	p = fmtint(p, e, line);
+	p = fmtstr(p, e, ":");
+	p = fmtstr(p, e, " FAIL ");
+	p = fmtstr(p, e, msg);
+	FMTENL(p, e);
+
+	writeall(STDERR, buf, p - buf);
+
 	return -1;
 }
 
 static int failure(char* file, int line, char* got, char* exp)
 {
-	printf("%s:%i: FAIL %s expected %s\n", file, line, got, exp);
+	FMTBUF(p, e, buf, 100);
+	p = fmtstr(p, e, file);
+	p = fmtstr(p, e, ":");
+	p = fmtint(p, e, line);
+	p = fmtstr(p, e, ":");
+	p = fmtstr(p, e, " FAIL ");
+	p = fmtstr(p, e, got);
+	p = fmtstr(p, e, " expected ");
+	p = fmtstr(p, e, exp);
+	FMTENL(p, e);
+
+	writeall(STDERR, buf, p - buf);
+
 	return -1;
 }
 
 static int success(char* file, int line, char* got)
 {
-	printf("%s:%i: OK %s\n", file, line, got);
+	FMTBUF(p, e, buf, 100);
+	p = fmtstr(p, e, file);
+	p = fmtstr(p, e, ":");
+	p = fmtint(p, e, line);
+	p = fmtstr(p, e, ":");
+	p = fmtstr(p, e, " OK ");
+	p = fmtstr(p, e, got);
+	FMTENL(p, e);
+
+	writeall(STDERR, buf, p - buf);
+
 	return 0;
 }
 
@@ -49,7 +81,7 @@ int test_basic_types(void)
 {
 	char buf[256];
 	char* p = buf;
-	char* e = buf + sizeof(buf);
+	char* e = buf + sizeof(buf) - 5;
 	int ret = 0;
 
 	TEST(fmtbyte, "20", 0x20);
@@ -94,7 +126,7 @@ int test_padding(void)
 {
 	char buf[256];
 	char* p = buf;
-	char* e = buf + sizeof(buf);
+	char* e = buf + sizeof(buf) - 5;
 	int ret = 0;
 
 	TEST(fmtpad,  "  a", 3, fmtstr(p, e, "a"));
