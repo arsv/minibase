@@ -46,6 +46,10 @@ typedef struct {
 
 #define EMPTYSIGSET { 0, 0 }
 
+#define SIG_DFL ((void*) 0L)
+#define SIG_IGN ((void*) 1L)
+#define SIG_ERR ((void*)~0L)
+
 #define SA_NOCLDSTOP    0x00000001
 #define SA_NOCLDWAIT    0x00000002
 #define SA_SIGINFO      0x00000004
@@ -65,5 +69,15 @@ struct sigaction {
 	unsigned long flags;
 	void (*restorer)(void);
 };
+
+#define SIGHANDLER(sa, hh, fl) \
+	struct sigaction sa = { \
+		.handler = hh, \
+		.flags = fl | SA_RESTORER, \
+		.restorer = sigreturn, \
+		.mask = EMPTYSIGSET \
+	}
+
+extern void sigreturn(void);
 
 #endif

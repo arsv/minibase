@@ -7,10 +7,6 @@
 #define SIG_UNBLOCK	1
 #define SIG_SETMASK	2
 
-#define SIG_DFL ((void*) 0L)
-#define SIG_IGN ((void*) 1L)
-#define SIG_ERR ((void*)~0L)
-
 #define SFD_NONBLOCK O_NONBLOCK
 #define SFD_CLOEXEC  O_CLOEXEC
 
@@ -34,8 +30,6 @@ struct sigevent {
 	uint16_t addr_lsb;
 	byte pad[46];
 } __attribute__((packed));
-
-extern void sigreturn(void);
 
 inline static long sys_sigaction(int signum, const struct sigaction* act, struct sigaction* oldact)
 {
