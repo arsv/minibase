@@ -30,6 +30,7 @@ while [ $# -gt 0 ]; do
 		wextra) cflags="$cflags -Wextra" ;;
 		werror) cflags="$cflags -Werror" ;;
 		lto) lto="-flto " ;;
+		qemu=*) eval "$1" ;;
 		only) shift; only="$@"; break ;;
 		*) die "Unexpected argument $1" ;;
 	esac; shift
@@ -46,7 +47,7 @@ fi
 
 if [ -z "$arch" ]; then
 	mach=`$cc -dumpmachine`
-	arch=${mach%%-*}
+	mach=${mach%%-*}
 	case "$arch" in
 		aarch64) arch=arm64 ;;
 		riscv64) arch=riscv ;;
@@ -55,10 +56,29 @@ if [ -z "$arch" ]; then
 		mipsn32)   arch=mips32 ;;
 		mipsn32el) arch=mips32 ;;
 		mipsel)    arch=mips ;;
+		*) arch="$mach"
 	esac
 	test -n "$arch" || die "Cannot determine target arch"
 	test -d "lib/arch/$arch" || die "Unsupported arch $arch"
 fi
+
+# Default meaning of qemu=something is to use qemu-something,
+# however it's qemu=/path/to/qemu-blah than use that unchanged.
+if [ -z "$qemu" ]; then
+	host=`uname -m`
+	if [ "$host" != "$mach" ]; then
+		qemu="$mach"
+	else
+		qemu="-"
+	fi
+fi
+
+case "$qemu" in
+	-) qemu='' ;;
+	*-*) ;;
+	*/*) ;;
+	*) qemu="qemu-$qemu" ;;
+esac
 
 cat > config.mk <<END
 ARCH = $arch
@@ -68,6 +88,7 @@ AR = $ar
 LD = \$(CC)
 AS = \$(CC)
 STRIP = $strip
+QEMU = $qemu
 
 commanddir = $commanddir
 servicedir = $servicedir
@@ -77,14 +98,9 @@ systemdir = $systemdir
 man1dir = $man1dir
 man5dir = $man5dir
 man8dir = $man8dir
-END
-
-if [ -n "$only" ]; then
-cat >> config.mk <<END
 
 only = $only
 END
-fi
 
 cat > mini-cc <<END
 #!/bin/sh
