@@ -1,6 +1,6 @@
 .SUFFIXES:
 
-dirs = crypto date string
+dirs = crypto date string format
 
 all: $(patsubst %,all-%,$(dirs))
 

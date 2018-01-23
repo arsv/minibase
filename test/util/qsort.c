@@ -69,7 +69,7 @@ static int test(char* file, int line, void* a, size_t n, size_t sz)
 	p = fmtint(p, e, line);
 	p = fmtstr(p, e, ": ");
 
-	qsort(a, n, sz, cmp, sz);
+	qsortx(a, n, sz, cmp, sz);
 
 	if((ret = check_order(a, n, sz)))
 		p = fmtstr(p, e, "FAIL");
