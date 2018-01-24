@@ -1,0 +1,6 @@
+_start
+sighandler
+sigprocmask
+ioctl
+mmap
+getdents

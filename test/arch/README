@@ -1,0 +1,9 @@
+Some syscalls are much more likely to fail than others because
+of tricky arch-dependent bits. The point here is to test for this
+weak spots. Generally if write(2) fails all the time it will be
+painfully obvious but if say signals do not work properly it may
+take some time to figure it out just by running the tools.
+
+Unlike other dirs, this one is pass/fail with minimum reporting.
+Any debugging should involve strace anyway, so no point in trying
+present the errors well.
