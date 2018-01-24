@@ -55,3 +55,6 @@ _exit:
 
 .size _exit,.-_exit
 .size _start,_exit-_start
+
+.type _start,function
+.type _exit,function

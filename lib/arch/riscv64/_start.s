@@ -20,3 +20,6 @@ _start:
 _exit:
 	li      a7, NR_exit
 	ecall
+
+.type _start,function
+.type _exit,function

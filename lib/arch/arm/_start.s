@@ -18,3 +18,6 @@ _start:
 _exit:
 	mov     r7, $NR_exit
 	swi     $0
+
+.type _start,function
+.type _exit,function

@@ -17,3 +17,6 @@ _exit:
 	movq    %rcx, %r10
 	syscall
 	hlt
+
+.type _start,function
+.type _exit,function

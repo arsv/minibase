@@ -20,3 +20,6 @@ _start:
 _exit:
 	mov     x8, NR_exit
 	svc     0
+
+.type _start,function
+.type _exit,function
