@@ -5,8 +5,6 @@
 #include <errtag.h>
 #include <util.h>
 
-#define TCSETSW 0x5403
-
 #define ctrl(c) ((c) & 0x1F)
 
 ERRTAG("clear");
