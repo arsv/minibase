@@ -4,24 +4,24 @@
 
 static void check(int exp, int got)
 {
+	if(exp == got)
+		return;
+
 	FMTBUF(p, e, buf, 100);
 
 	p = fmtstr(p, e, __FILE__);
 	p = fmtstr(p, e, ":");
 
-	if(exp == got) {
-		p = fmtstr(p, e, " OK ");
-		p = fmtint(p, e, got);
-	} else {
-		p = fmtstr(p, e, " FAIL ");
-		p = fmtint(p, e, got);
-		p = fmtstr(p, e, " expected ");
-		p = fmtint(p, e, exp);
-	}
+	p = fmtstr(p, e, " FAIL ");
+	p = fmtint(p, e, got);
+	p = fmtstr(p, e, " expected ");
+	p = fmtint(p, e, exp);
 
 	FMTENL(p, e);
 
 	writeall(STDERR, buf, p - buf);
+
+	_exit(0xFF);
 }
 
 static void ints(const char* fmt, ...)

@@ -5,15 +5,14 @@
 
 /* Test vectors from RFC 6070. */
 
-static int compare(const char* F, int L, uint8_t* got, uint8_t* exp, int len)
+static void compare(const char* F, int L, uint8_t* got, uint8_t* exp, int len)
 {
-	if(memcmp(got, exp, len)) {
-		printf("%s:%i: FAIL\n", F, L);
-		return -1;
-	} else {
-		printf("%s:%i: OK\n", F, L);
-		return 0;
-	}
+	if(!memcmp(got, exp, len))
+		return;
+
+	printf("%s:%i: FAIL\n", F, L);
+
+	_exit(0xFF);
 }
 
 #define q(...) { __VA_ARGS__ }
@@ -24,13 +23,11 @@ static int compare(const char* F, int L, uint8_t* got, uint8_t* exp, int len)
 	uint8_t D[] = DK; int dklen = ARRAY_SIZE(D); \
 	uint8_t X[dklen]; \
 	pbkdf2_sha1(X, dklen, P, plen, S, slen, c); \
-	ret |= compare(__FILE__, __LINE__, X, D, dklen); \
+	compare(__FILE__, __LINE__, X, D, dklen); \
 }
 
 int main(void)
 {
-	int ret = 0;
-
 	TEST("password", "salt", 1, q(
 		0x0c,0x60,0xc8,0x0f,0x96,0x1f,0x0e,0x71,
 		0xf3,0xa9,0xb5,0x24,0xaf,0x60,0x12,0x06,
@@ -62,5 +59,5 @@ int main(void)
 		0x56,0xfa,0x6a,0xa7,0x55,0x48,0x09,0x9d,
 		0xcc,0x37,0xd7,0xf0,0x34,0x25,0xe0,0xc3));
 
-	return ret ? -1 : 0;
+	return 0;
 }

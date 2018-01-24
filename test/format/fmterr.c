@@ -1,37 +1,43 @@
 #include <bits/errno.h>
 #include <errtag.h>
-#include <printf.h>
 #include <format.h>
 #include <string.h>
+#include <util.h>
 
 ERRLIST(NENOENT NEINTR NEINVAL);
 
-static int test(char* file, int line, int err, char* exp)
+static void test(char* file, int line, int err, char* exp)
 {
-	FMTBUF(p, e, buf, 30);
+	FMTBUF(p, e, buf, 100);
 	p = fmterr(p, e, err);
 	FMTEND(p, e);
 
-	if(!strcmp(buf, exp)) {
-		printf("%s:%i: OK %s\n", file, line, buf);
-		return 0;
-	} else {
-		printf("%s:%i: FAIL %s (expected %s)\n", file, line, buf, exp);
-		return -1;
-	}
+	if(!strcmp(buf, exp))
+		return;
+
+	p = buf;
+	p = fmtstr(p, e, file);
+	p = fmtstr(p, e, ":");
+	p = fmtint(p, e, line);
+	p = fmtstr(p, e, ": FAIL ");
+	p = fmtstr(p, e, buf);
+	p = fmtstr(p, e, " expected ");
+	p = fmtstr(p, e, exp);
+
+	FMTENL(p, e);
+
+	writeall(STDERR, buf, p - buf);
+	_exit(0xFF);
 }
 
-#define TEST(err, str) \
-	ret |= test(__FILE__, __LINE__, err, str);
+#define FL __FILE__, __LINE__
 
 int main(void)
 {
-	int ret = 0;
+	test(FL, -ENOENT, "ENOENT");
+	test(FL, -EINTR,  "EINTR");
+	test(FL, -EINVAL, "EINVAL");
+	test(FL, -EPERM,  "-1"); /* hopefully same for all supported arches */
 
-	TEST(-ENOENT, "ENOENT");
-	TEST(-EINTR,  "EINTR");
-	TEST(-EINVAL, "EINVAL");
-	TEST(-EPERM,  "-1"); /* hopefully same for all supported arches */
-
-	return ret;
+	return 0;
 }

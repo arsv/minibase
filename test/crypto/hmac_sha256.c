@@ -1,6 +1,7 @@
 #include <crypto/sha256.h>
 #include <string.h>
 #include <printf.h>
+#include <util.h>
 
 /* Tests from RFC 4868 */
 
@@ -43,7 +44,7 @@ int printable(char* msg)
 	return 1;
 }
 
-int test(struct test* tp)
+static void test(struct test* tp)
 {
 	int inlen = tp->inlen;
 	char* input = tp->input;
@@ -54,29 +55,22 @@ int test(struct test* tp)
 
 	hmac_sha256(temp, key, klen, input, inlen);
 
-	int diff = memcmp(hash, temp, 20);
+	if(!memcmp(hash, temp, 20))
+		return;
 
-	char* msg = tp->input;
+	tracef("FAIL %s\n", tp->input);
+	dump(hash);
+	dump(temp);
 
-	if(!diff) {
-		tracef("OK %s\n", msg);
-	} else {
-		tracef("FAIL %s\n", msg);
-
-		dump(hash);
-		dump(temp);
-	}
-
-	return diff;
+	_exit(0xFF);
 }
 
 int main(void)
 {
 	struct test* tp;
-	int failure = 0;
 
 	for(tp = tests; tp->input; tp++)
-		failure |= test(tp);
+		test(tp);
 
-	return failure ? -1 : 0;
+	return 0;
 }

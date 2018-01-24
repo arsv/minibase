@@ -26,17 +26,16 @@ static void dump(char* tag, uint8_t* buf, int len)
 		printf("\n");
 }
 
-static int compare(const char* F, int L, uint8_t* got, uint8_t* exp, int len)
+static void compare(const char* F, int L, uint8_t* got, uint8_t* exp, int len)
 {
-	if(memcmp(got, exp, len)) {
-		printf("%s:%i: FAIL\n", F, L);
-		dump("got", got, len);
-		dump("exp", exp, len);
-		return -1;
-	} else {
-		printf("%s:%i: OK\n", F, L);
-		return 0;
-	}
+	if(!memcmp(got, exp, len))
+		return;
+
+	printf("%s:%i: FAIL\n", F, L);
+	dump("got", got, len);
+	dump("exp", exp, len);
+
+	_exit(0xFF);
 }
 
 static int scrypt(void* D, int dlen, void* P, int plen, void* S, int slen,
@@ -66,14 +65,12 @@ static int scrypt(void* D, int dlen, void* P, int plen, void* S, int slen,
 	uint8_t S[] = salt; int slen = ARRAY_SIZE(S) - 1; \
 	uint8_t D[] = DK; int dklen = ARRAY_SIZE(D); \
 	uint8_t X[dklen]; \
-	ret |= scrypt(X, dklen, P, plen, S, slen, n, r, p); \
-	ret |= compare(__FILE__, __LINE__, X, D, dklen); \
+	scrypt(X, dklen, P, plen, S, slen, n, r, p); \
+	compare(__FILE__, __LINE__, X, D, dklen); \
 }
 
 int main(void)
 {
-	int ret = 0;
-
 	TEST("", "", 16, 1, 1, q(
 		0x77, 0xd6, 0x57, 0x62, 0x38, 0x65, 0x7b, 0x20,
 		0x3b, 0x19, 0xca, 0x42, 0xc1, 0x8a, 0x04, 0x97, 
@@ -112,5 +109,5 @@ int main(void)
 	//	0x37, 0x30, 0x40, 0x49, 0xe8, 0xa9, 0x52, 0xfb,
 	//	0xcb, 0xf4, 0x5c, 0x6f, 0xa7, 0x7a, 0x41, 0xa4));
 
-	return ret ? -1 : 0;
+	return 0;
 }

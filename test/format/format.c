@@ -3,7 +3,7 @@
 #include <string.h>
 #include <util.h>
 
-static int invalid(char* file, int line, char* msg)
+static void invalid(char* file, int line, char* msg)
 {
 	FMTBUF(p, e, buf, 100);
 	p = fmtstr(p, e, file);
@@ -16,10 +16,10 @@ static int invalid(char* file, int line, char* msg)
 
 	writeall(STDERR, buf, p - buf);
 
-	return -1;
+	_exit(0xFF);
 }
 
-static int failure(char* file, int line, char* got, char* exp)
+static void failure(char* file, int line, char* got, char* exp)
 {
 	FMTBUF(p, e, buf, 100);
 	p = fmtstr(p, e, file);
@@ -34,47 +34,29 @@ static int failure(char* file, int line, char* got, char* exp)
 
 	writeall(STDERR, buf, p - buf);
 
-	return -1;
-}
-
-static int success(char* file, int line, char* got)
-{
-	FMTBUF(p, e, buf, 100);
-	p = fmtstr(p, e, file);
-	p = fmtstr(p, e, ":");
-	p = fmtint(p, e, line);
-	p = fmtstr(p, e, ":");
-	p = fmtstr(p, e, " OK ");
-	p = fmtstr(p, e, got);
-	FMTENL(p, e);
-
-	writeall(STDERR, buf, p - buf);
-
-	return 0;
+	_exit(0xFF);
 }
 
 #define TEST(func, expected, ...) { \
 	memset(buf, '*', sizeof(buf)); \
 	char* q = func(p, e, __VA_ARGS__); \
-	ret |= test(__FILE__, __LINE__, p, e, q, expected); \
+	test(__FILE__, __LINE__, p, e, q, expected); \
 }
 
-int test(char* file, int line, char* p, char* e, char* q, char* expected)
+void test(char* file, int line, char* p, char* e, char* q, char* expected)
 {
 	if(!q)
-		return invalid(file, line, "NULL return");
+		invalid(file, line, "NULL return");
 	if(q < p || q > e)
-		return invalid(file, line, "ptr outside buffer");
+		invalid(file, line, "ptr outside buffer");
 
 	if(strncmp(q, "*****", 5))
-		return invalid(file, line, "overshot");
+		invalid(file, line, "overshot");
 
 	*q = '\0';
 
 	if(strcmp(p, expected))
-		return failure(file, line, q, expected);
-	
-	return success(file, line, p);
+		failure(file, line, q, expected);
 }
 
 int test_basic_types(void)

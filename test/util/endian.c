@@ -13,50 +13,40 @@ static char* fl(char* p, char* e, char* file, int line)
 	return p;
 }
 
-static int check32(char* file, int line, uint32_t exp, uint32_t got)
+static void check32(char* file, int line, uint32_t exp, uint32_t got)
 {
-	int ret = !!(got == exp);
+	if(got == exp)
+		return;
 
 	FMTBUF(p, e, buf, 100);
 	p = fl(p, e, file, line);
-
-	if(ret) {
-		p = fmtstr(p, e, " OK 0x");
-		p = fmtx32(p, e, got);
-	} else {
-		p = fmtstr(p, e, " FAIL 0x");
-		p = fmtx32(p, e, got);
-		p = fmtstr(p, e, " expected 0x");
-		p = fmtx32(p, e, exp);
-	}
-
+	p = fmtstr(p, e, " FAIL 0x");
+	p = fmtx32(p, e, got);
+	p = fmtstr(p, e, " expected 0x");
+	p = fmtx32(p, e, exp);
 	FMTENL(p, e);
+
 	writeall(STDERR, buf, p - buf);
 
-	return !ret;
+	_exit(0xFF);
 }
 
-static int check64(char* file, int line, uint64_t exp, uint64_t got)
+static void check64(char* file, int line, uint64_t exp, uint64_t got)
 {
-	int ret = !!(got == exp);
+	if(got == exp)
+		return;
 
 	FMTBUF(p, e, buf, 100);
 	p = fl(p, e, file, line);
-
-	if(ret) {
-		p = fmtstr(p, e, " OK 0x");
-		p = fmtx64(p, e, got);
-	} else {
-		p = fmtstr(p, e, " FAIL 0x");
-		p = fmtx64(p, e, got);
-		p = fmtstr(p, e, " expected 0x");
-		p = fmtx64(p, e, exp);
-	}
-
+	p = fmtstr(p, e, " FAIL 0x");
+	p = fmtx64(p, e, got);
+	p = fmtstr(p, e, " expected 0x");
+	p = fmtx64(p, e, exp);
 	FMTENL(p, e);
+
 	writeall(STDERR, buf, p - buf);
 
-	return !ret;
+	_exit(0xFF);
 }
 
 #define FL __FILE__, __LINE__
@@ -77,38 +67,37 @@ static int check64(char* file, int line, uint64_t exp, uint64_t got)
 
 int main(void)
 {
-	int ret = 0;
 	byte buf[] = { 0xA1, 0xB2, 0xC3, 0xD4, 0xE5, 0xF6, 0x07, 0x18 };
 
 	uint64_t v64 = *((uint64_t*)buf);
 	uint32_t v32 = *((uint32_t*)buf);
 	uint16_t v16 = *((uint16_t*)buf);
 
-	ret |= check32(FL, BE32, ntohl(v32));
+	check32(FL, BE32, ntohl(v32));
 #ifdef BIGENDIAN
-	ret |= check32(FL, BE32, v32);
-	ret |= check32(FL, LE32, swabl(v32));
+	check32(FL, BE32, v32);
+	check32(FL, LE32, swabl(v32));
 #else
-	ret |= check32(FL, LE32, v32);
-	ret |= check32(FL, BE32, swabl(v32));
+	check32(FL, LE32, v32);
+	check32(FL, BE32, swabl(v32));
 #endif
 
-	ret |= check32(FL, BE16, ntohs(v16));
+	check32(FL, BE16, ntohs(v16));
 #ifdef BIGENDIAN
-	ret |= check32(FL, BE16, v16);
-	ret |= check32(FL, LE16, swabs(v16));
+	check32(FL, BE16, v16);
+	check32(FL, LE16, swabs(v16));
 #else
-	ret |= check32(FL, LE16, v16);
-	ret |= check32(FL, BE16, swabs(v16));
+	check32(FL, LE16, v16);
+	check32(FL, BE16, swabs(v16));
 #endif
 
 #ifdef BIGENDIAN
-	ret |= check64(FL, BE64, v64);
-	ret |= check64(FL, LE64, swabx(v64));
+	check64(FL, BE64, v64);
+	check64(FL, LE64, swabx(v64));
 #else
-	ret |= check64(FL, LE64, v64);
-	ret |= check64(FL, BE64, swabx(v64));
+	check64(FL, LE64, v64);
+	check64(FL, BE64, swabx(v64));
 #endif
 
-	return ret;
+	return 0;
 }

@@ -1,15 +1,16 @@
 #include <crypto/sha1.h>
 #include <string.h>
 #include <printf.h>
+#include <util.h>
 
-void dump(uint8_t hash[20])
+static void dump(uint8_t hash[20])
 {
 	for(int i = 0; i < 20; i++)
 		tracef("%02X ", hash[i]);
 	tracef("\n");
 }
 
-int printable(char* msg)
+static int printable(char* msg)
 {
 	char* p;
 
@@ -20,27 +21,24 @@ int printable(char* msg)
 	return 1;
 }
 
-int test(char* msg, uint8_t hash[20])
+static void test(char* msg, uint8_t hash[20])
 {
 	uint8_t temp[20];
 
 	sha1(temp, msg, strlen(msg));
 
-	int diff = memcmp(hash, temp, 20);
+	if(!memcmp(hash, temp, 20))
+		return;
 
 	if(!printable(msg))
 		msg = "<non-printable>";
 
-	if(!diff) {
-		tracef("OK %s\n", msg);
-	} else {
-		tracef("FAIL %s\n", msg);
+	tracef("FAIL %s\n", msg);
 
-		dump(hash);
-		dump(temp);
-	}
+	dump(hash);
+	dump(temp);
 
-	return diff;
+	_exit(0xFF);
 }
 
 struct test {
@@ -89,10 +87,9 @@ struct test {
 int main(void)
 {
 	struct test* tp;
-	int failure = 0;
 
 	for(tp = tests; tp->input; tp++)
-		failure |= test(tp->input, tp->hash);
+		test(tp->input, tp->hash);
 
-	return failure ? -1 : 0;
+	return 0;
 }

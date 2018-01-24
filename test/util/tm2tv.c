@@ -20,56 +20,44 @@ const struct test {
 	{ D(2025,  9, 30), 1759190400 }
 };
 
-static int check(time_t ts, const struct tm* exp, struct tm* got)
+static char* fmtts(char* p, char* e, time_t ts)
 {
-	char buf[500];
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
-	int ret;
+	return fmtpad(p, e, 10, fmtlong(p, e, ts));
+}
 
-	p = fmtpad(p, e, 10, fmtlong(p, e, ts));
+static void check(const struct tm* tm, time_t exp, time_t got)
+{
+	if(got == exp)
+		return;
+
+	FMTBUF(p, e, buf, 100);
+	p = fmttm(p, e, tm);
 	p = fmtstr(p, e, " = ");
-	p = fmttm(p, e, got);
-
-	if(!memcmp(exp, got, sizeof(*exp))) {
-		p = fmtstr(p, e, " OK");
-		ret = 0;
-	} else {
-		p = fmtstr(p, e, " / ");
-		p = fmttm(p, e, exp);
-		p = fmtstr(p, e, " FAIL");
-		ret = !0;
-	};
-
-	*p++ = '\n';
+	p = fmtts(p, e, got);
+	p = fmtstr(p, e, " != ");
+	p = fmtts(p, e, exp);
+	p = fmtstr(p, e, " FAIL");
+	FMTENL(p, e);
 
 	writeall(STDERR, buf, p - buf);
 
-	return ret;
+	_exit(0xFF);
 }
 
 int main(void)
 {
-	int ret = 0;
 	int ntests = sizeof(testdates)/sizeof(*testdates);
 	const struct test* buf = testdates;
 	const struct test* end = testdates + ntests;
 	const struct test* tst;
 
 	for(tst = buf; tst < end; tst++) {
-		struct tm tm;
-		struct timeval tv = { tst->ts, 0 };
+		struct timeval tv;
 
-		memzero(&tm, sizeof(tm));
+		tm2tv(&tst->tm, &tv);
 
-		tv2tm(&tv, &tm);
-
-		/* blank out fields we do not check */
-		tm.wday = 0;
-		tm.yday = 0;
-
-		ret |= check(tst->ts, &tst->tm, &tm);
+		check(&tst->tm, tst->ts, tv.sec);
 	}
 
-	return ret;
+	return 0;
 }

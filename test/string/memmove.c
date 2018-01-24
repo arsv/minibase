@@ -28,24 +28,17 @@ static void report(int line, char* tag, char* val)
 	sys_write(STDOUT, buf, p - buf);
 }
 
-int test(char* expected, char* actual, int len, int line)
+void test(char* expected, char* actual, int len, int line)
 {
-	int ret;
+	if(!memcmp(expected, actual, len))
+		return;
 
-	if((ret = memcmp(expected, actual, len))) {
-		report(line, "FAIL", expected);
-		report(line, " got", actual);
-	} else {
-		report(line, "OK", actual);
-	}
-
-	return ret;
+	report(line, "FAIL", expected);
+	report(line, " got", actual);
 }
 
 int main(void)
 {
-	int ret = 0;
-
 	/*             0         1         2    */
 	/*             012345678901234567890123 */
 	char orig[] = "||-1111-AA-123456-444-||";
@@ -58,19 +51,19 @@ int main(void)
 
 	memcpy(work, orig, len);
 	memmove(work + 12, work + 7, 4);
-	ret |= test(work, mov1, len, __LINE__);
+	test(work, mov1, len, __LINE__);
 
 	memcpy(work, orig, len);
 	memmove(work + 3, work + 7, 4);
-	ret |= test(work, mov2, len, __LINE__);
+	test(work, mov2, len, __LINE__);
 
 	memcpy(work, orig, len);
 	memmove(work + 11, work + 12, 5);
-	ret |= test(work, mov3, len, __LINE__);
+	test(work, mov3, len, __LINE__);
 
 	memcpy(work, orig, len);
 	memmove(work + 12, work + 11, 5);
-	ret |= test(work, mov4, len, __LINE__);
+	test(work, mov4, len, __LINE__);
 
-	return ret;
+	return 0;
 }

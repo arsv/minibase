@@ -1,6 +1,7 @@
 #include <crypto/aes128.h>
 #include <string.h>
 #include <printf.h>
+#include <util.h>
 
 const uint8_t rawkey[16] = {
 	0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
@@ -68,8 +69,8 @@ int check_key_expansion(void)
 			ret = -1;
 			break;
 		}
-	if(i >= 44)
-		tracef("OK key expanded\n");
+	if(i < 44)
+		_exit(0xFF);
 
 	return ret;
 }
@@ -89,51 +90,47 @@ const uint8_t crypt[16] = {
 	0xd8,0xcd,0xb7,0x80,0x70,0xb4,0xc5,0x5a
 };
 
-int check_decryption(void)
+static void check_decryption(void)
 {
 	struct aes128 ae;
 	uint8_t work[16];
-	int ret;
 
 	memcpy(work, crypt, 16);
 
 	aes128_init(&ae, key);
 	aes128_decrypt(&ae, work);
 
-	if((ret = memcmp(work, plain, 16)))
-		tracef("FAIL decrypt\n");
-	else
-		tracef("OK decrypt\n");
+	if(!memcmp(work, plain, 16))
+		return;
 
-	return ret;
+	tracef("FAIL decrypt\n");
+
+	_exit(0xFF);
 }
 
-int check_encryption(void)
+static void check_encryption(void)
 {
 	struct aes128 ae;
 	uint8_t work[16];
-	int ret;
 
 	memcpy(work, plain, 16);
 
 	aes128_init(&ae, key);
 	aes128_encrypt(&ae, work);
 
-	if((ret = memcmp(work, crypt, 16)))
-		tracef("FAIL encrypt\n");
-	else
-		tracef("OK encrypt\n");
+	if(!memcmp(work, crypt, 16))
+		return;
 
-	return ret;
+	tracef("FAIL encrypt\n");
+
+	_exit(0xFF);
 }
 
 int main(void)
 {
-	int ret = 0;
+	check_key_expansion();
+	check_decryption();
+	check_encryption();
 
-	ret |= check_key_expansion();
-	ret |= check_decryption();
-	ret |= check_encryption();
-
-	return ret ? -1 : 0;
+	return 0;
 }

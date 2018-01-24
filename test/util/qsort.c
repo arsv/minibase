@@ -57,43 +57,35 @@ static int check_order(void* a, size_t n, size_t sz)
 	return 0;
 }
 
-static int test(char* file, int line, void* a, size_t n, size_t sz)
+static void test(char* file, int line, void* a, size_t n, size_t sz)
 {
-	char buf[200];
-	char* p = buf;
-	char* e = buf + sizeof(buf) - 1;
-	int ret;
+	qsortx(a, n, sz, cmp, sz);
 
+	if(check_order(a, n, sz) == 0)
+		return;
+
+	FMTBUF(p, e, buf, 200);
 	p = fmtstr(p, e, file);
 	p = fmtstr(p, e, ":");
 	p = fmtint(p, e, line);
 	p = fmtstr(p, e, ": ");
-
-	qsortx(a, n, sz, cmp, sz);
-
-	if((ret = check_order(a, n, sz)))
-		p = fmtstr(p, e, "FAIL");
-	else
-		p = fmtstr(p, e, "OK");
-
+	p = fmtstr(p, e, "FAIL");
 	p = put_array(p, e, a, n, sz);
+	FMTENL(p, e);
 
-	*p++ = '\n';
 	writeall(STDOUT, buf, p - buf);
 
-	return ret;
+	_exit(0xFF);
 }
 
 #define TEST(type, ...) \
 {\
 	type A[] = { __VA_ARGS__ }; \
-	ret |= test(__FILE__, __LINE__, A, ARRAY_SIZE(A), sizeof(*A)); \
+	test(__FILE__, __LINE__, A, ARRAY_SIZE(A), sizeof(*A)); \
 }
 
 int main(void)
 {
-	int ret = 0;
-
 	TEST(int);
 	TEST(int, 1, 0);
 	TEST(int, 2, 1, 0);
@@ -117,5 +109,5 @@ int main(void)
 	TEST(int, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11,
 	          10,  9,  8,  7,  6,  5,  4,  3,  2,  1);
 
-	return ret;
+	return 0;
 }

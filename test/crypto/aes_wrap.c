@@ -1,6 +1,7 @@
 #include <crypto/aes128.h>
 #include <string.h>
 #include <printf.h>
+#include <util.h>
 
 uint8_t kek[16] = {
 	0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
@@ -19,29 +20,27 @@ uint8_t plain[24] = {
 	0x88,0x99,0xAA,0xBB,0xCC,0xDD,0xEE,0xFF
 };
 
-static int compare(char* tag, uint8_t* got, uint8_t* exp, int nn)
+static void compare(char* tag, uint8_t* got, uint8_t* exp, int nn)
 {
-	if(memcmp(got, exp,nn)) {
-		printf("FAIL %s\n", tag);
-		return -1;
-	} else {
-		printf("OK %s\n", tag);
-		return 0;
-	}
+	if(!memcmp(got, exp,nn))
+		return;
+
+	printf("FAIL %s\n", tag);
+	_exit(0xFF);
 }
 
 int main(void)
 {
-	int ret = 0, nn = sizeof(crypt);
+	int nn = sizeof(crypt);
 	uint8_t work[nn];
 
 	memcpy(work, crypt, nn);
 	aes128_unwrap(kek, work, nn);
-	ret |= compare("unwrap", work, plain, nn);
+	compare("unwrap", work, plain, nn);
 
 	memcpy(work, plain, nn);
 	aes128_wrap(kek, work, nn);
-	ret |= compare("wrap", work, crypt, nn);
+	compare("wrap", work, crypt, nn);
 
-	return ret ? -1 : 0;
+	return 0;
 }

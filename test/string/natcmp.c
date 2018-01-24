@@ -16,18 +16,6 @@ static char* opname(int op)
 	return "EQ";
 }
 
-static void success(char* file, int line, char* a, int exp, char* b)
-{
-	printf("%s:%i OK \"%s\" %s \"%s\"\n",
-			file, line, a, opname(exp), b);
-}
-
-static void failure(char* file, int line, char* a, int exp, char* b, int ret)
-{
-	printf("%s:%i: FAIL \"%s\" %s \"%s\" got %s\n",
-			file, line, a, opname(exp), b, opname(ret));
-}
-
 static int normalize(int x)
 {
 	if(x < 0)
@@ -42,9 +30,10 @@ static void test(char* file, int line, char* a, int exp, char* b)
 	int ret = normalize(natcmp(a, b));
 
 	if(ret == exp)
-		success(file, line, a, exp, b);
-	else
-		failure(file, line, a, exp, b, ret);
+		return;
+
+	tracef("%s:%i: FAIL \"%s\" %s \"%s\" got %s\n",
+			file, line, a, opname(exp), b, opname(ret));
 }
 
 int main(void)

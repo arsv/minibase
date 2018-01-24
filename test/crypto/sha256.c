@@ -1,8 +1,9 @@
 #include <crypto/sha256.h>
 #include <string.h>
 #include <printf.h>
+#include <util.h>
 
-void dump(char* tag, uint8_t hash[32])
+static void dump(char* tag, uint8_t hash[32])
 {
 	printf(" %s: ", tag);
 	for(int i = 0; i < 32; i++)
@@ -10,7 +11,7 @@ void dump(char* tag, uint8_t hash[32])
 	printf("\n");
 }
 
-int printable(char* msg)
+static int printable(char* msg)
 {
 	char* p;
 
@@ -21,27 +22,24 @@ int printable(char* msg)
 	return 1;
 }
 
-int test(char* msg, uint8_t hash[32])
+static void test(char* msg, uint8_t hash[32])
 {
 	uint8_t temp[32];
 
 	sha256(temp, msg, strlen(msg));
 
-	int diff = memcmp(hash, temp, 20);
+	if(!memcmp(hash, temp, 20))
+		return;
 
 	if(!printable(msg))
 		msg = "<non-printable>";
 
-	if(!diff) {
-		printf("OK %s\n", msg);
-	} else {
-		printf("FAIL %s\n", msg);
+	printf("FAIL %s\n", msg);
 
-		dump("exp", hash);
-		dump("got", temp);
-	}
+	dump("exp", hash);
+	dump("got", temp);
 
-	return diff;
+	_exit(0xFF);
 }
 
 struct test {
@@ -72,10 +70,9 @@ struct test {
 int main(void)
 {
 	struct test* tp;
-	int failure = 0;
 
 	for(tp = tests; tp->input; tp++)
-		failure |= test(tp->input, tp->hash);
+		test(tp->input, tp->hash);
 
-	return failure ? -1 : 0;
+	return 0;
 }
