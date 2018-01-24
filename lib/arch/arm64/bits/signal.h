@@ -38,9 +38,15 @@
 #define SIGRTMIN        32
 #define SIGRTMAX        63
 
+#define NSIGWORDS 1
+
 typedef unsigned long sigset_t;
 
 #define EMPTYSIGSET 0
+
+#define SIG_BLOCK       0
+#define SIG_UNBLOCK     1
+#define SIG_SETMASK     2
 
 #define SIG_DFL ((void*) 0L)
 #define SIG_IGN ((void*) 1L)

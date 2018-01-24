@@ -3,10 +3,6 @@
 #include <bits/fcntl.h>
 #include <bits/signal.h>
 
-#define SIG_BLOCK	0
-#define SIG_UNBLOCK	1
-#define SIG_SETMASK	2
-
 #define SFD_NONBLOCK O_NONBLOCK
 #define SFD_CLOEXEC  O_CLOEXEC
 

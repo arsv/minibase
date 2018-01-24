@@ -36,12 +36,15 @@
 #define SIGRTMIN        32
 #define SIGRTMAX        63
 
-typedef struct {
-	unsigned long low;
-	unsigned long high;
-} sigset_t;
+#define NSIGWORDS 4
 
-#define EMPTYSIGSET { 0, 0 }
+typedef struct { unsigned long word[4]; } sigset_t;
+
+#define EMPTYSIGSET { { 0, 0, 0, 0 } }
+
+#define SIG_BLOCK       1
+#define SIG_UNBLOCK     2
+#define SIG_SETMASK     3
 
 #define SIG_DFL ((void*) 0L)
 #define SIG_IGN ((void*) 1L)
