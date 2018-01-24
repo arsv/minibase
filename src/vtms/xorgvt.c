@@ -149,8 +149,10 @@ static void append(int argc, char** argv, int* argi, char** strs, int n)
 {
 	int i = *argi;
 
-	if(i + n > argc)
-		fail("out of ptr space", NULL, 0);
+	/* gcc manages to derive this to be always false
+	   because argc = n + constant */
+	//if(i + n > argc)
+	//	fail("out of ptr space", NULL, 0);
 
 	memcpy(argv + i, strs, n*sizeof(char*));
 
@@ -161,8 +163,8 @@ static void addarg(int argc, char** argv, int* argi, char* str)
 {
 	int i = *argi;
 
-	if(i >= argc)
-		fail("out of ptr space", NULL, 0);
+	//if(i >= argc)
+	//	fail("out of ptr space", NULL, 0);
 
 	argv[i] = str;
 
@@ -265,7 +267,7 @@ static int wait_sigchld(CTX)
 	int spid = ctx->spid;
 	int cpid = ctx->cpid;
 	int term = 0, server = 0;
-	int cstatus;
+	int cstatus = 0;
 
 	while(spid && cpid) {
 		int sig = recv_sig(ctx);
