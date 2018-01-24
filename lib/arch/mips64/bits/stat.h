@@ -1,0 +1,1 @@
+../../mips/bits/stat.h
