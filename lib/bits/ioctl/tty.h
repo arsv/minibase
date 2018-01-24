@@ -1,5 +1,3 @@
-#include <bits/ioctl.h>
-
 #define TCGETS		0x5401
 #define TCSETS		0x5402
 #define TCSETSW		0x5403
