@@ -160,11 +160,16 @@ inline static long sys_pipe2(int* fds, int flags)
 	return syscall2(NR_pipe2, (long)fds, flags);
 }
 
+#ifdef NR_pread64
+#define NR_pread NR_pread64
+#define NR_pwrite NR_pwrite64
+#endif
+
 inline static long sys_pread(int fd, void* buf, ulong len, uint64_t off)
 {
 #if BITS == 32
 	union { uint64_t ll; long l[2]; } x = { .ll = off };
-	return syscall5(NR_pread64, fd, (long)buf, len, x.l[0], x.l[1]);
+	return syscall5(NR_pread, fd, (long)buf, len, x.l[0], x.l[1]);
 #else
 	return syscall4(NR_pread, fd, (long)buf, (long)len, off);
 #endif
@@ -174,7 +179,7 @@ inline static long sys_pwrite(int fd, void* buf, ulong len, uint64_t off)
 {
 #if BITS == 32
 	union { uint64_t ll; long l[2]; } x = { .ll = off };
-	return syscall5(NR_pwrite64, fd, (long)buf, len, x.l[0], x.l[1]);
+	return syscall5(NR_pwrite, fd, (long)buf, len, x.l[0], x.l[1]);
 #else
 	return syscall4(NR_pwrite, fd, (long)buf, (long)len, off);
 #endif
