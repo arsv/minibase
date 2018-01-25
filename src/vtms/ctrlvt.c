@@ -375,7 +375,7 @@ static void cmd_lock(void)
 			message("rebooting", 0);
 
 			term_fini();
-			spawn("svctl", "-R");
+			spawn("svctl", "reboot");
 			term_back();
 		}
 	} else {
