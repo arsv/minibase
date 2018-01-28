@@ -49,7 +49,7 @@ See Embedded section below for non-initrd boot.
 User session startup sequence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 * vtmux receives a command to start a new session
-* vtmux spawns /etc/vts/$name with all fds directed to /dev/ttyN
+* vtmux spawns /etc/vtmux/$name with all fds directed to /dev/ttyN
 * $name is a host-specific msh script
 * $name changes its credentials (uid, gid, groups, maybe also caps)
 * $name execs into appropriate interactive shell (xinit, weston, bash etc)
