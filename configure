@@ -120,12 +120,6 @@ END
 # GCC may be configured to produce PIEs without explicit -pie options,
 # and it would do so even if given -ffreestanding -static. This is not
 # acceptable for minibase, so the code below tries to force non-PIE mode.
-#
-# Current gcc versions also generate GOT relocations no matter what.
-# No idea how to disable them atm. It's mostly harmless, but adds one
-# dirty page for executables that would not need it otherwise.
-#
-# clang does it right and produces nice static executables with no GOT.
 
 if [ -n "$clang" ]; then
 cat >> mini-cc <<END
