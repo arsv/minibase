@@ -1,57 +1,54 @@
 What is this?
 ~~~~~~~~~~~~~
-minibase is a set of small userspace tools for Linux intended to
-boot the system and provide a lightweight but reliable foundation
-to build the rest of the system on.
+minibase is set of small userspace tools for Linux aiming to provide a base
+package to build the rest of the system on. These tools handle early boot
+process (initrd, finding and mounting the rootfs, setting up disk encryption),
+service startup and supervision (aka init system), as well as user session
+management ("logind").
 
-The tools are written using inline syscalls and small custom base
-library. Standard libc is needed to build them; only a freestanding
-compiler and a linker.
+The tools are written in raw syscalls using a small custom base library.
+Standard libc is not needed to build them, only a freestanding compiler
+and a linker. There are no runtime dependencies other than the Linux kernel,
+the executables are always statically linked.
 
-The resulting executables are always statically linked.
-
-Currently supported targets: x86_64 arm arm64 rv64.
+Supported targets: x86_64 arm aarch64 rv64 mips mips64.
 
 
-What's inside / Current status
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The project is highly experimental and (at this point) incomplete.
-Some tools are missing, and some still need work.
+What's inside
+~~~~~~~~~~~~~
+Current contents of the package:
 
-  * Small basic unix tools (cat, ls, du, df etc).
-  * Several small linux-specific tools (systime, sync, dmesg etc).
-
-  * Simple non-interactive command interpreter (msh)
+  * Batch command runner / script interpreter (msh)
   * Early-stage boot utils (switchroot, modprobe, mount).
-
-  * Non-encrypted block device locator (findblk)
-  * Encrypted device locator and passphrase prompt tool (passblk)
-  * Support tooling for disc encryption (dektool, dmcrypt)
+  * Non-encrypted block device locator (findblk).
+  * Encrypted device locator and passphrase prompt (passblk).
+  * Support tooling for disk encryption (dektool, dmcrypt).
   - No fsck for any fs yet.
-  
-  * Process supervisor suite (init, super, reboot, svctl),
-    split-stage implementation similar to daemontools or runit.
-  
-  * udevd stub.
+
+  * Process supervision suite (init, super, reboot, svctl).
+
+  * udev event monitor (udevmod).
   * syslogd and related tools.
-  * Unprivileged mount tooling (mountd, pmount).
-  * Controlled privilege escalation tool (sudo).
+  * Non-privileged mount service (mountd, pmount).
+  * Controlled privilege escalation service (suhub, sudo).
 
-  * VT/DRI/input multiplexer (vtmux) aka that part of systemd-logind
-    everyone keeps asking about [weston and patched Xorg only atm].
-  * Non-graphical greeter stub.
-
-  * Simple interactive shell (cmd).
+  * VT/DRI/input multiplexer (vtmux) [see below].
+  * Simple non-graphical greeter.
 
   * Networking interface manager (ifmon), also handles DHCP.
   * Wi-Fi (WPA2-PSK) supplicant and connection manager (wsupp).
   * manual interface setup tools (ip4cfg, ip4info) [incomplete].
   - No sntpd yet.
 
-  - No package manager / download tool yet.
+  * Simple interactive shell (cmd).
+  * Basic command line tools (cat, ls, du, df etc).
+  * Small linux-specific tools (systime, sync, dmesg etc).
 
-With everything in place, the system should be able to boot, on minibase
-alone, up to the point where it's ready to download, install and start GUI.
+  - No package manager / download tool yet.
+  - No audio tools of any kind.
+
+With everything in place, the system should be able to boot on minibase
+alone to the point where it's ready run X or Wayland GUI.
 
 
 Quick start
@@ -61,38 +58,60 @@ with the build scripts are maintained in a dedicated repository:
 
     https://github.com/arsv/minibase-br/
 
-Get either sys-plain or sys-crypt from Releases.
-Check README in that repository on how to use them.
+Get the latest sys-plain or sys-crypt from Releases, check included
+instructions. Inspect the build scripts, rootfs and initrd contents
+to understand how the system boots. Check doc/boot.txt here as well.
 
-Inspect build scripts, rootfs and initrd contents to understand how
-the system boots. Check doc/boot.txt here as well.
-
-Start reading the sources at temp/compat, src/cmdops, src/debug.
+Start reading the sources at temp/compat, src/cmdops, src/init.
 
 
-How to build and try the tools
+How to build and run the tools
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-To see how a proper build looks like, run
+For a proper build, run
 
     ./configure
     make
     make install     # default DESTDIR is ./out
 
-To try the tools without booting anything, configure and build
+To try the tools without setting up a VM, configure and build
 the project in devel mode:
 
     make clean
     ./configure devel
     make
 
-Most tools can then be run from their source directories.
+Most tools can be run right from their source directories.
 
-Tools that need configuration often have devel-mode configuration right
-in their respective directories. Modifying the code, rebuilding and trying
-again should work as well.
 
-Some tools (ifmon vtmux etc) need root privileges to run.
-See READMEs in subdirectories for instructions.
+How is it different from ... ?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Some features in no particular order.
+
+Minibase comes with a proper service supervisor. (This is really
+only worth mentioning because of inevitable attempts to compare
+it to OpenRC).
+
+There is no fstab in minibase, and no conventional mount(1).
+
+Minibase comes with a functional replacement for logind that is not
+a fork or a clone of systemd-logind, and does not need dbus to work.
+This is important for building lightweight graphical systems.
+
+There are no conventional logins in minibase and no user passwords.
+The passphrase entered during boot is used to unwrap disk encryption
+keys. The system is assumed to run on a personal computing device
+owned by its only human user.
+
+Sessions are normally pre-configured and pinned to certain VTs.
+Switching to a VT starts the session assigned to that particular VT.
+
+Minibase does not use dbus, or any other system bus for that matter.
+IPC is done point-to-point over unix sockets using simple netlink-
+based protocol.
+
+Minibase is meant to be run with suid bits disabled. Any privilege
+escalation in minibase (including the sudo command) happens via IPC
+to privileged services.
 
 
 Just how small exactly?
@@ -101,74 +120,22 @@ The largest individual executable so far is wsupp, the WPA supplicant.
 Statically linked for x86_64, it's about 27 KiB in size. Realistically
 it also needs ifmon (20 KiB) to work, and the client tool wifi (12 KiB).
 
-The second largest executable is passblk (21 KiB), initrd-only tool
-that prompts for passphrase and sets up encrypted block devices.
-It is likely to grow a bit however. Curses UI takes so much space.
-
 vtmux (logind equivalent) is about 12 KiB. msh is about 16 KiB.
 cmd (interactive shell) is about 18 KiB.
 
-
-What's the intended hardware for this?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-minibase is written primarily with a personal laptop in mind.
-
-This choice only affects certain tools (ifmon, vtmux) which either allow
-or expect some user interaction. For unattended or headless systems,
-it would be better to replace them with simpler equivalents, which may get
-written at some point but are not a priority right now.
-
-
-How is it different from busybox?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Busybox is a multi-call binary, minibase is a bunch of standalone
-statically linked binaries.
-
-Busybox provides mostly POSIX- or GNU-compatible tools.
-Minibase is not meant to be compatible with either.
-
-Busybox needs a proper libc toolchain to build, minibase only needs
-a freestanding compiler and a linker. On the other hand, busybox can
-be built for any target given libc supports while minibase only supports
-four targets at this moment.
-
-The set of tools is also quite different. Busybox provides more POSIX-style
-text manipulation tools (grep, patch, vi) while minibase is mostly about
-linux-specific system services (KMS VTs, network, disk encryption).
-
-
-How is it different from common/GNU tools?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-About the same way busybox is, and minibase is not restricted by POSIX
-compatibility concerns. It's effectively a different OS, a Linux but
-not GNU/Linux, but one that still allows running parts of the GNU system
-atop of it.
-
-Unlike the GNU system (and to some degree busybox) minibase is designed
-to not rely on suid bits or file capabilities. Anything that requires
-privilege escalation in Linux is done via IPC to privileged services.
-
-
-How is it different from systemd?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Smaller, simpler and easier to build. Fewer dependencies.
-Hopefully less invasive in respect to the system atop.
-No D-bus, or any bus for that matter, only p2p IPC via unix sockets.
-
-Different approach to system security. Minibase is meant for personal
-computing devices while systemd apparently targets mainframes.
-
-
-Compatibility
-~~~~~~~~~~~~~
-The tools are *NOT* meant to be POSIX-, GNU-, or anything else compatible.
+Why bother making it small? Because it's a side effect of making it readable.
+The idea is that anyone could pick a tool from minibase, start reading it
+and gain complete understanding of how it works in a very reasonable amount
+of time, say hours. And if necessary, audit or debug it down to assembly level.
+A major point in achieving this is making sure there are no unnecessary
+wrappers, useless abstractions or dead code, which in turn shows in the size
+of the resulting executables.
 
 
 Licensing
 ~~~~~~~~~
 GNU Public License version 3, see COPYING.
-Limited closed-box license (Apache 2 w/ additional restrictions) may or
-may not get added in the future.
+Limited closed-box license may or may not get added in the future.
 
 The code in lib/sys, lib/bits and lib/arch constitutes the public interface
 of the Linux kernel. No claims are made for that code, and it should not be
@@ -178,18 +145,6 @@ the kernel sources (GPLv2) or the musl libc (MIT license).
 The code in lib/crypto is mostly BSD-licensed. See README there.
 
 
-Contributing
-~~~~~~~~~~~~
-Do not. I will probably not accept patches at least until version 1.0.
-
-This is a non-conventional, highly opionated personal project that is nowhere
-near complete. Lots of code has been, and lots of code will be re-written over
-and over again while I'm figuring out how I'd like to see it done. Third party
-contributions will likely do more harm than good at this point.
-
-If you'd really like to see something implemented or fixed, open an issue.
-
-
 Credits
 ~~~~~~~
 Dietlibc and "Writing Small and Fast Software" by Felix von Leitner.
@@ -197,7 +152,6 @@ https://www.fefe.de/dietlibc/diet.pdf
 
 The project was initially heavily influenced by busybox.
 Certain decision from skarnet/s6 project also played significant role.
-
 Syscall code (static inline functions with asm volatile blocks)
 follows musl, because musl folks got it right.
 
