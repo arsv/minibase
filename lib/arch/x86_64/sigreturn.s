@@ -7,3 +7,4 @@ sigreturn:
 	syscall
 
 .size sigreturn,.-sigreturn
+.type sigreturn,function

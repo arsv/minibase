@@ -7,3 +7,4 @@ sigreturn:
 	ecall
 
 .size sigreturn,.-sigreturn
+.type sigreturn,function

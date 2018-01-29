@@ -7,3 +7,4 @@ sigreturn:
 	svc     0
 
 .size sigreturn,.-sigreturn
+.type sigreturn,function
