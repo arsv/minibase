@@ -58,7 +58,7 @@ struct top {
 
 	uint sep;
 	uint ptr;
-	char uevent[512+2];
+	char uevent[1024+2];
 
 	char saveid[16];
 };
