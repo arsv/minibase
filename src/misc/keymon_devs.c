@@ -106,6 +106,8 @@ static void check_dir_ent(char* dir, char* name)
 	kb->fd = fd;
 	kb->minor = rdev;
 
+	pollready = 0;
+
 	return;
 close:
 	sys_close(fd);
@@ -154,7 +156,6 @@ void setup_devices(void)
 	}
 
 	sys_close(fd);
-	pollready = 0;
 }
 
 void handle_inotify(int fd)
