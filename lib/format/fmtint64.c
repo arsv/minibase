@@ -20,7 +20,7 @@ static char* fmtint64(char* buf, char* end, int minus, uint64_t num)
 			*p = '0' + num % 10;
 	if(minus) *p = '-';
 
-	return e; 
+	return e > end ? end : e; 
 }
 
 char* fmti64(char* buf, char* end, int64_t num)

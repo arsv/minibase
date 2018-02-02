@@ -25,7 +25,7 @@ static char* fmtint32(char* buf, char* end, int minus, uint32_t num)
 			*p = '0' + num % 10;
 	if(minus) *p = '-';
 
-	return e; 
+	return e > end ? end : e; 
 }
 
 char* fmti32(char* buf, char* end, int32_t num)

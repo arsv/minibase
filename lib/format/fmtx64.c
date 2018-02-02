@@ -23,7 +23,7 @@ char* fmtx64(char* buf, char* end, uint64_t num)
 		num >>= 4;
 	}
 
-	return e;
+	return e < end ? e : end;
 }
 
 #if BITS == 64
