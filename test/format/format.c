@@ -128,8 +128,8 @@ int main(void)
 	int ret = 0;
 
 	ret |= test_basic_types();
-	//ret |= test_buf_cliping();
-	//ret |= test_padding();
+	ret |= test_buf_cliping();
+	ret |= test_padding();
 
 	return ret;
 }
