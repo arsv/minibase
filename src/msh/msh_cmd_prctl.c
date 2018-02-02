@@ -1,5 +1,6 @@
 #include <bits/secure.h>
 #include <sys/prctl.h>
+#include <sys/seccomp.h>
 
 #include <string.h>
 
@@ -68,6 +69,35 @@ static int prctl_nonewprivs(CTX)
 	return fchk(sys_prctl(cmd, 1, 0, 0, 0), ctx, NULL);
 }
 
+static int prctl_seccomp(CTX)
+{
+	struct mbuf mb;
+	int ret;
+	char* file;
+
+	if(shift_str(ctx, &file))
+		return -1;
+	if(moreleft(ctx))
+		return -1;
+	if(fchk(mmapfile(&mb, file), ctx, file))
+		return -1;
+	if(!mb.len || mb.len % 8) {
+		ret = error(ctx, "odd size:", file, 0);
+		goto out;
+	}
+
+	struct seccomp sc = {
+		.len = mb.len / 8,
+		.buf = mb.buf
+	};
+
+	int mode = SECCOMP_SET_MODE_FILTER;
+	ret = fchk(sys_seccomp(mode, 0, &sc), ctx, file);
+out:
+	munmapfile(&mb);
+	return ret;
+}
+
 int cmd_prctl(CTX)
 {
 	char* arg;
@@ -79,6 +109,8 @@ int cmd_prctl(CTX)
 		return prctl_nonewprivs(ctx);
 	if(!strcmp(arg, "secbits"))
 		return prctl_secbits(ctx);
+	if(!strcmp(arg, "seccomp"))
+		return prctl_seccomp(ctx);
 
 	return error(ctx, "unknown prctl", arg, 0);
 }

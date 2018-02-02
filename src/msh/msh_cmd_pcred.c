@@ -61,33 +61,6 @@ int cmd_rlimit(CTX)
 	return fchk(sys_prlimit(0, rp->res, &rl, NULL), ctx, key);
 }
 
-int cmd_seccomp(CTX)
-{
-	struct mbuf mb;
-	int ret;
-	char* file;
-
-	if(shift_str(ctx, &file))
-		return -1;
-	if(fchk(mmapfile(&mb, file), ctx, file))
-		return -1;
-	if(!mb.len || mb.len % 8) {
-		ret = error(ctx, "odd size:", file, 0);
-		goto out;
-	}
-
-	struct seccomp sc = {
-		.len = mb.len / 8,
-		.buf = mb.buf
-	};
-
-	int mode = SECCOMP_SET_MODE_FILTER;
-	ret = fchk(sys_seccomp(mode, 0, &sc), ctx, file);
-out:
-	munmapfile(&mb);
-	return ret;
-}
-
 int cmd_setprio(CTX)
 {
 	int prio;

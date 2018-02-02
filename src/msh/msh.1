@@ -88,7 +88,7 @@ See \fBsetgroups\fR(2).
 See \fBsetpriority\fR(2). The argument is in Linux units, 1-40.
 .IP "\fBrlimit\fR \fIkey\fR \fIcur\fR [\fImax\fR]" 4
 See \fBprlimit\fR(2). \fIKey\fR for RLIMIT_CPU is just \fBcpu\fR.
-.IP "\fBseccomp\fR \fIfile\fR" 4
+.IP "\fBprctl seccomp\fR \fIfile\fR" 4
 See \fBseccomp\fR(2), SECCOMP_SET_MODE_FILTER. The \fIfile\fR
 is expected to contain compiled BPF opcodes.
 .IP "\fBprctl secbits\fR \fIkey\fR \fIkey\fR ..." 4
