@@ -30,9 +30,6 @@
 
 ERRTAG("xorgvt");
 
-#define SERVER_BASE "/etc/X11"
-#define CLIENT_BASE "/etc/X11/session"
-
 struct top {
 	int opts;
 
