@@ -296,6 +296,8 @@ int main(int argc, char** argv)
 	struct top context, *ctx = &context;
 	char* cmd;
 
+	memzero(ctx, sizeof(ctx));
+
 	init_args(ctx, argc, argv);
 	init_heap_bufs(ctx);
 
