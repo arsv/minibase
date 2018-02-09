@@ -66,7 +66,7 @@ struct ap ap;
 
 /* When aborting for whatever reason, terminate the connection.
    Not doing so may leave the card in a (partially-)connected state.
-   It's not bas as such, but may be confusing.
+   It's not that much of a problem but may be confusing.
 
    No point in waiting for notifications if the goal is to reset
    the device and quit. Unlike regular trigger_disconnect, this does
@@ -239,7 +239,8 @@ static void parse_scan_result(struct nlgen* msg)
 
 /* NL80211_CMD_TRIGGER_SCAN arrives with a list of frequencies being
    scanned. We use it to mark and later remove stale scan entries.
-   The list may not be a complete one, esp. with single-freq scans. */
+   The list may not cover the whole range, e.g. if it's a single-freq
+   scans, so the point is to mark only the entries being re-scanned. */
 
 static void cmd_trigger_scan(MSG)
 {
@@ -252,9 +253,9 @@ static void cmd_trigger_scan(MSG)
 }
 
 /* Non-MULTI scan results command means the card is done scanning,
-   and it comes empty. We must then trigger scan dump, which results
-   in a bunch of messages with the same command code *but* also with
-   the MULTI flag set. The dump ends with NLMSG_DONE. */
+   and it comes empty. We then send a dump request, which results
+   in a bunch of messages with the same NL80211_CMD_NEW_SCAN_RESULTS code
+   but also with the MULTI flag set. The dump ends with a NLMSG_DONE. */
 
 static void cmd_scan_results(MSG)
 {
@@ -342,8 +343,8 @@ static void snap_to_disabled(char* why)
 
 /* See comments around prime_eapol_state() / allow_eapol_sends() on why
    this stuff works the way it does. ASSOCIATE is the last command we issue
-   over netlink, pretty everything else happens either on its own or through
-   the rawsock. */
+   over netlink, pretty much everything else past that point happens either
+   on its own or through the rawsock. */
 
 static void cmd_authenticate(MSG)
 {
