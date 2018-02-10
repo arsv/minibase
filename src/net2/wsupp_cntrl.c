@@ -189,12 +189,17 @@ static int common_wifi_state(void)
 
 static void put_status_wifi(struct ucbuf* uc)
 {
+	int tm;
+
 	uc_put_int(uc, ATTR_IFI, ifindex);
 	uc_put_str(uc, ATTR_NAME, ifname);
 	uc_put_int(uc, ATTR_STATE, common_wifi_state());
 
 	if(authstate != AS_IDLE || ap.fixed)
 		uc_put_bin(uc, ATTR_SSID, ap.ssid, ap.slen);
+	if(authstate == AS_IDLE && ap.fixed)
+		if(scanstate == SS_IDLE && (tm = get_timer()) >= 0)
+			uc_put_int(uc, ATTR_TIME, tm);
 	if(authstate != AS_IDLE) {
 		uc_put_bin(uc, ATTR_BSSID, ap.bssid, sizeof(ap.bssid));
 		uc_put_int(uc, ATTR_FREQ, ap.freq);

@@ -62,6 +62,7 @@
 #define ATTR_MODE      15
 #define ATTR_FLAGS     16
 #define ATTR_ADDR      17
+#define ATTR_TIME      18
 
 #define WS_IDLE         0
 #define WS_RFKILLED     1

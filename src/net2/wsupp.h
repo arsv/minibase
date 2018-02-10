@@ -187,6 +187,7 @@ int drop_psk(byte* ssid, int slen);
 
 void set_timer(int seconds);
 void clr_timer(void);
+int get_timer(void);
 
 void reset_station(void);
 int set_fixed_saved(byte* ssid, int slen);

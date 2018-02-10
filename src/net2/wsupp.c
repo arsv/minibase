@@ -179,6 +179,11 @@ void set_timer(int seconds)
 	timerset = 1;
 }
 
+int get_timer(void)
+{
+	return timerset ? pollts.sec : -1;
+}
+
 static void timer_expired(void)
 {
 	clr_timer();

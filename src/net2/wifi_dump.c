@@ -318,16 +318,27 @@ static void print_scan_results(CTX, MSG, int nl)
 	if(nl && *scans) output(ctx, "\n", 1);
 }
 
-static void print_status(CTX, MSG)
+static void print_status_line(CTX, MSG, int state, attr ssid)
 {
-	int state;
+	int* timer = uc_get_int(msg, ATTR_TIME);
 
 	FMTBUF(p, e, buf, 200);
 
-	get_int(msg, ATTR_STATE, &state);
-	p = fmt_kv(p, e, state, wistates);
+	if(state == WS_SCANNING && ssid)
+		p = fmtstr(p, e, "Searching");
+	else if(state == WS_IDLE && ssid)
+		p = fmtstr(p, e, "Lost");
+	else
+		p = fmt_kv(p, e, state, wistates);
+
 	p = fmtstr(p, e, " ");
 	p = fmt_station(p, e, msg, ctx->showbss);
+
+	if(state == WS_IDLE && timer) {
+		p = fmtstr(p, e, ", next scan in ");
+		p = fmtint(p, e, *timer);
+		p = fmtstr(p, e, "s");
+	}
 
 	FMTENL(p, e);
 
@@ -343,11 +354,17 @@ void dump_scanlist(CTX, MSG)
 
 void dump_status(CTX, MSG)
 {
+	attr ssid = uc_get(msg, ATTR_SSID);
+	int* state = uc_get_int(msg, ATTR_STATE);
+
 	init_output(ctx);
 
-	print_scan_results(ctx, msg, 1);
-
-	print_status(ctx, msg);
+	if(*state == WS_IDLE && !ssid) {
+		print_scan_results(ctx, msg, 0);
+	} else {
+		print_scan_results(ctx, msg, 1);
+		print_status_line(ctx, msg, *state, ssid);
+	}
 
 	fini_output(ctx);
 }
