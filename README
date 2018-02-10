@@ -11,7 +11,7 @@ Standard libc is not needed to build them, only a freestanding compiler
 and a linker. There are no runtime dependencies other than the Linux kernel,
 the executables are always statically linked.
 
-Supported targets: x86_64 arm aarch64 rv64 mips mips64.
+Supported targets: x86_64 arm aarch64 rv64 mips mips64 i386.
 
 
 What's inside

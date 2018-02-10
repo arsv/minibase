@@ -49,6 +49,7 @@ if [ -z "$arch" ]; then
 	mach=`$cc -dumpmachine`
 	mach=${mach%%-*}
 	case "$mach" in
+		i[3456]86) arch=i386 ;;
 		mips64el)  arch=mips64 ;;
 		mipsn32)   arch=mips32 ;;
 		mipsn32el) arch=mips32 ;;
@@ -63,10 +64,12 @@ fi
 # however it's qemu=/path/to/qemu-blah than use that unchanged.
 if [ -z "$qemu" ]; then
 	host=`uname -m`
-	if [ "$host" != "$mach" ]; then
-		qemu="$mach"
-	else
+	if [ "$host" = "$mach" ]; then
 		qemu="-"
+	elif [ "$arch" = "i386" ]; then
+		qemu="$arch"
+	else
+		qemu="$mach"
 	fi
 fi
 

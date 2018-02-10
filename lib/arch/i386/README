@@ -1,0 +1,14 @@
+This implementation does int 0x80 style syscalls, which work on any
+i?86 but may be slow on some. 
+
+The official recommended way of doing syscalls on unknown i?86 is to
+locate and use syscall trampoline. Doing so in minibase however is tricky.
+For all other architectures, syscall is something self-contained, however
+trampoline means syscall code depends on a global, runtime-set variable.
+Which in minibase context means either a wasted rw page, or some register
+tricks -- and x86 is notoriously short on those.
+
+It's not decided yet how to handle this problem well, and 32-bit x86 support
+in minibase is more of a backward-compatibility kludge anyway, so it stays
+like this for now. It should, on pretty much any x86 hardware, and whoever
+may be running x86 in 2018 is clearly not concerned with performance anyway.
