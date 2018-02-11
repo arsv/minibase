@@ -18,7 +18,7 @@
          * umount -a
          * reboot(2)
 
-   svcmon should spawn this tool when it's done.
+   svctl should spawn this tool when it's done.
 
    There's no other way to do umount -a in minitools, in particular
    mount -u cannot do that. This is because shutdown is the only situation
@@ -237,35 +237,26 @@ static void warn_pause(void)
 	sys_write(STDOUT, final, strlen(final));
 }
 
-static int spawn_reboot(int mode)
+static noreturn void wait_child(int pid)
 {
-	int pid, ret, status;
+	int ret, status;
 
-	if((pid = sys_fork()) < 0)
-		fail("fork", NULL, pid);
+	if((ret = sys_waitpid(pid, &status, 0)) < 0)
+		fail("waitpid", NULL, ret);
 
-	if(pid == 0) {
-		if((ret = sys_reboot(mode)) < 0)
-			warn("reboot", NULL, ret);
-		return (ret < 0 ? 0xFF : 0x00);
-	} else {
-		if((ret = sys_waitpid(pid, &status, 0)) < 0)
-			fail("waitpid", NULL, ret);
-
-		return (status ? 0xFF : 0x00);
-	}
+	if(status)
+		fail("child process failed", NULL, 0);
+	else
+		fail("child process exited successfully", NULL, 0);
 }
 
 int main(int argc, char** argv)
 {
 	int mode = RB_AUTOBOOT;
-	int i = 1, opts = 0, ret;
+	int i = 1, opts = 0, ret, pid;
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
-
-	if((ret = sys_getpid()) != 1)
-		fail("invoked with pid", NULL, ret);
 
 	if(opts == OPT_p)
 		mode = RB_POWER_OFF;
@@ -284,5 +275,15 @@ int main(int argc, char** argv)
 
 	umountall();
 
-	return spawn_reboot(mode);
+	if(sys_getpid() != 1)
+		;
+	else if((pid = sys_fork()) < 0)
+		fail("fork", NULL, pid);
+	else if(pid == 0)
+		wait_child(pid);
+
+	if((ret = sys_reboot(mode)) < 0)
+		fail("reboot", NULL, ret);
+
+	return 0;
 }
