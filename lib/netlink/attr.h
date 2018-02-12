@@ -42,7 +42,9 @@ struct nlattr* nl_get_nest(struct nlgen* msg, uint16_t type);
 #define nl_get_u64(at, kk) nl_get_int(at, kk, uint64_t)
 #define nl_get_i32(at, kk) nl_get_int(at, kk, int32_t)
 
-int nl_attr_len(struct nlattr* at);
+int nl_paylen(struct nlattr* at);
+void* nl_payload(struct nlattr* at);
+
 void* nl_sub_of_len(struct nlattr* at, uint16_t type, size_t len);
 char* nl_sub_str(struct nlattr* at, uint16_t type);
 

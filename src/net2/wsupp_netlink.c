@@ -234,7 +234,7 @@ static void parse_scan_result(struct nlgen* msg)
 	sc->flags &= ~SF_STALE;
 
 	if((ies = nl_sub(bss, NL80211_BSS_INFORMATION_ELEMENTS)))
-		parse_station_ies(sc, ies->payload, nl_attr_len(ies));
+		parse_station_ies(sc, nl_payload(ies), nl_paylen(ies));
 }
 
 /* NL80211_CMD_TRIGGER_SCAN arrives with a list of frequencies being

@@ -3,9 +3,14 @@
 #include "base.h"
 #include "attr.h"
 
-int nl_attr_len(struct nlattr* at)
+int nl_paylen(struct nlattr* at)
 {
 	return at->len - sizeof(*at);
+}
+
+void* nl_payload(struct nlattr* at)
+{
+	return at->payload;
 }
 
 struct nlattr* nl_get(struct nlgen* msg, uint16_t type)
