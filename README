@@ -92,6 +92,7 @@ only worth mentioning because of inevitable attempts to compare
 it to OpenRC).
 
 There is no fstab in minibase, and no conventional mount(1).
+The tools that handle mounts are written with hot-plugging in mind.
 
 Minibase comes with a functional replacement for logind that is not
 a fork or a clone of systemd-logind, and does not need dbus to work.
