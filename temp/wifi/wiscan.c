@@ -139,7 +139,7 @@ void print_scan_entry(struct nlgen* msg)
 		p = format_freq(p, e, *i32);
 
 	if((at = nl_sub(bss, NL80211_BSS_INFORMATION_ELEMENTS)))
-		p = format_ies(p, e, at->payload, nl_attr_len(at));
+		p = format_ies(p, e, nl_payload(at), nl_paylen(at));
 
 	*p++ = '\n';
 
