@@ -9,7 +9,7 @@
 #include "rtnl/link.h"
 #include "rtnl/route.h"
 
-void hexdump(char* inbuf, int inlen)
+static void hexdump(char* inbuf, int inlen)
 {
 	int spacelen = 4 + 3 + 3 + 2;
 	int hexlen = 16*3;
@@ -78,7 +78,7 @@ void nl_dump_msg(struct nlmsg* msg)
 	if(paylen >= 0)
 		nl_dump_msg_hdr(msg);
 	if(paylen > 0)
-		nl_hexdump(msg->payload, paylen);
+		hexdump(msg->payload, paylen);
 }
 
 void nl_dump_gen(struct nlgen* gen)
