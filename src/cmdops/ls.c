@@ -15,53 +15,50 @@ ERRTAG("ls");
 
 #define DT_LNK_DIR 71	/* symlink pointing to a dir, custom value */
 
-#define OPTS "aubreyw"
+#define OPTS "auy"
 #define OPT_a (1<<0)	/* show all files, including hidden ones */
 #define OPT_u (1<<1)	/* uniform listing, dirs and filex intermixed */
-#define OPT_b (1<<2)	/* basename listing, do not prepend argument */
-#define OPT_r (1<<3)	/* recurse into subdirectories */
-#define OPT_e (1<<4)	/* list leaf entries (non-dirs) only */
-#define OPT_y (1<<5)	/* list symlinks as files, regardless of target */
-#define OPT_w (1<<6)	/* follow symlinks */
+#define OPT_y (1<<2)	/* list symlinks as files, regardless of target */
 
-#define SET_stat (1<<16) /* do stat() entries */
+#define SET_stat (1<<16)
+
+struct ent {
+	int type;
+	int mode;
+	int uid;
+	int gid;
+	uint64_t size;
+	unsigned namelen;
+	char name[];
+};
 
 struct top {
 	int opts;
 	struct bufout bo;
+	int fd;
+
+	int npatt;
+	char** patt;
 
 	void* base;
 	void* ptr;
 	void* end;
-};
 
-struct dir {
-	struct top* top;
-	int fd;
-	char* name;
+	struct ent** idx;
 };
 
 #define CTX struct top* ctx
-#define DCT struct dir* dct
 
 char output[PAGE];
 
-static void init(CTX, int opts)
+static void init_context(CTX, int opts)
 {
 	void* brk = sys_brk(0);
 	void* end = sys_brk(brk + PAGE);
+	int fd;
 
 	if(brk_error(brk, end))
 		fail("cannot initialize heap", NULL, 0);
-
-	if(opts & OPT_e)
-		opts |= SET_stat; /* need type before entering the dir */
-	else if(!(opts & (OPT_r | OPT_u)))
-		opts |= SET_stat; /* non-recurse, non-uniform list needs stat */
-	else if(opts & OPT_y)
-		; /* no need to stat symlinks */
-	else
-		opts |= SET_stat;
 
 	ctx->opts = opts;
 
@@ -73,9 +70,14 @@ static void init(CTX, int opts)
 	ctx->bo.buf = output;
 	ctx->bo.len = sizeof(output);
 	ctx->bo.ptr = 0;
+
+	if((fd = sys_open(".", O_DIRECTORY)) < 0)
+		fail("open", ".", fd);
+
+	ctx->fd = fd;
 }
 
-static void fini(CTX)
+static void fini_context(CTX)
 {
 	bufoutflush(&ctx->bo);
 }
@@ -104,91 +106,131 @@ static void* alloc(CTX, int len)
 	return ret;
 }
 
-static void read_whole(DCT)
+static void stat_entry(CTX, int at, struct ent* en)
 {
-	struct top* ctx = dct->top;
-	char* name = dct->name ? dct->name : ".";
-	int fd = dct->fd;
-	int ret;
+	char* name = en->name;
+	int flags = AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW;
+	struct stat st;
 
-	while((ret = sys_getdents(fd, ctx->ptr, ctx->end - ctx->ptr)) > 0) {
-		ctx->ptr += ret;
-		extend(ctx, PAGE/2);
-	} if(ret < 0)
-		fail("getdents", name, ret);
+	if(ctx->opts & SET_stat)
+		;
+	else if(en->type == DT_UNKNOWN)
+		;
+	else return;
+
+	if((sys_fstatat(at, name, &st, flags)) < 0)
+		return;
+
+	en->mode = st.mode;
+	en->size = st.size;
+	en->uid = st.uid;
+	en->gid = st.gid;
+
 }
 
-static int delength(void* p)
+static void stat_target(CTX, int at, struct ent* en)
 {
-	return ((struct dirent*)p)->reclen;
+	char* name = en->name;
+	int flags = AT_NO_AUTOMOUNT;
+	struct stat st;
+
+	if(en->type != DT_LNK)
+		return;
+	if(sys_fstatat(at, name, &st, flags) < 0)
+		return;
+	if(S_ISDIR(st.mode))
+		en->type = DT_LNK_DIR;
 }
 
-static struct dirent** index_dirents(CTX, void* dents, void* deend)
+static void add_dirent(CTX, int at, struct dirent* de)
+{
+	char* name = de->name;
+	int len = strlen(name);
+	struct ent* en = alloc(ctx, sizeof(struct ent) + len + 1);
+
+	memzero(en, sizeof(*en));
+
+	en->namelen = len;
+	en->type = de->type;
+	memcpy(en->name, name, len + 1);
+
+	stat_entry(ctx, at, en);
+
+	stat_target(ctx, at, en);
+}
+
+static int match(CTX, char* name)
+{
+	int all = (ctx->opts & OPT_a);
+	int npatt = ctx->npatt;
+	char** patt = ctx->patt;
+
+	if(name[0] == '.' && !all)
+		return 0;
+	if(npatt <= 0)
+		return 1;
+
+	for(int i = 0; i < npatt; i++)
+		if(strstr(name, patt[i]))
+			return 1;
+
+	return 0;
+}
+
+static void read_whole(CTX)
+{
+	char buf[2048];
+	int rd, fd = ctx->fd;
+
+	while((rd = sys_getdents(fd, buf, sizeof(buf))) > 0) {
+		void* ptr = buf;
+		void* end = buf + rd;
+
+		while(ptr < end) {
+			struct dirent* de = ptr;
+
+			ptr += de->reclen;
+
+			if(dotddot(de->name))
+				continue;
+			if(!match(ctx, de->name))
+				continue;
+
+			add_dirent(ctx, fd, de);
+		}
+	} if(rd < 0) {
+		fail("getdents", NULL, rd);
+	}
+}
+
+static int entlen(void* p)
+{
+	struct ent* en = p;
+	return sizeof(*en) + en->namelen + 1;
+}
+
+static void index_entries(CTX, void* ents, void* eend)
 {
 	void* p;
 	int nument = 0;
 
-	for(p = dents; p < deend; p += delength(p))
+	for(p = ents; p < eend; p += entlen(p))
 		nument++;
 
 	int len = (nument+1) * sizeof(void*);
-	struct dirent** idx = alloc(ctx, len);
-	struct dirent** end = idx + len;
-	struct dirent** ptr = idx;
+	struct ent** idx = alloc(ctx, len);
+	struct ent** end = idx + len;
+	struct ent** ptr = idx;
 
-	for(p = dents; p < deend; p += delength(p)) {
+	for(p = ents; p < eend; p += entlen(p)) {
 		if(ptr >= end)
 			break;
-		*(ptr++) = (struct dirent*) p;
+		*(ptr++) = p;
 	}
 
 	*ptr = NULL;
 	
-	return idx;
-}
-
-static void stat_indexed(DCT, struct dirent** idx)
-{
-	struct top* ctx = dct->top;
-	int opts = ctx->opts;
-	int at = dct->fd;
-
-	struct dirent** p;
-	struct stat st;
-
-	int flags1 = AT_NO_AUTOMOUNT;
-	int flags2 = AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW;
-
-	if(!(opts & SET_stat))
-		return;
-
-	for(p = idx; *p; p++) {
-		struct dirent* de = *p;
-		int type = de->type;
-
-		if(type != DT_UNKNOWN)
-			;
-		else if(sys_fstatat(at, de->name, &st, flags1) < 0)
-			continue;
-		else if(S_ISDIR(st.mode))
-			type = DT_DIR;
-		else if(S_ISLNK(st.mode))
-			type = DT_LNK;
-		else
-			type = DT_REG; /* neither DIR nor LNK nor UNKNOWN */
-
-		de->type = type;
-
-		if(type != DT_LNK)
-			continue;
-		if(opts & OPT_y)
-			continue;
-
-		if(sys_fstatat(at, de->name, &st, flags2) < 0)
-			continue;
-		if(S_ISLNK(st.mode))
-			de->type = DT_LNK_DIR;
-	}
+	ctx->idx = idx;
 }
 
 static int isdirtype(int t)
@@ -198,8 +240,8 @@ static int isdirtype(int t)
 
 static int cmpidx(const void* a, const void* b, long opts)
 {
-	struct dirent* pa = *((struct dirent**)a);
-	struct dirent* pb = *((struct dirent**)b);
+	struct ent* pa = *((struct ent**)a);
+	struct ent* pb = *((struct ent**)b);
 
 	if(!(opts & OPT_u)) {
 		int dira = isdirtype(pa->type);
@@ -214,10 +256,11 @@ static int cmpidx(const void* a, const void* b, long opts)
 	return strcmp(pa->name, pb->name);
 }
 
-static void sort_indexed(DCT, struct dirent** idx)
+static void sort_indexed(CTX)
 {
-	int opts = dct->top->opts;
-	struct dirent** p;
+	int opts = ctx->opts;
+	struct ent** idx = ctx->idx;
+	struct ent** p;
 	int count = 0;
 
 	for(p = idx; *p; p++)
@@ -226,49 +269,11 @@ static void sort_indexed(DCT, struct dirent** idx)
 	qsortx(idx, count, sizeof(void*), cmpidx, opts);
 }
 
-static void list(DCT);
-
-static void enter_directory(DCT, const char* name, int strict)
+static void dump_entry(CTX, struct ent* de)
 {
-	int at = dct->fd;
-	char* dir = dct->name;
-	int dlen = dir ? strlen(dir) : 0;
-	int fd;
-
-	FMTBUF(p, e, path, dlen + strlen(name) + 2);
-	p = fmtstr(p, e, dir ? dir : "");
-	p = fmtstr(p, e, dir ? "/" : "");
-	p = fmtstr(p, e, name);
-	FMTEND(p, e);
-
-	if((fd = sys_openat(at, name, O_DIRECTORY)) < 0) {
-		if(strict)
-			warn(NULL, path, fd);
-		return;
-	}
-
-	struct dir sub = {
-		.top = dct->top,
-		.fd = fd,
-		.name = path
-	};
-
-	list(&sub);
-
-	sys_close(fd);
-}
-
-static void dump_entry(DCT, struct dirent* de)
-{
-	struct top* ctx = dct->top;
 	struct bufout* bo = &(ctx->bo);
 	char* name = de->name;
 	char type = de->type;
-
-	if(dct->name) {
-		bufout(bo, dct->name, strlen(dct->name));
-		bufout(bo, "//", 1);
-	}
 
 	bufout(bo, name, strlen(name));
 
@@ -280,125 +285,44 @@ static void dump_entry(DCT, struct dirent* de)
 	bufout(bo, "\n", 1);
 }
 
-static void dump_indexed(DCT, struct dirent** idx)
+static void dump_indexed(CTX)
 {
-	int opts = dct->top->opts;
-	struct dirent** p;
+	struct ent** idx = ctx->idx;
+	struct ent** p;
 
 	for(p = idx; *p; p++) {
-		struct dirent* de = *p;
-		char* name = de->name;
-		char type = de->type;
-
-		if(*name == '.' && !(opts & OPT_a))
-			continue;
-		if(dotddot(name))
-			continue;
-
-		if(type == DT_DIR && (opts & OPT_e))
-			;
-		else
-			dump_entry(dct, de);
-
-		if(!(opts & OPT_r))
-			continue;
-		if(type == DT_DIR)
-			enter_directory(dct, name, MUSTBEDIR);
-		else if(type == DT_LNK_DIR && (opts & OPT_w))
-			enter_directory(dct, name, MUSTBEDIR);
-		else if(type == DT_UNKNOWN)
-			enter_directory(dct, name, MAYBEDIR);
+		struct ent* de = *p;
+		dump_entry(ctx, de);
 	}
 }
 
-static void list(DCT)
+static void list_directory(CTX)
 {
-	struct top* ctx = dct->top;
+	void* ents = ctx->ptr;
+	read_whole(ctx);
+	void* eend = ctx->ptr;
 
-	void* oldptr = ctx->ptr; /* start heap frame */
-
-	void* dents = ctx->ptr;
-	read_whole(dct);
-	void* deend = ctx->ptr;
-
-	struct dirent** idx = index_dirents(ctx, dents, deend);
-
-	stat_indexed(dct, idx);
-	sort_indexed(dct, idx);
-
-	dump_indexed(dct, idx);
-
-	ctx->ptr = oldptr; /* end heap frame */
-}
-
-static void list_(CTX, char* openname, char* listname)
-{
-	int fd;
-	int opts = ctx->opts;
-	int flags = O_DIRECTORY;
-
-	if(!(opts & OPT_w))
-		flags |= O_NOFOLLOW;
-
-	if((fd = sys_open(openname, flags)) < 0)
-		fail(NULL, openname, fd);
-
-	struct dir dct = {
-		.top = ctx,
-		.fd = fd,
-		.name = listname
-	};
-
-	list(&dct);
-
-	sys_close(fd);
-}
-
-static void list_dir(CTX, char* name)
-{
-	int opts = ctx->opts;
-	char* listname;
-
-	int nlen = strlen(name);
-	char list[nlen+1];
-
-	memcpy(list, name, nlen+1);
-
-	if(nlen && list[nlen-1] == '/')
-		list[nlen-1] = '\0';
-
-	if(opts & OPT_b)
-		listname = NULL;
-	else
-		listname = list;
-
-	list_(ctx, name, listname);
-}
-
-static void list_cwd(CTX)
-{
-	list_(ctx, ".", NULL);
+	index_entries(ctx, ents, eend);
+	sort_indexed(ctx);
+	dump_indexed(ctx);
 }
 
 int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
-	int opts = 0;
-	int i = 1;
+	int opts = 0, i = 1;
 
 	memzero(ctx, sizeof(*ctx));
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
-	init(ctx, opts);
+	ctx->npatt = argc - i;
+	ctx->patt = argv + i;
 
-	if(i >= argc)
-		list_cwd(ctx);
-	else for(; i < argc; i++)
-		list_dir(ctx, argv[i]);
-
-	fini(ctx);
+	init_context(ctx, opts);
+	list_directory(ctx);
+	fini_context(ctx);
 
 	return 0;
 }

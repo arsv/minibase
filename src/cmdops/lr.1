@@ -1,0 +1,29 @@
+.TH lr 1
+'''
+.SH NAME
+\fBlr\fR \- list directory contents recursively
+'''
+.SH SYNOPSIS
+.IP "\fBlr\fR [\fB-abuwy\fR] \fIdirectory\fR" 4
+'''
+.SH OPTIONS
+.IP "\fB-a\fR" 4
+Include hidden files in the list.
+.IP "\fB-u\fR" 4
+Produce uniform list, do not sort directories before files.
+.IP "\fB-b\fR" 4
+List names relative to \fIdirectory\fR.
+.IP "\fB-e\fR" 4
+List only the leaf (non-directory) nodes.
+.IP "\fB-y\fR" 4
+List symlinks as files regardless of their targets.
+.IP "\fB-w\fR" 4
+Follow symlinks recursively.
+'''
+.SH NOTES
+lr sorts its output by raw byte values. This is done only to ensure stable
+output not dependent on irrelevant filesystem information. Locale settings
+do not affect the ordering.
+'''
+.SH SEE ALSO
+\fBls\fR(1), \fBstat\fR(1), \fBgetdents\fR(2)
