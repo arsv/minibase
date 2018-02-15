@@ -9,6 +9,12 @@
 .SH OPTIONS
 .IP "\fB-a\fR" 4
 Include hidden files in the list.
+.IP "\fB-c\fR" 4
+Do not colorize output.
+.IP "\fB-n\fR" 4
+Show exact numeric values where applicable.
+.IP "\fB-l\fR" 4
+Show file permissions (mode).
 .IP "\fB-u\fR" 4
 Produce uniform list, do not sort directories before files.
 .IP "\fB-y\fR" 4
@@ -21,8 +27,6 @@ do not affect the ordering.
 .P
 ls never lists . and .. special entries.
 Those are assumed to be present in any directory.
-.P
-This version of ls does not support \fB-l\fR listing format.
 '''
 .SH SEE ALSO
 \fBstat\fR(1), \fBlr\fR(1), \fBgetdents\fR(2)
