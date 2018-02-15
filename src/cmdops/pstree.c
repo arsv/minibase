@@ -491,12 +491,13 @@ static void dump_proc(CTX, struct bufout* bo, struct trec* tr, struct proc* ps)
 	p = fmtstr(p, e, ps->name);
 
 	if(tr->uid != ps->uid || tr->euid != ps->euid) {
-		p = fmtstr(p, e, " :");
+		p = fmtstr(p, e, " [");
 		p = fmt_user(p, e, ctx, ps->uid);
 		if(ps->euid != ps->uid) {
 			p = fmtstr(p, e, "/");
 			p = fmt_user(p, e, ctx, ps->euid);
 		}
+		p = fmtstr(p, e, "]");
 	}
 
 	*p++ = '\n';
