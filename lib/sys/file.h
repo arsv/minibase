@@ -68,7 +68,7 @@ inline static long sys_dup2(int fda, int fdb)
 #define SEEK_HOLE 4
 
 /* There's probably no good way to implement lseek in a way that would
-   work reasonably well on both 32 and 64 bit targets. The code below
+   work reasonably well on both 32 and 64 bit targets. The llseek code below
    is the best I can come up with. The compiler should be able to eliminate
    the pointer mess in 64-bit case. */
 

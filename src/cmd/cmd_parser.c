@@ -10,9 +10,9 @@
 /* Primary command parser. Takes complete command line, turns it
    into argc, argv[] and calls execute().
 
-   The parts for argv[] are assembled in the heap, right after
-   the original string. Quotes etc prevent us from using the source
-   string directly, and variable substitution happens here as well. */
+   The parts for argv[] are assembled in the heap, right after the original
+   string. Because of quotes and possible variable substitutions, it cannot
+   be done in place. */
 
 struct arg {
 	ushort len;

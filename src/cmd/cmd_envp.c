@@ -22,7 +22,7 @@
 
    Es = struct env (with inline data) and ENVP is char* envp[] with pointers
    to individual strings. Unlike in msh, there are no indirect pointers to
-   the original strings, everything gets copied inline Es-es. */
+   the original strings, everything gets copied to inline Es-es. */
 
 struct env {
 	int len;

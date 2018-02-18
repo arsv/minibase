@@ -16,7 +16,7 @@
    and indexed. The second Tab dumps the stored index.
 
    The mmaped block in TT may need to grow. To avoid the hassle of
-   keeping pointers valid across mremap, only offsets are stored.
+   keeping the pointers valid across mremap, only offsets are stored.
 
            i0  i1  i2  i3      ic
            v   v   v   v       v

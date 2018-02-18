@@ -3,10 +3,10 @@
 #include <string.h>
 #include "cmd.h"
 
-/* History was originally meant to be stored in a file, but got
-   changed to a memory buffer. Short-term history is a nice thing
-   to have but presisiting it makes little sense given typical
-   use cases for this shell.
+/* History was originally meant to be stored in a file, but got changed
+   to a memory buffer later. Short-term history is a nice thing to have
+   but presisiting it makes little sense given typical use cases for
+   this shell.
 
    Still, the format is just a plaintext file with \n-separated lines.
 

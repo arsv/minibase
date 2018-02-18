@@ -13,10 +13,10 @@
 #include "cmd.h"
 #include "unicode.h"
 
-/* Input handling a-la readline or libedit. The code tries to keep the text
-   being edited on a single line to avoid dealing with terminal quirks when
-   it comes to backspacing across a line wrap. Which is outright broken
-   in the Linux console for instance.
+/* Input handling similar to readline or libedit. The code tries to keep
+   the text being edited on a single line to avoid dealing with terminal
+   quirks when it comes to backspacing across a line wrap.
+   Which is outright broken in the Linux console for instance.
 
                                         v-- cur = cursor position
        /home/alex/devel> stat ~/some/pat▒/here.c...........

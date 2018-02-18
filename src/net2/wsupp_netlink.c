@@ -39,6 +39,7 @@
 	-> NL80211_CMD_NEW_SCAN_RESULTS* cmd_scan_results
 	...
 	-> NL80211_CMD_NEW_SCAN_RESULTS* cmd_scan_results
+	-> NLMSG_DONE                    genl_done
 
    Disconnect notifications may arrive spontaneously if initiated
    by the card (rfkill, or the AP going down), trigger_disconnect
@@ -144,7 +145,7 @@ int start_scan(int freq)
 	if(freq > 0) {
 		scanreq |= SR_SCANNING_ONE_FREQ | SR_RECONNECT_CURRENT;
 		at = nl_put_nest(&nl, NL80211_ATTR_SCAN_FREQUENCIES);
-		nl_put_u32(&nl, 0, freq); /* 0 is index here */
+		nl_put_u32(&nl, 0, freq); /* FREQUENCIES[0] = freq */
 		nl_end_nest(&nl, at);
 	}
 

@@ -21,11 +21,11 @@ ERRTAG("sysklogd");
    messages on /dev/log socket, and klogd, pulling kernel logs from /proc/kmsg.
    Both sources are piped to the same common log file.
 
-   While it is possible to write standalone klogd, it has to be so much
-   dependent on syslogd that it hardly makes any sense. */
+   While it is possible to write a standalone klogd, it has to be so much
+   dependent on syslogd that doing so hardly makes any sense. */
 
 #define THRESHOLD (1<<20) /* 1MB, log rotations */
-#define TAGSPACE 14 /* see description of storage format below */
+#define TAGSPACE 14 /* see description of the storage format below */
 
 struct top {
 	int sockfd;      /* /dev/log          */
@@ -155,16 +155,15 @@ static void set_log_time(struct top* ctx)
 	ctx->ts = tv.sec;
 }
 
-/* Syslog part. From the HEADER field, we pick priority but ignore
-   timestamp. Client's timestamps are unreliable and there's no point
-   in supplying or using them, syslogd can do it just as well.
+/* Syslog part. Priority is taken from from the HEADER field of the incoming
+   messages but timestamps are ignore, as those unreliable.
 
-   There's no way to remove the HOSTNAME part reliably, but luckily
-   no-one apparently does this nonsense anymore. Well at least musl
-   syslog() and the logger from util-linux don't.
+   There's no way to remove the HOSTNAME part reliably, but luckily no-one
+   apparently does this nonsense anymore. Well at least musl syslog() and
+   the logger from util-linux don't.
 
    Note there's also RFC5424 with its own timestamp format but no-one
-   apparently uses it, which is probably for the best. */
+   apparently uses it either, which is probably for the best. */
 
 static int isdigit(int c)
 {
