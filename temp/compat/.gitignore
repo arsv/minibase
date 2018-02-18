@@ -1,6 +1,4 @@
 basename
-chown
-chmod
 chvt
 dirname
 dirname

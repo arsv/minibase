@@ -3,6 +3,8 @@ include ../rules.mk
 $(eval $(call command,bcp,1))
 $(eval $(call command,cat,1))
 $(eval $(call command,clear,1))
+$(eval $(call command,chmod,1))
+$(eval $(call command,chown,1))
 $(eval $(call command,cpy,1))
 $(eval $(call command,date,1))
 $(eval $(call command,del,1))
