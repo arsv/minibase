@@ -1,43 +1,64 @@
 #!/bin/sh
 
-unset arch cross target cc ar strip tp lto
+unset arch cross target cc ar strip tp lto cflags
 
 commanddir=/sbin
 servicedir=/sbin/service
-networkdir=/sbin/network
 systemdir=/sbin/system
 
 man1dir=/sman/man1
 man5dir=/sman/man5
 man8dir=/sman/man8
 
-cflags=-Os
-
 die() { echo "$@" >&2; exit 1; }
+accept() { eval "$key=\$val"; unset val; }
+setkey() { eval "$1=\$val"; unset val; }
+append() { eval "$1=\"\${$1:+\$$1 }\$2\""; }
+appval() { append "$1" "$val"; unset val; }
+
+optim=-Os
 
 while [ $# -gt 0 ]; do
-	case "$1" in
-		*dir=*) eval "$1" ;;
-		cross=*) eval "$1"; cross="${cross}-" ;;
-		target=*) eval "$1"; cross="${cross:-$target-}" ;;
-		arch=*) eval "$1" ;;
-		cc=*) eval "$1" ;;
-		ar=*) eval "$1" ;;
-		strip=*) eval "$1" ;;
-		clang) clang=yes ;;
-		devel) cflags="-Wall -g -DDEVEL" ;;
-		debug) cflags="-Os -g" ;;
-		wextra) cflags="$cflags -Wextra" ;;
-		werror) cflags="$cflags -Werror" ;;
-		lto) lto="-flto " ;;
-		qemu=*) eval "$1" ;;
+	key=${1%%=*}
+	val=${1#*=}
+	test "$key" = "$1" && unset val
+
+	case "$key" in
+		commanddir) accept ;;
+		servicedir) accept ;;
+		systemdir)  accept ;;
+		cross)  accept; cross="${cross}-" ;;
+		target) accept; cross="${cross:-$target-}" ;;
+		arch)   accept ;;
+		cc|CC)  setkey cc ;;
+		ar|AR)  setkey ar ;;
+		strip)  setkey strip ;;
+		STRIP)  setkey strip ;;
+		cflags) appval cflags; unset optim ;;
+		CFLAGS) appval cflags; unset optim ;;
+		clang)  clang=yes ;;
+		devel)  append cflags "-g -DDEVEL"; unset optim ;;
+		debug)  append cflags "-g" ;;
+		wextra) append cflags "-Wextra" ;;
+		werror) append cflags "-Werror" ;;
+		lto)    lto="-flto " ;;
+		qemu)   accept ;;
 		only) shift; only="$@"; break ;;
-		*) die "Unexpected argument $1" ;;
+		*) die "Unexpected argument $key" ;;
 	esac; shift
+
+	test -n "$val" && die "Unexpected argument for $key"
 done
+
+append cflags "$optim"
+append cflags "$lto"
 
 test -z "$ar" && ar="${cross}ar"
 test -z "$strip" && strip="${cross}strip"
+
+case "$cc" in
+	*clang*) clang=yes ;;
+esac
 
 if [ -n "$clang" -a -z "$cc" ]; then
 	cc="clang${target:+ --target=$target}"
@@ -61,7 +82,7 @@ if [ -z "$arch" ]; then
 fi
 
 # Default meaning of qemu=something is to use qemu-something,
-# however it's qemu=/path/to/qemu-blah than use that unchanged.
+# however if it's qemu=/path/to/qemu-blah than use that unchanged.
 if [ -z "$qemu" ]; then
 	host=`uname -m`
 	if [ "$host" = "$mach" ]; then
@@ -92,7 +113,6 @@ QEMU = $qemu
 
 commanddir = $commanddir
 servicedir = $servicedir
-networkdir = $networkdir
 systemdir = $systemdir
 
 man1dir = $man1dir
