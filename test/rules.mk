@@ -8,7 +8,7 @@ include $/config.mk
 %.o: %.c
 	$(CC)$(if $(CFLAGS), $(CFLAGS)) -c $<
 
-%: %.o %/lib/all.a
+%: %.o $/lib/all.a
 	$(LD) -o $@ $(filter %.o,$^)
 
 all: $(test)
