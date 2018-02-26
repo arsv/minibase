@@ -54,8 +54,7 @@ static const char reset[] =
 
 int main(int argc, char** argv)
 {
-	int i = 1;
-	int opts = 0;
+	int i = 1, opts = 0, ret;
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
@@ -65,8 +64,8 @@ int main(int argc, char** argv)
 	sys_write(1, reset, sizeof(reset) - 1);
 
 	if(opts & OPT_r)
-		xchk(sys_ioctl(1, TCSETSW, (void*)&sane),
-			"ioctl TCSETSW", "stdout");
+		if((ret = sys_ioctl(1, TCSETSW, (void*)&sane)) < 0)
+			fail("ioctl", "TCSETSW", ret);
 
 	return 0;
 }

@@ -12,7 +12,11 @@ ERRLIST(NEINVAL NEFAULT NEAGAIN NENOMEM NENOSYS NECHILD NEINTR NENOENT);
 
 static void spawn(char** argv, char** envp)
 {
-	xchk(execvpe(*argv, argv, envp), "exec", *argv);
+	int ret;
+
+	if((ret = execvpe(*argv, argv, envp)) < 0)
+		fail("exec", *argv, ret);
+
 	_exit(0);
 }
 
@@ -88,6 +92,7 @@ int main(int argc, char** argv, char** envp)
 	int i = 1;
 	struct timeval t0, t1, tv;
 	struct rusage rv;
+	int pid, ret, status;
 
 	if(i < argc && argv[i][0] == '-')
 		if(argv[i++][1])
@@ -97,17 +102,17 @@ int main(int argc, char** argv, char** envp)
 
 	sys_gettimeofday(&t0, NULL);
 
-	long pid = xchk(sys_fork(), "fork", NULL);
-
-	if(!pid) spawn(argv + i, envp);
-
-	int status;
-
-	xchk(sys_waitpid(pid, &status, 0), "wait", 0);
+	if((pid = sys_fork()) < 0)
+		fail("fork", NULL, pid);
+	if(pid == 0)
+		spawn(argv + i, envp);
+	if((ret = sys_waitpid(pid, &status, 0)) < 0)
+		fail("wait", 0, ret);
 
 	sys_gettimeofday(&t1, NULL);
 
-	xchk(getrusage(RUSAGE_CHILDREN, &rv), "getrusage", NULL);
+	if((ret = getrusage(RUSAGE_CHILDREN, &rv)) < 0)
+		fail("getrusage", NULL, ret);
 
 	tvdiff(&tv, &t1, &t0);
 	report(&rv, &tv);

@@ -106,10 +106,13 @@ static void lexical(char* name, int len, int opts)
 
 static void printatcwd(char* name, int namelen, int opts)
 {
+	int cwdlen;
+
 	if(*name == '/')
 		return printparts(name, namelen, opts);
 
-	long cwdlen = xchk(sys_getcwd(cwdbuf, sizeof(cwdbuf)), "getcwd", NULL);
+	if((cwdlen = sys_getcwd(cwdbuf, sizeof(cwdbuf))) < 0)
+		fail("getcwd", NULL, cwdlen);
 
 	cwdlen--; /* unlike readlink, getcwd *does* count trailing \0 */
 
@@ -255,15 +258,17 @@ static void dereference(char* orig, char* name, int namelen, int opts)
 
 static void printfiles(int argc, char** argv, int opts)
 {
-	long cwdfd = xchk(sys_open(".", O_PATH | O_RDONLY), "open", ".");
-	int i;
+	int i, fd, ret;
+
+	if((fd = sys_open(".", O_PATH | O_RDONLY)) < 0)
+		fail("open", ".", fd);
 
 	for(i = 0; i < argc; i++) {
-		if(i) xchk(sys_fchdir(cwdfd), "chdir", ".");
-
 		char* arg = argv[i];
 		int arglen = strlen(arg);
 
+		if(i && (ret = sys_fchdir(fd)) < 0)
+			fail("chdir", ".", ret);
 		if(opts & OPT_r)
 			dereference(arg, arg, arglen, opts);
 		else if(opts & OPT_c)

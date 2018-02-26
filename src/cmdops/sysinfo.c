@@ -147,14 +147,15 @@ static void showall(struct sysinfo* si)
 
 int main(int argc, char** argv)
 {
-	(void)argv;
-	int i = 1;
 	struct sysinfo si;
+	int ret;
 
-	xchk(sys_info(&si), "sysinfo", NULL);
+	(void)argv;
 
-	if(i < argc)
+	if(argc > 1)
 		fail("too many arguments", NULL, 0);
+	if((ret = sys_info(&si)) < 0)
+		fail("sysinfo", NULL, ret);
 
 	showall(&si);
 

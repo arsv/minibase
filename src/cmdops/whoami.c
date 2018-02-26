@@ -12,10 +12,13 @@ ERRLIST(NENOSYS NENOENT NENOTDIR NENOMEM);
 
 static char* mapfile(const char* name, int* size)
 {
-	long fd = xchk(sys_open(name, O_RDONLY), "cannot open", name);
-
+	int fd, ret;
 	struct stat st;	
-	xchk(sys_fstat(fd, &st), "cannot stat", name);	
+
+	if((fd = sys_open(name, O_RDONLY)) < 0)
+		fail("cannot open", name, fd);
+	if((ret = sys_fstat(fd, &st)) < 0)
+		fail("cannot stat", name, ret);
 	/* get larger-than-int files out of the picture */
 	if(st.size > 0x7FFFFFFF)
 		fail("file too large:", name, 0);
@@ -65,18 +68,21 @@ static char* findname(char* filedata, int len, char* uidstr, int* namelen)
 
 int main(int argc, char** argv)
 {
+	int uid;
 	(void)argv;
 
 	if(argc > 1)
 		fail("no options allowed", NULL, 0);
 
-	int filesize;
-	char* filedata = mapfile("/etc/passwd", &filesize);
+	if((uid = sys_geteuid()) < 0)
+		fail(NULL, NULL, uid);
 
-	long uid = xchk(sys_geteuid(), NULL, NULL);
 	char uidstr[20];
 	char* uidend = uidstr + sizeof(uidstr) - 2;
 	char* p = fmtlong(uidstr, uidend, uid); *p = '\0';
+
+	int filesize;
+	char* filedata = mapfile("/etc/passwd", &filesize);
 
 	int namelen;
 	char* nameptr = findname(filedata, filesize, uidstr, &namelen);

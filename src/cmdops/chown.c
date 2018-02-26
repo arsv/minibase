@@ -142,14 +142,16 @@ static void chown(const char* name, struct chown* ch)
 
 static char* mapfile(const char* name, int* size)
 {
-	long fd = xchk(sys_open(name, O_RDONLY), "cannot open", name);
-
+	int fd, ret;
 	struct stat st;	
-	xchk(sys_fstat(fd, &st), "cannot stat", name);	
+
+	if((fd = sys_open(name, O_RDONLY)) < 0)
+		fail("cannot open", name, fd);
+	if(((ret = sys_fstat(fd, &st))) < 0)
+		fail("cannot stat", name, ret);
 	/* get larger-than-int files out of the picture */
 	if(st.size > 0x7FFFFFFF)
 		fail("file too large:", name, 0);
-
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;

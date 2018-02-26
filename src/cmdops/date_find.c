@@ -152,11 +152,13 @@ static int maybe_utc_zone(struct zonefile* zf, const char* zone)
 
 static void open_zone_file(struct zonefile* zf, const char* name)
 {
-	long fd = xchk(sys_open(name, O_RDONLY), name, NULL);
-
+	int fd, ret;
 	struct stat st;
-	xchk(sys_fstat(fd, &st), "stat", name);
 
+	if((fd = sys_open(name, O_RDONLY)) < 0)
+		fail(name, NULL, fd);
+	if((ret = sys_fstat(fd, &st)) < 0)
+		fail("stat", name, ret);
 	if(st.size >= 0xFFFFFFFF)
 		fail("zone file too large:", name, 0);
 

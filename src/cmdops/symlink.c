@@ -30,9 +30,9 @@ static int issymlink(char* file)
 
 static void symlink(char* linkname, char* target, int opts)
 {
-	long ret = sys_symlink(target, linkname);
+	int ret;
 
-	if(ret >= 0)
+	if((ret = sys_symlink(target, linkname)) >= 0)
 		return;
 	if(ret != -EEXIST || !(opts & (OPT_f | OPT_x)))
 		fail(NULL, linkname, ret);
@@ -40,8 +40,10 @@ static void symlink(char* linkname, char* target, int opts)
 	if(opts & OPT_f && !issymlink(linkname))
 		fail("refusing to overwrite", linkname, 0);
 
-	xchk(sys_unlink(linkname), "cannot unlink", linkname);
-	xchk(sys_symlink(target, linkname), NULL, linkname);
+	if((ret = sys_unlink(linkname)) < 0)
+		fail("cannot unlink", linkname, ret);
+	if((ret = sys_symlink(target, linkname)) < 0)
+		fail(NULL, linkname, ret);
 }
 
 static void symlinkto(char* dir, int argc, char** argv, int opts)

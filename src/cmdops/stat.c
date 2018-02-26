@@ -360,8 +360,10 @@ static char* format(char* p, char* e, struct stat* st, int opts)
 static void stat(const char* name, int opts)
 {
 	struct stat st;
+	int ret;
 
-	xchk(sys_lstat(name, &st), NULL, name);
+	if((ret = sys_lstat(name, &st)) < 0)
+		fail(NULL, name, ret);
 
 	int len = 512;
 	char buf[len];
@@ -375,7 +377,8 @@ static void stat(const char* name, int opts)
 
 	*p++ = '\n';
 
-	xchk(writeall(STDOUT, buf, p - buf), "write", NULL);
+	if((ret = writeall(STDOUT, buf, p - buf)) < 0)
+		fail("write", NULL, ret);
 }
 
 static int countbits(int val, int max)

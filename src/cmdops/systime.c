@@ -19,30 +19,42 @@ static const char rtc0[] = "/dev/rtc0";
 
 static void getsystime(struct timeval* tv, struct tm* tm)
 {
-	xchk(sys_gettimeofday(tv, NULL),
-		"cannot get system time", NULL );
+	int ret;
+
+	if((ret = sys_gettimeofday(tv, NULL)) < 0)
+		fail("cannot get system time", NULL, ret);
+
 	tv2tm(tv, tm);
 }
 
 static void setsystime(struct timeval* tv)
 {
-	xchk(sys_settimeofday(tv, NULL),
-		"cannot set system time", NULL );
+	int ret;
+
+	if((ret = sys_settimeofday(tv, NULL)) < 0)
+		fail("cannot set system time", NULL, ret);
 }
 
 static void getrtctime(struct timeval* tv, struct tm* tm, int rtcfd, const char* rtcname)
 {
-	memset(tm, 0, sizeof(*tm));
-	xchk(sys_ioctl(rtcfd, RTC_RD_TIME, tm),
-		"cannot get RTC time on", rtcname );
+	int ret;
+
+	memzero(tm, sizeof(*tm));
+
+	if((ret = sys_ioctl(rtcfd, RTC_RD_TIME, tm)) < 0)
+		fail("cannot get RTC time on", rtcname, ret);
+
 	tm2tv(tm, tv);
 }
 
 static void setrtctime(struct tm* tm, int rtcfd, const char* rtcname)
 {
+	int ret;
+
 	tm->isdst = 0;
-	xchk(sys_ioctl(rtcfd, RTC_SET_TIME, tm),
-		"cannot set RTC time on", rtcname );
+
+	if((ret = sys_ioctl(rtcfd, RTC_SET_TIME, tm)) < 0)
+		fail("cannot set RTC time on", rtcname, ret);
 }
 
 static char* parseymd(struct tm* tm, char* a)
@@ -163,8 +175,8 @@ int main(int argc, char** argv)
 	else if(opts & OPT_d)
 		fail("RTC device name required", NULL, 0);
 	if(opts & (OPT_w | OPT_r | OPT_s))
-		rtcfd = xchk(sys_open(rtcname, O_RDONLY),
-				"cannot open", rtcname );
+		if((rtcfd = sys_open(rtcname, O_RDONLY)) < 0)
+			fail("cannot open", rtcname, rtcfd);
 
 	/* Read time in, either by parsing arguments on via syscalls */
 	if(i < argc && !(opts & (OPT_w | OPT_s)))

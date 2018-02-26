@@ -90,7 +90,11 @@ static int lookslikedate(char* arg)
 
 static void systemtime(struct timedesc* zt)
 {
-	xchk(sys_gettimeofday(&zt->tv, NULL), "gettimeofday", NULL);
+	int ret;
+
+	if((ret = sys_gettimeofday(&zt->tv, NULL)) < 0)
+		fail("gettimeofday", NULL, ret);
+
 	zt->type = TIME_TV;
 }
 

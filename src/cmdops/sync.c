@@ -17,29 +17,42 @@ ERRLIST(NEBADF NEIO NEROFS NEINVAL NEACCES NENOENT NEFAULT NEFBIG NEINTR
 
 static int open_ref(char* name)
 {
-	const int flags = O_RDONLY | O_NONBLOCK;
+	int fd, flags = O_RDONLY | O_NONBLOCK;
 
-	return xchk(sys_open(name, flags), NULL, name);
+	if((fd = sys_open(name, flags)) < 0)
+		fail(NULL, name, fd);
+
+	return fd;
 }
 
 static void simplesync(int argc, char** argv, int i)
 {
-	if(i >= argc)
-		xchk(sys_sync(), "sync", NULL);
-	else for(; i < argc; i++)
-		xchk(sys_fsync(open_ref(argv[i])), NULL, argv[i]);
+	int ret;
+
+	if(i >= argc) {
+		if((ret = sys_sync()) < 0)
+			fail("sync", NULL, ret);
+	} else for(; i < argc; i++) {
+		if((ret = sys_fsync(open_ref(argv[i]))) < 0)
+			fail(NULL, argv[i], ret);
+	}
 }
 
 static void fdatasync(int argc, char** argv, int i)
 {
+	int ret;
+
 	if(i >= argc)
 		fail("too few arguments", NULL, 0);
 	for(; i < argc; i++)
-		xchk(sys_fdatasync(open_ref(argv[i])), NULL, argv[i]);
+		if((ret = sys_fdatasync(open_ref(argv[i]))) < 0)
+			fail(NULL, argv[i], ret);
 }
 
 static void syncfs(int argc, char** argv, int i)
 {
+	int ret;
+
 	if(i >= argc)
 		fail("too few arguments", NULL, 0);
 
@@ -48,9 +61,8 @@ static void syncfs(int argc, char** argv, int i)
 	if(i >= argc)
 		fail("too many arguments", NULL, 0);
 
-	int fd = open_ref(name);
-
-	xchk(sys_syncfs(fd), NULL, name);
+	if((ret = sys_syncfs(open_ref(name))) < 0)
+		fail(NULL, name, ret);
 }
 
 static void parsesuffixed(uint64_t* u, const char* n)
@@ -94,9 +106,10 @@ static void fstrim(int argc, char** argv, int i)
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
-	long fd = open_ref(name);
+	int ret, fd = open_ref(name);
 
-	xchk(sys_ioctl(fd, FITRIM, &range), NULL, name);
+	if((ret = sys_ioctl(fd, FITRIM, &range)) < 0)
+		fail(NULL, name, ret);
 }
 
 int main(int argc, char** argv)

@@ -148,25 +148,29 @@ static char* mmapempty(long size)
 static void openstat(struct file* f, long flags)
 {
 	struct stat st;
+	int fd, ret;
 
-	long fd = xchk(sys_open3(f->name, flags, 0666), "cannot open", f->name);
+	if((fd = sys_open3(f->name, flags, 0666)) < 0)
+		fail("cannot open", f->name, fd);
 
-	xchk(sys_fstat(fd, &st), "cannot stat", f->name);
+	if((ret = sys_fstat(fd, &st)) < 0)
+		fail("cannot stat", f->name, ret);
 
 	f->fd = fd;
 	f->type = st.mode & S_IFMT;
 
-	if(f->type == S_IFBLK) {
-		xchk(sys_ioctl(fd, BLKGETSIZE64, &(f->size)),
-			"cannot get size of", f->name);
-	} else {
+	if(f->type != S_IFBLK)
 		f->size = st.size;
-	}
+	else if((ret = sys_ioctl(fd, BLKGETSIZE64, &(f->size))) < 0)
+		fail("cannot get size of", f->name, ret);
 }
 
 static void truncate(struct file* dst, uint64_t size)
 {
-	xchk(sys_ftruncate(dst->fd, size), "cannot truncate", dst->name);
+	int ret;
+
+	if((ret = sys_ftruncate(dst->fd, size)) < 0)
+		fail("truncate", dst->name, ret);
 }
 
 static void seekfile(struct file* f)
@@ -182,7 +186,10 @@ static void seekfile(struct file* f)
 
 static void closefile(struct file* f)
 {
-	xchk(sys_close(f->fd), "cannot close", f->name);
+	int ret;
+
+	if((ret = sys_close(f->fd)) < 0)
+		fail("close", f->name, ret);
 }
 
 static int sizable(struct file* f)
@@ -232,7 +239,7 @@ static int sendfile(struct file* dst, struct file* src, uint64_t size)
 
 static int copymmap(struct file* dst, struct file* src, uint64_t size)
 {
-	long rd = 0;
+	long ret, rd = 0;
 	uint64_t left = size;
 	uint64_t soff = src->off;
 	int sfd = src->fd;
@@ -254,7 +261,8 @@ static int copymmap(struct file* dst, struct file* src, uint64_t size)
 		if((rd = writeall(dst->fd, buf, part)) < 0)
 			fail("write", dst->name, rd);
 
-		xchk(sys_munmap(buf, part), "munmap", src->name);
+		if((ret = sys_munmap(buf, part)) < 0)
+			fail("munmap", src->name, ret);
 
 		left -= rd;
 		soff += rd;
@@ -400,12 +408,14 @@ static void zerommap(struct file* dst, uint64_t size)
 static void zmode(struct bcp* ctx)
 {
 	struct file* dst = &ctx->l;
+	int fd;
 
 	if(!(ctx->opts & SET_size))
 		fail("size must be specified with -z", NULL, 0);
+	if((fd = sys_open3(dst->name, O_WRONLY | O_CREAT, 0666)) < 0)
+		fail("cannot create", dst->name, fd);
 
-	dst->fd = xchk(sys_open3(dst->name, O_WRONLY | O_CREAT, 0666),
-			"cannot create", dst->name);
+	dst->fd = fd;
 
 	truncate(dst, ctx->size);
 	closefile(dst);

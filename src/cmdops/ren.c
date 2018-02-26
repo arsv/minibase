@@ -16,8 +16,10 @@ ERRLIST(NEACCES NEBUSY NEFAULT NEINVAL NEISDIR NELOOP NEMLINK NENOENT
 
 static void rename(char* src, char* dst, int flags)
 {
-	xchk(sys_renameat2(AT_FDCWD, src, AT_FDCWD, dst, flags),
-		"cannot rename", src);
+	int ret;
+
+	if((ret = sys_renameat2(AT_FDCWD, src, AT_FDCWD, dst, flags)) < 0)
+		fail("cannot rename", src, ret);
 }
 
 static void movetodir(char* dir, int argc, char** argv, int flags)
