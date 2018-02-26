@@ -26,7 +26,7 @@ int main(int argc, char** argv)
 	int fd, ret;
 	char* name = argv[1];
 	struct stat st;
-	off_t ds, dh;
+	off_t ds = 0, dh = 0;
 
 	if(argc != 2)
 		fail("bad call", NULL, 0);

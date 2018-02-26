@@ -150,6 +150,7 @@ static void append(int argc, char** argv, int* argi, char** strs, int n)
 	   because argc = n + constant */
 	//if(i + n > argc)
 	//	fail("out of ptr space", NULL, 0);
+	(void)argc;
 
 	memcpy(argv + i, strs, n*sizeof(char*));
 
@@ -162,6 +163,7 @@ static void addarg(int argc, char** argv, int* argi, char* str)
 
 	//if(i >= argc)
 	//	fail("out of ptr space", NULL, 0);
+	(void)argc;
 
 	argv[i] = str;
 

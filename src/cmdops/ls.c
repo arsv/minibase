@@ -63,7 +63,7 @@ struct top {
 	struct mmaped group;
 };
 
-#define CTX struct top* ctx
+#define CTX struct top* ctx __unused
 
 char outbuf[PAGE];
 
