@@ -29,7 +29,10 @@ static void sighandler(int sig)
 
 static void sigaction(int sig, struct sigaction* sa, char* tag)
 {
-	xchk(sys_sigaction(sig, sa, NULL), "sigaction", tag);
+	int ret;
+
+	if((ret = sys_sigaction(sig, sa, NULL)) < 0)
+		fail("sigaction", tag, ret);
 }
 
 static void setup_signals(void)
@@ -85,15 +88,17 @@ static int prep_ancillary(void)
 {
 	char* p = ancillary;
 	char* e = ancillary + sizeof(ancillary);
+	int cwd;
 
+	if((cwd = sys_open(".", O_DIRECTORY)) < 0)
+		fail("open", ".", cwd);
+
+	int fds[4] = { STDIN, STDOUT, STDERR, cwd };
 	struct ucred cr = {
 		.pid = sys_getpid(),
 		.uid = sys_getuid(),
 		.gid = sys_getgid()
 	};
-
-	int cwd = xchk(sys_open(".", O_DIRECTORY), "open", ".");
-	int fds[4] = { 0, 1, 2, cwd };
 
 	p = cmsg_put(p, e, SOL_SOCKET, SCM_CREDENTIALS, &cr, sizeof(cr));
 	p = cmsg_put(p, e, SOL_SOCKET, SCM_RIGHTS, fds, sizeof(fds));

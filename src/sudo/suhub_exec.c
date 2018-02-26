@@ -18,15 +18,24 @@
 
 static int child(char* path, char** argv, int fds[4], int uid, int gid)
 {
-	xchk(sys_setresgid(gid, -1, gid), "setgid", NULL);
-	xchk(sys_setresuid(gid, -1, uid), "setuid", NULL);
+	int ret;
 
-	xchk(sys_dup2(fds[0], 0), "dup2", "stdin");
-	xchk(sys_dup2(fds[1], 1), "dup2", "stdout");
-	xchk(sys_dup2(fds[2], 2), "dup2", "stderr");
-	xchk(sys_fchdir(fds[3]), "fchdir", NULL);
+	if((ret = sys_setresgid(gid, -1, gid)) < 0)
+		fail("setgid", NULL, ret);
+	if((ret = sys_setresuid(gid, -1, uid)) < 0)
+		fail("setuid", NULL, ret);
 
-	int ret = sys_execve(path, argv, environ);
+	if((ret = sys_dup2(fds[0], 0)) < 0)
+		fail("dup2", "stdin", ret);
+	if((ret = sys_dup2(fds[1], 1)) < 0)
+		fail("dup2", "stdout", ret);
+	if((ret = sys_dup2(fds[2], 2)) < 0)
+		fail("dup2", "stderr", ret);
+	if((ret = sys_fchdir(fds[3])) < 0)
+		fail("fchdir", NULL, ret);
+
+	ret = sys_execve(path, argv, environ);
+
 	fail("exec", path, ret);
 }
 

@@ -40,16 +40,20 @@ static char* mextend(char* buf, long size, long newsize)
 	return ret;
 }
 
-static int child(int fds[2], char* cmd, char* path, char** envp)
+static noreturn void child(int fds[2], char* cmd, char* path, char** envp)
 {
+	int ret;
+
 	char* argv[] = { cmd, path, NULL };
 
-	xchk(sys_close(fds[0]), "close", NULL);
-	xchk(sys_dup2(fds[1], STDOUT), "dup2", NULL);
-	long ret = sys_execve(cmd, argv, envp);
+	if((ret = sys_close(fds[0])) < 0)
+		fail("close", NULL, ret);
+	if((ret = sys_dup2(fds[1], STDOUT)) < 0)
+		fail("dup2", NULL, ret);
+
+	ret = sys_execve(cmd, argv, envp);
 
 	fail("cannot exec", cmd, ret);
-	return 0xFF;
 }
 
 static void readall(struct mbuf* mb, int fd, char* cmd)
@@ -84,9 +88,8 @@ int decompress(CTX, struct mbuf* mb, char* path, char* cmd)
 
 	if((pid = sys_fork()) < 0)
 		return error(ctx, "fork", NULL, ret);
-
 	if(pid == 0)
-		_exit(child(fds, cmd, path, ctx->envp));
+		child(fds, cmd, path, ctx->envp);
 
 	sys_close(fds[1]);
 

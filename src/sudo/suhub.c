@@ -136,35 +136,33 @@ static void sighandler(int sig)
 	}
 }
 
-static void sigaction(int sig, struct sigaction* sa, char* tag)
-{
-	xchk(sys_sigaction(sig, sa, NULL), "sigaction", tag);
-}
-
-static void sigprocmask(int how, sigset_t* mask, sigset_t* out)
-{
-	xchk(sys_sigprocmask(how, mask, out), "sigiprocmask", "SIG_BLOCK");
-}
-
 static void setup_signals(void)
 {
 	SIGHANDLER(sa, sighandler, 0);
+	int ret;
 
 	sigaddset(&sa.mask, SIGCHLD);
 
-	sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
+	if((ret = sys_sigprocmask(SIG_BLOCK, &sa.mask, &defsigset)) < 0)
+		fail("sigprocmask", NULL, ret);
 
 	sigaddset(&sa.mask, SIGALRM);
 	sigaddset(&sa.mask, SIGTERM);
 	sigaddset(&sa.mask, SIGINT);
 
-	sigaction(SIGINT,  &sa, NULL);
-	sigaction(SIGTERM, &sa, NULL);
-	sigaction(SIGHUP,  &sa, NULL);
-	sigaction(SIGALRM, &sa, NULL);
+	if((ret = sys_sigaction(SIGINT,  &sa, NULL)) < 0)
+		fail("sigaction", "SIGINT", ret);
+	if((ret = sys_sigaction(SIGTERM, &sa, NULL)) < 0)
+		fail("sigaction", "SIGTERM", ret);
+	if((ret = sys_sigaction(SIGHUP,  &sa, NULL)) < 0)
+		fail("sigaction", "SIGHUP", ret);
+	if((ret = sys_sigaction(SIGALRM, &sa, NULL)) < 0)
+		fail("sigaction", "SIGALRM", ret);
 
 	sa.flags &= ~SA_RESTART;
-	sigaction(SIGCHLD, &sa, NULL);
+
+	if((ret = sys_sigaction(SIGCHLD, &sa, NULL)) < 0)
+		fail("sigaddset", "SIGCHLD", ret);
 }
 
 static void setup_ctrl(void)

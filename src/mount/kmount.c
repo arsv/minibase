@@ -120,8 +120,10 @@ static int mountcg(char* path)
 
 	char* group = path + len;
 	int flags = MS_NODEV | MS_NOSUID | MS_NOEXEC | MS_RELATIME;
+	int ret;
 
-	xchk(sys_mount(NULL, path, "cgroup", flags, group), path, NULL);
+	if((ret = sys_mount(NULL, path, "cgroup", flags, group)) < 0)
+		fail(NULL, path, ret);
 
 	return 1;
 }

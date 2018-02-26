@@ -33,26 +33,22 @@ static void sighandler(int sig)
 	}
 }
 
-static void sigaction(int sig, struct sigaction* sa, char* tag)
-{
-	xchk(sys_sigaction(sig, sa, NULL), "sigaction", tag);
-}
-
-static void sigprocmask(int how, sigset_t* mask, sigset_t* out)
-{
-	xchk(sys_sigprocmask(how, mask, out), "sigiprocmask", "SIG_BLOCK");
-}
-
 void setup_signals(void)
 {
 	SIGHANDLER(sa, sighandler, SA_RESTART);
+	int ret;
 
 	sigemptyset(&sa.mask);
-	sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
 
-	sigaction(SIGINT,  &sa, NULL);
-	sigaction(SIGTERM, &sa, NULL);
-	sigaction(SIGALRM, &sa, NULL);
+	if((ret = sys_sigprocmask(SIG_BLOCK, &sa.mask, &defsigset)) < 0)
+		fail("sigprocmask", "SIG_BLOCK", ret);
+
+	if((ret = sys_sigaction(SIGINT,  &sa, NULL)) < 0)
+		fail("sigaction", "SIGINT", ret);
+	if((ret = sys_sigaction(SIGTERM, &sa, NULL)) < 0)
+		fail("sigaction", "SIGTERM", ret);
+	if((ret = sys_sigaction(SIGALRM, &sa, NULL)) < 0)
+		fail("sigaction", "SIGALRM", ret);
 }
 
 static int add_poll_fd(int n, int fd, int key)

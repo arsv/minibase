@@ -34,35 +34,35 @@ static void sighandler(int sig)
 
 static void sigaction(int sig, struct sigaction* sa, char* tag)
 {
-	xchk(sys_sigaction(sig, sa, NULL), "sigaction", tag);
-}
+	int ret;
 
-static void sigprocmask(int how, sigset_t* mask, sigset_t* out)
-{
-	xchk(sys_sigprocmask(how, mask, out), "sigiprocmask", "SIG_BLOCK");
+	if((ret = sys_sigaction(sig, sa, NULL)) < 0)
+		fail("sigaction", tag, ret);
 }
 
 void setup_signals(void)
 {
 	SIGHANDLER(sa, sighandler, 0);
+	int ret;
 
 	sigemptyset(&defsigset);
 	sigaddset(&sa.mask, SIGCHLD);
 
-	sigprocmask(SIG_BLOCK, &sa.mask, NULL);
+	if((ret = sys_sigprocmask(SIG_BLOCK, &sa.mask, NULL)) < 0)
+		fail("sigprocmask", NULL, ret);
 
 	/* avoid cross-invoking these */
 	sigaddset(&sa.mask, SIGUSR1);
 	sigaddset(&sa.mask, SIGUSR2);
 	sigaddset(&sa.mask, SIGALRM);
 
-	sigaction(SIGINT,  &sa, NULL);
-	sigaction(SIGTERM, &sa, NULL);
-	sigaction(SIGHUP,  &sa, NULL);
-	sigaction(SIGALRM, &sa, NULL);
-	sigaction(SIGUSR1, &sa, NULL);
-	sigaction(SIGUSR2, &sa, NULL);
-	sigaction(SIGCHLD, &sa, NULL);
+	sigaction(SIGINT,  &sa, "SIGINT");
+	sigaction(SIGTERM, &sa, "SIGTERM");
+	sigaction(SIGHUP,  &sa, "SIGHUP");
+	sigaction(SIGALRM, &sa, "SIGALRM");
+	sigaction(SIGUSR1, &sa, "SIGUSR1");
+	sigaction(SIGUSR2, &sa, "SIGUSR2");
+	sigaction(SIGCHLD, &sa, "SIGCHLD");
 }
 
 

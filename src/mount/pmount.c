@@ -81,6 +81,8 @@ static int put_cmsg_fd(char* buf, int size, int fd)
 
 static void send_with_anc(int fd, char* txbuf, int txlen, char* anc, int anlen)
 {
+	int ret;
+
 	struct iovec iov = {
 		.base = txbuf,
 		.len = txlen
@@ -93,7 +95,8 @@ static void send_with_anc(int fd, char* txbuf, int txlen, char* anc, int anlen)
 		.controllen = anlen
 	};
 
-	xchk(sys_sendmsg(fd, &msg, 0), "send", NULL);
+	if((ret = sys_sendmsg(fd, &msg, 0)) < 0)
+		fail("send", NULL, ret);
 }
 
 static void recv_reply(int fd, int nlen)

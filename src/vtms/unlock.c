@@ -9,6 +9,10 @@ ERRLIST(NEINVAL NENXIO NEPERM NENOENT NEACCES NEIO NEAGAIN);
 
 int main(void)
 {
-	xchk(sys_ioctli(0, VT_UNLOCKSWITCH, 0), "ioctl", "VT_UNLOCKSWITCH");
+	int ret;
+
+	if((ret = sys_ioctli(0, VT_UNLOCKSWITCH, 0) < 0))
+		fail("ioctl", "VT_UNLOCKSWITCH", ret);
+
 	return 0;
 }

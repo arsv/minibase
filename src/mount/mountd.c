@@ -46,29 +46,24 @@ static void sighandler(int sig)
 	}
 }
 
-static void sigaction(int sig, struct sigaction* sa, char* tag)
-{
-	xchk(sys_sigaction(sig, sa, NULL), "sigaction", tag);
-}
-
-static void sigprocmask(int how, sigset_t* mask, sigset_t* save)
-{
-	xchk(sys_sigprocmask(how, mask, save), "sigprocmask", NULL);
-}
-
 static void setup_signals(CTX)
 {
 	SIGHANDLER(sa, sighandler, 0);
+	int ret;
 
-	sigprocmask(SIG_BLOCK, &sa.mask, &ctx->defsigset);
+	if((ret = sys_sigprocmask(SIG_BLOCK, &sa.mask, &ctx->defsigset)) < 0)
+		fail("sigprocmask", NULL, ret);
 
 	sigaddset(&sa.mask, SIGINT);
 	sigaddset(&sa.mask, SIGTERM);
 	sigaddset(&sa.mask, SIGALRM);
 
-	sigaction(SIGINT,  &sa, NULL);
-	sigaction(SIGTERM, &sa, NULL);
-	sigaction(SIGALRM, &sa, NULL);
+	if((ret = sys_sigaction(SIGINT,  &sa, NULL)) < 0)
+		fail("sigaction", "SIGINT", ret);
+	if((ret = sys_sigaction(SIGTERM, &sa, NULL)) < 0)
+		fail("sigaction", "SIGTERM", ret);
+	if((ret = sys_sigaction(SIGALRM, &sa, NULL)) < 0)
+		fail("sigaction", "SIGALRM", ret);
 }
 
 static void accept_connection(CTX, int sfd)

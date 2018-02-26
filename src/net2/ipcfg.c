@@ -192,16 +192,15 @@ static void bringup(CTX)
 static void setup_netlink(CTX, char* ifname)
 {
 	struct netlink* nl = NL;
-	int ifi;
+	int ifi, ret;
 
 	nl_init(nl);
 
 	nl_set_rxbuf(nl, rxbuf, sizeof(rxbuf));
 	nl_set_txbuf(nl, txbuf, sizeof(txbuf));
 
-	xchk(nl_connect(nl, NETLINK_ROUTE, 0),
-			"netlink connect", NULL);
-
+	if((ret = nl_connect(nl, NETLINK_ROUTE, 0)) < 0)
+		fail("netlink connect", NULL, ret);
 	if(!ifname)
 		fail("need interface name", NULL, 0);
 	if((ifi = getifindex(nl->fd, ifname)) <= 0)

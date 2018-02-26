@@ -146,24 +146,27 @@ err:
    what the boundaries are. Only the stuff on oldroot should be unlinked,
    and anything that's neither oldroot nor newroot has to be move-mounted
    onto the newroot.
-  
+
    The tricky part: if newroot is not mounted directly under oldroot,
    the move-mount code will try to move newroot's parent into newroot. */
 
 static int stat_old_new_root(struct root* ctx, char* newroot)
 {
 	struct stat st;
+	int fd, ret;
 
 	ctx->newroot = newroot;
 	ctx->newrlen = strlen(newroot);
 
-	xchk(sys_stat(newroot, &st), "stat", newroot);
+	if((ret = sys_stat(newroot, &st)) < 0)
+		fail("stat", newroot, ret);
 
 	ctx->newdev = st.dev;
 
-	int fd = xchk(sys_open("/", O_DIRECTORY), "open", "/");
-
-	xchk(sys_fstatat(fd, "", &st, AT_EMPTY_PATH), "stat", "/");
+	if((fd = sys_open("/", O_DIRECTORY)) < 0)
+		fail("open", "/", fd);
+	if((ret = sys_fstat(fd, &st)) < 0)
+		fail("stat", "/", ret);
 
 	ctx->olddev = st.dev;
 
@@ -171,7 +174,8 @@ static int stat_old_new_root(struct root* ctx, char* newroot)
 		fail("new root is on the same fs", NULL, 0);
 
 	/* . = newroot, so .. is its parent directory */
-	xchk(sys_stat("..", &st), "stat", "..");
+	if((ret = sys_stat("..", &st)) < 0)
+		fail("stat", "..", ret);
 
 	if(st.dev != ctx->olddev)
 		fail(newroot, "is not directly under /", 0);
@@ -196,28 +200,35 @@ static int check_ramfs(void)
 static void changeroot(char* newroot)
 {
 	struct root ctx;
+	int ret;
 
 	if(sys_getpid() != 1)
 		fail("not running as pid 1", NULL, 0);
 	if(check_ramfs())
 		fail("not running on ramfs", NULL, 0);
 
-	xchk(sys_chdir(newroot), "chdir", newroot);
+	if((ret = sys_chdir(newroot)) < 0)
+		fail("chdir", newroot, ret);
 
 	int rfd = stat_old_new_root(&ctx, newroot);
 
 	delete_rec(&ctx, rfd, "");
 	sys_close(rfd);
 
-	xchk(sys_mount(".", "/", NULL, MS_MOVE, NULL), "mount", ". to /");
-	xchk(sys_chroot("."), "chroot", ".");
-	xchk(sys_chdir("/"), "chdir", "/");
+	if((ret = sys_mount(".", "/", NULL, MS_MOVE, NULL)) < 0)
+		fail("mount", ". to /", ret);
+	if((ret = sys_chroot(".")) < 0)
+		fail("chroot", ".", ret);
+	if((ret = sys_chdir("/")) < 0)
+		fail("chdir", "/", ret);
 }
 
 /* Usage: switchroot /newroot /sbin/system/start ... */
 
 int main(int argc, char** argv)
 {
+	int ret;
+
 	if(argc < 2)
 		fail("no newroot to switch to", NULL, 0);
 	if(argc < 3)
@@ -227,6 +238,7 @@ int main(int argc, char** argv)
 
 	argv += 2;
 
-	long ret = sys_execve(*argv, argv, NULL);
+	ret = sys_execve(*argv, argv, NULL);
+
 	fail("cannot exec", *argv, ret);
 }

@@ -43,7 +43,7 @@ static char* fmtaddr(char* p, char* e, unsigned long addr)
 
 /* A single output line looks like this:
 
-   00000000   01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F  ................ 
+   00000000   01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F  ................
 
    The maximum length of the line is well known (~72)
    and the buffer is expected to have at least that much
@@ -68,7 +68,7 @@ static char* makeline(char* p, char* e, unsigned long addr, char* data, int size
 	}
 
 	p = fmtstr(p, e, "   ");
-	
+
 	for(i = 0; i < 16 && i < size; i++) {
 		char c = *(data + i);
 		p = fmtchar(p, e, isprintable(c) ? c : '.');
@@ -112,7 +112,7 @@ static void dumpbuf(unsigned long addr, char* data, long size)
    The sequence of chunks is then re-arranged and dumpbuf() is called
    with strictly 16-aligned blocks. Except for the last block, which
    may be shorter.
- 
+
    The way it is written it may do one sys_write() more than necessary,
    but it should do a reasonably good job at handling slowly-piped data.
 
@@ -147,19 +147,26 @@ static void hexdump(long fd)
 	}
 }
 
+static void dumpfile(const char* name)
+{
+	int fd;
+
+	if((fd = sys_open(name, O_RDONLY)) < 0)
+		fail(NULL, name, fd);
+
+	hexdump(fd);
+}
+
 /* Handling more than a single file probably makes no sense? */
 
 int main(int argc, char** argv)
 {
-	if(argc == 1) {
+	if(argc == 1)
 		hexdump(0);
-	} else if(argc == 2) {
-		char* fn = argv[1];
-		long fd = xchk(sys_open(fn, O_RDONLY), "cannot open", fn);
-		hexdump(fd);
-	} else {
+	else if(argc == 2)
+		dumpfile(argv[1]);
+	else
 		fail("too many arguments", NULL, 0);
-	}
 
 	return 0;
 }
