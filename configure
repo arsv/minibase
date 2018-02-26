@@ -37,8 +37,8 @@ while [ $# -gt 0 ]; do
 		cflags) appval cflags; unset optim ;;
 		CFLAGS) appval cflags; unset optim ;;
 		clang)  clang=yes ;;
-		devel)  append cflags "-g -DDEVEL"; unset optim ;;
-		debug)  append cflags "-g" ;;
+		devel)  append cflags "-Wall -g -DDEVEL"; unset optim ;;
+		debug)  append cflags "-Wall -g" ;;
 		wextra) append cflags "-Wextra" ;;
 		werror) append cflags "-Werror" ;;
 		lto)    lto="-flto " ;;
