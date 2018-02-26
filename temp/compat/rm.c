@@ -166,18 +166,18 @@ static void remove(const char* name, int opts, struct stat* rst)
 
 int main(int argc, char** argv)
 {
-	int opts = 0, i = 1;
+	int opts = 0, i = 1, ret;
 	struct stat st;
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
 	if((opts & (OPT_r | OPT_Z)) == OPT_r)
-		xchk(sys_lstat("/", &st), "cannot stat", "/");
+		if((ret = sys_lstat("/", &st)) < 0)
+			fail("cannot stat", "/", ret);
 
 	if(i >= argc)
 		fail("need file names to remove", NULL, 0);
-
 	while(i < argc)
 		remove(argv[i++], opts, &st);
 

@@ -74,8 +74,7 @@ static void waitfor(int fd, char* name)
 	int nlen = strlen(name);
 	char* sep = strerev(name, name + nlen, '/');
 	char dir[sep - name + 3];
-	long wd;
-	int proper = 0;
+	int wd, ret, proper = 0;
 
 	if(sep > name + 1) {
 		int len = sep - name - 1;
@@ -106,14 +105,13 @@ static void waitfor(int fd, char* name)
 	else
 		watch_ino_for(fd, sep);
 
-	xchk(sys_inotify_rm_watch(fd, wd),
-	     "inotify-rm-watch", name);
+	if((ret = sys_inotify_rm_watch(fd, wd)) < 0)
+		fail("inotify-rm-watch", name, ret);
 }
 
 int main(int argc, char** argv)
 {
-	int i = 1;
-	int timeout = TIMEOUT;
+	int i = 1, timeout = TIMEOUT, fd;
 
 	if(i < argc && argv[i][0] == '+')
 		timeout = intval(argv[i++] + 1);
@@ -122,7 +120,8 @@ int main(int argc, char** argv)
 
 	sys_alarm(timeout);
 
-	int fd = xchk(sys_inotify_init(), "inotify-init", NULL);
+	if((fd = sys_inotify_init()) < 0)
+		fail("inotify-init", NULL, fd);
 
 	for(; i < argc; i++)
 		waitfor(fd, argv[i]);

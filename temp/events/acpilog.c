@@ -31,23 +31,21 @@ static void setup_netlink(CTX)
 	char* group = "acpi_mc_group";
 	struct nlpair grps[] = { { -1, group }, { 0, NULL } };
 	struct netlink* nl = &ctx->nl;
-	int gid;
-	int fid;
+	int gid, fid, ret;
 
 	nl_init(nl);
 	nl_set_txbuf(nl, ctx->txbuf, sizeof(ctx->txbuf));
 	nl_set_rxbuf(nl, ctx->rxbuf, sizeof(ctx->rxbuf));
 
-	xchk(nl_connect(nl, NETLINK_GENERIC, 0), "nl-connect", "genl");
-
+	if((ret = nl_connect(nl, NETLINK_GENERIC, 0)) < 0)
+		fail("nl-connect", "genl", ret);
 	if((fid = query_family_grps(nl, family, grps)) < 0)
 		fail("NL family", family, fid);
-
 	if((gid = grps[0].id) < 0)
 		fail("NL group", group, -ENOENT);
 
-	xchk(nl_subscribe(nl, gid),
-		"NL subscribe nl80211", group);
+	if((ret = nl_subscribe(nl, gid)) < 0)
+		fail("NL subscribe nl80211", group, ret);
 }
 
 static void dump_event(struct acpievent* evt)

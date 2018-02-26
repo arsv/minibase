@@ -39,6 +39,7 @@ int main(int argc, char** argv)
 
 	int flags = O_RDWR | O_CREAT | O_TRUNC;
 	char* file = NULL;
+	int fd;
 
 	if(i < argc && argv[i][0] == '-')
 		for(p = argv[i++] + 1; *p; p++) switch(*p) {
@@ -57,7 +58,8 @@ int main(int argc, char** argv)
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
-	long fd = xchk(sys_open3(file, flags, 0666), "cannot open", file);
+	if((fd = sys_open3(file, flags, 0666)) < 0)
+		fail("cannot open", file, fd);
 
 	tee(fd, file);
 

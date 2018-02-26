@@ -43,8 +43,10 @@ void setup_netlink(void)
 	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
 	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
 
-	xchk(nl_connect(&nl, NETLINK_GENERIC, 0),
-		"nl-connect", "genl");
+	int ret;
+
+	if((ret = nl_connect(&nl, NETLINK_GENERIC, 0)) < 0)
+		fail("nl-connect", "genl", ret);
 
 	if((nl80211 = query_family_grps(&nl, family, grps)) < 0)
 		fail("NL family", family, nl80211);
@@ -52,8 +54,8 @@ void setup_netlink(void)
 	if(grps[0].id < 0)
 		fail("NL group nl80211", grps[0].name, -ENOENT);
 
-	xchk(nl_subscribe(&nl, grps[0].id),
-		"NL subscribe nl80211", grps[0].name);
+	if((ret = nl_subscribe(&nl, grps[0].id)) < 0)
+		fail("NL subscribe nl80211", grps[0].name, ret);
 
 	if(grps[1].id < 0)
 		fail("NL group nl80211", grps[1].name, -ENOENT);

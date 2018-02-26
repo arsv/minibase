@@ -16,6 +16,7 @@ int main(void)
 {
 	struct netlink nl;
 	struct nlmsg* msg;
+	int ret;
 
 	nl_init(&nl);
 	nl_set_txbuf(&nl, TX, sizeof(TX));
@@ -24,8 +25,8 @@ int main(void)
 	int mgrp_link = RTMGRP_LINK | RTMGRP_NOTIFY;
 	int mgrp_ipv4 = RTMGRP_IPV4_IFADDR | RTMGRP_IPV4_ROUTE;
 
-	xchk(nl_connect(&nl, NETLINK_ROUTE, mgrp_link | mgrp_ipv4),
-		"connect", "NETLINK_ROUTE");
+	if((ret = nl_connect(&nl, NETLINK_ROUTE, mgrp_link | mgrp_ipv4)) < 0)
+		fail("connect", "NETLINK_ROUTE", ret);
 
 	while((msg = nl_recv(&nl))) {
 		nl_dump_rtnl(msg);

@@ -47,13 +47,13 @@ static void uname(struct utsname* un, int opts)
 	if(p > buf) p--;
 	*p++ = '\n';
 
-	xchk(sys_write(1, buf, p - buf), "write", NULL);
+	sys_write(1, buf, p - buf);
 }
 
 int main(int argc, char** argv)
 {
-	int i = 1;
-	int opts = 0; 
+	int i = 1, opts = 0, ret; 
+	struct utsname un;
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
@@ -63,8 +63,9 @@ int main(int argc, char** argv)
 	if(!opts || (opts & OPT_a))
 		opts |= (OPT_s | OPT_n | OPT_r | OPT_v | OPT_m);
 
-	struct utsname un;
-	xchk(sys_uname(&un), "uname", NULL);
+	if((ret = sys_uname(&un)) < 0)
+		fail("uname", NULL, ret);
+
 	uname(&un, opts);
 
 	return 0;

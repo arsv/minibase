@@ -49,16 +49,20 @@ static long consolefd(void)
 
 static void chvt(long cfd, int vt, char* vtname)
 {
-	xchk(sys_ioctli(cfd, VT_ACTIVATE, vt),
-		"ioctl VT_ACTIVATE", vtname);
-	xchk(sys_ioctli(cfd, VT_WAITACTIVE, vt),
-		"ioctl VT_WAITACTIVE", vtname);
+	int ret;
+
+	if((ret = sys_ioctli(cfd, VT_ACTIVATE, vt)) < 0)
+		fail("ioctl VT_ACTIVATE", vtname, ret);
+	if((ret = sys_ioctli(cfd, VT_WAITACTIVE, vt)) < 0)
+		fail("ioctl VT_WAITACTIVE", vtname, ret);
 }
 
 static void rmvt(long cfd, int vt, char* vtname)
 {
-	xchk(sys_ioctli(cfd, VT_DISALLOCATE, vt),
-		"ioctl VT_DISALLOCATE", vtname);
+	int ret;
+
+	if((ret = sys_ioctli(cfd, VT_DISALLOCATE, vt)) < 0)
+		fail("ioctl VT_DISALLOCATE", vtname, ret);
 }
 
 static int xatoi(char* str)

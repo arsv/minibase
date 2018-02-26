@@ -11,14 +11,19 @@ ERRLIST(NEINVAL NENOSYS NEPIPE NEBADFD);
 static long gettime(int clkid)
 {
 	struct timespec ts;
-	xchk(sys_clock_gettime(clkid, &ts), "cannot get system time", NULL);
+	int ret;
+
+	if((ret = sys_clock_gettime(clkid, &ts)) < 0)
+		fail("cannot get system time", NULL, ret);
+
 	return ts.sec;
 }
 
 static void writeline(char* buf, char* end)
 {
 	*end++ = '\n';
-	xchk(writeall(1, buf, end - buf), "write", NULL);
+
+	writeall(1, buf, end - buf);
 }
 
 static char* fmtpart(char* p, char* end, long n, char* unit)
@@ -79,8 +84,11 @@ static void upsince(void)
 	long uptime = gettime(CLOCK_BOOTTIME);
 	struct timeval tv;
 	struct tm tm;
+	int ret;
 
-	xchk(sys_gettimeofday(&tv, NULL), "cannot get system time", NULL);
+	if((ret = sys_gettimeofday(&tv, NULL)) < 0)
+		fail("cannot get system time", NULL, ret);
+
 	tv.sec -= uptime;
 
 	tv2tm(&tv, &tm);

@@ -32,27 +32,26 @@ struct exec {
 
 static int xopen(const char* fname)
 {
-	return xchk(sys_open(fname, O_RDONLY), "cannot open", fname);
+	int fd;
+
+	if((fd = sys_open(fname, O_RDONLY)) < 0)
+		fail(NULL, fname, fd);
+
+	return fd;
 }
 
 static void spawn(struct exec* ctx)
 {
-	long pid = sys_fork();
+	int pid, ret, status;
 
-	if(pid < 0) {
+	if((pid = sys_fork()) < 0) {
 		fail("fork", NULL, pid);
 	} else if(pid == 0) {
-		long ret = sys_execve(ctx->exe, ctx->argv, ctx->envp);
-
-		if(ret < 0)
-			fail("exec", ctx->exe, ret);
-		else
-			fail("cannot exec", ctx->exe, 0);
+		ret = sys_execve(ctx->exe, ctx->argv, ctx->envp);
+		fail("exec", ctx->exe, ret);
 	} else {
-		int status;
-
-		xchk(sys_waitpid(pid, &status, 0), "waitpid", NULL);
-
+		if((ret = sys_waitpid(pid, &status, 0)) < 0)
+			fail("waitpid", NULL, ret);
 		if(status)
 			fail("command failed, aborting", NULL, 0);
 	};

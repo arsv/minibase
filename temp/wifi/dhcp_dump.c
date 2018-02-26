@@ -15,9 +15,13 @@ char outbuf[1000];
 
 static void note_reftime(void)
 {
+	int ret;
+
 	/* Lease time is relative, but output should be an absolute
 	   timestamp. Reference time is DHCPACK reception. */
-	xchk(sys_gettimeofday(&reftv, NULL), "gettimeofday", NULL);
+
+	if((ret = sys_gettimeofday(&reftv, NULL)) < 0)
+		fail("gettimeofday", NULL, ret);
 }
 
 static char* fmt_ip(char* p, char* e, uint8_t* ip, int len)

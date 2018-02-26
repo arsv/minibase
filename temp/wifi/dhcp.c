@@ -98,7 +98,10 @@ static void ifreq_clear(void)
 
 static void ifreq_ioctl(int ctl, char* name)
 {
-	xchk(sys_ioctl(sockfd, ctl, &ifreq), "ioctl", name);
+	int ret;
+
+	if((ret = sys_ioctl(sockfd, ctl, &ifreq)) < 0)
+		fail("ioctl", name, ret);
 }
 
 static void get_ifindex(char* name)
@@ -147,10 +150,11 @@ static void get_ifhwaddr(void)
 void setup_socket(char* name)
 {
 	int index = 0;
+	int fd, ret;
 	char* p;
 
-	sockfd = xchk(sys_socket(PF_PACKET, SOCK_DGRAM, 8),
-			"socket", "PF_PACKET");
+	if((fd = sys_socket(PF_PACKET, SOCK_DGRAM, 8)) < 0)
+		fail("socket", "PF_PACKET", fd);
 
 	if((p = parseint(name, &index)) && !*p)
 		get_ifname(index);
@@ -169,7 +173,10 @@ void setup_socket(char* name)
 		.addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF } /* broadcast */
 	};
 
-	xchk(sys_bind(sockfd, &sockaddr, sizeof(sockaddr)), "bind", NULL);
+	if((ret = sys_bind(fd, &sockaddr, sizeof(sockaddr))) < 0)
+		fail("bind", NULL, fd);
+
+	sockfd = fd;
 }
 
 /* Send */
@@ -265,13 +272,17 @@ static void set_udp_header(void)
 
 static void send_packet(void)
 {
+	int ret, fd = sockfd;
+	void* addr = &sockaddr;
+	int alen = sizeof(sockaddr);
+
 	put_option_end();
 	set_udp_header();
 
 	int len = ntohs(packet.ip.tot_len);
 
-	xchk(sys_sendto(sockfd, &packet, len, 0, &sockaddr, sizeof(sockaddr)),
-	     "sendto", NULL);
+	if((ret = sys_sendto(fd, &packet, len, 0, addr, alen)) < 0)
+		fail("sendto", NULL, ret);
 }
 
 /* Receive */

@@ -223,9 +223,10 @@ void socket_subscribe(struct netlink* nl, int id, const char* name)
 	int fd = nl->fd;
 	int lvl = SOL_NETLINK;
 	int opt = NETLINK_ADD_MEMBERSHIP;
+	int ret;
 
-	xchk(sys_setsockopt(fd, lvl, opt, &id, sizeof(id)),
-		"setsockopt NETLINK_ADD_MEMBERSHIP", name);
+	if((ret = sys_setsockopt(fd, lvl, opt, &id, sizeof(id))) < 0)
+		fail("setsockopt NETLINK_ADD_MEMBERSHIP", name, ret);
 }
 
 int resolve_80211_subscribe_scan(struct netlink* nl)
@@ -320,6 +321,7 @@ int main(int argc, char** argv)
 {
 	struct netlink nl;
 	char* ifname = NULL;
+	int ret;
 
 	if(argc > 2)
 		fail("too many arguments", NULL, 0);
@@ -330,7 +332,8 @@ int main(int argc, char** argv)
 	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
 	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
 
-	xchk(nl_connect(&nl, NETLINK_GENERIC, 0), "netlink connect", NULL);
+	if((ret = nl_connect(&nl, NETLINK_GENERIC, 0)) < 0)
+		fail("netlink connect", NULL, ret);
 
 	int nl80211 = resolve_80211_subscribe_scan(&nl);
 	int ifindex = query_interface(&nl, nl80211, ifname);

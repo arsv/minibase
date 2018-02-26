@@ -67,6 +67,7 @@ static char* fmtpad1(char* p, char* e, uint64_t num, int to, int opts)
 static void dump(struct wc* cnts, const char* file, int opts)
 {
 	int flen = file ? strlen(file) : 0;
+	int ret;
 
 	char buf[3*16 + flen];
 	char* end = buf + sizeof(buf) - 1;
@@ -90,7 +91,9 @@ static void dump(struct wc* cnts, const char* file, int opts)
 	};
 
 	*p++ = '\n';
-	xchk(writeall(STDOUT, buf, p - buf), "write", NULL);
+
+	if((ret = writeall(STDOUT, buf, p - buf)) < 0)
+		fail("write", NULL, ret);
 }
 
 static int wordchar(char* p)
@@ -148,9 +151,13 @@ static void countstdin(struct wc* cnts)
 
 static void countfile(struct wc* cnts, const char* fname, int last)
 {
+	int fd, ret;
 	struct stat st;
-	long fd = xchk(sys_open(fname, O_RDONLY), "open", fname);
-	xchk(sys_fstat(fd, &st), "stat", fname);
+
+	if((fd = sys_open(fname, O_RDONLY)) < 0)
+		fail("open", fname, fd);
+	if((ret = sys_fstat(fd, &st)) < 0)
+		fail("stat", fname, ret);
 
 	const int prot = PROT_READ;
 	const int flags = MAP_SHARED;
@@ -176,8 +183,10 @@ static void countfile(struct wc* cnts, const char* fname, int last)
 
 	if(last) return;
 
-	xchk(sys_munmap(buf, off > MAPSIZE ? MAPSIZE : map), "munmap", fname);
-	xchk(sys_close(fd), "close", fname);
+	if((ret = sys_munmap(buf, off > MAPSIZE ? MAPSIZE : map)) < 0)
+		fail("munmap", fname, ret);
+	if((ret = sys_close(fd)) < 0)
+		fail("close", fname, ret);
 }
 
 static int countbits(long val, int bits)

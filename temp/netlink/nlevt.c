@@ -70,12 +70,13 @@ static int resolve_80211_subscribe_scan(struct netlink* nl)
 	query_nl_family(nl, &fam, mcast);
 
 	struct nlpair* p;
+	int ret;
 
 	for(p = mcast; p->name; p++)
-		if(p->id >= 0)
-			xchk(nl_subscribe(nl, p->id), "nl-subscribe", p->name);
-		else
+		if(p->id < 0)
 			fail("unknown 802.11 mcast group", p->name, 0);
+		else if((ret = nl_subscribe(nl, p->id)) < 0)
+			fail("nl-subscribe", p->name, ret);
 
 	return fam.id;
 }
@@ -84,13 +85,14 @@ int main(void)
 {
 	struct netlink nl;
 	struct nlmsg* msg;
+	int ret;
 
 	nl_init(&nl);
 	nl_set_txbuf(&nl, TX, sizeof(TX));
 	nl_set_rxbuf(&nl, RX, sizeof(RX));
 	
-	xchk(nl_connect(&nl, NETLINK_GENERIC, 0),
-		"connect", "NETLINK_ROUTE");
+	if((ret = nl_connect(&nl, NETLINK_GENERIC, 0)) < 0)
+		fail("connect", "NETLINK_ROUTE", ret);
 
 	resolve_80211_subscribe_scan(&nl);
 
