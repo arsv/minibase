@@ -39,9 +39,10 @@ static char* fmtint0(char* p, char* e, int n, int w)
 	return fmtpad0(p, e, w, fmti32(p, e, n));
 }
 
-static char* fmttv(char* p, char* e, struct timeval* tv)
+static char* fmt_tv(char* p, char* e, struct timeval* tv)
 {
 	time_t ts = tv->sec;
+	time_t us = tv->usec;
 
 	int cs = tv->usec / 10000; /* centiseconds */
 	int sec = ts % 60; ts /= 60;
@@ -61,10 +62,18 @@ static char* fmttv(char* p, char* e, struct timeval* tv)
 		p = fmtint0(p, e, min, 2);
 		p = fmtstr(p, e, ":");
 		p = fmtint0(p, e, sec, 2);
-	} else {
+	} else if(ts > 0) {
 		p = fmtint(p, e, sec);
 		p = fmtstr(p, e, ".");
 		p = fmtint0(p, e, cs, 2);
+	} else if(us >= 1000) {
+		p = fmtint(p, e, us/1000);
+		p = fmtstr(p, e, "ms");
+	} else if(us > 0) {
+		p = fmtint(p, e, us);
+		p = fmtstr(p, e, "us");
+	} else {
+		p = fmtstr(p, e, "0");
 	}
 
 	return p;
@@ -76,15 +85,33 @@ static void report(struct rusage* rv, struct timeval* tv)
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
 
+	p = fmtstr(p, e, errtag);
+	p = fmtstr(p, e, ": ");
 	p = fmtstr(p, e, "real ");
-	p = fmttv(p, e, tv);
+	p = fmt_tv(p, e, tv);
 	p = fmtstr(p, e, " user ");
-	p = fmttv(p, e, &rv->utime);
+	p = fmt_tv(p, e, &rv->utime);
 	p = fmtstr(p, e, " sys ");
-	p = fmttv(p, e, &rv->stime);
+	p = fmt_tv(p, e, &rv->stime);
 	*p++ = '\n';
 
 	writeall(STDERR, buf, p - buf);
+}
+
+/* Measuring time intervals requires CLOCK_MONOTONIC which in turn means
+   clock_gettime and timespec (ns). But struct rusage returns timevals (us),
+   so for simplicity ns values get truncated to us. */
+
+static void note_time(struct timeval* tv)
+{
+	struct timespec ts;
+	int ret;
+
+	if((ret = sys_clock_gettime(CLOCK_MONOTONIC, &ts)) < 0)
+		fail("clock_gettime", NULL, ret);
+
+	tv->sec = ts.sec;
+	tv->usec = ts.nsec / 1000;
 }
 
 int main(int argc, char** argv, char** envp)
@@ -100,7 +127,7 @@ int main(int argc, char** argv, char** envp)
 	if(i >= argc)
 		fail("too few arguments", NULL, 0);
 
-	sys_gettimeofday(&t0, NULL);
+	note_time(&t0);
 
 	if((pid = sys_fork()) < 0)
 		fail("fork", NULL, pid);
@@ -109,7 +136,7 @@ int main(int argc, char** argv, char** envp)
 	if((ret = sys_waitpid(pid, &status, 0)) < 0)
 		fail("wait", 0, ret);
 
-	sys_gettimeofday(&t1, NULL);
+	note_time(&t1);
 
 	if((ret = getrusage(RUSAGE_CHILDREN, &rv)) < 0)
 		fail("getrusage", NULL, ret);
