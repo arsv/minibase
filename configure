@@ -166,3 +166,22 @@ END
 fi
 
 chmod a+x mini-cc
+
+echo "Configured for $arch"
+echo
+echo "  CC = $cc"
+echo "  AR = $ar"
+echo "  STRIP = $strip"
+echo "  CFLAGS = $cflags"
+test -n "$qemu" && echo "  QEMU = $qemu"
+echo
+echo "  commanddir = $commanddir"
+echo "  servicedir = $servicedir"
+echo "  systemdir = $systemdir"
+echo
+echo "  man1dir = $man1dir"
+echo "  man5dir = $man5dir"
+echo "  man8dir = $man8dir"
+echo
+test -n "$only" && echo "Tools to build: $only"
+echo "Proceed to run 'make'"
