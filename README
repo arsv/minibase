@@ -91,6 +91,11 @@ Minibase comes with a proper service supervisor. (This is really
 only worth mentioning because of inevitable attempts to compare
 it to OpenRC).
 
+Init process is staged in minibase, similar to s6 and runit but unlike
+SysV, systemd and most other systems. The supervisor is unitary (same
+parent for all child processes), similar to SysV and sytemd but unlike
+s6, runit and other daemontools derivatives.
+
 There is no fstab in minibase, and no conventional mount(1).
 The tools that handle mounts are written with hot-plugging in mind.
 
