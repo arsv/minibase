@@ -5,6 +5,7 @@ $(eval $(call command,vtctl,1))
 $(eval $(call system,ctrlvt))
 $(eval $(call system,stubvt))
 $(eval $(call system,xorgvt))
+$(eval $(call system,rootsh))
 $(eval $(call other,unlock))
 
 vtmux: vtmux.o vtmux_pipe.o vtmux_exec.o vtmux_poll.o vtmux_slot.o \
