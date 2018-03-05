@@ -1,0 +1,97 @@
+Regarding socket activation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This term has been popularized by systemd, so one way or another it gets
+brought up in relation to other init systems, often without much explanation.
+Which is unfortunate, because the term itself is misleading, and the approach
+it implies is neither universally applicable nor particularly good. Other init
+systems taking on the same problem will likely call their solutions differently.
+
+Before proceeding, consider reading the following post:
+
+    http://0pointer.de/blog/projects/socket-activation.html
+
+Taken literally, socket activation means keeping pre-defined sockets available
+for connect() without a handler process behind them, and spawning the handler
+process when the first client connect()s to the socket.
+
+    sockaddr_un addr = { AF_UNIX, "/run/somectrl" };
+
+    fd = socket();
+    connect(fd, &addr, sizeof(addr));
+    /* ^ blocks until something is listening on /run/somectrl,
+       and causes the listener to be started in the background */
+
+Very few system services benefit from being started on the first connect().
+This is because most services are started to do something other than serving
+their socket. For those few that are primarily serving their sockets, doing
+so is (at best) a petty optimization. Starting the service before the first
+connection arrives is perfectly ok, it may just waste some memory.
+
+Example: pure syslogd may benefit from socket activation, it won't get started
+until the first attempt to send something to /dev/log. Doing so is not really
+useful, because something will likely trigger its startup soon after the system
+boots anyway. At the same time, socket activation would not benefit sysklogd,
+which does an important job (gathering kernel logs) not triggered by socket
+connections.
+
+None of the four services mentioned in the linked post (syslog, dbus, avahi
+and bluetooth) are good candidates for starting on demand, and the narration
+makes it very clear that all four are expected to start together during system
+boot. Instead, socket activation is used for its side effect: making connect()
+calls on a local sockets blocking.
+
+The purpose of blocking connects is to make sure services that make IPC calls
+to other services spontaneously during startup but cannot handle connect errors
+would get a chance to start properly. Having this kind of IPC is generally
+useful, however in an application claiming to use plain AF_UNIX sockets it
+implies bad design or sloppy coding. AF_UNIX sockets do not work like that.
+
+Instead, it is better to view this IPC as a new system bus, one that just
+happens to be implemented atop of unix sockets. It shows clearly on the server
+side of things, where the code needs to be changed to adopt this new IPC,
+a library needs to be linked, some configuration is necessary and so on,
+almost exactly like it would be done with say dbus. Consequently, non-systemd
+implementations of the same idea are very likely to pursue the bus view and
+call their solution a bus, instead of focusing on the underlying sockets
+or on-demand service startup.
+
+Even then, the need for inter-service IPC over a bus varies between systems.
+A typical GNU system will likely have no services that need this kind of IPC.
+Minibase leans towards event-driven model that works well with plain sockets
+and does not require a bus; and future plans involve "sticky sockets" which
+despite solving the same problem do not involve any "socket activation".
+
+Blocking connects are inseparable from on-demand service startup in systemd
+because of the way socket fds get passed between the bus hub and the daemons
+that use them. The approach implemented in systemd comes with a big downside:
+it requires tight integration between service supervisor and the bus hub,
+a defining feature of systemd. Other implementations may choose to keep them
+separate, perhaps drop on-demand startup, and maybe even take a different
+approach to IPC. In either of those cases, there would be no "activation",
+or "sockets", or both.
+
+
+Syslog and other special services
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+One of often cited goals behind some sort of blocking sockets is ensuring
+reliable delivery of syslog messages. Syslog is not very well suited for this. 
+A service that attempts to send something over to syslog immediately after
+startup is likely doing something wrong. Perhaps it should be using plain file
+logs instead.
+
+For the most part, problems with syslog can be solved with a fast starting
+syslogd. Making syslog completely reliable however means redesigning
+the whole thing, that is, using something other than syslog for logging.
+
+Services known to abuse syslog can be started with some sort of waitfor
+in their startup scripts. As a last resort, syslog may be declared a special
+service, with some support code in the supervisor ensuring nothing else gets
+started until syslog is running.
+
+For most systems, the problem is effectively limited to syslog, but FreeDesktop
+systems have similar problem with dbus. Because of the special place dbus takes
+there however, it is much easier to justify some exceptional handling.
+
+
+
+See also: http://skarnet.org/software/s6/socket-activation.html
