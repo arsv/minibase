@@ -1,5 +1,4 @@
 # Running make in this directory will build everything recursively.
-# To build hello only, run "make hello".
 
 .SUFFIXES:
 
@@ -10,10 +9,10 @@ include $/config.mk
 subdirs := $(dir $(sort $(wildcard */Makefile)))
 
 build := $(patsubst %,build-%,$(subdirs)) 
-clean := $(patsubst %,clean-%,$(subdirs)) clean-hello
+clean := $(patsubst %,clean-%,$(subdirs))
 install := $(patsubst %,install-%,$(subdirs))
 
-all: hello $(build)
+all: $(build)
 clean: $(clean)
 install: $(if $(DESTDIR),$(install),no-destdir-install)
 
@@ -27,15 +26,6 @@ install-%:
 	$(MAKE) -C $* DESTDIR=$(abspath $(DESTDIR)) install
 
 .SILENT: $(build) $(clean) $(install)
-
-hello: hello.o
-	$(CC) -o $@ $<
-
-hello.o: hello.c
-	$(CC)$(if $(CFLAGS), $(CLFAGS)) -c $<
-
-clean-hello:
-	rm -f hello hello.o hello.d
 
 define subtargets
 $1%.o:

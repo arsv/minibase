@@ -1,3 +1,3 @@
-all = auxvec dumpargv dumpenvp
+all = hello dumpargv dumpenvp auxvec
 
 include ../rules.mk
