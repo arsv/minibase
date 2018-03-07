@@ -91,17 +91,16 @@ Minibase comes with a proper service supervisor. (This is really
 only worth mentioning because of inevitable attempts to compare
 it to OpenRC).
 
-Init process is staged in minibase, similar to s6 and runit but unlike
-SysV, systemd and most other systems. The supervisor is unitary (same
-parent for all child processes), similar to SysV and sytemd but unlike
-s6, runit and other daemontools derivatives.
+Init process is staged, similar to s6 and runit but unlike SysV, systemd
+and most other systems. The supervisor is unitary (same parent for all
+child processes), similar to SysV and sytemd but unlike s6, runit and
+other daemontools derivatives.
 
 There is no fstab in minibase, and no conventional mount(1).
 The tools that handle mounts are written with hot-plugging in mind.
 
 Minibase comes with a functional replacement for logind that is not
 a fork or a clone of systemd-logind, and does not need dbus to work.
-This is important for building lightweight graphical systems.
 
 There are no conventional logins in minibase and no user passwords.
 The passphrase entered during boot is used to unwrap disk encryption
