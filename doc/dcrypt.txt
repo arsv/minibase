@@ -1,3 +1,5 @@
+Overview
+~~~~~~~~
 Disk encryption passphrase replaces traditional login prompt in minibase.
 The system boots (by whatever means) the kernel and initrd with the early
 userspace, which then
@@ -24,7 +26,7 @@ There are two options as to where the kernel and the initrd come from.
 
   B1. Unencrypted boot partition on the device itself is used to store both.
 
-  B2. Crankshaft boot -- a small external storage (SD card or a flash drive)
+  B2. Hand-crank boot -- a small external storage (SD card or a flash drive)
      containing both is inserted to boot the device and removed immediately
      afterwards.
 
@@ -45,7 +47,7 @@ the threats to the system from most to least likely are these:
      bulk data, in case the attackers obtained both the wrapped DEKs and
      the data itself.
 
-  T3. Dictionary attack on the passphrase disclosing the passphrase and KEK.
+  T3. Dictionary attack on the passphrase disclosing passphrase and KEK.
 
  *T4. Real-world attack on the user, uncovering plaintext bulk data via
      non-cryptographical means.
@@ -90,8 +92,8 @@ on the device later. Crankshafts are expected to be small and easy to lose,
 and by necessity carry device identification data on them.
 
 
-So why not LUKS?
-~~~~~~~~~~~~~~~~
+Why not LUKS?
+~~~~~~~~~~~~~
 LUKS has unfortunately become a sort of de-facto standard in Linux disk
 encryption, so this question would have come up sooner or later. There
 are several issues with LUKS design which would also affect anything
@@ -151,8 +153,8 @@ the key could not be verified without the bulk data, making T3 a non-threat.
 One way to do it is to put a random IV onto the device, which is nearly always
 doable, but it would complicate key-handling a lot.
 
-A tricker option is to ramp up false-positive rate by e.g. only keeping
-fixing values in the first N bytes of IV and randomizing the rest.
+A trickier option is to ramp up false-positive rate by only keeping
+fixing values in the first N < 8 bytes of IV and randomizing the rest.
 This should be enough to catch simple typos during passphrase entry,
 and attempt to mount the fs would further validate key correctness.
 
