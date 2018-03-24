@@ -1,5 +1,3 @@
-all = lunzip
-
-CFLAGS += -Wextra
+all = lunzip luzmem
 
 include ../rules.mk

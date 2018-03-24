@@ -1,1 +1,4 @@
 lunzip
+luzmem
+*.ko
+*.lz
