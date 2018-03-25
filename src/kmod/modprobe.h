@@ -5,7 +5,7 @@
 #define FAILOK 2
 
 struct mbuf {
-	char* buf;
+	void* buf;
 	long len;
 	long full;
 	int tried;
@@ -56,6 +56,7 @@ int is_blacklisted(CTX, char* name);
 
 int mmap_whole(CTX, struct mbuf* mb, char* name, int mode);
 int decompress(CTX, struct mbuf* mb, char* path, char* cmd);
+int lunzip(CTX, struct mbuf* mb, char* path);
 
 void* heap_alloc(CTX, int size);
 void unmap_buf(struct mbuf* mb);

@@ -94,6 +94,8 @@ static int load_module(CTX, struct mbuf* mb, char* path, char* base, int blen)
 {
 	if(check_strip_suffix(base, blen, ".ko"))
 		return mmap_whole(ctx, mb, path, NEWMAP);
+	if(check_strip_suffix(base, blen, ".ko.lz"))
+		return lunzip(ctx, mb, path);
 	if(check_strip_suffix(base, blen, ".ko.gz"))
 		return decompress(ctx, mb, path, "/bin/zcat");
 	if(check_strip_suffix(base, blen, ".ko.xz"))
