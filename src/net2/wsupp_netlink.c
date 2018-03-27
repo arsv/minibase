@@ -197,7 +197,7 @@ static void trigger_scan_dump(void)
 	int ret;
 
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_GET_SCAN, 0);
-	nl_put_u64(&nl, NL80211_ATTR_IFINDEX, ifindex);
+	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
 	
 	if((ret = nl_send_dump(&nl)) < 0) {
 		warn("nl-send", "scan dump", ret);
