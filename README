@@ -1,10 +1,9 @@
 What is this?
 ~~~~~~~~~~~~~
 minibase is set of small userspace tools for Linux aiming to provide a base
-package to build the rest of the system on. These tools handle early boot
-process (initrd, finding and mounting the rootfs, setting up disk encryption),
-service startup and supervision (aka init system), as well as user session
-management ("logind").
+package to build the foundation of a system. These tools handle early boot
+processes (initrd, finding and mounting the rootfs, setting up disk encryption),
+user session management ("logind"), service startup and supervision (aka init system).
 
 The tools are written in raw syscalls using a small custom base library.
 Standard libc is not needed to build them, only a freestanding compiler
@@ -87,7 +86,7 @@ How is it different from ... ?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Some features in no particular order.
 
-Minibase comes with a proper service supervisor. (This is really
+Minibase provides a proper service supervisor. (This is really
 only worth mentioning because of inevitable attempts to compare
 it to OpenRC).
 
