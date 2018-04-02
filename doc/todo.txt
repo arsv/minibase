@@ -1,0 +1,146 @@
+### dnsresd
+~~~~~~~~~~~
+DNS resolver daemon. Mostly to move gethostbyname out of libc.
+Listens for requests on /run/dns, does DNS stuff, replies back.
+
+With this in place, gethostbyname() should devolve into a simple
+socket-connect-send-recv sequence, with little to no parsing and
+definitely no config reading and such.
+
+References: musl gethostbyname
+
+
+Alternative approach: a service that would take a hostname and return
+an open socket fd. This would make it relatively easy to handle transport
+protocols including TLS and TOR in a sane way from the application
+perspective, but it is not clear whether all necessary tools can be
+re-implemented to use such a service.
+
+
+### sntpd
+~~~~~~~~~
+Simple NTP daemon, capable just enough to be able to set up time
+on newly-booted host, and maybe keep it in sync.
+
+Depends on usable dnresd.
+
+Would be nice to try TAI for systime, with the NTP daemon being the only
+entity dealing with the leap seconds in the timestamps. This would need
+the "right" timezones (w/ leaps), also possibly adjusted to match TAI 0
+point. Or maaybe just stick with TAI+10, although those 10 seconds will
+not make it compatible with anything anyway as either TAI+0 or TAI+10
+would result in all timestamps being ~30..40s out of sync with common
+Linux systems.
+
+
+### hostapd
+~~~~~~~~~~~
+The server (authenticator) part of the wpa exchange. Preferably done
+in a way that would allow running it just like 'wpa' from wimon, to
+mimic Android's hotspot config.
+
+At this point it sholdn't even be that much harder to do than wpa or wimon.
+Some netlink exchange, and then the key exchange over the interface.
+All this multiplexed over several clients and timed for retries.
+
+With reasonably maleable hostapd in place, the next step is clearly
+a better key exchnage for client-AP connections in a form suitable
+for general usage. ECDHE, either with PSK as a drop-in wpa replacement,
+or with some asymmetric auth scheme.
+Unclear atm: SAE/Dragonfly for client-AP usage.
+
+
+Another "neat" idea: transmit IPs in the last key exchange message,
+eliminating the need for DHCP. Makes lots of sense for wifi connections,
+but requires tight co-operation between hostapd and (presumably) dhcpd
+on the AP side if wired and wireless clients share the same address space.
+
+OTOH, no way to transmit the other data that normally goes with DHCP,
+like the DNS addresses. Or captive portal addresses were they done the
+right way. On yet another hand, only DNS field sees any actual usage
+and there are lots of reasons to get rid of that.
+
+
+### ifmon
+~~~~~~~~~
+Current (second? third?) iteration of ifmon is already in place but there's
+still lots of stuff that needs to be done there.
+
+  * Custom iface configuration -- pretty much no way around this, ifmon
+    needs some way to run arbitrary scripts whenever certain interfaces
+    appear. Most likely similar to vtmux, /etc/ifmon/$name.
+    Implementation likely depends on the following point
+
+  * Interface renaming. Kernel stuff aside, lots of things become easier
+    when users are able to give certain interfaces persistent names.
+    It should be optional however. Wifi iface auto-pickup should still work,
+    even with kernel names.
+
+  * Some sort of iptables presets for autoconfed interfaces.
+    Probably a dedicated tool to do this, and some way to configure it in
+    ifmon? Absolutely a must for ipv6 support.
+
+  * Primary interface selection and DHCP cross-locking. Current implementation
+    allows bringing up two uplinks, and will use dhcp data from the last one.
+    It should be arbitrated. Merely preventing the second uplink is probably
+    not possible. May require common dhcp service, or maybe bringing DHCP code
+    into ifmon.
+
+
+### sshd
+~~~~~~~~
+Minimalistic SSH server; key-only auth with a single supported
+key type (say Ed25519), and probably no advanced features like
+port forwarding.
+
+This would be a base-line remote access implementation, for cases
+where building/installing a proper sshd is just too much and telnet
+gets used instead. Also would be nice to have just to make minibase
+only systems viable for SBCs.
+
+This should not depend on dnresd at all.
+
+Critical point: dropbear (with modifications to simplify build)
+possibly makes this tool pointless.
+
+
+# Debugging tools
+~~~~~~~~~~~~~~~~~
+Two tools that would benefit a lot from static linkage: strace and gdbserver.
+
+Both *should* be relatively easy to implement with modern ptrace().
+
+Caveat: strace is very well written and can be used as is with static musl.
+So while possible, it may not be immediately useful. Unless it would implement
+something minibase-specific, like netlink/nlusctl decoder maybe.
+
+Static gdbstub, on the other hand, should be immediately useful.
+GDB is a GNU project with rather unpleasant dependencies.
+
+Reference: qemu gdb code?
+
+
+# Simple Wayland compositor
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+A no-deps, CPU only Wayland compositor capable of both direct and
+managed KMS modes (privileged/non-privileged, without/with vtmux).
+
+This will likely be a crucial tool for doing graphical versions of early-boot
+utils like passblk. It may sound like a good idea to have those do direct KMS,
+but direct KMS tool are a PITA to test and develop, while Wayland clients are
+about as easy to work on as VT tools.
+
+It could also be very useful as a default/fallback option for the managed
+user UI that would not require usable Mesa libs. Mesa is kind of messy as
+a dependency and only makes sense if it's GPU-backed, otherwise it's a lot
+of complexity for little benefit in a simple composing WM. This gets especially
+bad on ARM systems with unsupported GPUs, or on anything with questionable GPUs.
+
+
+Unclear point at this moment: how much of WM features are necessary.
+Window switching, window moving, key bindings and such. Fallback UI use
+would require quite a lot, while early-boot tools should require almost
+none.
+
+Side note: graphical firmware config tools (aka BIOS config) sometimes
+come with proper WMs capable of moving and resizing windows.
