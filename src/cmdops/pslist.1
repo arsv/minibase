@@ -1,0 +1,30 @@
+.TH pslist 1
+'''
+.SH NAME
+\fBpslist\fR \- list processes in the system
+'''
+.SH SYNOPSIS
+\fBpslist\fR [\fIpattern\fR]
+'''
+.SH DESCRIPTION
+This command dumps complete command lines for processes in the system,
+either all or only those matching \fIpattern\fR.
+.P
+In Linux, each process has a name, /proc/$PID/comm, and the command line
+also known as argv[], /proc/$PID/cmdline. \fBpstree\fR(1) provides a concise
+view of the process tree but only shows the comm entry. This tool lets the
+user to inspect cmdline entry, which may be rather long but ocassionally
+provides clues as to what's going on in the system.
+'''
+.SH OPTIONS
+.IP "\fB-r\fR" 4
+Only list processes in Running state.
+.IP "\fB-c\fR" 4
+Only match \fIpattern\fR against argv[0], not the whole argv[] array.
+'''
+.SH NOTES
+Kernel threads are never listed by this tool since they lack meaningful
+command line.
+'''
+.SH SEE ALSO
+\fBps\fR(1), \fBpstree\fR(1).
