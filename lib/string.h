@@ -17,5 +17,6 @@ size_t strnlen(const char* a, size_t max);
 int strncmp(const char* a, const char* b, size_t n);
 char* strqbrk(char* s, const char *accept);
 char* strstr(const char* str, const char* sub);
+char* strnstr(const char* str, const char* sub, size_t len);
 char* strchr(const char* str, int c);
 char* strerev(char* p, char* e, char c);
