@@ -1,6 +1,7 @@
 #include <sys/file.h>
 #include <sys/dents.h>
 #include <sys/mman.h>
+#include <sys/creds.h>
 
 #include <errtag.h>
 #include <format.h>
@@ -194,7 +195,7 @@ static void parse_status(CTX, char* buf, int len)
 	ps->pidx = -1;
 	ps->ridx = -1;
 	ps->didx = -1;
-	ps->mark = (ctx->opts & SET_mark ? 0 : 1);
+	ps->mark = (ctx->opts & SET_mark ? 0 : 2);
 
 	memcpy(ps->name, name, nlen + 1);
 
@@ -235,6 +236,10 @@ static void read_proc_list(CTX)
 	if((fd = sys_open(dir, O_DIRECTORY)) < 0)
 		fail(NULL, dir, fd);
 
+	FMTBUF(p, e, self, 50);
+	p = fmtint(p, e, sys_getpid());
+	FMTEND(p, e);
+
 	void* ptr = ctx->ptr;
 
 	while((rd = sys_getdents(fd, buf, sizeof(buf))) > 0) {
@@ -250,6 +255,8 @@ static void read_proc_list(CTX)
 			if(de->type != DT_DIR)
 				continue;
 			if(!isdigit(de->name[0]))
+				continue;
+			if(!strcmp(de->name, self))
 				continue;
 
 			read_proc_status(ctx, fd, de->name);
@@ -327,7 +334,7 @@ static void mark_matched(CTX, struct proc* root)
 	struct proc** idx = ctx->procs;
 	struct proc* ps = root;
 
-	ps->mark = 1;
+	ps->mark = 2;
 
 	while(1) {
 		int i = ps->pidx;
@@ -530,7 +537,14 @@ static void dump_proc(CTX, struct bufout* bo, struct trec* tr, struct proc* ps)
 
 	FMTBUF(p, e, buf, len + 100);
 
-	p = fmtint(p, e, ps->pid);
+	if(ps->mark > 1) {
+		p = fmtstr(p, e, "\033[33m");
+		p = fmtint(p, e, ps->pid);
+		p = fmtstr(p, e, "\033[0m");
+	} else {
+		p = fmtint(p, e, ps->pid);
+	}
+
 	p = fmtstr(p, e, " ");
 	p = fmtstr(p, e, ps->name);
 
