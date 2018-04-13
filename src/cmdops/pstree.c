@@ -321,11 +321,25 @@ static void find_mark_upwards(CTX, char* name)
 {
 	int i, nprocs = ctx->nprocs;
 	struct proc** idx = ctx->procs;
-	int nlen = strlen(name);
 
-	for(i = 0; i < nprocs; i++)
-		if(!strncmp(name, idx[i]->name, nlen))
-			mark_upwards(ctx, i);
+	int pid;
+	char* p;
+
+	if((p = parseint(name, &pid)) && !*p) {
+		for(i = 0; i < nprocs; i++) {
+			if(idx[i]->pid == pid) {
+				mark_upwards(ctx, i);
+				break;
+			}
+		}
+	} else {
+		int nlen = strlen(name);
+
+		for(i = 0; i < nprocs; i++) {
+			if(!strncmp(name, idx[i]->name, nlen))
+				mark_upwards(ctx, i);
+		}
+	}
 }
 
 static void trim_subtree(CTX, int pi)
