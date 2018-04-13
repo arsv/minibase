@@ -10,8 +10,11 @@
 
 ERRTAG("pstree");
 
-#define OPTS "k"
-#define OPT_k (1<<0)
+#define OPTS "kd"
+#define OPT_k    (1<<0)
+#define OPT_d    (1<<1)
+
+#define SET_mark (1<<8)
 
 struct proc {
 	ushort len; /* of the whole structure, incl. name[] */
@@ -191,7 +194,7 @@ static void parse_status(CTX, char* buf, int len)
 	ps->pidx = -1;
 	ps->ridx = -1;
 	ps->didx = -1;
-	ps->mark = 0;
+	ps->mark = (ctx->opts & SET_mark ? 0 : 1);
 
 	memcpy(ps->name, name, nlen + 1);
 
@@ -302,22 +305,49 @@ static void build_ps_tree(CTX)
    the nodes we want to see and re-linking the tree to remove
    everything else. */
 
-static void mark_upwards(CTX, int i)
+static void mark_descendants(CTX, struct proc* parent)
 {
 	struct proc** idx = ctx->procs;
+	int ci = parent->ridx;
 
-	while(i >= 0) {
-		struct proc* ps = idx[i];
+	while(ci >= 0) {
+		struct proc* ps = idx[ci];
+
+		if(!ps->mark) {
+			ps->mark = 1;
+			mark_descendants(ctx, ps);
+		}
+
+		ci = ps->didx;
+	}
+}
+
+static void mark_matched(CTX, struct proc* root)
+{
+	struct proc** idx = ctx->procs;
+	struct proc* ps = root;
+
+	ps->mark = 1;
+
+	while(1) {
+		int i = ps->pidx;
+
+		if(i < 0) break;
+
+		ps = idx[i];
 
 		if(ps->mark) break;
 
 		ps->mark = 1;
-
-		i = ps->pidx;
 	}
+
+	if(ctx->opts & OPT_d)
+		return;
+
+	mark_descendants(ctx, root);
 }
 
-static void find_mark_upwards(CTX, char* name)
+static void find_mark_matching(CTX, char* name)
 {
 	int i, nprocs = ctx->nprocs;
 	struct proc** idx = ctx->procs;
@@ -327,8 +357,9 @@ static void find_mark_upwards(CTX, char* name)
 
 	if((p = parseint(name, &pid)) && !*p) {
 		for(i = 0; i < nprocs; i++) {
-			if(idx[i]->pid == pid) {
-				mark_upwards(ctx, i);
+			struct proc* ps = idx[i];
+			if(ps->pid == pid) {
+				mark_matched(ctx, ps);
 				break;
 			}
 		}
@@ -336,8 +367,9 @@ static void find_mark_upwards(CTX, char* name)
 		int nlen = strlen(name);
 
 		for(i = 0; i < nprocs; i++) {
-			if(!strncmp(name, idx[i]->name, nlen))
-				mark_upwards(ctx, i);
+			struct proc* ps = idx[i];
+			if(!strncmp(name, ps->name, nlen))
+				mark_matched(ctx, ps);
 		}
 	}
 }
@@ -385,12 +417,10 @@ static void trim_unmarked_branches(CTX)
 
 		if(ps->ppid)
 			continue;
-		if(!ps->mark)
-			continue;
-		if(ps->ridx < 0)
-			continue;
-
-		trim_subtree(ctx, i);
+		if(ps->mark)
+			trim_subtree(ctx, i);
+		else
+			ps->pid = 0;
 	}
 }
 
@@ -400,7 +430,7 @@ static void only_leave_named(CTX, int nargs, char** args)
 		return;
 
 	for(int i = 0; i < nargs; i++)
-		find_mark_upwards(ctx, args[i]);
+		find_mark_matching(ctx, args[i]);
 
 	trim_unmarked_branches(ctx);
 }
@@ -601,6 +631,8 @@ static void dump_top(CTX, int pi)
 		.euid = 0
 	};
 
+	if(!ps->pid) return;
+
 	dump_proc(ctx, bo, &tr, ps);
 	dump_rec(ctx, &tr, ps->ridx);
 }
@@ -644,6 +676,8 @@ int main(int argc, char** argv)
 
 	if(i < argc && argv[i][0] == '-')
 		ctx->opts = argbits(OPTS, argv[i++] + 1);
+	if(i < argc)
+		ctx->opts |= SET_mark;
 
 	init_heap(ctx);
 

@@ -8,8 +8,12 @@
 List all userspace processes.
 .IP "\fBpstree\fR \fIprefix\fR" 4
 List userspace processes starting with \fIprefix\fR and their ancestors.
-.IP "\fBpstree -k\fR" 4
-List in-kernel processes.
+'''
+.SH OPTIONS
+.IP "\fB-k\fR" 4
+Show kernel threads.
+.IP "\fB-d\fR" 4
+Do not show descendants of processes matching \fIprefix\fR.
 '''
 .SH NOTES
 All proper userspace processes are descendants of pid 1 (init).
