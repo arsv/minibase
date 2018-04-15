@@ -24,6 +24,9 @@ install: install-bin install-man
 install-bin:
 install-man:
 
+$/lib/all.a:
+	$(MAKE) -C $(dir $@)
+
 # Common mkdir part for the several installation directories.
 define destdir
 dest$1dir := $$(DESTDIR)$$($1dir)

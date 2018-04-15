@@ -16,4 +16,7 @@ all: $(all)
 clean:
 	rm -f *.o *.d $(all)
 
+$/lib/all.a:
+	$(MAKE) -C $(dir $@)
+
 -include *.d
