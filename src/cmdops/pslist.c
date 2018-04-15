@@ -233,7 +233,7 @@ static int check_proc_info(CTX)
 	return 0;
 }
 
-static int check_proc_cmdline(CTX)
+static int check_proc_cmdline(CTX, char* pidstr)
 {
 	int i, n = ctx->npatt;
 	char** patts = ctx->patts;
@@ -248,7 +248,9 @@ static int check_proc_cmdline(CTX)
 		len = strnlen(cmd, len);
 
 	for(i = 0; i < n; i++)
-		if(strnstr(cmd, patts[i], len))
+		if(!strcmp(patts[i], pidstr))
+			return 0;
+		else if(strnstr(cmd, patts[i], len))
 			return 0;
 
 	return -1;
@@ -315,7 +317,7 @@ static void read_proc(CTX, int at, char* pidstr)
 		goto out;
 	if(read_proc_cmdline(ctx, fd) < 0)
 		goto out;
-	if(check_proc_cmdline(ctx))
+	if(check_proc_cmdline(ctx, pidstr))
 		goto out;
 
 	format_proc_status(ctx);
@@ -356,6 +358,36 @@ static void read_proc_list(CTX)
 			read_proc(ctx, fd, de->name);
 		}
 	}
+}
+
+/* Normally this tool must scan the whole /proc directory, but if it gets
+   called with pids only, doing so is unnecessary and it can just open
+   relevant /proc/$pid directories directly. */
+
+static int need_whole_list(CTX)
+{
+	int i, n = ctx->npatt;
+	char *p, **patts = ctx->patts;
+	int pid;
+
+	for(i = 0; i < n; i++)
+		if(!(p = parseint(patts[i], &pid)) || *p)
+			return 1;
+
+	return !n;
+}
+
+static void read_selected_pids(CTX)
+{
+	int i, n = ctx->npatt;
+	char* dir = "/proc";
+	int fd;
+
+	if((fd = sys_open(dir, O_DIRECTORY)) < 0)
+		fail(NULL, dir, fd);
+
+	for(i = 0; i < n; i++)
+		read_proc(ctx, fd, ctx->patts[i]);
 }
 
 static void init_cmdmem(CTX)
@@ -400,7 +432,10 @@ int main(int argc, char** argv)
 	init_cmdmem(ctx);
 	init_output(ctx);
 
-	read_proc_list(ctx);
+	if(need_whole_list(ctx))
+		read_proc_list(ctx);
+	else
+		read_selected_pids(ctx);
 
 	fini_output(ctx);
 
