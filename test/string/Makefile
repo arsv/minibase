@@ -1,3 +1,3 @@
-test = memmove natcmp dotddot
+test = memmove natcmp dotddot strnstr
 
 include ../rules.mk

@@ -1,3 +1,4 @@
 memmove
 natcmp
 dotddot
+strnstr
