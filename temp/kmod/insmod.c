@@ -51,16 +51,11 @@ int main(int argc, char** argv)
 {
 	if(argc < 2)
 		fail("module name required", NULL, 0);
+	if(argc > 4)
+		fail("too many arguments", NULL, 0);
 
 	char* name = argv[1];
-
-	argc -= 2;
-	argv += 2;
-
-	int parlen = argsumlen(argc, argv) + argc;
-	char* pars = alloca(parlen + 1);
-	char* pend = argsmerge(pars, pars + parlen, argc, argv);
-	*pend = '\0';
+	char* pars = argc > 3 ? argv[3] : "";
 
 	return load_module(name, pars);
 }

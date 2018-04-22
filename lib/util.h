@@ -4,8 +4,6 @@
 #include <cdefs.h>
 
 int argbits(const char* key, const char* arg);
-int argsumlen(int argc, char** argv);
-char* argsmerge(char* buf, char* end, int argc, char** argv);
 
 char* basename(char* path);
 char* getenv(char** envp, const char* key);

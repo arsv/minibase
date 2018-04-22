@@ -1,3 +1,4 @@
+#include <string.h>
 #include <util.h>
 
 #define TAG "echo"
@@ -39,7 +40,7 @@ out:	*pp = p;
 	return c;
 }
 
-static char* parse(char* buf, char* end)
+static char* parse_message(char* buf, char* end)
 {
 	char* p = buf;
 	char* q = buf;
@@ -68,35 +69,64 @@ static char* parse(char* buf, char* end)
 
    So let's stay compatible on this one. */
 
-int main(int argc, char** argv)
+static int parse_opts(char* arg)
 {
-	int i = 1;
 	int opts = 0;
 	char* p;
 
-	if(i < argc && argv[i][0] == '-')
-		for(p = argv[i++] + 1; *p; p++) switch(*p) {
+	for(p = arg; *p; p++) {
+		switch(*p) {
 			case 'n': opts |= OPT_n; break;
 			case 'e': opts |= OPT_e; break;
-			default: return -1;
+			default: _exit(0xFF);
 		}
+	}
+
+	return opts;
+}
+
+int main(int argc, char** argv)
+{
+	int i = 1, opts = 0;
+
+	if(i < argc && argv[i][0] == '-')
+		opts = parse_opts(argv[i++] + 1);
 
 	argc -= i;
 	argv += i;
 
-	if(argc <= 0)
-		return 0;
+	int len, total = 0;
+	int arglen[argc];
 
-	int len = argsumlen(argc, argv) + argc;
-	char* buf = alloca(len + 5); /* parse() may overshoot for at most 3 chars */
-	char* end = argsmerge(buf, buf + len, argc, argv);
-	*end = '\0'; /* terminate any trailing \-sequence */
+	for(i = 0; i < argc; i++) {
+		len = strlen(argv[i]);
+		arglen[i] = len;
+		total += len;
+	}
+
+	if(argc) total += argc - 1;
+
+	char* buf = alloca(total + 5); /* parse() may overshoot for at most 3 chars */
+	char* s = buf;
+	char* p = buf;
+	char* e = buf + total;
+	
+	for(i = 0; i < argc; i++) {
+		if(i) *p++ = ' ';
+		len = arglen[i];
+		memcpy(p, argv[i], len);
+		p += len;
+	}
+	
+	*p = '\0'; /* terminate any trailing \-sequence */
 
 	if(opts & OPT_e)
-		end = parse(buf, end);
-
+		e = parse_message(s, p);
 	if(!(opts & OPT_n))
-		*end++ = '\n';
+		*e++ = '\n';
 
-	return writeall(1, buf, end - buf) >= 0 ? 0 : -1;
+	if(writeall(STDOUT, s, e - s) < 0)
+		return -1;
+
+	return 0;
 }
