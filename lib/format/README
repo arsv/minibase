@@ -1,0 +1,69 @@
+String formatting routines
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+fmt* functions implement printf-style formatting fields:
+
+	%c	fmtchar
+	%s	fmtstr
+	%li	fmtlong
+	%lu	fmtulong
+	%i	fmti32
+	%lli	fmti64
+	%*lu	fmtulp
+
+All functions of this kind take start and end of the buffer to print to,
+and return a pointer past the last character written.
+Typical setup for these functions looks like this:
+
+	char buf[100]; /* the buffer to print to */
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1; /* leaving space for \0 */
+
+	p = fmt...(p, e, ...);
+	p = fmt...(p, e, ...);
+	p = fmt...(p, e, ...);
+	...
+	p = fmt...(p, e, ...);
+
+	*p = '\0'; /* optional */
+
+By the end of the code, (p - buf) is the length of the resulting string.
+
+
+Why not printf
+~~~~~~~~~~~~~~
+The reason for this over common printf() is that printf does runtime parsing
+of its format string. Any reasonable printf implementation would need to link
+*all* supported formatters even if the application in question only needs one
+or two. With fmt*, only the functions used get linked into the executable.
+
+In addition, fmt style code is easier to compose, and custom writing custom
+formatters is trivial. Unlike with printf.
+
+Another way to view fmt is that it's printf with pre-compile-time format
+parsing. C cannot do compile-time parsing for something like printf, so
+it needs to be done manually.
+
+
+String parsing
+~~~~~~~~~~~~~~
+The opposite (scanf-like) routines are somewhat different:
+
+	p = parseint(p, &value);
+
+They take a pointer to the start of the string, and return pointer past
+the last character parsed, or NULL if parsing failed.
+Unlike fmt*, these alway work on 0-terminated strings.
+
+The reason they are not fully symmetrical is that in vast majority of cases
+the strings being parsed are 0-terminated command line arguments. Using (p,e)
+convention with those would result in clumsy code. Having both (p,e) and some
+sort of fallback (p)-only functions has been considered, but it would make
+the most common use cases unnecessary complicated, and there's no point yet
+in keeping two parallel version of parsing routines.
+
+Common invocation for parse* functions is
+
+	if((p = parse...(p, &value)) && !*p)
+
+The second condition makes sure the whole string has been parsed and there's
+no trailing garbage.
