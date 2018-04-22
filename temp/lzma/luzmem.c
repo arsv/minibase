@@ -169,7 +169,7 @@ static byte peek_back(LZ, uint i)
 #define BMS(a) a, ARRAY_SIZE(a)
 #define BMD(a) (bitmodel*)a, ARRAY_SIZE(a)*ARRAY_SIZE(a[0])
 
-static void init_probs(bitmodel bmp[], int size)
+static void init_probs(bitmodel bmp[], uint size)
 {
 	for(uint i = 0; i < size; i++)
 		bmp[i].probability = (1<<10);
