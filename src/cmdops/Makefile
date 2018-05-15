@@ -1,6 +1,7 @@
 include ../rules.mk
 
 $(eval $(call command,bcp,1))
+$(eval $(call command,cal,1))
 $(eval $(call command,cat,1))
 $(eval $(call command,clear,1))
 $(eval $(call command,chmod,1))
