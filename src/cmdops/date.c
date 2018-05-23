@@ -22,9 +22,9 @@
 #include <string.h>
 #include <format.h>
 #include <output.h>
-#include <errtag.h>
 #include <time.h>
 #include <util.h>
+#include <main.h>
 
 #include "date.h"
 
@@ -280,10 +280,10 @@ static const char* chooseformat(const char* format, int opts)
 	return "w Y-M-D h:m:s z";
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
-	int i = 1;
-	int opts = 0;
+	char** envp = argv + argc + 1;
+	int i = 1, opts = 0;
 	struct timedesc zt;
 	const char* format;
 	const char* zone;

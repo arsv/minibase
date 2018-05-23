@@ -1,9 +1,9 @@
 #include <sys/mount.h>
 #include <sys/fpath.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("kmount");
 ERRLIST(NEACCES NEINVAL NEBUSY NEFAULT NELOOP NEMFILE NENODEV NENOENT

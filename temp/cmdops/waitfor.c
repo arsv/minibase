@@ -4,8 +4,8 @@
 
 #include <string.h>
 #include <format.h>
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("waitfor");
 ERRLIST(NEBADF NEFAULT NENOTDIR NEINTR NEINVAL NENOMEM NENFILE NEMFILE

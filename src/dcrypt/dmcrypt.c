@@ -5,10 +5,10 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 #include "keytool.h"
 

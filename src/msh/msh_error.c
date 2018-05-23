@@ -2,12 +2,11 @@
 
 #include <string.h>
 #include <format.h>
-#include <errtag.h>
 #include <util.h>
 
 #include "msh.h"
 
-ERRTAG("msh");
+extern const char errtag[];
 
 /* Common quit() and warn() are not very well suited for msh,
    which should preferably use script name and line much more

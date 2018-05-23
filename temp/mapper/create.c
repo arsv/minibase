@@ -5,10 +5,10 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("create");
 ERRLIST(NEINVAL NEPERM NEACCES NEBUSY);
@@ -203,7 +203,7 @@ static void dm_remove(int fd, char* name)
 		fail("ioctl", "DM_DEV_REMOVE", ret);
 }
 
-int main(void)
+int main(noargs)
 {
 	int fd, ret;
 

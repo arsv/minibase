@@ -6,12 +6,12 @@
 #include <netlink/rtnl/link.h>
 #include <netlink/rtnl/route.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <output.h>
 #include <format.h>
 #include <heap.h>
 #include <util.h>
+#include <main.h>
 
 /* Dumping ip stack state has almost nothing in common with configuring it,
    so this is not a part of ip4cfg, at least for now.

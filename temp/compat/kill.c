@@ -1,9 +1,9 @@
 #include <sys/signal.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("kill");
 ERRLIST(NEINVAL NEPERM NESRCH NENOSYS);

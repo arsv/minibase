@@ -1,5 +1,6 @@
 #include <bits/auxvec.h>
 
+#include <main.h>
 #include <output.h>
 #include <format.h>
 #include <util.h>
@@ -82,11 +83,9 @@ struct auxvec* skipenvp(char** envp)
 	return (struct auxvec*)(q + 1);
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
-	(void)argc;
-	(void)argv;
-
+	char** envp = argv + argc + 1;
 	struct auxvec* a = skipenvp(envp);
 	const struct entry* x;
 

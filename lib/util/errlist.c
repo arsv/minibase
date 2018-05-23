@@ -1,4 +1,4 @@
-#include <errtag.h>
+#include <main.h>
 #include <util.h>
 
 /* Default error list for those utils that do not need

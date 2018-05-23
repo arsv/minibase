@@ -2,11 +2,11 @@
 #include <sys/mman.h>
 #include <sys/inotify.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <time.h>
 #include <util.h>
+#include <main.h>
 
 #include "common.h"
 

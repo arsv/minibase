@@ -1,8 +1,8 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
 
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 #define MAXCWD 2048
 

@@ -2,8 +2,8 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 #define ctrl(c) ((c) & 0x1F)
 

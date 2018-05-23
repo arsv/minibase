@@ -1,7 +1,7 @@
 #include <sys/file.h>
 
-#include <errtag.h>
 #include <format.h>
+#include <main.h>
 #include <util.h>
 
 ERRTAG("holes");

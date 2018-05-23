@@ -3,12 +3,12 @@
 #include <sys/ppoll.h>
 #include <sys/mman.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <printf.h>
 #include <sigset.h>
 #include <util.h>
+#include <main.h>
 
 #include "cmd.h"
 #include "unicode.h"
@@ -165,8 +165,10 @@ static void input_loop(CTX)
 	}
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
+	char** envp = argv + argc + 1;
+
 	struct top context, *ctx = &context;
 	memzero(ctx, sizeof(*ctx));
 

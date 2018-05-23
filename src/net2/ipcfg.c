@@ -6,10 +6,10 @@
 #include <netlink/rtnl/link.h>
 #include <netlink/rtnl/route.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("ipcfg");
 

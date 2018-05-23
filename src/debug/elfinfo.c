@@ -3,11 +3,11 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <printf.h>
 #include <util.h>
+#include <main.h>
 
 #include "elfinfo.h"
 

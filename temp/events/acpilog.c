@@ -3,9 +3,9 @@
 #include <netlink/genl.h>
 #include <netlink/dump.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
+#include <main.h>
 #include <util.h>
 
 #define CTX struct top* ctx
@@ -86,7 +86,7 @@ static struct acpievent* get_acpi_event(struct nlmsg* nlm)
 	return nl_get_of_len(msg, 1, sizeof(*evt));
 }
 
-int main(void)
+int main(noargs)
 {
 	struct top context, *ctx = &context;
 	memzero(ctx, sizeof(*ctx));

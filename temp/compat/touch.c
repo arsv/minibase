@@ -1,8 +1,8 @@
 #include <sys/file.h>
 #include <sys/fprop.h>
 
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 /* Ten times out of ten touch is used to (safely) create an empty file.
    In exceptional cases, I think it might be used to update timestamps

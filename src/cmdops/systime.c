@@ -4,9 +4,9 @@
 
 #include <string.h>
 #include <format.h>
-#include <errtag.h>
 #include <util.h>
 #include <time.h>
+#include <main.h>
 
 ERRTAG("systime");
 ERRLIST(NEBADF NEFAULT NEINVAL NEACCES NEFAULT NEINTR NELOOP NEMFILE

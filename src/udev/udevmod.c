@@ -10,10 +10,10 @@
 #include <sys/signal.h>
 #include <sys/mman.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 #include "common.h"
 #include "udevmod.h"
@@ -333,7 +333,7 @@ static void suppress_sigpipe(void)
 	sys_sigaction(SIGPIPE, &sa, NULL);
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
 	int i = 1, opts = 0;
@@ -345,7 +345,7 @@ int main(int argc, char** argv, char** envp)
 
 	memzero(ctx, sizeof(*ctx));
 
-	ctx->envp = envp;
+	ctx->envp = argv + argc + 1;
 	ctx->opts = opts;
 	ctx->startup = (opts & OPT_s);
 

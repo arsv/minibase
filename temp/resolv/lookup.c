@@ -3,11 +3,11 @@
 #include <sys/file.h>
 #include <sys/ppoll.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <endian.h>
 #include <util.h>
+#include <main.h>
 
 #include "dns.h"
 #include "lookup.h"

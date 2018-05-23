@@ -1,9 +1,9 @@
 #include <sys/file.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("blkid");
 ERRLIST(NENOENT NEINVAL);

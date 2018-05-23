@@ -2,10 +2,10 @@
 #include <sys/time.h>
 #include <sys/rusage.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <output.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("time");
 ERRLIST(NEINVAL NEFAULT NEAGAIN NENOMEM NENOSYS NECHILD NEINTR NENOENT);
@@ -114,8 +114,9 @@ static void note_time(struct timeval* tv)
 	tv->usec = ts.nsec / 1000;
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
+	char** envp = argv + argc + 1;
 	int i = 1;
 	struct timeval t0, t1, tv;
 	struct rusage rv;

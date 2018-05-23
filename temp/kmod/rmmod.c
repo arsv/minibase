@@ -1,6 +1,6 @@
 #include <sys/module.h>
 
-#include <errtag.h>
+#include <main.h>
 #include <util.h>
 
 ERRTAG("rmmod");

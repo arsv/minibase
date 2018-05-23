@@ -1,8 +1,8 @@
 #include <sys/fpath.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 #define PARENTS (1<<0)
 #define SETMODE (1<<1)

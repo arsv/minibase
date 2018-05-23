@@ -1,9 +1,9 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("fn");
 ERRLIST(NEACCES NEFAULT NEINVAL NENAMETOOLONG NENOMEM NENOENT

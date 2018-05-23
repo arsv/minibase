@@ -2,10 +2,10 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("remove");
 ERRLIST(NEINVAL NEPERM NEACCES NEBUSY NENODEV NENXIO);
@@ -127,7 +127,7 @@ static void dm_remove(int fd, char* name)
 		fail("ioctl", "DM_DEV_REMOVE", ret);
 }
 
-int main(void)
+int main(noargs)
 {
 	char* name = "loop0";
 	int fd;

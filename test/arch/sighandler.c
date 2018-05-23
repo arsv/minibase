@@ -3,9 +3,9 @@
 #include <sys/creds.h>
 #include <sys/sched.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("sighandler");
 
@@ -19,7 +19,7 @@ void sighandler(int sig)
 	_exit(0);
 }
 
-int main(void)
+int main(noargs)
 {
 	SIGHANDLER(sa, sighandler, 0);
 	struct timespec ts = { 1, 0 };

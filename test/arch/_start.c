@@ -1,5 +1,5 @@
-#include <errtag.h>
 #include <string.h>
+#include <main.h>
 #include <util.h>
 
 /* Basic sanity check for a proper main() invocation.
@@ -8,11 +8,12 @@
 
 ERRTAG("_start");
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
-	int i;
+	char** envp = argv + argc + 1;
 	char** p;
 	int path = 0;
+	int i;
 
 	if(argc < 1 || argc > 10)
 		fail("bogus argc", NULL, 0);

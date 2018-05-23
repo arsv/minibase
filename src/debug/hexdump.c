@@ -2,8 +2,8 @@
 
 #include <string.h>
 #include <format.h>
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 #define RDBUF (1<<12)
 #define WRBUF (1<<14)

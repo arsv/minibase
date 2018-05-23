@@ -1,5 +1,6 @@
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 #define TAG "echo"
 #define OPT_n (1<<0)	/* no newline at the end */

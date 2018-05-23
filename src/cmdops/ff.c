@@ -5,8 +5,8 @@
 #include <string.h>
 #include <format.h>
 #include <output.h>
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 /* This tool expects the search to return much less than complete subtree
    list, and preferably with fast output start. This sets it apart from

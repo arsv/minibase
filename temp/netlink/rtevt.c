@@ -1,18 +1,18 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
-#include <errtag.h>
 #include <netlink.h>
 #include <netlink/rtnl/mgrp.h>
 #include <netlink/dump.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("rtevents");
 
 char TX[1*1024];
 char RX[7*1024];
 
-int main(void)
+int main(noargs)
 {
 	struct netlink nl;
 	struct nlmsg* msg;

@@ -2,8 +2,8 @@
 #include <sys/mman.h>
 #include <sys/splice.h>
 
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("cat");
 ERRLIST(NENOENT NEAGAIN NEBADF NEFAULT NEINTR NEINVAL NEIO NEISDIR

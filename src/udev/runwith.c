@@ -1,9 +1,9 @@
 #include <sys/proc.h>
 #include <sys/signal.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 /* This tiny tool is only meant for a single use case: keeping udevmod
    running in background while {find,pass}blk are waiting for devices.
@@ -100,8 +100,9 @@ static int spawn(int argc, char** argv, char** envp)
 	return pid;
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
+	char** envp = argv + argc + 1;
 	int pids[2];
 	int status, ret = -1;
 	int npids = ARRAY_SIZE(pids);

@@ -6,12 +6,12 @@
 #include <sys/ioctl.h>
 #include <sys/dents.h>
 
-#include <errtag.h>
 #include <output.h>
 #include <printf.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 #include "inputs.h"
 

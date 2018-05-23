@@ -4,10 +4,10 @@
 #include <sys/creds.h>
 #include <sys/socket.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 /* Simple udev event dumper, for figuring out how the messages look like. */
 

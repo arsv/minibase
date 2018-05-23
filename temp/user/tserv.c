@@ -5,12 +5,10 @@
 #include <sys/signal.h>
 #include <sys/sched.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
-
-#include "common.h"
+#include <main.h>
 
 #define CONTROL NLCDIR "/tserv"
 

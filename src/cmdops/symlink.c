@@ -1,9 +1,9 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 /* Simple symlinking tool, follows the kernel syscall */
 

@@ -6,11 +6,11 @@
 #include <sys/reboot.h>
 #include <sys/sched.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
 #include <heap.h>
+#include <main.h>
 
 /* This tool is based on the assumption that a clean system shutdown
    after stopping all the services is exactly

@@ -5,8 +5,8 @@
 
 #include <string.h>
 #include <format.h>
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 #define OPTS "rfdngu"
 #define OPT_r (1<<0)

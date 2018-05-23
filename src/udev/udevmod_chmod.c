@@ -4,7 +4,6 @@
 #include <sys/creds.h>
 #include <sys/mman.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>

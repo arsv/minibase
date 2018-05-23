@@ -1,8 +1,8 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
-#include <errtag.h>
 #include <string.h>
+#include <main.h>
 #include <util.h>
 
 ERRTAG("mmap");
@@ -54,7 +54,7 @@ static void test_filebacked(void)
 }
 
 
-int main(void)
+int main(noargs)
 {
 	test_anonymous();
 	test_filebacked();

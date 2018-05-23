@@ -2,14 +2,14 @@
 #include <sys/sched.h>
 #include <sys/signal.h>
 
-#include <errtag.h>
+#include <main.h>
 #include <string.h>
 #include <sigset.h>
 #include <util.h>
 
 ERRTAG("sigprocmask");
 
-int main(void)
+int main(noargs)
 {
 	sigset_t mask, old;
 	struct timespec ts = { 0, 200*1000*1000 };

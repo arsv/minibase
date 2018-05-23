@@ -1,13 +1,13 @@
 #include <bits/ioctl/vt.h>
 #include <sys/ioctl.h>
 
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("unlock");
 ERRLIST(NEINVAL NENXIO NEPERM NENOENT NEACCES NEIO NEAGAIN);
 
-int main(void)
+int main(noargs)
 {
 	int ret;
 

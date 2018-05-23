@@ -2,11 +2,11 @@
 #include <sys/dents.h>
 #include <sys/mman.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <output.h>
 #include <util.h>
+#include <main.h>
 
 #define PAGE 4096
 

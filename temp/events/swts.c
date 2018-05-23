@@ -2,9 +2,9 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
+#include <main.h>
 #include <util.h>
 
 ERRTAG("keys");

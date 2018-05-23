@@ -2,7 +2,6 @@
 #include <sys/file.h>
 #include <sys/sched.h>
 
-#include <errtag.h>
 #include <nlusctl.h>
 #include <format.h>
 #include <string.h>

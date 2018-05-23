@@ -6,10 +6,10 @@
 #include <sys/sched.h>
 #include <sys/ioctl.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("rootsh");
 
@@ -70,8 +70,10 @@ static void spawn_shell(int fd, char** envp)
 	sleep(1);
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
+	char** envp = argv + argc + 1;
+
 	if(argc < 2)
 		fail("too few arguments", NULL, 0);
 	if(argc > 3)

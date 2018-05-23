@@ -4,11 +4,11 @@
 #include <sys/sched.h>
 #include <sys/ppoll.h>
 
-#include <errtag.h>
 #include <sigset.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 #include "wpa.h"
 
@@ -207,8 +207,9 @@ static void poll_netlink_rawsock(void)
 	};
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
+	char** envp = argv + argc + 1;
 	setup(argc, argv, envp);
 
 	malarm(900);

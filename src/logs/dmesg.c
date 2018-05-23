@@ -4,8 +4,8 @@
 #include <string.h>
 #include <format.h>
 #include <output.h>
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 /* This tool was originally much larger and included colored output
    code. All that stuff subsequently migrated to logcat, and logcat

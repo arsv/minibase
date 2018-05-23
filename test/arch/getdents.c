@@ -1,13 +1,13 @@
 #include <sys/file.h>
 #include <sys/dents.h>
 
-#include <errtag.h>
 #include <string.h>
+#include <main.h>
 #include <util.h>
 
 ERRTAG("getdents");
 
-int main(void)
+int main(noargs)
 {
 	int fd, rd;
 	char buf[1024];

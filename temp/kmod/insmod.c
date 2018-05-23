@@ -2,8 +2,8 @@
 #include <sys/mman.h>
 #include <sys/module.h>
 
-#include <errtag.h>
 #include <string.h>
+#include <main.h>
 #include <util.h>
 
 ERRTAG("insmod");

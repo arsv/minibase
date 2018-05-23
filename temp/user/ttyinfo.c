@@ -2,10 +2,10 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
-#include <errtag.h>
 #include <printf.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("ttyinfo");
 
@@ -67,8 +67,11 @@ static void ttyinfo(int tty, int active)
 			kdmode(mode), vtmode(vtm.mode));
 }
 
-int main(void)
+int main(int argc, char** argv)
 {
+	(void)argc;
+	(void)argv;
+
 	int fd, ret, i;
 	struct vt_stat vst;
 
