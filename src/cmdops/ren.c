@@ -1,8 +1,8 @@
 #include <sys/fpath.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 #define OPTS "ftwx"
 #define OPT_f (1<<0)   /* no overwrites */

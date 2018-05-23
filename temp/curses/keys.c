@@ -2,7 +2,7 @@
 #include <sys/ioctl.h>
 #include <sys/file.h>
 
-#include <errtag.h>
+#include <main.h>
 #include <printf.h>
 #include <format.h>
 #include <string.h>
@@ -151,7 +151,7 @@ static int got_ctrl_d(char* buf, int len)
 	return 0;
 }
 
-int main(void)
+int main(noargs)
 {
 	struct winsize ws;
 	struct termios ts, tso;

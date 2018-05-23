@@ -3,13 +3,13 @@
 #include <sys/file.h>
 #include <sys/socket.h>
 
-#include <errtag.h>
 #include <nlusctl.h>
 #include <output.h>
 #include <printf.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 #include "common.h"
 

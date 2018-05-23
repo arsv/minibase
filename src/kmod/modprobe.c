@@ -2,11 +2,11 @@
 #include <sys/info.h>
 #include <sys/file.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
 #include <dirs.h>
+#include <main.h>
 
 #include "modprobe.h"
 
@@ -346,8 +346,9 @@ static int parse_args(CTX, int argc, char** argv, char** envp)
 	return opts;
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
+	char** envp = argv + argc + 1;
 	struct top context, *ctx = &context;
 	int opts = parse_args(ctx, argc, argv, envp);
 

@@ -2,10 +2,10 @@
 #include <sys/ppoll.h>
 #include <sys/signal.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <sigset.h>
 #include <util.h>
+#include <main.h>
 
 #include "keymon.h"
 
@@ -160,17 +160,15 @@ static void update_timers(timespec* ts0, timespec* ts1)
 			ka->time -= diff;
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
-	(void)argv;
-
 	int ret;
 	timespec ts0, ts1, *pts;
 
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);
 
-	environ = envp;
+	environ = argv + argc + 1;
 
 	load_config();
 	setup_signals();

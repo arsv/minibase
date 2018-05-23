@@ -7,9 +7,9 @@
 #include <sys/signal.h>
 #include <sys/fpath.h>
 
-#include <errtag.h>
 #include <sigset.h>
 #include <util.h>
+#include <main.h>
 
 #include "common.h"
 #include "suhub.h"
@@ -217,15 +217,14 @@ void quit(const char* msg, char* arg, int err)
 		_exit(0);
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
-	(void)argv;
 	int ret;
 
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);
 
-	environ = envp;
+	environ = argv + argc + 1;
 
 	setup_ctrl();
 	setup_signals();

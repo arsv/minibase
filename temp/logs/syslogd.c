@@ -5,7 +5,7 @@
 #include <sys/time.h>
 #include <sys/signal.h>
 
-#include <errtag.h>
+#include <main.h>
 #include <format.h>
 #include <string.h>
 #include <sigset.h>

@@ -1,9 +1,9 @@
 #include <bits/major.h>
 #include <sys/fpath.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("mknod");
 ERRLIST(NEACCES NEEXIST NEFAULT NEINVAL NELOOP NENOENT NENOMEM

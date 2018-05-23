@@ -4,10 +4,10 @@
 #include <netlink.h>
 #include <netlink/genl.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("acpid");
 
@@ -121,9 +121,9 @@ static void setup_netlink(struct top* ctx)
 		fail("NL subscribe ", group, ret);
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
-	(void)argv;
+	char** envp = argv + argc + 1;
 
 	struct top context, *ctx = &context;
 	memzero(ctx, sizeof(*ctx));

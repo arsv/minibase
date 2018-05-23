@@ -1,9 +1,9 @@
 #include <sys/file.h>
 
-#include <errtag.h>
 #include <output.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 #define OPTS "nx"
 #define OPT_n (1<<0)	/* minimal seq length */

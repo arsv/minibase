@@ -3,10 +3,10 @@
 #include <sys/sched.h>
 #include <sys/file.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 #include <netlink.h>
 #include <netlink/genl/ctrl.h>

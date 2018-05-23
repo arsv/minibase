@@ -7,11 +7,11 @@
 #include <sys/fprop.h>
 #include <sys/signal.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <sigset.h>
 #include <util.h>
+#include <main.h>
 
 #include "common.h"
 

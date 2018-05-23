@@ -9,11 +9,11 @@
 #include <sys/signal.h>
 #include <sys/socket.h>
 
-#include <errtag.h>
 #include <endian.h>
 #include <string.h>
 #include <sigset.h>
 #include <util.h>
+#include <main.h>
 
 #include "common.h"
 #include "wsupp.h"
@@ -226,7 +226,7 @@ static void shutdown(void)
 		opermode = OP_EXITREQ;
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
 	int i = 1, ret;
 	char* name;
@@ -238,7 +238,7 @@ int main(int argc, char** argv, char** envp)
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
-	environ = envp;
+	environ = argv + argc + 1;
 
 	setup_signals();
 	setup_netlink();

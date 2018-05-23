@@ -3,7 +3,6 @@
 #include <sys/ioctl.h>
 #include <sys/signal.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <printf.h>

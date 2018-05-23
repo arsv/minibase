@@ -5,13 +5,13 @@
 #include <sys/creds.h>
 #include <sys/file.h>
 
-#include <errtag.h>
 #include <nlusctl.h>
 #include <sigset.h>
 #include <cmsg.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 #include "common.h"
 

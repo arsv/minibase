@@ -5,8 +5,8 @@
 #include <string.h>
 #include <format.h>
 #include <output.h>
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 #define OPTS "am"
 #define OPT_a (1<<0)	/* show all mounted filesystems */

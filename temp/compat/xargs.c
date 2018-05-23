@@ -2,8 +2,8 @@
 #include <sys/proc.h>
 #include <sys/fprop.h>
 
-#include <errtag.h>
 #include <string.h>
+#include <main.h>
 #include <util.h>
 
 #define OPTS "01a"
@@ -261,10 +261,10 @@ static void makectx(int argc, char** argv, char** envp, int fd, int opts)
 		makecmd(&ctx, fd, envp);
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
-	int i = 1;
-	int opts = 0;
+	char** envp = argv + argc + 1;
+	int i = 1, opts = 0;
 	int fd = 0;
 
 	if(i < argc && argv[i][0] == '-')

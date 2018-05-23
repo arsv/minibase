@@ -1,6 +1,6 @@
 #include <sys/fpath.h>
 
-#include <errtag.h>
+#include <main.h>
 #include <util.h>
 
 /* This tool is pointless, rm -d should be used instead */

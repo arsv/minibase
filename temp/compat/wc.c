@@ -1,9 +1,9 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <format.h>
+#include <main.h>
 #include <util.h>
 
 #define BUFSIZE 16*4096

@@ -5,9 +5,9 @@
 #include <netlink/genl/ctrl.h>
 #include <netlink/dump.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("gnevents");
 
@@ -81,7 +81,7 @@ static int resolve_80211_subscribe_scan(struct netlink* nl)
 	return fam.id;
 }
 
-int main(void)
+int main(noargs)
 {
 	struct netlink nl;
 	struct nlmsg* msg;

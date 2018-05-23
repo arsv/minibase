@@ -1,11 +1,10 @@
+#include <main.h>
 #include <printf.h>
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
+	char** envp = argv + argc + 1;
 	char** p;
-
-	(void)argc;
-	(void)argv;
 
 	for(p = envp; *p; p++)
 		tracef("[%li] %s\n", p - envp, *p);

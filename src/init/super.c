@@ -6,6 +6,7 @@
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 #include "common.h"
 #include "super.h"
@@ -65,9 +66,9 @@ static int need_to(int flag)
 	return ret;
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
-	environ = envp;
+	environ = argv + argc + 1;
 	confdir = CONFDIR;
 
 	setup_args(argc, argv);

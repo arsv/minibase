@@ -2,9 +2,9 @@
 #include <sys/mman.h>
 #include <sys/creds.h>
 #include <sys/signal.h>
-#include <errtag.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 /* lunzip into memory; testbed for modprobe decompression code.
 

@@ -6,10 +6,10 @@
 
 #include <crypto/aes128.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 #include "keytool.h"
 

@@ -5,10 +5,10 @@
 #include <sys/file.h>
 #include <sys/sched.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("ctrlvt");
 
@@ -435,12 +435,9 @@ static void setup_signals(void)
 	sys_sigaction(SIGINT,  &sa, NULL);
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
-	(void)argc;
-	(void)argv;
-
-	environ = envp;
+	environ = argv + argc + 1;
 
 	setup_signals();
 	term_init();

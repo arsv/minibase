@@ -6,8 +6,8 @@
 #include <sys/ioctl.h>
 
 #include <string.h>
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("bcp");
 ERRLIST(NEAGAIN NEBADF NEFAULT NEINTR NEINVAL NEIO NEISDIR

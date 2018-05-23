@@ -1,10 +1,10 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <output.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("lsmod");
 ERRLIST(NENOENT NENOMEM NEACCES NEPERM NEFAULT NEINTR NEINVAL NEISDIR
@@ -224,7 +224,7 @@ static void list_mods(struct strptr* mods)
 	bufoutflush(&bo);
 }
 
-int main(void)
+int main(noargs)
 {
 	struct strptr modlist;
 

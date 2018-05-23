@@ -2,9 +2,9 @@
 #include <sys/mman.h>
 #include <sys/inotify.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("tail");
 

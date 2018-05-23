@@ -1,8 +1,8 @@
 #include <bits/ioctl/tty.h>
 #include <sys/ioctl.h>
 
-#include <errtag.h>
 #include <printf.h>
+#include <main.h>
 #include <util.h>
 
 ERRTAG("keys");
@@ -101,7 +101,7 @@ static void dumpflags(char* tag, int val, struct dict* bits, int nb)
 	printf("\n");
 }
 
-int main(void)
+int main(noargs)
 {
 	struct winsize ws;
 	struct termios ts;

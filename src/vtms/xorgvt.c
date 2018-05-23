@@ -7,12 +7,12 @@
 #include <sys/fprop.h>
 #include <sys/signal.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <printf.h>
 #include <sigset.h>
 #include <util.h>
+#include <main.h>
 
 /* Unlike Weston, the X server does not start any clients by itself.
    xinit does that instead, it starts the server, waits until it's
@@ -490,13 +490,13 @@ static void open_signalfd(CTX)
 	ctx->sigfd = fd;
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
 
 	memzero(ctx, sizeof(*ctx));
 
-	ctx->envp = envp;
+	ctx->envp = argv + argc + 1;
 
 	set_launcher_sock_fd(ctx);
 	set_commands(ctx, argc, argv);

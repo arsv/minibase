@@ -10,12 +10,12 @@
 #include <sys/ppoll.h>
 #include <sys/signal.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <endian.h>
 #include <sigset.h>
 #include <util.h>
+#include <main.h>
 
 #include "dhcp.h"
 #include "dhcp_udp.h"
@@ -502,10 +502,10 @@ again:
 #define OPT_g (1<<1)
 #define OPT_r (1<<2)
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
-	int i = 1;
-	int opts = 0;
+	int i = 1, opts = 0;
+	char** envp = argv + argc + 1;
 	char* devname;
 
 	if(i < argc && argv[i][0] == '-')

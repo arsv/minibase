@@ -4,8 +4,8 @@
 #include <sys/sched.h>
 
 #include <format.h>
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 #include "common.h"
 #include "findblk.h"

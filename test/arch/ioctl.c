@@ -2,12 +2,12 @@
 
 #include <sys/ioctl.h>
 
-#include <errtag.h>
+#include <main.h>
 #include <util.h>
 
 ERRTAG("ioctl");
 
-int main(void)
+int main(noargs)
 {
 	int ret, fd = STDIN;
 	struct winsize ws;

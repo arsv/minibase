@@ -3,8 +3,8 @@
 #include <sys/ioctl.h>
 #include <sys/sync.h>
 
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 #define OPTS "fdt"
 #define OPT_f (1<<0) /* syncfs */

@@ -1,8 +1,8 @@
 #include <bits/errno.h>
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 ERRLIST(NENOENT NEINTR NEINVAL);
 
@@ -32,7 +32,7 @@ static void test(char* file, int line, int err, char* exp)
 
 #define FL __FILE__, __LINE__
 
-int main(void)
+int main(noargs)
 {
 	test(FL, -ENOENT, "ENOENT");
 	test(FL, -EINTR,  "EINTR");

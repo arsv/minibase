@@ -1,7 +1,7 @@
 #include <sys/file.h>
 
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 /* XXX: GNU coreutils allow writing to several files at once.
    Is that useful for anything? */

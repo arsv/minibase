@@ -10,8 +10,8 @@
 
 #include <format.h>
 #include <string.h>
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 /* Note this *may* happen to run with empty fds 0-2, but since it never
    opens anything r/w itself it's ok. At worst it will try to write its

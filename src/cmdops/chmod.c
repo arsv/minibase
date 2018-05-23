@@ -5,8 +5,8 @@
 
 #include <string.h>
 #include <format.h>
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 #define OPTS "rfdn"
 #define OPT_r (1<<0)	/* recursively */

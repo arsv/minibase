@@ -4,7 +4,7 @@
 
 #include <string.h>
 #include <format.h>
-#include <errtag.h>
+#include <main.h>
 #include <util.h>
 
 #define OPTS "rfndZ"

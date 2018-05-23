@@ -1,11 +1,11 @@
 #include <bits/errno.h>
 
-#include <errtag.h>
 #include <nlusctl.h>
 #include <format.h>
 #include <string.h>
 #include <heap.h>
 #include <util.h>
+#include <main.h>
 
 #include "common.h"
 #include "wifi.h"

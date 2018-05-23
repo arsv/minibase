@@ -1,9 +1,9 @@
 #include <sys/file.h>
 #include <sys/info.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("sysinfo");
 ERRLIST(NEFAULT NEINVAL NENOSYS);

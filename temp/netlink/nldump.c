@@ -2,8 +2,8 @@
 #include <netlink/dump.h>
 #include <sys/file.h>
 
-#include <errtag.h>
 #include <util.h>
+#include <main.h>
 
 #include "common.h"
 

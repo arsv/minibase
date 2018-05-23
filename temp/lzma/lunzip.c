@@ -2,8 +2,8 @@
 #include <sys/mman.h>
 #include <sys/creds.h>
 #include <sys/signal.h>
-#include <errtag.h>
 #include <string.h>
+#include <main.h>
 #include <util.h>
 
 /* The code below is based mostly on lzip by Antonio Diaz Diaz,

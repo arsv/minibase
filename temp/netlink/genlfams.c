@@ -1,6 +1,5 @@
 #include <bits/errno.h>
 
-#include <errtag.h>
 #include <netlink.h>
 #include <netlink/genl/ctrl.h>
 #include <netlink/dump.h>
@@ -8,6 +7,7 @@
 #include <format.h>
 #include <output.h>
 #include <util.h>
+#include <main.h>
 
 /* The tool queries available GENL families and their multicast groups. */
 
@@ -73,7 +73,7 @@ static void dump_family(struct bufout* bo, struct nlgen* msg)
 	dump_groups(bo, msg);
 }
 
-int main(void)
+int main(noargs)
 {
 	struct netlink nl;
 	struct nlgen* msg;

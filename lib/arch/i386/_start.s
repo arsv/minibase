@@ -8,9 +8,6 @@ _start:
 	popl    %ecx            /* %ecx = argc */
 	movl    %esp, %eax      /* %eax = argv */
 	pushl   %ecx
-	leal	4(%eax,%ecx,4),%esi /* %esi = envp = (4*ecx)+%eax+4 */
-
-	pushl   %esi
 	pushl   %eax
 	pushl   %ecx
 

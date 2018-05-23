@@ -3,12 +3,12 @@
 #include <sys/mman.h>
 #include <sys/creds.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <printf.h>
 #include <string.h>
 #include <output.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("pslist");
 

@@ -5,11 +5,11 @@
 #include <sys/dents.h>
 #include <sys/ioctl.h>
 
-#include <errtag.h>
 #include <output.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("lsdri");
 

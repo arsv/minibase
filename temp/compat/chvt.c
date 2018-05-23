@@ -1,10 +1,10 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 #define KDGKBTYPE	0x4B33
 #define VT_ACTIVATE	0x5606

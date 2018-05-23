@@ -1,9 +1,9 @@
 #include <sys/time.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <util.h>
 #include <time.h>
+#include <main.h>
 
 ERRTAG("uptime");
 ERRLIST(NEINVAL NENOSYS NEPIPE NEBADFD);

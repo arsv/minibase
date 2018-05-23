@@ -5,7 +5,7 @@
 #include <sys/klog.h>
 #include <sys/sched.h>
 
-#include <errtag.h>
+#include <main.h>
 #include <string.h>
 #include <util.h>
 

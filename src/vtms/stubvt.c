@@ -3,11 +3,11 @@
 #include <sys/ppoll.h>
 #include <sys/socket.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <cmsg.h>
 #include <util.h>
+#include <main.h>
 
 #define WESTON_LAUNCHER_FD 3
 
@@ -225,7 +225,7 @@ static void activate(void)
 	if(paused) warn("activation aborted", NULL, 0);
 }
 
-int main(void)
+int main(noargs)
 {
 	announce();
 	open_inputs();

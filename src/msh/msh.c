@@ -1,8 +1,11 @@
 #include <sys/file.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 #include "msh.h"
+
+ERRTAG("msh");
 
 static void parsefd(CTX, int fd)
 {
@@ -51,7 +54,7 @@ static int parseopts(CTX, char* str)
 	return opts;
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
 	struct sh ctx;
 	long fd = STDIN;
@@ -60,7 +63,7 @@ int main(int argc, char** argv, char** envp)
 	int i = 1;
 
 	memset(&ctx, 0, sizeof(ctx));
-	ctx.envp = envp;
+	ctx.envp = argv + argc + 1;
 	ctx.errfd = STDERR;
 
 	if(i < argc && argv[i][0] == '-')

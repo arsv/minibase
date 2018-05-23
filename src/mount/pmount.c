@@ -7,7 +7,6 @@
 #include <sys/dents.h>
 #include <sys/file.h>
 
-#include <errtag.h>
 #include <nlusctl.h>
 #include <sigset.h>
 #include <cmsg.h>
@@ -16,6 +15,7 @@
 #include <output.h>
 #include <util.h>
 #include <heap.h>
+#include <main.h>
 
 #include "common.h"
 

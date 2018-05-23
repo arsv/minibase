@@ -7,11 +7,11 @@
 #include <sys/sched.h>
 #include <sys/fpath.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <sigset.h>
 #include <cmsg.h>
 #include <util.h>
+#include <main.h>
 
 #include "common.h"
 #include "mountd.h"

@@ -4,9 +4,9 @@
 #include <sys/ppoll.h>
 #include <sys/ioctl.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <util.h>
+#include <main.h>
 
 #include "vtmux.h"
 
@@ -45,11 +45,11 @@ static void setup_tty0(void)
 	tty0fd = fd;
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
 	int i = 1;
 
-	environ = envp;
+	environ = argv + argc + 1;
 
 	if(i < argc)
 		primarytty = intarg(argv[i++]);

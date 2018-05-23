@@ -1,5 +1,6 @@
 #include <sys/file.h>
 #include <string.h>
+#include <main.h>
 
 /* XXX: should we support suffix-stripping and \0 termination? */
 

@@ -1,6 +1,6 @@
 #include <string.h>
 #include <format.h>
-#include <errtag.h>
+#include <main.h>
 
 char* fmterr(char* p, char* e, int err)
 {

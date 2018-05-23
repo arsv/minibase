@@ -5,11 +5,11 @@
 #include <sys/time.h>
 
 #include <printf.h>
-#include <errtag.h>
 #include <netlink.h>
 #include <sigset.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 #include "common.h"
 #include "ifmon.h"
@@ -246,15 +246,14 @@ static void update_timers(struct timespec* t0, struct timespec* t1)
 	update_dhcp_timers(&dt);
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
-	(void)argv;
 	struct timespec *pt, t0, t1;
 
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);
 
-	environ = envp;
+	environ = argv + argc + 1;
 
 	setup_ctrl();
 	setup_rtnl();

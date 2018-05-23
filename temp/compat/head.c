@@ -1,8 +1,8 @@
 #include <sys/file.h>
 
-#include <errtag.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("head");
 

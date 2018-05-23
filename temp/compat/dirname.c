@@ -1,5 +1,6 @@
 #include <sys/file.h>
 #include <string.h>
+#include <main.h>
 
 void dumpdname(char* path)
 {

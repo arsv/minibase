@@ -2,10 +2,10 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
-#include <errtag.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
+#include <main.h>
 
 ERRTAG("whoami");
 ERRLIST(NENOSYS NENOENT NENOTDIR NENOMEM);
