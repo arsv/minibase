@@ -42,10 +42,6 @@ _start:
 	ld      $a0, 0($sp)
 	daddiu  $a1, $sp, 8     /* argv = sp + 8 */
 
-	daddiu  $a2, $a0, 1     /* ...  = argc+1 */
-	dsll    $a2, $a2, 3     /* ...  = 8*(argc) */
-	dadd    $a2, $a2, $a1   /* envp = (void*)argv + 8*(argc+1) */
-
 	jalr    $t9
 	nop                     /* delay slot */
 

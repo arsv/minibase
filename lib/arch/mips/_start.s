@@ -38,10 +38,6 @@ _start:
 	lw      $a0, 0($sp)	/* argc = *sp */
 	addiu   $a1, $sp, 4	/* argv = sp + 4 */
 
-	addiu   $a2, $a0, 1     /* ...  = argc+1 */
-	sll     $a2, $a2, 2     /* ...  = 4*(argc+1) */
-	add     $a2, $a2, $a1   /* envp = (void*)argv + 4*(argc+1) */
-
 	addiu   $sp, $sp, -16   /* argument space */
 
 	la      $t9, main
