@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include <format.h>
+#include <main.h>
 
 #define TAG "which"
 
@@ -77,11 +78,11 @@ static int which(char* path, char* cmd, int cmdlen)
 	return -1;
 }
 
-int main(int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
-	int i;
+	char** envp = argv + argc + 1;
 	char* path = xgetenv(envp, "PATH=");
-	int ret = 0;
+	int i, ret = 0;
 
 	if(argc < 2) {
 		warn(NULL, "too few arguments");
