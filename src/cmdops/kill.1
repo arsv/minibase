@@ -1,0 +1,21 @@
+.TH kill 1
+'''
+.SH NAME
+\fBkill\fR \- terminate process
+'''
+.SH SYNOPSIS
+\fBkill\fR \fIpid\fR|\fIcommand\fR|\fIpath/to/executable\fR ...
+'''
+.SH DESCRIPTION
+The tool sends SIGTERM to all processes matching given arguments.
+Numeric arguments are interpreted as process IDs, everything else
+is matched against process name or its argv[0].
+'''
+.SH OPTIONS
+.IP "\fB-k\fR, \fB-h\fR, \fB-s\fR, \fB-c\fR" 4
+Send SIGKILL, SIGHUP, SIGSTOP or SIGSTOP instead of default SIGTERM.
+.IP "\fB-\fISIGNAL\fR" 4
+Send specified signal (see \fBsignal\fR(7) for a list).
+'''
+.SH SEE ALSO
+\fBpstree\fR(1), \fBpslist\fR(1).
