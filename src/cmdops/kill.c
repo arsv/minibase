@@ -24,7 +24,7 @@ struct top {
 	char** cmds;
 	int npid;
 	char** pids;
-	
+
 	int killed;
 	int failed;
 };
@@ -58,7 +58,7 @@ static int slashes(char* cmd)
 	for(p = cmd; *p; p++)
 		if(*p == '/')
 			return 1;
-	
+
 	return 0;
 }
 
@@ -259,7 +259,7 @@ static int numeric(char* arg)
 	for(p = arg; *p; p++)
 		if(*p < '0' || *p > '9')
 			return 0;
-	
+
 	return (p > arg);
 }
 
