@@ -1,22 +1,22 @@
 What is this?
 ~~~~~~~~~~~~~
-minibase is set of small userspace tools for Linux aiming to provide a base
-package to build the rest of the system on. These tools handle early boot
-process (initrd, finding and mounting the rootfs, setting up disk encryption),
+minibase is set of small userspace tools for Linux aiming to provide a stable
+base to build the rest of the system on. These tools handle early boot process
+(initrd, finding and mounting the rootfs, setting up disk encryption),
 service startup and supervision (aka init system), as well as user session
 management ("logind").
 
 The tools are written in raw syscalls using a small custom base library.
-Standard libc is not needed to build them, only a freestanding compiler
-and a linker. There are no runtime dependencies other than the Linux kernel,
-the executables are always statically linked.
+Standard libc is not needed to build or run them. The resulting executables
+are always statically linked and their only runtime dependency is the Linux
+kernel.
 
 Supported targets: x86_64 arm aarch64 rv64 mips mips64 i386.
 
 
 What's inside
 ~~~~~~~~~~~~~
-Current contents of the package:
+Current contents of minibase:
 
   * Batch command runner / script interpreter (msh)
   * Early-stage boot utils (switchroot, modprobe, mount).
@@ -32,8 +32,9 @@ Current contents of the package:
   * Non-privileged mount service (mountd, pmount).
   * Controlled privilege escalation service (suhub, sudo).
 
-  * VT/DRI/input multiplexer (vtmux) [see below].
-  * Simple non-graphical greeter.
+  * VT/DRI/input multiplexer (vtmux) aka that part of logind
+    everyone keeps asking about.
+  * Simple non-graphical greeter (ctrlvt).
 
   * Networking interface manager (ifmon), also handles DHCP.
   * Wi-Fi (WPA2-PSK) supplicant and connection manager (wsupp).
@@ -48,7 +49,8 @@ Current contents of the package:
   - No audio tools of any kind.
 
 With everything in place, the system should be able to boot on minibase
-alone to the point where it's ready run X or Wayland GUI.
+alone to the point of running X or Wayland GUI, connect to network and
+start downloading packages.
 
 
 Quick start
@@ -125,8 +127,9 @@ The largest individual executable so far is wsupp, the WPA supplicant.
 Statically linked for x86_64, it's about 27 KiB in size. Realistically
 it also needs ifmon (20 KiB) to work, and the client tool wifi (12 KiB).
 
-vtmux (logind equivalent) is about 12 KiB. msh is about 16 KiB.
-cmd (interactive shell) is about 18 KiB.
+msh is about 16 KiB.  cmd (interactive shell) is about 18 KiB.
+super (pid 1 for the majority of system's uptime) is about 10 KiB.
+vtmux (logind equivalent) is about 12 KiB.
 
 Why bother making it small? Because it's a side effect of making it readable.
 The idea is that anyone could pick a tool from minibase, start reading it
@@ -135,6 +138,28 @@ of time, say hours. And if necessary, audit or debug it down to assembly level.
 A major point in achieving this is making sure there are no unnecessary
 wrappers, useless abstractions or dead code, which in turn shows in the size
 of the resulting executables.
+
+
+Contributing
+~~~~~~~~~~~~
+Do not send patches for minibase itself. Doing so will likely only slow
+the project down. If there's a bug to be fixed, or a tool that you think
+should be in minibase, open an issue. The ability to scrap and re-design
+certain tools unimpeded is much more important for the project at this
+stage than completeness.
+
+Not every tool is worth including in mini-BASE. Just like in any other
+case, it is perfectly ok to have dedicated repos and dedicated packages
+for some tools, especially if different developers are involved.
+
+The best way to actually contribute to the project is to write something
+that would fit well alongside minibase in a system. For the most parts,
+whatever it may be it likely won't even be tied to minibase and would work
+just well in runit or s6 or even systemd based installation.
+
+Area of particular interest: lightweight GUI desktop components. Something
+to run atop of X or Wayland once minibase gets you there. This includes
+both the primary desktop and things like nice GUI greeter to replace ctrlvt.
 
 
 Licensing
@@ -155,7 +180,7 @@ Credits
 Dietlibc and "Writing Small and Fast Software" by Felix von Leitner.
 https://www.fefe.de/dietlibc/diet.pdf
 
-The project was initially heavily influenced by busybox.
+The project was heavily influenced by busybox at early stages.
 Certain decision from skarnet/s6 project also played significant role.
 Syscall code (static inline functions with asm volatile blocks)
 follows musl, because musl folks got it right.
