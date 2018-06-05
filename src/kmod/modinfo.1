@@ -1,0 +1,32 @@
+.TH modinfo 1
+'''
+.SH NAME
+\fBmodinfo\fR \- display information about a kernel module
+'''
+.SH SYNOPSIS
+\fBmodinfo\fR \fImodule\fR
+'''
+.SH DESCRIPTION
+Kernel modules in Linux contain .modinfo section with a list of
+(key, value) pairs that includes module description license,
+module parameters and so on. This tools reads and displays
+the contents of that section.
+.P
+With no options, \fBmodinfo\fR displays all data from .modinfo
+except for parameters and aliases, which tend to be long and not
+particularly important for providing an overview of the module.
+'''
+.SH OPTIONS
+.IP "\fB-d\fR" 4
+Show description.
+.IP "\fB-a\fR" 4
+Show module author.
+.IP "\fB-l\fR" 4
+Show module license.
+.IP "\fB-p\fR" 4
+List module parameters.
+.IP "\fB-s\fR" 4
+List module aliases.
+'''
+.SH SEE ALSO
+\fBmodprobe\fR(1), \fBdepmod\fR(1).
