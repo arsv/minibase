@@ -4,10 +4,12 @@
 
 #include <string.h>
 #include <format.h>
+#include <printf.h>
 #include <util.h>
 #include <dirs.h>
 #include <main.h>
 
+#include "common.h"
 #include "modprobe.h"
 
 #define OPTS "ranqbpv"
@@ -26,12 +28,23 @@ ERRLIST(NEACCES NEAGAIN NEBADF NEINVAL NENFILE NENODEV NENOMEM NEPERM NENOENT
 
 int error(CTX, const char* msg, char* arg, int err)
 {
-	warn(msg, arg, err);
+	int ret = err ? err : -1;
 
-	if(ctx->opts & OPT_p)
-		return err ? err : -1;
-	else
+	if(ctx->nofail)
+		return ret;
+	if(!(ctx->opts & (OPT_q | OPT_p)))
+		warn(msg, arg, err);
+	else if(ctx->opts & OPT_v)
+		warn(msg, arg, err);
+	if(!(ctx->opts & OPT_a))
 		_exit(0xFF);
+
+	return ret;
+}
+
+char** environ(CTX)
+{
+	return ctx->envp;
 }
 
 static int got_args(CTX)
@@ -47,16 +60,300 @@ static char* shift_arg(CTX)
 	return ctx->argv[ctx->argi++];
 }
 
-static int check_strip_suffix(char* name, int nlen, char* suffix)
+static int isspace(int c)
 {
-	int slen = strlen(suffix);
+	return (c == ' ' || c == '\t');
+}
 
-	if(nlen < slen)
+static int mmap_modules_file(CTX, struct mbuf* mb, char* name)
+{
+	char* base = ctx->base;
+
+	FMTBUF(p, e, path, strlen(base) + strlen(name) + 4);
+	p = fmtstr(p, e, base);
+	p = fmtstr(p, e, "/");
+	p = fmtstr(p, e, name);
+	FMTEND(p, e);
+
+	return mmap_whole(ctx, mb, path);
+}
+
+static void prep_modules_dep(CTX)
+{
+	struct mbuf* mb = &ctx->modules_dep;
+	char* name = "modules.dep";
+	int ret;
+
+	if((ret = mmap_modules_file(ctx, mb, name)) < 0)
+		fail(NULL, name, ret);
+}
+
+static int prep_modules_alias(CTX)
+{
+	struct mbuf* mb = &ctx->modules_alias;
+	char* name = "modules.alias";
+	int ret;
+
+	if((ret = ctx->tried_modules_alias))
+		return ret;
+
+	ctx->nofail = 1;
+
+	ret = mmap_modules_file(ctx, mb, name);
+	if(!ret) ret = 1;
+
+	ctx->tried_modules_alias = ret;
+	ctx->nofail = 0;
+
+	return ret;
+}
+
+static int prep_config(CTX)
+{
+	struct mbuf* mb = &ctx->config;
+	char* name = HERE "/etc/modules";
+	int ret;
+
+	if((ret = ctx->tried_config))
+		return ret;
+
+	ctx->nofail = 1;
+
+	ret = mmap_whole(ctx, mb, name);
+	if(!ret) ret = 1;
+
+	ctx->tried_config = ret;
+	ctx->nofail = 0;
+
+	return ret;
+}
+
+/* File parsing section */
+
+typedef char* (*lnmatch)(char* ls, char* le, char* name);
+
+static int locate_line(struct mbuf* mb, struct line* ln, lnmatch lnm, char* name)
+{
+	char* bs = mb->buf;
+	char* be = bs + mb->len;
+	char *ls, *le, *p;
+
+	for(ls = bs; ls < be; ls = le + 1) {
+		le = strecbrk(ls, be, '\n');
+
+		if(!(p = lnm(ls, le, name)))
+			continue;
+
+		ln->ptr = ls;
+		ln->end = le;
+		ln->sep = p;
+
+		if(p < le && !isspace(*p))
+			p++;
+		while(p < le && isspace(*p))
+			p++;
+
+		ln->val = p;
+
 		return 0;
-	if(strncmp(name + nlen - slen, suffix, slen))
+	}
+
+	return -ENOENT;
+}
+
+/* Sometimes a module named foo-bar resides in a file named foo_bar.ko
+   and vice versa. There are no apparent rules for this, so we just
+   collate - with _ and match the names that way. */
+
+static char eq(char c)
+{
+	return (c == '_' ? '-' : c);
+}
+
+static int xstrncmp(char* a, char* b, int len)
+{
+	char* e = b + len;
+
+	while(*a && b < e && *b)
+		if(eq(*a++) != eq(*b++))
+			return -1;
+
+	if(b >= e)
+		return 0;
+	if(*a == *b)
 		return 0;
 
-	name[nlen-slen] = '\0';
+	return -1;
+}
+
+static char* match_dep(char* ls, char* le, char* name)
+{
+	int nlen = strlen(name);
+	char* p = strecbrk(ls, le, ':');
+
+	if(p >= le)
+		return NULL;
+
+	char* q = p - 1;
+
+	while(q > ls && *q != '/') q--;
+
+	if(*q == '/') q++;
+
+	if(le - q < nlen)
+		return NULL;
+
+	if(xstrncmp(q, name, nlen))
+		return NULL;
+	if(q[nlen] != '.')
+		return NULL;
+
+	return p;
+}
+
+static int query_deps(CTX, struct line* ln, char* name)
+{
+	struct mbuf* mb = &ctx->modules_dep;
+
+	prep_modules_dep(ctx);
+
+	return locate_line(mb, ln, match_dep, name);
+}
+
+static char* word(char* p, char* e, char* word)
+{
+	int len = strlen(word);
+
+	if(e - p < len)
+		return NULL;
+	if(strncmp(p, word, len))
+		return NULL;
+	if(p + len >= e)
+		return e;
+
+	p += len;
+
+	if(!isspace(*p))
+		return NULL;
+	while(p < e && isspace(*p))
+		p++;
+
+	return p;
+}
+
+static char* match_opt(char* ls, char* le, char* name)
+{
+	char* p = ls;
+	char* e = le;
+
+	if(!(p = word(p, e, "options")))
+		return NULL;
+	if(!(p = word(p, e, name)))
+		return NULL;
+
+	return p;
+}
+
+static char* match_blacklist(char* ls, char* le, char* name)
+{
+	char* p = ls;
+	char* e = le;
+
+	if(!(p = word(p, e, "blacklist")))
+		return NULL;
+	if(!(p = word(p, e, name)))
+		return NULL;
+
+	return p;
+}
+
+static int query_pars(CTX, struct line* ln, char* name)
+{
+	int ret;
+	struct mbuf* mb = &ctx->config;
+
+	if((ret = prep_config(ctx)) < 0)
+		return ret;
+
+	return locate_line(mb, ln, match_opt, name);
+}
+
+/* Note wildcard handling here is wrong, but it's enough to get kernel
+   aliases working.
+
+   pci:v000010ECd0000525Asv00001028sd000006DEbcFFsc00i00
+   pci:v000010ECd0000525Asv*       sd*       bc* sc* i*
+
+   The values being matched with * are uppercase hex while the terminals
+   are lowercase letters, so we can just skip until the next non-* character
+   from the pattern. */
+
+static char* match_alias(char* ls, char* le, char* name)
+{
+	char* p = ls;
+	char* e = le;
+	char* n = name;
+
+	if(!(p = word(p, e, "alias")))
+		return NULL;
+
+	while(*n && p < e) {
+		if(isspace(*p)) {
+			break;
+		} else if(*p == '*') {
+			p++;
+			while(*n && *n != *p)
+				n++;
+		} else if(*p != *n) {
+			return NULL;
+		} else {
+			p++;
+			n++;
+		};
+	}
+
+	if(p < e && *p == '*')
+		p++; /* skip trailing * matching nothing */
+	if(*n || p >= e || !isspace(*p))
+		return NULL;
+	while(p < e && isspace(*p))
+		p++;
+
+	return p;
+}
+
+static int query_alias(CTX, struct line* ln, char* name)
+{
+	struct mbuf* ma = &ctx->modules_alias;
+	struct mbuf* cf = &ctx->config;
+	int ret;
+
+	prep_config(ctx);
+
+	if((ret = locate_line(cf, ln, match_alias, name)) >= 0)
+		return ret;
+
+	if((ret = prep_modules_alias(ctx)) < 0)
+		return ret;
+
+	return locate_line(ma, ln, match_alias, name);
+}
+
+static int blacklisted(CTX, char* name)
+{
+	struct mbuf* mb = &ctx->config;
+	struct line ln;
+
+	if(!(ctx->opts & (OPT_q | OPT_p)))
+		return 0;
+
+	prep_config(ctx);
+
+	if(locate_line(mb, &ln, match_blacklist, name) < 0)
+		return 0;
+
+	error(ctx, "blacklisted module", name, 0);
+
 	return 1;
 }
 
@@ -90,131 +387,71 @@ static void report_insmod(CTX, char* path, char* pars)
 	writeall(STDOUT, cmd, p - cmd);
 }
 
-static int load_module(CTX, struct mbuf* mb, char* path, char* base, int blen)
+static void remove_named(CTX, char* name)
 {
-	if(check_strip_suffix(base, blen, ".ko"))
-		return mmap_whole(ctx, mb, path, NEWMAP);
-	if(check_strip_suffix(base, blen, ".ko.lz"))
-		return lunzip(ctx, mb, path);
-	if(check_strip_suffix(base, blen, ".ko.gz"))
-		return decompress(ctx, mb, path, "/bin/zcat");
-	if(check_strip_suffix(base, blen, ".ko.xz"))
-		return decompress(ctx, mb, path, "/bin/xzcat");
-
-	return error(ctx, "unexpected module extension:", base, 0);
-}
-
-static void cut_suffix(char* name)
-{
-	char* p = name;
-
-	while(*p && *p != '.') p++;
-
-	*p = '\0';
-}
-
-void insmod(CTX, char* relpath, char* pars)
-{
-	char* release = ctx->release;
-	char* base = basename(relpath);
-	int blen = strlen(base);
-	char name[blen+1];
-
-	memcpy(name, base, blen + 1);
-	cut_suffix(name);
-
-	FMTBUF(p, e, path, 40 + strlen(release) + strlen(relpath));
-	p = fmtstr(p, e, "/lib/modules/");
-	p = fmtstr(p, e, release);
-	p = fmtstr(p, e, "/");
-	p = fmtstr(p, e, relpath);
-	FMTEND(p, e);
-
-	if(!pars)
-		pars = query_pars(ctx, name);
-	if(!pars)
-		pars = "";
-
-	if(ctx->opts & OPT_n)
-		return report_insmod(ctx, path, pars);
-
-	struct mbuf mb;
+	int opts = ctx->opts;
 	int ret;
 
-	memzero(&mb, sizeof(mb));
+	if(opts & (OPT_n | OPT_v)) {
+		FMTBUF(p, e, line, strlen(name) + 20);
+		p = fmtstr(p, e, "rmmod ");
+		p = fmtstr(p, e, name);
+		FMTENL(p, e);
 
-	if(load_module(ctx, &mb, path, base, blen) < 0)
-		return;
+		writeall(STDOUT, line, p - line);
+	}
 
-	if((ret = sys_init_module(mb.buf, mb.len, pars)) >= 0)
-		;
-	else if(ret == -EEXIST)
-		;
-	else fail("init-module", name, ret);
-
-	unmap_buf(&mb);
-
-	if(ctx->opts & OPT_v)
-		report_insmod(ctx, path, pars);
-}
-
-static void report_rmmod(char* name)
-{
-	FMTBUF(p, e, line, strlen(name) + 20);
-	p = fmtstr(p, e, "rmmod ");
-	p = fmtstr(p, e, name);
-	FMTENL(p, e);
-
-	writeall(STDOUT, line, p - line);
-}
-
-static void remove_dep(CTX, char* path)
-{
-	char* base = basename(path);
-	int blen = strlen(base);
-
-	char buf[blen+1];
-	memcpy(buf, base, blen+1);
-
-	char* p = buf;
-	while(*p && *p != '.') p++;
-	*p = '\0';
-
-	if(ctx->opts & (OPT_n | OPT_v))
-		report_rmmod(buf);
 	if(ctx->opts & OPT_n)
 		return;
 
-	sys_delete_module(buf, 0);
+	if((ret = sys_delete_module(name, 0)) < 0)
+		fail(NULL, name, ret);
 }
 
-static void try_remove_all(CTX, char** deps)
+static void remove_relative(CTX, char* ptr, char* end)
 {
-	char** p;
+	char* base = ptr;
+	char* p;
 
-	for(p = deps + 1; *p; p++)
-		remove_dep(ctx, *p);
+	for(p = ptr; p < end; p++)
+		if(*p == '/')
+			base = p + 1;
+	for(p = base; p < end; p++)
+		if(*p == '.')
+			break;
+
+	int len = p - base;
+
+	if(len <= 0) return;
+
+	char name[len+1];
+
+	memcpy(name, base, len);
+	name[len] = '\0';
+
+	return remove_named(ctx, name);
 }
 
 static void remove(CTX, char* name)
 {
-	char **deps;
-	int ret;
+	struct line ln;
 
-	if(!(deps = query_deps(ctx, name)))
-		fail("cannot remove built-in", name, 0);
+	if(query_deps(ctx, &ln, name) < 0)
+		goto mod;
 
-	try_remove_all(ctx, deps);
+	char* p = ln.val;
+	char* e = ln.end;
+	char* q;
 
-	if(ctx->opts & (OPT_n | OPT_v))
-		report_rmmod(name);
+	while(p < e) {
+		while(p < e && isspace(*p)) p++;
+		q = p;
+		while(p < e && !isspace(*p)) p++;
 
-	if(ctx->opts & OPT_n)
-		;
-	else if((ret = sys_delete_module(name, 0)) < 0)
-		fail(NULL, name, ret);
-
-	flush_heap(ctx);
+		remove_relative(ctx, q, p);
+	}
+mod:
+	remove_named(ctx, name);
 }
 
 /* For the listed dependencies,
@@ -226,51 +463,138 @@ static void remove(CTX, char* name)
    whether it's true though. If it's not, then it's going to be multi
    pass insmod which I would rather avoid. */
 
-static void insert_(CTX, char* name, char* pars)
+static int insert_absolute(CTX, char* name, char* path, char* pars)
 {
-	char** deps;
-	char* alias;
+	struct mbuf mb;
+	int ret;
 
-	if((alias = query_alias(ctx, name)))
-		name = alias;
+	if(ctx->opts & (OPT_v | OPT_n))
+		report_insmod(ctx, path, pars);
+	if(ctx->opts & OPT_n)
+		return 0;
 
-	if((ctx->opts & OPT_b) && is_blacklisted(ctx, name)) {
-		if(!(ctx->opts & OPT_q))
-			warn("blacklisted:", name, 0);
-		return;
+	memzero(&mb, sizeof(mb));
+
+	if((ret = load_module(ctx, &mb, path)) < 0)
+		return ret;
+
+	if((ret = sys_init_module(mb.buf, mb.len, pars)) >= 0)
+		;
+	else if(ret == -EEXIST)
+		;
+	else return error(ctx, "init-module", name, ret);
+
+	munmap_buf(&mb);
+
+	return 0;
+}
+
+static int insert_relative(CTX, char* name, char* rptr, char* rend, char* pars)
+{
+	struct line ln;
+	char* base = ctx->base;
+
+	if(pars != NULL) {
+		/* use them as is */
+	} else if(query_pars(ctx, &ln, name) >= 0) {
+		long len = ln.end - ln.val;
+		char parbuf[len];
+		memcpy(parbuf, ln.sep, len);
+		parbuf[len] = '\0';
+		pars = parbuf;
+	} else {
+		/* the kernel requires non-NULL pars */
+		pars = "";
 	}
+
+	long rlen = rend - rptr;
+
+	if(rlen < 0) return -EINVAL;
+
+	FMTBUF(p, e, path, 4 + strlen(base) + rlen);
+	p = fmtstr(p, e, ctx->base);
+	p = fmtstr(p, e, "/");
+	p = fmtstrn(p, e, rptr, rlen);
+	FMTEND(p, e);
+
+	return insert_absolute(ctx, name, path, pars);
+}
+
+static int insert_one_dep(CTX, char* ptr, char* end)
+{
+	char* base = ptr;
+	char* p;
+
+	for(p = ptr; p < end; p++)
+		if(*p == '/')
+			base = p + 1;
+	for(p = base; p < end; p++)
+		if(*p == '.')
+			break;
+
+	int len = p - base;
+	char name[len+1];
+
+	memcpy(name, base, len);
+	name[len] = '\0';
+
+	return insert_relative(ctx, name, ptr, end, NULL);
+}
+
+static int insert_dependencies(CTX, char* deps, char* dend)
+{
+	int ret;
+	char* p = dend;
+	char* q;
+
+	while(p > deps) {
+		while(p > deps && isspace(*(p-1)))
+			p--;
+		if(p == deps)
+			break;
+
+		q = p--;
+		while(q > deps && !isspace(*(p-1)))
+			p--;
+
+		if((ret = insert_one_dep(ctx, p, q)) < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void insert(CTX, char* name, char* pars)
+{
+	struct line ln;
 
 	ctx->nmatching++;
 
-	if(!(deps = query_deps(ctx, name))) {
-		if(!(ctx->opts & OPT_q))
-			error(ctx, NULL, name, -ESRCH);
+	if(query_alias(ctx, &ln, name) >= 0) {
+		long len = ln.end - ln.val;
+		char alias[len+1];
+		memcpy(alias, ln.sep, len);
+		alias[len] = '\0';
+		name = alias;
+	}
+
+	if(blacklisted(ctx, name))
+		return;
+
+	if(query_deps(ctx, &ln, name) < 0) {
+		error(ctx, "unknown module", name, 0);
 		return;
 	}
 
-	char **p, **e;
-
-	for(e = deps; *e; e++)
-		;
-	if(e == deps)
+	if(insert_dependencies(ctx, ln.val, ln.end) < 0)
+		return;
+	if(insert_relative(ctx, name, ln.ptr, ln.sep, pars) < 0)
 		return;
 
-	for(p = e - 1; p >= deps + 1; p--)
-		insmod(ctx, *p, NULL);
-
-	insmod(ctx, deps[0], pars);
-
 	ctx->ninserted++;
-
-	flush_heap(ctx);
 }
 
-static void insert(CTX, char* name)
-{
-	insert_(ctx, name, NULL);
-}
-
-static void insert_single(CTX)
+static void insert_one(CTX)
 {
 	char* name = shift_arg(ctx);
 	char* pars = shift_arg(ctx);
@@ -280,29 +604,53 @@ static void insert_single(CTX)
 	if(got_args(ctx))
 		fail("too many arguments", NULL, 0);
 
-	insert_(ctx, name, pars);
+	return insert(ctx, name, pars);
 }
 
-static void from_stdin(CTX, void (*call)(CTX, char* name))
+static void insert_all(CTX)
+{
+	char* name;
+
+	if(!got_args(ctx))
+		fail("too few arguments", NULL, 0);
+
+	while((name = shift_arg(ctx)))
+		insert(ctx, name, NULL);
+}
+
+static void remove_all(CTX)
+{
+	char* name;
+
+	if(!got_args(ctx))
+		fail("too few arguments", NULL, 0);
+
+	while((name = shift_arg(ctx)))
+		remove(ctx, name);
+}
+
+static void read_stdin(CTX)
 {
 	char buf[1024];
 	int len = sizeof(buf);
 	int off = 0;
 	int rd;
 
+	if(ctx->opts & (OPT_r | OPT_a))
+		fail("cannot use -r or -a with -p", NULL, 0);
+
+	ctx->opts |= OPT_a;
+
 	while((rd = sys_read(STDIN, buf + off, len - off)) > 0) {
 		char* e = buf + off + rd;
 		char* p = buf;
+		char* q;
 
 		while(p < e) {
-			char* q = strecbrk(p, e, '\n');
-
-			if(q >= e) break;
-
+			if((q = strecbrk(p, e, '\n')) >= e)
+				break;
 			*q = '\0';
-
-			call(ctx, p);
-
+			insert(ctx, p, NULL);
 			p = q + 1;
 		}
 
@@ -313,53 +661,55 @@ static void from_stdin(CTX, void (*call)(CTX, char* name))
 	}
 }
 
-static void forall_args(CTX, void (*call)(CTX, char* name))
+static void prep_base_path(char* buf, int len)
 {
-	char* name;
+	struct utsname ut;
+	int ret;
 
-	if(!got_args(ctx))
-		fail("module name required", NULL, 0);
+	if((ret = sys_uname(&ut)) < 0)
+		fail("uname", NULL, ret);
 
-	while((name = shift_arg(ctx)))
-		call(ctx, name);
+	char* p = buf;
+	char* e = buf + len - 1;
+
+	p = fmtstr(p, e, "/lib/modules/");
+	p = fmtstr(p, e, ut.release);
+	*p = '\0';
 }
 
-static int parse_args(CTX, int argc, char** argv, char** envp)
+int main(int argc, char** argv)
 {
+	struct top context, *ctx = &context;
 	int i = 1, opts = 0;
 
 	memzero(ctx, sizeof(*ctx));
 
 	ctx->argc = argc;
 	ctx->argv = argv;
-	ctx->envp = envp;
+	ctx->envp = argv + argc + 1;
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
-	if(i < argc && !strcmp(argv[i], "--"))
-		i++;
-
 	ctx->opts = opts;
 	ctx->argi = i;
 
-	return opts;
-}
-
-int main(int argc, char** argv)
-{
-	char** envp = argv + argc + 1;
-	struct top context, *ctx = &context;
-	int opts = parse_args(ctx, argc, argv, envp);
+	if(opts & OPT_b) {
+		ctx->base = shift_arg(ctx);
+	} else {
+		char basebuf[100];
+		prep_base_path(basebuf, sizeof(basebuf));
+		ctx->base = basebuf;
+	}
 
 	if(opts & OPT_p)
-		from_stdin(ctx, insert);
+		read_stdin(ctx);
 	else if(opts & OPT_r)
-		forall_args(ctx, remove);
+		remove_all(ctx);
 	else if(opts & OPT_a)
-		forall_args(ctx, insert);
+		insert_all(ctx);
 	else
-		insert_single(ctx);
+		insert_one(ctx);
 
 	if(ctx->nmatching && !ctx->ninserted)
 		return 0xFF;

@@ -1,4 +1,4 @@
-.TH modprobe 8
+.TH modprobe 1
 '''
 .SH NAME
 \fBmodprobe\fR \- load or unload kernel modules
@@ -10,21 +10,24 @@ Load single module, optionally overriding its configured options.
 Load specified modules with default options.
 .IP "\fBmodprobe\fR \fB-r\fR \fImodule\fR \fImodule\fR ..." 4
 Unload specified modules and if possible their dependencies.
+.IP "\fBmodprobe\fR \fB-b\fR \fIbasedir\fR ..." 4
+Use specified base directory instead of /lib/modules/$RELEASE.
 '''
 .SH OPTIONS
 .IP "\fB-a\fR" 4
 Treat all arguments as module names.
 .IP "\fB-b\fR" 4
-Apply blacklist; do nothing if requested \fImodule\fR happens
-to be blacklisted.
+Use specified base directory.
 .IP "\fB-n\fR" 4
 Dry run. Show actions to be performed, but do not perform them.
 .IP "\fB-r\fR" 4
 Remove specified modules and their dependencies from the kernel.
 .IP "\fB-q\fR" 4
-Suppress some error messages.
+Suppress some error messages and skip blacklisted modules.
 .IP "\fB-p\fR" 4
 Pipe mode; read module names from stdin.
+.IP "\fB-v\fR" 4
+Show actions being performed and also perform them.
 '''
 .SH FILES
 .IP "/lib/modules/$RELEASE" 4
