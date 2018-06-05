@@ -8,7 +8,6 @@
 #include <util.h>
 #include <dirs.h>
 
-#include "common.h"
 #include "modprobe.h"
 
 void prep_release(CTX)
@@ -57,7 +56,7 @@ void prep_modules_alias(CTX)
 
 void prep_config(CTX)
 {
-	mmap_whole(ctx, &ctx->config, CONFIG, FAILOK);
+	mmap_whole(ctx, &ctx->config, HERE "/etc/modules", FAILOK);
 }
 
 static int isspace(int c)
