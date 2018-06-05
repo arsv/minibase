@@ -1,0 +1,86 @@
+.TH depmod 1
+'''
+.SH NAME
+\fBdepmod\fR \- update kernel modules dependency index
+'''
+.SH SYNOPSIS
+\fBdepmod\fR [\fI/path/to/lib/modules/$RELEASE\fR]
+'''
+.SH DESCRIPTION
+Each kernel module (an ELF file) has a .modinfo section that may
+list basenames of its direct dependencies:
+.P
+.nf
+    /lib/modules/4.15.0/kernel/blah.ko
+      ...
+    /lib/modules/4.15.0/kernel/blah/bar.ko
+      ...
+      depends=foo,blah
+      ...
+    /lib/modules/4.15.0/kernel/blah/foo.ko
+      ...
+      depends=blah
+      ...
+.fi
+.P
+This tool builds an index file, /lib/modules/4.15.0/modules.dep in this
+case, that lists relative paths for each module found along with relative
+paths of all its dependencies, both direct and transitive.
+.P
+.nf
+    kernel/blah-core.ko:
+    kernel/blah/bar.ko: kernel/blah/foo.ko kernel/blah.ko
+    kernel/blah/foo.ko: kernel/blah-core.ko
+.fi
+.P
+With this index, \fBmodprobe\fR only needs to locate a line corresponding
+to bar.ko instead of jumping across the file trying to collect all
+the dependencies to load them. Transitive relations between modules only
+get resolved once per build in \fBdepmod\fR, not every time \fBmodprobe\fR
+is run.
+'''
+.SH USAGE
+Run \fBdepmod\fR without arguments to update modules.dep for current kernel
+whenever modules get installed or removed. Keep in mind that \fBmodprobe\fR
+relies on modules.dep to find the files to load, it never scans directories
+and will not pick modules not listed in modules.dep.
+.P
+To update modules.dep in a location not matching the standard one for the
+current kernel, pass that location explicitly. This may be necessary when
+building initrd or rootfs images.
+'''
+.SH OPTIONS
+.IP "\fB-v\fR" 4
+Verbose mode; print relative paths of the modules being read.
+'''
+.SH NOTES
+This version of \fBdepmod\fR natively supports lzip-compressed modules
+(.ko.lz) and can handle gzip or xz compresses modules (.ko.gz, .ko.xz)
+if \fBzcat\fR or \fBxzcat\fR respectively are available in the system.
+.P
+To read .modinfo sections, \fBdepmod\fR will decompress each module it finds.
+This may take a long time with large and/or numerous modules. Consider using
+\fB-v\fR to monitor progress if necessary.
+.P
+Long time and many kernel versions ago, \fBdepmod\fR apparently worked
+by listing symbols needed and provided by each module, and resolving them
+in a way similar to how linkers do it. This is no longer done, each modules
+must list the names of the modules it depends on.
+.P
+To simplify implementation, \fBdepmod\fR assumes that the module name
+(as reference to in depends= entries) matches the stem of its file name,
+i.e. that foo.ko.gz satisfies dependency on "foo". When comparing module names,
+"_" is deemed equal to "-", i.e. foo_bar.ko could be used to satisfy dependency
+on "foo-bar". All modules have a name= entry in .modinfo that perhaps should be
+preferred to file name stem, but in practice a mismatch between name= and the
+file name stem beyond dash-underscore equivalence would break \fBmodprobe\fR
+in a way that cannot be fixed without changing the format of modules.dep.
+.P
+Newer version of mainline \fBkmod\fR package generate and use binary
+modules.dep.bin (and related modules.*.bin files), however the format
+is considered private to \fBkmod\fR.
+This tool and its companion \fBmodprobe\fR, \fBmodinfo\fR only use plain
+text indexes.
+'''
+.SH SEE ALSO
+\fBmodprobe\fR(1), \fBmodinfo\fR(1), \fBlsmod\fR(1).
