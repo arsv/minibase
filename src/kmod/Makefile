@@ -3,7 +3,7 @@ include ../rules.mk
 $(eval $(call command,depmod,1))
 $(eval $(call command,modinfo,1))
 $(eval $(call command,modprobe,8))
-$(eval $(call command,lsmod))
+$(eval $(call command,lsmod,1))
 
 modinfo: modinfo.o common_map.o common_zip.o common_elf.o
 

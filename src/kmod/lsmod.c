@@ -16,8 +16,14 @@ struct strptr {
 };
 
 struct lineidx {
+	int num;
+	char** idx;
+	char* end;
+};
+
+struct query {
 	int n;
-	char** s;
+	char** a;
 };
 
 char outbuf[PAGE];
@@ -128,8 +134,27 @@ static void index_lines(struct lineidx* lx, struct strptr* mods)
 
 	qsort(idx, n, sizeof(char*), cmp);
 
-	lx->s = idx;
-	lx->n = n;
+	lx->idx = idx;
+	lx->num = n;
+	lx->end = end;
+}
+
+static int match_line(struct strptr* sp, struct query* mq)
+{
+	char* str = sp->ptr;
+	uint len = sp->end - sp->ptr;
+	int i, n = mq->n;
+
+	for(i = 0; i < n; i++) {
+		char* arg = mq->a[i];
+
+		if(len < strlen(arg))
+			return 0;
+		if(!strnstr(str, arg, len))
+			return 0;;
+	}
+
+	return 1;
 }
 
 /* A line from /proc/modules looks like this:
@@ -182,29 +207,24 @@ static void outstr(struct bufout* bo, struct strptr* str)
 	bufout(bo, str->ptr, strplen(str));
 }
 
-static void list_mods(struct strptr* mods)
+static void list_mods(struct bufout* bo, struct lineidx* lx, struct query* mq)
 {
-	struct lineidx lx;
-	char* end = mods->end;
-	struct bufout bo = {
-		.fd = STDOUT,
-		.buf = outbuf,
-		.ptr = 0,
-		.len = sizeof(outbuf)
-	};
+	char* end = lx->end;
+	int num = lx->num;
+	char** idx = lx->idx;
 
-	index_lines(&lx, mods);
-
-	for(int i = 0; i < lx.n; i++) {
-		char* ls = lx.s[i];
+	for(int i = 0; i < num; i++) {
+		char* ls = idx[i];
 		char* le = strecbrk(ls, end, '\0');
 		struct strptr parts[5];
 		int n;
 
 		if((n = split(ls, le, parts, 5)) < 4)
 			continue;
+		if(!match_line(&parts[0], mq))
+			continue;
 
-		outstr(&bo, &parts[0]);
+		outstr(bo, &parts[0]);
 
 		if(strpeq(&parts[2], "0"))
 			goto nl;
@@ -213,23 +233,43 @@ static void list_mods(struct strptr* mods)
 		if(strplen(&parts[3]) <= 1)
 			goto nl;
 
-		bufout(&bo, " (", 2);
+		bufout(bo, " (", 2);
 		parts[3].end--; /* skip trailing comma */
-		outstr(&bo, &parts[3]);
-		bufout(&bo, ")", 1);
+		outstr(bo, &parts[3]);
+		bufout(bo, ")", 1);
 	nl:
-		bufout(&bo, "\n", 1);
+		bufout(bo, "\n", 1);
 	}
-
-	bufoutflush(&bo);
 }
 
-int main(noargs)
+int main(int argc, char** argv)
 {
 	struct strptr modlist;
+	struct lineidx lx;
+	int i = 1;
+
+	if(i < argc && argv[i][0] == '-') {
+		if(argv[i][1])
+			fail("unsupported options", NULL, 0);
+		else i++;
+	}
+
+	struct bufout bo = {
+		.fd = STDOUT,
+		.buf = outbuf,
+		.ptr = 0,
+		.len = sizeof(outbuf)
+	};
+
+	struct query mq = {
+		.n = argc - i,
+		.a = argv + i
+	};
 
 	read_whole(&modlist, "/proc/modules");
-	list_mods(&modlist);
+	index_lines(&lx, &modlist);
+	list_mods(&bo, &lx, &mq);
+	bufoutflush(&bo);
 
 	return 0;
 }
