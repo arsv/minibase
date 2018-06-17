@@ -120,7 +120,7 @@ Example: `ls $dir` will always run ls with a single argument, even if
 $dir is an empty string, or a string with spaces.
 '''
 .SS Capabilities, security bits and uid changes
-To run a child with non-priviledged uid but with some capabilities set,
+To run a process with non-priviledged uid but with some capabilities set,
 use the following sequence:
 .P
 .nf
@@ -130,8 +130,8 @@ use the following sequence:
 	\fBexec\fR \fIcommand\fR ...
 .fi
 .P
-Capability-aware commands normally should only need \fB-i\fR
-or \fB-ib\fR, but may require \fB-a\fR. Refer to \fBcapabilities\fR(7).
+Capability-aware commands may need \fB-i\fR or \fB-ib\fR, possibly with
+\fB-a\fR. Refer to \fBcapabilities\fR(7).
 '''
 .SH SEE ALSO
 \fBsh\fR(1), \fBexecvp\fR(3)
