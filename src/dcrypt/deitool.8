@@ -4,7 +4,7 @@
 \fBdeitool\fR \- disk image encryption tool
 '''
 .SH SYNOPSIS
-\fBdeitool\fR \fR[\fB-dp\fR] \fIsource\fR \fIoutput\fR \fIkeyfile\fR [\fIkidx\fR]
+\fBdeitool\fR \fR[\fB-ds\fR] \fIsource\fR \fIoutput\fR \fIkeyfile\fR [\fIkidx\fR]
 '''
 .SH DESCRIPTION
 This tool applies the same algorithm (XTS-AES-128) as \fBpassblk\fR(8)
@@ -16,8 +16,8 @@ system.
 .SH OPTIONS
 .IP "\fB-d\fR" 4
 Decrypt the image instead of encrypting it.
-.IP "\fB-p\fR" 4
-Run several worker processes in parallel.
+.IP "\fB-s\fR" 4
+Single-core processing (default it to use all available CPU cores).
 '''
 .SH SEE ALSO
 \fBdektool\fR(8)
