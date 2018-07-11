@@ -1,9 +1,8 @@
 Booting the system with minibase
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Happy path only. Generic boot sequence for PC-like systems that may
-need to load modules, wait for devices and deal with non-persistent
-device names in order to locate system partitions.
-See Embedded section below for non-initrd boot.
+Generic boot sequence for PC-like systems that may need to load modules,
+wait for devices and deal with non-persistent device names in order to locate
+system partitions. See Embedded section below for non-initrd boot.
 
 * The kernel loads initrd, starts /init (msh script)
 * init starts udevmod in background (using `runwith`) to load modules
@@ -48,8 +47,9 @@ See Embedded section below for non-initrd boot.
 
 User session startup sequence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-* vtmux receives a command to start a new session
-* vtmux spawns /etc/vtmux/$name with all fds directed to /dev/ttyN
+* vtmux receives command to start a new session
+* vtmux spawns /etc/vtmux/$name with fds 0-2 directed to /dev/ttyN
+* $name gets an open control channel to vtmux on fd 3
 * $name is a host-specific msh script
 * $name changes its credentials (uid, gid, groups, maybe also caps)
 * $name execs into appropriate interactive shell (xinit, weston, bash etc)
@@ -57,7 +57,9 @@ User session startup sequence
 
 The /etc/vtmux/$name script itself is a part of host configuration,
 replacing the rightmost fields in conventional /etc/passwd and
-the 3rd field in /etc/group.
+the 3rd field in /etc/group. The scripts passes fd 3 to the spawned
+application so that the latter would be able to access KMS and input
+devices (see ./vtmux.txt).
 
 
 Service startup sequence
@@ -95,9 +97,6 @@ Initially the path that super exec()ed into was hard-coded. With `onexit`
 implemented in msh, the hard-coded path was replaced with an explicit argument
 for `super`. This allows somewhat unusual directory layouts like
 /sbin/system/reboot without forcing them onto all minibase users.
-
-Having the path to reboot dangling in ps output isn't pretty, so measures were
-taken to erase it from argv in `super`.
 
 
 Embedded systems

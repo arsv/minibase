@@ -17,10 +17,10 @@ user session management infrastructure.
 
 Test-running vtmux is only possible on a dedicated box with some
 sort of remote command access (ssh etc). Make sure no other process
-(logind) is trying to manage VTs. There are sample script in ./etc,
-adjust them to match the host configuration. Upon startup, current
-version of vtmux will open /dev/tty0 so it's ok to run it directly
-from the ssh session. vtmux can only run as root.
+(logind) is trying to manage VTs. There are sample scripts in ./etc,
+adjust them to match the host configuration. Current version of vtmux
+should run just fine right out of the ssh session.
+Naturally vtmux can only run as root.
 
 Use ./unlock to re-enable kernel controlled VT switching in case
 vtmux stops working and leaves VT switching locked.
