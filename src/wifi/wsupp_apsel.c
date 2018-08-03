@@ -1,4 +1,5 @@
 #include <string.h>
+#include <printf.h>
 
 #include "wsupp.h"
 
@@ -388,16 +389,10 @@ void handle_disconnect(void)
 {
 	clr_timer();
 
-	if(opermode == OP_EXITREQ)
-		opermode = OP_EXIT;
-	if(opermode == OP_EXIT)
-		return;
-
 	report_disconnect();
 
 	if(opermode == OP_RESCAN)
 		opermode = OP_ACTIVE;
-
 	if(opermode == OP_ACTIVE) {
 		if(ap.success)
 			rescan_current_ap();
@@ -408,6 +403,18 @@ void handle_disconnect(void)
 		clear_ap_ssid();
 		report_no_connect();
 	}
+
+	if(opermode == OP_IDLE)
+		reset_device();
+}
+
+/* Netlink reported ENETDOWN and we timed out waiting for rfkill. */
+
+void handle_netdown(void)
+{
+	opermode = OP_IDLE;
+
+	handle_disconnect();
 }
 
 /* RFkill code reports the interface to be back online.
@@ -465,7 +472,7 @@ static void snap_to_neutral(void)
 {
 	clear_ap_bssid();
 	clear_ap_ssid();
-	opermode = OP_NEUTRAL;
+	opermode = OP_MONITOR;
 }
 
 static void idle_then_rescan(void)
@@ -475,7 +482,7 @@ static void idle_then_rescan(void)
 
 void reassess_wifi_situation(void)
 {
-	if(opermode == OP_NEUTRAL)
+	if(opermode == OP_MONITOR)
 		return;
 	if(authstate != AS_IDLE)
 		return;

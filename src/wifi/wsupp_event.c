@@ -1,9 +1,11 @@
 #include <bits/socket/unix.h>
 #include <sys/socket.h>
+#include <sys/sched.h>
 #include <sys/file.h>
+#include <sys/fprop.h>
+#include <sys/proc.h>
+#include <sys/signal.h>
 
-#include <nlusctl.h>
-#include <printf.h>
 #include <util.h>
 
 #include "common.h"
@@ -22,43 +24,52 @@
    the keys will be installed at all (we may be running unencrypted link).
 
    So the workaround here is to suppress normal dhcp logic for wifi links,
-   and let EAPOL code notify ifmon when it's ok to start dhcp.
+   and let EAPOL code notify ifmon when it's ok to start dhcp. */
 
-   Socket communication is done directly instead of spawning `ifctl`,
-   it's simple enough to allow this. Failures are not checked or handled
-   in any way; consider e.g. ipv6-only network. */
+int running;
+
+static void stop_running(int pid)
+{
+	int ret, status;
+	struct itimerval old, itv = {
+		.interval = { 0, 0 },
+		.value = { 1, 0 }
+	};
+
+	sys_kill(pid, SIGTERM);
+
+	sys_setitimer(0, &itv, &old);
+	ret = sys_waitpid(pid, &status, 0);
+	sys_setitimer(0, &old, NULL);
+
+	if(ret < 0)
+		warn("wait", NULL, ret);
+
+	running = 0;
+}
 
 void trigger_dhcp(void)
 {
-	int fd, ret;
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = IFCTL
-	};
+	char* script = HERE "/etc/netif/wpa";
+	int pid = running;
 
-	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
-		warn("socket", "AF_UNIX", fd);
+	if(pid > 0)
+		stop_running(pid);
+
+	if(sys_access(script, X_OK) < 0)
 		return;
-	} if((ret = sys_connect(fd, &addr, sizeof(addr))) < 0) {
-		warn("connect", addr.path, ret);
-		goto out;
+
+	if((pid = sys_fork()) < 0) {
+		warn("fork", NULL, pid);
+		return;
 	}
 
-	char buf[64];
-	struct ucbuf uc = {
-		.brk = buf,
-		.ptr = buf,
-		.end = buf + sizeof(buf)
-	};
+	if(pid == 0) {
+		char* args[] = { script, ifname, NULL };
+		int ret = sys_execve(*args, args, environ);
+		warn("exec", script, ret);
+		_exit(-1);
+	}
 
-	uc_put_hdr(&uc, CMD_IF_XDHCP);
-	uc_put_int(&uc, ATTR_IFI, ifindex);
-	uc_put_end(&uc);
-
-	int len = uc.ptr - uc.brk;
-
-	if((ret = writeall(fd, buf, len)) < 0)
-		warn("write", addr.path, ret);
-out:
-	sys_close(fd);
+	running = pid;
 }

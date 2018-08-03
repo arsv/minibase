@@ -6,6 +6,7 @@
 #include <netlink/genl/nl80211.h>
 
 #include <string.h>
+#include <printf.h>
 #include <util.h>
 
 #include "wsupp.h"
@@ -13,9 +14,9 @@
 /* Netlink is used to control the card: run scans, initiate connections
    and so on. Netlink code is event-driven, and comprises of two state
    machines, one for scanning and one for connection. The two are effectively
-   independent, as cards often can scan and connect at the same time.
+   independent, as wifi cards can often scan and connect at the same time.
 
-   Most nl commands have delayed effects, and any (non-scan) errors are
+   Most NL commands have delayed effects, and any (non-scan) errors are
    handled exactly the same way, so we do not request ACKs.
    Normal command sequences look like this:
 
@@ -75,7 +76,8 @@ struct ap ap;
 
 void quit(const char* msg, char* arg, int err)
 {
-	warn(msg, arg, err);
+	if(msg || arg || err)
+		warn(msg, arg, err);
 
 	if(authstate == AS_IDLE)
 		goto out;
@@ -86,6 +88,20 @@ void quit(const char* msg, char* arg, int err)
 out:
 	unlink_control();
 	_exit(0xFF);
+}
+
+/* Subscribing to nl80211 only becomes possible after nl80211 kernel
+   module gets loaded and initialized, which may happen after wsupp 
+   starts. To mend this, netlink socket is opened and initialized
+   as a part of device setup. */
+
+static int nle(const char* msg, const char* arg, int err)
+{
+	sys_close(nl.fd);
+	memzero(&nl, sizeof(nl));
+	warn(msg, arg, err);
+	pollset = 0;
+	return err;
 }
 
 /* Socket-level errors on netlink socket should not happen. */
@@ -114,6 +130,60 @@ static void reset_scan_state(void)
 	scanreq = 0;
 }
 
+int open_netlink(void)
+{
+	char* family = "nl80211";
+	struct nlpair grps[] = {
+		{ -1, "mlme" },
+		{ -1, "scan" },
+		{  0, NULL } };
+	int ret;
+
+	if(netlink >= 0)
+		return 0;
+
+	nl_init(&nl);
+	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
+	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
+
+	if((ret = nl_connect(&nl, NETLINK_GENERIC, 0)) < 0) {
+		warn("nl-connect", NULL, ret);
+		return ret;
+	}
+
+	if((ret = query_family_grps(&nl, family, grps)) < 0)
+		return nle("NL family", family, ret);
+	if(grps[0].id < 0)
+		return nle("NL group nl80211", grps[0].name, -ENOENT);
+	if(grps[1].id < 0)
+		return nle("NL group nl80211", grps[1].name, -ENOENT);
+
+	nl80211 = ret;
+
+	if((ret = nl_subscribe(&nl, grps[0].id)) < 0)
+		return nle("NL subscribe nl80211", grps[0].name, ret);
+	if((ret = nl_subscribe(&nl, grps[1].id)) < 0)
+		return nle("NL subscribe nl80211", grps[1].name, ret);
+
+	netlink = nl.fd;
+	pollset = 0;
+
+	return 0;
+}
+
+void close_netlink(void)
+{
+	if(netlink < 0)
+		return;
+
+	reset_scan_state();
+
+	sys_close(netlink);
+	memzero(&nl, sizeof(nl));
+	netlink = -1;
+	pollset = 0;
+}
+
 /* The weird logic below handles the cases when a re-scan or a routine
    scheduled scan coincides with a user-requested full range scan. */
 
@@ -121,6 +191,9 @@ int start_scan(int freq)
 {
 	struct nlattr* at;
 	int ret;
+
+	if(netlink <= 0)
+		return -ENODEV;
 
 	if(scanstate == SS_IDLE) {
 		/* no ongoing scan, great */
@@ -293,12 +366,18 @@ static void trigger_authentication(void)
 
 int start_connection(void)
 {
+	int ret;
+
+	if(netlink <= 0)
+		return -ENODEV;
+
 	if(authstate != AS_IDLE)
 		return -EBUSY;
 	if(scanstate != SS_IDLE)
 		return -EBUSY;
 
-	reopen_rawsock();
+	if((ret = open_rawsock()) < 0)
+		return ret;
 
 	trigger_authentication();
 	
@@ -332,13 +411,12 @@ static void trigger_disconnect(void)
 
 static void snap_to_disabled(char* why)
 {
-	opermode = OP_NEUTRAL;
+	opermode = OP_IDLE;
 	authstate = AS_EXTERNAL;
 
 	warn("EAPOL", why, 0);
 
 	reset_eapol_state();
-
 	handle_disconnect();
 }
 
@@ -386,10 +464,16 @@ static void cmd_connect(MSG)
 
 int start_disconnect(void)
 {
+	if(netlink <= 0)
+		return -ENOTCONN;
+	/* not ENODEV here ^ to prevent the client froms
+	   trying to pick a device and retry the request */
+
 	switch(authstate) {
 		case AS_IDLE:
+			return -ENOTCONN;
 		case AS_NETDOWN:
-			return -EALREADY;
+			return -ENETDOWN;
 		case AS_DISCONNECTING:
 			return -EBUSY;
 	}
@@ -633,33 +717,4 @@ void handle_netlink(void)
 		else dispatch(gen);
 
 	nl_shift_rxbuf(&nl);
-}
-
-void setup_netlink(void)
-{
-	char* family = "nl80211";
-	struct nlpair grps[] = {
-		{ -1, "mlme" },
-		{ -1, "scan" },
-		{  0, NULL } };
-	int ret;
-
-	nl_init(&nl);
-	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
-	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
-
-	if((ret = nl_connect(&nl, NETLINK_GENERIC, 0)) < 0)
-		fail("nl-connect", NULL, ret);
-
-	if((nl80211 = query_family_grps(&nl, family, grps)) < 0)
-		fail("NL family", family, nl80211);
-	if(grps[0].id < 0)
-		fail("NL group nl80211", grps[0].name, -ENOENT);
-
-	if((ret = nl_subscribe(&nl, grps[0].id)) < 0)
-		fail("NL subscribe nl80211", grps[0].name, -ret);
-	if((ret = nl_subscribe(&nl, grps[1].id)) < 0)
-		fail("NL subscribe nl80211", grps[1].name, -ret);
-
-	netlink = nl.fd;
 }

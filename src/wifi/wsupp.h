@@ -29,12 +29,11 @@
 #define SS_SCANDUMP        2
 
 /* opermode */
-#define OP_EXIT            0
-#define OP_EXITREQ         1
-#define OP_NEUTRAL         2
-#define OP_ONESHOT         3
-#define OP_ACTIVE          4
-#define OP_RESCAN          5
+#define OP_IDLE            0
+#define OP_MONITOR         1
+#define OP_ONESHOT         2
+#define OP_ACTIVE          3
+#define OP_RESCAN          4
 
 /* scan.type */
 #define ST_WPS         (1<<0)
@@ -67,8 +66,11 @@ struct conn {
 	int rep;
 };
 
-extern char* ifname;
+extern char** environ;
+
+extern char ifname[32];
 extern int ifindex;
+extern byte ifaddr[6];
 
 extern int ctrlfd;    /* control socket */
 extern int rfkill;    /* fd, /dev/rfkill */
@@ -135,14 +137,18 @@ void setup_netlink(void);
 void setup_iface(char* name);
 void setup_control(void);
 void unlink_control(void);
-void reopen_rawsock(void);
+int open_rawsock(void);
+void close_rawsock(void);
 
+int open_netlink();
+void close_netlink();
 void handle_netlink(void);
 void handle_rawsock(void);
 void handle_control(void);
 void handle_conn(struct conn* cn);
 void handle_rfkill(void);
 void retry_rfkill(void);
+void close_rfkill(void);
 
 void upload_ptk(void);
 void upload_gtk(void);
@@ -177,9 +183,6 @@ int load_config(void);
 void save_config(void);
 void drop_config(void);
 
-void load_state(void);
-void save_state(void);
-
 int got_psk_for(byte* ssid, int slen);
 int load_psk(byte* ssid, int slen, byte psk[32]);
 void save_psk(byte* ssid, int slen, byte psk[32]);
@@ -206,3 +209,9 @@ void trigger_dhcp(void);
 void routine_fg_scan(void);
 void routine_bg_scan(void);
 int maybe_start_scan(void);
+
+void reset_device(void);
+void handle_netdown(void);
+int set_device(char* name);
+int bring_iface_up(void);
+void clear_scan_table(void);

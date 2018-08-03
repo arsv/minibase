@@ -24,6 +24,8 @@
 #define PAGE 4096
 #define MAX_CONFIG_SIZE 64*1024
 
+static const char wicfg[] = HERE "/var/wipsk";
+
 static char* config;
 static int blocklen;
 static int datalen;
@@ -38,8 +40,8 @@ void save_config(void)
 	if(!modified)
 		return;
 
-	if((fd = sys_open3(WICFG, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0) {
-		warn("cannot open", WICFG, fd);
+	if((fd = sys_open3(wicfg, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0) {
+		warn("cannot open", wicfg, fd);
 		return;
 	}
 
@@ -66,7 +68,7 @@ static int open_stat_config(int* size)
 	int fd, ret;
 	struct stat st;
 
-	if((fd = sys_open(WICFG, O_RDONLY)) < 0) {
+	if((fd = sys_open(wicfg, O_RDONLY)) < 0) {
 		*size = 0;
 		return fd;
 	}
@@ -84,7 +86,7 @@ out:
 	sys_close(fd);
 
 	if(ret && ret != -ENOENT)
-		warn(NULL, WICFG, ret);
+		warn(NULL, wicfg, ret);
 
 	return ret;
 }
@@ -174,7 +176,7 @@ out:
 	if(fd >= 0)
 		sys_close(fd);
 	if(ret && ret != -ENOENT)
-		warn(NULL, WICFG, ret);
+		warn(NULL, wicfg, ret);
 
 	return ret;
 }
@@ -442,46 +444,4 @@ int drop_psk(byte* ssid, int slen)
 	drop_line(&ln);
 
 	return 0;
-}
-
-/* Saving and loading current AP */
-
-void load_state(void)
-{
-	int fd, rd, ret;
-	char* name = WICAP;
-	char buf[64];
-
-	if((fd = sys_open(name, O_RDONLY)) < 0)
-		return;
-	if((rd = sys_read(fd, buf, sizeof(buf))) < 0)
-		goto out;
-
-	byte* ssid = (byte*)buf;
-	int slen = rd;
-
-	if((ret = set_fixed_saved(ssid, slen)) < 0)
-		goto out;
-
-	opermode = OP_ACTIVE;
-	ap.fixed = 1;
-out:
-	sys_close(fd);
-	sys_unlink(name);
-}
-
-void save_state(void)
-{
-	int fd;
-	char* name = WICAP;
-	char* buf = (char*)ap.ssid;
-	int len = ap.slen;
-
-	if(!ap.fixed)
-		return;
-	if((fd = sys_open3(name, O_WRONLY | O_CREAT | O_TRUNC, 0600)) < 0)
-		return;
-
-	sys_write(fd, buf, len);
-	sys_close(fd);
 }

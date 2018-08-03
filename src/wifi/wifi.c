@@ -31,11 +31,6 @@ static void no_other_options(CTX)
 		fail("bad options", NULL, 0);
 }
 
-static int got_any_args(CTX)
-{
-	return (ctx->argi < ctx->argc);
-}
-
 static char* shift_arg(CTX)
 {
 	if(ctx->argi >= ctx->argc)
@@ -44,25 +39,31 @@ static char* shift_arg(CTX)
 	return ctx->argv[ctx->argi++];
 }
 
-void connect_wictl_start(CTX)
+static void send_check_cmd(CTX)
 {
-	if(connect_wictl_(ctx) >= 0)
-		return;
+	int ret;
 
-	try_start_wienc(ctx, NULL);
-
-	connect_wictl(ctx);
-}
-
-void connect_wictl_check(CTX)
-{
-	if(connect_wictl_(ctx) >= 0)
-		return;
-
-	fail("service is not running", NULL, 0);
+	if((ret = send_recv_cmd(ctx)) < 0)
+		fail(NULL, NULL, ret);
 }
 
 /* User commands */
+
+static void cmd_device(CTX)
+{
+	char *name;
+	
+	if(!(name = shift_arg(ctx)))
+		fail("need device name", NULL, 0);
+
+	no_other_options(ctx);
+
+	uc_put_hdr(UC, CMD_WI_SETDEV);
+	uc_put_str(UC, ATTR_NAME, name);
+	uc_put_end(UC);
+
+	send_check_cmd(ctx);
+}
 
 static void cmd_status(CTX)
 {
@@ -72,7 +73,6 @@ static void cmd_status(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_wictl_check(ctx);
 
 	msg = send_recv_msg(ctx);
 
@@ -94,7 +94,6 @@ static void cmd_neutral(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_wictl(ctx);
 
 	if((ret = send_recv_cmd(ctx)) == -EALREADY)
 		return;
@@ -109,17 +108,17 @@ static void cmd_neutral(CTX)
 	};
 }
 
-static void cmd_scan(CTX)
+static int request_scan(CTX)
 {
-	struct ucmsg* msg;
-
 	uc_put_hdr(UC, CMD_WI_SCAN);
 	uc_put_end(UC);
 
-	no_other_options(ctx);
-	connect_wictl_start(ctx);
+	return send_recv_cmd(ctx);
+}
 
-	send_check(ctx);
+static void wait_for_scan_results(CTX)
+{
+	struct ucmsg* msg;
 
 	while((msg = recv_reply(ctx))) {
 		if(msg->cmd == REP_WI_SCAN_FAIL)
@@ -129,48 +128,58 @@ static void cmd_scan(CTX)
 		if(msg->cmd == REP_WI_NET_DOWN)
 			fail("net down", NULL, 0);
 	}
+}
+
+static void fetch_dump_scan_list(CTX)
+{
+	struct ucmsg* msg;
 
 	uc_put_hdr(UC, CMD_WI_STATUS);
 	uc_put_end(UC);
 
 	msg = send_recv_msg(ctx);
 
+	if(msg->cmd < 0)
+		fail(NULL, NULL, msg->cmd);
+
 	dump_scanlist(ctx, msg);
 }
 
-static void cmd_stop(CTX)
+static void set_scan_device(CTX, char* name)
 {
-	struct ucmsg* msg;
-	int* ifi;
+	int ret;
 
-	no_other_options(ctx);
-
-	connect_wictl(ctx);
-
-	uc_put_hdr(UC, CMD_WI_DEVICE);
+	uc_put_hdr(UC, CMD_WI_SCANDEV);
+	uc_put_str(UC, ATTR_NAME, name);
 	uc_put_end(UC);
 
-	msg = send_recv_msg(ctx);
-
-	if(!(ifi = uc_get_int(msg, ATTR_IFI)))
-		fail("invalid reply from wienc", NULL, 0);
-
-	connect_ifctl(ctx);
-
-	uc_put_hdr(UC, CMD_IF_STOP);
-	uc_put_int(UC, ATTR_IFI, *ifi);
-	uc_put_end(UC);
-
-	send_check(ctx);
+	if((ret = send_recv_cmd(ctx)) < 0)
+		fail("cannot set device", name, ret);
 }
 
-static void cmd_start(CTX)
+static void pick_scan_device(CTX)
 {
-	char* dev = shift_arg(ctx);
+	char name[32];
+
+	find_wifi_device(name);
+	set_scan_device(ctx, name);
+}
+
+static void cmd_scan(CTX)
+{
+	int ret;
 
 	no_other_options(ctx);
 
-	try_start_wienc(ctx, dev);
+	if((ret = request_scan(ctx)) >= 0)
+		goto got;
+	else if(ret != -ENODEV)
+		fail(NULL, NULL, ret);
+
+	pick_scan_device(ctx);
+got:
+	wait_for_scan_results(ctx);
+	fetch_dump_scan_list(ctx);
 }
 
 static void wait_for_connect(CTX)
@@ -178,68 +187,87 @@ static void wait_for_connect(CTX)
 	struct ucmsg* msg;
 	int failures = 0;
 
-	while((msg = recv_reply(ctx))) switch(msg->cmd) {
-		case REP_WI_NET_DOWN:
-			fail(NULL, NULL, -ENETDOWN);
-		case REP_WI_CONNECTED:
-			warn_sta(ctx, "connected to", msg);
-			return;
-		case REP_WI_DISCONNECT:
-			warn_sta(ctx, "cannot connect to", msg);
-			failures++;
-			break;
-		case REP_WI_NO_CONNECT:
-			if(failures)
-				fail("no more APs in range", NULL, 0);
-			else
-				fail("no suitable APs in range", NULL, 0);
+	while((msg = recv_reply(ctx))) {
+		switch(msg->cmd) {
+			case REP_WI_NET_DOWN:
+				fail(NULL, NULL, -ENETDOWN);
+			case REP_WI_CONNECTED:
+				warn_sta(ctx, "connected to", msg);
+				return;
+			case REP_WI_DISCONNECT:
+				warn_sta(ctx, "cannot connect to", msg);
+				failures++;
+				break;
+			case REP_WI_NO_CONNECT:
+				if(failures)
+					fail("no more APs in range", NULL, 0);
+				else
+					fail("no suitable APs", NULL, 0);
+		}
 	}
 }
 
-static void cmd_fixedap(CTX)
+static int connect_stored(CTX, char* ssid)
 {
-	char *ssid = shift_arg(ctx);
-
-	if(!ssid) fail("need AP ssid", NULL, 0);
-
 	int slen = strlen(ssid);
-	int ret;
 
 	uc_put_hdr(UC, CMD_WI_CONNECT);
 	uc_put_bin(UC, ATTR_SSID, ssid, slen);
 	uc_put_end(UC);
 
-	no_other_options(ctx);
-	connect_wictl_start(ctx);
+	return send_recv_cmd(ctx);
+}
 
-	if((ret = send_recv_cmd(ctx)) >= 0)
-		goto got;
-	if(ret != -ENOKEY || !ssid)
-		fail(NULL, NULL, ret);
+static int connect_askpsk(CTX, char* ssid)
+{
+	int slen = strlen(ssid);
 
 	uc_put_hdr(UC, CMD_WI_CONNECT);
 	uc_put_bin(UC, ATTR_SSID, ssid, slen);
 	put_psk_input(ctx, ssid, slen);
 	uc_put_end(UC);
 
-	send_check(ctx);
-got:
-	wait_for_connect(ctx);
+	return send_recv_cmd(ctx);
 }
 
-static void cmd_connect(CTX)
+static void cmd_fixedap(CTX)
 {
-	if(got_any_args(ctx))
-		return cmd_fixedap(ctx);
-
-	uc_put_hdr(UC, CMD_WI_CONNECT);
-	uc_put_end(UC);
+	char *ssid;
+	int ret;
+	
+	if(!(ssid = shift_arg(ctx)))
+		fail("need AP ssid", NULL, 0);
 
 	no_other_options(ctx);
-	connect_wictl_start(ctx);
-	send_check(ctx);
 
-	wait_for_connect(ctx);
+	ret = connect_stored(ctx, ssid);
+
+	if(ret >= 0)
+		goto got;
+	if(ret == -ENOKEY)
+		goto psk;
+	if(ret != -ENODEV)
+		goto err;
+
+	pick_scan_device(ctx);
+	warn("scanning", NULL, 0);
+	wait_for_scan_results(ctx);
+
+	ret = connect_stored(ctx, ssid);
+
+	if(ret >= 0)
+		goto got;
+	if(ret != -ENOKEY)
+		goto err;
+psk:
+	ret = connect_askpsk(ctx, ssid);
+
+	if(ret >= 0)
+		goto got;
+err:
+	fail(NULL, NULL, ret);
+got:
+	return wait_for_connect(ctx);
 }
 
 static void cmd_forget(CTX)
@@ -257,9 +285,18 @@ static void cmd_forget(CTX)
 	uc_put_end(UC);
 
 	no_other_options(ctx);
-	connect_wictl_start(ctx);
 
-	send_check(ctx);
+	send_check_cmd(ctx);
+}
+
+static void cmd_detach(CTX)
+{
+	no_other_options(ctx);
+
+	uc_put_hdr(UC, CMD_WI_DETACH);
+	uc_put_end(UC);
+
+	send_check_cmd(ctx);
 }
 
 typedef void (*cmdptr)(CTX);
@@ -268,16 +305,15 @@ static const struct cmdrec {
 	char name[12];
 	cmdptr call;
 } commands[] = {
+	{ "device",     cmd_device  },
 	{ "scan",       cmd_scan    },
 	{ "ap",         cmd_fixedap },
-	{ "connect",    cmd_connect },
+	{ "connect",    cmd_fixedap },
 	{ "dc",         cmd_neutral },
-	{ "break",      cmd_neutral },
 	{ "disconnect", cmd_neutral },
-	{ "stop",       cmd_stop    },
-	{ "start",      cmd_start   },
 	{ "forget",     cmd_forget  },
-	{ "bss",        cmd_bss     }
+	{ "bss",        cmd_bss     },
+	{ "detach",     cmd_detach  }
 };
 
 static void dispatch(CTX, char* name)
@@ -297,9 +333,8 @@ int main(int argc, char** argv)
 	char* cmd;
 
 	memzero(ctx, sizeof(ctx));
-
 	init_args(ctx, argc, argv);
-	init_heap_bufs(ctx);
+	connect_to_wictl(ctx);
 
 	if((cmd = shift_arg(ctx)))
 		dispatch(ctx, cmd);

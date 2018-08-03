@@ -1,7 +1,4 @@
-#include <bits/types.h>
 #include <bits/rfkill.h>
-#include <bits/ioctl/socket.h>
-#include <sys/ioctl.h>
 #include <sys/file.h>
 
 #include <printf.h>
@@ -47,34 +44,6 @@ static int rfkidx;
    that uses $ifindex instead. Renaming the interface while wsupp runs *will*
    confuse it. */
 
-#define IFF_UP (1<<0)
-
-static void bring_iface_up(void)
-{
-	int fd = netlink;
-	char* name = ifname;
-	uint nlen = strlen(name);
-	struct ifreq ifr;
-	int ret;
-
-	if(nlen > sizeof(ifr.name))
-		quit(NULL, name, -ENAMETOOLONG);
-
-	memzero(&ifr, sizeof(ifr));
-	memcpy(ifr.name, name, nlen);
-
-	if((ret = sys_ioctl(fd, SIOCGIFFLAGS, &ifr)) < 0)
-		quit("ioctl SIOCGIFFLAGS", name, ret);
-
-	if(ifr.ival & IFF_UP)
-		return;
-
-	ifr.ival |= IFF_UP;
-
-	if((ret = sys_ioctl(fd, SIOCSIFFLAGS, &ifr)) < 0)
-		quit("ioctl SIOCSIFFLAGS", name, ret);
-}
-
 static int match_rfkill(int idx)
 {
 	struct stat st;
@@ -102,10 +71,15 @@ static void handle_event(struct rfkill_event* re)
 
 	if(re->soft || re->hard) {
 		rfkilled = 1;
+		printf("rf-killed\n");
 		clr_timer();
 	} else {
 		rfkilled = 0;
-		bring_iface_up();
+		printf("rf-restored\n");
+
+		if((bring_iface_up()) < 0)
+			return;
+
 		handle_rfrestored();
 	}
 }
@@ -117,6 +91,18 @@ void retry_rfkill(void)
 
 	rfkill = sys_open("/dev/rfkill", O_RDONLY | O_NONBLOCK);
 
+	rfkidx = -1;
+	pollset = 0;
+}
+
+void close_rfkill(void)
+{
+	if(rfkill < 0)
+		return;
+
+	sys_close(rfkill);
+
+	rfkill = -1;
 	rfkidx = -1;
 	pollset = 0;
 }

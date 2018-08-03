@@ -15,7 +15,7 @@
    is delayed until send_command() to avoid waking up wimon and then dropping
    the connection because of a local error. */
 
-void init_heap_bufs(CTX)
+static void init_heap_bufs(CTX)
 {
 	hinit(&ctx->hp, 2*PAGE);
 
@@ -33,49 +33,25 @@ void init_heap_bufs(CTX)
 	ctx->ur.end = rxbuf + 2048;
 }
 
-static int connctl(CTX, struct sockaddr_un* addr, int miss)
+int connect_to_wictl(CTX)
 {
 	int ret, fd;
-
-	if(ctx->fd > 0)
-		sys_close(ctx->fd);
+	struct sockaddr_un addr = {
+		.family = AF_UNIX,
+		.path = WICTL
+	};
 
 	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
 		fail("socket", "AF_UNIX", fd);
+	if((ret = sys_connect(fd, &addr, sizeof(addr))) < 0)
+		fail("connect", addr.path, ret);
 
 	ctx->fd = fd;
-
-	if((ret = sys_connect(ctx->fd, addr, sizeof(*addr))) < 0) {
-		if(ret != -ENOENT || !miss)
-			fail("connect", addr->path, ret);
-		else
-			return ret;
-	}
-
 	ctx->connected = 1;
 
+	init_heap_bufs(ctx);
+
 	return ret;
-}
-
-void connect_ifctl(CTX)
-{
-	struct sockaddr_un ifctl = { .family = AF_UNIX, .path = IFCTL };
-
-	connctl(ctx, &ifctl, 0);
-}
-
-void connect_wictl(CTX)
-{
-	struct sockaddr_un wictl = { .family = AF_UNIX, .path = WICTL };
-
-	connctl(ctx, &wictl, 0);
-}
-
-int connect_wictl_(CTX)
-{
-	struct sockaddr_un wictl = { .family = AF_UNIX, .path = WICTL };
-
-	return connctl(ctx, &wictl, 1);
 }
 
 void send_command(CTX)
@@ -120,12 +96,4 @@ int send_recv_cmd(CTX)
 	struct ucmsg* msg = send_recv_msg(ctx);
 
 	return msg->cmd;
-}
-
-void send_check(CTX)
-{
-	int ret;
-
-	if((ret = send_recv_cmd(ctx)) < 0)
-		fail(NULL, NULL, ret);
 }

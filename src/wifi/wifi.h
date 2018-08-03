@@ -30,10 +30,11 @@ typedef struct ucattr* attr;
 
 void top_init(CTX);
 void send_command(CTX);
-void send_check(CTX);
 int send_recv_cmd(CTX);
+int send_recv_act(CTX);
 struct ucmsg* send_recv_msg(CTX);
 struct ucmsg* recv_reply(CTX);
+void find_wifi_device(char out[32]);
 
 void dump_status(CTX, MSG);
 void dump_scanlist(CTX, MSG);
@@ -42,10 +43,6 @@ struct ucattr** make_scanlist(CTX, MSG);
 
 void put_psk_input(CTX, void* ssid, int slen);
 
-void init_heap_bufs(CTX);
-void connect_wictl(CTX);
-void connect_ifctl(CTX);
-int connect_wictl_(CTX);
-void try_start_wienc(CTX, char* name);
+int connect_to_wictl(CTX);
 
 void warn_sta(CTX, char* text, MSG);

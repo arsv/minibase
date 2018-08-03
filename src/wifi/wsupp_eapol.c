@@ -1,9 +1,6 @@
 #include <bits/socket/packet.h>
-#include <bits/ioctl/socket.h>
-#include <bits/arp.h>
 #include <sys/file.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
 
 #include <string.h>
 #include <endian.h>
@@ -27,8 +24,6 @@
 
    The final result of negotiations is PTK and GTK. */
 
-char* ifname;
-int ifindex;
 int rawsock;
 
 int eapolstate;
@@ -63,14 +58,19 @@ static void send_group_2(void);
    re-open adn re-bind it. Otherwise, there's no problem with the socket
    remaining open across connection, so we do not bother closing it. */
 
-static void open_rawsock(void)
+int open_rawsock(void)
 {
 	int type = htons(ETH_P_PAE);
 	int flags = SOCK_DGRAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
 	int fd, ret;
 
-	if((fd = sys_socket(AF_PACKET, flags, type)) < 0)
-		quit("socket", "AF_PACKET", fd);
+	if(rawsock >= 0)
+		return 0;
+
+	if((fd = sys_socket(AF_PACKET, flags, type)) < 0) {
+		warn("socket", "AF_PACKET", fd);
+		return fd;
+	}
 
 	struct sockaddr_ll addr = {
 		.family = AF_PACKET,
@@ -78,48 +78,26 @@ static void open_rawsock(void)
 		.protocol = type
 	};
 
-	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
-		quit("bind", "AF_PACKET", ret);
+	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0) {
+		warn("bind", "AF_PACKET", ret);
+		sys_close(fd);
+		return ret;
+	}
 
 	rawsock = fd;
+	pollset = 0;
+
+	return 0;
 }
 
-void reopen_rawsock(void)
+void close_rawsock(void)
 {
-	if(rawsock >= 0)
+	if(rawsock < 0)
 		return;
 
-	open_rawsock();
-}
-
-void setup_iface(char* name)
-{
-	int fd = netlink;
-	uint nlen = strlen(name);
-	struct ifreq ifr;
-	long ret;
-
-	if(nlen > sizeof(ifr.name))
-		fail("name too long:", name, 0);
-
-	memzero(&ifr, sizeof(ifr));
-	memcpy(ifr.name, name, nlen);
-
-	if((ret = sys_ioctl(fd, SIOCGIFINDEX, &ifr)) < 0)
-		fail("ioctl SIOCGIFINDEX", name, ret);
-
-	ifname = name;
-	ifindex = ifr.ival;
-
-	if((ret = sys_ioctl(fd, SIOCGIFHWADDR, &ifr)) < 0)
-		fail("ioctl SIOCGIFHWADDR", name, ret);
-
-	if(ifr.addr.family != ARPHRD_ETHER)
-		fail("unexpected hwaddr family on", name, 0);
-
-	memcpy(smac, ifr.addr.data, 6);
-
-	open_rawsock();
+	sys_close(rawsock);
+	rawsock = -1;
+	pollset = 0;
 }
 
 /* The rest of the code deals with AP connection */
@@ -140,6 +118,7 @@ static void pmk_to_ptk()
 	uint8_t *mac1, *mac2;
 	uint8_t *nonce1, *nonce2;
 
+	memcpy(smac, ifaddr, 6);
 	memcpy(amac, ap.bssid, 6);
 
 	if(memcmp(smac, amac, 6) < 0) {
@@ -278,6 +257,7 @@ void reset_eapol_state(void)
 	memzero(snonce, sizeof(snonce));
 	memzero(anonce, sizeof(anonce));
 	memzero(amac, sizeof(amac));
+	memzero(smac, sizeof(smac));
 
 	version = 0;
 }

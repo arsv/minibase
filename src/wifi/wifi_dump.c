@@ -104,38 +104,6 @@ static char* fmt_chan_and_freq(char* p, char* e, int freq)
 	return p;
 }
 
-#define DICTEND -1
-
-static const struct dict {
-	int val;
-	char name[16];
-} wistates[] = {
-	{ WS_IDLE,       "Idle"       },
-	{ WS_RFKILLED,   "RF-kill"    },
-	{ WS_NETDOWN,    "Net down"   },
-	{ WS_EXTERNAL,   "External"   },
-	{ WS_SCANNING,   "Scanning"   },
-	{ WS_CONNECTING, "Connecting" },
-	{ WS_CONNECTED,  "Connected"  },
-	{ DICTEND,       ""           }
-};
-
-static char* fmt_kv(char* p, char* e, int val, const struct dict* dc)
-{
-	const struct dict* kv;
-
-	for(kv = dc; kv->val != DICTEND; kv++)
-		if(kv->val == val)
-			break;
-
-	if(kv->val == DICTEND)
-		return p;
-
-	p = fmtstr(p, e, kv->name);
-
-	return p;
-}
-
 static int cmp_int(attr at, attr bt, int key)
 {
 	int* na = uc_sub_int(at, key);
@@ -318,26 +286,57 @@ static void print_scan_results(CTX, MSG, int nl)
 	if(nl && *scans) output(ctx, "\n", 1);
 }
 
-static void print_status_line(CTX, MSG, int state, attr ssid)
+static char* fmt_device(char* p, char* e, char* name, int* ifi)
 {
-	int* timer = uc_get_int(msg, ATTR_TIME);
+	if(name) {
+		p = fmtstr(p, e, name);
+	} else if(ifi) {
+		p = fmtstr(p, e, "#");
+		p = fmtint(p, e, *ifi);
+	} else {
+		p = fmtstr(p, e, "???");
+	}
+	return p;
+}
+
+static void print_status_line(CTX, MSG, int state)
+{
+	char* ifname = uc_get_str(msg, ATTR_NAME);
+	int* ifindex = uc_get_int(msg, ATTR_IFI);
+	attr bss = uc_get(msg, ATTR_BSSID);
 
 	FMTBUF(p, e, buf, 200);
 
-	if(state == WS_SCANNING && ssid)
-		p = fmtstr(p, e, "Searching");
-	else if(state == WS_IDLE && ssid)
-		p = fmtstr(p, e, "Lost");
-	else
-		p = fmt_kv(p, e, state, wistates);
+	if(state == WS_RFKILLED) {
+		p = fmtstr(p, e, "Device ");
+		p = fmt_device(p, e, ifname, ifindex);
+		p = fmtstr(p, e, " rf-killed");
+	} else if(state == WS_STOPPING) {
+		p = fmtstr(p, e, "Device ");
+		p = fmt_device(p, e, ifname, ifindex);
+		p = fmtstr(p, e, " stopping");
+	} else if(state == WS_CONNECTED) {
+		p = fmtstr(p, e, "Connected to ");
+		p = fmt_station(p, e, msg, ctx->showbss);
+	} else if(bss) {
+		p = fmtstr(p, e, "Waiting for ");
+		p = fmt_station(p, e, msg, ctx->showbss);
 
-	p = fmtstr(p, e, " ");
-	p = fmt_station(p, e, msg, ctx->showbss);
-
-	if(state == WS_IDLE && timer) {
-		p = fmtstr(p, e, ", next scan in ");
-		p = fmtint(p, e, *timer);
-		p = fmtstr(p, e, "s");
+		if(state == WS_SCANNING)
+			p = fmtstr(p, e, ", scanning now");
+	} else if(state == WS_SCANNING) {
+		p = fmtstr(p, e, "Device ");
+		p = fmt_device(p, e, ifname, ifindex);
+		p = fmtstr(p, e, " scanning now");
+	} else if(state == WS_UNKNOWN) {
+		p = fmtstr(p, e, "Device ");
+		p = fmt_device(p, e, ifname, ifindex);
+		p = fmtstr(p, e, " idle");
+	} else {
+		p = fmtstr(p, e, "Device ");
+		p = fmt_device(p, e, ifname, ifindex);
+		p = fmtstr(p, e, " state ");
+		p = fmtint(p, e, state);
 	}
 
 	FMTENL(p, e);
@@ -348,23 +347,23 @@ static void print_status_line(CTX, MSG, int state, attr ssid)
 void dump_scanlist(CTX, MSG)
 {
 	init_output(ctx);
+
 	print_scan_results(ctx, msg, 0);
+
 	fini_output(ctx);
 }
 
 void dump_status(CTX, MSG)
 {
-	attr ssid = uc_get(msg, ATTR_SSID);
 	int* state = uc_get_int(msg, ATTR_STATE);
+
+	if(!state)
+		fail("service inactive", NULL, 0);
 
 	init_output(ctx);
 
-	if(*state == WS_IDLE && !ssid) {
-		print_scan_results(ctx, msg, 0);
-	} else {
-		print_scan_results(ctx, msg, 1);
-		print_status_line(ctx, msg, *state, ssid);
-	}
+	print_scan_results(ctx, msg, 1);
+	print_status_line(ctx, msg, *state);
 
 	fini_output(ctx);
 }

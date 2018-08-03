@@ -95,3 +95,8 @@ void free_scan_slot(struct scan* sc)
 {
 	free_slot(scans, &nscans, sizeof(*sc), sc);
 }
+
+void clear_scan_table(void)
+{
+	nscans = 0;
+}

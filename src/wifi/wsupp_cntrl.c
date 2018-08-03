@@ -1,12 +1,15 @@
+#include <bits/socket/packet.h>
 #include <bits/socket/unix.h>
 #include <sys/socket.h>
 #include <sys/file.h>
 #include <sys/fpath.h>
 #include <sys/sched.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 
 #include <nlusctl.h>
 #include <string.h>
+#include <printf.h>
 #include <heap.h>
 #include <util.h>
 
@@ -14,7 +17,7 @@
 #include "wsupp.h"
 
 /* Userspace control socket code, accepts and handles commands
-   from the frontend tool (wifi). */
+   from the frontend tool, `wifi`. */
 
 int ctrlfd;
 
@@ -175,32 +178,36 @@ static int common_wifi_state(void)
 {
 	if(authstate == AS_CONNECTED)
 		return WS_CONNECTED;
+	if(authstate == AS_NETDOWN && rfkilled)
+		return WS_RFKILLED;
 	if(authstate == AS_NETDOWN)
-		return rfkilled ? WS_RFKILLED : WS_NETDOWN;
+		return WS_STOPPING;
 	if(authstate == AS_EXTERNAL)
-		return WS_EXTERNAL;
+		return WS_STOPPING;
 	if(authstate != AS_IDLE)
 		return WS_CONNECTING;
 	if(scanstate != SS_IDLE)
 		return WS_SCANNING;
 
-	return WS_IDLE;
+	return WS_UNKNOWN; /* should never be reached */
 }
 
 static void put_status_wifi(struct ucbuf* uc)
 {
 	int tm;
 
+	if(ifindex <= 0)
+		return;
+
 	uc_put_int(uc, ATTR_IFI, ifindex);
 	uc_put_str(uc, ATTR_NAME, ifname);
 	uc_put_int(uc, ATTR_STATE, common_wifi_state());
 
-	if(authstate != AS_IDLE || ap.fixed)
+	if(ap.fixed)
 		uc_put_bin(uc, ATTR_SSID, ap.ssid, ap.slen);
-	if(authstate == AS_IDLE && ap.fixed)
-		if(scanstate == SS_IDLE && (tm = get_timer()) >= 0)
-			uc_put_int(uc, ATTR_TIME, tm);
-	if(authstate != AS_IDLE) {
+	if((tm = get_timer()) >= 0)
+		uc_put_int(uc, ATTR_TIME, tm);
+	if(ap.freq) {
 		uc_put_bin(uc, ATTR_BSSID, ap.bssid, sizeof(ap.bssid));
 		uc_put_int(uc, ATTR_FREQ, ap.freq);
 	}
@@ -251,17 +258,51 @@ static int cmd_status(CN, MSG)
 	return ret;
 }
 
-static int cmd_device(CN, MSG)
+static int cmd_detach(CN, MSG)
 {
-	char buf[64];
+	int ret = 0;
+	int inm = opermode;
 
-	uc_buf_set(&uc, buf, sizeof(buf));
-	uc_put_hdr(&uc, 0);
-	uc_put_int(&uc, ATTR_IFI, ifindex);
-	uc_put_str(&uc, ATTR_NAME, ifname);
-	uc_put_end(&uc);
+	if(ifindex <= 0)
+		return -EALREADY;
 
-	return send_reply(cn);
+	opermode = OP_IDLE;
+
+	if(inm == OP_ONESHOT || inm == OP_ACTIVE)
+		ret = start_disconnect();
+	else
+		reset_device();
+
+	return ret;
+}
+
+static int cmd_setdev(CN, MSG)
+{
+	char* name;
+
+	if(!(opermode == OP_IDLE || opermode == OP_MONITOR))
+		return -EBUSY;
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
+
+	return set_device(name);
+}
+
+static int cmd_scandev(CN, MSG)
+{
+	char* name;
+	int ret;
+
+	if(!(opermode == OP_IDLE || opermode == OP_MONITOR))
+		return -EBUSY;
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
+	if((ret = set_device(name)) < 0)
+		return ret;
+
+	cn->rep = 1;
+
+	return 0;
 }
 
 static int cmd_scan(CN, MSG)
@@ -280,7 +321,7 @@ static int cmd_neutral(CN, MSG)
 {
 	int ret;
 
-	opermode = OP_NEUTRAL;
+	opermode = OP_MONITOR;
 
 	if((ret = start_disconnect()) < 0)
 		return ret;
@@ -326,6 +367,8 @@ static int cmd_connect(CN, MSG)
 {
 	int ret;
 
+	if(ifindex <= 0)
+		return -ENODEV;
 	if(authstate != AS_IDLE)
 		return -EBUSY;
 	if(scanstate != SS_IDLE)
@@ -377,11 +420,13 @@ static const struct cmd {
 	int (*call)(CN, MSG);
 } commands[] = {
 	{ CMD_WI_STATUS,  cmd_status  },
-	{ CMD_WI_DEVICE,  cmd_device  },
+	{ CMD_WI_SETDEV,  cmd_setdev  },
+	{ CMD_WI_SCANDEV, cmd_scandev },
 	{ CMD_WI_SCAN,    cmd_scan    },
-	{ CMD_WI_NEUTRAL, cmd_neutral },
 	{ CMD_WI_CONNECT, cmd_connect },
-	{ CMD_WI_FORGET,  cmd_forget  }
+	{ CMD_WI_NEUTRAL, cmd_neutral },
+	{ CMD_WI_FORGET,  cmd_forget  },
+	{ CMD_WI_DETACH,  cmd_detach  }
 };
 
 static int dispatch_cmd(CN, MSG)

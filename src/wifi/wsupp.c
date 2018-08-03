@@ -37,7 +37,8 @@ static void sighandler(int sig)
 {
 	switch(sig) {
 		case SIGINT:
-		case SIGTERM: sigterm = 1;
+		case SIGTERM:
+			sigterm = 1;
 	}
 }
 
@@ -66,6 +67,16 @@ static void setup_signals(void)
 	sa.handler = SIG_IGN;
 
 	sigaction(SIGPIPE, &sa);
+}
+
+/* These do not get opened on startup. To avoid confusion with stdin,
+   make sure they are all set to -1. */
+
+static void clr_ondemand_fds(void)
+{
+	netlink = -1;
+	rawsock = -1;
+	rfkill = -1;
 }
 
 static void set_pollfd(struct pollfd* pfd, int fd)
@@ -188,15 +199,9 @@ static void timer_expired(void)
 {
 	clr_timer();
 
-	if(authstate == AS_NETDOWN) {
-		if(!rfkilled)
-			opermode = OP_EXIT;
-		else
-			authstate = AS_IDLE;
-		return;
-	}
-
-	if(authstate == AS_CONNECTED)
+	if(authstate == AS_NETDOWN)
+		handle_netdown();
+	else if(authstate == AS_CONNECTED)
 		routine_bg_scan();
 	else if(authstate != AS_IDLE)
 		abort_connection();
@@ -206,51 +211,27 @@ static void timer_expired(void)
 
 static void shutdown(void)
 {
-	sigterm = 0;
+	if(sigterm > 1)
+		fail("second SIGTERM, exiting", NULL, 0);
 
-	switch(opermode) {
-		case OP_EXIT:
-		case OP_EXITREQ:
-			quit("second exit request", NULL, 0);
-	}
-	switch(authstate) {
-		case AS_IDLE:
-		case AS_NETDOWN:
-			opermode = OP_EXIT;
-			return;
-	}
-
-	if(start_disconnect() < 0)
-		opermode = OP_EXIT;
-	else
-		opermode = OP_EXITREQ;
+	sigterm = 2;
+	quit(NULL, NULL, 0);
 }
 
 int main(int argc, char** argv)
 {
 	int i = 1, ret;
-	char* name;
 
-	if(i < argc)
-		name = argv[i++];
-	else
-		fail("too few arguments", NULL, 0);
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
 	environ = argv + argc + 1;
 
 	setup_signals();
-	setup_netlink();
-	setup_iface(name);
 	setup_control();
-	retry_rfkill();
+	clr_ondemand_fds();
 
-	opermode = OP_NEUTRAL;
-	load_state();
-	routine_fg_scan();
-
-	while(opermode) {
+	while(1) {
 		struct timespec* ts = timerset ? &pollts : NULL;
 
 		if(!pollset)
@@ -265,10 +246,7 @@ int main(int argc, char** argv)
 			shutdown();
 
 		save_config();
-	}
+	};
 
-	save_state();
-	unlink_control();
-
-	return 0;
+	return 0; /* never reached */
 }
