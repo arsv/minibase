@@ -156,6 +156,8 @@ void setup_socket(char* name)
 	if((fd = sys_socket(PF_PACKET, SOCK_DGRAM, 8)) < 0)
 		fail("socket", "PF_PACKET", fd);
 
+	sockfd = fd;
+
 	if((p = parseint(name, &index)) && !*p)
 		get_ifname(index);
 	else
@@ -175,8 +177,6 @@ void setup_socket(char* name)
 
 	if((ret = sys_bind(fd, &sockaddr, sizeof(sockaddr))) < 0)
 		fail("bind", NULL, fd);
-
-	sockfd = fd;
 }
 
 /* Send */
