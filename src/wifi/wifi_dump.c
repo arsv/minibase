@@ -167,17 +167,6 @@ static char* fmt_wifi_bssid(char* p, char* e, attr at)
 	return p;
 }
 
-static char* fmt_wifi_ssid(char* p, char* e, attr ssid)
-{
-	if(!ssid)
-		goto out;
-
-	p = fmtstr(p, e, "AP ");
-	p = fmt_ssid(p, e, ssid);
-out:
-	return p;
-}
-
 static void get_int(MSG, int attr, int* val)
 {
 	int* p;
@@ -191,13 +180,19 @@ static void get_int(MSG, int attr, int* val)
 static char* fmt_station(char* p, char* e, MSG, int showbss)
 {
 	int freq;
+	attr ssid = uc_get(msg, ATTR_SSID);
+	attr bssid = uc_get(msg, ATTR_BSSID);
 
 	get_int(msg, ATTR_FREQ, &freq);
 
-	p = fmt_wifi_ssid(p, e, uc_get(msg, ATTR_SSID));
+	p = fmtstr(p, e, "AP");
 
-	if(showbss)
-		p = fmt_wifi_bssid(p, e, uc_get(msg, ATTR_BSSID));
+	if(showbss && bssid) {
+		p = fmt_wifi_bssid(p, e, bssid);
+	} if(ssid) {
+		p = fmtstr(p, e, " ");
+		p = fmt_ssid(p, e, ssid);
+	}
 
 	if(freq) {
 		p = fmtstr(p, e, " (");
