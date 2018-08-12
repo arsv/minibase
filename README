@@ -1,61 +1,84 @@
-What is this?
-~~~~~~~~~~~~~
-minibase is set of small userspace tools for Linux aiming to provide a stable
-base to build the rest of the system on. These tools handle early boot process
-(initrd, finding and mounting the rootfs, setting up disk encryption),
-service startup and supervision (aka init system), as well as user session
-management ("logind").
+About the project
+~~~~~~~~~~~~~~~~~
+To build a Linux system capable of booting and running something useful
+(like a user interface for instance), one needs
 
-The tools are written in raw syscalls using a small custom base library.
-Standard libc is not needed to build or run them. The resulting executables
-are always statically linked and their only runtime dependency is the Linux
-kernel.
+  * kernel, glibc, sysvinit, bash, coreutils, kmod, mount, loginutils, ...
+  * or kernel, glibc, dbus, systemd, kmod, ...
+  * or kernel, musl and busybox
+  * or kernel and minibase
 
-Supported targets: x86_64 arm aarch64 rv64 mips mips64 i386.
+...along with the useful parts and their dependencies.
+
+This is a gross simplification, and the list is incomplete, but it should
+give the right idea of what minibase is.
+
+The listed components form the base of the system. Their role is roughly
+initialization, configuration and keeping the system running in general.
+What exactly does that entail differs wildly; minibase can be thought of
+as being somewhere in-between busybox and systemd, and its primary target
+being a personal computer (a desktop or a laptop) running a GUI.
+
+minibase is written in raw syscalls using a small custom C library,
+and does not depend on conventional libc. The resulting executables
+are always statically linked. The rest of the system may still depend
+on libc.
 
 
-What's inside
-~~~~~~~~~~~~~
-Current contents of minibase:
+Project status
+~~~~~~~~~~~~~~
+The project is ONGOING but not yet complete.
+Components currently included in the package:
 
-  * Batch command runner / script interpreter (msh)
-  * Early-stage boot utils (switchroot, modprobe, mount).
-  * Non-encrypted block device locator (findblk).
-  * Encrypted device locator and passphrase prompt (passblk).
-  * Support tooling for disk encryption (dektool, dmcrypt).
-  - No fsck for any fs yet.
+  * batch command runner / script interpreter (msh)
+  * early-stage boot utils (switchroot, modprobe, mount).
+  * non-encrypted block device locator (findblk).
+  * encrypted device locator and passphrase prompt (passblk).
+  * support tooling for disk encryption (dektool, dmcrypt).
+  - no fsck for any file system yet.
 
-  * Process supervision suite (init, super, reboot, svctl).
+  * process supervision suite (init, super, reboot, svctl).
 
   * udev event monitor (udevmod).
   * syslogd and related tools.
-  * Non-privileged mount service (mountd, pmount).
-  * Controlled privilege escalation service (suhub, sudo).
+  * non-privileged mount service (mountd, pmount).
+  * controlled privilege escalation service (suhub, sudo)
 
   * VT/DRI/input multiplexer (vtmux) aka that part of logind
     everyone keeps asking about.
-  * Simple non-graphical greeter (ctrlvt).
+  * simple non-graphical greeter (ctrlvt).
 
-  * Networking interface manager (ifmon), also handles DHCP.
+  * networking interface manager and DHCP client (ifmon)
   * Wi-Fi (WPA2-PSK) supplicant and connection manager (wsupp).
   * manual interface setup tools (ip4cfg, ip4info) [incomplete].
-  - No sntpd yet.
+  - no sntpd yet.
 
-  * Simple interactive shell (cmd).
-  * Basic command line tools (cat, ls, du, df etc).
-  * Small linux-specific tools (systime, sync, dmesg etc).
+  * simple interactive shell (cmd).
+  * basic command line tools (cat, ls, du, df etc).
+  * small linux-specific tools (systime, sync, dmesg etc).
 
-  - No package manager / download tool yet.
-  - No audio tools of any kind.
+  - no package manager / download tool yet.
+  - no audio tools of any kind.
 
-With everything in place, the system should be able to boot on minibase
-alone to the point of running X or Wayland GUI, connect to network and
-start downloading packages.
+With everything in place, the system should boot on kernel and minibase alone
+to the point where it can run X or Wayland GUI, connect to network and start
+downloading packages.
+
+
+Compiler and libc
+~~~~~~~~~~~~~~~~~
+To build minibase, get any gcc toolchain targeting the right CPU.
+The compiler will be used with -nostdinc -nostdlib so it doesn't
+matter which libc (if any) it was configured with.
+Clang can be used as well.
+
+Supported targets: x86_64 arm aarch64 rv64 mips mips64 i386.
+Anything else won't work even if toolchain is available.
 
 
 Quick start
 ~~~~~~~~~~~
-Bootable images for Qemu (buildroot, minibase, Xorg, Weston) along
+Bootable images for QEMU (buildroot, minibase, Xorg, Weston) along
 with the build scripts are maintained in a dedicated repository:
 
     https://github.com/arsv/minibase-br/
@@ -76,17 +99,17 @@ For a proper build, run
     make install     # default DESTDIR is ./out
 
 To try the tools without setting up a VM, configure and build
-the project in devel mode:
+the project in development mode:
 
     make clean
     ./configure devel
     make
 
-Most tools can be run right from their source directories.
+Most tools can run right from their source directories.
 
 
-How is it different from ... ?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Feature highlights
+~~~~~~~~~~~~~~~~~~
 Some features in no particular order.
 
 Minibase comes with a proper service supervisor. (This is really
@@ -95,7 +118,7 @@ it to OpenRC).
 
 Init process is staged, similar to s6 and runit but unlike SysV, systemd
 and most other systems. The supervisor is unitary (same parent for all
-child processes), similar to SysV and sytemd but unlike s6, runit and
+child processes), similar to SysV and systemd but unlike s6, runit and
 other daemontools derivatives.
 
 There is no fstab in minibase, and no conventional mount(1).
@@ -117,19 +140,19 @@ IPC is done point-to-point over unix sockets using simple netlink-
 based protocol.
 
 Minibase is meant to be run with suid bits disabled. Any privilege
-escalation in minibase (including the sudo command) happens via IPC
-to privileged services.
+escalation in a minibase system (including the sudo command) happens
+via IPC to privileged services.
 
 
 Just how small exactly?
 ~~~~~~~~~~~~~~~~~~~~~~~
-The largest individual executable so far is wsupp, the WPA supplicant.
+The largest individual executable so far is `wsupp`, the WPA supplicant.
 Statically linked for x86_64, it's about 27 KiB in size. Realistically
-it also needs ifmon (20 KiB) to work, and the client tool wifi (12 KiB).
+it also needs `ifmon` (20 KiB) to work, and the client tool `wifi` (12 KiB).
 
-msh is about 16 KiB.  cmd (interactive shell) is about 18 KiB.
-super (pid 1 for the majority of system's uptime) is about 10 KiB.
-vtmux (logind equivalent) is about 12 KiB.
+`msh` is about 16 KiB. `cmd` (interactive shell) is about 18 KiB.
+`super` (pid 1 for the majority of system's uptime) is about 10 KiB.
+`vtmux` (logind equivalent) is about 12 KiB.
 
 Why bother making it small? Because it's a side effect of making it readable.
 The idea is that anyone could pick a tool from minibase, start reading it
@@ -145,21 +168,22 @@ Contributing
 Do not send patches for minibase itself. Doing so will likely only slow
 the project down. If there's a bug to be fixed, or a tool that you think
 should be in minibase, open an issue. The ability to scrap and re-design
-certain tools unimpeded is much more important for the project at this
-stage than completeness.
+certain tools unimpeded is way too important for the project at this
+stage.
 
 Not every tool is worth including in mini-BASE. Just like in any other
 case, it is perfectly ok to have dedicated repos and dedicated packages
 for some tools, especially if different developers are involved.
 
 The best way to actually contribute to the project is to write something
-that would fit well alongside minibase in a system. For the most parts,
-whatever it may be it likely won't even be tied to minibase and would work
-just well in runit or s6 or even systemd based installation.
+that would fit well alongside minibase in a running system. For the most
+projects, whatever it may be it likely won't even be tied to minibase
+and would work just well in runit or s6 or even systemd based installation.
 
-Area of particular interest: lightweight GUI desktop components. Something
-to run atop of X or Wayland once minibase gets you there. This includes
-both the primary desktop and things like nice GUI greeter to replace ctrlvt.
+Area of particular interest: lightweight GUI desktop components.
+Something to run atop of X or Wayland once minibase gets you there.
+This includes both the primary desktop and things like a nice GUI greeter
+to replace `ctrlvt` which is really only a stub.
 
 
 Licensing
