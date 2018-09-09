@@ -31,7 +31,8 @@ char* fmtx64(char* buf, char* end, uint64_t num)
 char* fmtxlong(char* buf, char* end, ulong num)
 	__attribute__((alias("fmtx64")));
 
-char* fmtxint(char* buf, char* end, uint num)
-	__attribute__((alias("fmtx64")));
+char* fmtxint(char* buf, char* end, uint num) {
+	return fmtx64(buf, end, num); /* @#$&#@ng gcc */
+};
 
 #endif
