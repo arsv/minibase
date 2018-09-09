@@ -186,7 +186,13 @@ void qsortx(void* base, size_t n, size_t size, qcmp3 cmp, long opts)
 	srec(base, base + n*size, size, cmp, exch, opts);
 }
 
+static int cmp2to3(const void* a, const void* b, long arg)
+{
+	qcmp2 cmp = (qcmp2)arg;
+	return cmp(a, b);
+}
+
 void qsort(void* base, size_t n, size_t size, qcmp2 cmp)
 {
-	return qsortx(base, n, size, (qcmp3)cmp, 0);
+	return qsortx(base, n, size, cmp2to3, (long)cmp);
 }
