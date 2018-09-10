@@ -1,33 +1,37 @@
 About the project
 ~~~~~~~~~~~~~~~~~
-To build a Linux system capable of booting and running something useful
-(like a user interface for instance), one needs
+The code here builds into what is generally known as "early userspace",
+or sometimes an "init system". A loose set of userspace tools meant to
+bring the system up and keep it running.
+
+Making a Linux system capable of booting and starting something useful
+(like a user interface for instance) requires either
 
   * kernel, glibc, sysvinit, bash, coreutils, kmod, mount, loginutils, ...
   * or kernel, glibc, dbus, systemd, kmod, ...
   * or kernel, musl and busybox
   * or kernel and minibase
 
-...along with the useful parts and their dependencies.
+along with the useful parts and their dependencies.
 
-This is a gross simplification, and the list is incomplete, but it should
+This is a simplification and the list is incomplete, but it should
 give the right idea of what minibase is.
 
 The listed components form the base of the system. Their role is roughly
-initialization, configuration and keeping the system running in general.
-What exactly does that entail differs wildly; minibase can be thought of
-as being somewhere in-between busybox and systemd, and its primary target
-being a personal computer (a desktop or a laptop) running a GUI.
+initialization, configuration and general support for the useful parts.
+What exactly does that entail differs wildly between projects; minibase
+can be thought of as being in-between busybox and systemd. The primary
+target for this project is a personal computer (a desktop or a laptop)
+running a GUI.
 
-minibase is written in raw syscalls using a small custom C library,
-and does not depend on conventional libc. The resulting executables
-are always statically linked. The rest of the system may still depend
-on libc.
+minibase is written in raw syscalls using a small custom C library.
+The resulting executables are always statically linked and have no
+external dependencies other than the kernel itself.
 
 
 Project status
 ~~~~~~~~~~~~~~
-The project is ONGOING but not yet complete.
+The project is ONGOING but not yet complete or even stable.
 Components currently included in the package:
 
   * batch command runner / script interpreter (msh)
