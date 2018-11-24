@@ -7,7 +7,7 @@ cat <<END
 
 END
 
-sed -ne 's/^int cmd_\([a-z]\+\).*/CMD(\1)/p' msh_cmd_*.c
+sed -ne 's/^int cmd_\([a-z]\+\).*/CMD(\1)/p' msh_cmd_*.c | sort
 
 cat <<END
 
