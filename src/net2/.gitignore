@@ -1,5 +1,3 @@
 /run/*
 ifmon
-ipcfg
 ifctl
-ipinfo
