@@ -19,39 +19,12 @@ int netlink;
 char rtnl_tx[512];
 char rtnl_rx[4096];
 
-static struct nlattr* ifi_get(struct ifinfomsg* msg, int key)
-{
-	return nl_attr_k_in(NLPAYLOAD(msg), key);
-}
-
 static void rtnl_send_check(void)
 {
 	if(nl_send(&rtnl) >= 0)
 		return;
 
 	quit("send", "rtnl", rtnl.err);
-}
-
-static void set_iface_state(int ifi, int mask, int bits)
-{
-	struct ifinfomsg* msg;
-
-	nl_header(&rtnl, msg, RTM_SETLINK, 0,
-			.index = ifi,
-			.flags = bits,
-			.change = mask);
-
-	rtnl_send_check();
-}
-
-void enable_iface(LS)
-{
-	set_iface_state(ls->ifi, IFF_UP, IFF_UP);
-}
-
-void disable_iface(LS)
-{
-	set_iface_state(ls->ifi, IFF_UP, 0);
 }
 
 void set_iface_address(int ifi, uint8_t ip[4], int mask, int lt, int rt)
@@ -81,6 +54,21 @@ void set_iface_address(int ifi, uint8_t ip[4], int mask, int lt, int rt)
 	rtnl_send_check();
 }
 
+void del_iface_address(int ifi, byte ip[4], int mask)
+{
+	struct ifaddrmsg* req;
+
+	nl_header(&rtnl, req, RTM_DELADDR, 0,
+		.family = AF_INET,
+		.prefixlen = mask,
+		.flags = 0,
+		.scope = 0,
+		.index = ifi);
+	nl_put(&rtnl, IFA_LOCAL, ip, 4);
+
+	rtnl_send_check();
+}
+
 void add_default_route(int ifi, uint8_t gw[4])
 {
 	struct rtmsg* req;
@@ -102,104 +90,7 @@ void add_default_route(int ifi, uint8_t gw[4])
 	rtnl_send_check();
 }
 
-static int iff_to_flags(int iff, int flags)
-{
-	flags &= ~(LF_ENABLED | LF_CARRIER);
-	
-	if(iff & IFF_RUNNING)
-		flags |= LF_CARRIER;
-	if(iff & IFF_UP)
-		flags |= LF_ENABLED;
-
-	return flags;
-}
-
-/* Avoid tracking netdevs that lack MAC address.
-   This should exclude ppp ifaces among other things. */
-
-static int check_set_mac(struct link* ls, struct ifinfomsg* msg)
-{
-	struct nlattr* at;
-
-	if(!(at = ifi_get(msg, IFLA_ADDRESS)))
-		return 0;
-	if(at->len - sizeof(*at) != 6)
-		return 0;
-
-	memcpy(ls->mac, at->payload, 6);
-
-	return 1;
-}
-
-static int bitgain(int prev, int curr, int bit)
-{
-	return (!(prev & bit) && (curr & bit));
-}
-
-static void msg_new_link(struct ifinfomsg* msg)
-{
-	struct link* ls;
-	char* name;
-	uint nlen;
-
-	if(!(name = nl_str(ifi_get(msg, IFLA_IFNAME))))
-		return;
-	if((nlen = strlen(name)) > sizeof(ls->name)-1)
-		return;
-	if(msg->flags & (IFF_LOOPBACK | IFF_POINTOPOINT))
-		return;
-	if(!(ls = grab_link_slot(msg->index)))
-		return;
-
-	int prev = ls->flags;
-	int curr = iff_to_flags(msg->flags, ls->flags);
-
-	if(!ls->ifi) {
-		/* new link notification */
-
-		if(!check_set_mac(ls, msg))
-			return;
-
-		ls->ifi = msg->index;
-		ls->flags = curr;
-		memcpy(ls->name, name, nlen);
-
-		link_new(ls);
-
-		if(ls->flags & LF_ENABLED)
-			link_enabled(ls);
-		if(ls->flags & LF_CARRIER)
-			link_carrier(ls);
-
-	} else if(curr != prev) {
-		/* state change notification */
-
-		ls->flags = curr;
-
-		if(bitgain(curr, prev, LF_CARRIER))
-			link_lost(ls);
-		if(bitgain(curr, prev, LF_ENABLED))
-			link_down(ls);
-		if(bitgain(prev, curr, LF_ENABLED))
-			link_enabled(ls);
-		if(bitgain(prev, curr, LF_CARRIER))
-			link_carrier(ls);
-	}
-}
-
-static void msg_del_link(struct ifinfomsg* msg)
-{
-	struct link* ls;
-
-	if(!(ls = find_link_slot(msg->index)))
-		return;
-
-	link_gone(ls);
-
-	free_link_slot(ls);
-}
-
-void delete_addr(LS)
+static void delete_addr(LS)
 {
 	struct ifaddrmsg* req;
 
@@ -215,13 +106,158 @@ void delete_addr(LS)
 	ls->seq = rtnl.seq;
 }
 
+static void flush_link_addrs(LS)
+{
+	if(!(ls->flags & LF_LEASED))
+		return;
+	if(ls->flags & LF_FLUSHING)
+		return;
+
+	ls->flags |= LF_FLUSHING;
+
+	delete_addr(ls);
+	drop_dhcp_lease(ls);
+}
+
+static int iff_to_flags(int iff, int flags)
+{
+	flags &= ~(LF_ENABLED | LF_CARRIER);
+	
+	if(iff & IFF_RUNNING)
+		flags |= LF_CARRIER;
+	if(iff & IFF_UP)
+		flags |= LF_ENABLED;
+
+	return flags;
+}
+
+static struct nlattr* ifi_get(struct ifinfomsg* msg, int key)
+{
+	return nl_attr_k_in(NLPAYLOAD(msg), key);
+}
+
+static int bitgain(int prev, int curr, int bit)
+{
+	return (!(prev & bit) && (curr & bit));
+}
+
+static void new_link_notification(struct ifinfomsg* msg)
+{
+	struct link* ls;
+	byte* mac;
+	char* name;
+	uint nlen;
+
+	/* Avoid tracking netdevs that lack 6-byte MAC address (PPP etc).
+	   This tool is mostly about DHCP and DHCP needs 6-byte MAC. */
+	if(!(mac = nl_bin(ifi_get(msg, IFLA_ADDRESS), 6)))
+		return;
+	if(!(ls = find_link_by_addr(mac)))
+		return;
+
+	/* Skip unnamed links; should never happen but who knows. */
+	if(!(name = nl_str(ifi_get(msg, IFLA_IFNAME))))
+		return;
+	if((nlen = strlen(name)) > sizeof(ls->name)-1)
+		return;
+
+	ls->ifi = msg->index;
+	ls->flags = iff_to_flags(msg->flags, 0);
+
+	memcpy(ls->name, name, nlen);
+	memcpy(ls->mac, mac, 6);
+
+	/* XXX: run scripts */
+}
+
+static void update_link_name(LS, struct ifinfomsg* msg)
+{
+	char* name;
+
+	if(!(name = nl_str(ifi_get(msg, IFLA_IFNAME))))
+		return;
+
+	uint nlen = strlen(name);
+	uint olen = strlen(ls->name);
+
+	if(olen == nlen && !memcmp(ls->name, name, nlen))
+		return;
+
+	if(ls->flags & LF_RUNNING)
+		ls->flags |= LF_NEWNAME;
+
+	if(nlen > sizeof(ls->name) - 1) {
+		ls->flags |= LF_TOOLONG;
+		nlen = sizeof(ls->name) - 1;
+		memcpy(ls->name, name, nlen);
+		ls->name[nlen] = '\0';
+	} else {
+		ls->flags &= ~LF_TOOLONG;
+		memcpy(ls->name, name, nlen + 1);
+	}
+
+}
+
+static void update_link_mac(LS, struct ifinfomsg* msg)
+{
+	byte* mac;
+	
+	if(!(mac = nl_bin(ifi_get(msg, IFLA_ADDRESS), 6)))
+		return;
+
+	if(!memcmp(ls->mac, mac, 6))
+		return;
+
+	memcpy(ls->mac, mac, 6);
+}
+
+static void link_state_changed(LS, struct ifinfomsg* msg)
+{
+	int prev = ls->flags;
+	int curr = iff_to_flags(msg->flags, prev);
+
+	ls->flags = curr;
+
+	if(bitgain(curr, prev, LF_CARRIER)) /* lost */
+		flush_link_addrs(ls);
+	//if(bitgain(prev, curr, LF_CARRIER)) /* appeared */
+	//	start_auto_dhcp(ls);
+
+	update_link_name(ls, msg);
+	update_link_mac(ls, msg);
+}
+
+static void msg_new_link(struct ifinfomsg* msg)
+{
+	struct link* ls;
+
+	if(msg->flags & (IFF_LOOPBACK | IFF_POINTOPOINT))
+		return;
+
+	if((ls = find_link_by_id(msg->index)))
+		link_state_changed(ls, msg);
+	else
+		new_link_notification(msg);
+}
+
+static void msg_del_link(struct ifinfomsg* msg)
+{
+	struct link* ls;
+
+	if(!(ls = find_link_by_id(msg->index)))
+		return;
+
+	ls->ifi = 0;
+	memzero(ls->name, sizeof(ls->name));
+}
+
 static void seq_error(LS, int errno)
 {
 	if(ls->flags & LF_FLUSHING) {
 		if(!errno)
 			delete_addr(ls);
-		else
-			link_flushed(ls);
+		//else
+		//	link_flushed(ls);
 	} else if(errno) {
 		warn("rtnl", ls->name, errno);
 	}

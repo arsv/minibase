@@ -2,7 +2,7 @@ include ../rules.mk
 
 $(eval $(call service,ifmon))
 $(eval $(call command,ifctl))
+$(eval $(call command,dhcp))
 
-ifmon: ifmon.o ifmon_ctrl.o ifmon_rtnl.o ifmon_exec.o \
-	ifmon_slot.o ifmon_link.o ifmon_conf.o \
-	ifmon_dhcp.o ifmon_dhcp_recv.o ifmon_dhcp_send.o
+ifmon: ifmon.o ifmon_config.o ifmon_control.o ifmon_dhcp.o \
+	ifmon_netlink.o ifmon_scripts.o ifmon_slots.o

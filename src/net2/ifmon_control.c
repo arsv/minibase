@@ -57,31 +57,31 @@ static void report_simple(int ifi, int cmd)
 	send_report(uc.brk, uc.ptr - uc.brk, ifi);
 }
 
-static void report_link(LS, int cmd)
-{
-	report_simple(ls->ifi, cmd);
-}
+//static void report_link(LS, int cmd)
+//{
+//	report_simple(ls->ifi, cmd);
+//}
 
 static void report_dhcp(DH, int cmd)
 {
 	report_simple(dh->ifi, cmd);
 }
 
-void report_link_down(LS)
-{
-	report_link(ls, REP_IF_LINK_DOWN);
-}
-
-void report_link_gone(LS)
-{
-	report_link(ls, REP_IF_LINK_GONE);
-}
-
-void report_link_stopped(LS)
-{
-	report_link(ls, REP_IF_LINK_STOP);
-}
-
+//void report_link_down(LS)
+//{
+//	report_link(ls, REP_IF_LINK_DOWN);
+//}
+//
+//void report_link_gone(LS)
+//{
+//	report_link(ls, REP_IF_LINK_GONE);
+//}
+//
+//void report_link_stopped(LS)
+//{
+//	report_link(ls, REP_IF_LINK_STOP);
+//}
+//
 void report_dhcp_done(DH)
 {
 	report_dhcp(dh, REP_IF_DHCP_FAIL);
@@ -92,15 +92,15 @@ void report_dhcp_fail(DH)
 	report_dhcp(dh, REP_IF_DHCP_DONE);
 }
 
-void report_link_enabled(LS)
-{
-	report_link(ls, REP_IF_LINK_ENABLED);
-}
-
-void report_link_carrier(LS)
-{
-	report_link(ls, REP_IF_LINK_CARRIER);
-}
+//void report_link_enabled(LS)
+//{
+//	report_link(ls, REP_IF_LINK_ENABLED);
+//}
+//
+//void report_link_carrier(LS)
+//{
+//	report_link(ls, REP_IF_LINK_CARRIER);
+//}
 
 static int send_reply(struct conn* cn, struct ucbuf* uc)
 {
@@ -120,96 +120,36 @@ int reply(struct conn* cn, int err)
 	return send_reply(cn, &uc);
 }
 
-static int get_ifi(MSG)
+static struct link* find_link(MSG)
 {
 	int* pi;
 
 	if(!(pi = uc_get_int(msg, ATTR_IFI)))
-		return -EINVAL;
-
-	return *pi;
-}
-
-static struct link* find_link(MSG)
-{
-	int ifi;
-
-	if((ifi = get_ifi(msg)) < 0)
 		return NULL;
 
-	return find_link_slot(ifi);
+	return find_link_by_id(*pi);
 }
 
-static void reassess_link(LS)
-{
-	if(ls->mode == LM_SKIP)
-		return;
-
-	if(ls->mode == LM_DOWN) {
-		if(ls->flags & LF_ENABLED)
-			disable_iface(ls);
-		return;
-	}
-	if(!(ls->flags & LF_ENABLED)) {
-		enable_iface(ls);
-		return;
-	}
-
-	if(ls->flags & LF_ENABLED)
-		link_enabled(ls);
-	if(ls->flags & LF_CARRIER)
-		link_carrier(ls);
-}
-
-static int is_stopped(LS)
-{
-	return !(ls->flags & LF_RUNNING);
-}
-
-static int set_link_mode(CN, MSG, int mode)
-{
-	struct link* ls;
-	int ret;
-
-	if((ret = get_ifi(msg)) < 0)
-		return -EINVAL;
-	if(!(ls = find_link_slot(ret)))
-		return -ENODEV;
-	if(!is_stopped(ls))
-		return -EBUSY;
-
-	ls->mode = mode;
-	ls->flags &= ~(LF_STOP | LF_ERROR);
-	ls->flags |= LF_UNSAVED;
-	cn->rep = ls->ifi;
-
-	ret = reply(cn, 0);
-
-	reassess_link(ls);
-
-	return ret;
-}
-
-static int common_flags(LS)
-{
-	int val = ls->flags;
-	int out = 0;
-
-	if(val & LF_ENABLED)
-		out |= IF_ENABLED;
-	if(val & LF_CARRIER)
-		out |= IF_CARRIER;
-	if(val & LF_RUNNING)
-		out |= IF_RUNNING;
-	if(val & LF_STOPPING)
-		out |= IF_STOPPING;
-	if(val & LF_ERROR)
-		out |= IF_ERROR;
-	if(val & LF_DHCPFAIL)
-		out |= IF_DHCPFAIL;
-
-	return out;
-}
+//static int common_flags(LS)
+//{
+//	int val = ls->flags;
+//	int out = 0;
+//
+//	if(val & LF_ENABLED)
+//		out |= IF_ENABLED;
+//	if(val & LF_CARRIER)
+//		out |= IF_CARRIER;
+//	if(val & LF_RUNNING)
+//		out |= IF_RUNNING;
+//	if(val & LF_STOPPING)
+//		out |= IF_STOPPING;
+//	if(val & LF_ERROR)
+//		out |= IF_ERROR;
+//	if(val & LF_DHCPFAIL)
+//		out |= IF_DHCPFAIL;
+//
+//	return out;
+//}
 
 static int cmd_status(CN, MSG)
 {
@@ -229,91 +169,56 @@ static int cmd_status(CN, MSG)
 		uc_put_int(&uc, ATTR_IFI, ls->ifi);
 		uc_put_bin(&uc, ATTR_ADDR, ls->mac, sizeof(ls->mac));
 		uc_put_str(&uc, ATTR_NAME, ls->name);
-		uc_put_int(&uc, ATTR_MODE, ls->mode);
-		uc_put_int(&uc, ATTR_FLAGS, common_flags(ls));
+		//uc_put_int(&uc, ATTR_MODE, ls->mode);
 		uc_end_nest(&uc, at);
 	}
 
 	uc_put_end(&uc);
 
 	return send_reply(cn, &uc);
+}
 
+static int cmd_leases(CN, MSG)
+{
 	return -ENOSYS;
 }
 
-static int cmd_stop(CN, MSG)
+static int cmd_tag_only(CN, MSG)
 {
-	struct link* ls;
-	int ret;
-
-	if((ret = get_ifi(msg)) < 0)
-		return -EINVAL;
-	if(!(ls = find_link_slot(ret)))
-		return -ENODEV;
-	if((ret = stop_link(ls)) < 0)
-		return ret;
-
-	cn->rep = ls->ifi;
-
-	return 0;
+	return -ENOSYS;
 }
 
-static int cmd_restart(CN, MSG)
+static int cmd_tag_also(CN, MSG)
 {
-	struct link* ls;
-	int ret;
-
-	if((ret = get_ifi(msg)) < 0)
-		return -EINVAL;
-	if(!(ls = find_link_slot(ret)))
-		return -ENODEV;
-	if(!is_stopped(ls))
-		return -EBUSY;
-
-	ls->flags &= ~(LF_STOP | LF_ERROR);
-
-	ret = reply(cn, 0);
-
-	reassess_link(ls);
-
-	return ret;
+	return -ENOSYS;
 }
 
-static int cmd_set_skip(CN, MSG)
+static int cmd_tag_none(CN, MSG)
 {
-	return set_link_mode(cn, msg, LM_SKIP);
+	return -ENOSYS;
 }
 
-static int cmd_set_down(CN, MSG)
-{
-	return set_link_mode(cn, msg, LM_DOWN);
-}
-
-static int cmd_set_dhcp(CN, MSG)
-{
-	return set_link_mode(cn, msg, LM_DHCP);
-}
-
-static int cmd_set_wifi(CN, MSG)
-{
-	return set_link_mode(cn, msg, LM_WIFI);
-}
-
-static int cmd_run_dhcp(CN, MSG)
+static int cmd_dhcp_auto(CN, MSG)
 {
 	struct link* ls;
 
-	if(!(ls = find_link(msg)))
-		return -ENODEV;
+	if((ls = find_link(msg)))
+		start_dhcp(ls);
 
-	start_dhcp(ls);
-
-	cn->rep = ls->ifi;
-
-	return 0;
+	return REPLIED;
 }
 
-static int cmd_xdhcp(CN, MSG)
+static int cmd_dhcp_once(CN, MSG)
+{
+	struct link* ls;
+
+	if((ls = find_link(msg)))
+		start_dhcp(ls);
+
+	return REPLIED;
+}
+
+static int cmd_dhcp_stop(CN, MSG)
 {
 	struct link* ls;
 
@@ -328,14 +233,13 @@ static const struct cmd {
 	int (*call)(CN, MSG);
 } commands[] = {
 	{ CMD_IF_STATUS,    cmd_status     },
-	{ CMD_IF_STOP,      cmd_stop       },
-	{ CMD_IF_RESTART,   cmd_restart    },
-	{ CMD_IF_SET_SKIP,  cmd_set_skip   },
-	{ CMD_IF_SET_DOWN,  cmd_set_down   },
-	{ CMD_IF_SET_DHCP,  cmd_set_dhcp   },
-	{ CMD_IF_SET_WIFI,  cmd_set_wifi   },
-	{ CMD_IF_RUN_DHCP,  cmd_run_dhcp   },
-	{ CMD_IF_XDHCP,     cmd_xdhcp      },
+	{ CMD_IF_LEASES,    cmd_leases     },
+	{ CMD_IF_TAG_ONLY,  cmd_tag_only   },
+	{ CMD_IF_TAG_ALSO,  cmd_tag_also   },
+	{ CMD_IF_TAG_NONE,  cmd_tag_none   },
+	{ CMD_IF_DHCP_ONCE, cmd_dhcp_once  },
+	{ CMD_IF_DHCP_AUTO, cmd_dhcp_auto  },
+	{ CMD_IF_DHCP_STOP, cmd_dhcp_stop  },
 	{ 0,                NULL           }
 };
 

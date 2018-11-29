@@ -3,12 +3,11 @@
 
 #include "ifmon.h"
 
-/* Slot allocation for various objects used in wimon. */
+/* Slot allocation for various objects used in ifmon. */
 
 struct link links[NLINKS];
 struct conn conns[NCONNS];
 struct dhcp dhcps[NDHCPS];
-struct addr addrs[NADDRS];
 int nlinks;
 int nconns;
 int ndhcps;
@@ -55,7 +54,7 @@ static void free_slot(void* slots, int* count, int size, void* p)
 	}
 }
 
-struct link* find_link_slot(int ifi)
+struct link* find_link_by_id(int ifi)
 {
 	struct link* ls;
 
@@ -66,14 +65,20 @@ struct link* find_link_slot(int ifi)
 	return NULL;
 }
 
-struct link* grab_link_slot(int ifi)
+struct link* find_link_by_addr(byte mac[6])
 {
 	struct link* ls;
 
-	if((ls = find_link_slot(ifi)))
-		return ls;
+	for(ls = links; ls < links + nlinks; ls++)
+		if(!memcmp(ls->mac, mac, 6))
+			return ls;
 
-	return grab_slot(links, &nlinks, NLINKS, sizeof(*ls));
+	return NULL;
+}
+
+struct link* grab_empty_link_slot(void)
+{
+	return grab_slot(links, &nlinks, NLINKS, sizeof(*links));
 }
 
 void free_link_slot(struct link* ls)
@@ -136,30 +141,4 @@ struct dhcp* grab_dhcp_slot(int ifi)
 void free_dhcp_slot(struct dhcp* dh)
 {
 	free_slot(dhcps, &ndhcps, sizeof(*dh), dh);
-}
-
-void flush_addrs(int ifi, int tag)
-{
-	struct addr* ad;
-
-	for(ad = addrs; ad < addrs + naddrs; ad++) {
-		if(ifi && ad->ifi != ifi)
-			continue;
-		if(tag && ad->tag != tag)
-			continue;
-		memzero(ad, sizeof(*ad));
-	}
-}
-
-void record_addr(int ifi, byte tag, byte* ip, byte mask)
-{
-	struct addr* ad;
-
-	if(!(ad = grab_slot(addrs, &naddrs, NADDRS, sizeof(*ad))))
-		return;
-
-	ad->ifi = ifi;
-	ad->tag = tag;
-	memcpy(ad->ip, ip, 4);
-	ad->mask = mask;
 }

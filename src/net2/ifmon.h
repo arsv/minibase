@@ -3,13 +3,12 @@
 #define NPROCS 10
 #define NDHCPS 4
 #define NADDRS 12
-#define NAMELEN 16
 
-#define LM_SKIP  0
-#define LM_DOWN  1
-#define LM_DHCP  2
-#define LM_WIFI  3
+#define MACLEN 6
+#define TAGLEN 16
+#define IFNLEN 16
 
+/* link.flags */
 #define LF_ENABLED  (1<<0)
 #define LF_CARRIER  (1<<1)
 #define LF_RUNNING  (1<<2)
@@ -23,23 +22,24 @@
 #define LF_DHCPFAIL (1<<10)
 #define LF_UNSAVED  (1<<11)
 
-#define CH_DHCP  1
-#define CH_WIENC 2
+#define LF_NEWNAME  (1<<12)
+#define LF_NEWMAC   (1<<13)
+#define LF_TOOLONG  (1<<14)
+#define LF_LEASED   (1<<15)
 
+/* dhcp.state */
 #define DH_DISCOVER 1
 #define DH_REQUEST  2
 #define DH_LEASED   3
 #define DH_RENEWING 4
 
-#define AD_DNS      1
-
 struct link {
 	int ifi;
 	uint seq;
 	int flags;
-	short mode;
-	byte mac[6];
-	char name[NAMELEN];
+	byte mac[MACLEN];
+	char tag[TAGLEN];
+	char name[IFNLEN];
 };
 
 struct conn {
@@ -54,13 +54,6 @@ struct proc {
 	int tag;
 };
 
-struct addr {
-	int ifi;
-	byte ip[4];
-	byte mask;
-	byte tag;
-};
-
 struct dhcp {
 	int ifi;
 	int fd;
@@ -72,6 +65,7 @@ struct dhcp {
 	byte srvmac[6];
 	byte srvaddr[4];
 	byte ouraddr[4];
+	int mask;
 	uint32_t xid;
 };
 
@@ -86,12 +80,10 @@ extern struct proc procs[];
 extern struct conn conns[];
 extern struct link links[];
 extern struct dhcp dhcps[];
-extern struct addr addrs[];
 extern int nprocs;
 extern int nconns;
 extern int nlinks;
 extern int ndhcps;
-extern int naddrs;
 extern int ctrlfd;
 
 void quit(const char* msg, char* arg, int err) noreturn;
@@ -103,8 +95,9 @@ void setup_rtnl(void);
 void unlink_ctrl(void);
 void setup_ctrl(void);
 
-struct link* grab_link_slot(int ifi);
-struct link* find_link_slot(int ifi);
+struct link* grab_empty_link_slot(void);
+struct link* find_link_by_id(int ifi);
+struct link* find_link_by_addr(byte mac[6]);
 void free_link_slot(LS);
 
 struct proc* grab_proc_slot(void);
@@ -119,24 +112,11 @@ void free_dhcp_slot(struct dhcp* dh);
 void record_addr(int ifi, byte tag, byte ip[4], byte mask);
 void flush_addrs(int ifi, int tag);
 
-void link_new(LS);
-void link_enabled(LS);
-void link_carrier(LS);
-void link_lost(LS);
-void link_down(LS);
-void link_gone(LS);
-void link_exit(LS, int tag, int status);
-void link_flushed(LS);
-
 void waitpids(void);
 
 void load_link(LS);
 void save_link(LS);
 void save_flagged_links();
-
-void enable_iface(LS);
-void disable_iface(LS);
-void delete_addr(LS);
 
 int spawn(LS, int tag, char** argv);
 int any_procs_left(LS);
@@ -170,3 +150,12 @@ void drop_all_leases(void);
 
 void set_iface_address(int ifi, uint8_t ip[4], int mask, int lt, int rt);
 void add_default_route(int ifi, uint8_t gw[4]);
+
+void load_tagged_link(LS);
+void flush_dhcp_addrs(LS);
+void start_auto_dhcp(LS);
+void drop_dhcp_lease(LS);
+
+void load_link_db();
+void save_link_db();
+void del_iface_address(int ifi, byte ip[4], int mask);

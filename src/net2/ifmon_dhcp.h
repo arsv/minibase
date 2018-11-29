@@ -107,7 +107,7 @@ int get_mask_bits(void);
 int get_message_type(void);
 struct dhcpopt* get_option(int code, int len);
 
-int send_renew(DH);
-int send_request(DH);
-int send_discover(DH);
-void send_release(DH);
+//int send_renew(DH);
+//int send_request(DH);
+//int send_discover(DH);
+//void send_release(DH);

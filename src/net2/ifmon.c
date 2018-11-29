@@ -207,15 +207,6 @@ static void stop_wait_procs(void)
 	}
 }
 
-static void stop_all_links(void)
-{
-	struct link* ls;
-
-	for(ls = links; ls < links + nlinks; ls++)
-		if(ls->ifi && ls->mode != LM_SKIP)
-			disable_iface(ls);
-}
-
 static struct timespec* prep_poll_timer(struct timespec* t0, struct timespec* t1)
 {
 	struct timespec ts = { 0, 0 };
@@ -261,6 +252,8 @@ int main(int argc, char** argv)
 	setup_signals();
 	setup_pollfds();
 
+	load_link_db();
+
 	while(!sigterm) {
 		sigchld = 0;
 
@@ -280,10 +273,10 @@ int main(int argc, char** argv)
 			check_polled_fds();
 	}
 
+	save_link_db();
+
 	drop_all_leases();
 	stop_wait_procs();
-	stop_all_links();
-	save_flagged_links();
 	unlink_ctrl();
 
 	return 0;

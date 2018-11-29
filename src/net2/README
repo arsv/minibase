@@ -1,25 +1,8 @@
-Networking tools are a pain to deal with in devel environment.
+Why combined ifmon + dhcp client?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Dropping DHCP-obtained addresses on carrier-down is quite important for some
+use cases, wifi in particular. A DHCP client capable of monitoring link carrier
+status is something like 90% of ifmon already.
 
-To have everything working as intended, wsupp must be running under ifmon,
-and both must be running as root. There is no way around this, pretty much
-anything either of the tools does requires root privileges.
-
-Set PATH=.:$PATH to let ifmon run wsupp.
-
-It is possible to run wsupp as a standalone process, but it won't be able
-to trigger dhcp, so dhcp (the one from ../temp/wifi/, or ifctl -q) should
-be run manually if a usable connection is needed. The control tool will
-not be able to auto-start the service, and won't handle start/stop commands
-because those are actually passed to ifmon.
-
-When auto-starting the service, wifi expects ./run/wsupp to become writable
-soon after it appears. Without sockmod running, the service will be started
-but the socket won't be chmod()ed and wifi won't be able to connect.
-Chmod or chown it manually and retry. Pre-configure iface with ifctl
-(or use wifi start) to skip auto-start.
-
-Avoid running wsupp on devices already handled by wpa_supplicant.
-There's no interlocking. In systemd-based distros, avoid running ifmon
-in parallel with networkd, or at least do not attempt to debug dhcp while
-doing so. Beware networkd is often configured as socket-activated and may
-get restarted when DHCP reply arrives.
+The actual interface-monitoring part of ifmon is simple and hardly warrants
+a separate service. Much easier to just piggy-back it onto the dhcp client.

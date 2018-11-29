@@ -13,7 +13,7 @@
 
 #include "common.h"
 
-ERRTAG("ifctl");
+ERRTAG("dhcp");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT);
 
@@ -274,21 +274,47 @@ static char* shift_arg(CTX)
 	return ctx->argv[ctx->argi++];
 }
 
-static void req_status(CTX)
+static void req_drop(CTX)
+{
+	fail("not supported", NULL, 0);
+}
+
+static void req_release(CTX)
+{
+	fail("not supported", NULL, 0);
+}
+
+static void req_renew(CTX)
+{
+	fail("not supported", NULL, 0);
+}
+
+static void req_leases(CTX)
 {
 	no_other_options(ctx);
 
-	uc_put_hdr(UC, CMD_IF_STATUS);
+	uc_put_hdr(UC, CMD_IF_LEASES);
 	uc_put_end(UC);
 
 	send_check(ctx);
+}
+
+static void req_start(CTX)
+{
+	fail("not supported", NULL, 0);
 }
 
 static const struct cmd {
 	char name[16];
 	void (*call)(CTX);
 } cmds[] = {
-	{ "status",   req_status  },
+	{ "leases",    req_leases  },
+	{ "list",      req_leases  },
+	{ "start",     req_start   },
+	{ "request",   req_start   },
+	{ "renew",     req_renew   },
+	{ "release",   req_release },
+	{ "drop",      req_drop    }
 };
 
 int invoke(CTX, const struct cmd* cc)
@@ -322,5 +348,8 @@ int main(int argc, char** argv)
 		if(!strncmp(cc->name, lead, sizeof(cc->name)))
 			return invoke(ctx, cc);
 
-	fail("unknown command", lead, 0);
+	ctx->argi--;
+	req_start(ctx);
+
+	return 0;
 }

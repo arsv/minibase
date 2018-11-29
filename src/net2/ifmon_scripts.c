@@ -89,7 +89,6 @@ int any_procs_left(struct link* ls)
 void waitpids(void)
 {
 	struct proc* ch;
-	struct link* ls;
 	int pid;
 	int status;
 	int ifi;
@@ -100,14 +99,7 @@ void waitpids(void)
 		if((ifi = ch->ifi) < 0)
 			continue;
 
-		int tag = ch->tag;
-
 		free_proc_slot(ch);
-
-		if(!(ls = find_link_slot(ifi)))
-			continue;
-
-		link_exit(ls, tag, status);
 	}
 }
 
