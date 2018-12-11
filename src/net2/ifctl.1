@@ -4,21 +4,22 @@
 \fBifctl\fR \- control tool for \fBifmon\fR(8)
 '''
 .SH SYNOPSIS
-Set persistent configuration for the interface:
-.IP "\fBifctl\fR \fB-x\fR \fIiface\fR" 4
-Skip mode, \fBifmon\fR will not touch this interface.
-.IP "\fBifctl\fR \fB-d\fR \fIiface\fR" 4
-Down mode, \fBifmon\fR will bring this interface down.
-.IP "\fBifctl\fR \fB-a\fR \fIiface\fR" 4
-Auto mode, \fBifmon\fR will try to run \fBdhcp\fR(1) on this interface.
-.IP "\fBifctl\fR \fB-w\fR \fIiface\fR" 4
-Wi-Fi client mode, \fBwsupp\fR(8) will be started on this interface.
-.P
-Change interface state temporarily:
-.IP "\fBifctl\fR \fB-r\fR \fIiface\fR" 4
-Re-active the interface and re-start any associated processes.
-.IP "\fBifctl\fR \fB-n\fR \fIiface\fR" 4
-Deactivate interface, stop any associated processes.
+.IP "\fBifctl\fR" 4
+Show current status.
+.IP "\fBifctl\fR \fIeth0\fR \fBmode\fR \fIlan\fR" 4
+Set profile for the interface.
+.IP "\fBifctl\fR \fIeth0\fR \fBstop\fR" 4
+Tell \fBifmon\fR to drop given interface.
+.IP "\fBifctl\fR \fIeth0\fR \fBauto-dhcp\fR" 4
+Enable \fBifmon\fR-managed DHCP.
+.IP "\fBifctl\fR \fIeth0\fR \fBstop-dhcp\fR" 4
+Disable managed DHCP.
+.IP "\fBifctl\fR \fIeth0\fR \fBdhcp-once\fR" 4
+Enable managed DHCP for as long as the link stays active.
+.IP "\fBifctl\fR \fIeth0\fR \fBidentify\fR" 4
+Try to load saved mode for given device.
+.IP "\fBifctl\fR \fIeth0\fR \fBid\fR" 4
+Show persistent device id.
 '''
 .SH SEE ALSO
-\fBifmod\fR(8), \fBwifi\fR(1), \fBwsupp\fR(8).
+\fBifmod\fR(8).

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "+++ conf-cancel $1"
+
+#./dhcp $1 cancel

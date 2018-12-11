@@ -1,4 +1,5 @@
 /run/*
+/var/*
 ifmon
 ifctl
 dhcp

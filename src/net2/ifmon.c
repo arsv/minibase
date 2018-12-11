@@ -4,7 +4,6 @@
 #include <sys/signal.h>
 #include <sys/time.h>
 
-#include <printf.h>
 #include <netlink.h>
 #include <sigset.h>
 #include <string.h>
@@ -19,15 +18,10 @@ ERRTAG("ifmon");
 char** environ;
 
 static sigset_t defsigset;
-struct pollfd pfds[2+NCONNS+NDHCPS];
-static int pollkey[2+NCONNS+NDHCPS];
+struct pollfd pfds[2+NCONNS];
+static int pollkey[2+NCONNS];
 int pollset;
 int npfds;
-int nconns;
-int ctrlfd;
-
-struct conn conns[NCONNS];
-struct link links[NLINKS];
 
 int sigterm;
 int sigchld;
@@ -109,8 +103,6 @@ void update_pollfds(void)
 
 	for(i = 0; i < nconns; i++)
 		set_pollfd(conns[i].fd,  1 + i);
-	for(i = 0; i < ndhcps; i++)
-		set_pollfd(dhcps[i].fd, -1 - i);
 
 	pollset = 1;
 }
@@ -162,14 +154,6 @@ static void check_conn(struct pollfd* pf, struct conn* cn)
 		close_conn(cn);
 }
 
-static void check_dhcp(struct pollfd* pf, struct dhcp* dh)
-{
-	if(pf->revents & POLLIN)
-		handle_dhcp(dh);
-	if(pf->revents & ~POLLIN)
-		dhcp_error(dh);
-}
-
 static void check_polled_fds(void)
 {
 	int i, k;
@@ -180,8 +164,6 @@ static void check_polled_fds(void)
 	for(i = 2; i < npfds; i++)
 		if((k = pollkey[i]) > 0)
 			check_conn(&pfds[i], &conns[k - 1]);
-		else if(k < 0)
-			check_dhcp(&pfds[i], &dhcps[-k - 1]);
 
 	if(pollset) return;
 
@@ -196,51 +178,19 @@ static void stop_wait_procs(void)
 	kill_all_procs(NULL);
 
 	while(1) {
-		if(!any_procs_left(NULL))
+		if(!any_procs_left())
 			break;
 		if(sys_ppoll(NULL, 0, &ts, &defsigset) < 0)
 			break;
 		if(sigchld)
-			waitpids();
+			got_sigchld();
 		if(sigterm)
 			break;
 	}
 }
 
-static struct timespec* prep_poll_timer(struct timespec* t0, struct timespec* t1)
-{
-	struct timespec ts = { 0, 0 };
-
-	prep_dhcp_timeout(&ts);
-
-	if(!ts.sec && !ts.nsec)
-		return NULL;
-
-	*t0 = ts;
-	*t1 = ts;
-
-	return t1;
-}
-
-static void update_timers(struct timespec* t0, struct timespec* t1)
-{
-	struct timespec dt;
-
-	dt.sec = t0->sec - t1->sec;
-	dt.nsec = t0->nsec - t1->nsec;
-
-	if(t0->nsec < t1->nsec) {
-		dt.nsec += 1000*1000*1000;
-		dt.sec--;
-	}
-
-	update_dhcp_timers(&dt);
-}
-
 int main(int argc, char** argv)
 {
-	struct timespec *pt, t0, t1;
-
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);
 
@@ -252,30 +202,21 @@ int main(int argc, char** argv)
 	setup_signals();
 	setup_pollfds();
 
-	load_link_db();
-
 	while(!sigterm) {
 		sigchld = 0;
 
-		pt = prep_poll_timer(&t0, &t1);
-
-		int r = sys_ppoll(pfds, npfds, pt, &defsigset);
+		int r = sys_ppoll(pfds, npfds, NULL, &defsigset);
 
 		if(sigchld)
-			waitpids();
+			got_sigchld();
 		if(r == -EINTR)
 			; /* signal has been caught and handled */
 		else if(r < 0)
 			quit("ppoll", NULL, r);
-		if(pt != NULL)
-			update_timers(&t0, &t1);
 		if(r > 0)
 			check_polled_fds();
 	}
 
-	save_link_db();
-
-	drop_all_leases();
 	stop_wait_procs();
 	unlink_ctrl();
 

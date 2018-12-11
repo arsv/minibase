@@ -1,17 +1,24 @@
 #include <bits/socket/unix.h>
+#include <bits/ioctl/socket.h>
 #include <bits/errno.h>
 #include <sys/file.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 
 #include <nlusctl.h>
-#include <output.h>
 #include <printf.h>
-#include <format.h>
 #include <string.h>
+#include <format.h>
 #include <util.h>
 #include <main.h>
+#include <netlink.h>
+#include <netlink/rtnl/link.h>
+#include <netlink/rtnl/addr.h>
+#include <netlink/rtnl/route.h>
+#include <netlink/rtnl/mgrp.h>
 
 #include "common.h"
+#include "ifctl.h"
 
 ERRTAG("ifctl");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
@@ -26,32 +33,7 @@ ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 #define OPT_q (1<<5)
 #define OPT_r (1<<6)
 
-struct top {
-	int opts;
-	int argc;
-	int argi;
-	char** argv;
-
-	int fd;
-	struct ucbuf uc;
-	struct urbuf ur;
-	int connected;
-	char txbuf[64];
-	char rxbuf[512];
-
-	int ifi;
-	char* ifname;
-
-	int retry;
-};
-
-typedef struct ucattr* attr;
-#define CTX struct top* ctx __unused
-#define MSG struct ucmsg* msg __unused
-#define AT struct ucattr* at __unused
-#define UC (&ctx->uc)
-
-void init_socket(CTX)
+static void init_socket(CTX)
 {
 	int fd;
 
@@ -80,120 +62,30 @@ static void connect_socket(CTX)
 	};
 
 	if((ret = sys_connect(ctx->fd, &addr, sizeof(addr))) < 0)
-		fail("connect", addr.path, ret);
+		fail(NULL, addr.path, ret);
 
 	ctx->connected = 1;
 }
 
-/* Link list output */
+static void resolve_device(CTX)
+{
+	struct ifreq ifreq;
+	char* name = ctx->name;
+	int nlen = strlen(name);
+	int ret;
 
-//static int count_links(MSG)
-//{
-//	struct ucattr* at;
-//	int count = 0;
-//
-//	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
-//		if(uc_is_nest(at, ATTR_LINK))
-//			count++;
-//
-//	return count;
-//}
-//
-//static void fill_links(MSG, struct ucattr** idx, int n)
-//{
-//	struct ucattr* at;
-//	int i = 0;
-//
-//	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
-//		if(i >= n)
-//			break;
-//		else if(!uc_is_nest(at, ATTR_LINK))
-//			continue;
-//		else
-//			idx[i++] = at;
-//}
-//
-//static const char* modes[] = {
-//	[IF_MODE_SKIP] = "skip",
-//	[IF_MODE_DOWN] = "down",
-//	[IF_MODE_DHCP] = "dhcp",
-//	[IF_MODE_WIFI] = "wifi"
-//};
-//
-//static char* fmt_mode(char* p, char* e, uint mode)
-//{
-//	if(mode < ARRAY_SIZE(modes))
-//		return fmtstr(p, e, modes[mode]);
-//	else
-//		return fmtint(p, e, mode);
-//}
-//
-//static char* fmt_flags(char* p, char* e, int flags)
-//{
-//	p = fmtstr(p, e, "(");
-//
-//	if(flags & IF_CARRIER)
-//		p = fmtstr(p, e, "carrier");
-//	else if(flags & IF_ENABLED)
-//		p = fmtstr(p, e, "up");
-//	else
-//		p = fmtstr(p, e, "down");
-//
-//	if(flags & IF_STOPPING)
-//		p = fmtstr(p, e, ",stopping");
-//	else if(flags & IF_RUNNING)
-//		p = fmtstr(p, e, ",running");
-//
-//	if(flags & IF_ERROR)
-//		p = fmtstr(p, e, ",error");
-//	if(flags & IF_DHCPFAIL)
-//		p = fmtstr(p, e, ",dhcp-fail");
-//
-//	p = fmtstr(p, e, ")");
-//
-//	return p;
-//}
-//
-//static char* fmt_link(char* p, char* e, struct ucattr* at)
-//{
-//	int* ifi = uc_sub_int(at, ATTR_IFI);
-//	char* name = uc_sub_str(at, ATTR_NAME);
-//	int* mode = uc_sub_int(at, ATTR_MODE);
-//	int* flags = uc_sub_int(at, ATTR_FLAGS);
-//	byte* addr = uc_sub_bin(at, ATTR_ADDR, 6);
-//
-//	if(!ifi || !name || !mode || !flags || !addr)
-//		return p;
-//
-//	p = fmtmac(p,e , addr);
-//	p = fmtstr(p, e, " #");
-//	p = fmtint(p, e, *ifi);
-//	p = fmtstr(p, e, " ");
-//	p = fmtstr(p, e, name);
-//	p = fmtstr(p, e, ": ");
-//	p = fmt_mode(p, e, *mode);
-//	p = fmtstr(p, e, " ");
-//	p = fmt_flags(p, e, *flags);
-//	p = fmtstr(p, e, "\n");
-//
-//	return p;
-//}
-//
-//static void dump_status(CTX, MSG)
-//{
-//	int i, n = count_links(msg);
-//	struct ucattr* idx[n];
-//	fill_links(msg, idx, n);
-//
-//	FMTBUF(p, e, buf, 2048);
-//
-//	for(i = 0; i < n; i++)
-//		p = fmt_link(p, e, idx[i]);
-//
-//	FMTEND(p, e);
-//
-//	writeall(STDOUT, buf, p - buf);
-//}
+	if(nlen > IFNAMESIZ)
+		fail("name too long:", name, 0);
+
+	memzero(&ifreq, sizeof(ifreq));
+	memcpy(ifreq.name, name, nlen);
+
+	if((ret = sys_ioctl(ctx->fd, SIOCGIFINDEX, &ifreq)) < 0)
+		fail("ioctl", "SIOCGIFINDEX", ret);
+
+	ctx->ifi = ifreq.ival;
+}
+
 
 /* Wire utils */
 
@@ -221,6 +113,16 @@ struct ucmsg* recv_reply(CTX)
 	return ur->msg;
 }
 
+static int recv_code(CTX)
+{
+	struct ucmsg* msg;
+
+	if(!(msg = recv_reply(ctx)))
+		fail("connection lost", NULL, 0);
+
+	return msg->cmd;
+}
+
 static struct ucmsg* send_recv_msg(CTX)
 {
 	struct ucmsg* msg;
@@ -245,8 +147,17 @@ static void send_check(CTX)
 {
 	int ret;
 
-	if((ret = send_recv_cmd(ctx)) < 0)
+	if((ret = send_recv_cmd(ctx)) == 0)
+		return;
+	else if(ret > 0)
+		fail("unexpected reply", NULL, ret);
+	else if(ret != -EBUSY)
 		fail(NULL, NULL, ret);
+
+	if((ret = recv_code(ctx)) < 0)
+		fail(NULL, NULL, ret);
+	if(ret != REP_IF_DONE)
+		fail("unexpected reply", NULL, ret);
 }
 
 /* Cmdline arguments */
@@ -259,26 +170,244 @@ static void no_other_options(CTX)
 		fail("bad options", NULL, 0);
 }
 
-//static int use_opt(CTX, int opt)
-//{
-//	int ret = ctx->opts & opt;
-//	ctx->opts &= ~opt;
-//	return ret;
-//}
-
 static char* shift_arg(CTX)
 {
 	if(ctx->argi >= ctx->argc)
-		return NULL;
+		fail("too few arguments", NULL, 0);
 
 	return ctx->argv[ctx->argi++];
 }
 
-static void req_status(CTX)
+static int show_status(CTX)
+{
+	no_other_options(ctx);
+	init_socket(ctx);
+
+	uc_put_hdr(UC, CMD_IF_STATUS);
+	uc_put_end(UC);
+
+	struct ucmsg* msg;
+
+	if(!(msg = send_recv_msg(ctx)))
+		fail("connection lost", NULL, 0);
+	if(msg->cmd < 0)
+		fail(NULL, NULL, msg->cmd);
+
+	dump_status(ctx, msg);
+
+	return 0;
+}
+
+static void req_show_id(CTX)
+{
+	identify_device(ctx);
+
+	if(!ctx->devid[0])
+		fail("cannot figure out persistent id for", ctx->name, 0);
+
+	FMTBUF(p, e, out, 100);
+	p = fmtstr(p, e, ctx->devid);
+	FMTENL(p, e);
+
+	writeall(STDOUT, out, p - out);
+}
+
+static void set_active_mode(CTX, char* mode)
+{
+	uc_put_hdr(UC, CMD_IF_MODE);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
+	uc_put_str(UC, ATTR_NAME, ctx->name);
+	uc_put_str(UC, ATTR_MODE, mode);
+	uc_put_end(UC);
+
+	send_check(ctx);
+}
+
+static void req_identify(CTX)
+{
+	char mode[MODESIZE];
+
+	identify_device(ctx);
+
+	if(!ctx->devid[0])
+		return;
+
+	load_device_mode(ctx, mode, sizeof(mode));
+
+	if(!mode[0])
+		return;
+
+	set_active_mode(ctx, mode);
+}
+
+static void check_no_active(CTX, char* mode)
+{
+	struct ucmsg* msg;
+	struct ucattr* at;
+	char* lnmode;
+	char* lnname;
+
+	uc_put_hdr(UC, CMD_IF_STATUS);
+	uc_put_end(UC);
+
+	if(!(msg = send_recv_msg(ctx)))
+		fail("connection lost", NULL, 0);
+	if(msg->cmd < 0)
+		fail(NULL, NULL, msg->cmd);
+
+	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at)) {
+		if(!uc_is_nest(at, ATTR_LINK))
+			continue;
+		if(!(lnmode = uc_sub_str(at, ATTR_MODE)))
+			continue;
+		if(!(lnname = uc_sub_str(at, ATTR_NAME)))
+			continue;
+		if(strcmp(lnmode, mode))
+			continue;
+
+		fail("already set on", lnname, 0);
+	}
+}
+
+static void req_mode(CTX)
+{
+	char* mode = shift_arg(ctx);
+
+	no_other_options(ctx);
+
+	identify_device(ctx);
+
+	check_no_active(ctx, mode);
+	set_active_mode(ctx, mode);
+
+	store_device_mode(ctx, mode);
+}
+
+static void req_also(CTX)
+{
+	char* mode = shift_arg(ctx);
+
+	no_other_options(ctx);
+
+	identify_device(ctx);
+
+	set_active_mode(ctx, mode);
+
+	store_device_also(ctx, mode);
+}
+
+static void set_active_name(CTX, char* name)
+{
+	uc_put_hdr(UC, CMD_IF_NAME);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
+	uc_put_str(UC, ATTR_NAME, name);
+	uc_put_end(UC);
+
+	send_check(ctx);
+}
+
+static void req_setname(CTX)
+{
+	char* name = shift_arg(ctx);
+
+	no_other_options(ctx);
+
+	set_active_name(ctx, name);
+}
+
+static void req_upname(CTX)
 {
 	no_other_options(ctx);
 
-	uc_put_hdr(UC, CMD_IF_STATUS);
+	set_active_name(ctx, ctx->name);
+}
+
+static void rename_interface(CTX, char* name)
+{
+	struct netlink nl;
+	char rxbuf[256];
+	char txbuf[256];
+	int ret;
+
+	nl_init(&nl);
+	nl_set_txbuf(&nl, rxbuf, sizeof(rxbuf));
+	nl_set_rxbuf(&nl, txbuf, sizeof(txbuf));
+	nl_connect(&nl, NETLINK_ROUTE, 0);
+
+	struct ifinfomsg* msg;
+
+	nl_header(&nl, msg, RTM_NEWLINK, 0,
+		.family = 0,
+		.type = 0,
+		.index = ctx->ifi,
+		.flags = 0,
+		.change = 0);
+	nl_put_str(&nl, IFLA_IFNAME, name);
+
+	if((ret = nl_send_recv_ack(&nl)) < 0)
+		fail(NULL, NULL, ret);
+}
+
+static void req_rename(CTX)
+{
+	char* name = shift_arg(ctx);
+
+	no_other_options(ctx);
+
+	rename_interface(ctx, name);
+
+	set_active_name(ctx, name);
+}
+
+static void req_stop(CTX)
+{
+	no_other_options(ctx);
+
+	identify_device(ctx);
+
+	uc_put_hdr(UC, CMD_IF_STOP);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
+	uc_put_end(UC);
+
+	send_check(ctx);
+
+	uc_put_hdr(UC, CMD_IF_DROP);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
+	uc_put_end(UC);
+
+	send_check(ctx);
+
+	clear_device_entry(ctx);
+}
+
+static void req_dhcp_auto(CTX)
+{
+	no_other_options(ctx);
+
+	uc_put_hdr(UC, CMD_IF_DHCP_AUTO);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
+	uc_put_end(UC);
+
+	send_check(ctx);
+}
+
+static void req_dhcp_once(CTX)
+{
+	no_other_options(ctx);
+
+	uc_put_hdr(UC, CMD_IF_DHCP_ONCE);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
+	uc_put_end(UC);
+
+	send_check(ctx);
+}
+
+static void req_dhcp_stop(CTX)
+{
+	no_other_options(ctx);
+
+	uc_put_hdr(UC, CMD_IF_DHCP_STOP);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
 	uc_put_end(UC);
 
 	send_check(ctx);
@@ -288,12 +417,23 @@ static const struct cmd {
 	char name[16];
 	void (*call)(CTX);
 } cmds[] = {
-	{ "status",   req_status  },
+	{ "mode",      req_mode      },
+	{ "also",      req_also      },
+	{ "stop",      req_stop      },
+	{ "auto-dhcp", req_dhcp_auto },
+	{ "dhcp-once", req_dhcp_once },
+	{ "stop-dhcp", req_dhcp_stop },
+	{ "identify",  req_identify  },
+	{ "id",        req_show_id   },
+	{ "set-name",  req_setname   },
+	{ "upname",    req_upname    },
+	{ "rename",    req_rename    },
 };
 
-int invoke(CTX, const struct cmd* cc)
+static int invoke(CTX, const struct cmd* cc)
 {
 	init_socket(ctx);
+	resolve_device(ctx);
 
 	cc->call(ctx);
 
@@ -311,12 +451,18 @@ int main(int argc, char** argv)
 	ctx->argv = argv;
 	ctx->argi = 1;
 
+	if(argc < 2)
+		return show_status(ctx);
+	if(argc == 2) /* ifctl device */
+		fail("no command specified", NULL, 0);
+	
+	char* name = shift_arg(ctx);
 	char* lead = shift_arg(ctx);
 
-	if(!lead)
-		return invoke(ctx, &cmds[0]);
-	if(*lead == '-')
+	if(*name == '-')
 		fail("no options allowed", NULL, 0);
+
+	ctx->name = name;
 
 	for(cc = cmds; cc < cmds + ARRAY_SIZE(cmds); cc++)
 		if(!strncmp(cc->name, lead, sizeof(cc->name)))

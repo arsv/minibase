@@ -3,24 +3,14 @@
 
 #include "ifmon.h"
 
-/* Slot allocation for various objects used in ifmon. */
-
 struct link links[NLINKS];
 struct conn conns[NCONNS];
-struct dhcp dhcps[NDHCPS];
+struct proc procs[NPROCS];
+int marks[NMARKS];
 int nlinks;
 int nconns;
-int ndhcps;
-int naddrs;
-
-struct proc procs[NPROCS];
 int nprocs;
-
-/* Some time ago this was done in a more human manner similar to find_*
-   functions below, but the code is effectively the same for all kinds
-   of slots, so it has been merged.
-
-   The following assumes an empty slot is always all-bits-0. */
+int nmarks;
 
 static void* grab_slot(void* slots, int* count, int total, int size)
 {
@@ -54,7 +44,7 @@ static void free_slot(void* slots, int* count, int size, void* p)
 	}
 }
 
-struct link* find_link_by_id(int ifi)
+struct link* find_link_slot(int ifi)
 {
 	struct link* ls;
 
@@ -65,18 +55,7 @@ struct link* find_link_by_id(int ifi)
 	return NULL;
 }
 
-struct link* find_link_by_addr(byte mac[6])
-{
-	struct link* ls;
-
-	for(ls = links; ls < links + nlinks; ls++)
-		if(!memcmp(ls->mac, mac, 6))
-			return ls;
-
-	return NULL;
-}
-
-struct link* grab_empty_link_slot(void)
+struct link* grab_link_slot(void)
 {
 	return grab_slot(links, &nlinks, NLINKS, sizeof(*links));
 }
@@ -117,28 +96,31 @@ void free_conn_slot(struct conn* cn)
 	free_slot(conns, &nconns, sizeof(*cn), cn);
 }
 
-struct dhcp* find_dhcp_slot(int ifi)
+int check_marked(int ifi)
 {
-	struct dhcp* dh;
+	int* mk;
+	int marked = !0;
 
-	for(dh = dhcps; dh < dhcps + ndhcps; dh++)
-		if(dh->ifi == ifi)
-			return dh;
+	for(mk = marks; mk < marks + nmarks; mk++)
+		if(*mk == ifi)
+			return marked;
 
-	return NULL;
+	if(!(mk = grab_slot(marks, &nmarks, NMARKS, sizeof(*mk))))
+		return marked;
+
+	*mk = ifi;
+
+	return !marked;
 }
 
-struct dhcp* grab_dhcp_slot(int ifi)
+void unmark_link(int ifi)
 {
-	struct dhcp* dh;
+	int* mk;
 
-	if((dh = find_dhcp_slot(ifi)))
-		return dh;
-
-	return grab_slot(dhcps, &ndhcps, NDHCPS, sizeof(*dh));
-}
-
-void free_dhcp_slot(struct dhcp* dh)
-{
-	free_slot(dhcps, &ndhcps, sizeof(*dh), dh);
+	for(mk = marks; mk < marks + nmarks; mk++) {
+		if(*mk == ifi) {
+			free_slot(marks, &nmarks, sizeof(*mk), mk);
+			return;
+		}
+	}
 }

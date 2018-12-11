@@ -19,6 +19,8 @@
 #define CN struct conn* cn __unused
 #define MSG struct ucmsg* msg __unused
 
+int ctrlfd;
+
 static void send_report(char* buf, int len, int ifi)
 {
 	struct conn* cn;
@@ -42,7 +44,7 @@ static void send_report(char* buf, int len, int ifi)
 	}
 }
 
-static void report_simple(int ifi, int cmd)
+void report_done(LS)
 {
 	char buf[64];
 	struct ucbuf uc = {
@@ -51,61 +53,26 @@ static void report_simple(int ifi, int cmd)
 		.end = buf + sizeof(buf)
 	};
 
-	uc_put_hdr(&uc, cmd);
+	uc_put_hdr(&uc, REP_IF_DONE);
 	uc_put_end(&uc);
 
-	send_report(uc.brk, uc.ptr - uc.brk, ifi);
+	send_report(uc.brk, uc.ptr - uc.brk, ls->ifi);
 }
-
-//static void report_link(LS, int cmd)
-//{
-//	report_simple(ls->ifi, cmd);
-//}
-
-static void report_dhcp(DH, int cmd)
-{
-	report_simple(dh->ifi, cmd);
-}
-
-//void report_link_down(LS)
-//{
-//	report_link(ls, REP_IF_LINK_DOWN);
-//}
-//
-//void report_link_gone(LS)
-//{
-//	report_link(ls, REP_IF_LINK_GONE);
-//}
-//
-//void report_link_stopped(LS)
-//{
-//	report_link(ls, REP_IF_LINK_STOP);
-//}
-//
-void report_dhcp_done(DH)
-{
-	report_dhcp(dh, REP_IF_DHCP_FAIL);
-}
-
-void report_dhcp_fail(DH)
-{
-	report_dhcp(dh, REP_IF_DHCP_DONE);
-}
-
-//void report_link_enabled(LS)
-//{
-//	report_link(ls, REP_IF_LINK_ENABLED);
-//}
-//
-//void report_link_carrier(LS)
-//{
-//	report_link(ls, REP_IF_LINK_CARRIER);
-//}
 
 static int send_reply(struct conn* cn, struct ucbuf* uc)
 {
 	writeall(cn->fd, uc->brk, uc->ptr - uc->brk);
 	return REPLIED;
+}
+
+static int assess_link_busy(CN, LS)
+{
+	int ret;
+
+	if((ret = assess_link(ls)) == -EBUSY)
+		cn->rep = ls->ifi;
+
+	return ret;
 }
 
 int reply(struct conn* cn, int err)
@@ -119,37 +86,6 @@ int reply(struct conn* cn, int err)
 
 	return send_reply(cn, &uc);
 }
-
-static struct link* find_link(MSG)
-{
-	int* pi;
-
-	if(!(pi = uc_get_int(msg, ATTR_IFI)))
-		return NULL;
-
-	return find_link_by_id(*pi);
-}
-
-//static int common_flags(LS)
-//{
-//	int val = ls->flags;
-//	int out = 0;
-//
-//	if(val & LF_ENABLED)
-//		out |= IF_ENABLED;
-//	if(val & LF_CARRIER)
-//		out |= IF_CARRIER;
-//	if(val & LF_RUNNING)
-//		out |= IF_RUNNING;
-//	if(val & LF_STOPPING)
-//		out |= IF_STOPPING;
-//	if(val & LF_ERROR)
-//		out |= IF_ERROR;
-//	if(val & LF_DHCPFAIL)
-//		out |= IF_DHCPFAIL;
-//
-//	return out;
-//}
 
 static int cmd_status(CN, MSG)
 {
@@ -167,9 +103,8 @@ static int cmd_status(CN, MSG)
 
 		at = uc_put_nest(&uc, ATTR_LINK);
 		uc_put_int(&uc, ATTR_IFI, ls->ifi);
-		uc_put_bin(&uc, ATTR_ADDR, ls->mac, sizeof(ls->mac));
 		uc_put_str(&uc, ATTR_NAME, ls->name);
-		//uc_put_int(&uc, ATTR_MODE, ls->mode);
+		uc_put_str(&uc, ATTR_MODE, ls->mode);
 		uc_end_nest(&uc, at);
 	}
 
@@ -178,69 +113,182 @@ static int cmd_status(CN, MSG)
 	return send_reply(cn, &uc);
 }
 
-static int cmd_leases(CN, MSG)
+static int cmd_mode(CN, MSG)
 {
-	return -ENOSYS;
+	struct link* ls;
+	int* pi;
+	char* name;
+	char* mode;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(mode = uc_get_str(msg, ATTR_MODE)))
+		return -EINVAL;
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
+
+	uint mlen = strlen(mode);
+	uint nlen = strlen(name);
+
+	if(mlen > sizeof(ls->mode)-1)
+		return -EINVAL;
+	if(nlen > sizeof(ls->name)-1)
+		return -EINVAL;
+	if((ls = find_link_slot(*pi)))
+		return -EALREADY;
+	if(!(ls = grab_link_slot()))
+		return -ENOMEM;
+
+	ls->ifi = *pi;
+	memcpy(ls->mode, mode, mlen + 1);
+	memcpy(ls->name, name, nlen + 1);
+	ls->needs = LN_SETUP;
+	ls->flags = LF_MISNAMED;
+
+	request_link_name(ls);
+
+	return 0;
 }
 
-static int cmd_tag_only(CN, MSG)
+static int cmd_name(CN, MSG)
 {
-	return -ENOSYS;
+	struct link* ls;
+	int* pi;
+	char* name;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
+
+	uint nlen = strlen(name);
+
+	if(nlen > sizeof(ls->name)-1)
+		return -EINVAL;
+	if(!(ls = find_link_slot(*pi)))
+		return -ENOENT;
+
+	memcpy(ls->name, name, nlen + 1);
+	ls->flags |= LF_MISNAMED;
+
+	request_link_name(ls);
+	
+	return 0;
 }
 
-static int cmd_tag_also(CN, MSG)
+static int cmd_stop(CN, MSG)
 {
-	return -ENOSYS;
+	int* pi;
+	struct link* ls;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(*pi)))
+		return -ENOENT;
+
+	kill_all_procs(ls);
+	ls->needs = 0;
+
+	if(ls->flags & LF_DISCONT)
+		ls->needs |= LN_CANCEL;
+
+	ls->flags |= LF_STOP;
+
+	return assess_link_busy(cn, ls);
 }
 
-static int cmd_tag_none(CN, MSG)
+static int cmd_drop(CN, MSG)
 {
-	return -ENOSYS;
+	int* pi;
+	struct link* ls;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(*pi)))
+		return -ENOENT;
+
+	if(any_procs_running(ls) || ls->needs)
+		return -ENOTEMPTY;
+
+	free_link_slot(ls);
+
+	return 0;
+}
+
+static int enable_link_dhcp(CN, MSG, int bits)
+{
+	int* pi;
+	struct link* ls;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(*pi)))
+		return -ENOENT;
+
+	int flags = ls->flags;
+
+	if(flags & LF_DHCP)
+		return -EALREADY;
+
+	ls->flags |= bits;
+
+	if(!(flags & LF_CARRIER))
+		return 0;
+	
+	ls->needs |= LN_REQUEST;
+
+	reassess_link(ls);
+
+	return 0;
 }
 
 static int cmd_dhcp_auto(CN, MSG)
 {
-	struct link* ls;
-
-	if((ls = find_link(msg)))
-		start_dhcp(ls);
-
-	return REPLIED;
+	return enable_link_dhcp(cn, msg, LF_DHCP);
 }
 
 static int cmd_dhcp_once(CN, MSG)
 {
-	struct link* ls;
-
-	if((ls = find_link(msg)))
-		start_dhcp(ls);
-
-	return REPLIED;
+	return enable_link_dhcp(cn, msg, LF_DHCP | LF_ONCE);
 }
 
 static int cmd_dhcp_stop(CN, MSG)
 {
+	int* pi;
 	struct link* ls;
 
-	if((ls = find_link(msg)))
-		start_dhcp(ls);
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(*pi)))
+		return -ENOENT;
 
-	return REPLIED;
+	int flags = ls->flags;
+
+	if(!(flags & LF_DHCP))
+		return -ENOTCONN;
+
+	ls->flags = (flags & ~(LF_DHCP | LF_ONCE));
+
+	if(flags & LF_REQUEST)
+		kill_all_procs(ls);
+	else if(flags & LF_DISCONT)
+		ls->needs |= LN_CANCEL;
+
+	return assess_link_busy(cn, ls);
 }
 
 static const struct cmd {
 	int cmd;
 	int (*call)(CN, MSG);
 } commands[] = {
-	{ CMD_IF_STATUS,    cmd_status     },
-	{ CMD_IF_LEASES,    cmd_leases     },
-	{ CMD_IF_TAG_ONLY,  cmd_tag_only   },
-	{ CMD_IF_TAG_ALSO,  cmd_tag_also   },
-	{ CMD_IF_TAG_NONE,  cmd_tag_none   },
-	{ CMD_IF_DHCP_ONCE, cmd_dhcp_once  },
-	{ CMD_IF_DHCP_AUTO, cmd_dhcp_auto  },
-	{ CMD_IF_DHCP_STOP, cmd_dhcp_stop  },
-	{ 0,                NULL           }
+	{ CMD_IF_STATUS,    cmd_status    },
+	{ CMD_IF_MODE,      cmd_mode      },
+	{ CMD_IF_NAME,      cmd_name      },
+	{ CMD_IF_STOP,      cmd_stop      },
+	{ CMD_IF_DROP,      cmd_drop      },
+	{ CMD_IF_DHCP_AUTO, cmd_dhcp_auto },
+	{ CMD_IF_DHCP_ONCE, cmd_dhcp_once },
+	{ CMD_IF_DHCP_STOP, cmd_dhcp_stop }
 };
 
 static int dispatch_cmd(struct conn* cn, struct ucmsg* msg)
@@ -249,7 +297,7 @@ static int dispatch_cmd(struct conn* cn, struct ucmsg* msg)
 	int cmd = msg->cmd;
 	int ret;
 
-	for(cd = commands; cd->cmd; cd++)
+	for(cd = commands; cd < ARRAY_END(commands); cd++)
 		if(cd->cmd == cmd)
 			break;
 	if(!cd->cmd)

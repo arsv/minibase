@@ -4,14 +4,48 @@
 \fBifmon\fR \- network interface monitor
 '''
 .SH DESCRIPTION
-This service watches for appearance of networking interfaces in the system
-and applies their persistent configuration.
+Network interfaces in Linux are not static and cannot be reliably configured
+during system startup. \fBifmon\fR addresses this problem by monitoring kernel
+events and spawning scripts to configure interfaces once they appear in the
+system. Together with its client tool, \fBifctl\fR, it also maintains stable
+mapping between identifiable physical devices and their assigned setup scripts,
+regardless of non-persistent interface names the kernel uses.
 .P
-Networking interfaces in Linux are dynamic (hot-pluggable) and their names are
-not persistent. The purpose of \fBifmon\fR is to attach configuration to some
-persistent property of the interfaces (its hardware address) so that no matter
-when it appears in the system and which name it gets, the right configuration
-would be applied.
+Whenever a new interface appears, say \fIeth1\fR, ifmon spawns
+.P
+.nf
+	/etc/net/identify \fIeth1\fR
+.fi
+.P
+which should attempt to identify the physical device behind \fIeth1\fR
+and its assigned profile. This is typically done by running
+.P
+.nf
+	\fBifctl \fIeth1 \fBidentify\fR
+.fi
+.P
+which then passes profile name back to ifmon. For any device that has
+been successfully identified and assigned a profile, ifmon then runs
+.P
+.nf
+	/etc/net/mode-\fIprofile\fR
+.fi
+.P
+to configure the device.
+'''
+.SS DHCP
+In addition to new device events, ifmon can also be instructed to monitor
+carrier events and spawn \fBdhcp\fR to configure and then renew dynamic
+IP addresses. See \fBauto-dhcp\fR, \fBdhcp-once\fR and \fBstop-dhcp\fR
+commands in \fBifctl\fR(1). If told to do so, ifmon will spawn
+.P
+.nf
+	/etc/net/conf-request \fIeth1\fR
+	/etc/net/conf-renew \fIeth1\fR
+	/etc/net/conf-cancel \fIeth1\fR
+.fi
+.P
+which are expected to invoke \fBdhcp\fR in discontinuous mode.
 '''
 .SH SEE ALSO
-\fBifctl\fR(1), \fBwifi\fR(1).
+\fBifctl\fR(1).

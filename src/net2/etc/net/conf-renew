@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "+++ conf-renew $1"
+
+#./dhcp $1 renew
