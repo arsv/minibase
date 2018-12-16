@@ -6,23 +6,10 @@
 #include <util.h>
 
 #include "dhcp.h"
-#include "dhcp_udp.h"
 
 /* Output */
 
-struct timeval reftv;
 char outbuf[1000];
-
-static void note_reftime(void)
-{
-	int ret;
-
-	/* Lease time is relative, but output should be an absolute
-	   timestamp. Reference time is DHCPACK reception. */
-
-	if((ret = sys_gettimeofday(&reftv, NULL)) < 0)
-		fail("gettimeofday", NULL, ret);
-}
 
 static char* fmt_ip(char* p, char* e, uint8_t* ip, int len)
 {
@@ -46,14 +33,35 @@ static char* fmt_ips(char* p, char* e, uint8_t* ips, int len)
 	return p;
 }
 
+static char* fmt_sf(char* p, char* e, int val, char* suff)
+{
+	if(!val) return p;
+	p = fmtstr(p, e, " ");
+	p = fmtint(p, e, val);
+	p = fmtstr(p, e, suff);
+	return p;
+}
+
 static char* fmt_time(char* p, char* e, uint8_t* ptr, int len)
 {
 	if(len != 4) return p;
 
 	uint32_t val = ntohl(*((uint32_t*)ptr));
-	time_t ts = reftv.sec + val;
 
-	p = fmti64(p, e, ts);
+	p = fmti32(p, e, val);
+	p = fmtstr(p, e, "s");
+
+	if(val > 60) {
+		int sec = val % 60; val /= 60;
+		int min = val % 60; val /= 60;
+		int hrs = val % 24; val /= 24;
+
+		p = fmtstr(p, e, " =");
+		p = fmt_sf(p, e, val, "d");
+		p = fmt_sf(p, e, hrs, "h");
+		p = fmt_sf(p, e, min, "m");
+		p = fmt_sf(p, e, sec, "s");
+	}
 
 	return p;
 }
@@ -104,17 +112,17 @@ const struct showopt {
 	char* (*fmt)(char*, char*, uint8_t* buf, int len);
 	char* tag;
 } showopts[] = {
-	{  1, fmt_ip,     "subnet"     },
+	{  1, fmt_ip,     "netmask"    },
 	{  3, fmt_ips,    "router"     },
 	{  6, fmt_ips,    "dns"        },
 	{ 28, fmt_ip,     "bcast"      },
 	{ 42, fmt_ips,    "ntp"        },
 	{ 43, fmt_vendor, "vendor"     },
-	{ 51, fmt_time,   "until"      },
+	{ 51, fmt_time,   "lease-time" },
 	{ 53, NULL,       "msgtype"    },
 	{ 54, fmt_ip,     "server"     },
-	{ 58, fmt_time,   "renew"      },
-	{ 59, fmt_time,   "rebind"     },
+	{ 58, fmt_time,   "renew-time" },
+	{ 59, fmt_time,   "rebind-in"  },
 	{  0, NULL,       NULL         }
 };
 
@@ -129,17 +137,16 @@ static const struct showopt* find_format(int code)
 	return NULL;
 }
 
-void show_config(uint8_t* ip)
+void show_config(void)
 {
 	struct dhcpopt* opt;
 	const struct showopt* sh;
+	byte* ip = offer.ourip;
 
 	char* p = outbuf;
 	char* e = outbuf + sizeof(outbuf);
 
-	note_reftime();
-
-	p = fmtstr(p, e, "ip ");
+	p = fmtstr(p, e, "address ");
 	p = fmt_ip(p, e, ip, 4);
 	p = fmtstr(p, e, "\n");
 

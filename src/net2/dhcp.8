@@ -4,14 +4,37 @@
 \fBdhcp\fR \- DHCP client
 '''
 .SH SYNOPSIS
-\fBdhcp\fR [\fB-nr\fR] \fIiface\fR
+Interactive usage:
+.IP "\fBdhcp\fR \fIeth0\fR" 4
+Configure given interface, stay in foreground until signalled, release address,
+flush the interface and exit.
+.P
+Discontinuous mode:
+.IP "\fBdhcp\fR \fIeth0\fR \fBrequest\fR" 4
+Configure interface, save lease information and exit.
+.IP "\fBdhcp\fR \fIeth0\fR \fBrenew\fR" 4
+Renew saved lease, update address lifetimes and exit.
+.IP "\fBdhcp\fR \fIeth0\fR \fBcancel\fB" 4
+Delete saved lease and flush interface.
+.IP "\fBdhcp\fR \fIeth0\fR \fBrelease\fB" 4
+Release address, delete saved lease and flush interface.
+.IP "\fBdhcp\fR \fIeth0\fR \fBshow\fB" 4
+Output options of a saved lease.
 '''
 .SH DESCRIPTION
 Requests temporary IP address lease from a server and configures the interface
 to use the obtained address.
 '''
-.SH OPTIONS
-.IP "\fB-n\fR" 4
-Do not configure \fIiface\fR, print configuration to stdout instead.
-.IP "\fB-r\fR" 4
-Do not write /run/resolv.conf even if DNS addresses were obtained.
+.SH SCRIPTS
+Depending on DHCP options passed with the lease, \fBdhcp\fR may spawn
+several scripts:
+.IP "/etc/net/dhcp-gw \fI192.168.1.1\fR" 4
+Router address option / default gateway.
+.IP "/etc/net/dhcp-dns \fI10.1.2.3\fR ..." 4
+Name server. Multiple addresses may be passed.
+.IP "/etc/net/dhcp-ntp \fI10.2.4.5\fR ..." 4
+NTP server. Multiple addresses possible.
+.P
+These scripts should be used to configure other system services,
+like DNS resolver or time sync daemon. The scripts must be short-running;
+\fBdhcp\fR will wait till they exit.

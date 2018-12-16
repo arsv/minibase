@@ -35,6 +35,35 @@
 #define DHCP_SERVER_ID     54
 #define DHCP_CLIENT_ID     61
 
+/* IP headers */
+
+#define IPVERSION 4
+#define IPV4IHL5 0x45 /* version 4, header len 5x32bit */
+#define IPPROTO_UDP 17
+#define IPDEFTTL 64
+
+#define IFNAMESIZ 16
+
+struct iphdr {
+	uint8_t  verihl;
+	uint8_t  tos;
+	uint16_t tot_len;
+	uint16_t id;
+	uint16_t frag_off;
+	uint8_t  ttl;
+	uint8_t  protocol;
+	uint16_t check;
+	uint8_t saddr[4];
+	uint8_t daddr[4];
+} __attribute__((packed));
+
+struct udphdr {
+	uint16_t source;
+	uint16_t dest;
+	uint16_t len;
+	uint16_t check;
+} __attribute__((packed));
+
 /* RFC 2131 */
 
 struct dhcphdr {
@@ -63,11 +92,71 @@ struct dhcpopt {
 	uint8_t payload[];
 } __attribute__((packed));
 
+struct dhcpmsg {
+	struct iphdr ip;
+	struct udphdr udp;
+	struct dhcphdr dhcp;
+	char options[500];
+} __attribute__((packed));
+
+/* Internals */
+
+struct iface {
+	int index;
+	char name[IFNAMESIZ];
+	byte mac[6];
+};
+
+struct offer {
+	byte srvip[4];
+	byte ourip[4];
+	byte srvmac[6];
+	byte ourmac[6];
+};
+
+extern char* device;
+extern char** environ;
+extern int optptr; /* bytes used in packet.dhcp.options */
+
+extern struct iface iface;
+extern struct offer offer;
+extern struct dhcpmsg packet;
+
 struct dhcpopt* first_opt(void);
 struct dhcpopt* next_opt(struct dhcpopt* curr);
 struct dhcpopt* get_option(int code, int len);
 
-void show_config(uint8_t* ip);
-void conf_netdev(int ifi, uint8_t* ip, int skipgw);
+void show_config(void);
+void configure_iface(void);
+void flush_iface(void);
+void update_lifetime(void);
 
-void write_resolv_conf(void);
+/* Wire-level calls */
+void pick_random_xid(void);
+void open_raw_socket(void);
+void open_udp_socket(void);
+void close_socket(void);
+
+void put_header(int type);
+void put_byte(int code, uint8_t val);
+void put_mac(int code, byte mac[6]);
+void put_ip(int code, byte ip[4]);
+
+void send_raw_packet(void);
+void send_udp_packet(void);
+int recv_raw_packet(byte mac[6]);
+int recv_udp_packet(void);
+
+struct dhcpopt* first_opt(void);
+struct dhcpopt* next_opt(struct dhcpopt* curr);
+struct dhcpopt* get_option(int code, int len);
+void* get_value(int code, int len);
+int get_opt_int(int code);
+
+void load_lease();
+void save_lease();
+void delete_lease();
+
+void run_scripts(void);
+void prepare_iface(int fd);
+void check_no_lease(void);
