@@ -14,10 +14,16 @@
 #define SOCK_CLOEXEC   (1<<19)
 
 #define SOL_SOCKET      1
-#define SO_REUSEADDR    2
-#define SO_BROADCAST    6
-#define SO_PASSCRED     16
-#define SO_PEERCRED     17
+
+#define SO_DEBUG        0x0001
+#define SO_REUSEADDR    0x0004
+#define SO_KEEPALIVE    0x0008
+#define SO_DONTROUTE    0x0010
+#define SO_BROADCAST    0x0020
+#define SO_LINGER       0x0080
+#define SO_REUSEPORT    0x0200
+#define SO_PASSCRED     17
+#define SO_PEERCRED     18
 #define SO_BINDTODEVICE 25
 
 #define MSG_OOB            (1<<0)
