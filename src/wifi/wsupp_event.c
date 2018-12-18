@@ -50,7 +50,7 @@ static void stop_running(int pid)
 
 void trigger_dhcp(void)
 {
-	char* script = HERE "/etc/netif/wpa";
+	char* script = HERE "/etc/net/wifi-wpa";
 	int pid = running;
 
 	if(pid > 0)
