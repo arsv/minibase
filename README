@@ -1,32 +1,35 @@
 About the project
 ~~~~~~~~~~~~~~~~~
 The code here builds into what is generally known as "early userspace",
-or sometimes an "init system". A loose set of userspace tools meant to
+or sometimes as "init system". A loose set of userspace tools meant to
 bring the system up and keep it running.
 
-Making a Linux system capable of booting and starting something useful
-(like a user interface for instance) requires either
+To make a bootable Linux system, one needs the kernel and also some
+userspace tools to load modules, locate devices, mount filesystems,
+spawn services and so on. There are several package sets that provide
+the necessary components, for instance:
 
   * kernel, glibc, sysvinit, bash, coreutils, kmod, mount, loginutils, ...
   * or kernel, glibc, dbus, systemd, kmod, ...
   * or kernel, musl and busybox
   * or kernel and minibase
 
-along with the useful parts and their dependencies.
-
 This is a simplification and the list is incomplete, but it should
 give the right idea of what minibase is.
 
 The listed components form the base of the system. Their role is roughly
-initialization, configuration and general support for the useful parts.
-What exactly does that entail differs wildly between projects; minibase
-can be thought of as being in-between busybox and systemd. The primary
-target for this project is a personal computer (a desktop or a laptop)
-running a GUI.
+initialization, configuration and general support for the applications
+running on top of the system. What exactly does that support mean differs
+wildly between projects; minibase can be thought of as being in-between
+busybox and systemd. The primary target for this project is a personal
+computing device (a desktop or a laptop) running a GUI.
 
-minibase is written in raw syscalls using a small custom C library.
-The resulting executables are always statically linked and have no
-external dependencies other than the kernel itself.
+minibase builds into small static executables with no external dependencies
+other than the kernel itself. Once built, these executables could be used
+with any system targeting the same CPU architecture, regardless of which
+libc the rest of the system uses. Static executables also never interfere
+with shared library updates, providing a solid base to build the rest of
+the system on.
 
 
 Project status
@@ -48,13 +51,13 @@ Components currently included in the package:
   * non-privileged mount service (mountd, pmount).
   * controlled privilege escalation service (suhub, sudo)
 
-  * VT/DRI/input multiplexer (vtmux) aka that part of logind
-    everyone keeps asking about.
+  * VT/DRI/input multiplexer (vtmux)
   * simple non-graphical greeter (ctrlvt).
 
-  * networking interface manager and DHCP client (ifmon)
-  * Wi-Fi (WPA2-PSK) supplicant and connection manager (wsupp).
-  * manual interface setup tools (ip4cfg, ip4info) [incomplete].
+  * network interface monitor (ifmon)
+  * DHCP client (dhcp)
+  * Wi-Fi client and connection manager (wsupp) [WPA2-PSK only]
+  * manual interface setup tools (ip4cfg, ip4info) [incomplete]
   - no sntpd yet.
 
   * simple interactive shell (cmd).
@@ -74,7 +77,6 @@ Compiler and libc
 To build minibase, get any gcc toolchain targeting the right CPU.
 The compiler will be used with -nostdinc -nostdlib so it doesn't
 matter which libc (if any) it was configured with.
-Clang can be used as well.
 
 Supported targets: x86_64 arm aarch64 rv64 mips mips64 i386.
 Anything else won't work even if toolchain is available.
@@ -93,6 +95,8 @@ to understand how the system boots. Check doc/boot.txt here as well.
 
 Start reading the sources at temp/compat, src/cmdops, src/init.
 
+NOTE: minibase-br lags behind the master branch here.
+
 
 How to build and run the tools
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -109,7 +113,7 @@ the project in development mode:
     ./configure devel
     make
 
-Most tools can run right from their source directories.
+Most tools can be run right from their source directories.
 
 
 Feature highlights
@@ -144,8 +148,7 @@ IPC is done point-to-point over unix sockets using simple netlink-
 based protocol.
 
 Minibase is meant to be run with suid bits disabled. Any privilege
-escalation in a minibase system (including the sudo command) happens
-via IPC to privileged services.
+escalation in a minibase system happens via IPC to privileged services.
 
 
 Just how small exactly?
@@ -163,8 +166,8 @@ The idea is that anyone could pick a tool from minibase, start reading it
 and gain complete understanding of how it works in a very reasonable amount
 of time, say hours. And if necessary, audit or debug it down to assembly level.
 A major point in achieving this is making sure there are no unnecessary
-wrappers, useless abstractions or dead code, which in turn shows in the size
-of the resulting executables.
+wrappers, useless abstractions or dead code, which eventually translates
+into small executables.
 
 
 Contributing
@@ -180,9 +183,9 @@ case, it is perfectly ok to have dedicated repos and dedicated packages
 for some tools, especially if different developers are involved.
 
 The best way to actually contribute to the project is to write something
-that would fit well alongside minibase in a running system. For the most
-projects, whatever it may be it likely won't even be tied to minibase
-and would work just well in runit or s6 or even systemd based installation.
+that would fit well alongside minibase in a running system. In most cases,
+it likely won't even be tied to minibase, and would work just well in runit
+or s6 or even systemd based installation.
 
 Area of particular interest: lightweight GUI desktop components.
 Something to run atop of X or Wayland once minibase gets you there.
