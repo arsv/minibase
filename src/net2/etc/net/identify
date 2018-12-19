@@ -1,4 +1,4 @@
 #!/bin/sh
 
 echo "+++ identify $1"
-./ifctl $1 restore
+./ifctl $1 identify
