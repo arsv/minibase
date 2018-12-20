@@ -29,9 +29,11 @@ inline static uint64_t swabx(uint64_t n)
 
 inline static uint16_t htons(uint16_t n) { return n; }
 inline static uint32_t htonl(uint32_t n) { return n; }
+inline static uint64_t htonx(uint64_t n) { return n; }
 
 inline static uint16_t ntohs(uint16_t n) { return n; }
 inline static uint32_t ntohl(uint32_t n) { return n; }
+inline static uint64_t ntohl(uint64_t n) { return n; }
 
 inline static uint16_t itohs(uint16_t n) { return swabs(n); }
 inline static uint32_t itohl(uint32_t n) { return swabl(n); }
@@ -43,9 +45,11 @@ inline static uint32_t htoil(uint32_t n) { return swabl(n); }
 
 inline static uint16_t htons(uint16_t n) { return swabs(n); }
 inline static uint32_t htonl(uint32_t n) { return swabl(n); }
+inline static uint64_t htonx(uint64_t n) { return swabx(n); }
 
 inline static uint16_t ntohs(uint16_t n) { return swabs(n); }
 inline static uint32_t ntohl(uint32_t n) { return swabl(n); }
+inline static uint64_t ntohx(uint64_t n) { return swabx(n); }
 
 inline static uint16_t itohs(uint16_t n) { return n; }
 inline static uint32_t itohl(uint32_t n) { return n; }
