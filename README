@@ -1,35 +1,23 @@
-About the project
-~~~~~~~~~~~~~~~~~
-The code here builds into what is generally known as "early userspace",
-or sometimes as "init system". A loose set of userspace tools meant to
-bring the system up and keep it running.
+What is this project
+~~~~~~~~~~~~~~~~~~~~
+This is an alternative base system / early userspace for Linux.
 
-To make a bootable Linux system, one needs the kernel and also some
-userspace tools to load modules, locate devices, mount filesystems,
-spawn services and so on. There are several package sets that provide
-the necessary components, for instance:
+The role of this project in a system is similar to that of busybox
+in small custom distributions. Boot the system, load modules, mount
+partitions, establish networking, provide basic services. It is aimed
+more at personal devices running GUIs however, more like systemd.
 
-  * kernel, glibc, sysvinit, bash, coreutils, kmod, mount, loginutils, ...
-  * or kernel, glibc, dbus, systemd, kmod, ...
-  * or kernel, musl and busybox
-  * or kernel and minibase
+The project builds into small statically-linked executables with no
+external dependencies. There are no build-time library dependencies
+either, not even libc. It can be built with any toolchain that can
+build the kernel.
 
-This is a simplification and the list is incomplete, but it should
-give the right idea of what minibase is.
+Supported targets: x86_64 arm aarch64 rv64 mips mips64 i386.
+(anything else will not work even if toolchain is available)
 
-The listed components form the base of the system. Their role is roughly
-initialization, configuration and general support for the applications
-running on top of the system. What exactly does that support mean differs
-wildly between projects; minibase can be thought of as being in-between
-busybox and systemd. The primary target for this project is a personal
-computing device (a desktop or a laptop) running a GUI.
-
-minibase builds into small static executables with no external dependencies
-other than the kernel itself. Once built, these executables could be used
-with any system targeting the same CPU architecture, regardless of which
-libc the rest of the system uses. Static executables also never interfere
-with shared library updates, providing a solid base to build the rest of
-the system on.
+This project should be mostly useful for people building their own
+custom systems, distribution, or maybe even looking for tools to put
+into initrd.
 
 
 Project status
@@ -68,18 +56,8 @@ Components currently included in the package:
   - no audio tools of any kind.
 
 With everything in place, the system should boot on kernel and minibase alone
-to the point where it can run X or Wayland GUI, connect to network and start
-downloading packages.
-
-
-Compiler and libc
-~~~~~~~~~~~~~~~~~
-To build minibase, get any gcc toolchain targeting the right CPU.
-The compiler will be used with -nostdinc -nostdlib so it doesn't
-matter which libc (if any) it was configured with.
-
-Supported targets: x86_64 arm aarch64 rv64 mips mips64 i386.
-Anything else won't work even if toolchain is available.
+to the point where it can run X or Wayland GUI, establish internet connection
+and start downloading packages.
 
 
 Quick start
@@ -116,41 +94,6 @@ the project in development mode:
 Most tools can be run right from their source directories.
 
 
-Feature highlights
-~~~~~~~~~~~~~~~~~~
-Some features in no particular order.
-
-Minibase comes with a proper service supervisor. (This is really
-only worth mentioning because of inevitable attempts to compare
-it to OpenRC).
-
-Init process is staged, similar to s6 and runit but unlike SysV, systemd
-and most other systems. The supervisor is unitary (same parent for all
-child processes), similar to SysV and systemd but unlike s6, runit and
-other daemontools derivatives.
-
-There is no fstab in minibase, and no conventional mount(1).
-The tools that handle mounts are written with hot-plugging in mind.
-
-Minibase comes with a functional replacement for logind that is not
-a fork or a clone of systemd-logind, and does not need dbus to work.
-
-There are no conventional logins in minibase and no user passwords.
-The passphrase entered during boot is used to unwrap disk encryption
-keys. The system is assumed to run on a personal computing device
-owned by its only human user.
-
-Sessions are normally pre-configured and pinned to certain VTs.
-Switching to a VT starts the session assigned to that particular VT.
-
-Minibase does not use dbus, or any other system bus for that matter.
-IPC is done point-to-point over unix sockets using simple netlink-
-based protocol.
-
-Minibase is meant to be run with suid bits disabled. Any privilege
-escalation in a minibase system happens via IPC to privileged services.
-
-
 Just how small exactly?
 ~~~~~~~~~~~~~~~~~~~~~~~
 The largest individual executable so far is `wsupp`, the WPA supplicant.
@@ -175,8 +118,7 @@ Contributing
 Do not send patches for minibase itself. Doing so will likely only slow
 the project down. If there's a bug to be fixed, or a tool that you think
 should be in minibase, open an issue. The ability to scrap and re-design
-certain tools unimpeded is way too important for the project at this
-stage.
+certain tools unimpeded is way too important for the project at this stage.
 
 Not every tool is worth including in mini-BASE. Just like in any other
 case, it is perfectly ok to have dedicated repos and dedicated packages
