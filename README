@@ -5,7 +5,7 @@ This is an alternative base system / early userspace for Linux.
 The role of this project in a system is similar to that of busybox
 in small custom distributions. Boot the system, load modules, mount
 partitions, establish networking, provide basic services. It is aimed
-more at personal devices running GUIs however, more like systemd.
+primarily at personal devices running GUIs however, more like systemd.
 
 The project builds into small statically-linked executables with no
 external dependencies. There are no build-time library dependencies
