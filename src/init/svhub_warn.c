@@ -1,12 +1,13 @@
 #include <format.h>
 #include <util.h>
-#include "super.h"
+
+#include "svhub.h"
 
 /* Error reporting. PID 1 cannot use fail() so no point in bringing
    that here. Also at some point reprec should probably start sending
    messages to syslog if it's available. */
 
-static const char tag[] = "super";
+static const char tag[] = "svhub";
 static char warnbuf[200];
 
 void report(char* msg, char* arg, int err)

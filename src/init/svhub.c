@@ -10,7 +10,7 @@
 #include <main.h>
 
 #include "common.h"
-#include "super.h"
+#include "svhub.h"
 
 const char* rbscript;
 char** environ;

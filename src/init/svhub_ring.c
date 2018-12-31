@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "common.h"
-#include "super.h"
+#include "svhub.h"
 
 /* Well-behaved services are expected to be silent and/or use syslog
    for logging. However, if a service fails to start, or fails later

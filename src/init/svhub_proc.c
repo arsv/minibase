@@ -7,8 +7,8 @@
 #include <string.h>
 #include <util.h>
 
-#include "super.h"
 #include "common.h"
+#include "svhub.h"
 
 static int wait_needed(time_t* last, time_t wait)
 {
@@ -30,7 +30,7 @@ static int wait_needed(time_t* last, time_t wait)
 
 static int child(struct proc* rc)
 {
-	char* dir = CONFDIR;
+	char* dir = INITDIR;
 	char* name = rc->name;
 
 	FMTBUF(p, e, path, strlen(dir) + strlen(name) + 2);

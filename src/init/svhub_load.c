@@ -5,7 +5,7 @@
 #include <format.h>
 
 #include "common.h"
-#include "super.h"
+#include "svhub.h"
 
 static void addfile(char* base, int blen)
 {
@@ -50,7 +50,7 @@ static void tryfile(char* dir, char* base)
 
 int load_dir_ents(void)
 {
-	char* dir = CONFDIR;
+	char* dir = INITDIR;
 	char* debuf;
 	int delen = PAGE;
 	long fd, rd = -ENOMEM;

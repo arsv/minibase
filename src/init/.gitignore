@@ -1,8 +1,7 @@
 badsrv
 switchroot
+svhub
 svctl
-super
 reboot
-!etc/super
 trap
 tick

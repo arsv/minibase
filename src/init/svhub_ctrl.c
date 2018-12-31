@@ -12,7 +12,7 @@
 #include <util.h>
 
 #include "common.h"
-#include "super.h"
+#include "svhub.h"
 
 int ctrlfd;
 static char rxbuf[200];

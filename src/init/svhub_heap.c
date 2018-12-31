@@ -1,7 +1,7 @@
 #include <sys/mman.h>
 
 #include <cdefs.h>
-#include "super.h"
+#include "svhub.h"
 
 /* Heap is only used for large buffers in load_dir_ents()
    and ctrl code. Custom routines because the ones from util.h

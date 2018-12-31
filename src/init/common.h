@@ -1,27 +1,27 @@
 #include <dirs.h>
 
 #define BOOTDIR HERE "/etc/boot"
-#define CONFDIR HERE "/etc/super"
-#define CONTROL RUN_CTRL "/super"
+#define INITDIR HERE "/etc/init"
+#define CONTROL RUN_CTRL "/svhub"
 
-#define SS(c) TAGGED('S', 'S', c)
+#define SV(c) TAGGED('S', 'V', c)
 
-#define CMD_RESET     SS(0)
-#define CMD_LIST      SS(1)
-#define CMD_STATUS    SS(2)
-#define CMD_GETPID    SS(3)
-#define CMD_FLUSH     SS(4)
-#define CMD_QUERY     SS(5)
-#define CMD_ENABLE    SS(6)
-#define CMD_DISABLE   SS(7)
-#define CMD_RESTART   SS(8)
-#define CMD_PAUSE     SS(9)
-#define CMD_RESUME    SS(10)
-#define CMD_HUP       SS(11)
-#define CMD_RELOAD    SS(12)
-#define CMD_REBOOT    SS(13)
-#define CMD_SHUTDOWN  SS(14)
-#define CMD_POWEROFF  SS(15)
+#define CMD_RESET     SV(0)
+#define CMD_LIST      SV(1)
+#define CMD_STATUS    SV(2)
+#define CMD_GETPID    SV(3)
+#define CMD_FLUSH     SV(4)
+#define CMD_QUERY     SV(5)
+#define CMD_ENABLE    SV(6)
+#define CMD_DISABLE   SV(7)
+#define CMD_RESTART   SV(8)
+#define CMD_PAUSE     SV(9)
+#define CMD_RESUME    SV(10)
+#define CMD_HUP       SV(11)
+#define CMD_RELOAD    SV(12)
+#define CMD_REBOOT    SV(13)
+#define CMD_SHUTDOWN  SV(14)
+#define CMD_POWEROFF  SV(15)
 
 #define ATTR_PROC      1
 #define ATTR_NAME      2

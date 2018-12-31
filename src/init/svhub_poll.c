@@ -9,7 +9,7 @@
 #include <string.h>
 #include <util.h>
 
-#include "super.h"
+#include "svhub.h"
 
 #define BOOTCLOCKOFFSET 1000
 #define NPFDS (1+NCONNS+NPROCS)
@@ -29,7 +29,7 @@ static void sighandler(int sig)
 {
 	switch(sig) {
 		case SIGPWR:
-			stop_into("sigpwr");
+			stop_into("poweroff");
 			break;
 		case SIGINT:
 		case SIGTERM:
