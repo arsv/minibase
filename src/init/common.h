@@ -1,5 +1,6 @@
 #include <dirs.h>
 
+#define BOOTDIR HERE "/etc/boot"
 #define CONFDIR HERE "/etc/super"
 #define CONTROL RUN_CTRL "/super"
 

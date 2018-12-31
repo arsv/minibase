@@ -8,6 +8,7 @@
 #include <util.h>
 
 #include "super.h"
+#include "common.h"
 
 static int wait_needed(time_t* last, time_t wait)
 {
@@ -29,7 +30,7 @@ static int wait_needed(time_t* last, time_t wait)
 
 static int child(struct proc* rc)
 {
-	char* dir = confdir;
+	char* dir = CONFDIR;
 	char* name = rc->name;
 
 	FMTBUF(p, e, path, strlen(dir) + strlen(name) + 2);
@@ -109,7 +110,7 @@ static void stop(struct proc* rc)
 	} else if(rc->flags & P_SIGKILL) {
 		if(wait_needed(&rc->lastsig, TIME_TO_SKIP))
 			return;
-		if(rbcode) {
+		if(rbscript) {
 			reprec(rc, "refuses to die, skipping");
 			mark_dead(rc, -1);
 		} else {
@@ -191,17 +192,15 @@ void check_procs(void)
 
 	if(running)
 		return;
-	if(!rbcode)
+	if(!rbscript)
 		report("no running processes", NULL, 0);
 
 	request(F_EXIT_LOOP);
 }
 
-void stop_all_procs(int code)
+void stop_all_procs(void)
 {
 	struct proc* rc;
-
-	rbcode = code;
 
 	for(rc = firstrec(); rc; rc = nextrec(rc))
 		rc->flags |= P_DISABLED;

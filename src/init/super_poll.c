@@ -29,11 +29,11 @@ static void sighandler(int sig)
 {
 	switch(sig) {
 		case SIGPWR:
-			stop_all_procs('p');
+			stop_into("sigpwr");
 			break;
 		case SIGINT:
 		case SIGTERM:
-			stop_all_procs('r');
+			stop_into("reboot");
 			break;
 		case SIGCHLD:
 			request(F_WAIT_PIDS);

@@ -180,26 +180,19 @@ static int rep_pid(CN, struct proc* rc)
 	return send_reply(cn);
 }
 
-static int reboot(char code)
-{
-	stop_all_procs(code);
-
-	return NOERROR;
-}
-
 static int cmd_reboot(CN, MSG)
 {
-	return reboot('r');
+	return stop_into("reboot");
 }
 
 static int cmd_shutdown(CN, MSG)
 {
-	return reboot('h');
+	return stop_into("shutdown");
 }
 
 static int cmd_poweroff(CN, MSG)
 {
-	return reboot('p');
+	return stop_into("poweroff");
 }
 
 static int cmd_list(CN, MSG)

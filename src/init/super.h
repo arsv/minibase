@@ -50,11 +50,12 @@ struct conn {
 
 struct ucmsg;
 
-extern char rbcode;
+extern const char* rbscript;
 extern int ctrlfd;
 extern char* confdir;
 extern char** environ;
 extern time_t passtime;
+extern char* reboot;
 
 extern struct proc procs[];
 extern struct conn conns[];
@@ -84,9 +85,9 @@ void setup_ctrl(void);
 void accept_ctrl(int sfd);
 void handle_conn(struct conn* cn);
 void wakeupin(int ttw);
-void stop_all_procs(int code);
 int dispatch_cmd(struct conn* cn, struct ucmsg* msg);
 void request(int flag);
+int stop_into(const char* script);
 
 char* ring_buf_for(struct proc* rc);
 int read_into_ring_buf(struct proc* rc, int fd);
@@ -102,3 +103,4 @@ void setup_heap(void);
 void* heap_alloc(int len);
 void trim_heap(void* ptr);
 void flush_heap(void);
+void stop_all_procs(void);

@@ -1,5 +1,6 @@
 #include <sys/creds.h>
 #include <sys/fpath.h>
+#include <sys/fprop.h>
 #include <sys/file.h>
 #include <sys/proc.h>
 
@@ -11,45 +12,44 @@
 #include "common.h"
 #include "super.h"
 
-char* confdir;
+const char* rbscript;
 char** environ;
-char rbcode;
 
 static short flagged;
-static char reboot[50];
 
-static int exec_into_reboot(void)
+int stop_into(const char* script)
 {
-	if(!reboot[0]) return -1;
+	int ret;
 
-	char arg[] = { '-', rbcode, '\0' };
-	char* argv[] = { reboot, arg, NULL };
+	FMTBUF(p, e, path, 100);
+	p = fmtstr(p, e, BOOTDIR "/");
+	p = fmtstr(p, e, script);
+	FMTEND(p, e);
 
-	int ret = sys_execve(*argv, argv, environ);
+	if((ret = sys_access(path, X_OK)) < 0)
+		return ret;
 
-	report("exec", *argv, ret);
-	
-	return -1; /* cause kernel panic */
+	rbscript = script;
+
+	stop_all_procs();
+
+	return 0;
 }
 
-static void setup_args(int argc, char** argv)
+static int exec_next(void)
 {
-	if(argc < 2)
-		goto out;
+	FMTBUF(p, e, path, 100);
+	p = fmtstr(p, e, BOOTDIR "/");
+	p = fmtstr(p, e, rbscript);
+	FMTEND(p, e);
 
-	char* arg = argv[1];
-	unsigned len = strlen(arg);
+	char* argv[] = { path, NULL };
 
-	if(len > sizeof(reboot) - 1) {
-		report("command too long:", arg, 0);
-		goto out;
-	}
+	int ret = sys_execve(path, argv, environ);
 
-	memcpy(reboot, arg, len);
-	reboot[len] = '\0';
-out:
-	for(int i = 1; i < argc; i++)
-		memzero(argv[i], strlen(argv[i]));
+	report("exec", path, ret);
+
+	return -1; /* cause kernel panic */
 }
 
 void request(int flags)
@@ -69,9 +69,9 @@ static int need_to(int flag)
 int main(int argc, char** argv)
 {
 	environ = argv + argc + 1;
-	confdir = CONFDIR;
 
-	setup_args(argc, argv);
+	if(argc > 1)
+		report("ignoring extra arguments", NULL, 0);
 
 	setup_heap();
 	setup_ctrl();
@@ -107,5 +107,5 @@ int main(int argc, char** argv)
 reboot:
 	sys_unlink(CONTROL);
 
-	return exec_into_reboot();
+	return exec_next();
 };
