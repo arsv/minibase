@@ -32,7 +32,7 @@ Components currently included in the package:
   * support tooling for disk encryption (dektool, dmcrypt).
   - no fsck for any file system yet.
 
-  * process supervision suite (init, super, reboot, svctl).
+  * process supervision suite (svhub, reboot, svctl).
 
   * udev event monitor (udevmod).
   * syslogd and related tools.
@@ -101,7 +101,7 @@ Statically linked for x86_64, it's about 27 KiB in size. Realistically
 it also needs `ifmon` (20 KiB) to work, and the client tool `wifi` (12 KiB).
 
 `msh` is about 16 KiB. `cmd` (interactive shell) is about 18 KiB.
-`super` (pid 1 for the majority of system's uptime) is about 10 KiB.
+`svhub` (pid 1 for the majority of system's uptime) is about 10 KiB.
 `vtmux` (logind equivalent) is about 12 KiB.
 
 Why bother making it small? Because it's a side effect of making it readable.

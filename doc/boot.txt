@@ -26,20 +26,20 @@ system partitions. See Embedded section below for non-initrd boot.
 	* hwclock if necessary
 	* loadkeys, setfonts if necessary
 	* possibly iptables
-* start execs into /sbin/system/super
+* start execs into /sbin/system/svhub
 
-* super runs as pid 1 for the whole time the system is up
-* super (re)spawns all long-running services
+* svhub runs as pid 1 for the whole time the system is up
+* svhub (re)spawns all long-running services
 	* udevmod
 	* sysklogd
 	* ifmon
 	* vtmux
 	...
-* long-running services keep the system running, super respawns
+* long-running services keep the system running, svhub respawns
   them if necessary
-* on SIGTERM/SIGINT/svctl request, super kills all spawned services
+* on SIGTERM/SIGINT/svctl request, svhub kills all spawned services
   and waits for them to terminate
-* super execs into /sbin/system/reboot
+* svhub execs into /sbin/system/reboot
 
 * reboot syncs, umounts all mounted partitions and calls reboot(2)
 * that's all really, this part is not scripted in any way
@@ -64,7 +64,7 @@ devices (see ./vtmux.txt).
 
 Service startup sequence
 ~~~~~~~~~~~~~~~~~~~~~~~~
-* super spawns /etc/super/$name (msh script)
+* svhub spawns /etc/init/$name (msh script)
 * $name sets up process environment, uids, gids and so on
 * $name execs into the actual service executable
 
@@ -91,14 +91,6 @@ processes. Turns out onexit implementation within msh is much easier than any
 workaround not involving msh.
 
 
-System shutdown and /path/to/reboot
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Initially the path that super exec()ed into was hard-coded. With `onexit`
-implemented in msh, the hard-coded path was replaced with an explicit argument
-for `super`. This allows somewhat unusual directory layouts like
-/sbin/system/reboot without forcing them onto all minibase users.
-
-
 Embedded systems
 ~~~~~~~~~~~~~~~~
 In case device nodes for system partitions are predictable (because
@@ -116,9 +108,9 @@ becomes much simpler.
 	* hwclock if necessary
 	* loadkeys, setfonts if necessary
 	* possibly iptables
-* finally execs into /sbin/system/super
+* finally execs into /sbin/system/svhub
 
-Once super is running, the system behaves just like in the PC case.
+Once svhub is running, the system behaves just like in the PC case.
 udevmod (if needed at all) is only run as a regular service.
 Neither findblk nor passblk are used in this case, all devices are
 located using their /dev node names.
