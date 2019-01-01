@@ -32,7 +32,7 @@ Components currently included in the package:
   * support tooling for disk encryption (dektool, dmcrypt).
   - no fsck for any file system yet.
 
-  * process supervision suite (svhub, reboot, svctl).
+  * process supervision suite (svhub, reboot).
 
   * udev event monitor (udevmod).
   * syslogd and related tools.
@@ -97,8 +97,8 @@ Most tools can be run right from their source directories.
 Just how small exactly?
 ~~~~~~~~~~~~~~~~~~~~~~~
 The largest individual executable so far is `wsupp`, the WPA supplicant.
-Statically linked for x86_64, it's about 27 KiB in size. Realistically
-it also needs `ifmon` (20 KiB) to work, and the client tool `wifi` (12 KiB).
+Statically linked for x86_64, it's about 34 KiB in size. Realistically
+it also needs `dhcp` (18 KiB) to work, and the client tool `wifi` (12 KiB).
 
 `msh` is about 16 KiB. `cmd` (interactive shell) is about 18 KiB.
 `svhub` (pid 1 for the majority of system's uptime) is about 10 KiB.
