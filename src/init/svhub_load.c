@@ -1,4 +1,5 @@
 #include <sys/file.h>
+#include <sys/mman.h>
 #include <sys/dents.h>
 
 #include <string.h>
@@ -23,20 +24,13 @@ static void addfile(char* base, int blen)
 	memcpy(rc->name, base, blen);
 }
 
-static void tryfile(char* dir, char* base)
+static void tryfile(int at, char* base)
 {
-	int dlen = strlen(dir);
 	int blen = strlen(base);
-
-	FMTBUF(p, e, path, dlen+1+blen+1);
-	p = fmtstr(p, e, dir);
-	p = fmtstr(p, e, "/");
-	p = fmtstr(p, e, base);
-	FMTEND(p, e);
 
 	struct stat st;
 
-	if(sys_stat(path, &st))
+	if(sys_fstatat(at, base, &st, 0))
 		return;
 	if((st.mode & S_IFMT) != S_IFREG)
 		return;
@@ -51,21 +45,23 @@ static void tryfile(char* dir, char* base)
 int load_dir_ents(void)
 {
 	char* dir = INITDIR;
-	char* debuf;
-	int delen = PAGE;
-	long fd, rd = -ENOMEM;
+	int fd, ret;
+	int len = 4096;
+	char* buf = origbrk;
+	void* new = sys_brk(buf + len);
+
+	if((ret = brk_error(buf, new)) < 0)
+		return ret;
 
 	if((fd = sys_open(dir, O_RDONLY | O_DIRECTORY)) < 0) {
 		report("open", dir, fd);
 		return fd;
 	}
 
-	if(!(debuf = heap_alloc(delen)))
-		goto out;
+	while((ret = sys_getdents(fd, buf, len)) > 0) {
+		char* ptr = buf;
+		char* end = buf + ret;
 
-	while((rd = sys_getdents(fd, debuf, delen)) > 0) {
-		char* ptr = debuf;
-		char* end = debuf + rd;
 		while(ptr < end) {
 			struct dirent* de = (struct dirent*) ptr;
 
@@ -83,17 +79,16 @@ int load_dir_ents(void)
 				default: continue;
 			}
 
-			tryfile(dir, de->name);
+			tryfile(fd, de->name);
 		}
-	} if(rd < 0) {
-		report("getdents", dir, rd);
+	} if(ret < 0) {
+		report("getdents", dir, ret);
 	}
 
-	trim_heap(debuf);
-out:
 	sys_close(fd);
+	sys_brk(origbrk);
 
-	return rd;
+	return ret;
 }
 
 static void mark_stale(struct proc* rc)

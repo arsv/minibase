@@ -1,7 +1,7 @@
 #include <bits/types.h>
 
 #define NAMELEN 19
-#define NPROCS 90
+#define NPROCS 40
 #define NCONNS 10
 #define NPREQS 10
 
@@ -26,10 +26,9 @@
 #define F_SETUP_CTRL    (1<<1)
 #define F_RELOAD_PROCS  (1<<2)
 #define F_CHECK_PROCS   (1<<3)
-#define F_FLUSH_HEAP    (1<<4)
-#define F_TRIM_RING     (1<<5)
-#define F_UPDATE_PFDS   (1<<6)
-#define F_EXIT_LOOP     (1<<7)
+#define F_TRIM_RING     (1<<4)
+#define F_UPDATE_PFDS   (1<<5)
+#define F_EXIT_LOOP     (1<<6)
 
 struct proc {
 	int pid;
@@ -50,6 +49,7 @@ struct conn {
 
 struct ucmsg;
 
+extern void* origbrk;
 extern const char* rbscript;
 extern int ctrlfd;
 extern char* confdir;
@@ -83,10 +83,9 @@ void wait_pids(void);
 int setup_signals(void);
 void setup_ctrl(void);
 void accept_ctrl(int sfd);
-void handle_conn(struct conn* cn);
 void wakeupin(int ttw);
-int dispatch_cmd(struct conn* cn, struct ucmsg* msg);
 void request(int flag);
+void handle_conn(struct conn* cn);
 int stop_into(const char* script);
 
 char* ring_buf_for(struct proc* rc);
