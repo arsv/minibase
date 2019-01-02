@@ -22,7 +22,6 @@ char* fmtraw(char* p, char* e, const void* data, int len);
 
 char* fmterr(char* p, char* e, int err);
 
-char* fmtchar(char* p, char* e, char c);
 char* fmtbyte(char* p, char* e, char c);
 char* fmtbytes(char* p, char* e, const void* data, uint len);
 
@@ -69,3 +68,10 @@ char* parsexlong(char* p, ulong* np);
 char* parsemac(char* p, byte* mac);
 char* parseip(char* p, byte* ip);
 char* parseipmask(char* p, byte* ip, byte* mask);
+
+static inline char* fmtchar(char* p, char* e, char c)
+{
+	if(p < e)
+		*p++ = c;
+	return p;
+};
