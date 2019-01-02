@@ -185,11 +185,12 @@ void show_iface(struct ip4link* lk, struct ip4addr** ips)
 	char* e = ifbuf + sizeof(ifbuf) - 1;
 
 	p = fmtstr(p, e, "  ");
-	p = fmtint(p, e, lk->ifi);
 
 	if(lk->name[0]) {
-		p = fmtstr(p, e, " ");
 		p = fmtstr(p, e, lk->name);
+	} else {
+		p = fmtstr(p, e, "#");
+		p = fmtint(p, e, lk->ifi);
 	}
 
 	p = fmtstr(p, e, ":");
@@ -204,7 +205,7 @@ void show_iface(struct ip4link* lk, struct ip4addr** ips)
 		p = fmtstr(p, e, " ");
 		p = fmtipm(p, e, q->ip, q->mask);
 	} if(!hasaddr) {
-		p = fmtstr(p, e, " none");
+		p = fmtstr(p, e, " -");
 	}
 
 	*p++ = '\n';
@@ -230,10 +231,12 @@ char* fmt_route_dst(char* p, char* e, struct rtmsg* msg)
 {
 	uint8_t* ip = nl_bin(rt_get(msg, RTA_DST), 4);
 
+	p = fmtstr(p, e, " ");
+
 	if(msg->dst_len == 0)
-		p = fmtstr(p, e, "default");
+		p = fmtstr(p, e, "*");
 	else if(!ip)
-		p = fmtstr(p, e, "no-dst");
+		p = fmtstr(p, e, "x");
 	else if(msg->dst_len == 32)
 		p = fmtip(p, e, ip);
 	else
@@ -261,8 +264,6 @@ char* fmt_route_dev(char* p, char* e, struct rtmsg* msg)
 	if(!(oif = nl_u32(rt_get(msg, RTA_OIF))))
 		goto out;
 
-	p = fmtstr(p, e, " dev ");
-
 	if((name = ifi_to_name(*oif))) {
 		p = fmtstr(p, e, name);
 	} else {
@@ -270,6 +271,7 @@ char* fmt_route_dev(char* p, char* e, struct rtmsg* msg)
 		p = fmtint(p, e, *oif);
 	}
 
+	p = fmtstr(p, e, ":");
 out:	
 	return p;
 }
@@ -279,7 +281,7 @@ char* fmt_route_gw(char* p, char* e, struct rtmsg* msg)
 	uint8_t* gw = nl_bin(rt_get(msg, RTA_GATEWAY), 4);
 
 	if(gw) {
-		p = fmtstr(p, e, " gw ");
+		p = fmtstr(p, e, " via ");
 		p = fmtip(p, e, gw);
 	}
 
@@ -326,9 +328,9 @@ void show_route(struct rtmsg* msg)
 
 	p = fmtstr(p, e, "  ");
 
+	p = fmt_route_dev(p, e, msg);
 	p = fmt_route_dst(p, e, msg);
 	p = fmt_route_gw(p, e, msg);
-	p = fmt_route_dev(p, e, msg);
 	p = fmt_route_misc(p, e, msg);
 
 	*p++ = '\n';
