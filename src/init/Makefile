@@ -1,6 +1,5 @@
 include ../rules.mk
 
-$(eval $(call system,reboot))
 $(eval $(call service,svhub,8))
 $(eval $(call command,svctl,1))
 $(eval $(call service,badsrv))
