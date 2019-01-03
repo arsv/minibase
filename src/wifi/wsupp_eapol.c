@@ -1,6 +1,7 @@
 #include <bits/socket/packet.h>
 #include <sys/file.h>
 #include <sys/socket.h>
+#include <sys/random.h>
 
 #include <string.h>
 #include <endian.h>
@@ -218,22 +219,12 @@ static int fetch_gtk(char* buf, int len)
 
 static void fill_rand(void)
 {
-	int rlen = sizeof(snonce);
-	char rand[rlen];
+	int ret;
 
-	long fd, rd;
-	char* urandom = "/dev/urandom";
-
-	if((fd = sys_open(urandom, O_RDONLY)) < 0)
-		quit("open", urandom, fd);
-	if((rd = sys_read(fd, rand, rlen)) < 0)
-		quit("read", urandom, rd);
-	if(rd < rlen)
-		quit("read", urandom, 0);
-
-	sys_close(fd);
-
-	memcpy(snonce, rand, sizeof(snonce));
+	if((ret = sys_getrandom(snonce, sizeof(snonce), 0)) < 0)
+		quit("getrandom", NULL, ret);
+	else if(ret != sizeof(snonce))
+		quit("not enough randomness", NULL, ret);
 }
 
 static void cleanup_keys(void)
