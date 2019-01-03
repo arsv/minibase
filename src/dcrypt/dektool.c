@@ -1,5 +1,6 @@
 #include <sys/file.h>
 #include <sys/mman.h>
+#include <sys/random.h>
 
 #include <string.h>
 #include <format.h>
@@ -115,17 +116,10 @@ static void load_keyfile(struct keyfile* kf, char* name)
 
 static void read_random(void* buf, int size)
 {
-	int fd, rd;
-	char* random = "/dev/urandom";
+	int ret;
 
-	if((fd = sys_open(random, O_RDONLY)) < 0)
-		fail("open", random, fd);
-	if((rd = sys_read(fd, buf, size)) < 0)
-		fail("read", random, rd);
-	else if(rd < size)
-		fail("not enough random data", NULL, 0);
-
-	sys_close(fd);
+	if((ret = sys_getrandom(buf, size, 0)) < 0)
+		fail("getrandom", NULL, ret);
 }
 
 static void fill_key_data(struct keyfile* kf, int total)
