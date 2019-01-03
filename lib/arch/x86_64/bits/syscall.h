@@ -317,5 +317,6 @@
 #define NR_finit_module         313
 #define NR_renameat2            316
 #define NR_seccomp              317
+#define NR_getrandom            318
 
 #endif
