@@ -10,7 +10,7 @@
 
 ERRTAG("svc");
 ERRLIST(NENOENT NECONNREFUSED NELOOP NENFILE NEMFILE NEINTR NEINVAL NEACCES
-	NEPERM NEIO NEFAULT NENOSYS);
+	NEPERM NEIO NEFAULT NENOSYS NEALREADY NEINPROGRESS);
 
 static void no_other_options(CTX)
 {
@@ -28,21 +28,6 @@ static char* shift_arg(CTX)
 		return NULL;
 }
 
-static int count_args(CTX)
-{
-	return (ctx->argc - ctx->argi);
-}
-
-static int sum_length(CTX)
-{
-	int i, len = 0;
-
-	for(i = ctx->argi; i < ctx->argc; i++)
-		len += strlen(ctx->argv[i]);
-
-	return len;
-}
-
 static void init_args(CTX, int argc, char** argv)
 {
 	if(argc > 1 && argv[1][0] == '-')
@@ -53,92 +38,124 @@ static void init_args(CTX, int argc, char** argv)
 	ctx->argv = argv;
 }
 
-static void recv_dump(CTX, char* name, void (*dump)(CTX, MSG))
+static struct ucmsg* recv_ok_reply(CTX)
 {
-	struct ucmsg* msg;
+	struct ucmsg* msg = recv_reply(ctx);
+	int cmd = msg->cmd;
 
-	while((msg = recv_reply(ctx)))
-		if(msg->cmd < 0)
-			fail(NULL, name, msg->cmd);
-		else if(msg->cmd > 0)
-			continue;
-		else break;
+	if(cmd < 0)
+		fail(NULL, NULL, cmd);
 
-	if(dump) dump(ctx, msg);
+	return msg;
 }
 
-static void recv_empty(CTX)
+static void recv_empty_ok(CTX)
 {
-	recv_dump(ctx, NULL, NULL);
+	(void)recv_ok_reply(ctx);
 }
 
-static void multi_name_req(CTX, int cmd, int argreq)
+static void recv_ok_or_already(CTX)
 {
-	int count = count_args(ctx);
-	int length = sum_length(ctx);
-	char* name;
+	struct ucmsg* msg = recv_reply(ctx);
+	int cmd = msg->cmd;
 
-	if(!count && argreq)
-		fail("too few arguments", NULL, 0);
-
-	start_request(ctx, cmd, count, length);
-
-	while((name = shift_arg(ctx)))
-		add_str_attr(ctx, ATTR_NAME, name);
-
-	send_request(ctx);
-	recv_empty(ctx);
+	if(cmd < 0 && cmd != -EALREADY)
+		fail(NULL, NULL, msg->cmd);
 }
 
-static void cmd_start(CTX)
+static char* single_arg(CTX)
 {
-	multi_name_req(ctx, CMD_ENABLE, 1);
-}
+	char* arg;
 
-static void cmd_stop(CTX)
-{
-	multi_name_req(ctx, CMD_DISABLE, 1);
-}
-
-static void cmd_restart(CTX)
-{
-	multi_name_req(ctx, CMD_RESTART, 1);
-}
-
-static void cmd_hup(CTX)
-{
-	multi_name_req(ctx, CMD_HUP, 1);
-}
-
-static void cmd_pause(CTX)
-{
-	multi_name_req(ctx, CMD_PAUSE, 1);
-}
-
-static void cmd_resume(CTX)
-{
-	multi_name_req(ctx, CMD_RESUME, 1);
-}
-
-static void cmd_flush(CTX)
-{
-	multi_name_req(ctx, CMD_FLUSH, 0);
-}
-
-static void cmd_pidof(CTX)
-{
-	char* name;
-
-	if(!(name = shift_arg(ctx)))
+	if(!(arg = shift_arg(ctx)))
 		fail("too few arguments", NULL, 0);
 
 	no_other_options(ctx);
 
-	start_request(ctx, CMD_GETPID, 1, strlen(name));
-	add_str_attr(ctx, ATTR_NAME, name);
+	return arg;
+}
 
+static void send_proc_cmd(CTX, int cmd, char* name)
+{
+	start_request(ctx, cmd, 1, strlen(name));
+	add_str_attr(ctx, ATTR_NAME, name);
 	send_request(ctx);
-	recv_dump(ctx, name, dump_pid);
+}
+
+static void simple_proc_cmd(CTX, int cmd)
+{
+	char* name = single_arg(ctx);
+
+	send_proc_cmd(ctx, cmd, name);
+	recv_empty_ok(ctx);
+}
+
+static void simple_global(CTX, int cmd)
+{
+	no_other_options(ctx);
+
+	start_request(ctx, cmd, 0, 0);
+	send_request(ctx);
+
+	recv_empty_ok(ctx);
+}
+
+static void cmd_start(CTX)
+{
+	simple_proc_cmd(ctx, CMD_START);
+}
+
+static void cmd_stop(CTX)
+{
+	simple_proc_cmd(ctx, CMD_STOP);
+}
+
+static void cmd_restart(CTX)
+{
+	char* name = single_arg(ctx);
+
+	send_proc_cmd(ctx, CMD_STOP, name);
+	recv_ok_or_already(ctx);
+
+	send_proc_cmd(ctx, CMD_START, name);
+	recv_empty_ok(ctx);
+}
+
+static void cmd_hup(CTX)
+{
+	simple_proc_cmd(ctx, CMD_HUP);
+}
+
+static void cmd_pause(CTX)
+{
+	simple_proc_cmd(ctx, CMD_PAUSE);
+}
+
+static void cmd_resume(CTX)
+{
+	simple_proc_cmd(ctx, CMD_RESUME);
+}
+
+static void cmd_flush(CTX)
+{
+	simple_proc_cmd(ctx, CMD_FLUSH);
+}
+
+static void cmd_pidof(CTX)
+{
+	char* name = single_arg(ctx);
+
+	send_proc_cmd(ctx, CMD_GETPID, name);
+	dump_pid(ctx, recv_ok_reply(ctx));
+}
+
+static void cmd_show(CTX)
+{
+	char* name = single_arg(ctx);
+
+	send_proc_cmd(ctx, CMD_STATUS, name);
+	expect_large(ctx);
+	dump_info(ctx, recv_ok_reply(ctx));
 }
 
 static void cmd_list(CTX)
@@ -149,58 +166,32 @@ static void cmd_list(CTX)
 	send_request(ctx);
 
 	expect_large(ctx);
-	recv_dump(ctx, NULL, dump_list);
-}
-
-static void cmd_show(CTX)
-{
-	char* name;
-
-	if(!(name = shift_arg(ctx)))
-		fail("service name required", NULL, 0);
-
-	no_other_options(ctx);
-
-	start_request(ctx, CMD_STATUS, 1, strlen(name));
-	add_str_attr(ctx, ATTR_NAME, name);
-	send_request(ctx);
-
-	expect_large(ctx);
-	recv_dump(ctx, name, dump_info);
+	dump_list(ctx, recv_ok_reply(ctx));
 }
 
 static void cmd_reload(CTX)
 {
-	no_other_options(ctx);
-
-	start_request(ctx, CMD_RELOAD, 0, 0);
-	send_request(ctx);
-
-	recv_empty(ctx);
-}
-
-static void shutdown(CTX, int cmd)
-{
-	no_other_options(ctx);
-
-	start_request(ctx, cmd, 0, 0);
-	send_request(ctx);
-	recv_empty(ctx);
+	simple_global(ctx, CMD_RELOAD);
 }
 
 static void cmd_reboot(CTX)
 {
-	shutdown(ctx, CMD_REBOOT);
+	simple_global(ctx, CMD_REBOOT);
 }
 
 static void cmd_shutdown(CTX)
 {
-	shutdown(ctx, CMD_SHUTDOWN);
+	simple_global(ctx, CMD_SHUTDOWN);
 }
 
 static void cmd_poweroff(CTX)
 {
-	shutdown(ctx, CMD_POWEROFF);
+	simple_global(ctx, CMD_POWEROFF);
+}
+
+static void cmd_flushall(CTX)
+{
+	simple_global(ctx, CMD_FLUSH);
 }
 
 static const struct cmdrec {
@@ -214,6 +205,7 @@ static const struct cmdrec {
 	{ "start",     cmd_start    },
 	{ "stop",      cmd_stop     },
 	{ "flush",     cmd_flush    },
+	{ "flush-all", cmd_flushall },
 	{ "resume",    cmd_resume   },
 	{ "reload",    cmd_reload   },
 	{ "reboot",    cmd_reboot   },

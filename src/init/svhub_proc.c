@@ -82,6 +82,8 @@ static void spawn(struct proc* rc)
 
 static void mark_dead(struct proc* rc, int status)
 {
+	int pid = rc->pid;
+
 	rc->pid = 0;
 	rc->status = status;
 	rc->flags &= ~(P_SIGTERM | P_SIGKILL | P_SIGSTOP);
@@ -99,6 +101,8 @@ static void mark_dead(struct proc* rc, int status)
 		flush_ring_buf(rc);
 	if(rc->flags & P_STALE)
 		free_proc_slot(rc);
+
+	notify_dead(pid);
 
 	request(F_CHECK_PROCS);
 }

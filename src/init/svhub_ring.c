@@ -217,6 +217,14 @@ void trim_ring_area(void)
 		unmap_ring_area();
 }
 
+static int wrapto(int x, int size)
+{
+	if(x > size)
+		return size + x % size;
+	else
+		return x;
+}
+
 void flush_ring_buf(struct proc* rc)
 {
 	if(!rc->ptr)
@@ -226,14 +234,6 @@ void flush_ring_buf(struct proc* rc)
 	rc->ptr = 0;
 
 	request(F_TRIM_RING);
-}
-
-static int wrapto(int x, int size)
-{
-	if(x > size)
-		return size + x % size;
-	else
-		return x;
 }
 
 int read_into_ring_buf(struct proc* rc, int fd)

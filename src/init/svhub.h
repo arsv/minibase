@@ -45,6 +45,7 @@ struct proc {
 
 struct conn {
 	int fd;
+	int pid;
 };
 
 struct ucmsg;
@@ -87,11 +88,12 @@ void wakeupin(int ttw);
 void request(int flag);
 void handle_conn(struct conn* cn);
 int stop_into(const char* script);
+void notify_dead(int pid);
 
 char* ring_buf_for(struct proc* rc);
 int read_into_ring_buf(struct proc* rc, int fd);
-void flush_ring_buf(struct proc* rc);
 void trim_ring_area(void);
+void flush_ring_buf(struct proc* rc);
 
 int reload_procs(void);
 

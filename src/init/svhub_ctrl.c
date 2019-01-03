@@ -16,141 +16,179 @@
 #include "svhub.h"
 
 int ctrlfd;
-static char rxbuf[200];
 
 #define NOERROR 0
 #define REPLIED 1
+#define LATER 1
 
 #define CN struct conn* cn __unused
 #define MSG struct ucmsg* msg __unused
+#define RC struct proc* rc
+#define UC struct ucbuf* uc
 
-static struct preq {
-	char* name;
-	struct proc* rc;
-} preqs[NPREQS];
-
-static char txbuf[100]; /* for small replies */
-static struct ucbuf uc;
-
-static int start_reply(int cmd, unsigned expected)
+static int start_long_reply(UC)
 {
-	char* buf = NULL;
-	int len, ret;
-	unsigned req = expected + sizeof(struct ucmsg) + 4;
+	int len = PAGE;
+	int ret;
 
-	if(req <= sizeof(txbuf)) {
-		buf = txbuf;
-		len = sizeof(txbuf);
-	} else {
-		len = pagealign(req);
+	void* brk = origbrk;
+	void* end = sys_brk(brk + len);
 
-		void* brk = origbrk;
-		void* end = sys_brk(brk + len);
+	memzero(uc, sizeof(*uc));
 
-		if((ret = brk_error(brk, end)))
-			return ret;
+	if((ret = brk_error(brk, end)))
+		return ret;
 
-		buf = brk;
-	}
+	uc->brk = brk;
+	uc->ptr = brk;
+	uc->end = brk + len;
 
-	uc.brk = buf;
-	uc.ptr = buf;
-	uc.end = buf + len;
-
-	uc_put_hdr(&uc, cmd);
+	uc_put_hdr(uc, 0);
 
 	return 0;
 }
 
-static int send_reply(CN)
+static void start_short_reply(UC, char* buf, int len)
 {
-	uc_put_end(&uc);
+	memzero(uc, sizeof(*uc));
 
-	writeall(cn->fd, uc.brk, uc.ptr - uc.brk);
+	uc->brk = buf;
+	uc->ptr = buf;
+	uc->end = buf + len;
 
-	if(uc.brk != txbuf)
-		sys_brk(origbrk);
+	uc_put_hdr(uc, 0);
+}
+
+static int send_reply(UC, CN)
+{
+	uc_put_end(uc);
+
+	writeall(cn->fd, uc->brk, uc->ptr - uc->brk);
 
 	return REPLIED;
 }
 
+static int send_long_reply(UC, CN)
+{
+	int ret = send_reply(uc, cn);
+
+	sys_brk(origbrk);
+
+	return ret;
+}
+
 static int reply(CN, int err)
 {
+	struct ucbuf uc;
+	char buf[20];
+
+	memzero(&uc, sizeof(uc));
+
+	uc.brk = buf;
+	uc.ptr = buf;
+	uc.end = buf + sizeof(buf);
+
+	uc_put_hdr(&uc, err);
+
+	return send_reply(&uc, cn);
+}
+
+/* Notifcations */
+
+static void send_notification(struct conn* cn)
+{
+	struct itimerval old, itv = {
+		.interval = { 0, 0 },
+		.value = { 1, 0 }
+	};
+
+	sys_setitimer(0, &itv, &old);
+
+	reply(cn, 0);
+
+	sys_setitimer(0, &old, NULL);
+}
+
+void notify_dead(int pid)
+{
+	struct conn* cn;
+
+	for(cn = conns; cn < conns + nconns; cn++) {
+		if(cn->pid != pid)
+			continue;
+
+		send_notification(cn);
+
+		cn->pid = 0;
+	}
+}
+
+/* Global commands */
+
+static int cmd_list(CN, MSG)
+{
+	struct proc* rc;
+	struct ucbuf uc;
 	int ret;
 
-	if((ret = start_reply(err, 0)) < 0)
+	if((ret = start_long_reply(&uc)))
 		return ret;
 
-	return send_reply(cn);
+	for(rc = firstrec(); rc; rc = nextrec(rc)) {
+		struct ucattr* at;
+
+		at = uc_put_nest(&uc, ATTR_PROC);
+
+		uc_put_str(&uc, ATTR_NAME, rc->name);
+
+		if(rc->pid > 0)
+			uc_put_int(&uc, ATTR_PID, rc->pid);
+		if(rc->ptr)
+			uc_put_flag(&uc, ATTR_RING);
+		if(rc->status && !(rc->flags & P_DISABLED))
+			uc_put_int(&uc, ATTR_EXIT, rc->status);
+
+		uc_end_nest(&uc, at);
+	}
+
+	ret = send_long_reply(&uc, cn);
+
+	return ret;
 }
 
-static int rep_name_err(CN, int err, char* name)
+static int cmd_reboot(CN, MSG)
 {
-	int ret;
-
-	if((ret = start_reply(err, 10 + strlen(name))) < 0)
-		return ret;
-
-	uc_put_str(&uc, ATTR_NAME, name);
-
-	return send_reply(cn);
+	return stop_into("reboot");
 }
 
-static int ringsize(struct proc* rc)
+static int cmd_shutdown(CN, MSG)
 {
-	if(rc->ptr < RINGSIZE)
-		return rc->ptr;
-	else
-		return RINGSIZE;
+	return stop_into("shutdown");
 }
 
-static int estimate_list_size(void)
+static int cmd_poweroff(CN, MSG)
 {
-	int count = 0;
+	return stop_into("poweroff");
+}
+
+static int cmd_reload(CN, MSG)
+{
+	request(F_RELOAD_PROCS);
+
+	return 0;
+}
+
+static int cmd_flushall(CN, MSG)
+{
 	struct proc* rc;
 
 	for(rc = firstrec(); rc; rc = nextrec(rc))
-		count++;
+		flush_ring_buf(rc);
 
-	return 10*count*sizeof(struct ucattr) + count*sizeof(*rc);
+	return 0;
 }
 
-static int estimate_status_size(struct proc* rc)
-{
-	return 5*sizeof(struct ucattr) + sizeof(struct proc) + ringsize(rc);
-}
-
-static void put_proc_entry(struct ucbuf* uc, struct proc* rc)
-{
-	struct ucattr* at;
-
-	at = uc_put_nest(uc, ATTR_PROC);
-
-	uc_put_str(uc, ATTR_NAME, rc->name);
-
-	if(rc->pid > 0)
-		uc_put_int(uc, ATTR_PID, rc->pid);
-	if(rc->ptr)
-		uc_put_flag(uc, ATTR_RING);
-	if(rc->status && !(rc->flags & P_DISABLED))
-		uc_put_int(uc, ATTR_EXIT, rc->status);
-
-	uc_end_nest(uc, at);
-}
-
-static int rep_list(CN)
-{
-	struct proc* rc;
-	int ret;
-
-	if((ret = start_reply(0, estimate_list_size())) < 0)
-		return ret;
-
-	for(rc = firstrec(); rc; rc = nextrec(rc))
-		put_proc_entry(&uc, rc);
-
-	return send_reply(cn);
-}
+/* Commands working on a single proc entry */
 
 static void put_ring_buf(struct ucbuf* uc, struct proc* rc)
 {
@@ -173,11 +211,12 @@ static void put_ring_buf(struct ucbuf* uc, struct proc* rc)
 	memcpy(at->payload + head, buf, tail);
 }
 
-static int rep_status(CN, struct proc* rc)
+static int cmd_status(CN, MSG, RC)
 {
+	struct ucbuf uc;
 	int ret;
 
-	if((ret = start_reply(0, estimate_status_size(rc))) < 0)
+	if((ret = start_long_reply(&uc)) < 0)
 		return ret;
 
 	uc_put_str(&uc, ATTR_NAME, rc->name);
@@ -192,138 +231,43 @@ static int rep_status(CN, struct proc* rc)
 	if(rc->status && !(rc->flags & P_DISABLED))
 		uc_put_int(&uc, ATTR_EXIT, rc->status);
 
-	return send_reply(cn);
+	ret = send_long_reply(&uc, cn);
+
+	return ret;
 }
 
-static int rep_pid(CN, struct proc* rc)
+static int cmd_getpid(CN, MSG, RC)
 {
-	start_reply(0, 16);
+	struct ucbuf uc;
+	char buf[50];
 
-	uc_put_int(&uc, ATTR_PID, rc->pid);
-
-	return send_reply(cn);
-}
-
-static int cmd_reboot(CN, MSG)
-{
-	return stop_into("reboot");
-}
-
-static int cmd_shutdown(CN, MSG)
-{
-	return stop_into("shutdown");
-}
-
-static int cmd_poweroff(CN, MSG)
-{
-	return stop_into("poweroff");
-}
-
-static int cmd_list(CN, MSG)
-{
-	return rep_list(cn);
-}
-
-static int cmd_status(CN, MSG)
-{
-	char* name;
-	struct proc* rc;
-
-	if(!(name = uc_get_str(msg, ATTR_NAME)))
-		return -EINVAL;
-	if(!(rc = find_by_name(name)))
-		return -ENOENT;
-
-	return rep_status(cn, rc);
-}
-
-static int cmd_getpid(CN, MSG)
-{
-	char* name;
-	struct proc* rc;
-
-	if(!(name = uc_get_str(msg, ATTR_NAME)))
-		return -EINVAL;
-	if(!(rc = find_by_name(name)))
-		return -ENOENT;
 	if(rc->pid <= 0)
 		return -ECHILD;
 
-	return rep_pid(cn, rc);
+	start_short_reply(&uc, buf, sizeof(buf));
+
+	uc_put_int(&uc, ATTR_PID, rc->pid);
+
+	return send_reply(&uc, cn);
 }
 
-static int cmd_reload(CN, MSG)
+static int kill_proc(struct proc* rc, int sig)
 {
-	request(F_RELOAD_PROCS);
-
-	return NOERROR;
-}
-
-static int foreach_named(CN, MSG, void (*func)(struct proc* rc))
-{
-	int n = 0;
-	struct proc* rc;
-	struct preq* pr;
-	char* name;
-	struct ucattr* at;
-
-	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at)) {
-		if(!(name = uc_is_str(at, ATTR_NAME)))
-			continue;
-		if(n >= NPREQS)
-			return -ENFILE;
-		if(!(rc = find_by_name(at->payload)))
-			return rep_name_err(cn, -ENOENT, name);
-
-		pr = &preqs[n++];
-		pr->name = name;
-		pr->rc = rc;
-	}
-
-	for(pr = preqs; pr < preqs + n; pr++)
-		func(pr->rc);
-
-	return NOERROR;
-}
-
-static int forall_procs(CN, MSG, void (*func)(struct proc* rc))
-{
-	struct proc* rc;
-
-	for(rc = firstrec(); rc; rc = nextrec(rc))
-		func(rc);
-
-	return NOERROR;
-}
-
-static void kill_proc(struct proc* rc, int group, int sig)
-{
-	int pid = rc->pid;
+	int ret, pid = rc->pid;
 
 	if(pid <= 0)
-		return;
-	if(group)
-		pid = -pid;
+		return -ESRCH;
+	if((ret = sys_kill(pid, sig)))
+		return ret;
 
-	sys_kill(pid, sig);
+	return 0;
 }
 
-static void disable_proc(struct proc* rc)
+static int cmd_start(CN, MSG, RC)
 {
-	rc->lastsig = 0;
-	rc->status = 0;
+	if(rc->pid)
+		return -EALREADY;
 
-	rc->flags &= ~(P_RESTART | P_FAILED);
-	rc->flags |= P_DISABLED;
-
-	if(!rc->pid)
-		flush_ring_buf(rc);
-
-	request(F_CHECK_PROCS);
-}
-
-static void enable_proc(struct proc* rc)
-{
 	rc->flags &= ~(P_DISABLED | P_FAILED);
 
 	if(rc->flags & (P_SIGTERM | P_SIGKILL))
@@ -332,128 +276,123 @@ static void enable_proc(struct proc* rc)
 	if(rc->flags & P_STUCK) {
 		rc->flags &= ~P_STUCK;
 		rc->pid = 0;
-	} else if(rc->pid) {
-		return;
 	}
 
 	rc->lastrun = 0;
 	rc->status = 0;
 
+	request(F_CHECK_PROCS);
+
 	flush_ring_buf(rc);
+
+	return 0;
+}
+
+static int cmd_stop(CN, MSG, RC)
+{
+	if(rc->pid <= 0)
+		return -EALREADY;
+
+	rc->lastsig = 0;
+	rc->status = 0;
+
+	rc->flags &= ~(P_RESTART | P_FAILED);
+	rc->flags |= P_DISABLED;
 
 	request(F_CHECK_PROCS);
+
+	cn->pid = rc->pid;
+
+	return LATER; /* suppress reply */
 }
 
-static void pause_proc(struct proc* rc)
+static int cmd_flush(CN, MSG, RC)
 {
-	kill_proc(rc, 1, SIGSTOP);
-}
+	if(!rc->ptr)
+		return -EALREADY;
 
-static void resume_proc(struct proc* rc)
-{
-	kill_proc(rc, 1, SIGCONT);
-}
-
-static void hup_proc(struct proc* rc)
-{
-	kill_proc(rc, 0, SIGHUP);
-}
-
-static void restart_proc(struct proc* rc)
-{
-	kill_proc(rc, 0, SIGTERM);
-	enable_proc(rc);
-}
-
-static void flush_proc(struct proc* rc)
-{
 	flush_ring_buf(rc);
+
+	return 0;
 }
 
-static int cmd_enable(CN, MSG)
+static int cmd_pause(CN, MSG, RC)
 {
-	return foreach_named(cn, msg, enable_proc);
+	return kill_proc(rc, -SIGSTOP);
 }
 
-static int cmd_disable(CN, MSG)
+static int cmd_resume(CN, MSG, RC)
 {
-	return foreach_named(cn, msg, disable_proc);
+	return kill_proc(rc, -SIGCONT);
 }
 
-static int cmd_restart(CN, MSG)
+static int cmd_hup(CN, MSG, RC)
 {
-	return foreach_named(cn, msg, restart_proc);
+	return kill_proc(rc, SIGHUP);
 }
 
-static int cmd_flush(CN, MSG)
-{
-	if(uc_get(msg, ATTR_NAME))
-		return foreach_named(cn, msg, flush_proc);
-	else
-		return forall_procs(cn, msg, flush_proc);
-}
-
-static int cmd_pause(CN, MSG)
-{
-	return foreach_named(cn, msg, pause_proc);
-}
-
-static int cmd_resume(CN, MSG)
-{
-	return foreach_named(cn, msg, resume_proc);
-}
-
-static int cmd_hup(CN, MSG)
-{
-	return foreach_named(cn, msg, hup_proc);
-}
-
-static const struct cmd {
+static const struct pcmd {
 	int cmd;
-	int (*call)(CN, MSG);
-} commands[] = {
-	{ CMD_LIST,     cmd_list     },
-	{ CMD_ENABLE,   cmd_enable   },
-	{ CMD_DISABLE,  cmd_disable  },
-	{ CMD_RESTART,  cmd_restart  },
-	{ CMD_REBOOT,   cmd_reboot   },
-	{ CMD_RELOAD,   cmd_reload   },
+	int (*call)(CN, MSG, RC);
+} pcommands[] = {
 	{ CMD_STATUS,   cmd_status   },
 	{ CMD_GETPID,   cmd_getpid   },
-	{ CMD_FLUSH,    cmd_flush    },
+	{ CMD_START,    cmd_start    },
+	{ CMD_STOP,     cmd_stop     },
 	{ CMD_PAUSE,    cmd_pause    },
 	{ CMD_RESUME,   cmd_resume   },
 	{ CMD_HUP,      cmd_hup      },
+	{ CMD_FLUSH,    cmd_flush    },
+};
+
+static const struct gcmd {
+	int cmd;
+	int (*call)(CN, MSG);
+} gcommands[] = {
+	{ CMD_LIST,     cmd_list     },
+	{ CMD_RELOAD,   cmd_reload   },
+	{ CMD_REBOOT,   cmd_reboot   },
 	{ CMD_SHUTDOWN, cmd_shutdown },
 	{ CMD_POWEROFF, cmd_poweroff },
+	{ CMD_FLUSHALL, cmd_flushall },
 	{ 0,            NULL         }
 };
 
-static int dispatch_cmd(CN, MSG)
+static int proc_cmd(CN, MSG, const struct pcmd* pc)
 {
-	const struct cmd* cd;
-	int cmd = msg->cmd;
-	int ret;
+	char* name;
+	struct proc* rc;
 
-	for(cd = commands; cd->cmd; cd++)
-		if(cd->cmd == cmd)
-			break;
-	if(!cd->cmd)
-		ret = reply(cn, -ENOSYS);
-	else if((ret = cd->call(cn, msg)) <= 0)
-		ret = reply(cn, ret);
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
+	if(!(rc = find_by_name(name)))
+		return -ENOENT;
 
-	return ret;
+	return pc->call(cn, msg, rc);
 }
 
-static void shutdown_conn(struct conn* cn)
+static int dispatch_cmd(CN, MSG)
 {
-	sys_shutdown(cn->fd, SHUT_RDWR);
+	const struct pcmd* pc;
+	const struct gcmd* gc;
+	int cmd = msg->cmd;
+
+	for(pc = pcommands; pc < ARRAY_END(pcommands); pc++)
+		if(pc->cmd == cmd)
+			return proc_cmd(cn, msg, pc);
+
+	for(gc = gcommands; gc < ARRAY_END(gcommands); gc++)
+		if(gc->cmd == cmd)
+			return gc->call(cn, msg);
+
+	return -ENOSYS;
 }
 
 void handle_conn(struct conn* cn)
 {
-	int ret, fd = cn->fd;
+	char rxbuf[200];
+	int fd = cn->fd;
+	int rd, ret;
 
 	struct urbuf ur = {
 		.buf = rxbuf,
@@ -468,16 +407,9 @@ void handle_conn(struct conn* cn)
 
 	sys_setitimer(0, &itv, &old);
 
-	while(1) {
-		if((ret = uc_recv(fd, &ur, 0)) < 0)
-			break;
-
-		if((ret = dispatch_cmd(cn, ur.msg)) < 0)
-			break;
-	}
-
-	if(ret < 0 && ret != -EBADF && ret != -EAGAIN)
-		shutdown_conn(cn);
+	while((rd = uc_recv(fd, &ur, 0)) > 0)
+		if((ret = dispatch_cmd(cn, ur.msg)) <= 0)
+			reply(cn, ret);
 
 	sys_setitimer(0, &old, NULL);
 }
