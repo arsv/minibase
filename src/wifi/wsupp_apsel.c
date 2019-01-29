@@ -59,21 +59,17 @@ static int connectable(struct scan* sc)
 		return 0; /* bad crypto */
 	if(sc->flags & SF_TRIED)
 		return 0; /* already tried that */
-	if(ap.fixed)
-		return 1;
-	if(!(sc->flags & SF_PASS))
-		return 0;
+
 	return 1;
 }
 
 static int match_ssid(struct scan* sc)
 {
-	if(!ap.fixed)
-		return 1;
 	if(sc->slen != ap.slen)
 		return 0;
 	if(memcmp(sc->ssid, ap.ssid, ap.slen))
 		return 0;
+
 	return 1;
 }
 
@@ -154,10 +150,8 @@ static void clear_ap_ssid(void)
 {
 	ap.slen = 0;
 	ap.freq = 0;
-	ap.fixed = 0;
 	memzero(&ap.ssid, sizeof(ap.ssid));
 	memzero(PSK, sizeof(PSK));
-	ap.unsaved = 0;
 }
 
 void reset_station(void)
@@ -189,15 +183,6 @@ static int set_current_ap(struct scan* sc)
 		ap.iesize = sizeof(ies_ccmp_ccmp);
 		ap.tkipgroup = 0;
 	}
-
-	if(ap.fixed)
-		return 0;
-
-	ap.slen = sc->slen;
-	memcpy(ap.ssid, sc->ssid, sc->slen);
-
-	if(load_psk(ap.ssid, ap.slen, PSK))
-		return -1;
 
 	return 0;
 }
@@ -241,7 +226,7 @@ static void reset_scan_counters()
 	}
 }
 
-static int set_fixed(byte* ssid, int slen)
+int set_station(byte* ssid, int slen, byte psk[32])
 {
 	if(slen > (int)sizeof(ap.ssid))
 		return -ENAMETOOLONG;
@@ -249,38 +234,10 @@ static int set_fixed(byte* ssid, int slen)
 	memcpy(ap.ssid, ssid, slen);
 	ap.slen = slen;
 
-	ap.fixed = 1;
-
 	clear_ap_bssid();
 	reset_scan_counters();
 
-	return 0;
-}
-
-int set_fixed_given(byte* ssid, int slen, byte psk[32])
-{
-	int ret;
-
-	if((ret = set_fixed(ssid, slen)) < 0)
-		return ret;
-
 	memcpy(PSK, psk, 32);
-
-	ap.unsaved = 1;
-
-	return 0;
-}
-
-int set_fixed_saved(byte* ssid, int slen)
-{
-	int ret;
-
-	if((ret = load_psk(ssid, slen, PSK)) < 0)
-		return ret;
-	if((ret = set_fixed(ssid, slen)) < 0)
-		return ret;
-
-	ap.unsaved = 0;
 
 	return 0;
 }
@@ -307,7 +264,6 @@ void handle_connect(void)
 	struct scan* sc;
 
 	ap.success = 1;
-	ap.fixed = 1;
 
 	set_timer(TIME_TO_BG_SCAN);
 
@@ -318,12 +274,6 @@ void handle_connect(void)
 
 	if((sc = find_current_ap()))
 		sc->flags &= ~SF_TRIED;
-	if(ap.unsaved)
-		save_psk(ap.ssid, ap.slen, PSK);
-	if(ap.unsaved && sc)
-		sc->flags |= SF_PASS;
-
-	ap.unsaved = 0;
 
 	trigger_dhcp();
 
@@ -354,9 +304,6 @@ static void try_some_other_ap(void)
 {
 	clear_ap_bssid();
 
-	if(!ap.fixed)
-		clear_ap_ssid();
-
 	reassess_wifi_situation();
 }
 
@@ -376,10 +323,6 @@ void check_new_scan_results(void)
 
 		if(check_wpa(sc))
 			sc->flags |= SF_GOOD;
-		else
-			continue;
-		if(got_psk_for(sc->ssid, sc->slen))
-			sc->flags |= SF_PASS;
 	}
 }
 
@@ -447,7 +390,7 @@ void routine_bg_scan(void)
 
 void routine_fg_scan(void)
 {
-	if(!ap.fixed) {
+	if(!ap.slen) {
 		set_timer(TIME_TO_FG_SCAN);
 		start_void_scan();
 	} else if(ap.freq) {

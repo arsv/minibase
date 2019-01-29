@@ -244,8 +244,6 @@ int main(int argc, char** argv)
 			quit("ppoll", NULL, ret);
 		if(sigterm)
 			shutdown();
-
-		save_config();
 	};
 
 	return 0; /* never reached */

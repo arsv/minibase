@@ -6,12 +6,10 @@
 
 #define CMD_WI_STATUS       WI(0)
 #define CMD_WI_SETDEV       WI(1)
-#define CMD_WI_SCANDEV      WI(2)
-#define CMD_WI_SCAN         WI(3)
+#define CMD_WI_SCAN         WI(2)
 #define CMD_WI_NEUTRAL      WI(4)
 #define CMD_WI_CONNECT      WI(5)
-#define CMD_WI_FORGET       WI(6)
-#define CMD_WI_DETACH       WI(7)
+#define CMD_WI_DETACH       WI(6)
 
 #define REP_WI_NET_DOWN     WI(0)
 #define REP_WI_SCANNING     WI(1)

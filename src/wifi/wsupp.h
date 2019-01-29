@@ -99,8 +99,6 @@ extern struct ap {
 	const void* ies;
 	uint iesize;
 
-	int fixed;
-	int unsaved;
 	int tkipgroup;
 
 	int success;
@@ -179,10 +177,6 @@ void handle_rfrestored(void);
 void check_new_scan_results(void);
 int run_stamped_scan(void);
 
-int load_config(void);
-void save_config(void);
-void drop_config(void);
-
 int got_psk_for(byte* ssid, int slen);
 int load_psk(byte* ssid, int slen, byte psk[32]);
 void save_psk(byte* ssid, int slen, byte psk[32]);
@@ -193,8 +187,7 @@ void clr_timer(void);
 int get_timer(void);
 
 void reset_station(void);
-int set_fixed_saved(byte* ssid, int slen);
-int set_fixed_given(byte* ssid, int slen, byte psk[32]);
+int set_station(byte* ssid, int slen, byte psk[32]);
 
 void report_net_down(void);
 void report_scanning(void);

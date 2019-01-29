@@ -1,6 +1,5 @@
 #include <output.h>
 
-struct heap;
 struct ucbuf;
 
 struct top {
@@ -9,8 +8,14 @@ struct top {
 	int argi;
 	char** argv;
 
+	void* brk;
+	void* ptr;
+
+	byte ssid[32];
+	int slen;
+	byte psk[32];
+
 	int fd;
-	struct heap hp;
 	struct ucbuf uc;
 	struct urbuf ur;
 	int connected;
@@ -19,6 +24,7 @@ struct top {
 	struct bufout bo;
 
 	int showbss;
+	int unsaved;
 };
 
 #define CTX struct top* ctx
@@ -46,3 +52,9 @@ void put_psk_input(CTX, void* ssid, int slen);
 int connect_to_wictl(CTX);
 
 void warn_sta(CTX, char* text, MSG);
+
+void load_or_ask_psk(CTX);
+void maybe_store_psk(CTX);
+void remove_psk_entry(CTX);
+
+void* heap_alloc(CTX, uint size);

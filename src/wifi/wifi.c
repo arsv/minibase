@@ -1,4 +1,9 @@
+#include <bits/socket/unix.h>
 #include <bits/errno.h>
+
+#include <sys/file.h>
+#include <sys/socket.h>
+#include <sys/mman.h>
 
 #include <nlusctl.h>
 #include <format.h>
@@ -14,9 +19,118 @@ ERRTAG("wifi");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT);
 
+void* heap_alloc(CTX, uint size)
+{
+	void* brk = ctx->brk;
+	void* ptr = ctx->ptr;
+
+	if(!brk) {
+		brk = sys_brk(NULL);
+		ptr = brk;
+	}
+	
+	ulong left = brk - ptr;
+
+	if(left < size) {
+		ulong need = pagealign(size - left);
+		void* new = sys_brk(brk + need);
+
+		if(brk_error(brk, new))
+			fail("cannot allocate memory", NULL, 0);
+
+		brk = new;
+	}
+
+	ctx->ptr = ptr + size;
+	ctx->brk = brk;
+
+	return ptr;
+}
+
+static void init_heap_bufs(CTX)
+{
+	char* ucbuf = heap_alloc(ctx, 2048);
+
+	ctx->uc.brk = ucbuf;
+	ctx->uc.ptr = ucbuf;
+	ctx->uc.end = ucbuf + 2048;
+
+	char* rxbuf = heap_alloc(ctx, 2048);
+
+	ctx->ur.buf = rxbuf;
+	ctx->ur.mptr = rxbuf;
+	ctx->ur.rptr = rxbuf;
+	ctx->ur.end = rxbuf + 2048;
+}
+
+int connect_to_wictl(CTX)
+{
+	int ret, fd;
+	struct sockaddr_un addr = {
+		.family = AF_UNIX,
+		.path = WICTL
+	};
+
+	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+		fail("socket", "AF_UNIX", fd);
+	if((ret = sys_connect(fd, &addr, sizeof(addr))) < 0)
+		fail("connect", addr.path, ret);
+
+	ctx->fd = fd;
+	ctx->connected = 1;
+
+	init_heap_bufs(ctx);
+
+	return ret;
+}
+
+void send_command(CTX)
+{
+	int wr, fd = ctx->fd;
+	char* txbuf = ctx->uc.brk;
+	int txlen = ctx->uc.ptr - ctx->uc.brk;
+
+	if(!ctx->connected)
+		fail("socket not connected", NULL, 0);
+
+	if((wr = writeall(fd, txbuf, txlen)) < 0)
+		fail("write", NULL, wr);
+}
+
+struct ucmsg* recv_reply(CTX)
+{
+	struct urbuf* ur = &ctx->ur;
+	int ret, fd = ctx->fd;
+
+	if((ret = uc_recv(fd, ur, 1)) < 0)
+		return NULL;
+
+	return ur->msg;
+}
+
+struct ucmsg* send_recv_msg(CTX)
+{
+	struct ucmsg* msg;
+
+	send_command(ctx);
+
+	while((msg = recv_reply(ctx)))
+		if(msg->cmd <= 0)
+			return msg;
+
+	fail("connection lost", NULL, 0);
+}
+
+int send_recv_cmd(CTX)
+{
+	struct ucmsg* msg = send_recv_msg(ctx);
+
+	return msg->cmd;
+}
+
 /* Command line args stuff */
 
-static void init_args(CTX, int argc, char** argv)
+static void init_context(CTX, int argc, char** argv)
 {
 	ctx->argi = 1;
 	ctx->argc = argc;
@@ -108,14 +222,6 @@ static void cmd_neutral(CTX)
 	};
 }
 
-static int request_scan(CTX)
-{
-	uc_put_hdr(UC, CMD_WI_SCAN);
-	uc_put_end(UC);
-
-	return send_recv_cmd(ctx);
-}
-
 static void wait_for_scan_results(CTX)
 {
 	struct ucmsg* msg;
@@ -149,7 +255,7 @@ static void set_scan_device(CTX, char* name)
 {
 	int ret;
 
-	uc_put_hdr(UC, CMD_WI_SCANDEV);
+	uc_put_hdr(UC, CMD_WI_SETDEV);
 	uc_put_str(UC, ATTR_NAME, name);
 	uc_put_end(UC);
 
@@ -171,7 +277,10 @@ static void cmd_scan(CTX)
 
 	no_other_options(ctx);
 
-	if((ret = request_scan(ctx)) >= 0)
+	uc_put_hdr(UC, CMD_WI_SCAN);
+	uc_put_end(UC);
+
+	if((ret = send_recv_cmd(ctx)) >= 0)
 		goto got;
 	else if(ret != -ENODEV)
 		fail(NULL, NULL, ret);
@@ -182,10 +291,45 @@ got:
 	fetch_dump_scan_list(ctx);
 }
 
-static void wait_for_connect(CTX)
+static void check_ap_in_range(CTX)
 {
 	struct ucmsg* msg;
-	int failures = 0;
+	int setdev = 0;
+again:
+	uc_put_hdr(UC, CMD_WI_STATUS);
+	uc_put_end(UC);
+
+	msg = send_recv_msg(ctx);
+
+	if(msg->cmd < 0)
+		fail(NULL, NULL, msg->cmd);
+
+	if(!uc_get_int(msg, ATTR_IFI)) {
+		if(setdev)
+			fail("lost active device", NULL, 0);
+
+		pick_scan_device(ctx);
+		wait_for_scan_results(ctx);
+		setdev = 1;
+
+		goto again;
+	}
+
+	/* TODO: go through the APs, choose which ciphers to use */
+}
+
+static void connect_and_wait(CTX)
+{
+	struct ucmsg* msg;
+	int ret, failures = 0;
+
+	uc_put_hdr(UC, CMD_WI_CONNECT);
+	uc_put_bin(UC, ATTR_SSID, ctx->ssid, ctx->slen);
+	uc_put_bin(UC, ATTR_PSK, ctx->psk, sizeof(ctx->psk));
+	uc_put_end(UC);
+
+	if((ret = send_recv_cmd(ctx)) < 0)
+		fail(NULL, NULL, ret);
 
 	while((msg = recv_reply(ctx))) {
 		switch(msg->cmd) {
@@ -207,86 +351,41 @@ static void wait_for_connect(CTX)
 	}
 }
 
-static int connect_stored(CTX, char* ssid)
-{
-	int slen = strlen(ssid);
-
-	uc_put_hdr(UC, CMD_WI_CONNECT);
-	uc_put_bin(UC, ATTR_SSID, ssid, slen);
-	uc_put_end(UC);
-
-	return send_recv_cmd(ctx);
-}
-
-static int connect_askpsk(CTX, char* ssid)
-{
-	int slen = strlen(ssid);
-
-	uc_put_hdr(UC, CMD_WI_CONNECT);
-	uc_put_bin(UC, ATTR_SSID, ssid, slen);
-	put_psk_input(ctx, ssid, slen);
-	uc_put_end(UC);
-
-	return send_recv_cmd(ctx);
-}
-
-static void cmd_fixedap(CTX)
+static void shift_ssid_arg(CTX)
 {
 	char *ssid;
-	int ret;
 	
 	if(!(ssid = shift_arg(ctx)))
 		fail("need AP ssid", NULL, 0);
 
+	int slen = strlen(ssid);
+
+	if(slen > 32)
+		fail("SSID too long", NULL, 0);
+
+	memcpy(ctx->ssid, ssid, slen);
+	ctx->slen = slen;
+}
+
+static void cmd_fixedap(CTX)
+{
+	shift_ssid_arg(ctx);
 	no_other_options(ctx);
 
-	ret = connect_stored(ctx, ssid);
+	check_ap_in_range(ctx);
+	load_or_ask_psk(ctx);
 
-	if(ret >= 0)
-		goto got;
-	if(ret == -ENOKEY)
-		goto psk;
-	if(ret != -ENODEV)
-		goto err;
+	connect_and_wait(ctx);
 
-	pick_scan_device(ctx);
-	warn("scanning", NULL, 0);
-	wait_for_scan_results(ctx);
-
-	ret = connect_stored(ctx, ssid);
-
-	if(ret >= 0)
-		goto got;
-	if(ret != -ENOKEY)
-		goto err;
-psk:
-	ret = connect_askpsk(ctx, ssid);
-
-	if(ret >= 0)
-		goto got;
-err:
-	fail(NULL, NULL, ret);
-got:
-	return wait_for_connect(ctx);
+	maybe_store_psk(ctx);
 }
 
 static void cmd_forget(CTX)
 {
-	char *ssid;
-	int slen;
-
-	if(!(ssid = shift_arg(ctx)))
-		fail("SSID required", NULL, 0);
-
-	slen = strlen(ssid);
-
-	uc_put_hdr(UC, CMD_WI_FORGET);
-	uc_put_bin(UC, ATTR_SSID, ssid, slen);
-	uc_put_end(UC);
-
+	shift_ssid_arg(ctx);
 	no_other_options(ctx);
 
-	send_check_cmd(ctx);
+	remove_psk_entry(ctx);
 }
 
 static void cmd_detach(CTX)
@@ -306,14 +405,14 @@ static const struct cmdrec {
 	cmdptr call;
 } commands[] = {
 	{ "device",     cmd_device  },
+	{ "detach",     cmd_detach  },
 	{ "scan",       cmd_scan    },
 	{ "ap",         cmd_fixedap },
 	{ "connect",    cmd_fixedap },
 	{ "dc",         cmd_neutral },
 	{ "disconnect", cmd_neutral },
 	{ "forget",     cmd_forget  },
-	{ "bss",        cmd_bss     },
-	{ "detach",     cmd_detach  }
+	{ "bss",        cmd_bss     }
 };
 
 static void dispatch(CTX, char* name)
@@ -333,7 +432,7 @@ int main(int argc, char** argv)
 	char* cmd;
 
 	memzero(ctx, sizeof(ctx));
-	init_args(ctx, argc, argv);
+	init_context(ctx, argc, argv);
 	connect_to_wictl(ctx);
 
 	if((cmd = shift_arg(ctx)))

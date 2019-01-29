@@ -203,7 +203,7 @@ static void put_status_wifi(struct ucbuf* uc)
 	uc_put_str(uc, ATTR_NAME, ifname);
 	uc_put_int(uc, ATTR_STATE, common_wifi_state());
 
-	if(ap.fixed)
+	if(ap.slen)
 		uc_put_bin(uc, ATTR_SSID, ap.ssid, ap.slen);
 	if((tm = get_timer()) >= 0)
 		uc_put_int(uc, ATTR_TIME, tm);
@@ -279,24 +279,13 @@ static int cmd_detach(CN, MSG)
 static int cmd_setdev(CN, MSG)
 {
 	char* name;
-
-	if(!(opermode == OP_IDLE || opermode == OP_MONITOR))
-		return -EBUSY;
-	if(!(name = uc_get_str(msg, ATTR_NAME)))
-		return -EINVAL;
-
-	return set_device(name);
-}
-
-static int cmd_scandev(CN, MSG)
-{
-	char* name;
 	int ret;
 
 	if(!(opermode == OP_IDLE || opermode == OP_MONITOR))
 		return -EBUSY;
 	if(!(name = uc_get_str(msg, ATTR_NAME)))
 		return -EINVAL;
+
 	if((ret = set_device(name)) < 0)
 		return ret;
 
@@ -341,17 +330,17 @@ static int configure_station(MSG)
 	reset_station();
 
 	if(!(assid = uc_get(msg, ATTR_SSID)))
-		return 0;
+		return -EINVAL;
+	if(!(apsk = uc_get(msg, ATTR_PSK)))
+		return -EINVAL;
 
 	byte* ssid = uc_payload(assid);
 	int slen = uc_paylen(assid);
 
-	if(!(apsk = uc_get(msg, ATTR_PSK)))
-		return set_fixed_saved(ssid, slen);
-	else if(uc_paylen(apsk) == 32)
-		return set_fixed_given(ssid, slen, uc_payload(apsk));
-	else
+	if(uc_paylen(apsk) != 32)
 		return -EINVAL;
+
+	return set_station(ssid, slen, uc_payload(apsk));
 }
 
 /* ACK to the command should preceed any notifications caused by the command.
@@ -390,42 +379,15 @@ static int cmd_connect(CN, MSG)
 	return ret;
 }
 
-static int cmd_forget(CN, MSG)
-{
-	int ret;
-	struct ucattr* at;
-	struct scan* sc;
-
-	if(!(at = uc_get(msg, ATTR_SSID)))
-		return -EINVAL;
-
-	byte* ssid = uc_payload(at);
-	int slen = uc_paylen(at);
-
-	if((ret = drop_psk(ssid, slen)) < 0)
-		return ret;
-
-	for(sc = scans; sc < scans + nscans; sc++)
-		if(sc->slen != slen)
-			;
-		else if(memcmp(sc->ssid, ssid, slen))
-			;
-		else sc->flags &= ~SF_PASS;
-
-	return 0;
-}
-
 static const struct cmd {
 	int cmd;
 	int (*call)(CN, MSG);
 } commands[] = {
 	{ CMD_WI_STATUS,  cmd_status  },
 	{ CMD_WI_SETDEV,  cmd_setdev  },
-	{ CMD_WI_SCANDEV, cmd_scandev },
 	{ CMD_WI_SCAN,    cmd_scan    },
 	{ CMD_WI_CONNECT, cmd_connect },
 	{ CMD_WI_NEUTRAL, cmd_neutral },
-	{ CMD_WI_FORGET,  cmd_forget  },
 	{ CMD_WI_DETACH,  cmd_detach  }
 };
 

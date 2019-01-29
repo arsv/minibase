@@ -13,7 +13,7 @@ static void init_output(CTX)
 	int len = 2048;
 
 	ctx->bo.fd = STDOUT;
-	ctx->bo.buf = halloc(&ctx->hp, len);
+	ctx->bo.buf = heap_alloc(ctx, len);
 	ctx->bo.len = len;
 	ctx->bo.ptr = 0;
 }
@@ -259,7 +259,7 @@ static attr* prep_list(CTX, MSG, int key, qcmp2 cmp)
 		if(at->key == key)
 			n++;
 
-	attr* refs = halloc(&ctx->hp, (n+1)*sizeof(void*));
+	attr* refs = heap_alloc(ctx, (n+1)*sizeof(void*));
 
 	for(at = uc_get_0(msg); at && i < n; at = uc_get_n(msg, at))
 		if(at->key == key)
