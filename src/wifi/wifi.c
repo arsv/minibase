@@ -172,6 +172,8 @@ static void cmd_device(CTX)
 
 	no_other_options(ctx);
 
+	connect_to_wictl(ctx);
+
 	uc_put_hdr(UC, CMD_WI_SETDEV);
 	uc_put_str(UC, ATTR_NAME, name);
 	uc_put_end(UC);
@@ -182,6 +184,8 @@ static void cmd_device(CTX)
 static void cmd_status(CTX)
 {
 	struct ucmsg* msg;
+
+	connect_to_wictl(ctx);
 
 	uc_put_hdr(UC, CMD_WI_STATUS);
 	uc_put_end(UC);
@@ -203,6 +207,8 @@ static void cmd_neutral(CTX)
 {
 	struct ucmsg* msg;
 	int ret;
+
+	connect_to_wictl(ctx);
 
 	uc_put_hdr(UC, CMD_WI_NEUTRAL);
 	uc_put_end(UC);
@@ -276,6 +282,8 @@ static void cmd_scan(CTX)
 	int ret;
 
 	no_other_options(ctx);
+
+	connect_to_wictl(ctx);
 
 	uc_put_hdr(UC, CMD_WI_SCAN);
 	uc_put_end(UC);
@@ -372,12 +380,21 @@ static void cmd_fixedap(CTX)
 	shift_ssid_arg(ctx);
 	no_other_options(ctx);
 
+	connect_to_wictl(ctx);
+
 	check_ap_in_range(ctx);
 	load_or_ask_psk(ctx);
 
 	connect_and_wait(ctx);
 
 	maybe_store_psk(ctx);
+}
+
+static void cmd_saved(CTX)
+{
+	no_other_options(ctx);
+
+	list_saved_psks(ctx);
 }
 
 static void cmd_forget(CTX)
@@ -391,6 +408,8 @@ static void cmd_forget(CTX)
 static void cmd_detach(CTX)
 {
 	no_other_options(ctx);
+
+	connect_to_wictl(ctx);
 
 	uc_put_hdr(UC, CMD_WI_DETACH);
 	uc_put_end(UC);
@@ -411,6 +430,7 @@ static const struct cmdrec {
 	{ "connect",    cmd_fixedap },
 	{ "dc",         cmd_neutral },
 	{ "disconnect", cmd_neutral },
+	{ "saved",      cmd_saved   },
 	{ "forget",     cmd_forget  },
 	{ "bss",        cmd_bss     }
 };
@@ -433,7 +453,6 @@ int main(int argc, char** argv)
 
 	memzero(ctx, sizeof(ctx));
 	init_context(ctx, argc, argv);
-	connect_to_wictl(ctx);
 
 	if((cmd = shift_arg(ctx)))
 		dispatch(ctx, cmd);

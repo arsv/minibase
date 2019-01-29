@@ -56,5 +56,6 @@ void warn_sta(CTX, char* text, MSG);
 void load_or_ask_psk(CTX);
 void maybe_store_psk(CTX);
 void remove_psk_entry(CTX);
+void list_saved_psks(CTX);
 
 void* heap_alloc(CTX, uint size);

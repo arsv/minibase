@@ -5,6 +5,7 @@
 #include <crypto/pbkdf2.h>
 #include <nlusctl.h>
 #include <string.h>
+#include <output.h>
 #include <format.h>
 #include <heap.h>
 #include <util.h>
@@ -297,4 +298,49 @@ void remove_psk_entry(CTX)
 
 	remove_entry(&cfg, sv);
 	save_config(ctx, &cfg);
+}
+
+static char* fmt_ssid(char* p, char* e, byte* ssid, int slen)
+{
+	byte* q;
+
+	for(q = ssid; q < ssid + slen; q++) {
+		if(*q >= 0x20) {
+			p = fmtchar(p, e, *q);
+		} else {
+			p = fmtstr(p, e, "\\x");
+			p = fmthex(p, e, *q);
+		}
+	}
+
+	return p;
+}
+
+void list_saved_psks(CTX)
+{
+	struct config cfg;
+	struct saved* sv;
+
+	char out[1024];
+	struct bufout bo = {
+		.fd = STDOUT,
+		.len = sizeof(out),
+		.ptr = 0,
+		.buf = out
+	};
+
+	read_config(ctx, &cfg);
+
+	if(!cfg.buf || !cfg.len)
+		fail("no saved PSKs", NULL, 0);
+
+	for(sv = first(&cfg); sv; sv = next(&cfg, sv)) {
+		FMTBUF(p, e, buf, 100);
+		p = fmt_ssid(p, e, sv->ssid, sv->slen);
+		FMTENL(p, e);
+
+		bufout(&bo, buf, p - buf);
+	}
+
+	bufoutflush(&bo);
 }
