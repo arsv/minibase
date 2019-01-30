@@ -105,18 +105,6 @@ extern struct ap {
 	int rescans;
 } ap;
 
-/* Config file parsing */
-
-struct line {
-	char* start;
-	char* end;
-};
-
-struct chunk {
-	char* start;
-	char* end;
-};
-
 /* Encryption parameters */
 
 extern byte PSK[32];
