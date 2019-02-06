@@ -4,24 +4,24 @@
 
    None of the supported ones actually sends raw nlmsg-s,
    all of them have some sort of extra header fields.
-   
+
    Pretty much any request may be replied to with a nlerr packet.
    "errno" there is a kernel return code like -EINVAL or -ENOENT.
    Value 0 means ACK of a successful request, and only gets sent
    if there was NLM_F_ACK in the request packet.
 
    All userspace-to-kernel packets must carry NLM_F_REQUEST flag.
-   
+
    "Set-something" requests without NLM_F_ACK produce no reply
    on success and nlerr on error, messing up request-reply
    sequences. Such requests must always be sent with ACK enabled.
-   
+
    "Get-something" requests return their respective structures
    on success or nlerr on error. Setting NLM_F_ACK results in
    *both* ACK and the result struct being sent on success,
    messing up request-reply sequences again. Such requests
    must always be send without ACK.
- 
+
    Multipart replies have NLM_F_MULTI in each data packet,
    and those are followed by a single empty NLMSG_DONE packet. */
 

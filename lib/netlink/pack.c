@@ -44,7 +44,7 @@ void nl_put(struct netlink* nl, uint16_t type, const void* buf, int len)
 	int full = sizeof(struct nlattr) + len;
 	struct nlmsg* msg;
 	struct nlattr* at;
-	
+
 	if(!(at = nl_alloc(nl, full)))
 		return;
 
