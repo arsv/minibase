@@ -278,11 +278,21 @@ static void reset_ies_data(void)
 	hp.ptr = hp.org; /* heap reset */
 }
 
+/* Note we cannot replace IEs partially atm, only all at once.
+   Single-freqnecy scan *appends* new IEs block for the AP,
+   leaving the old one in place. Subsequent full-range scan
+   should clean up the old entries.
+
+   Doing some proper memory management with IEs might have been
+   a better idea but the amount of code and time spend hardly
+   justifies the negligible effect. */
+
 static void trigger_scan_dump(void)
 {
 	int ret;
 
-	reset_ies_data();
+	if(!(scanreq & SR_SCANNING_ONE_FREQ))
+		reset_ies_data();
 
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_GET_SCAN, 0);
 	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
