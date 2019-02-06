@@ -1,0 +1,44 @@
+This directory contains WPA supplicant, a tool that establishes and
+maintains encrypted connections to Wi-Fi access points.
+
+Including this kind of tool in the base system may sound strange, but
+it's not. Lots of devices nowadays use Wi-Fi as the primary, or even
+the only networking option. One of the goal of the base system is to
+allow the user to download and install the rest of the system, the
+packages that aren't the base. Which means we'd better have some ways
+of bringing that Wi-Fi link up.
+
+Another reason for writing it was my desire to have something more
+convenient that wpa_supplicant for my own use. Something that would
+let me see which APs are available, pick one, type the passphrase
+once and it would keep my laptop connected.
+
+This supplicant targets a single but very common use case: connecting
+something like a laptop to something like a SOHO access point.
+Thus WPA2-PSK only. No WPA-Enterprise, no mesh networking, no support
+for museum hardware. Nothing that would be dead code for the majority
+of users.
+
+
+DHCP-ing WPA links
+~~~~~~~~~~~~~~~~~~
+During WPA initialization, the link goes "up" right before EAPOL (crypto
+keys) exchange, and there is no notification of any kind that the keys
+have been installed. If DHCP client is set up to be triggered by the
+link-up event, just like with Ethernet links, the first DHCP request would
+likely get lost.
+
+Per RFC 951, the client would then wait about a second before re-sending
+the packet, at which point it would likely go through. Users who are not
+aware how fast it should work may not even notice something is wrong.
+
+To address this problem, wsupp spawns a scripts once it's done negotiating
+the keys, which in turn should trigger DHCP exchange. See ../net2 for some
+examples of such a configuration.
+
+
+See also
+~~~~~~~~
+https://git.kernel.org/pub/scm/network/wireless/iwd.git/
+
+Somewhat similar idea, very different implementation.
