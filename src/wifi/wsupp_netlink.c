@@ -602,6 +602,7 @@ static void genl_done(void)
 	reset_scan_state();
 
 	drop_stale_scan_slots();
+	maybe_trim_heap();
 
 	report_scan_done();
 

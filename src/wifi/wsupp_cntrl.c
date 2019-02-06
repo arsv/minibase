@@ -211,6 +211,7 @@ static void put_status_scans(struct ucbuf* uc)
 static int cmd_status(CN, MSG)
 {
 	struct ucbuf uc;
+	int ret;
 
 	if(extend_heap(estimate_status()) < 0)
 		return -ENOMEM;
@@ -221,7 +222,11 @@ static int cmd_status(CN, MSG)
 	put_status_scans(&uc);
 	uc_put_end(&uc);
 
-	return send_reply(cn, &uc);
+	ret = send_reply(cn, &uc);
+
+	maybe_trim_heap();
+
+	return ret;
 }
 
 static int cmd_detach(CN, MSG)
