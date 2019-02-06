@@ -9,8 +9,6 @@
 
 #include <nlusctl.h>
 #include <string.h>
-#include <printf.h>
-#include <heap.h>
 #include <util.h>
 
 #include "common.h"
@@ -23,7 +21,6 @@ int ctrlfd;
 
 static char rxbuf[100];
 static char txbuf[100];
-struct ucbuf uc;
 
 #define CN struct conn* cn __unused
 #define MSG struct ucmsg* msg __unused
@@ -95,16 +92,13 @@ void report_no_connect(void)
 
 static void report_station(int cmd)
 {
+	struct ucbuf uc;
 	char buf[256];
-	struct ucbuf uc = {
-		.brk = buf,
-		.ptr = buf,
-		.end = buf + sizeof(buf)
-	};
 
+	uc_buf_set(&uc, buf, sizeof(buf));
 	uc_put_hdr(&uc, cmd);
-	uc_put_bin(&uc, ATTR_BSSID, ap.bssid, sizeof(ap.bssid));
 	uc_put_bin(&uc, ATTR_SSID, ap.ssid, ap.slen);
+	uc_put_bin(&uc, ATTR_BSSID, ap.bssid, sizeof(ap.bssid));
 	uc_put_int(&uc, ATTR_FREQ, ap.freq);
 	uc_put_end(&uc);
 
@@ -121,57 +115,34 @@ void report_connected(void)
 	report_station(REP_WI_CONNECTED);
 }
 
-static void start_reply(int cmd)
+static int send_reply(CN, struct ucbuf* uc)
 {
-	void* buf = NULL;
-	int len;
+	if(uc->ptr - uc->brk < 8)
+		warn("attempt to send less than 8 bytes", NULL, 0);
 
-	buf = txbuf;
-	len = sizeof(txbuf);
-
-	uc.brk = buf;
-	uc.ptr = buf;
-	uc.end = buf + len;
-
-	uc_put_hdr(&uc, cmd);
-}
-
-static int send_reply(CN)
-{
-	uc_put_end(&uc);
-
-	writeall(cn->fd, uc.brk, uc.ptr - uc.brk);
+	writeall(cn->fd, uc->brk, uc->ptr - uc->brk);
 
 	return REPLIED;
 }
 
 static int reply(CN, int err)
 {
-	start_reply(err);
+	struct ucbuf uc;
 
-	return send_reply(cn);
+	uc_buf_set(&uc, txbuf, sizeof(txbuf));
+	uc_put_hdr(&uc, err);
+	uc_put_end(&uc);
+
+	return send_reply(cn, &uc);
 }
 
-static int estimate_status(void)
+static uint estimate_status(void)
 {
-	int scansp = nscans*(sizeof(struct scan) + 10*sizeof(struct ucattr));
+	uint scansp = nscans*(sizeof(struct scan) + 10*sizeof(struct ucattr));
+
+	scansp += (hp.ptr - hp.org); /* IEs, total size */
 
 	return scansp + 128;
-}
-
-static void prep_heap(struct heap* hp, int size)
-{
-	hp->brk = sys_brk(NULL);
-
-	size += (PAGE - size % PAGE) % PAGE;
-
-	hp->ptr = hp->brk;
-	hp->end = sys_brk(hp->brk + size);
-}
-
-static void free_heap(struct heap* hp)
-{
-	sys_brk(hp->brk);
 }
 
 static int common_wifi_state(void)
@@ -207,10 +178,12 @@ static void put_status_wifi(struct ucbuf* uc)
 		uc_put_bin(uc, ATTR_SSID, ap.ssid, ap.slen);
 	if((tm = get_timer()) >= 0)
 		uc_put_int(uc, ATTR_TIME, tm);
-	if(ap.freq) {
-		uc_put_bin(uc, ATTR_BSSID, ap.bssid, sizeof(ap.bssid));
-		uc_put_int(uc, ATTR_FREQ, ap.freq);
-	}
+
+	if(!ap.freq)
+		return; /* not connected to particular AP */
+
+	uc_put_bin(uc, ATTR_BSSID, ap.bssid, sizeof(ap.bssid));
+	uc_put_int(uc, ATTR_FREQ, ap.freq);
 }
 
 static void put_status_scans(struct ucbuf* uc)
@@ -219,19 +192,17 @@ static void put_status_scans(struct ucbuf* uc)
 	struct ucattr* nn;
 
 	for(sc = scans; sc < scans + nscans; sc++) {
-		if(!sc->freq) continue;
+		if(!sc->freq)
+			continue;
+
 		nn = uc_put_nest(uc, ATTR_SCAN);
+
 		uc_put_int(uc, ATTR_FREQ,   sc->freq);
-		uc_put_int(uc, ATTR_TYPE,   sc->type);
 		uc_put_int(uc, ATTR_SIGNAL, sc->signal);
 		uc_put_bin(uc, ATTR_BSSID,  sc->bssid, sizeof(sc->bssid));
-		uc_put_bin(uc, ATTR_SSID,   sc->ssid, sc->slen);
 
-		if(!(sc->flags & SF_PASS))
-			;
-		else if(!(sc->flags & SF_GOOD))
-			;
-		else uc_put_flag(uc, ATTR_PRIO);
+		if(sc->ies)
+			uc_put_bin(uc, ATTR_IES,  sc->ies, sc->ieslen);
 
 		uc_end_nest(uc, nn);
 	}
@@ -239,23 +210,18 @@ static void put_status_scans(struct ucbuf* uc)
 
 static int cmd_status(CN, MSG)
 {
-	struct heap hp;
+	struct ucbuf uc;
 
-	prep_heap(&hp, estimate_status());
+	if(extend_heap(estimate_status()) < 0)
+		return -ENOMEM;
 
-	uc_buf_set(&uc, hp.brk, hp.end - hp.brk);
+	uc_buf_set(&uc, hp.ptr, hp.brk - hp.ptr);
 	uc_put_hdr(&uc, 0);
 	put_status_wifi(&uc);
 	put_status_scans(&uc);
 	uc_put_end(&uc);
 
-	int ret = send_reply(cn);
-
-	free_heap(&hp);
-
-	cn->rep = 0;
-
-	return ret;
+	return send_reply(cn, &uc);
 }
 
 static int cmd_detach(CN, MSG)
@@ -287,6 +253,8 @@ static int cmd_setdev(CN, MSG)
 		return -EINVAL;
 
 	if((ret = set_device(name)) < 0)
+		return ret;
+	if((ret = start_void_scan()) < 0)
 		return ret;
 
 	cn->rep = 1;
@@ -366,11 +334,12 @@ static int cmd_connect(CN, MSG)
 	if((ret = configure_station(msg)) < 0)
 		return ret;
 
-	opermode = OP_ONESHOT;
+	opermode = OP_ONESHOT; /* reset if cannot connect right away */
 
-	cn->rep = 1;
-
+	/* early reply because reassess_wifi_situation may send reports */
 	ret = reply(cn, 0);
+
+	cn->rep = 1; /* for connect/no-connect notifications */
 
 	clr_timer();
 
@@ -408,11 +377,6 @@ static int dispatch_cmd(CN, MSG)
 	return reply(cn, -ENOSYS);
 }
 
-static void shutdown_conn(struct conn* cn)
-{
-	sys_shutdown(cn->fd, SHUT_RDWR);
-}
-
 void handle_conn(struct conn* cn)
 {
 	int ret, fd = cn->fd;
@@ -436,9 +400,6 @@ void handle_conn(struct conn* cn)
 		if((ret = dispatch_cmd(cn, ur.msg)) < 0)
 			break;
 	}
-
-	if(ret < 0 && ret != -EBADF && ret != -EAGAIN)
-		shutdown_conn(cn);
 
 	sys_setitimer(0, &old, NULL);
 }

@@ -4,9 +4,9 @@
 #include <netlink.h>
 #include <netlink/genl.h>
 #include <netlink/genl/nl80211.h>
+#include <netlink/dump.h>
 
 #include <string.h>
-#include <printf.h>
 #include <util.h>
 
 #include "wsupp.h"
@@ -22,24 +22,24 @@
 
 	# connect
 	<- NL80211_CMD_AUTHENTICATE      trigger_authentication
-	-> NL80211_CMD_AUTHENTICATE      cmd_authenticate
+	-> NL80211_CMD_AUTHENTICATE      nlm_authenticate
 	<- NL80211_CMD_ASSOCIATE         trigger_associaction
-	-> NL80211_CMD_ASSOCIATE         cmd_associate
-	-> NL80211_CMD_CONNECT           cmd_connect
+	-> NL80211_CMD_ASSOCIATE         nlm_associate
+	-> NL80211_CMD_CONNECT           nlm_connect
 
 	# disconnect
 	<- NL80211_CMD_DISCONNECT        trigger_disconnect
-	-> NL80211_CMD_DISCONNECT        cmd_disconnect
+	-> NL80211_CMD_DISCONNECT        nlm_disconnect
 
 	# scan
 	<- NL80211_CMD_TRIGGER_SCAN      start_scan
-	-> NL80211_CMD_TRIGGER_SCAN      cmd_trigger_scan
-	-> NL80211_CMD_NEW_SCAN_RESULTS  cmd_scan_results
+	-> NL80211_CMD_TRIGGER_SCAN      nlm_trigger_scan
+	-> NL80211_CMD_NEW_SCAN_RESULTS  nlm_scan_results
 	<- NL80211_CMD_GET_SCAN          trigger_scan_dump
-	-> NL80211_CMD_NEW_SCAN_RESULTS* cmd_scan_results
-	-> NL80211_CMD_NEW_SCAN_RESULTS* cmd_scan_results
+	-> NL80211_CMD_NEW_SCAN_RESULTS* nlm_scan_results
+	-> NL80211_CMD_NEW_SCAN_RESULTS* nlm_scan_results
 	...
-	-> NL80211_CMD_NEW_SCAN_RESULTS* cmd_scan_results
+	-> NL80211_CMD_NEW_SCAN_RESULTS* nlm_scan_results
 	-> NLMSG_DONE                    genl_done
 
    Disconnect notifications may arrive spontaneously if initiated
@@ -90,11 +90,6 @@ out:
 	_exit(0xFF);
 }
 
-/* Subscribing to nl80211 only becomes possible after nl80211 kernel
-   module gets loaded and initialized, which may happen after wsupp 
-   starts. To mend this, netlink socket is opened and initialized
-   as a part of device setup. */
-
 static int nle(const char* msg, const char* arg, int err)
 {
 	sys_close(nl.fd);
@@ -129,6 +124,11 @@ static void reset_scan_state(void)
 	scanseq = 0;
 	scanreq = 0;
 }
+
+/* Subscribing to nl80211 only becomes possible after nl80211 kernel
+   module gets loaded and initialized, which may happen after wsupp
+   starts. To mend this, netlink socket is opened and initialized
+   as a part of device setup. */
 
 int open_netlink(void)
 {
@@ -265,13 +265,28 @@ static void mark_stale_scan_slots(struct nlgen* msg)
 	}
 }
 
+static void reset_ies_data(void)
+{
+	struct scan* sc;
+
+	for(sc = scans; sc < scans + nscans; sc++) {
+		sc->ies = NULL;
+		sc->ieslen = 0;
+		sc->flags &= ~(SF_SEEN | SF_GOOD | SF_TKIP);
+	}
+
+	hp.ptr = hp.org; /* heap reset */
+}
+
 static void trigger_scan_dump(void)
 {
 	int ret;
 
+	reset_ies_data();
+
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_GET_SCAN, 0);
 	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
-	
+
 	if((ret = nl_send_dump(&nl)) < 0) {
 		warn("nl-send", "scan dump", ret);
 		reset_scan_state();
@@ -292,7 +307,8 @@ static void parse_scan_result(struct nlgen* msg)
 	struct scan* sc;
 	struct nlattr* bss;
 	struct nlattr* ies;
-	uint8_t* bssid;
+	byte* bssid;
+	byte* stored;
 
 	if(!(bss = nl_get_nest(msg, NL80211_ATTR_BSS)))
 		return;
@@ -304,11 +320,15 @@ static void parse_scan_result(struct nlgen* msg)
 	memcpy(sc->bssid, bssid, 6);
 	sc->freq = get_i32_or_zero(bss, NL80211_BSS_FREQUENCY);
 	sc->signal = get_i32_or_zero(bss, NL80211_BSS_SIGNAL_MBM);
-	sc->type = 0;
 	sc->flags &= ~SF_STALE;
 
-	if((ies = nl_sub(bss, NL80211_BSS_INFORMATION_ELEMENTS)))
-		parse_station_ies(sc, nl_payload(ies), nl_paylen(ies));
+	if(!(ies = nl_sub(bss, NL80211_BSS_INFORMATION_ELEMENTS)))
+		return;
+	if(!(stored = heap_store(nl_payload(ies), nl_paylen(ies))))
+		return;
+
+	sc->ies = stored;
+	sc->ieslen = nl_paylen(ies);
 }
 
 /* NL80211_CMD_TRIGGER_SCAN arrives with a list of frequencies being
@@ -316,7 +336,7 @@ static void parse_scan_result(struct nlgen* msg)
    The list may not cover the whole range, e.g. if it's a single-freq
    scans, so the point is to mark only the entries being re-scanned. */
 
-static void cmd_trigger_scan(MSG)
+static void nlm_trigger_scan(MSG)
 {
 	if(scanstate != SS_SCANNING)
 		return;
@@ -331,7 +351,7 @@ static void cmd_trigger_scan(MSG)
    in a bunch of messages with the same NL80211_CMD_NEW_SCAN_RESULTS code
    but also with the MULTI flag set. The dump ends with a NLMSG_DONE. */
 
-static void cmd_scan_results(MSG)
+static void nlm_scan_results(MSG)
 {
 	if(msg->nlm.flags & NLM_F_MULTI)
 		parse_scan_result(msg);
@@ -339,7 +359,7 @@ static void cmd_scan_results(MSG)
 		trigger_scan_dump();
 }
 
-static void cmd_scan_aborted(MSG)
+static void nlm_scan_aborted(MSG)
 {
 	if(scanstate != SS_SCANNING)
 		return;
@@ -380,7 +400,7 @@ int start_connection(void)
 		return ret;
 
 	trigger_authentication();
-	
+
 	return 0;
 }
 
@@ -391,8 +411,7 @@ static void trigger_associaction(void)
 	nl_put(&nl, NL80211_ATTR_MAC, ap.bssid, sizeof(ap.bssid));
 	nl_put_u32(&nl, NL80211_ATTR_WIPHY_FREQ, ap.freq);
 	nl_put(&nl, NL80211_ATTR_SSID, ap.ssid, ap.slen);
-
-	nl_put(&nl, NL80211_ATTR_IE, ap.ies, ap.iesize);
+	nl_put(&nl, NL80211_ATTR_IE, ap.txies, ap.iesize);
 
 	send_set_authstate(AS_ASSOCIATING);
 }
@@ -425,7 +444,7 @@ static void snap_to_disabled(char* why)
    over netlink, pretty much everything else past that point happens either
    on its own or through the rawsock. */
 
-static void cmd_authenticate(MSG)
+static void nlm_authenticate(MSG)
 {
 	if(authstate == AS_EXTERNAL)
 		return;
@@ -437,7 +456,7 @@ static void cmd_authenticate(MSG)
 	trigger_associaction();
 }
 
-static void cmd_associate(MSG)
+static void nlm_associate(MSG)
 {
 	if(authstate == AS_EXTERNAL)
 		return;
@@ -449,7 +468,7 @@ static void cmd_associate(MSG)
 	authstate = AS_CONNECTING;
 }
 
-static void cmd_connect(MSG)
+static void nlm_connect(MSG)
 {
 	if(authstate == AS_EXTERNAL)
 		return;
@@ -466,7 +485,7 @@ int start_disconnect(void)
 {
 	if(netlink <= 0)
 		return -ENOTCONN;
-	/* not ENODEV here ^ to prevent the client froms
+	/* not ENODEV here ^ to prevent the client from
 	   trying to pick a device and retry the request */
 
 	switch(authstate) {
@@ -491,7 +510,7 @@ void abort_connection(void)
 	reassess_wifi_situation();
 }
 
-static void cmd_disconnect(MSG)
+static void nlm_disconnect(MSG)
 {
 	if(authstate == AS_IDLE)
 		return;
@@ -584,8 +603,6 @@ static void genl_done(void)
 
 	drop_stale_scan_slots();
 
-	check_new_scan_results();
-
 	report_scan_done();
 
 	if(current & SR_RECONNECT_CURRENT)
@@ -628,7 +645,7 @@ static void snap_to_netdown(void)
    ENOENT handling is tricky. This error means that the AP is not
    in the fast card/kernel scan cache, which gets purged in like 10s
    after the scan. It does not necessary mean the AP is gone.
-   
+
    If we get ENOENT, we do a fast single-frequency scan for the AP
    we're connecting to. If the AP is really gone, it will be detected
    in reconnect_to_current_ap() and not here. */
@@ -638,10 +655,18 @@ static void handle_auth_error(int err)
 	if(authstate == AS_DISCONNECTING) {
 		authstate = AS_IDLE;
 		reassess_wifi_situation();
-	} else if(authstate == AS_AUTHENTICATING && err == -ENOENT) {
+	} else if(authstate == AS_AUTHENTICATING) {
 		authstate = AS_IDLE;
-		start_scan(ap.freq);
-	} else {
+		if(err == -ENOENT)
+			start_scan(ap.freq);
+	} else if(authstate == AS_ASSOCIATING) {
+		if(err == -EINVAL)
+			authstate = AS_IDLE;
+		else
+			abort_connection();
+	} else if(authstate == AS_CONNECTING) {
+		abort_connection();
+	} else if(authstate == AS_CONNECTED) {
 		abort_connection();
 	}
 }
@@ -660,13 +685,13 @@ static const struct cmd {
 	int code;
 	void (*call)(struct nlgen*);
 } cmds[] = {
-	{ NL80211_CMD_TRIGGER_SCAN,     cmd_trigger_scan }, /* scan */
-	{ NL80211_CMD_NEW_SCAN_RESULTS, cmd_scan_results },
-	{ NL80211_CMD_SCAN_ABORTED,     cmd_scan_aborted },
-	{ NL80211_CMD_AUTHENTICATE,     cmd_authenticate }, /* mlme */
-	{ NL80211_CMD_ASSOCIATE,        cmd_associate    },
-	{ NL80211_CMD_CONNECT,          cmd_connect      },
-	{ NL80211_CMD_DISCONNECT,       cmd_disconnect   }
+	{ NL80211_CMD_TRIGGER_SCAN,     nlm_trigger_scan }, /* scan */
+	{ NL80211_CMD_NEW_SCAN_RESULTS, nlm_scan_results },
+	{ NL80211_CMD_SCAN_ABORTED,     nlm_scan_aborted },
+	{ NL80211_CMD_AUTHENTICATE,     nlm_authenticate }, /* mlme */
+	{ NL80211_CMD_ASSOCIATE,        nlm_associate    },
+	{ NL80211_CMD_CONNECT,          nlm_connect      },
+	{ NL80211_CMD_DISCONNECT,       nlm_disconnect   }
 };
 
 static void dispatch(struct nlgen* msg)

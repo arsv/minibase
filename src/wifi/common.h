@@ -37,6 +37,7 @@
 #define ATTR_FLAGS     16
 #define ATTR_ADDR      17
 #define ATTR_TIME      18
+#define ATTR_IES       19
 
 /* ATTR_STATE = authstate */
 #define WS_UNKNOWN         0

@@ -1,21 +1,43 @@
 #include <string.h>
-#include <printf.h>
 
 #include "wsupp.h"
 
-/* AP selection code. Scan, pick some AP to connect, fail, pick
-   another AP and so on. */
+/* AP selection code.
+
+   In accordance with IEEE 802.11, this tool assumes that all APs
+   sharing the same SSID are parts of the same network. When the user
+   commands connection to a certain AP, this only means a fixed SSID.
+   The supplicant is free to choose any BSSID advertising that SSID,
+   and fall back to another one if connection fails. Limited roaming
+   is possible as well. If connection is lost, the tool will try to
+   re-connect to the same AP but failing that, attempts may be made
+   with different APs of the same network.
+
+   This assumption is quite important, half of the code below would
+   not be there if we were targeting a fixed BSSID.
+
+   At this moment, fixed BSSIDs are not supported at all.
+   The standard doesn't require it, and as far as I can tell, the few
+   cases where it could be useful are much better served by ../temp/wifi
+   instead. */
 
 #define TIME_TO_FG_SCAN 1*60
 #define TIME_TO_BG_SCAN 5*60
 
-/* IEs (Information Elements) telling the AP which cipher we'd like to use
-   must be sent twice: first in ASSOCIATE request, and then also in EAPOL
-   packet 3/4. No idea why, but it must be done like that. Cipher selection
-   depends on scan data anyway, so we do it here, and let netlink/eapol code
-   pick the IEs from struct ap whenever appropriate.
+/* IEs = Information Elements.
 
-   Ref. IEEE 802.11-2012 8.4.2.27 RSNE */
+   Ref. IEEE 802.11-2012 8.4.2 Information elements,
+                         8.4.2.27 RSNE
+
+   The following two tell the AP which ciphers we'd like to use.
+   We send them twice: first in ASSOCIATE request, and then also
+   in EAPOL packet 3/4. No idea why, but it must be done like that. */
+
+struct ies {
+	byte type;
+	byte len;
+	byte payload[];
+};
 
 const char ies_ccmp_ccmp[] = {
 	0x30, 0x14, /* ies { type = 48, len = 20 } */
@@ -39,38 +61,125 @@ const char ies_ccmp_tkip[] = {
 	    0x00, 0x00,
 };
 
-static int check_wpa(struct scan* sc)
+/* Scans provide IEs for APs in range. These should contain SSID
+   and the cipher sets supported by the APs. We have to do some
+   parsing here to match those against our current ap.ssid and
+   the ciphers we support.
+
+   Parsing is done only when needed (that is, when we are choosing
+   next AP to connect to) and results are kept specific to current
+   struct ap settings. Most scan results, most of the time, do not
+   get parsed because we're either idle or happily connected.
+
+   In case some AP decides to change its IEs without going silent
+   (or does so in-between our scans), we clear some of the flags
+   set here in reset_ies_data() to force re-parsing on the next
+   call to reassess_wifi_situation().
+
+   Ref. IEEE 802.11-2012 8.4.2 Information elements, 8.4.2.27 RSNE */
+
+static uint get2le(byte* p, byte* e)
 {
-	int type = sc->type;
-
-	if(!(type & ST_RSN_PSK))
-		return 0;
-	if(!(type & ST_RSN_P_CCMP))
-		return 0;
-	if(!(type & (ST_RSN_G_CCMP | ST_RSN_G_TKIP)))
+	if(p + 3 > e)
 		return 0;
 
-	return 1;
+	return (p[0] & 0xFF)
+	    | ((p[1] & 0xFF) << 8);
 }
 
-static int connectable(struct scan* sc)
+static uint get4be(byte* p, byte* e)
 {
-	if(!(sc->flags & SF_GOOD))
-		return 0; /* bad crypto */
-	if(sc->flags & SF_TRIED)
-		return 0; /* already tried that */
+	if(p + 4 > e)
+		return 0;
 
-	return 1;
+	return (p[0] << 24)
+	     | (p[1] << 16)
+	     | (p[2] <<  8)
+	     | (p[3]);
 }
 
-static int match_ssid(struct scan* sc)
+static uint find_int(byte* buf, int cnt, uint val)
 {
-	if(sc->slen != ap.slen)
-		return 0;
-	if(memcmp(sc->ssid, ap.ssid, ap.slen))
-		return 0;
+	byte* p = buf;
+	byte* e = buf + 4*cnt;
 
-	return 1;
+	for(; p < e; p += 4)
+		if(get4be(p, e) == val)
+			return 1;
+
+	return 0;
+}
+
+static void parse_rsn_ie(struct scan* sc, int len, byte* buf)
+{
+	byte* p = buf;
+	byte* e = buf + len;
+
+	uint version = get2le(p, e);   p += 2;
+
+	if(version != 1)
+		return;
+
+	uint group = get4be(p, e);     p += 4;
+	uint pcnt = get2le(p, e);      p += 2;
+	byte* pair = p;                p += 4*pcnt;
+	uint acnt = get2le(p, e);      p += 2;
+	byte* akms = p;              //p += 4*acnt;
+
+	if(!(find_int(pair, pcnt, 0x000FAC04)))
+		return; /* no pairwise CCMP */
+	if(!(find_int(akms, acnt, 0x000FAC02)))
+		return; /* no PSK AKM */
+
+	if(group == 0x000FAC02) /* TKIP groupwise */
+		sc->flags |=  SF_TKIP;
+	else if(group == 0x000FAC04) /* CCMP groupwise */
+		; /* we're good as is */
+	else /* unsupported groupwise cipher */
+		return;
+
+	sc->flags |= SF_GOOD;
+}
+
+static struct ies* find_ie(void* buf, uint len, int type)
+{
+	void* ptr = buf;
+	void* end = buf + len;
+
+	while(ptr < end) {
+		struct ies* ie = ptr;
+		int ielen = sizeof(*ie) + ie->len;
+
+		if(ptr + ielen > end)
+			break;
+		if(ie->type == type)
+			return ie;
+
+		ptr += ielen;
+	}
+
+	return NULL;
+}
+
+static void check_ap_ies(struct scan* sc)
+{
+	struct ies* ie;
+	byte* buf = sc->ies;
+	uint len = sc->ieslen;
+
+	sc->flags |= SF_SEEN;
+
+	if(!(ie = find_ie(buf, len, 0)))
+		return; /* no SSID */
+	if(ie->len != ap.slen)
+		return; /* wrong SSID */
+	if(memcmp(ie->payload, ap.ssid, ap.slen))
+		return; /* wrong SSID */
+
+	if(!(ie = find_ie(buf, len, 48)))
+		return; /* no RSN entry */
+
+	parse_rsn_ie(sc, ie->len, ie->payload);
 }
 
 /* Impose slight preference for the 5GHz band. Only matters if there are
@@ -124,13 +233,19 @@ static struct scan* get_best_ap(void)
 
 	for(sc = scans; sc < scans + nscans; sc++) {
 		if(!sc->freq)
-			continue;
-		if(!connectable(sc))
-			continue;
-		if(!match_ssid(sc))
-			continue;
+			continue; /* empty slot */
+		if(!sc->ies)
+			continue; /* scan dump in progress? */
+
+		if(sc->flags & SF_TRIED)
+			continue; /* already tried that */
+		if(!(sc->flags & SF_SEEN))
+			check_ap_ies(sc);
+		if(!(sc->flags & SF_GOOD))
+			continue; /* bad crypto */
 		if(compare(sc, best) <= 0)
 			continue;
+
 		best = sc;
 	}
 
@@ -139,19 +254,25 @@ static struct scan* get_best_ap(void)
 
 static void clear_ap_bssid(void)
 {
-	ap.type = 0;
 	ap.success = 0;
 	ap.rescans = 0;
+	ap.freq = 0;
 
 	memzero(&ap.bssid, sizeof(ap.bssid));
 }
 
 static void clear_ap_ssid(void)
 {
+	struct scan* sc;
+
 	ap.slen = 0;
 	ap.freq = 0;
+
 	memzero(&ap.ssid, sizeof(ap.ssid));
 	memzero(PSK, sizeof(PSK));
+
+	for(sc = scans; sc < scans + nscans; sc++)
+		sc->flags &= ~(SF_GOOD | SF_TKIP | SF_SEEN | SF_TRIED);
 }
 
 void reset_station(void)
@@ -160,49 +281,34 @@ void reset_station(void)
 	clear_ap_ssid();
 }
 
-static int set_current_ap(struct scan* sc)
+static void set_current_ap(struct scan* sc)
 {
-	int auth = sc->type;
-
-	sc->flags |= SF_TRIED;
-
 	ap.success = 0;
 	ap.freq = sc->freq;
-	ap.type = sc->type;
+
 	memcpy(ap.bssid, sc->bssid, MACLEN);
 
-	if(!(auth & ST_RSN_P_CCMP))
-		return -1;
-
-	if(auth & ST_RSN_G_TKIP) {
-		ap.ies = ies_ccmp_tkip;
+	if(sc->flags & SF_TKIP) {
+		ap.txies = ies_ccmp_tkip;
 		ap.iesize = sizeof(ies_ccmp_tkip);
 		ap.tkipgroup = 1;
 	} else {
-		ap.ies = ies_ccmp_ccmp;
+		ap.txies = ies_ccmp_ccmp;
 		ap.iesize = sizeof(ies_ccmp_ccmp);
 		ap.tkipgroup = 0;
 	}
-
-	return 0;
 }
 
 static struct scan* find_current_ap(void)
 {
 	struct scan* sc;
 
-	for(sc = scans; sc < scans + nscans; sc++) {
-		if(!sc->freq)
-			continue;
-		if(sc->slen != ap.slen)
-			continue;
-		if(memcmp(sc->ssid, ap.ssid, ap.slen))
-			continue;
-		if(memcmp(sc->bssid, ap.bssid, 6))
-			continue;
+	if(!nonzero(ap.bssid, 6))
+		return NULL;
 
-		return sc;
-	}
+	for(sc = scans; sc < scans + nscans; sc++)
+		if(!memcmp(sc->bssid, ap.bssid, 6))
+			return sc;
 
 	return NULL;
 }
@@ -211,20 +317,6 @@ static struct scan* find_current_ap(void)
    ready to roam between multiple APs sharing the same SSID. There's
    almost no difference between roading and fixed mode except for AP
    selection rules. */
-
-static void reset_scan_counters()
-{
-	struct scan* sc;
-
-	for(sc = scans; sc < scans + nscans; sc++) {
-		if(!sc->freq)
-			continue;
-		if(!match_ssid(sc))
-			continue;
-
-		sc->flags &= ~SF_TRIED;
-	}
-}
 
 int set_station(byte* ssid, int slen, byte psk[32])
 {
@@ -235,7 +327,6 @@ int set_station(byte* ssid, int slen, byte psk[32])
 	ap.slen = slen;
 
 	clear_ap_bssid();
-	reset_scan_counters();
 
 	memcpy(PSK, psk, 32);
 
@@ -245,15 +336,17 @@ int set_station(byte* ssid, int slen, byte psk[32])
 static int connect_to_something(void)
 {
 	struct scan* sc;
+	int ret;
 
 	while((sc = get_best_ap())) {
-		if(set_current_ap(sc))
-			;
-		else if(start_connection())
-			;
-		else return 1;
+		set_current_ap(sc);
 
-		sc->flags &= ~SF_GOOD;
+		if((ret = start_connection()) < 0)
+			return ret;
+
+		sc->flags |= SF_TRIED;
+
+		return 1;
 	}
 
 	return 0;
@@ -307,25 +400,6 @@ static void try_some_other_ap(void)
 	reassess_wifi_situation();
 }
 
-/* Netlink has completed a scan dump and wants us to evaluate the results. */
-
-void check_new_scan_results(void)
-{
-	struct scan* sc;
-
-	for(sc = scans; sc < scans + nscans; sc++) {
-		if(!sc->freq)
-			continue;
-		if(sc->flags & SF_SEEN)
-			continue;
-
-		sc->flags |= SF_SEEN;
-
-		if(check_wpa(sc))
-			sc->flags |= SF_GOOD;
-	}
-}
-
 /* Netlink reports AP connection has been lost. */
 
 void handle_disconnect(void)
@@ -344,7 +418,6 @@ void handle_disconnect(void)
 	} else {
 		clear_ap_bssid();
 		clear_ap_ssid();
-		report_no_connect();
 	}
 
 	if(opermode == OP_IDLE)

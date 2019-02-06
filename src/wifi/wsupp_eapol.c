@@ -1,15 +1,19 @@
+#include <bits/types.h>
 #include <bits/socket/packet.h>
+
 #include <sys/file.h>
 #include <sys/socket.h>
 #include <sys/random.h>
 
+#include <crypto/sha1.h>
+#include <crypto/aes128.h>
+
 #include <string.h>
 #include <endian.h>
-#include <printf.h>
+#include <format.h>
 #include <util.h>
 
 #include "wsupp.h"
-#include "wsupp_crypto.h"
 #include "wsupp_eapol.h"
 
 /* Once the radio level connection has been established by the NL code,
@@ -101,17 +105,104 @@ void close_rawsock(void)
 	pollset = 0;
 }
 
-/* The rest of the code deals with AP connection */
+/* Supplementary crypto routines for EAPOL negotiations.
+   Ref. IEEE 802.11-2012 11.6.1.2 PRF
 
-static void ignore(char* why)
+   The standard calls for PRF384 but that's just the same code
+   that truncates the result to 48 bytes. In their terms:
+
+       PRF-384(K, A, B) = L(PRF-480(K, A, B), 0, 384)
+
+   To make things a bit easier, K is made 60 bytes (480 bits)
+   long and no explicit truncation is preformed. In the caller,
+   K is a temporary buffer anyway, the useful stuff gets copied
+   out immediately.
+
+   This function also handles concatenation:
+
+       A = str
+       B = mac1 | mac2 | nonce1 | nonce2
+
+   HMAC input is then
+
+       A | 0 | B | i
+
+   so there's no point in a dedicated buffer for B. */
+
+static void PRF480(byte out[60], byte key[32], char* str,
+        byte mac1[6], byte mac2[6], byte nonce1[32], byte nonce2[32])
 {
-	warn("EAPOL", why, 0);
+	int slen = strlen(str);
+	int ilen = slen + 1 + 2*6 + 2*32 + 1; /* exact input len */
+	int xlen = ilen + 10; /* guarded buffer len */
+
+	char ibuf[xlen];
+	char* p = ibuf;
+	char* e = ibuf + sizeof(ibuf);
+
+	p = fmtraw(p, e, str, slen + 1);
+	p = fmtraw(p, e, mac1, 6);
+	p = fmtraw(p, e, mac2, 6);
+	p = fmtraw(p, e, nonce1, 32);
+	p = fmtraw(p, e, nonce2, 32);
+
+	for(int i = 0; i < 3; i++) {
+		*p = i;
+		hmac_sha1(out + i*20, key, 32, ibuf, ilen);
+	}
 }
 
-static void abort(char* why)
+/* SHA-1 based message integrity code (MIC) for auth and key management
+   scheme (AKM) 00-0F-AC:2, which we requested in association IEs and
+   probably checked in packet 1 payload.
+
+   Ref. IEEE 802.11-2012 11.6.3 EAPOL-Key frame construction and processing. */
+
+static void make_mic(byte mic[16], byte kck[16], void* buf, int len)
 {
-	warn("EAPOL", why, 0);
-	abort_connection();
+	uint8_t hash[20];
+	int kcklen = 16;
+	int miclen = 16;
+
+	hmac_sha1(hash, kck, kcklen, buf, len);
+
+	memcpy(mic, hash, miclen);
+}
+
+static int check_mic(byte mic[16], byte kck[16], void* buf, int len)
+{
+	uint8_t hash[20];
+	uint8_t copy[16];
+	int kcklen = 16;
+	int miclen = 16;
+
+	memcpy(copy, mic, miclen);
+	memzero(mic, miclen);
+
+	hmac_sha1(hash, kck, kcklen, buf, len);
+
+	int ret = memxcmp(hash, copy, miclen);
+
+	return ret;
+}
+
+/* Packet 3 payload (GTK) is wrapped with standard RFC3394 0xA6
+   checkblock. We unwrap it in place, and start parsing 8 bytes
+   into the data. */
+
+static const byte iv[8] = {
+	0xA6, 0xA6, 0xA6, 0xA6,
+	0xA6, 0xA6, 0xA6, 0xA6
+};
+
+int unwrap_key(uint8_t kek[16], void* buf, int len)
+{
+	if(len % 8 || len < 16)
+		return -1;
+
+	aes128_unwrap(kek, buf, len);
+
+	return memxcmp(buf, iv, 8);
 }
 
 static void pmk_to_ptk()
@@ -148,6 +239,19 @@ static void pmk_to_ptk()
 	memcpy(PTK, key + 32, 16);
 
 	memzero(key, sizeof(key));
+}
+
+/* The rest of the code deals with AP connection */
+
+static void ignore(char* why)
+{
+	warn("EAPOL", why, 0);
+}
+
+static void abort(char* why)
+{
+	warn("EAPOL", why, 0);
+	abort_connection();
 }
 
 /* Message 3 comes with a bunch of IEs (apparently?), among which
@@ -217,14 +321,18 @@ static int fetch_gtk(char* buf, int len)
 	return -1;
 }
 
-static void fill_rand(void)
+static int fill_rand(void)
 {
 	int ret;
 
-	if((ret = sys_getrandom(snonce, sizeof(snonce), 0)) < 0)
-		quit("getrandom", NULL, ret);
-	else if(ret != sizeof(snonce))
-		quit("not enough randomness", NULL, ret);
+	if((ret = sys_getrandom(snonce, sizeof(snonce), 0)) < 0) {
+		warn("getrandom", NULL, ret);
+	} else if(ret != sizeof(snonce)) {
+		warn("not enough randomness", NULL, ret);
+		ret = -EAGAIN;
+	};
+
+	return ret;
 }
 
 static void cleanup_keys(void)
@@ -257,7 +365,7 @@ void reset_eapol_state(void)
    on netlink, but sending may not work until the link is fully associated.
    Packets sent until then get silently dropped somewhere. So at the time we
    get packet 1/4, we may not yet be able to reply.
-   
+
    To get around this, we prime the EAPOL state machine before we send
    ASSOCIATE request and let it receive packet 1/4 early, but only reply
    with 2/4 once netlink reports association.
@@ -290,12 +398,13 @@ static int send_packet(char* buf, int len)
 	dest.family = AF_PACKET;
 	dest.protocol = htons(ETH_P_PAE);
 	dest.ifindex = ifindex;
+	dest.halen = 6;
 	memcpy(dest.addr, amac, 6);
 
 	if((wr = sys_sendto(fd, buf, len, 0, &dest, sizeof(dest))) < 0)
-		warn("send", NULL, wr);
+		warn("EAPOL send", NULL, wr);
 	else if(wr != len)
-		warn("send", "incomplete", 0);
+		warn("EAPOL send", "incomplete", 0);
 	else
 		return 0;
 
@@ -331,7 +440,9 @@ static void recv_packet_1(struct eapolkey* ek)
 	memcpy(anonce, ek->nonce, sizeof(anonce));
 	memcpy(replay, ek->replay, sizeof(replay));
 
-	fill_rand();
+	if(fill_rand() < 0)
+		return abort_connection();
+
 	pmk_to_ptk();
 
 	if(eapolsends)
@@ -364,7 +475,7 @@ static void send_packet_2(void)
 	memzero(ek->mic, sizeof(ek->mic));
 	memzero(ek->_reserved, sizeof(ek->_reserved));
 
-	const char* payload = ap.ies;
+	const void* payload = ap.txies;
 	int paylen = ap.iesize;
 	int paclen = sizeof(*ek) + paylen;
 

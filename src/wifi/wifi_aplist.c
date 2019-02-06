@@ -29,9 +29,9 @@ static void output(CTX, char* buf, int len)
 }
 
 /* Wi-Fi channel designation.
-   
+
    Ref. https://en.wikipedia.org/wiki/List_of_WLAN_channels
- 
+
    Bands a and b refer to 802.11a and 802.11b respectively. */
 
 static int inrange(int freq, int a, int b, int s, int i)
@@ -137,25 +137,6 @@ static int scan_ord(const void* a, const void* b)
 	return 0;
 }
 
-static char* fmt_ssid(char* p, char* e, attr at)
-{
-	int i;
-
-	uint8_t* ssid = uc_payload(at);
-	int slen = uc_paylen(at);
-
-	for(i = 0; i < slen; i++) {
-		if(ssid[i] >= 0x20) {
-			p = fmtchar(p, e, ssid[i]);
-		} else {
-			p = fmtstr(p, e, "\\x");
-			p = fmtbyte(p, e, ssid[i]);
-		}
-	}
-
-	return p;
-}
-
 static char* fmt_wifi_bssid(char* p, char* e, attr at)
 {
 	if(!at || uc_paylen(at) != 6)
@@ -191,7 +172,7 @@ static char* fmt_station(char* p, char* e, MSG, int showbss)
 		p = fmt_wifi_bssid(p, e, bssid);
 	} if(ssid) {
 		p = fmtstr(p, e, " ");
-		p = fmt_ssid(p, e, ssid);
+		p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
 	}
 
 	if(freq) {
@@ -219,12 +200,11 @@ static void print_scanline(CTX, AT)
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
 
-	struct ucattr* ssid = uc_sub(at, ATTR_SSID);
+	struct ucattr* ies = uc_sub(at, ATTR_IES);
 	uint8_t* bssid = uc_sub_bin(at, ATTR_BSSID, 6);
-	struct ucattr* prio = uc_sub(at, ATTR_PRIO);
 	int signal, freq;
 
-	if(!bssid || !ssid) return;
+	if(!bssid) return;
 
 	sub_int(at, ATTR_SIGNAL, &signal);
 	sub_int(at, ATTR_FREQ, &freq);
@@ -240,10 +220,7 @@ static void print_scanline(CTX, AT)
 	}
 
 	p = fmtstr(p, e, "  ");
-	p = fmt_ssid(p, e, ssid);
-
-	if(prio)
-		p = fmtstr(p, e, " *");
+	p = fmt_ies_line(p, e, ies);
 
 	*p++ = '\n';
 

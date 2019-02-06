@@ -225,7 +225,7 @@ static struct saved* next(CFG, struct saved* sv)
 		return NULL;
 	if(s2 > end)
 		return NULL;
-	
+
 	return s1;
 }
 
@@ -298,22 +298,6 @@ void remove_psk_entry(CTX)
 
 	remove_entry(&cfg, sv);
 	save_config(ctx, &cfg);
-}
-
-static char* fmt_ssid(char* p, char* e, byte* ssid, int slen)
-{
-	byte* q;
-
-	for(q = ssid; q < ssid + slen; q++) {
-		if(*q >= 0x20) {
-			p = fmtchar(p, e, *q);
-		} else {
-			p = fmtstr(p, e, "\\x");
-			p = fmthex(p, e, *q);
-		}
-	}
-
-	return p;
 }
 
 void list_saved_psks(CTX)

@@ -113,7 +113,7 @@ int set_device(char* name)
 		goto err;
 	if((ret = start_void_scan()) < 0)
 		goto err;
-	
+
 	return 0;
 err:
 	clear_device();

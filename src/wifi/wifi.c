@@ -8,7 +8,7 @@
 #include <nlusctl.h>
 #include <format.h>
 #include <string.h>
-#include <heap.h>
+#include <printf.h>
 #include <util.h>
 #include <main.h>
 
@@ -17,7 +17,7 @@
 
 ERRTAG("wifi");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
-	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT);
+	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT NENOBUFS);
 
 void* heap_alloc(CTX, uint size)
 {
@@ -28,7 +28,7 @@ void* heap_alloc(CTX, uint size)
 		brk = sys_brk(NULL);
 		ptr = brk;
 	}
-	
+
 	ulong left = brk - ptr;
 
 	if(left < size) {
@@ -47,23 +47,7 @@ void* heap_alloc(CTX, uint size)
 	return ptr;
 }
 
-static void init_heap_bufs(CTX)
-{
-	char* ucbuf = heap_alloc(ctx, 2048);
-
-	ctx->uc.brk = ucbuf;
-	ctx->uc.ptr = ucbuf;
-	ctx->uc.end = ucbuf + 2048;
-
-	char* rxbuf = heap_alloc(ctx, 2048);
-
-	ctx->ur.buf = rxbuf;
-	ctx->ur.mptr = rxbuf;
-	ctx->ur.rptr = rxbuf;
-	ctx->ur.end = rxbuf + 2048;
-}
-
-int connect_to_wictl(CTX)
+static void connect_to_wictl(CTX)
 {
 	int ret, fd;
 	struct sockaddr_un addr = {
@@ -79,12 +63,14 @@ int connect_to_wictl(CTX)
 	ctx->fd = fd;
 	ctx->connected = 1;
 
-	init_heap_bufs(ctx);
+	struct ucbuf* uc = &ctx->uc;
 
-	return ret;
+	uc->brk = ctx->txbuf;
+	uc->ptr = ctx->txbuf;
+	uc->end = ctx->txbuf + sizeof(ctx->txbuf);
 }
 
-void send_command(CTX)
+static void send_command(CTX)
 {
 	int wr, fd = ctx->fd;
 	char* txbuf = ctx->uc.brk;
@@ -97,28 +83,74 @@ void send_command(CTX)
 		fail("write", NULL, wr);
 }
 
-struct ucmsg* recv_reply(CTX)
+static struct ucmsg* recv_reply(CTX)
 {
 	struct urbuf* ur = &ctx->ur;
 	int ret, fd = ctx->fd;
 
 	if((ret = uc_recv(fd, ur, 1)) < 0)
-		return NULL;
+		fail("recv", "wictl", ret);
+
+	return ur->msg;
+}
+
+/* We cannot use small ctx->rxbuf to receive AP list, which tends to be
+   several KB in size in most cases. So we need to switch ctx->ur from
+   txbuf to a large heap-allocated buffer, and optionally grow the buffer
+   if the messages happens to be larger the initial estimate of 1 page.
+
+   Care must be taken when switching the buffers to not lose whatever
+   messages may still be in rxbuf. Especially the incomplete ones, that
+   would mess up everything.
+
+   Half of this code should be moved to nlusctl at some point. */
+
+static struct ucmsg* recv_large(CTX)
+{
+	struct urbuf* ur = &ctx->ur;
+	int ret, fd = ctx->fd;
+	int len = 4096;
+
+	if(ur->buf == ctx->rxbuf) {
+		void* buf = heap_alloc(ctx, len);
+
+		long moff = ur->mptr - ur->buf;
+		long roff = ur->rptr - ur->buf;
+
+		if(roff > 0)
+			memcpy(buf, ur->buf, roff);
+
+		ur->buf = buf;
+		ur->mptr = buf + moff;
+		ur->rptr = buf + roff;
+		ur->end = buf + len;
+	}
+
+	while((ret = uc_recv(fd, ur, 1)) < 0) {
+		if(ret != -ENOBUFS)
+			fail("recv", "wictl", ret);
+
+		(void)heap_alloc(ctx, len);
+		ur->end += len;
+	}
+
+	ctx->ptr = ur->rptr;
 
 	return ur->msg;
 }
 
 struct ucmsg* send_recv_msg(CTX)
 {
-	struct ucmsg* msg;
-
 	send_command(ctx);
 
-	while((msg = recv_reply(ctx)))
-		if(msg->cmd <= 0)
-			return msg;
+	return recv_reply(ctx);
+}
 
-	fail("connection lost", NULL, 0);
+struct ucmsg* send_recv_aps(CTX)
+{
+	send_command(ctx);
+
+	return recv_large(ctx);
 }
 
 int send_recv_cmd(CTX)
@@ -135,6 +167,13 @@ static void init_context(CTX, int argc, char** argv)
 	ctx->argi = 1;
 	ctx->argc = argc;
 	ctx->argv = argv;
+
+	struct urbuf* ur = &ctx->ur;
+
+	ur->buf = ctx->rxbuf;
+	ur->mptr = ctx->rxbuf;
+	ur->rptr = ctx->rxbuf;
+	ur->end = ctx->rxbuf + sizeof(ctx->rxbuf);
 }
 
 static void no_other_options(CTX)
@@ -166,7 +205,7 @@ static void send_check_cmd(CTX)
 static void cmd_device(CTX)
 {
 	char *name;
-	
+
 	if(!(name = shift_arg(ctx)))
 		fail("need device name", NULL, 0);
 
@@ -192,7 +231,7 @@ static void cmd_status(CTX)
 
 	no_other_options(ctx);
 
-	msg = send_recv_msg(ctx);
+	msg = send_recv_aps(ctx);
 
 	dump_status(ctx, msg);
 }
@@ -219,6 +258,8 @@ static void cmd_neutral(CTX)
 		return;
 	else if(ret < 0)
 		fail(NULL, NULL, ret);
+	else if(ret > 0)
+		fail("unexpected notification", NULL, 0);
 
 	while((msg = recv_reply(ctx))) {
 		if(msg->cmd == REP_WI_DISCONNECT)
@@ -249,7 +290,7 @@ static void fetch_dump_scan_list(CTX)
 	uc_put_hdr(UC, CMD_WI_STATUS);
 	uc_put_end(UC);
 
-	msg = send_recv_msg(ctx);
+	msg = send_recv_aps(ctx);
 
 	if(msg->cmd < 0)
 		fail(NULL, NULL, msg->cmd);
@@ -307,10 +348,13 @@ again:
 	uc_put_hdr(UC, CMD_WI_STATUS);
 	uc_put_end(UC);
 
-	msg = send_recv_msg(ctx);
+	msg = send_recv_aps(ctx);
 
 	if(msg->cmd < 0)
 		fail(NULL, NULL, msg->cmd);
+
+	if(uc_get(msg, ATTR_BSSID))
+		fail("already connected", NULL, 0);
 
 	if(!uc_get_int(msg, ATTR_IFI)) {
 		if(setdev)
@@ -362,7 +406,7 @@ static void connect_and_wait(CTX)
 static void shift_ssid_arg(CTX)
 {
 	char *ssid;
-	
+
 	if(!(ssid = shift_arg(ctx)))
 		fail("need AP ssid", NULL, 0);
 

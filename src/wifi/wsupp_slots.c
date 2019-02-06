@@ -1,3 +1,5 @@
+#include <sys/mman.h>
+
 #include <string.h>
 #include <format.h>
 #include <util.h>
@@ -8,6 +10,8 @@ struct conn conns[NCONNS];
 struct scan scans[NSCANS];
 int nconns;
 int nscans;
+
+struct heap hp;
 
 static void* grab_slot(void* slots, int* count, int total, int size)
 {
@@ -73,15 +77,12 @@ struct scan* grab_scan_slot(byte bssid[6])
 	if((sc = grab_slot(scans, &nscans, NSCANS, sizeof(*sc))))
 		return sc;
 
-	/* With no more empty slots left, try to sacrifice some
-	   useless ones, namely low-signal ones we don't have PSKs for. */
+	/* With no more empty slots left, try to sacrifice some weaker ones. */
 
 	for(sc = scans; sc < scans + nscans; sc++) {
 		if(sc->signal > -8000) /* -80dBm */
 			continue;
 		if(!(sc->flags & SF_STALE))
-			continue;
-		if(sc->flags & SF_PASS)
 			continue;
 
 		memzero(sc, sizeof(*sc));
@@ -99,4 +100,51 @@ void free_scan_slot(struct scan* sc)
 void clear_scan_table(void)
 {
 	nscans = 0;
+}
+
+/* Heap stuff */
+
+void init_heap_ptrs(void)
+{
+	void* brk = sys_brk(NULL);
+
+	hp.org = brk;
+	hp.brk = brk;
+	hp.ptr = brk;
+}
+
+int extend_heap(int size)
+{
+	ulong left = hp.brk - hp.ptr;
+
+	if(size <= left)
+		return 0;
+
+	ulong need = pagealign(size - left);
+
+	void* old = hp.brk;
+	void* brk = sys_brk(old + need);
+	int ret;
+
+	if((ret = brk_error(old, brk)) < 0)
+		return ret;
+
+	hp.brk = brk;
+
+	return 0;
+}
+
+void* heap_store(void* buf, int len)
+{
+	void* stored;
+
+	if(extend_heap(len) < 0)
+		return NULL;
+
+	stored = hp.ptr;
+	hp.ptr += len;
+
+	memcpy(stored, buf, len);
+
+	return stored;
 }

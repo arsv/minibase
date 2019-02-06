@@ -46,19 +46,18 @@
 #define ST_RSN_G_CCMP  (1<<8)
 
 #define SF_SEEN        (1<<0)
-#define SF_GOOD        (1<<1)
-#define SF_PASS        (1<<2)
-#define SF_STALE       (1<<3)
-#define SF_TRIED       (1<<4)
+#define SF_TRIED       (1<<1)
+#define SF_STALE       (1<<2)
+#define SF_GOOD        (1<<3)
+#define SF_TKIP        (1<<4)
 
 struct scan {
-	short freq;
+	int flags;
+	ushort freq;
 	short signal;
-	short flags;
-	short type;
-	uint8_t bssid[6];
-	ushort slen;
-	uint8_t ssid[SSIDLEN];
+	byte bssid[6];
+	ushort ieslen;
+	byte* ies;
 };
 
 struct conn {
@@ -87,6 +86,12 @@ extern int scanstate;
 extern int authstate;
 extern int rfkilled;
 
+extern struct heap {
+	void* org;
+	void* ptr;
+	void* brk;
+} hp;
+
 /* The AP we're tuned on */
 
 extern struct ap {
@@ -94,9 +99,8 @@ extern struct ap {
 	short freq;
 	short signal;
 	ushort slen;
-	short type;
-	uint8_t ssid[SSIDLEN];
-	const void* ies;
+	byte ssid[SSIDLEN];
+	const void* txies;
 	uint iesize;
 
 	int tkipgroup;
@@ -196,3 +200,7 @@ void handle_netdown(void);
 int set_device(char* name);
 int bring_iface_up(void);
 void clear_scan_table(void);
+
+void init_heap_ptrs(void);
+int extend_heap(int size);
+void* heap_store(void* buf, int len);

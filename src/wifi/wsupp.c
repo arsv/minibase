@@ -227,6 +227,7 @@ int main(int argc, char** argv)
 
 	environ = argv + argc + 1;
 
+	init_heap_ptrs();
 	setup_signals();
 	setup_control();
 	clr_ondemand_fds();
