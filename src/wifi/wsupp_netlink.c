@@ -592,11 +592,13 @@ static void drop_stale_scan_slots(void)
 			free_scan_slot(sc);
 }
 
-static void genl_done(void)
+static void genl_done(struct nlmsg* msg)
 {
 	int current = scanreq;
 
 	if(scanstate != SS_SCANDUMP)
+		return;
+	if(msg->seq != scanseq)
 		return;
 
 	reset_scan_state();
@@ -733,7 +735,7 @@ void handle_netlink(void)
 
 	while((msg = nl_get_nowait(&nl)))
 		if(msg->type == NLMSG_DONE)
-			genl_done();
+			genl_done(msg);
 		else if((err = nl_err(msg)))
 			genl_error(err);
 		else if(!(gen = nl_gen(msg)))
