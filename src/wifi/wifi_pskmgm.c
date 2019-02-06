@@ -88,7 +88,7 @@ static void open_read_config(CTX, CFG, int mode)
 
 	if((ret = sys_fstat(fd, &st)) < 0)
 		fail(NULL, cfgname, ret);
-	if(st.size > MAX_PSK_ENTRIES*sizeof(struct saved))
+	if(st.size > (int)(MAX_PSK_ENTRIES*sizeof(struct saved)))
 		fail(NULL, cfgname, -E2BIG);
 	if(st.size % sizeof(struct saved))
 		fail(NULL, cfgname, -EINVAL);
@@ -194,7 +194,7 @@ static void append_entry(CFG, struct saved* sv)
 	}
 
 	void* buf = sv;
-	uint len = sizeof(*sv);
+	int len = sizeof(*sv);
 
 	if((ret = sys_write(fd, buf, len)) < 0)
 		fail("write", cfgname, ret);

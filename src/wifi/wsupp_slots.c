@@ -129,7 +129,7 @@ void init_heap_ptrs(void)
 	hp.ptr = brk;
 }
 
-int extend_heap(int size)
+int extend_heap(uint size)
 {
 	ulong left = hp.brk - hp.ptr;
 

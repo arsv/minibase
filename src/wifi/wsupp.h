@@ -202,6 +202,6 @@ int bring_iface_up(void);
 void clear_scan_table(void);
 
 void init_heap_ptrs(void);
-int extend_heap(int size);
+int extend_heap(uint size);
 void* heap_store(void* buf, int len);
 void maybe_trim_heap(void);
