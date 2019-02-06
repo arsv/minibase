@@ -4,20 +4,26 @@
 \fBwsupp\fR \- WPA supplicant (Wi-Fi client software)
 '''
 .SH SYNOPSIS
-\fBwsupp\fR \fIwlan0\fR
+\fBwsupp\fR
 '''
-.SH DESCRIPTION
-A long-running process that implements userspace parts of a Wi-Fi client.
-In most cases should only be started under \fBifmon\fR(8) using either
-\fBwifi\fR(1) or \fBifctl\fR(1). See \fBwifi\fR(1) for available user commands.
+.SH USAGE
+The only way to interact with this service is via its control interface,
+see \fBwifi\fR(1).
+.P
+The service should be started during system startup. It does not need
+any wireless devices to start, and will run idle until commanded to pick
+a device.
+.P
+Use wifi-wpa script mentioned below to run DHCP client if necessary.
+Do not setup DHCP to be triggered on link-up event. The link goes "up"
+once the radio connection to the AP has been established but does not
+become usable until after key negotiation completes.
 '''
 .SH FILES
 .IP "/run/ctrl/wsupp" 4
 Control socket.
-.IP "/var/wipsk" 4
-Pre-shared keys for known access points.
 .IP "/etc/net/wifi-wpa" 4
 This script gets spawned once the connection has been established.
 '''
 .SH SEE ALSO
-\fBwifi\fR(1), \fBifctl\fR(1), \fBifmon\fR(8).
+\fBwifi\fR(1).

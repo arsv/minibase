@@ -14,12 +14,12 @@ Scan for available access points.
 Connect to named AP, or the strongest AP the service has PSK for.
 .IP "\fBwifi disconnect\fR" 4
 Disconnect from current AP, but keep the service running.
-.IP "\fBwifi stop\fR" 4
-Stop the service and bring the link down.
-.IP "\fBwifi start\fR [\fIiface\fR]" 4
-Start the service (on given \fIiface\fR).
 .IP "\fBwifi forget\fR \fIssid\fR" 4
 Forget PSK for given \fIssid\fR.
+.IP "\fBwifi device \fIwlan0\fR" 4
+Configure the service to use specified device.
+.IP "\fBwifi detach\fR" 4
+Stop using configured device, switch into idle mode.
 '''
 .SH USAGE
 When connection to a new AP for the first time, \fBwifi\fR will
@@ -28,8 +28,7 @@ be saved and subsequent commands will not ask anything.
 '''
 .SH NOTES
 Most of the work happens in \fBwsupp\fR(8), this is merely a client
-tool. When starting or stopping the service, it may also need to
-connect to a running \fBifmon\fR(8).
+tool.
 '''
 .SH SEE ALSO
-\fBifctl\fR(1), \fBifmon\fR(8), \fBwsupp\fR(8).
+\fBwsupp\fR(8).
