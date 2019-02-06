@@ -8,7 +8,6 @@
 #include <nlusctl.h>
 #include <format.h>
 #include <string.h>
-#include <printf.h>
 #include <util.h>
 #include <main.h>
 
@@ -302,6 +301,8 @@ static void set_scan_device(CTX, char* name)
 {
 	int ret;
 
+	warn("scanning device", name, 0);
+
 	uc_put_hdr(UC, CMD_WI_SETDEV);
 	uc_put_str(UC, ATTR_NAME, name);
 	uc_put_end(UC);
@@ -340,6 +341,34 @@ got:
 	fetch_dump_scan_list(ctx);
 }
 
+/* When connecting to a network we don't have PSK for,
+   make sure it's range before asking the user for passphrase. */
+
+static void check_suitable_aps(CTX, struct ucmsg* msg)
+{
+	attr at, scan, ies;
+	int seen = 0;
+
+	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at)) {
+		if(!(scan = uc_is_nest(at, ATTR_SCAN)))
+			continue;
+		if(!(ies = uc_sub(scan, ATTR_IES)))
+			continue;
+
+		int can = can_use_ap(ctx, ies);
+
+		if(can == AP_CANCONN)
+			return;
+		if(can == AP_NOCRYPT)
+			seen = 1;
+	}
+
+	if(seen)
+		fail("unsupported encryption mode", NULL, 0);
+	else
+		fail("no scan results for this SSID", NULL, 0);
+}
+
 static void check_ap_in_range(CTX)
 {
 	struct ucmsg* msg;
@@ -367,21 +396,13 @@ again:
 		goto again;
 	}
 
-	/* TODO: go through the APs, choose which ciphers to use */
+	check_suitable_aps(ctx, msg);
 }
 
-static void connect_and_wait(CTX)
+static void wait_for_connect(CTX)
 {
 	struct ucmsg* msg;
-	int ret, failures = 0;
-
-	uc_put_hdr(UC, CMD_WI_CONNECT);
-	uc_put_bin(UC, ATTR_SSID, ctx->ssid, ctx->slen);
-	uc_put_bin(UC, ATTR_PSK, ctx->psk, sizeof(ctx->psk));
-	uc_put_end(UC);
-
-	if((ret = send_recv_cmd(ctx)) < 0)
-		fail(NULL, NULL, ret);
+	int failures = 0;
 
 	while((msg = recv_reply(ctx))) {
 		switch(msg->cmd) {
@@ -403,6 +424,55 @@ static void connect_and_wait(CTX)
 	}
 }
 
+static int send_conn_request(CTX)
+{
+	uc_put_hdr(UC, CMD_WI_CONNECT);
+	uc_put_bin(UC, ATTR_SSID, ctx->ssid, ctx->slen);
+	uc_put_bin(UC, ATTR_PSK, ctx->psk, sizeof(ctx->psk));
+	uc_put_end(UC);
+
+	return send_recv_cmd(ctx);
+}
+
+/* When connecting with a saved PSK, no STATUS request is made
+   so the service may happen to be in the idle state. */
+
+static void start_conn_scan(CTX)
+{
+	int ret;
+
+	if((ret = send_conn_request(ctx)) >= 0)
+		return;
+	if(ret != -ENODEV)
+		goto err;
+
+	pick_scan_device(ctx);
+	wait_for_scan_results(ctx);
+
+	if((ret = send_conn_request(ctx)) >= 0)
+		return;
+err:
+	fail(NULL, NULL, ret);
+
+}
+
+/* Connections without PSK always start with a STATUS request
+   which should initialize the device, so no point in doing it
+   here. */
+
+static void start_connection(CTX)
+{
+	int ret;
+
+	if((ret = send_conn_request(ctx)) < 0)
+		fail(NULL, NULL, ret);
+}
+
+/* TODO: SSID parsing.
+
+   SSIDs are not guaranteed to be nice strings, may be almost
+   arbitrary byte sequences, up to 32 long. */
+
 static void shift_ssid_arg(CTX)
 {
 	char *ssid;
@@ -419,19 +489,23 @@ static void shift_ssid_arg(CTX)
 	ctx->slen = slen;
 }
 
-static void cmd_fixedap(CTX)
+static void cmd_connect(CTX)
 {
 	shift_ssid_arg(ctx);
 	no_other_options(ctx);
 
 	connect_to_wictl(ctx);
 
-	check_ap_in_range(ctx);
-	load_or_ask_psk(ctx);
-
-	connect_and_wait(ctx);
-
-	maybe_store_psk(ctx);
+	if(load_saved_psk(ctx)) {
+		start_conn_scan(ctx);
+		wait_for_connect(ctx);
+	} else {
+		check_ap_in_range(ctx);
+		ask_passphrase(ctx);
+		start_connection(ctx);
+		wait_for_connect(ctx);
+		maybe_store_psk(ctx);
+	}
 }
 
 static void cmd_saved(CTX)
@@ -470,8 +544,8 @@ static const struct cmdrec {
 	{ "device",     cmd_device  },
 	{ "detach",     cmd_detach  },
 	{ "scan",       cmd_scan    },
-	{ "ap",         cmd_fixedap },
-	{ "connect",    cmd_fixedap },
+	{ "ap",         cmd_connect },
+	{ "connect",    cmd_connect },
 	{ "dc",         cmd_neutral },
 	{ "disconnect", cmd_neutral },
 	{ "saved",      cmd_saved   },

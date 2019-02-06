@@ -55,7 +55,7 @@ static int input_passphrase(char* buf, int len)
 	return rd;
 }
 
-static void ask_passphrase(CTX)
+void ask_passphrase(CTX)
 {
 	byte* ssid = ctx->ssid;
 	uint slen = ctx->slen;
@@ -66,6 +66,8 @@ static void ask_passphrase(CTX)
 	plen = input_passphrase(pass, sizeof(pass));
 
 	pbkdf2_sha1(ctx->psk, sizeof(ctx->psk), pass, plen, ssid, slen, 4096);
+
+	ctx->unsaved = 1;
 }
 
 /* PSK database routines */
@@ -240,21 +242,19 @@ static struct saved* find_entry(CTX, CFG)
 	return NULL;
 }
 
-void load_or_ask_psk(CTX)
+int load_saved_psk(CTX)
 {
 	struct config cfg;
 	struct saved* sv;
 
 	read_config(ctx, &cfg);
 
-	if((sv = find_entry(ctx, &cfg))) {
+	if((sv = find_entry(ctx, &cfg)))
 		memcpy(ctx->psk, sv->psk, 32);
-	} else {
-		ask_passphrase(ctx);
-		ctx->unsaved = 1;
-	}
 
 	drop_config(ctx, &cfg);
+
+	return !!sv;
 }
 
 void maybe_store_psk(CTX)

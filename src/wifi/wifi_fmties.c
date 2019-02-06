@@ -207,3 +207,30 @@ char* fmt_ies_line(char* p, char* e, attr at)
 
 	return p;
 }
+
+int can_use_ap(CTX, attr ies)
+{
+	struct ies* ie;
+
+	void* buf = uc_payload(ies);
+	int len = uc_paylen(ies);
+
+	if(!(ie = find_ie(buf, len, 0)))
+		return AP_BADSSID;
+	if(ie->len != ctx->slen)
+		return AP_BADSSID;
+	if(memcmp(ie->payload, ctx->ssid, ctx->slen))
+		return AP_BADSSID;
+
+	if(!(ie = find_ie(buf, len, 48)))
+		return AP_NOCRYPT;
+
+	int caps = tick_rsn_caps(0, ie->payload, ie->len);
+
+	if(allbits(caps, C_RSN | C_PSK | C_CCMP_P | C_CCMP_G))
+		return AP_CANCONN;
+	if(allbits(caps, C_RSN | C_PSK | C_CCMP_P | C_TKIP_G))
+		return AP_CANCONN;
+
+	return AP_NOCRYPT;
+}

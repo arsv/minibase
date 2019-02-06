@@ -1,5 +1,9 @@
 #include <output.h>
 
+#define AP_BADSSID 0
+#define AP_NOCRYPT 1
+#define AP_CANCONN 2
+
 struct ucbuf;
 
 struct top {
@@ -42,7 +46,8 @@ void dump_scanlist(CTX, MSG);
 
 void warn_sta(CTX, char* text, MSG);
 
-void load_or_ask_psk(CTX);
+int load_saved_psk(CTX);
+void ask_passphrase(CTX);
 void maybe_store_psk(CTX);
 void remove_psk_entry(CTX);
 void list_saved_psks(CTX);
@@ -51,3 +56,4 @@ void* heap_alloc(CTX, uint size);
 
 char* fmt_ies_line(char* p, char* e, attr at);
 char* fmt_ssid(char* p, char* e, byte* ssid, int slen);
+int can_use_ap(CTX, attr at);
