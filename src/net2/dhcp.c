@@ -182,7 +182,7 @@ static int sleep_lease_time(void)
 	};
 
 	int ret;
-	
+
 	if((ret = sys_nanosleep(&ts, NULL)) >= 0)
 		;
 	else if(ret != -EINTR)

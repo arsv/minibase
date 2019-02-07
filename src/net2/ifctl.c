@@ -443,7 +443,7 @@ static int invoke(CTX, const struct cmd* cc)
 int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
-	const struct cmd* cc; 
+	const struct cmd* cc;
 
 	memzero(ctx, sizeof(*ctx));
 
@@ -455,7 +455,7 @@ int main(int argc, char** argv)
 		return show_status(ctx);
 	if(argc == 2) /* ifctl device */
 		fail("no command specified", NULL, 0);
-	
+
 	char* name = shift_arg(ctx);
 	char* lead = shift_arg(ctx);
 

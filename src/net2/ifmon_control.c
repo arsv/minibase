@@ -172,7 +172,7 @@ static int cmd_name(CN, MSG)
 	ls->flags |= LF_MISNAMED;
 
 	request_link_name(ls);
-	
+
 	return 0;
 }
 
@@ -234,7 +234,7 @@ static int enable_link_dhcp(CN, MSG, int bits)
 
 	if(!(flags & LF_CARRIER))
 		return 0;
-	
+
 	ls->needs |= LN_REQUEST;
 
 	reassess_link(ls);

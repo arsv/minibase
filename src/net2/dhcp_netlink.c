@@ -158,7 +158,7 @@ static void add_default_route(void)
 	struct rtmsg* req;
 	uint32_t oif = iface.index;
 	uint8_t* gw;
-	
+
 	if(!(gw = get_opt_ip(DHCP_ROUTER_IP)))
 		return;
 
@@ -185,14 +185,14 @@ static void clear_iface_addrs(void)
 {
 	struct ifaddrmsg* req;
 	int ret, tries = 20;
-again:	
+again:
 	nl_header(&nl, req, RTM_DELADDR, NLM_F_ACK,
 		.family = AF_INET,
 		.prefixlen = 0,
 		.flags = 0,
 		.scope = 0,
 		.index = iface.index);
-	
+
 	ret = nl_send_recv_ack(&nl);
 
 	if(ret == 0 && --tries > 0)

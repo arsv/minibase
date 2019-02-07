@@ -370,7 +370,7 @@ again:
 		goto again; /* malformed DHCP, wrong xid */
 
 	optptr = totlen - hdrlen;
-	memcpy(mac, from.addr, 6); 
+	memcpy(mac, from.addr, 6);
 
 	return totlen;
 }

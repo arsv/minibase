@@ -77,7 +77,7 @@ struct proc* find_proc_slot(int pid)
 	for(ch = procs; ch < procs + nprocs; ch++)
 		if(ch->pid == pid)
 			return ch;
-	
+
 	return NULL;
 }
 

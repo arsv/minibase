@@ -24,7 +24,7 @@ static int spawn(int code, const char* script)
 	char* args[5];
 	char** ap = args;
 	char** ae = args + sizeof(args) - 1;
-	
+
 	char buf[200];
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;

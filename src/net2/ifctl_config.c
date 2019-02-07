@@ -252,7 +252,7 @@ void store_device_mode(CTX, char* mode)
 		return;
 
 	(void)read_config(&cfg, data, sizeof(data));
-	
+
 	clear_entries(&cfg, mode);
 
 	set_device_mode(&cfg, ctx, mode);
