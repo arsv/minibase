@@ -157,7 +157,7 @@ static int spawn_cancel(LS)
 {
 	ls->flags &= ~LF_DISCONT;
 
-	return spawn(ls->ifi, "conf-release", ls->name);
+	return spawn(ls->ifi, "conf-cancel", ls->name);
 }
 
 static int link_needs(LS, int what)
