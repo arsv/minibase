@@ -3,16 +3,13 @@
 .SH NAME
 \fBwsupp\fR \- WPA supplicant (Wi-Fi client software)
 '''
-.SH SYNOPSIS
-\fBwsupp\fR
-'''
 .SH USAGE
-The only way to interact with this service is via its control interface,
-see \fBwifi\fR(1).
-.P
 The service should be started during system startup. It does not need
 any wireless devices to start, and will run idle until commanded to pick
 a device.
+.P
+The only way to interact with this service is via its control interface,
+see \fBwifi\fR(1).
 .P
 Use wifi-wpa script mentioned below to run DHCP client if necessary.
 Do not setup DHCP to be triggered on link-up event. The link goes "up"
@@ -23,7 +20,7 @@ become usable until after key negotiation completes.
 .IP "/run/ctrl/wsupp" 4
 Control socket.
 .IP "/etc/net/wifi-wpa" 4
-This script gets spawned once the connection has been established.
+This script gets spawned once the link is ready.
 '''
 .SH SEE ALSO
 \fBwifi\fR(1).
