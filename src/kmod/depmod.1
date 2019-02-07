@@ -56,7 +56,7 @@ Verbose mode; print relative paths of the modules being read.
 .SH NOTES
 This version of \fBdepmod\fR natively supports lzip-compressed modules
 (.ko.lz) and can handle gzip or xz compresses modules (.ko.gz, .ko.xz)
-if \fBzcat\fR or \fBxzcat\fR respectively are available in the system.
+if \fBzcat\fR or \fBxzcat\fR respectively are present in PATH.
 .P
 To read .modinfo sections, \fBdepmod\fR will decompress each module it finds.
 This may take a long time with large and/or numerous modules. Consider using

@@ -29,6 +29,12 @@ Pipe mode; read module names from stdin.
 .IP "\fB-v\fR" 4
 Show actions being performed and also perform them.
 '''
+.SH NOTES
+This version of \fBmodprobe\fR natively supports lzip-compressed modules
+(.ko.lz) and can handle gzip or xz compresses modules (.ko.gz, .ko.xz)
+if \fBzcat\fR or \fBxzcat\fR respectively are present in PATH. For this
+to work, modules.dep must list compressed file names.
+'''
 .SH FILES
 .IP "/lib/modules/$RELEASE" 4
 Base directory to look for modules.
