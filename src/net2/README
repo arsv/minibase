@@ -7,10 +7,10 @@ interfaces aren't static in Linux. Doing something like this:
 	ipcfg eth1 192.168.1.1/24
 	wifi device wlan0
 
-somewhere in the startup script is not possible. First, the names (eth0,
-eth1, wlan0) are not fixed. Then, it may take a while until the interfaces
-actually appear; suspending boot and waiting for them is not a good idea.
-Especially for wifi, those take seconds sometimes.
+somewhere in the startup script is not possible. The names of the interfaces
+(eth0, eth1, wlan0) are not fixed, and may change on the next boot. It may
+take a while until the interfaces actually appear; suspending boot and waiting
+for them is not a good idea. Especially for wifi, those take seconds sometimes.
 
 The user should also have some way of reconfiguring the interfaces at runtime.
 Preferably without full root rights, which means some kind of "networking
@@ -20,7 +20,7 @@ profiles" and a tool to switch between them. Several use cases here:
 	  pre-configured static profiles for different networks
 
 	* pin one of several available wifi interfaces to use as
-	  the default one for wimon
+	  the default one for the WPA supplicant
 
 The solution ifmon implements looks like this: let's put configuration
 for each interface in a separate script, and have a service that would
@@ -60,20 +60,20 @@ generic — as long as it can be expressed in a script, it should work.
 
 Interface identification
 ~~~~~~~~~~~~~~~~~~~~~~~~
-The obvious but also wrong decision would be to let ifmon itself figure out
-which incoming kernel devices should be matched to which profiles. Instead,
-a bit more complex but much more flexible approach is taken here. When a new
-interface appears, ifmon spawns
+When a new interface appears, ifmon spawns
 
 	/etc/net/identify eth0	# or whatever its kernel name is
 
 This script is expected to figure out whether the interfaces needs a profile,
 and if so, do an IPC call back to ifmon to set that profile.
 
-With this approach, long-running ifmon itself remains very lean, while the
-(rarely used) identification and profile matching code gets moved into
-a short-running external tool, in this case presumable ifctl. It's also now
-up to ifctl to implement parsing and editing of the persistent configuration.
+The obvious approach would be to let ifmon itself figure out which incoming
+kernel devices should be matched to which profiles, basically embedding the
+identification code into ifmon. This is not a good idea. Identification code
+is tricky, and doesn't really belong within a long-running process. Moving
+the code into an external tool means long-running ifmon itself remains very
+lean, and most of the unpleasant code (identification, profile matching,
+persistent configuration parsing and so on) remain in a short-living tool.
 
 
 Persistent device names
@@ -87,8 +87,8 @@ for something better.
 
 In contrast, ifmon operates with user-defined *profile* names, and only relies
 on ifctl's ability to match profiles to some persistent device ids, which
-remain internal to ifctl and never get exposed to the user unless explicitly
-asked for.
+remain internal to ifctl and never get exposed to the user (unless explicitly
+asked for).
 
 It is possible to assign persistent user-defined device names to identifiable
 devices with ifmon. See below on how it's implemented. Unlike in FDO systems
@@ -110,16 +110,17 @@ itself.
 Because of that, the two obvious approaches — having a long-running DHCP
 client service like with NTP, or connection-long process like temp/wpa —
 are both questionable for DHCP. Something connection-long would require one
-process per connection which would sleep for the majority of the time it's
+process per connection which would sleep for the majority of the time it is
 alive, only to keep ~20 bytes of data that's not even particularly important.
 A DHCP client service would make some sense, but doing that would force an
 event-driven state machine implementation for a protocol that's sequential.
-Also, for a service approach, there's a huge incentive to merge it into
-ifmon like systemd folks do with their networkd. The non-dhcp part of ifmon
-is already unpleasant enough and would better do without any additional
-event-driven stuff.
 
-So instead, ifmon supports a "discontinuous" mode for the dhcp client.
+With the service approach, there's also a huge incentive to merge it into
+ifmon like systemd folks did with their networkd. Now, the non-dhcp part
+of ifmon is already unpleasant enough and would better do without any
+additional event-driven stuff.
+
+So instead, ifmon includes support for "discontinuous-mode" DHCP clients.
 The client gets spawned as a separate process, sets up the link and exits,
 saving the data needed for renew/release somewhere in the file system.
 When the time comes to renew, release or drop the lease, ifmon runs dhcp
@@ -129,39 +130,34 @@ client again with appropriate options.
 	/etc/net/conf-renew eth1     # spawned by ifmon when addr timer runs out
 	/etc/net/conf-cancel eth1    # link went down, delete lease file
 
-The allows to have a short-running, sequential dhcp client at the expense
+The allows to have a short-running, sequential DHCP client at the expense
 of some temporary file storage and a bit of additional code within ifmon.
 The client must be written to support this mode of course.
 
-To allow some interactive use and debugging, the DHCP client also supports
-a foreground, connection-long operation. This mode should not be used with
-ifmon, although ifmon should still handle it gracefully.
+To allow some interactive use and debugging, the DHCP client here also
+supports a foreground, connection-long operation. This mode should not
+be used with ifmon, although ifmon should still handle it gracefully.
 It this mode, it gets the lease, then sleeps for the lease time to renew it,
 and releases it on SIGINT.
-
-While both ifmon and dhcp itself can initiate DHCP on a link, they are not
-equal. Running `dhcp $link` means negotiate here and now; `ifctl ... $link`
-is a way to tell ifmon to do something (dhcp in this case) on based on link
-events.
 
 
 DHCP as a generic profile
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-An early concept for profiles were something like that: on catching link
-event $foo, ifmon spawns /etc/net/$foo-$profile, with the events being
-"setup" (the link has been identified), "enabled" (IFF_UP) and "carrier"
-(IFF_RUNNING), "renew" (address expired). This approach would have allowed
-implementing dhcp as a generic link profile.
+An early concept for profiles were something like that: on link event $foo,
+ifmon would spawn /etc/net/$foo-$profile, with the events being "setup"
+(the link has been identified), "enabled" (IFF_UP) and "carrier" (IFF_RUNNING),
+"renew" (address expired). This approach would have allowed implementing dhcp
+as a generic link profile.
 
 The idea got scrapped. Auto-dhcp profile turns out to be really unusual
 with respect to the events it needs, and also mostly independent from link
 setup. This quickly leads to very messy /etc/net profiles with lots of 
-uncertainty and duplication. And still, because ifmon does implement some
-of the DHCP renew logic, it wasn't truly generic.
+awkwardly-named scripts that mostly duplicate each other. And yet, since ifmon
+still has to implement some of the DHCP renew logic (timers), it wasn't truly
+generic.
 
-So instead, the decision was made to have a single script per profile,
-which gets called once a named links gets assigned a profile, and handle
-DHCP independently and uniformly for all links.
+So instead, the decision was made to have a single script per profile
+for link setup, and handle DHCP independently and uniformly for all links.
 
 This is a limitation, but not a practically important one. Any setup that
 does not fit into this model would likely be unusual (and uncommon) enough
@@ -238,7 +234,7 @@ extra `ifctl` call.
 
 # Note 2: the whole naming thing would be *almost* a non-issue if the profile
 # script were the only script ifmon would run for a managed device. However,
-# DHCP support means name handling has to be implemented properly.
+# DHCP support means name handling must be implemented properly.
 
 
 Long-running network-dependent services
@@ -255,14 +251,14 @@ the networking events, the script should send an IPC request somewhere
 to start it and exit immediately, instead of trying to start it right
 under ifmon.
 
-Another reason to lean towards indirect exec here is to avoid having process
+Another reason to go with indirect exec here is to avoid having process
 supervision code within ifmon, beyond the bare minimum required to run event
-scripts. Unlike `super`, ifmon does not capture the output of the scripts
+scripts. Unlike `svhub`, ifmon does not capture the output of the scripts
 it runs.
 
 The only exception to this is DHCP, in particular /etc/net/conf-request which
-may run a connection-long client. See DHCP notes above. Even so, dhcp is
-at or even slightly above the limit of what should be done in event ifmon-
+may run a connection-long client. See DHCP notes above. Even so, dhcp is at
+or even slightly above the limit of what should be done in event ifmon-
 spawned scripts.
 
 
@@ -280,23 +276,24 @@ scrapped.
 
 For static routes, relevant commands should be included near the end of the
 profile script. For dynamic (dhcp) routes, `dhcp` itself would run a script
-when it gets a route in its packet.
+when it gets default-route entry in its packet. Instead of tracking the state
+of the kernel routing table, relevant commands are placed right next to where
+the route gets added.
 
 
 Releasing DHCP addresses
 ~~~~~~~~~~~~~~~~~~~~~~~~
 ifmon never bothers to release addresses. It's optional to begin with,
 pretty much impossible to do reliably on Wi-Fi connection (a very important
-use case here), and probably make no sense on wired connections. For the sake
-of uniformity, all of them get treated the same way: the link goes down,
-the lease gets deleted and forgotten about.
+use case here), and probably makes no sense with wired connections. For the
+sake of uniformity, both wired and wireless links get treated the same way:
+the link goes down, the lease gets deleted and forgotten about.
 
 The client does support DHCPRELEASE, but mostly for debugging purposes.
 At least some servers behave differently depending on whether the address
 was released. Request after release takes much longer and may trigger
-timeouts in `dhcp`, which is important and must be tested for. Without
-release, subsequent request often works as renew, prompting immediate
-reply from the server.
+timeouts in `dhcp`. Without release, subsequent request often works as renew,
+prompting immediate reply from the server.
 
 Busybox sends DHCPRELEASE unicast from a regular UDP socket. This tool does
 broadcast from a raw socket instead. Attempts to send UDP and immediately
