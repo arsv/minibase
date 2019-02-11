@@ -25,7 +25,6 @@
 
 #define ARPHRD_NETROM  0
 #define ETH_P_IP  0x0800
-#define TIMEOUT 10
 
 int sockfd;
 int optptr;
@@ -119,8 +118,6 @@ void open_raw_socket(void)
 
 	if((ret = sys_bind(fd, &sockaddr, sizeof(sockaddr))) < 0)
 		fail("bind", NULL, fd);
-
-	sys_alarm(TIMEOUT);
 }
 
 static void setsockopt(char* tag, int opt, void* val, int len)
@@ -166,15 +163,12 @@ void open_udp_socket(void)
 
 	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
 		fail("bind", "udp", ret);
-
-	sys_alarm(TIMEOUT);
 }
 
 void close_socket(void)
 {
 	sys_close(sockfd);
 	sockfd = -1;
-	sys_alarm(0);
 }
 
 /* Send */

@@ -33,18 +33,6 @@ struct ifreq ifreq;
 struct offer offer;
 uint32_t xid;
 
-static void sigalarm(int sig)
-{
-	(void)sig;
-	fail("SIGALRM", NULL, 0);
-}
-
-static void setup_abort_on_sigalrm(void)
-{
-	SIGHANDLER(sa, sigalarm, 0);
-	sys_sigaction(SIGALRM, &sa, NULL);
-}
-
 static void sigint(int sig)
 {
 	(void)sig;
@@ -199,7 +187,6 @@ static int lease_wait()
 
 	open_raw_socket();
 	pick_random_xid();
-	setup_abort_on_sigalrm();
 	send_discover_recv_offer();
 	send_request_recv_acknak();
 	close_socket();
@@ -239,7 +226,6 @@ static void req_request()
 	open_raw_socket();
 	pick_random_xid();
 
-	setup_abort_on_sigalrm();
 	send_discover_recv_offer();
 	send_request_recv_acknak();
 
@@ -253,7 +239,6 @@ static void req_renew(void)
 {
 	int ret;
 
-	setup_abort_on_sigalrm();
 	load_lease();
 	open_udp_socket();
 
