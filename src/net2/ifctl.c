@@ -380,37 +380,35 @@ static void req_stop(CTX)
 	clear_device_entry(ctx);
 }
 
-static void req_dhcp_auto(CTX)
+static void simple_command(CTX, int cmd)
 {
 	no_other_options(ctx);
 
-	uc_put_hdr(UC, CMD_IF_DHCP_AUTO);
+	uc_put_hdr(UC, cmd);
 	uc_put_int(UC, ATTR_IFI, ctx->ifi);
 	uc_put_end(UC);
 
 	send_check(ctx);
+}
+
+static void req_dhcp_auto(CTX)
+{
+	simple_command(ctx, CMD_IF_DHCP_AUTO);
 }
 
 static void req_dhcp_once(CTX)
 {
-	no_other_options(ctx);
-
-	uc_put_hdr(UC, CMD_IF_DHCP_ONCE);
-	uc_put_int(UC, ATTR_IFI, ctx->ifi);
-	uc_put_end(UC);
-
-	send_check(ctx);
+	simple_command(ctx, CMD_IF_DHCP_ONCE);
 }
 
 static void req_dhcp_stop(CTX)
 {
-	no_other_options(ctx);
+	simple_command(ctx, CMD_IF_DHCP_STOP);
+}
 
-	uc_put_hdr(UC, CMD_IF_DHCP_STOP);
-	uc_put_int(UC, ATTR_IFI, ctx->ifi);
-	uc_put_end(UC);
-
-	send_check(ctx);
+static void req_reconnect(CTX)
+{
+	simple_command(ctx, CMD_IF_RECONNECT);
 }
 
 static const struct cmd {
@@ -423,6 +421,8 @@ static const struct cmd {
 	{ "auto-dhcp", req_dhcp_auto },
 	{ "dhcp-once", req_dhcp_once },
 	{ "stop-dhcp", req_dhcp_stop },
+	{ "reconf",    req_reconnect },
+	{ "reconnect", req_reconnect },
 	{ "identify",  req_identify  },
 	{ "id",        req_show_id   },
 	{ "set-name",  req_setname   },

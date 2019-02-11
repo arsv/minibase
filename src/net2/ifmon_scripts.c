@@ -182,14 +182,14 @@ int assess_link(LS)
 	if(link_needs(ls, LN_SETUP))
 		if(!spawn_setup(ls))
 			return busy;
+	if(link_needs(ls, LN_CANCEL))
+		if(!spawn_cancel(ls))
+			return busy;
 	if(link_needs(ls, LN_REQUEST))
 		if(!spawn_request(ls))
 			return busy;
 	if(link_needs(ls, LN_RENEW))
 		if(!spawn_renew(ls))
-			return busy;
-	if(link_needs(ls, LN_CANCEL))
-		if(!spawn_cancel(ls))
 			return busy;
 
 	return 0;

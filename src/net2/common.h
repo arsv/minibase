@@ -14,6 +14,7 @@
 #define CMD_IF_DHCP_AUTO   IF(5)
 #define CMD_IF_DHCP_ONCE   IF(6)
 #define CMD_IF_DHCP_STOP   IF(7)
+#define CMD_IF_RECONNECT   IF(8)
 
 #define REP_IF_DONE	   IF(1)
 

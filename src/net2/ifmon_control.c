@@ -277,6 +277,34 @@ static int cmd_dhcp_stop(CN, MSG)
 	return assess_link_busy(cn, ls);
 }
 
+/* Simulate cable reconnect */
+
+static int cmd_reconnect(CN, MSG)
+{
+	int* pi;
+	struct link* ls;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(*pi)))
+		return -ENOENT;
+
+	int flags = ls->flags;
+	int needs = ls->needs;
+
+	if(!(flags & LF_DHCP))
+		return -ENOTCONN;
+
+	if(flags & LF_REQUEST)
+		kill_all_procs(ls);
+	if(flags & LF_DISCONT)
+		needs |= LN_CANCEL;
+
+	ls->needs = needs | LN_REQUEST;
+
+	return assess_link_busy(cn, ls);
+}
+
 static const struct cmd {
 	int cmd;
 	int (*call)(CN, MSG);
@@ -288,7 +316,8 @@ static const struct cmd {
 	{ CMD_IF_DROP,      cmd_drop      },
 	{ CMD_IF_DHCP_AUTO, cmd_dhcp_auto },
 	{ CMD_IF_DHCP_ONCE, cmd_dhcp_once },
-	{ CMD_IF_DHCP_STOP, cmd_dhcp_stop }
+	{ CMD_IF_DHCP_STOP, cmd_dhcp_stop },
+	{ CMD_IF_RECONNECT, cmd_reconnect }
 };
 
 static int dispatch_cmd(struct conn* cn, struct ucmsg* msg)
