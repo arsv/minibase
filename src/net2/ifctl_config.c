@@ -30,39 +30,148 @@ struct config {
 static const char cfgname[] = HERE "/var/interfaces";
 static const int maxsize = MAX_CFG_ENTRIES*sizeof(struct cfgent);
 
-static void identify_usb(CTX, int fd)
+/* USB auxiliary routines */
+
+static int read_attr(int at, const char* name, char* buf, int len)
 {
-	(void)fd; /* how tf do we identify USB devices? */
+	int fd, rd;
+
+	if((fd = sys_openat(at, name, O_RDONLY)) < 0)
+		return fd;
+	if((rd = sys_read(fd, buf, len - 1)) < 0)
+		return rd;
+	if(rd == 0)
+		return rd;
+
+	if(buf[rd-1] == '\n')
+		rd--; /* trim EOL */
+	else
+		return 0; /* too long */
+
+	buf[rd] = '\0';
+
+	return rd;
 }
 
-static void identify_sysdir(CTX, int fd)
+static char* fmt_suffix(char* p, char* e, char* serial)
 {
-	char device[100];
-	char subsys[100];
-	int dlen = sizeof(device) - 1;
-	int slen = sizeof(subsys) - 1;
+	long slen = strlen(serial);
 
-	if((dlen = sys_readlinkat(fd, "device", device, dlen)) < 0)
+	if(!*serial)
+		return p;
+
+	p = fmtstr(p, e, "-");
+
+	long left = e - p;
+	long over = slen - left;
+
+	if(over > 0)
+		serial += over;
+
+	p = fmtstr(p, e, serial);
+
+	return p;
+}
+
+/* USB has no fixed topology, but all devices report product
+   and vendor ids, and some also have unique serials.
+
+   /sus/class/net/wlan1/device -> ..../usb1/1-9/1-9:1.0/net/wlan1
+   ..../usb1/1-9/1-9:1.0/net/wlan1/device -> ../../../1-9:1.0
+
+   Now the tricky part: networking device is always an endpoint,
+   not the whole USB device. Product and vendor ids we're after
+   are attributes of the whole device. To get to the whole device,
+   we need to take dirname(../../../1-9:1.0) = ../../..
+
+   For now, the id algorithm assumes there's only one networking
+   endpoint on any given USB device, and does not include endpoint
+   in the id. The is not strictly speaking correct per USB specs,
+   but perfectly fine in practice. */
+
+static void use_usb_attrs(CTX, int at)
+{
+	char path[100];
+	int plen = sizeof(path) - 1;
+	int bt;
+
+	if((plen = sys_readlinkat(at, "device", path, plen)) < 0)
 		return;
-	if((slen = sys_readlinkat(fd, "device/subsystem", subsys, slen)) < 0)
+
+	path[plen] = '\0';
+	*(basename(path)) = '\0';
+
+	if((bt = sys_openat(at, path, O_DIRECTORY)) < 0)
 		return;
 
-	device[dlen] = '\0';
-	subsys[slen] = '\0';
+	char prod[10];
+	char vend[10];
+	char serial[40];
 
-	char* devbase = basename(device);
-	char* subbase = basename(subsys);
-
-	if(!strcmp(subbase, "usb"))
-		return identify_usb(ctx, fd);
+	if(read_attr(bt, "idProduct", prod, sizeof(prod)) <= 0)
+		goto out;
+	if(read_attr(bt, "idVendor", vend, sizeof(vend)) <= 0)
+		goto out;
+	if(read_attr(bt, "serial", serial, sizeof(serial)) <= 0)
+		serial[0] = '\0';
 
 	char* p = ctx->devid;
 	char* e = p + sizeof(ctx->devid) - 1;
 
-	p = fmtstr(p, e, subbase);
+	p = fmtstr(p, e, "usb-");
+	p = fmtstr(p, e, vend);
+	p = fmtstr(p, e, ":");
+	p = fmtstr(p, e, prod);
+	p = fmt_suffix(p, e, serial);
+	*p = '\0';
+out:
+	sys_close(bt);
+}
+
+/* For devices sitting on fixed-topology buses (USB, SDIO etc),
+   bus address can be used as the id.
+
+   /sys/class/net/wlan0/device -> ../../../0000:24:00.0
+
+   Basename of the link targer is the bus address. */
+
+static void use_bus_path(CTX, int at, char* bus)
+{
+	char device[100];
+	int dlen = sizeof(device) - 1;
+
+	if((dlen = sys_readlinkat(at, "device", device, dlen)) < 0)
+		return;
+
+	device[dlen] = '\0';
+
+	char* devbase = basename(device);
+
+	char* p = ctx->devid;
+	char* e = p + sizeof(ctx->devid) - 1;
+
+	p = fmtstr(p, e, bus);
 	p = fmtstr(p, e, "-");
 	p = fmtstr(p, e, devbase);
 	*p = '\0';
+}
+
+static void identify_sysdir(CTX, int fd)
+{
+	char subsys[100];
+	int slen = sizeof(subsys) - 1;
+
+	if((slen = sys_readlinkat(fd, "device/subsystem", subsys, slen)) < 0)
+		return;
+
+	subsys[slen] = '\0';
+
+	char* subbase = basename(subsys);
+
+	if(!strcmp(subbase, "usb"))
+		return use_usb_attrs(ctx, fd);
+
+	return use_bus_path(ctx, fd, subbase);
 }
 
 void identify_device(CTX)
