@@ -220,7 +220,7 @@ static void print_scanline(CTX, AT)
 	}
 
 	p = fmtstr(p, e, "  ");
-	p = fmt_ies_line(p, e, ies);
+	p = fmt_ies_line(p, e, ies, ctx);
 
 	*p++ = '\n';
 
@@ -251,6 +251,8 @@ static attr* prep_list(CTX, MSG, int key, qcmp2 cmp)
 static void print_scan_results(CTX, MSG, int nl)
 {
 	attr* scans = prep_list(ctx, msg, ATTR_SCAN, scan_ord);
+
+	read_config(ctx);
 
 	for(attr* ap = scans; *ap; ap++)
 		print_scanline(ctx, *ap);

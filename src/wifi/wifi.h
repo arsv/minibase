@@ -6,6 +6,12 @@
 
 struct ucbuf;
 
+struct config {
+	int fd;
+	uint len;
+	void* buf;
+};
+
 struct top {
 	int opts;
 	int argc;
@@ -30,6 +36,8 @@ struct top {
 
 	int showbss;
 	int unsaved;
+
+	struct config cfg;
 };
 
 #define CTX struct top* ctx
@@ -54,6 +62,9 @@ void list_saved_psks(CTX);
 
 void* heap_alloc(CTX, uint size);
 
-char* fmt_ies_line(char* p, char* e, attr at);
+char* fmt_ies_line(char* p, char* e, attr at, CTX);
 char* fmt_ssid(char* p, char* e, byte* ssid, int slen);
 int can_use_ap(CTX, attr at);
+
+void read_config(CTX);
+int check_entry(CTX, byte* ssid, int slen);

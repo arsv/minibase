@@ -26,12 +26,6 @@ struct saved {
 	byte nl;
 };
 
-struct config {
-	int fd;
-	uint len;
-	void* buf;
-};
-
 #define CFG struct config* cfg
 
 static int input_passphrase(char* buf, int len)
@@ -72,8 +66,9 @@ void ask_passphrase(CTX)
 
 /* PSK database routines */
 
-static void open_read_config(CTX, CFG, int mode)
+static void open_read_config(CTX, int mode)
 {
+	struct config* cfg = &ctx->cfg;
 	int fd, ret;
 	struct stat st;
 
@@ -107,18 +102,20 @@ static void open_read_config(CTX, CFG, int mode)
 	cfg->len = size;
 }
 
-static void read_config(CTX, CFG)
+void read_config(CTX)
 {
-	open_read_config(ctx, cfg, O_RDONLY);
+	open_read_config(ctx, O_RDONLY);
 }
 
-static void open_config(CTX, CFG)
+static void open_config(CTX)
 {
-	open_read_config(ctx, cfg, O_RDWR);
+	open_read_config(ctx, O_RDWR);
 }
 
-static void drop_config(CTX, CFG)
+static void drop_config(CTX)
 {
+	struct config* cfg = &ctx->cfg;
+
 	if(cfg->fd < 0)
 		return;
 
@@ -130,8 +127,9 @@ static void drop_config(CTX, CFG)
 	cfg->fd = -1;
 }
 
-static void save_config(CTX, CFG)
+static void save_config(CTX)
 {
+	struct config* cfg = &ctx->cfg;
 	int fd = cfg->fd;
 	int len = cfg->len;
 	void* buf = cfg->buf;
@@ -153,11 +151,12 @@ static void save_config(CTX, CFG)
 	if(ret != len)
 		fail("incomplete write in", cfgname, 0);
 
-	drop_config(ctx, cfg);
+	drop_config(ctx);
 }
 
-static void remove_entry(CFG, struct saved* sv)
+static void remove_entry(CTX, struct saved* sv)
 {
+	struct config* cfg = &ctx->cfg;
 	void* ss = sv;
 	void* se = ss + sizeof(*sv);
 
@@ -179,8 +178,9 @@ static void remove_entry(CFG, struct saved* sv)
 	cfg->len -= sizeof(*sv);
 }
 
-static void append_entry(CFG, struct saved* sv)
+static void append_entry(CTX, struct saved* sv)
 {
+	struct config* cfg = &ctx->cfg;
 	int fd, ret;
 	int flags = O_WRONLY | O_CREAT | O_EXCL;
 	int mode = 0600;
@@ -231,8 +231,9 @@ static struct saved* next(CFG, struct saved* sv)
 	return s1;
 }
 
-static struct saved* find_entry(CTX, CFG)
+static struct saved* find_entry(CTX)
 {
+	struct config* cfg = &ctx->cfg;
 	struct saved* sv;
 
 	for(sv = first(cfg); sv; sv = next(cfg, sv))
@@ -242,34 +243,48 @@ static struct saved* find_entry(CTX, CFG)
 	return NULL;
 }
 
-int load_saved_psk(CTX)
+int check_entry(CTX, byte* ssid, int slen)
 {
-	struct config cfg;
+	struct config* cfg = &ctx->cfg;
 	struct saved* sv;
 
-	read_config(ctx, &cfg);
+	for(sv = first(cfg); sv; sv = next(cfg, sv))
+		if(sv->slen != slen)
+			continue;
+		else if(memcmp(ssid, sv->ssid, slen))
+			continue;
+		else
+			return !!sv;
 
-	if((sv = find_entry(ctx, &cfg)))
+	return 0;
+}
+
+int load_saved_psk(CTX)
+{
+	struct saved* sv;
+
+	read_config(ctx);
+
+	if((sv = find_entry(ctx)))
 		memcpy(ctx->psk, sv->psk, 32);
 
-	drop_config(ctx, &cfg);
+	drop_config(ctx);
 
 	return !!sv;
 }
 
 void maybe_store_psk(CTX)
 {
-	struct config cfg;
 	struct saved* old;
 
 	if(!ctx->unsaved)
 		return;
 
-	open_config(ctx, &cfg);
+	open_config(ctx);
 
-	if((old = find_entry(ctx, &cfg))) {
+	if((old = find_entry(ctx))) {
 		memcpy(old->psk, ctx->psk, 32);
-		save_config(ctx, &cfg);
+		save_config(ctx);
 		return;
 	}
 
@@ -282,22 +297,21 @@ void maybe_store_psk(CTX)
 	new.type = 0;
 	new.nl = '\n';
 
-	append_entry(&cfg, &new);
-	drop_config(ctx, &cfg);
+	append_entry(ctx, &new);
+	drop_config(ctx);
 }
 
 void remove_psk_entry(CTX)
 {
-	struct config cfg;
 	struct saved* sv;
 
-	open_config(ctx, &cfg);
+	open_config(ctx);
 
-	if(!(sv = find_entry(ctx, &cfg)))
+	if(!(sv = find_entry(ctx)))
 		fail("no saved PSK for this SSID", NULL, 0);
 
-	remove_entry(&cfg, sv);
-	save_config(ctx, &cfg);
+	remove_entry(ctx, sv);
+	save_config(ctx);
 }
 
 void list_saved_psks(CTX)
@@ -313,7 +327,7 @@ void list_saved_psks(CTX)
 		.buf = out
 	};
 
-	read_config(ctx, &cfg);
+	read_config(ctx);
 
 	if(!cfg.buf || !cfg.len)
 		fail("no saved PSKs", NULL, 0);

@@ -188,7 +188,7 @@ char* fmt_ssid(char* p, char* e, byte* ssid, int slen)
 	return p;
 }
 
-char* fmt_ies_line(char* p, char* e, attr at)
+char* fmt_ies_line(char* p, char* e, attr at, CTX)
 {
 	struct ies* ie;
 
@@ -204,6 +204,9 @@ char* fmt_ies_line(char* p, char* e, attr at)
 		p = fmt_ssid(p, e, ie->payload, ie->len);
 	else
 		p = fmtstr(p, e, "(no SSID)");
+
+	if(ie && check_entry(ctx, ie->payload, ie->len))
+		p = fmtstr(p, e, " *");
 
 	return p;
 }
