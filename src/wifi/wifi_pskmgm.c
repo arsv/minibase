@@ -20,9 +20,7 @@ static const char cfgname[] = HERE "/var/wifi-psk";
 struct saved {
 	byte ssid[32];
 	byte psk[32];
-	byte type;
 	byte slen;
-	byte _pad;
 	byte nl;
 };
 
@@ -294,7 +292,6 @@ void maybe_store_psk(CTX)
 	memcpy(new.ssid, ctx->ssid, 32);
 	memcpy(new.psk, ctx->psk, 32);
 	new.slen = ctx->slen;
-	new.type = 0;
 	new.nl = '\n';
 
 	append_entry(ctx, &new);
