@@ -4,7 +4,6 @@
 #include <string.h>
 #include <format.h>
 #include <output.h>
-#include <printf.h>
 
 #include "common.h"
 #include "wifi.h"

@@ -2,7 +2,6 @@
 
 #include <string.h>
 #include <format.h>
-#include <printf.h>
 #include <util.h>
 
 #include "wsupp.h"

@@ -3,7 +3,6 @@
 #include <sys/ioctl.h>
 
 #include <string.h>
-#include <printf.h>
 #include <util.h>
 
 #include "wsupp.h"

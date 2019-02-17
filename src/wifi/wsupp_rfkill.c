@@ -1,7 +1,6 @@
 #include <bits/rfkill.h>
 #include <sys/file.h>
 
-#include <printf.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
@@ -71,11 +70,9 @@ static void handle_event(struct rfkill_event* re)
 
 	if(re->soft || re->hard) {
 		rfkilled = 1;
-		printf("rf-killed\n");
 		clr_timer();
 	} else {
 		rfkilled = 0;
-		printf("rf-restored\n");
 
 		if((bring_iface_up()) < 0)
 			return;
