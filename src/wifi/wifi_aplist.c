@@ -137,17 +137,6 @@ static int scan_ord(const void* a, const void* b)
 	return 0;
 }
 
-static char* fmt_wifi_bssid(char* p, char* e, attr at)
-{
-	if(!at || uc_paylen(at) != 6)
-		return p;
-
-	p = fmtstr(p, e, " ");
-	p = fmtmac(p, e, uc_payload(at));
-
-	return p;
-}
-
 static void get_int(MSG, int attr, int* val)
 {
 	int* p;
@@ -158,30 +147,44 @@ static void get_int(MSG, int attr, int* val)
 		*val = 0;
 }
 
-static char* fmt_station(char* p, char* e, MSG, int showbss)
+static char* fmt_bss(char* p, char* e, MSG)
+{
+	attr bssid = uc_get(msg, ATTR_BSSID);
+
+	if(!bssid || uc_paylen(bssid) != 6)
+		return fmtstr(p, e, "(no BSSID)");
+
+	return fmtmac(p, e, uc_payload(bssid));
+}
+
+static char* fmt_freq(char* p, char* e, MSG)
 {
 	int freq;
-	attr ssid = uc_get(msg, ATTR_SSID);
-	attr bssid = uc_get(msg, ATTR_BSSID);
 
 	get_int(msg, ATTR_FREQ, &freq);
 
-	p = fmtstr(p, e, "AP");
-
-	if(showbss && bssid) {
-		p = fmt_wifi_bssid(p, e, bssid);
-	} if(ssid) {
-		p = fmtstr(p, e, " ");
-		p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
-	}
-
 	if(freq) {
-		p = fmtstr(p, e, " (");
+		p = fmtstr(p, e, " ");
 		p = fmt_chan_and_freq(p, e, freq);
-		p = fmtstr(p, e, ")");
 	}
 
 	return p;
+}
+
+static char* fmt_station(char* p, char* e, MSG)
+{
+	attr ssid = uc_get(msg, ATTR_SSID);
+
+	p = fmtstr(p, e, "AP ");
+
+	if(ssid) {
+		p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
+		p = fmtstr(p, e, " ");
+	}
+
+	p = fmt_bss(p, e, msg);
+
+	return fmt_freq(p, e, msg);
 }
 
 static void sub_int(AT, int attr, int* val)
@@ -282,8 +285,8 @@ static void print_status_line(CTX, MSG, int state)
 	FMTBUF(p, e, buf, 200);
 
 	if(state == WS_CONNECTED) {
-		p = fmtstr(p, e, "Connected to ");
-		p = fmt_station(p, e, msg, ctx->showbss);
+		p = fmtstr(p, e, "Connected ");
+		p = fmt_station(p, e, msg);
 	} else {
 		p = fmtstr(p, e, "Device ");
 		p = fmt_device(p, e, ifname, ifindex);
@@ -293,8 +296,8 @@ static void print_status_line(CTX, MSG, int state)
 		} else if(state == WS_STOPPING) {
 			p = fmtstr(p, e, " stopping");
 		} else if(bss) {
-			p = fmtstr(p, e, "Waiting for ");
-			p = fmt_station(p, e, msg, ctx->showbss);
+			p = fmtstr(p, e, "Idle ");
+			p = fmt_station(p, e, msg);
 
 			if(state == WS_SCANNING)
 				p = fmtstr(p, e, ", scanning now");
@@ -337,10 +340,20 @@ void dump_status(CTX, MSG)
 	fini_output(ctx);
 }
 
+void warn_bss(CTX, char* text, MSG)
+{
+	FMTBUF(p, e, sta, 50);
+	p = fmt_bss(p, e, msg);
+	FMTEND(p, e);
+
+	warn(text, sta, 0);
+}
+
 void warn_sta(CTX, char* text, MSG)
 {
 	FMTBUF(p, e, sta, 50);
-	p = fmt_station(p, e, msg, ctx->showbss);
+	p = fmt_bss(p, e, msg);
+	p = fmt_freq(p, e, msg);
 	FMTEND(p, e);
 
 	warn(text, sta, 0);

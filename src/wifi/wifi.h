@@ -53,6 +53,7 @@ void dump_status(CTX, MSG);
 void dump_scanlist(CTX, MSG);
 
 void warn_sta(CTX, char* text, MSG);
+void warn_bss(CTX, char* text, MSG);
 
 int load_saved_psk(CTX);
 void ask_passphrase(CTX);

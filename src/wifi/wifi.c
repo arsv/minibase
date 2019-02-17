@@ -412,7 +412,7 @@ static void wait_for_connect(CTX)
 				warn_sta(ctx, "connected to", msg);
 				return;
 			case REP_WI_DISCONNECT:
-				warn_sta(ctx, "cannot connect to", msg);
+				warn_bss(ctx, "cannot connect to", msg);
 				failures++;
 				break;
 			case REP_WI_NO_CONNECT:
