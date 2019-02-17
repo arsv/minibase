@@ -346,10 +346,10 @@ static int connect_to_something(void)
 
 		sc->flags |= SF_TRIED;
 
-		return 1;
+		return !!sc;
 	}
 
-	return 0;
+	return !!sc;
 }
 
 void handle_connect(void)
@@ -408,27 +408,30 @@ void handle_disconnect(void)
 
 	report_disconnect();
 
-	if(opermode == OP_RESCAN)
-		opermode = OP_ACTIVE;
-	if(opermode == OP_ACTIVE) {
-		if(ap.success)
-			rescan_current_ap();
-		else
-			try_some_other_ap();
-	} else {
+	if(opermode == OP_DETACH) {
+		/* we were disconnecting to drop the device */
+		reset_device();
+	} else if(opermode == OP_MONITOR) {
+		/* we were simply disconnecting (wifi dc) */
 		clear_ap_bssid();
 		clear_ap_ssid();
-	}
+	} else { /* we were not planning to disconnect at all */
 
-	if(opermode == OP_IDLE)
-		reset_device();
+		if(opermode == OP_RESCAN)     /* re-connect failed */
+			opermode = OP_ACTIVE; /* try another BSS   */
+
+		if(ap.success)                /* we were connected */
+			rescan_current_ap();  /* try to re-connect */
+		else /* we were *not* successful in connecting to this BSS */
+			try_some_other_ap();
+	}
 }
 
 /* Netlink reported ENETDOWN and we timed out waiting for rfkill. */
 
 void handle_netdown(void)
 {
-	opermode = OP_IDLE;
+	opermode = OP_DETACH;
 
 	handle_disconnect();
 }

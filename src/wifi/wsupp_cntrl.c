@@ -239,7 +239,7 @@ static int cmd_detach(CN, MSG)
 	if(ifindex <= 0)
 		return -EALREADY;
 
-	opermode = OP_IDLE;
+	opermode = OP_DETACH;
 
 	if(inm == OP_ONESHOT || inm == OP_ACTIVE)
 		ret = start_disconnect();
@@ -254,7 +254,7 @@ static int cmd_setdev(CN, MSG)
 	char* name;
 	int ret;
 
-	if(!(opermode == OP_IDLE || opermode == OP_MONITOR))
+	if(!(opermode == OP_DETACH))
 		return -EBUSY;
 	if(!(name = uc_get_str(msg, ATTR_NAME)))
 		return -EINVAL;

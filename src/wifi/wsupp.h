@@ -29,11 +29,11 @@
 #define SS_SCANDUMP        2
 
 /* opermode */
-#define OP_IDLE            0
-#define OP_MONITOR         1
-#define OP_ONESHOT         2
-#define OP_ACTIVE          3
-#define OP_RESCAN          4
+#define OP_DETACH          0 /* no active device */
+#define OP_MONITOR         1 /* passive scanning */
+#define OP_ONESHOT         2 /* connecting to AP, auto-reset on failure */
+#define OP_ACTIVE          3 /* AP set, at least one successful connection */
+#define OP_RESCAN          4 /* lost connection, re-trying the same BSS */
 
 /* scan.type */
 #define ST_WPS         (1<<0)

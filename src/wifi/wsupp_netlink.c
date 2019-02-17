@@ -440,7 +440,7 @@ static void trigger_disconnect(void)
 
 static void snap_to_disabled(char* why)
 {
-	opermode = OP_IDLE;
+	opermode = OP_DETACH;
 	authstate = AS_EXTERNAL;
 
 	warn("EAPOL", why, 0);
