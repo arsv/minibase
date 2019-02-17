@@ -281,36 +281,31 @@ static void print_status_line(CTX, MSG, int state)
 
 	FMTBUF(p, e, buf, 200);
 
-	if(state == WS_RFKILLED) {
-		p = fmtstr(p, e, "Device ");
-		p = fmt_device(p, e, ifname, ifindex);
-		p = fmtstr(p, e, " rf-killed");
-	} else if(state == WS_STOPPING) {
-		p = fmtstr(p, e, "Device ");
-		p = fmt_device(p, e, ifname, ifindex);
-		p = fmtstr(p, e, " stopping");
-	} else if(state == WS_CONNECTED) {
+	if(state == WS_CONNECTED) {
 		p = fmtstr(p, e, "Connected to ");
 		p = fmt_station(p, e, msg, ctx->showbss);
-	} else if(bss) {
-		p = fmtstr(p, e, "Waiting for ");
-		p = fmt_station(p, e, msg, ctx->showbss);
-
-		if(state == WS_SCANNING)
-			p = fmtstr(p, e, ", scanning now");
-	} else if(state == WS_SCANNING) {
-		p = fmtstr(p, e, "Device ");
-		p = fmt_device(p, e, ifname, ifindex);
-		p = fmtstr(p, e, " scanning now");
-	} else if(state == WS_UNKNOWN) {
-		p = fmtstr(p, e, "Device ");
-		p = fmt_device(p, e, ifname, ifindex);
-		p = fmtstr(p, e, " idle");
 	} else {
 		p = fmtstr(p, e, "Device ");
 		p = fmt_device(p, e, ifname, ifindex);
-		p = fmtstr(p, e, " state ");
-		p = fmtint(p, e, state);
+
+		if(state == WS_RFKILLED) {
+			p = fmtstr(p, e, " rf-killed");
+		} else if(state == WS_STOPPING) {
+			p = fmtstr(p, e, " stopping");
+		} else if(bss) {
+			p = fmtstr(p, e, "Waiting for ");
+			p = fmt_station(p, e, msg, ctx->showbss);
+
+			if(state == WS_SCANNING)
+				p = fmtstr(p, e, ", scanning now");
+		} else if(state == WS_SCANNING) {
+			p = fmtstr(p, e, " scanning now");
+		} else if(state == WS_UNKNOWN) {
+			p = fmtstr(p, e, " idle");
+		} else {
+			p = fmtstr(p, e, " state ");
+			p = fmtint(p, e, state);
+		}
 	}
 
 	FMTENL(p, e);

@@ -155,6 +155,8 @@ static int common_wifi_state(void)
 		return WS_STOPPING;
 	if(authstate == AS_EXTERNAL)
 		return WS_STOPPING;
+	if(authstate == AS_DISCONNECTING)
+		return WS_STOPPING;
 	if(authstate != AS_IDLE)
 		return WS_CONNECTING;
 	if(scanstate != SS_IDLE)
