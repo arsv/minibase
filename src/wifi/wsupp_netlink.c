@@ -509,6 +509,8 @@ int start_disconnect(void)
 
 	trigger_disconnect();
 
+	set_timer(1);
+
 	return 0;
 }
 
@@ -520,16 +522,28 @@ void abort_connection(void)
 	reassess_wifi_situation();
 }
 
-static void nlm_disconnect(MSG)
-{
-	if(authstate == AS_IDLE)
-		return;
+/* Some cards, in some cases, may silently ignore DISCONNECT request.
+   There's no errors, but there's not disconnect notification either.
 
+   Missing notification would stall the state machine here, so every
+   DISCONNECT attempt gets a short timer, and if that expires we just
+   assume the card is in disconnected state already. */
+
+void note_disconnect(void)
+{
 	reset_eapol_state();
 
 	authstate = AS_IDLE;
 
 	handle_disconnect();
+}
+
+static void nlm_disconnect(MSG)
+{
+	if(authstate == AS_IDLE)
+		return;
+
+	note_disconnect();
 }
 
 /* EAPOL code does negotiations in the user space, but the resulting

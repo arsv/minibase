@@ -194,6 +194,7 @@ void trigger_dhcp(void);
 void routine_fg_scan(void);
 void routine_bg_scan(void);
 int maybe_start_scan(void);
+void note_disconnect(void);
 
 void reset_device(void);
 void handle_netdown(void);

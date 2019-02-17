@@ -203,6 +203,8 @@ static void timer_expired(void)
 		handle_netdown();
 	else if(authstate == AS_CONNECTED)
 		routine_bg_scan();
+	else if(authstate == AS_DISCONNECTING)
+		note_disconnect();
 	else if(authstate != AS_IDLE)
 		abort_connection();
 	else
