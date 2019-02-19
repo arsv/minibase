@@ -118,10 +118,12 @@ inline static long sys_llseek(int fd, int64_t off, int64_t* pos, int whence)
 }
 #endif
 
-#ifdef NR_newfstatat
-# define NR_fstatat NR_newfstatat
-#else
-# define NR_fstatat NR_fstatat64
+#ifndef NR_fstatat
+# ifdef NR_newfstatat
+#  define NR_fstatat NR_newfstatat
+# else
+#  define NR_fstatat NR_fstatat64
+# endif
 #endif
 
 inline static long sys_stat(const char *path, struct stat *st)
