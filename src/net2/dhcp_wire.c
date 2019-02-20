@@ -154,14 +154,14 @@ void open_udp_socket(void)
 	setsockopt("SO_REUSEADDR",    SO_REUSEADDR,   &one, sizeof(one));
 	setsockopt("SO_BINDTODEVICE", SO_BINDTODEVICE, buf, IFNAMESIZ);
 
-	struct sockaddr_in addr;
+	struct sockaddr_in sa;
 
-	memset(&addr, 0, sizeof(addr));
-	addr.family = AF_INET;
-	addr.port = htons(BOOT_CLIENT_PORT);
-	memcpy(addr.ip, offer.ourip, 4);
+	memset(&sa, 0, sizeof(sa));
+	sa.family = AF_INET;
+	sa.port = htons(BOOT_CLIENT_PORT);
+	memcpy(sa.addr, offer.ourip, 4);
 
-	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
+	if((ret = sys_bind(fd, &sa, sizeof(sa))) < 0)
 		fail("bind", "udp", ret);
 }
 
@@ -286,13 +286,13 @@ void send_udp_packet(void)
 	int len = sizeof(packet.dhcp) + optptr;
 	void* buf = &packet.dhcp;
 
-	struct sockaddr_in addr;
-	memset(&addr, 0, sizeof(addr));
-	addr.family = AF_INET;
-	addr.port = htons(BOOT_SERVER_PORT);
-	memcpy(addr.ip, offer.srvip, 4);
+	struct sockaddr_in sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.family = AF_INET;
+	sa.port = htons(BOOT_SERVER_PORT);
+	memcpy(sa.addr, offer.srvip, 4);
 
-	if((ret = sys_sendto(fd, buf, len, 0, &addr, sizeof(addr))) < 0)
+	if((ret = sys_sendto(fd, buf, len, 0, &sa, sizeof(sa))) < 0)
 		fail("sendto", NULL, ret);
 }
 
