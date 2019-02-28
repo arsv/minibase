@@ -97,6 +97,16 @@ void uc_put_int(struct ucbuf* uc, int key, int v)
 	*((int*) at->payload) = v;
 }
 
+void uc_put_i64(struct ucbuf* uc, int key, int64_t v)
+{
+	struct ucattr* at;
+
+	if(!(at = uc_put_attr(uc, key, sizeof(v))))
+		return;
+
+	*((int64_t*) at->payload) = v;
+}
+
 void uc_put_str(struct ucbuf* uc, int key, char* str)
 {
 	return uc_put_bin(uc, key, str, strlen(str) + 1);

@@ -65,3 +65,13 @@ char* uc_sub_str(struct ucattr* at, int key)
 {
 	return uc_is_str(uc_sub(at, key), key);
 }
+
+int64_t* uc_get_i64(struct ucmsg* msg, int key)
+{
+	return uc_is_bin(uc_get(msg, key), key, 8);
+}
+
+uint64_t* uc_get_u64(struct ucmsg* msg, int key)
+{
+	return uc_is_bin(uc_get(msg, key), key, 8);
+}

@@ -46,6 +46,7 @@ void uc_put_bin(struct ucbuf* uc, int key, void* buf, size_t len);
 void uc_put_int(struct ucbuf* uc, int key, int v);
 void uc_put_str(struct ucbuf* uc, int key, char* str);
 void uc_put_flag(struct ucbuf* uc, int key);
+void uc_put_i64(struct ucbuf* uc, int key, int64_t v);
 
 struct ucattr* uc_put_nest(struct ucbuf* uc, int key);
 void uc_end_nest(struct ucbuf* uc, struct ucattr* nest);
@@ -63,6 +64,9 @@ struct ucattr* uc_get(struct ucmsg* msg, int key);
 void* uc_get_bin(struct ucmsg* msg, int key, int len);
 int*  uc_get_int(struct ucmsg* msg, int key);
 char* uc_get_str(struct ucmsg* msg, int key);
+
+int64_t*  uc_get_i64(struct ucmsg* msg, int key);
+uint64_t* uc_get_u64(struct ucmsg* msg, int key);
 
 struct ucattr* uc_sub(struct ucattr* at, int key);
 void* uc_sub_bin(struct ucattr* at, int key, int len);
