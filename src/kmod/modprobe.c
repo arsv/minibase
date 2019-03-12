@@ -259,13 +259,13 @@ static int query_deps(CTX, struct line* ln, char* name)
 	return locate_line(mb, ln, match_dep, name);
 }
 
-static char* word(char* p, char* e, char* word)
+static char* word(char* p, char* e, char* w)
 {
-	int len = strlen(word);
+	int len = strlen(w);
 
 	if(e - p < len)
 		return NULL;
-	if(strncmp(p, word, len))
+	if(strncmp(p, w, len))
 		return NULL;
 	if(p + len >= e)
 		return e;
@@ -274,8 +274,15 @@ static char* word(char* p, char* e, char* word)
 
 	if(!isspace(*p))
 		return NULL;
-	while(p < e && isspace(*p))
-		p++;
+
+	return p;
+}
+
+static char* skip(char* p, char* e, char* w)
+{
+	if((p = word(p, e, w)))
+		while(p < e && isspace(*p))
+			p++;
 
 	return p;
 }
@@ -285,10 +292,12 @@ static char* match_opt(char* ls, char* le, char* name)
 	char* p = ls;
 	char* e = le;
 
-	if(!(p = word(p, e, "options")))
+	if(!(p = skip(p, e, "options")))
 		return NULL;
 	if(!(p = word(p, e, name)))
 		return NULL;
+
+	if(p > ls && isspace(*(p-1))) p--;
 
 	return p;
 }
@@ -298,7 +307,7 @@ static char* match_blacklist(char* ls, char* le, char* name)
 	char* p = ls;
 	char* e = le;
 
-	if(!(p = word(p, e, "blacklist")))
+	if(!(p = skip(p, e, "blacklist")))
 		return NULL;
 	if(!(p = word(p, e, name)))
 		return NULL;
@@ -333,7 +342,7 @@ static char* match_alias(char* ls, char* le, char* name)
 	char* e = le;
 	char* n = name;
 
-	if(!(p = word(p, e, "alias")))
+	if(!(p = skip(p, e, "alias")))
 		return NULL;
 
 	while(*n && p < e) {
@@ -541,24 +550,9 @@ static int insert_absolute(CTX, char* name, char* path, char* pars)
 	return 0;
 }
 
-static int insert_relative(CTX, char* name, char* rptr, char* rend, char* pars)
+static int insert_w_pars(CTX, char* name, char* rptr, char* rend, char* pars)
 {
-	struct line ln;
 	char* base = ctx->base;
-
-	if(pars != NULL) {
-		/* use them as is */
-	} else if(query_pars(ctx, &ln, name) >= 0) {
-		long len = ln.end - ln.val;
-		char parbuf[len];
-		memcpy(parbuf, ln.sep, len);
-		parbuf[len] = '\0';
-		pars = parbuf;
-	} else {
-		/* the kernel requires non-NULL pars */
-		pars = "";
-	}
-
 	long rlen = rend - rptr;
 
 	if(rlen < 0) return -EINVAL;
@@ -570,6 +564,27 @@ static int insert_relative(CTX, char* name, char* rptr, char* rend, char* pars)
 	FMTEND(p, e);
 
 	return insert_absolute(ctx, name, path, pars);
+}
+
+static int insert_relative(CTX, char* name, char* rptr, char* rend, char* pars)
+{
+	struct line ln;
+
+	if(pars != NULL) /* use them as is */
+		return insert_w_pars(ctx, name, rptr, rend, pars);
+	if(query_pars(ctx, &ln, name) < 0)
+		return insert_w_pars(ctx, name, rptr, rend, "");
+
+	long len = ln.end - ln.val;
+
+	if(len < 0 || len > 1024)
+		return error(ctx, "invalid options for", name, 0);
+
+	char parbuf[len+1];
+	memcpy(parbuf, ln.val, len);
+	parbuf[len] = '\0';
+
+	return insert_w_pars(ctx, name, rptr, rend, parbuf);
 }
 
 static int insert_one_dep(CTX, char* ptr, char* end)
