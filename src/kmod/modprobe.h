@@ -30,10 +30,12 @@ struct top {
 
 	struct mbuf modules_dep;
 	struct mbuf modules_alias;
+	struct mbuf modules_builtin;
 	struct mbuf config;
 
 	int tried_modules_dep;
 	int tried_modules_alias;
+	int tried_modules_builtin;
 	int tried_config;
 
 	char** deps;

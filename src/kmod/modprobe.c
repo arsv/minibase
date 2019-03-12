@@ -108,6 +108,26 @@ static int prep_modules_alias(CTX)
 	return ret;
 }
 
+static int prep_modules_builtin(CTX)
+{
+	struct mbuf* mb = &ctx->modules_builtin;
+	char* name = "modules.builtin";
+	int ret;
+
+	if((ret = ctx->tried_modules_builtin))
+		return ret;
+
+	ctx->nofail = 1;
+
+	ret = mmap_modules_file(ctx, mb, name);
+	if(!ret) ret = 1;
+
+	ctx->tried_modules_builtin = ret;
+	ctx->nofail = 0;
+
+	return ret;
+}
+
 static int prep_config(CTX)
 {
 	struct mbuf* mb = &ctx->config;
@@ -209,6 +229,25 @@ static char* match_dep(char* ls, char* le, char* name)
 		return NULL;
 
 	return p;
+}
+
+static char* match_builtin(char* ls, char* le, char* name)
+{
+	int nlen = strlen(name);
+	char* q = le - 1;
+
+	while(q > ls && *q != '/') q--;
+
+	if(*q == '/') q++;
+
+	if(le - q < nlen)
+		return NULL;
+	if(xstrncmp(q, name, nlen))
+		return NULL;
+	if(q[nlen] != '.')
+		return NULL;
+
+	return q;
 }
 
 static int query_deps(CTX, struct line* ln, char* name)
@@ -353,6 +392,19 @@ static int blacklisted(CTX, char* name)
 		return 0;
 
 	error(ctx, "blacklisted module", name, 0);
+
+	return 1;
+}
+
+static int builtin(CTX, char* name)
+{
+	struct mbuf* mb = &ctx->modules_builtin;
+	struct line ln;
+
+	prep_modules_builtin(ctx);
+
+	if(locate_line(mb, &ln, match_builtin, name) < 0)
+		return 0;
 
 	return 1;
 }
@@ -582,6 +634,13 @@ static void insert(CTX, char* name, char* pars)
 		return;
 
 	if(query_deps(ctx, &ln, name) < 0) {
+		if(builtin(ctx, name)) {
+			if(ctx->opts & OPT_v)
+				warn("built-in module", name, 0);
+			ctx->ninserted++;
+			return;
+		}
+
 		error(ctx, "unknown module", name, 0);
 		return;
 	}
