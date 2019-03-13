@@ -334,11 +334,17 @@ static void parse_scan_result(struct nlgen* msg)
 
 	if(!(ies = nl_sub(bss, NL80211_BSS_INFORMATION_ELEMENTS)))
 		return;
-	if(!(stored = heap_store(nl_payload(ies), nl_paylen(ies))))
-		return;
 
-	sc->ies = stored;
-	sc->ieslen = nl_paylen(ies);
+	byte* data = nl_payload(ies);
+	int ieslen = nl_paylen(ies);
+
+	if(sc->ies && sc->ieslen <= ieslen)
+		memcpy(sc->ies, data, ieslen);
+	else if((stored = heap_store(data, ieslen)))
+		sc->ies = stored;
+	else return; /* cannot overwrite and cannot store */
+
+	sc->ieslen = ieslen;
 }
 
 /* NL80211_CMD_TRIGGER_SCAN arrives with a list of frequencies being
