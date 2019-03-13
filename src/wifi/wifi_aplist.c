@@ -296,7 +296,7 @@ static void print_status_line(CTX, MSG, int state)
 		} else if(state == WS_STOPPING) {
 			p = fmtstr(p, e, " stopping");
 		} else if(bss) {
-			p = fmtstr(p, e, "Idle ");
+			p = fmtstr(p, e, " idle ");
 			p = fmt_station(p, e, msg);
 
 			if(state == WS_SCANNING)
