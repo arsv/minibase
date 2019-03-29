@@ -1,5 +1,5 @@
 #include <sys/file.h>
-#include <sys/sched.h>
+#include <sys/timer.h>
 #include <sys/inotify.h>
 
 #include <string.h>

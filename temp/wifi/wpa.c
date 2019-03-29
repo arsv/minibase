@@ -1,7 +1,7 @@
 #include <bits/errno.h>
 
 #include <sys/signal.h>
-#include <sys/sched.h>
+#include <sys/timer.h>
 #include <sys/ppoll.h>
 
 #include <sigset.h>
