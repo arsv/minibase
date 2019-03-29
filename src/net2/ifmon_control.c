@@ -3,7 +3,7 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
 #include <sys/socket.h>
-#include <sys/sched.h>
+#include <sys/timer.h>
 
 #include <nlusctl.h>
 #include <format.h>

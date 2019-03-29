@@ -3,7 +3,7 @@
 
 #include <sys/file.h>
 #include <sys/mman.h>
-#include <sys/sched.h>
+#include <sys/timer.h>
 #include <sys/signal.h>
 #include <sys/socket.h>
 

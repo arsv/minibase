@@ -4,7 +4,7 @@
 #include <bits/major.h>
 
 #include <sys/file.h>
-#include <sys/sched.h>
+#include <sys/timer.h>
 #include <sys/signal.h>
 #include <sys/ioctl.h>
 

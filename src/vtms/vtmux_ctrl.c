@@ -5,7 +5,7 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
 #include <sys/signal.h>
-#include <sys/sched.h>
+#include <sys/timer.h>
 
 #include <nlusctl.h>
 #include <string.h>

@@ -3,7 +3,7 @@
 #include <sys/socket.h>
 #include <sys/file.h>
 #include <sys/fpath.h>
-#include <sys/sched.h>
+#include <sys/timer.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 

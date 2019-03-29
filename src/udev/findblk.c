@@ -1,7 +1,7 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
 #include <sys/signal.h>
-#include <sys/sched.h>
+#include <sys/timer.h>
 
 #include <format.h>
 #include <util.h>

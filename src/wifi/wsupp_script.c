@@ -1,10 +1,10 @@
 #include <bits/socket/unix.h>
 #include <sys/socket.h>
-#include <sys/sched.h>
 #include <sys/file.h>
 #include <sys/fprop.h>
 #include <sys/proc.h>
 #include <sys/signal.h>
+#include <sys/timer.h>
 
 #include <util.h>
 
