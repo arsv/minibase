@@ -1,5 +1,6 @@
 #include <sys/file.h>
 #include <sys/signal.h>
+#include <sys/signalfd.h>
 #include <sys/ppoll.h>
 #include <sys/mman.h>
 
@@ -93,15 +94,15 @@ static void setup(CTX, int argc, char** argv, char** envp)
 static void recv_sigfd(CTX)
 {
 	int fd = ctx->sigfd;
-	struct sigevent se;
+	struct siginfo si;
 	int rd;
 
-	if((rd = sys_read(fd, &se, sizeof(se))) < 0)
+	if((rd = sys_read(fd, &si, sizeof(si))) < 0)
 		quit(ctx, "read", "signalfd", rd);
-	if(rd < (int)sizeof(se))
+	if(rd < (int)sizeof(si))
 		quit(ctx, "bad sigevent size", NULL, rd);
 
-	switch(se.signo) {
+	switch(si.signo) {
 		case SIGWINCH: update_winsz(ctx); break;
 		case SIGINT: cancel_input(ctx); break;
 		case SIGTERM: exit(ctx, 0xFF);

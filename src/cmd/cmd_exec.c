@@ -4,6 +4,7 @@
 #include <sys/fpath.h>
 #include <sys/prctl.h>
 #include <sys/signal.h>
+#include <sys/signalfd.h>
 
 #include <sigset.h>
 #include <format.h>
@@ -197,22 +198,22 @@ static void spawn(CTX, char* exe, char** argv)
 {
 	int pid, status;
 	int rd, fd = ctx->sigfd;
-	struct sigevent se;
+	struct siginfo si;
 
 	if((pid = sys_fork()) < 0)
 		return warn("fork", NULL, pid);
 	if(pid == 0)
 		_exit(child(exe, argv, ctx->envp));
 
-	while((rd = sys_read(fd, &se, sizeof(se))) > 0) {
-		if(rd < (int)sizeof(se))
+	while((rd = sys_read(fd, &si, sizeof(si))) > 0) {
+		if(rd < (int)sizeof(si))
 			quit(ctx, "bad sigevent size", NULL, rd);
 
-		if(se.signo == SIGINT)
+		if(si.signo == SIGINT)
 			sys_kill(pid, SIGINT);
-		else if(se.signo == SIGQUIT)
+		else if(si.signo == SIGQUIT)
 			sys_kill(pid, SIGQUIT);
-		else if(se.signo != SIGCHLD)
+		else if(si.signo != SIGCHLD)
 			continue;
 		else if(trywaitpid(pid, &status) >= 0)
 			break;

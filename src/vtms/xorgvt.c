@@ -6,6 +6,7 @@
 #include <sys/creds.h>
 #include <sys/fprop.h>
 #include <sys/signal.h>
+#include <sys/signalfd.h>
 
 #include <format.h>
 #include <string.h>
@@ -84,14 +85,14 @@ static void sig_ignore(int sig)
 static int recv_sig(CTX)
 {
 	int rd, fd = ctx->sigfd;
-	struct sigevent se;
+	struct siginfo si;
 
-	if((rd = sys_read(fd, &se, sizeof(se))) < 0)
+	if((rd = sys_read(fd, &si, sizeof(si))) < 0)
 		quit(ctx, "read", "signalfd", rd);
-	if(rd < (int)sizeof(se))
+	if(rd < (int)sizeof(si))
 		quit(ctx, "bad sigevent size", NULL, rd);
 
-	return se.signo;
+	return si.signo;
 }
 
 static void inserver(CTX)
