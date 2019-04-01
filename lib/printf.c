@@ -130,7 +130,7 @@ static char* pprintf(char* p, char* e, const char* fmt, va_list ap)
 				else
 					q = fmtxlong(p, e, va_arg(ap, uint));
 				break;
-			case 'p': 
+			case 'p':
 				q = fmtstr(p, e, "0x");
 				q = fmtxlong(p, e, (long)va_arg(ap, void*));
 				break;

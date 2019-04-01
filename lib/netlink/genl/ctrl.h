@@ -20,7 +20,7 @@
 #define CTRL_ATTR_UNSPEC       0
 #define CTRL_ATTR_FAMILY_ID    1
 #define CTRL_ATTR_FAMILY_NAME  2
-#define CTRL_ATTR_VERSION      3 
+#define CTRL_ATTR_VERSION      3
 #define CTRL_ATTR_HDRSIZE      4
 #define CTRL_ATTR_MAXATTR      5
 #define CTRL_ATTR_OPS          6

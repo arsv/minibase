@@ -8,6 +8,6 @@ char* strcbrk(char* str, char c)
 
 	for(p = str; *p && *p != c; p++)
 		;
-	
+
 	return p;
 }

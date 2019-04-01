@@ -34,7 +34,7 @@ struct nlgen* nl_recv_genl(struct netlink* nl)
 	struct nlmsg* msg = nl_recv(nl);
 	struct nlgen* gen;
 
-	if(msg->seq)	
+	if(msg->seq)
 		return nl_set_err(nl, EBADMSG);
 
 	if(!(gen = nl_gen(msg)))

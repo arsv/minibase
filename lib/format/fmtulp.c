@@ -19,10 +19,10 @@ char* fmtulp(char* buf, char* end, unsigned long num, int pad)
 	int i;
 	char* e = buf + len;
 	char* p = e - 1; /* len >= 1 so e > buf */
-	
+
 	for(i = 0; i < len; i++, p--, num /= 10)
 		if(p < end)
 			*p = '0' + num % 10;
 
-	return e; 
+	return e;
 }

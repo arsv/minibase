@@ -19,13 +19,13 @@ static char* fmtint32(char* buf, char* end, int minus, uint32_t num)
 	int i;
 	char* e = buf + len + minus;
 	char* p = e - 1; /* len >= 1 so e > buf */
-	
+
 	for(i = 0; i < len; i++, p--, num /= 10)
 		if(p < end)
 			*p = '0' + num % 10;
 	if(minus) *p = '-';
 
-	return e > end ? end : e; 
+	return e > end ? end : e;
 }
 
 char* fmti32(char* buf, char* end, int32_t num)

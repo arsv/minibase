@@ -21,7 +21,7 @@ long bufout(struct bufout* bo, char* data, int len)
 		}
 		return ret;
 	}
-	
+
 	if(bo->ptr) {
 		/* the data is too long but we must flush whatever's
 		   in the buffer first */
@@ -41,7 +41,7 @@ long bufout(struct bufout* bo, char* data, int len)
 		data += pass;
 		len = tail;
 	};
-	
+
 	/* at this point (len < bo->len) && (bo->ptr == 0) */
 
 	if(len) {

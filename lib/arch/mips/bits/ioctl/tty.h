@@ -27,7 +27,7 @@ struct winsize {
 struct termios {
 	unsigned iflag;
 	unsigned oflag;
-	unsigned cflag;	
+	unsigned cflag;
 	unsigned lflag;
 	unsigned char line;
 	unsigned char cc[NCCS];

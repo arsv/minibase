@@ -170,7 +170,7 @@ ulong scrypt_init(struct scrypt* sc, uint n, uint r, uint p)
 	ulong B0size = 128*r*p;
 	ulong XYsize = 256*r + 64;
 	ulong V0size = 128*r*n;
-	ulong need = B0size + XYsize + V0size; 
+	ulong need = B0size + XYsize + V0size;
 
 	sc->templen = need;
 

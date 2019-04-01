@@ -13,10 +13,10 @@ char* fmthex(char* buf, char* end, unsigned num)
 	int i;
 	char* e = buf + len;
 	char* p = e - 1; /* len >= 1 so e > buf */
-	
+
 	for(i = 0; i < len; i++, p--, num >>= 4)
 		if(p < end)
 			*p = digits[num & 0x0F];
 
-	return e; 
+	return e;
 }

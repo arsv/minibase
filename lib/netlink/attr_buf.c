@@ -19,7 +19,7 @@ struct nlattr* nl_attr_0_in(char* buf, size_t len)
 
 	if(at->len > len)
 		return NULL;
-	
+
 	return at;
 }
 
@@ -46,7 +46,7 @@ struct nlattr* nl_attr_n_in(char* buf, size_t len, struct nlattr* curr)
 
 	if(!ptr_in_buf(buf, len, pnext)) return NULL;
 
-	return (struct nlattr*)pnext;	
+	return (struct nlattr*)pnext;
 }
 
 struct nlattr* nl_attr_k_in(char* buf, size_t len, int type)

@@ -13,7 +13,7 @@ inline static long syscall0(int nr)
 		: "=r"(x0)
 		: "r"(x8)
 		: "memory");
-	
+
 	return x0;
 }
 
@@ -26,7 +26,7 @@ inline static long syscall1(int nr, long a1)
 		: "=r"(x0)
 		: "r"(x8), "r"(x0)
 		: "memory");
-	
+
 	return x0;
 }
 
@@ -40,7 +40,7 @@ inline static long syscall2(int nr, long a1, long a2)
 		: "=r"(x0)
 		: "r"(x8), "r"(x0), "r"(x1)
 		: "memory");
-	
+
 	return x0;
 }
 
@@ -55,7 +55,7 @@ inline static long syscall3(int nr, long a1, long a2, long a3)
 		: "=r"(x0)
 		: "r"(x8), "r"(x0), "r"(x1), "r"(x2)
 		: "memory");
-	
+
 	return x0;
 }
 
@@ -71,7 +71,7 @@ inline static long syscall4(int nr, long a1, long a2, long a3, long a4)
 		: "=r"(x0)
 		: "r"(x8), "r"(x0), "r"(x1), "r"(x2), "r"(x3)
 		: "memory");
-	
+
 	return x0;
 }
 
@@ -88,7 +88,7 @@ inline static long syscall5(int nr, long a1, long a2, long a3, long a4, long a5)
 		: "=r"(x0)
 		: "r"(x8), "r"(x0), "r"(x1), "r"(x2), "r"(x3), "r"(x4)
 		: "memory");
-	
+
 	return x0;
 }
 
@@ -107,7 +107,7 @@ inline static long syscall6(int nr, long a1, long a2, long a3, long a4,
 		: "=r"(x0)
 		: "r"(x8), "r"(x0), "r"(x1), "r"(x2), "r"(x3), "r"(x4), "r"(x5)
 		: "memory");
-	
+
 	return x0;
 }
 

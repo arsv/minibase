@@ -24,7 +24,7 @@ inline static long syscall0(int nr)
 	: "+r"(eax)
 	: "0"(eax)
 	: "memory");
-	
+
 	return eax;
 }
 
@@ -38,7 +38,7 @@ inline static long syscall1(int nr, long a)
 	: "+r"(eax)
 	: "0"(eax), "r"(ebx)
 	: "memory");
-	
+
 	return eax;
 }
 
@@ -53,7 +53,7 @@ inline static long syscall2(int nr, long a, long b)
 	: "+r"(eax)
 	: "0"(eax), "r"(ebx), "r"(ecx)
 	: "memory");
-	
+
 	return eax;
 }
 
@@ -69,7 +69,7 @@ inline static long syscall3(int nr, long a, long b, long c)
 	: "+r"(eax)
 	: "0"(eax), "r"(ebx), "r"(ecx), "r"(edx)
 	: "memory");
-	
+
 	return eax;
 }
 
@@ -86,7 +86,7 @@ inline static long syscall4(int nr, long a, long b, long c, long d)
 	: "+r"(eax)
 	: "0"(eax), "r"(ebx), "r"(ecx), "r"(edx), "r"(esi)
 	: "memory");
-	
+
 	return eax;
 }
 

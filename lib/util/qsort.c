@@ -10,7 +10,7 @@
 
    So this basically calls for careful 3-way partitioning
    and some special cases with shorter handling.
- 
+
    The code below is loosely based on qsort from dietlibc, which in turn
    pulls from http://www.cs.princeton.edu/~rs/talks/QuicksortIsOptimal.pdf
    It's not a faithful implementation though, if it's wrong it's probably
@@ -38,7 +38,7 @@ static void exch_any(void* a, void* b, size_t sz)
 	memcpy(t, a, sz);
 	memcpy(a, b, sz);
 	memcpy(b, t, sz);
-} 
+}
 
 static void* pick_pivot(void* S, void* E, size_t size)
 {
@@ -92,7 +92,7 @@ static void sort(void* S, void* E, size_t size, qcmp3 cmp, qexch exch, long opts
 			break;
 
 		exch(lp, rp, size);
-		
+
 		lp += size; if(rp > lp) rp -= size;
 	}
 
@@ -108,7 +108,7 @@ static void sort(void* S, void* E, size_t size, qcmp3 cmp, qexch exch, long opts
 	/* ll       le       lp                      pv */
 	/* eq eq eq lt lt lt lt gt gt gt gt gt eq eq eq */
 	/*                      rp          re       rr */
-	
+
 	for(pv = ll; pv < le;) {     /* pv is no longer pivot! */
 		exch(pv, lp, size);
 		lp -= size;
@@ -175,7 +175,7 @@ static void srec(void* S, void* E, size_t size, qcmp3 cmp, qexch exch, long opts
 void qsortx(void* base, size_t n, size_t size, qcmp3 cmp, long opts)
 {
 	qexch exch;
-	
+
 	if(size == sizeof(long))
 		exch = (qexch) exch_long;
 	else if(size == sizeof(int))
