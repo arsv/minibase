@@ -231,7 +231,7 @@ static int atoi(char* a)
 {
 	int err;
 	char* p;
-	
+
 	if(!(p = parseint(a, &err)) || *p)
 		return -1;
 

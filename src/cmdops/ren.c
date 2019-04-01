@@ -67,6 +67,6 @@ int main(int argc, char** argv)
 		fail("too many arguments", NULL, 0);
 	else
 		rename(argv[0], argv[1], flags);
-	
+
 	return 0;
 };

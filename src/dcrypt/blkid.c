@@ -127,7 +127,7 @@ static int printable_entry_id(int fd, const char* name, int off, const char* tag
 {
 	char buf[100];
 	int len;
-	
+
 	if((len = read_entry(fd, name, buf, sizeof(buf))) <= 0)
 		return 0;
 	if(len < off)

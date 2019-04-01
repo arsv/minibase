@@ -22,7 +22,7 @@ static void repeat(char c, int n)
 {
 	char buf[10];
 	int chunk = sizeof(buf);
-	
+
 	memset(buf, c, chunk);
 
 	for(; n >= chunk; n -= chunk)

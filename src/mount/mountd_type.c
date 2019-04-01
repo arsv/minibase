@@ -14,7 +14,7 @@
    figure that out by reading the data on the device. This would better
    be avoided since mountd is a highly-privileged process, but it does
    not look like there's a better way right now.
- 
+
    Here we also check whether the user should be allowed to mount
    given device in the first place. The name comes directly from
    the user and could be anything. */
@@ -112,7 +112,7 @@ const char* fs_type_string(int fst)
 
 /* Sticky bit is used to protect system devices; mountd will not touch
    anything with the bit set. It's up to the boot tools to set it.
- 
+
    The original pmount tries to check for removable flag in sysfs instead,
    but that turns out to be very unreliable. MMC devices may be marked
    non-removable when they are and removable when they aren't. */

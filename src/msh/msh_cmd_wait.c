@@ -67,7 +67,7 @@ static void prep_dirname(char* dir, int dlen, char* name, char* base)
 		dir[len] = '\0';
 	} else {
 		dir[0] = '.';
-		dir[1] = '\0';	
+		dir[1] = '\0';
 	}
 }
 
@@ -99,7 +99,7 @@ got:
 	else ret = watch_ino_for(ctx, fd, base, ts);
 
 	sys_inotify_rm_watch(fd, wd);
-out:	
+out:
 	return ret;
 }
 
@@ -107,7 +107,7 @@ int cmd_waitfor(CTX)
 {
 	char* name;
 	int timeout;
-	
+
 	if((shift_str(ctx, &name)))
 		return -1;
 	if(!numleft(ctx))

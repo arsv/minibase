@@ -130,7 +130,7 @@ static int compare_sys_entry(char* dev, char* id, const char* ent, int off)
 {
 	char buf[100];
 	int rd;
-	
+
 	if((rd = read_entry(dev, ent, buf, sizeof(buf))) < 0)
 		return 0;
 	if(rd < off)

@@ -43,7 +43,7 @@ static void dump_contents(int clear)
 
 	if((len = sys_klogctl(act, buf, size)) < 0)
 		fail("klogctl", actname, len);
-	
+
 	if(len && buf[len] != '\n')
 		buf[len++] = '\n';
 

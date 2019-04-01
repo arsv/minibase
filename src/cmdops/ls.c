@@ -273,7 +273,7 @@ static void index_entries(CTX, void* ents, void* eend)
 	}
 
 	*ptr = NULL;
-	
+
 	ctx->idx = idx;
 }
 
@@ -325,7 +325,7 @@ static char* fmt_name(char* p, char* e, int id, struct mmaped* mp)
 	char* end = buf + mp->len;
 
 	if(!buf) goto asnum;
-	
+
 	char *ls, *le; /* line start/end */
 	for(ls = buf; ls < end; ls = le + 1) {
 		le = strecbrk(ls, end, '\n');

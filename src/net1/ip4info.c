@@ -252,7 +252,7 @@ char* ifi_to_name(uint ifi)
 	for(q = ifs; *q; q++)
 		if((*q)->ifi == ifi)
 			break;
-	
+
 	return *q ? (*q)->name : NULL;
 }
 
@@ -272,7 +272,7 @@ char* fmt_route_dev(char* p, char* e, struct rtmsg* msg)
 	}
 
 	p = fmtstr(p, e, ":");
-out:	
+out:
 	return p;
 }
 

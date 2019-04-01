@@ -73,7 +73,7 @@ static char* fmtmem(char* p, char* e, unsigned long n, int mu)
 static char* fmtline1(char* p, char* e, struct sysinfo* si)
 {
 	p = fmtstr(p, e, "Uptime");
-	p = fmtuptime(p, e, si->uptime);	
+	p = fmtuptime(p, e, si->uptime);
 	p = fmtstr(p, e, ", ");
 	p = fmti32(p, e, si->procs);
 	p = fmtstr(p, e, si->procs > 1 ? " processes" : "process");

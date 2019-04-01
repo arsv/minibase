@@ -22,7 +22,7 @@ ERRTAG("lsusb");
    usb.ids is not that useful in many cases anyway. It's incomplete, and
    if the exact vendor:product pair is not there it provides less info
    than this tool does.
- 
+
    In most cases, the *device* class is meaningless and we must look up
    interface classes on each endpoint. */
 
@@ -165,7 +165,7 @@ static int parse_type(char* line, struct dev* dev)
 	DEVNUM=003
 
    In the functions below, $at refers to /sys/bus/usb/devices/1-7
-   directory and name is "1-7". */ 
+   directory and name is "1-7". */
 
 static int parse_uevent(CTX, struct dev* dev, char* buf, int len)
 {
@@ -385,7 +385,7 @@ static void scan_entry(CTX, int at, char* name)
 
 	int len = ctx->ptr - ptr;
 	int pad = 4 - len % 4;
-	
+
 	(void)heap_alloc(ctx, pad);
 
 	dev->len = len + pad;
@@ -483,7 +483,7 @@ static void scan_devices(CTX)
 }
 
 /* Ref. http://www.usb.org/developers/defined_class
- 
+
    Subclass and protocol numbers are of little use for dev identification.
    Either the class is enough, or it needs a vendor:product lookup. */
 

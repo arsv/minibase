@@ -111,7 +111,7 @@ static int prep_ancillary(void)
 static void start_command(int fd, char* cmd, int argn, char** args)
 {
 	int ret;
-	
+
 	int txlen = prep_message(cmd, argn, args);
 	int anlen = prep_ancillary();
 

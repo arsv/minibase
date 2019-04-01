@@ -43,7 +43,7 @@ static void start_var(CTX)
 static void end_var(CTX)
 {
 	/* terminate and substitute $VAR */
-	*(ctx->hptr) = '\0';	
+	*(ctx->hptr) = '\0';
 	ctx->hptr = ctx->var;
 	ctx->var = NULL;
 
@@ -103,7 +103,7 @@ static void end_val(CTX)
 
 	if(ctx->argc != 2)
 		goto out;
-	
+
 	add_char(ctx, 0);
 	char** argv = put_argv(ctx);
 
@@ -242,7 +242,7 @@ static void parse_slash(CTX, char c)
 		case 't': c = '\t'; break;
 		case 'n': c = '\n'; break;
 	};
-	
+
 	add_char(ctx, c);
 	pop_state(ctx);
 }

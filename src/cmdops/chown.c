@@ -143,7 +143,7 @@ static void chown(const char* name, struct chown* ch)
 static char* mapfile(const char* name, int* size)
 {
 	int fd, ret;
-	struct stat st;	
+	struct stat st;
 
 	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail("cannot open", name, fd);

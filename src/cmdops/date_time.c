@@ -335,6 +335,6 @@ void translate(struct timedesc* zt, struct zonefile* src, struct zonefile* tgt)
 	/* zt->tv is now a proper unix timestamp */
 
 	translate_tv_to_local_tm(zt, tgt);
-	
+
 	/* zt->tm is now proper local time representation */
 }

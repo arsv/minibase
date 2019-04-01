@@ -15,7 +15,7 @@
    are limited, and it's a temporarty solution anyway until the KMS version
    arrives. So let's cut about as much corners as we can and make it into
    a sort of simplified dialog(1).
- 
+
    Note random kernel messages *will* mess thing up, so it makes a lot of
    sense to switch VTs just to run this. */
 

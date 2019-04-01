@@ -97,7 +97,7 @@ static int sendfile(struct top* ctx)
 		return ret;
 	if(first && ret == -EINVAL)
 		return ret;
-	
+
 	fail("sendfile", ctx->iname, ret);
 }
 

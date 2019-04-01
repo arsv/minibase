@@ -31,7 +31,7 @@ struct top {
    resides in. Directory events are needed to catch log rotation: if inotify
    reports IN_CREATE with the same name as the file we're monitoring, we drop
    the old one and open the newly created file.
-   
+
    This only makes sense for logs. */
 
 static void dirname(char* path, char* buf, int len)
@@ -250,7 +250,7 @@ static void follow_tail(struct top* ctx)
    completely at least once, then the est bytes at the end of the file are
    (ptr:end) + (buf:ptr). Processing is then done in two steps, (ptr:end)
    first and then (buf:ptr).
- 
+
    First tail counts the lines in the buf (say M), then it skip the leading
    M - N lines noting the offset, and start dumping the buf contents from
    that offset. */

@@ -114,7 +114,7 @@ static void plain_utc_zone(struct zonefile* zf, const char* zone)
 
 	p = parseint(p+1, &n);
 	offset += 60*n;
-	
+
 	if(*p) goto bad;
 out:
 	zf->fixed = 1;

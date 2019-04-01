@@ -60,7 +60,7 @@ static void setrtctime(struct tm* tm, int rtcfd, const char* rtcname)
 static char* parseymd(struct tm* tm, char* a)
 {
 	char* p = a; /* Expected format: 2015-12-14 */
-	
+
 	if(!(p = parseint(p, &tm->year)) || *p != '-')
 		return NULL;
 	if(!(p = parseint(p, &tm->mon)) || *p != '-')
@@ -72,7 +72,7 @@ static char* parseymd(struct tm* tm, char* a)
 		return NULL;
 	if(tm->mday > 31)
 		return NULL;
-	
+
 	tm->mon--;
 	tm->year -= 1900;
 

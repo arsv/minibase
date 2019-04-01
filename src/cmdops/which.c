@@ -54,7 +54,7 @@ static int execheck(char* dir, int dirlen, char* cmd, int cmdlen)
 
 	if(sys_access(path, X_OK) < 0)
 		return 0;
-	
+
 	*p++ = '\n';
 	sys_write(1, path, p - path);
 
@@ -62,7 +62,7 @@ static int execheck(char* dir, int dirlen, char* cmd, int cmdlen)
 }
 
 static int which(char* path, char* cmd, int cmdlen)
-{ 
+{
 	char* pend = path + strlen(path);
 	char* p;
 	char* q;

@@ -13,7 +13,7 @@ ERRLIST(NENOSYS NENOENT NENOTDIR NENOMEM);
 static char* mapfile(const char* name, int* size)
 {
 	int fd, ret;
-	struct stat st;	
+	struct stat st;
 
 	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail("cannot open", name, fd);
@@ -86,7 +86,7 @@ int main(int argc, char** argv)
 
 	int namelen;
 	char* nameptr = findname(filedata, filesize, uidstr, &namelen);
-	
+
 	if(nameptr) {
 		char name[namelen];
 		memcpy(name, nameptr, namelen);

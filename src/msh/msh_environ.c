@@ -46,10 +46,10 @@ static int match_env(CTX, struct env* es, char* var)
    is used directly, and ctx->esep is NULL. Once there's a need
    to change envp, each ptr from the original envp is turned
    into struct envptr, but the string itself is not copied.
- 
+
    To override or unset a variable, the old envptr gets marked ENVDEL
    and a struct env with the new string is added if necessary.
- 
+
    The distinction between ENVSTR (inline string) and ENVPTR (pointer)
    is a kind of petty optimization to avoid copying envp strings. */
 

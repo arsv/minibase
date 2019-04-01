@@ -173,7 +173,7 @@ static struct ent** index_entries(CTX, void* ents, void* eend)
 	}
 
 	*ptr = NULL;
-	
+
 	return idx;
 }
 

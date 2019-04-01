@@ -114,7 +114,7 @@ static void check_part_ent(char* name, char* base)
 {
 	if(strncmp(name, base, strlen(base)))
 		return;
-	
+
 	match_part(name);
 }
 
@@ -244,7 +244,7 @@ int any_missing_devs(void)
 {
 	struct bdev* bd;
 	struct part* pt;
-	
+
 	for(bd = bdevs; bd < bdevs + nbdevs; bd++)
 		if(!bd->here)
 			return 1;

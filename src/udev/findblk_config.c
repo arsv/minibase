@@ -339,7 +339,7 @@ void load_config(void)
 
 	uint len = st.size;
 	char* buf;
-	
+
 	if(len + 1 <= sizeof(smallbuf))
 		buf = smallbuf;
 	else

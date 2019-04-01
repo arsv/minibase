@@ -107,7 +107,7 @@ void dump_status(CTX, MSG)
 			nvts++;
 
 	struct ucattr* vts[nvts];
-	
+
 	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
 		if((vt = uc_is_nest(at, ATTR_VT)))
 			vts[i++] = vt;

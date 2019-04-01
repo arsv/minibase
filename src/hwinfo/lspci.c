@@ -144,7 +144,7 @@ static int parse_drv(char* line, struct dev* dev)
 	MODALIAS=pci:v00008086d0000156Fsv00001028sd000006DEbc02sc00i00
 
    All numbers are in hex. We skip SUBSYS, and do not use the lower two
-   bytes of CLASS. */ 
+   bytes of CLASS. */
 
 static int parse_uevent(CTX, struct dev* dev, char* buf, int len)
 {

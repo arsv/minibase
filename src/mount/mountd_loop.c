@@ -71,7 +71,7 @@ int setup_loopback(int pfd, char* base)
 	if((cfd = sys_open(control, O_RDONLY)) < 0)
 		return cfd;
 
-	for(int i = 0; i < 3; i++) {	
+	for(int i = 0; i < 3; i++) {
 		if((ret = sys_ioctli(cfd, LOOP_CTL_GET_FREE, 0)) < 0)
 			break;
 		if(ret == idx)

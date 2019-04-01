@@ -170,7 +170,7 @@ static void parsesym(char* cl, struct chmod* ch)
 		case 'o': who |= 00007; break;
 		default: goto op;
 	};
-	
+
 op:	if(!who)
 		who = (0777 & ~sys_umask(0));
 

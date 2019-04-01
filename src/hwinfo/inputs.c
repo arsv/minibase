@@ -71,7 +71,7 @@ static void set_name(struct info* in, char* str)
 
 		if(len > 0 && str[len-1] == '"')
 			str[len-1] = '\0';
-		
+
 		str[0] = '"';
 		str++;
 	}
@@ -352,7 +352,7 @@ static void list_all_inputs(int opts)
 			if(id > maxid) maxid = id;
 		}
 	}
-	
+
 	if(rd < 0) fail("read", dir, rd);
 
 	list_masked(mask, maxid, opts);

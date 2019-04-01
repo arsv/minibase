@@ -31,13 +31,13 @@ ERRLIST(NENOENT NEACCES NELOOP NEFAULT NEBADF NENAMETOOLONG NENOENT NENOMEM
 	NENOTDIR NEOVERFLOW);
 
 /* fmtall is a human-readable form, so it should take "readable" over "complete"
-   or "lossless" whenever possible. In case e.g. the exact size of the file 
+   or "lossless" whenever possible. In case e.g. the exact size of the file
    in bytes is needed, relevant options like -s should be used.
 
    Sample output:
 
    File -rw-rw-r-- alex:alex   1KB  2016-02-02 01:51:45   filename
- 
+
  */
 
 static const char* typemark(struct stat* st)
@@ -137,7 +137,7 @@ static char* sumtypemode(char* p, char* e, struct stat* st, int opts)
 /* Showing human-readable user and group names requires parsing
    /etc/passwd and /etc/group. This is done by mmaping them whole,
    as the files are presumed to be small.
-   
+
    The files are not unmmaped, and we do not even bother closing fds
    since stat exits mere moments after printing the info. The data
    is not shared either because this stat implementation always
@@ -176,13 +176,13 @@ static char* idname(char* name, char* nend, int id, const char* dictname)
 	int idlen = idptr - idstr;
 
 	if(!dictname) goto asnum;
-	
+
 	ulong size = 0x7FFFFFFF; /* max size of /etc/passwd */
 	char* buf = mmapfile(dictname, &size);
 	char* end = buf + size;
 
 	if(!buf) goto asnum;
-	
+
 	char *ls, *le; /* line start/end */
 	for(ls = buf; ls < end; ls = le + 1) {
 		le = strecbrk(ls, end, '\n');
@@ -215,7 +215,7 @@ static char* sumownergrp(char* p, char* e, struct stat* st, int opts)
 	p = idname(p, ne, st->uid, resolve ? "/etc/passwd" : NULL);
 	p = fmtstr(p, e, ":");
 	p = idname(p, ne, st->gid, resolve ? "/etc/group" : NULL);
-	
+
 	return p;
 }
 
@@ -271,7 +271,7 @@ static char* sumblkdevino(char* p, char* e, struct stat* st, int opts)
 	p = fmtdev(p, e, st->dev);
 	p = fmtstr(p, e, " inode ");
 	p = fmtu64(p, e, st->ino);
-	
+
 	return p;
 }
 

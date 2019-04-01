@@ -145,7 +145,7 @@ static int check_evt_bits(int fd, int type, int size,
 
 /* Directory-scanning code opens /dev/input/eventN and calls
    this to determine what to do with the fd. Zero means drop,
-   positive means poll this device. */ 
+   positive means poll this device. */
 
 int try_event_dev(int fd)
 {

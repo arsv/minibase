@@ -76,7 +76,7 @@ static const struct action* event_action(struct acpievent* evt)
 			continue;
 		if(act->data != evt->data)
 			continue;
-		
+
 		return act;
 	}
 

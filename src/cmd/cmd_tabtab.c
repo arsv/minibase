@@ -10,7 +10,7 @@
 #include "unicode.h"
 
 /* Tab completition, commands and filenames only.
-   
+
    On the first keypress, relevant directories are scanned and full
    basenames of possible options are stored in struct tabtab, sorted
    and indexed. The second Tab dumps the stored index.

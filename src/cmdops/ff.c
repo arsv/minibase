@@ -12,7 +12,7 @@
    list, and preferably with fast output start. This sets it apart from
    some kind of ls -r | grep combo, which otherwise would have been
    an easier approach.
- 
+
    Sorting is tricky here, but non-sorted output is non-reproducible
    so let's take sorting as the lesser evil.
 

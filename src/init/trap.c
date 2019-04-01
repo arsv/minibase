@@ -8,7 +8,7 @@
 /* Signal trap, to be used as a stub for service scripts in ./rc
    Trapping signals (normally sent by init) makes it clear
    what's going on, specifically when and why the process dies.
- 
+
    Usage: trap [tag] [sleep-interval]
 
    Tagging output helps a lot when several instances say something
