@@ -29,7 +29,7 @@ static void ints(const char* fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	
+
 	check(1, va_arg(ap, int));
 	check(2, va_arg(ap, int));
 	check(3, va_arg(ap, int));
