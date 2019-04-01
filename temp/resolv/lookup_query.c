@@ -39,7 +39,7 @@ static void prep_socket(CTX)
 	struct sockaddr_in self = {
 		.family = AF_INET,
 		.port = 0,
-		.ip = { 0, 0, 0, 0 }
+		.addr = { 0, 0, 0, 0 }
 	};
 
 	if((fd = sys_socket(AF_INET, SOCK_DGRAM, 0)) < 0)
@@ -96,7 +96,7 @@ static int send_packet(CTX, void* buf, int len, byte ip[4])
 		.port = htons(53),
 	};
 
-	memcpy(to.ip, ip, 4);
+	memcpy(to.addr, ip, 4);
 
 	if((ret = sys_sendto(fd, buf, len, 0, &to, sizeof(to))) < 0)
 		warnip("send", ip, ret);
@@ -115,7 +115,7 @@ static int recv_packet(CTX, byte ip[4])
 
 	if((ret = sys_recvfrom(fd, buf, max, 0, &from, &fromlen)) < 0)
 		return ret;
-	if(memcmp(from.ip, ip, 4))
+	if(memcmp(from.addr, ip, 4))
 		return 0;
 
 	return ret;
