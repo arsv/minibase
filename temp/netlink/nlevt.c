@@ -90,7 +90,7 @@ int main(noargs)
 	nl_init(&nl);
 	nl_set_txbuf(&nl, TX, sizeof(TX));
 	nl_set_rxbuf(&nl, RX, sizeof(RX));
-	
+
 	if((ret = nl_connect(&nl, NETLINK_GENERIC, 0)) < 0)
 		fail("connect", "NETLINK_ROUTE", ret);
 

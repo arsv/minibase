@@ -48,7 +48,7 @@ static void aesxts(struct aes128* A, void* rp, void* wp, uint64_t S, aesfn op)
 	uint8_t x[16];
 
 	prep_tweak(T, A, S);
-	
+
 	for(int i = 0; i < 512; i += 16) {
 		blk_xor(x, rp + i, T);
 		op(A, x);

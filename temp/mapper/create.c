@@ -220,7 +220,7 @@ int main(noargs)
 	int keylen = sizeof(key);
 
 	prep_device(&dev, base);
-	
+
 	fd = dm_open_control();
 	dm_create(fd, name, &dev);
 

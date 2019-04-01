@@ -246,7 +246,7 @@ static void parse_section(CTX, ushort ncount, int (*call)(CTX))
 {
 	uint i, len;
 	uint count = ntohs(ncount);
-	
+
 	if(!count || !ctx->ptr)
 		return;
 

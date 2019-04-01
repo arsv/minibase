@@ -161,7 +161,7 @@ static char* parse_header(char* p, int len, int* prio)
 	*e = '\0';
 
 	if(!(p = parseint(p, prio)))
-		goto out; 
+		goto out;
 
 	*e = old;
 

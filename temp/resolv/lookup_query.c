@@ -233,13 +233,13 @@ struct dnshdr* run_request(CTX, char* name, ushort type)
 	int rc = DNSF_RC_SUCCESS;
 
 	prep_request(ctx, txbuf, &txlen, name, type);
-	
+
 	for(int i = 0; i < count; i++) {
 		byte* ip = ctx->nsaddr[i];
 
 		if(!(dh = send_recv(ctx, txbuf, txlen, ip)))
 			continue;
-		
+
 		rc = ntohs(dh->flags) & DNSF_RC;
 
 		if(rc == DNSF_RC_SERVER)

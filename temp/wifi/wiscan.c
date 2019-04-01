@@ -55,7 +55,7 @@ char* format_ssid(char* p, char* e, uint8_t len, const uint8_t *data)
 /* IES is like a nested structure but it's not made of nlattr-s.
    Instead, they have a similar structure with one-byte len,
    one-byte type, and len does *not* include the header.
- 
+
    Of all the data there, we only need key 0 which is BSS name. */
 
 struct ies {
@@ -250,7 +250,7 @@ int resolve_80211_subscribe_scan(struct netlink* nl)
 /* The following strongly assumes that scan results arrive after ACK
    or ERR for NL80211_CMD_TRIGGER_SCAN. It's not clear whether there
    are any guarantees on this.
- 
+
    Note NL80211_CMD_NEW_SCAN_RESULTS and NL80211_CMD_SCAN_ABORTED here
    and *not* replies to NL80211_CMD_TRIGGER_SCAN!
    Instead those packets are mcast notifications (seq=0) we've subscribed

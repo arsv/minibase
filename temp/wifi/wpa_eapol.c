@@ -206,7 +206,7 @@ static void send_packet(char* buf, int len)
 void recv_packet_1(void)
 {
 	struct eapolkey* ek = recv_valid(amac);
-		
+
 	/* wpa_supplicant does not check ek->version */
 
 	if(ek->pactype != EAPOL_KEY)
@@ -314,7 +314,7 @@ void recv_packet_3(void)
    as the requests are not issued too fast.
 
    Not sending this confirmation causes the AP to deauthenticate
-   the client after a sub-second timeout. */ 
+   the client after a sub-second timeout. */
 
 void send_packet_4(void)
 {

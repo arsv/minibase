@@ -86,7 +86,7 @@ static void waitfor(int fd, char* name)
 		dir[1] = '\0';
 	} else {
 		dir[0] = '.';
-		dir[1] = '\0';	
+		dir[1] = '\0';
 	}
 
 	wd = sys_inotify_add_watch(fd, dir, IN_CREATE);
@@ -96,7 +96,7 @@ static void waitfor(int fd, char* name)
 			waitfor(fd, dir);
 		wd = sys_inotify_add_watch(fd, dir, IN_CREATE);
 	}
-	
+
 	if(wd < 0)
 		fail("inotify-add-watch", name, wd);
 

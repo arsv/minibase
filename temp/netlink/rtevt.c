@@ -21,7 +21,7 @@ int main(noargs)
 	nl_init(&nl);
 	nl_set_txbuf(&nl, TX, sizeof(TX));
 	nl_set_rxbuf(&nl, RX, sizeof(RX));
-	
+
 	int mgrp_link = RTMGRP_LINK | RTMGRP_NOTIFY;
 	int mgrp_ipv4 = RTMGRP_IPV4_IFADDR | RTMGRP_IPV4_ROUTE;
 

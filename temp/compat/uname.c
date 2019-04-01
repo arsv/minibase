@@ -52,7 +52,7 @@ static void uname(struct utsname* un, int opts)
 
 int main(int argc, char** argv)
 {
-	int i = 1, opts = 0, ret; 
+	int i = 1, opts = 0, ret;
 	struct utsname un;
 
 	if(i < argc && argv[i][0] == '-')

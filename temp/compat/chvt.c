@@ -69,7 +69,7 @@ static int xatoi(char* str)
 {
 	int n;
 	char* p;
-	
+
 	if(!(p = parseint(str, &n)) || *p)
 		fail("not a number", str, 0);
 

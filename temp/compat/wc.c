@@ -35,7 +35,7 @@ static void addcounts(struct wc* a, struct wc* c)
 
 static const char* pad(uint64_t num, int to)
 {
-	static const char space[] = "\x20\x20\x20\x20\x20\x20";	
+	static const char space[] = "\x20\x20\x20\x20\x20\x20";
 	static const int spacelen = sizeof(space) - 1;
 	int width;
 
@@ -232,7 +232,7 @@ int main(int argc, char** argv)
 			dump(&cnts, argv[i], opts);
 			addcounts(&total, &cnts);
 		};
-		
+
 		dump(&total, NULL, opts);
 	}
 

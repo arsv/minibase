@@ -61,7 +61,7 @@ static void parsetime(struct timespec* sp, const char* str)
 		case '.': break;
 		default: fail2("invalid time suffix", str);
 	}
-	
+
 	/* Fractional part, if any */
 	if(*p == '.') for(p++; *p; p++) {
 		if(*p >= '0' && (d = *p - '0') < 10) {
@@ -80,7 +80,7 @@ static void parsetime(struct timespec* sp, const char* str)
 
 /* Several arguments are summed up:
 
-   	sleep 3m 15s -> sleep(195)
+       sleep 3m 15s -> sleep(195)
 
    Kind of pointless, but we support suffixes, so why not. */
 

@@ -26,7 +26,7 @@ void* mmapwhole(const char* name, ulong* len)
 		fail("cannot mmap", name, (long)ptr);
 
 	if(st.size > MAX_FILE_SIZE)
-		fail("file too large:", name, ret);	
+		fail("file too large:", name, ret);
 
 	*len = st.size;
 	return ptr;

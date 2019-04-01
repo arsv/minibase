@@ -53,7 +53,7 @@ static char* match_alias(char* ls, char* le, char* name, int nlen)
 			p++;
 			n++;
 		};
-	} 
+	}
 
 	if(p < e && *p == '*')
 		p++; /* skip trailing * matching nothing */

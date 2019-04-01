@@ -22,7 +22,7 @@ struct top {
 /* klogd is a special case of a syslog client as it pipes a different log
    source (the kernel ring buf) into syslog destructively. Because of that,
    it should avoid dropping the data received from the kernel.
-   
+
    During startup, klogd may come up before syslogd does, so it should wait
    a bit. Later syslogd may get restarted, and if that happens klogd should
    re-connect.
@@ -30,7 +30,7 @@ struct top {
    Note that while klodg may sleep a bit, it should try to stay below what
    super(8) considers a successful run time, so that if it keeps failing
    it would eventually get disabled.
- 
+
    [ This all means klogd should be merged into syslogd really, but that ]
    [ would require reading from /proc/kmsg instead of calling klogctl.   ] */
 

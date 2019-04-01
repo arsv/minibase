@@ -111,14 +111,14 @@ int main(int argc, char** argv)
 	char* s = buf;
 	char* p = buf;
 	char* e = buf + total;
-	
+
 	for(i = 0; i < argc; i++) {
 		if(i) *p++ = ' ';
 		len = arglen[i];
 		memcpy(p, argv[i], len);
 		p += len;
 	}
-	
+
 	*p = '\0'; /* terminate any trailing \-sequence */
 
 	if(opts & OPT_e)

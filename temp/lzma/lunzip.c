@@ -460,7 +460,7 @@ static int inflate_longrep(int state, int pstate, int n)
 	if(n > 2) lz.rep[3] = lz.rep[2];
 	if(n > 1) lz.rep[2] = lz.rep[1];
 	if(n > 0) lz.rep[1] = lz.rep[0];
-	
+
 	lz.rep[0] = rep;
 
 	uint len = 2 + dec_length(&lm.replen, pstate);
@@ -508,7 +508,7 @@ static void inflate_data(void)
 static uint32_t get_word(void)
 {
 	uint32_t ret;
-	
+
 	ret  = get_byte();
 	ret |= get_byte() << 8;
 	ret |= get_byte() << 16;
@@ -534,7 +534,7 @@ static void check_trailing(void)
 	uint32_t crc = get_word();
 	uint64_t osize = get_long();
 	uint64_t isize = get_long();
-	
+
 	out.crc ^= 0xFFFFFFFF;
 
 	if(crc != out.crc)
@@ -550,12 +550,12 @@ static void check_trailing(void)
 /* Init stage. Read file header, verify it, allocate and initialize
    required temporary structures (dictionary, probabilities, rc decode
    state).
- 
+
    Here dictionary also doubles as the output buffer. In most cases,
    it's large enough to serve as one, and for smaller files it may be
    large enough to contain the whole output.
 
-   See also get_byte(), put_byte() and peek_back() above. */ 
+   See also get_byte(), put_byte() and peek_back() above. */
 
 static void prep_output_buf(uint size)
 {

@@ -90,6 +90,6 @@ int main(int argc, char** argv)
 			makeall(argv[i++], mode);
 		else
 			makedir(argv[i++], mode);
-	
+
 	return 0;
 }

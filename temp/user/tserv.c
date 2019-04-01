@@ -35,7 +35,7 @@ static void setup_socket(char* name)
 	uint nlen = strlen(name);
 
 	addr.family = AF_UNIX;
-	
+
 	if(nlen > sizeof(addr.path) - 1)
 		fail("name too long:", name, 0);
 

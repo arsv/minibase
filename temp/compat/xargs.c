@@ -77,7 +77,7 @@ static char* endofline(char* ls, char* end, int opts)
    If large batches and lower number of spawns is preferable, the reading
    loop can be adjusted to only call useblock() once enough data has been
    accumulated. This is not implemented atm.
- 
+
    For blocks that aren't last in the file, non-terminated lines
    (those not ending in \n) are assumed to be incomplete, and left
    untouched. Subsequent readinput will append more bytes to the
@@ -129,7 +129,7 @@ static int useblock(struct exec* ctx, char* buf, int len, int lastone)
 
    That's probably not necessary if there's enough space remaining in buf,
    but then if so, copying shouldn't take too much time anyway.
- 
+
    In case input is a real file, mmaping it and calling useblock(LASTONE)
    on the mmaped buffer could be faster, but this case is so rare we
    do not bother. And even with mmaped file there would be a moving window,
@@ -176,7 +176,7 @@ static void readinput(struct exec* ctx, int fd)
 static int lookslikepath(const char* cmd)
 {
 	const char* p;
-	
+
 	for(p = cmd; *p; p++)
 		if(*p == '/')
 			return 1;

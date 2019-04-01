@@ -69,7 +69,7 @@ static void dump_libudev(char* buf, uint len)
 	p = fmtstr(p, e, " payload ");
 	p = fmtint(p, e, len - off);
 	FMTENL(p, e);
-	
+
 	writeall(STDOUT, header, p - header);
 
 	dump_kernel(buf + off, len - off);
