@@ -1,0 +1,35 @@
+.TH timed 8
+'''
+.SS NAME
+\fBtimed\fR \- time synchronization service (SNTP)
+'''
+.SS DESCRIPTION
+This service polls a remote NTP server on regular intervals (15 minutes
+to 1 hour) and adjusts system clock to match.
+'''
+.SS USAGE
+The service starts idle. Set up the system so that once network becomes
+available, \fBtictl\fR would be called to supply \fBtimed\fR with server
+addresses to use. It is fine to supply multiple servers; \fBtimed\fR will
+pick the closest.
+.P
+Once the server has been chosen, \fBtimed\fR should step the clock instantly
+to bring it within 0.5s from the refence time. Past that point, unless sudden
+jumps in time are detected, adjustments will be done slowly over periods of
+around half an hour.
+.P
+In case the primary server stops responding, \fBtimed\fR will try to switch
+to one of the spares. Servers added while the primary server is still usable
+will be stored, but no attempts will be made to poll them until the primary
+fails. It is generally a good idea to keep supplying new addresses occasionally
+while \fBtimed\fR is running, to make sure it has some spares ready.
+'''
+.SH FILES
+.IP "/run/ctrl/timed" 4
+Control socket.
+.P
+\fBtimed\fR does not store anything in the file system, and does not need
+any file access rights except for \fBbind\fR(2) on its control socket.
+'''
+.SH SEE ALSO
+\fBtictl\fR(1), \fBadjtimex\fR(2).

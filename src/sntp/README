@@ -1,0 +1,227 @@
+Why a custom time synchronization tool
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Client devices (PCs/desktops/laptops/whatever, anything that's not a time
+server) need a tool to set their real-time clocks. The tool should be
+lightweight and non-obtrusive, both for the user and for the public time
+servers it would likely use.
+
+Coarse time synchronization is a prerequisite for using TLS, something
+that the system may need to provide very early. Having a reliable time
+indication is generally good for the user, too; or rather, not having it
+in a connected device would raise concerns, even when running a bare-bone
+system.
+
+Finally, we need something that would work well with svhub and ifmon,
+something that would not need to do DNS lookups before the network is up,
+and could be updated to use the resolver service.
+
+
+Running timed from this directory
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Do make sure to disable any other time synchronization services!
+There are no interlocks. Two services running together on the same host
+may and likely will interact in weird ways. Any clock adjustments made
+externally while timed is running will be taken as clock drift. Worst case,
+this may end in a tug-of-war between the two over the control of the system
+clock.
+
+Use ../../temp/sntp tools, in particular `ntping`, to monitor clock state
+while `timed` is working. Beware you need a local, properly synchronized
+NTP server to do that! A second box running e.g. `chrony` should do.
+
+Root privileges are needed for clock_settime(2).
+
+When testing with a local NTP server, especially over a Wi-Fi connection,
+make sure to check RTT to avoid surprises. Some SOHO routers turn out to be
+incredibly crappy at routing between local addresses.
+
+
+Server selection
+~~~~~~~~~~~~~~~~
+This service always pick a single upstream server to synchronize with, and
+tries to stick with it for as long as possible.
+
+Polling multiple servers at once allow the node to detect bad upstream
+servers ("falsetickers"), however, doing so is relatively expensive in
+terms of requests sent, and becomes prohibitively so if done by every
+client on the net. Instead, we assume that the problem of keeping precise
+time gets solved at and between the time servers, while the clients trust
+them and do the minimum necessary to get their clocks set.
+
+The only thing `timed` does when presented with multiple servers is a quick
+poll through all available servers to pick the one with the lowest RTT
+(and weed out obviously dead ones). This trick allows public pools to only
+do a very coarse grouping at DNS lookup stage, country- or even continent-based,
+and rely on the clients to cluster around the closest servers, spreading the
+load geographically and ensuring reasonably good precision.
+
+Contrary to RFC 4330 (SNTP), `timed` does not respect DNS time-to-live and
+does not attempt to re-resolve server hostnames at regular intervals.
+Given the way public pools operate nowadays, it was deemed an unnecessary
+complication. Round-robin DNS resolution and a large number of clients
+should do a better job at load balancing than each individual client jumping
+between servers every now and then.
+
+
+Synchronization algorithm
+~~~~~~~~~~~~~~~~~~~~~~~~~
+The code here is based on a somewhat unusual interpretation of raw NTP data,
+and may be initially confusing because of that.
+
+The basic NTP request-reply exchange looks like this:
+
+    [B1] client sends a request
+       (time t1 passes while the packet is in transit)
+    [A2] server receives request, sends its current time back to the client
+       (time t2 passes while the packet is in transit)
+    [B3] client receives timestamp A2 from the server
+
+Both the server and the client note the time when each step happens
+according to their own clocks. The server clock, A, is assumed to be true.
+The client clock, B = A + d, is off, and the client wants to figure out
+the exact value of d.
+
+The common approach to correcting this, suggested by RFC 4330 in particular,
+is this:
+
+    d = ((B1 - A2) + (B3 - A2))/2
+
+Let's take a closer look:
+
+    B1 = A1 + d     (same time, taken by client and server clocks)
+    B3 = A3 + d
+
+    A1 = A2 - t1   ->  B1 = A2 - t1 + d
+    A3 = A2 + t2   ->  B3 = A2 + t2 + d
+
+    B1 - A2 = (A2 - t1 + d) - A2 = d - t1
+    B3 - A2 = (A2 + t2 + d) - A2 = d + t2
+
+    ((d - t1) + (d + t2))/2 = d + (t2 - t1)/2
+
+This estimate is exact if (t2 = t1), i.e. transit time is same in both
+directions. However, any asymmetric delays shift the estimate.
+Most implementations therefore treat d as a "noisy measurement", and apply
+some sort of statistical methods to even it out.
+
+There are two problem with the approach. First, it requires making some
+(unsubstantiated) assumption about the distribution of t1 and t2, or t1/t2.
+Second and more important, it tends to lead to drift estimation techniques
+that are sensitive to random network delays. While t1, t2, and (t2 - t1) are
+typically small compared to the desired clock precision, they tend to be about
+the same magnitude or even larger than clock drift over the poll interval.
+
+The approach used in timed is based on the assumption that packet propagation
+time cannot be negative, i.e. t1 >= 0 and t2 >= 0, so
+
+    B1 - A2 = d - t1   ->   d = B1 - A2 + t1   ->   d >= B1 - A2 = lo
+    B3 - A2 = d + t2   ->   d = B3 - A2 - t2   ->   d <= B3 - A2 = hi
+
+This means that each NTP exchange gives us a "plausible interval" for d,
+meaning that, as long as the packets don't travel back in time and the clocks
+don't go backwards, our d cannot possibly be outside of [lo; hi]. It doesn't
+give us any information as to where exactly in [lo; hi] the true value of d
+may be, so we never know the point-exact true time. But it does allow us to
+say for sure when our time is undoubtedly wrong.
+
+The primary use for this is increasing robustness in respect to packet delays.
+With point estimates, delayed packet may result in an estimate that's way off.
+With intervals, the interval itself gets wider, preventing synchronization
+altogether because it's consistent with local time, or at least allowing us
+to decide which point inside to pick based on external data.
+
+# There were further plans for interval-based drift compensation but it became
+# obvious that there's just not enough data points to do that.
+
+# Note NTP actually uses four time stamps: client send T1, server recv T2,
+# server send T3 and client recv T4. The two server-side timestamps are meant
+# to prevent asymmetric delays affecting the estimate in case the server takes
+# significant time to read its clock. It only matters for point estimates, and
+# in practice not even then because (T3 - T2) is typically orders of magnitude
+# smaller than packet transit times. For clarity, we assume T2 = T3 and use
+# a single timestamp A2 to represent both.
+
+
+Clock drift compensation and PLL
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+There is never enough data available to a regular SNTP client to do anything
+smart with clock drift! `timed` leaves the kernel PLL enabled, tries to feed
+it plausible data, and hopes for the best.
+
+The only reason to leave the kernel PLL enabled is to let it do clock slew
+for small adjustments. STA_FREQHOLD was considered, but ultimately it was
+left up to the kernel to decide what it's doing with the incoming data.
+
+Linux allows drift compensation of up to +/- 500ppm, in units of 1/2^16 ppm.
+For reference, that's +500ppm is +1.8s per hour and +1ppm is 3.6ms per hour.
+Clocks in modern PCs generally stay within low single-digit ppm from the
+reference. RTT to a typical public pool server is 10 to 30ms, so it takes
+many hours of observation just to detect the drift.
+
+Any server change, or any instance of the system going to sleep, basically
+invalidates drift observations. And in case of sleep, also require significant
+effort to detect.
+
+In current version, time synchronization is almost stateless.
+`timed` polls the server over regular intervals and fixes any detected offsets.
+
+
+Clock slew for small offsets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+`timed` fixes small but detectable offsets by commanding the kernel to slew
+the clock over period of about *half the poll interval*, so typically around
+half an hour. This results in negligible frequency change in most cases, but
+may also be confusing because the changes are not applied instantly.
+
+If `tictl` reports an offset of say +10ms adjusted 5 minutes ago, but ntping
+still reports something like +8ms offset, that's totally fine.
+
+Also of note, slews are applied to fix the detected offset *only*.
+No assumptions are made as to whether a similar offset will accumulate over
+the next poll interval.
+
+
+Poll intervals
+~~~~~~~~~~~~~~
+There is never enough data for adaptive poll timing.
+The default behavior is to just poll once an hour.
+
+The limited interval selection is only there to guard against large but
+correctable drift that would result in clock stepping on every poll at
+an hour or so. Step threshold is 0.5s and +500ppm drift would reach that
+in less than half an hour.
+
+
+Server name resolution
+~~~~~~~~~~~~~~~~~~~~~~
+Missing for now — `tictl` only accepts raw IPs.
+This is not meant to be so, it's just because `timed` was complete before
+the name resolution service.
+
+
+See also
+~~~~~~~~
+RFC 4330 Simple network time protocol (SNTP) version 4
+  https://www.ietf.org/rfc/rfc4330.txt
+RFC 5905 Network time protocol (NTP) version 4
+  https://www.ietf.org/rfc/rfc5905.txt
+
+Interval-based clock synchronization:
+
+* K. Marzullo. Maintaining the Time in a Distributed System. (1984)
+
+* Project SynUTC, https://www.auto.tuwien.ac.at/Projects/SynUTC/
+  and https://www.auto.tuwien.ac.at/Projects/SynUTC/algo.html in particular.
+
+`ntimed` by Poul-Henning Kamp, who also wrote several very interesting blog
+posts while on NTP stuff for BSD. Highly recommended, especially on the subject
+of dealing with networking delays.
+
+http://phk.freebsd.dk/_downloads/FOSDEM_2015.pdf
+http://phk.freebsd.dk/time/
+http://phk.freebsd.dk/time/20141107.html
+http://phk.freebsd.dk/time/20141024.html
+
+`systemd-timesyncd`, similar tool from systemd.
+
+https://github.com/systemd/systemd/tree/master/src/timesync
