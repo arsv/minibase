@@ -60,7 +60,7 @@ static void request_clock_slew(struct timex* tmx, int64_t dt, int ival)
 	int64_t ns = (dt * 1000000000 / (1LL<<32));
 
 	tmx->modes = ADJ_OFFSET | ADJ_NANO | ADJ_STATUS | ADJ_TIMECONST;
-	tmx->status = 0;
+	tmx->status = STA_PLL;
 	tmx->offset = ns;
 	tmx->constant = slew_time_constant(ival);
 }
