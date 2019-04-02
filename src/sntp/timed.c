@@ -49,11 +49,12 @@ static void clear_ctrl(void)
 void quit(const char* msg, char* arg, int err)
 {
 	clear_ctrl();
-	fail("poll", NULL, err);
+	fail(msg, arg, err);
 }
 
 static void sighandler(int sig)
 {
+	(void)sig;
 	clear_ctrl();
 	_exit(0);
 }
@@ -61,6 +62,7 @@ static void sighandler(int sig)
 static void nilhandler(int sig)
 {
 	/* we only need it to let ppoll exit with -EINTR */
+	(void)sig;
 }
 
 static void sigaction(int sig, struct sigaction* sa, const char* tag)

@@ -68,7 +68,7 @@ static uint64_t get_system_time(void)
 	return ((ss << 32) | fs);
 }
 
-static int put_server_address(CTX, void* buf, int size)
+static int put_server_address(CTX, void* buf, uint size)
 {
 	struct serv* sv = current(ctx);
 	int alen;
@@ -376,7 +376,7 @@ static struct ntpreq* recv_packet(CTX, void* buf, int len)
 	if(memcmp(addr, bddr, alen))
 		return NULL;
 
-	if(rd < sizeof(struct ntpreq))
+	if(rd < (int)sizeof(struct ntpreq))
 		return NULL;
 
 	return (struct ntpreq*)buf;

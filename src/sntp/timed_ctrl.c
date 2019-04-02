@@ -25,7 +25,7 @@ static int send_reply(struct conn* cn, struct ucbuf* uc)
 		return -EINVAL;
 
 	struct timespec ts = { 1, 0 };
-	struct pollfd pfd = { fd, POLLOUT };
+	struct pollfd pfd = { fd, POLLOUT, 0 };
 	int ret;
 again:
 	if((ret = sys_send(fd, buf, len, 0)) >= len)
