@@ -15,15 +15,13 @@
    basenames of possible options are stored in struct tabtab, sorted
    and indexed. The second Tab dumps the stored index.
 
-   The mmaped block in TT may need to grow. To avoid the hassle of
-   keeping the pointers valid across mremap, only offsets are stored.
-
            i0  i1  i2  i3      ic
            v   v   v   v       v
     buf -> FN0 FN1 FN2 FN3 ... FNc i0 i1 ... ic          FN = struct fname
                                    ^ idx       ^ptr      c = (count-1)
 
-   The index is int[count] containg offsets of individusl struct fname's. */
+   The index contains pointers to individual struct fname's. Once indexed,
+   the page never gets re-allocated so pointers are acceptable. */
 
 struct fname {
 	ushort len;
@@ -34,10 +32,7 @@ struct fname {
 
 static struct fname* get_fname(TT, int i)
 {
-	void* buf = tt->buf;
-	int* index = (int*)(buf + tt->idx);
-
-	return (buf + index[i]);
+	return tt->idx[i];
 }
 
 /* Double Tab (and the . command) requires us to dump the collected
@@ -138,11 +133,6 @@ static void dump_dirlist(TT, int cols)
 
 /* Directory listing code: scan given directory, put filenames into TT. */
 
-static void reset_dirlist(TT)
-{
-	memzero(tt, sizeof(*tt));
-}
-
 static int init_buffer(TT)
 {
 	if(tt->buf)
@@ -193,14 +183,10 @@ static void* alloc_mem(TT, int size)
 	return tt->buf + ptr;
 }
 
-static int cmpent(const void* ap, const void* bp, long ttp)
+static int cmpent(const void* ap, const void* bp)
 {
-	int av = *((int*)ap);
-	int bv = *((int*)bp);
-	struct tabtab* tt = (struct tabtab*) ttp;
-
-	struct fname* fa = (tt->buf + av);
-	struct fname* fb = (tt->buf + bv);
+	struct fname* fa = *((struct fname**)ap);
+	struct fname* fb = *((struct fname**)bp);
 
 	if(fa->isdir && !fb->isdir)
 		return -1;
@@ -212,34 +198,32 @@ static int cmpent(const void* ap, const void* bp, long ttp)
 
 static void index_entries(TT)
 {
-	void* buf;
+	struct fname** idx;
 	int count = tt->count;
 
-	if(!(buf = alloc_mem(tt, count*sizeof(int)))) {
+	if(!(idx = alloc_mem(tt, count*sizeof(int)))) {
 		tt->idx = 0;
 		return;
 	}
 
-	int* index = buf;
+	tt->idx = idx;
+
 	int i = 0;
-
-	tt->idx = (int)(buf - tt->buf);
-
-	int ptr = 0;
-	int end = tt->ptr;
+	void* ptr = tt->buf;
+	void* end = ptr + tt->ptr;
 
 	while(ptr < end) {
-		struct fname* fn = tt->buf + ptr;
+		struct fname* fn = ptr;
 
 		if(i >= count)
 			break;
 
-		index[i++] = ptr;
+		idx[i++] = fn;
 
 		ptr += fn->len;
 	}
 
-	qsortx(index, count, sizeof(int), cmpent, (long)tt);
+	qsort(idx, count, sizeof(void*), cmpent);
 }
 
 static void free_dirlist(TT)
@@ -347,8 +331,6 @@ out:
 static int prep_dirlist(TT, char* dir, char* pref, int plen, int exe)
 {
 	int ret;
-
-	reset_dirlist(tt);
 
 	if((ret = scan_directory(tt, dir, pref, plen, exe)) < 0)
 		return ret;
@@ -482,8 +464,6 @@ void single_tab(CTX)
 	if(expand_arg(ctx, &xa))
 		return;
 
-	reset_dirlist(tt);
-
 	if(xa.noslash && xa.initial)
 		complete_command(ctx, tt, &xa);
 	else
@@ -521,4 +501,6 @@ void cancel_tab(CTX)
 	ctx->tab = 0;
 
 	free_dirlist(&ctx->tts);
+
+	memzero(&ctx->tts, sizeof(ctx->tts));
 }

@@ -13,12 +13,14 @@ struct outbuf {
 	int len;
 };
 
+struct fname;
+
 struct tabtab {
 	void* buf;     /* mmaped; may get remapped in process */
 	int size;      /* ... of the buffer */
-	int ptr;       /* Start of unallocated space */
+	int ptr;       /* ... to the start of free space in the buffer */
         /* the buffer contains a bunch of struct fname-s followed by index */
-	int idx;       /* Offset into buf at which the index starts */
+	struct fname** idx; /* file name index */
 	int count;     /* Number of (int) entries there. */
 	int needexe;   /* Ignore non-executable files when Tab'ing a command */
 };
