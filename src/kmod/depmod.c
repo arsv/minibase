@@ -190,9 +190,8 @@ static void index_modules(CTX)
 	void* ptr = ctx->brk;
 	void* end = ctx->ptr;
 	int i = 0, n = ctx->nmods;
-	int ptrsize = sizeof(struct mod*);
 
-	struct mod** pidx = halloc(ctx, n*ptrsize);
+	struct mod** pidx = halloc(ctx, n*sizeof(void*));
 
 	while(ptr < end) {
 		struct mod* md = ptr;
@@ -201,15 +200,15 @@ static void index_modules(CTX)
 		pidx[i++] = md;
 	}
 
-	struct mod** nidx = halloc(ctx, n*ptrsize);
+	struct mod** nidx = halloc(ctx, n*sizeof(void*));
 
-	memcpy(nidx, pidx, n*ptrsize);
+	memcpy(nidx, pidx, n*sizeof(void*));
 
 	ctx->pidx = pidx;
 	ctx->nidx = nidx;
 
-	qsort(pidx, n, ptrsize, by_path);
-	qsort(nidx, n, ptrsize, by_name);
+	qsort(pidx, n, sizeof(void*), by_path);
+	qsort(nidx, n, sizeof(void*), by_name);
 }
 
 static int stem_length(char* file)
