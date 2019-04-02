@@ -9,7 +9,6 @@
 #include <sys/timer.h>
 
 #include <string.h>
-#include <printf.h>
 #include <sigset.h>
 #include <main.h>
 #include <util.h>

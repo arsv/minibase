@@ -23,9 +23,8 @@
 #define SF_IPv6 (1<<1)
 #define SF_KILL (1<<2)
 #define SF_FAIL (1<<3)
-#define SF_MARK (1<<4)
+#define SF_PING (1<<4)
 #define SF_RTT  (1<<5)
-#define SF_INIT (1<<6)
 
 #define ADDRLEN 32
 
@@ -83,6 +82,7 @@ struct top {
 
 	int bestidx;
 	uint bestrtt;
+	uint lastrtt;
 
 	uint64_t ref;
 	int64_t lo;

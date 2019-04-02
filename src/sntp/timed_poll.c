@@ -128,24 +128,7 @@ static int send_packet(CTX)
 	return 0;
 }
 
-static void ping_pass_complete(CTX)
-{
-	int idx = ctx->bestidx;
-
-	if(idx < 0) {
-		stop_service(ctx);
-	} else {
-		ctx->current = idx;
-
-		consider_synching(ctx);
-
-		int ival = imax(ctx->interval, 60);
-
-		set_timed(ctx, TS_POLL_WAIT, ival);
-	}
-}
-
-static void pick_next_server(CTX)
+static int find_next_best(CTX)
 {
 	int i, n = NSERVS;
 	int rti = -1;
@@ -153,47 +136,57 @@ static void pick_next_server(CTX)
 
 	for(i = 0; i < n; i++) {
 		struct serv* sv = &ctx->servs[i];
-		int flags = sv->flags;
+		int mask = SF_SET | SF_RTT | SF_KILL | SF_FAIL;
+		int need = SF_SET | SF_RTT;
 
-		if(!(flags & SF_SET))
-			continue;
-		if(!(flags & SF_RTT))
-			continue;
-		if(flags & (SF_KILL | SF_FAIL))
+		if((sv->flags & mask) != need)
 			continue;
 
 		if(rti < 0)
 			;
-		else if(rtt <= sv->rtt)
+		else if(sv->rtt > rtt)
 			continue;
 
 		rti = i;
 		rtt = sv->rtt;
 	}
 
-	if(rti < 0)
-		return stop_service(ctx);
-
-	ctx->current = rti;
-
-	set_timed(ctx, TS_POLL_WAIT, 10);
+	return rti;
 }
 
-static int switch_to_next(CTX)
+static void ping_pass_complete(CTX)
 {
-	int i;
+	int ai = find_next_best(ctx);
+	int bi = ctx->bestidx;
 
-	for(i = 0; i < NSERVS; i++) {
+	ctx->current = ai;
+
+	if(ai < 0) {
+		stop_service(ctx);
+	} else if(ai == bi) { /* ping data is still fresh */
+		ctx->lastrtt = ctx->bestrtt;
+		consider_synching(ctx);
+		int ival = imax(ctx->interval, 60);
+		set_timed(ctx, TS_POLL_WAIT, ival);
+	} else { /* no fresh ping data, schedule a quick poll */
+		ctx->polltime = 0;
+		ctx->lastrtt = (uint)(-1);
+		set_timed(ctx, TS_POLL_WAIT, 2);
+	}
+
+	ctx->bestidx = -1;
+	ctx->bestrtt = 0;
+}
+
+static int find_unpinged(CTX)
+{
+	int i, n = NSERVS;
+
+	for(i = 0; i < n; i++) {
 		struct serv* sv = &ctx->servs[i];
-		int flags = sv->flags;
 
-		if(!(flags & SF_SET))
+		if((sv->flags & (SF_SET | SF_PING)) != SF_SET)
 			continue;
-		if(flags & (SF_RTT | SF_MARK | SF_KILL | SF_FAIL))
-			continue;
-
-		sv->flags |= SF_MARK;
-		ctx->current = i;
 
 		return i;
 	}
@@ -201,11 +194,53 @@ static int switch_to_next(CTX)
 	return -1;
 }
 
+static int set_current(CTX, int i)
+{
+	ctx->current = i;
+
+	return i;
+}
+
+static int select_next_best(CTX)
+{
+	return set_current(ctx, find_next_best(ctx));
+}
+
+static int select_unpinged(CTX)
+{
+	int idx = set_current(ctx, find_unpinged(ctx));
+
+	if(idx >= 0) {
+		struct serv* sv = current(ctx);
+		sv->flags |= SF_PING;
+	}
+
+	return idx;
+}
+
+static void switch_to_backup(CTX)
+{
+	if(select_next_best(ctx) >= 0)
+		set_timed(ctx, TS_POLL_WAIT, 10);
+	else
+		stop_service(ctx);
+}
+
 static void mark_current(CTX, int flag)
 {
 	struct serv* sv = current(ctx);
 
 	sv->flags |= flag;
+
+	ctx->current = -1;
+}
+
+static void ping_next_server(CTX)
+{
+	if(select_unpinged(ctx) >= 0)
+		set_timed(ctx, TS_PING_WAIT, 1);
+	else
+		ping_pass_complete(ctx);
 }
 
 static void drop_server(CTX, int flag)
@@ -215,12 +250,9 @@ static void drop_server(CTX, int flag)
 	int state = ctx->state;
 
 	if(state == TS_PING_SENT) {
-		if(switch_to_next(ctx) >= 0)
-			set_timed(ctx, TS_PING_WAIT, 1);
-		else
-			ping_pass_complete(ctx);
+		ping_next_server(ctx);
 	} else if(state == TS_POLL_SENT) {
-		pick_next_server(ctx);
+		switch_to_backup(ctx);
 	} else {
 		quit("unexpected state", NULL, state);
 	}
@@ -252,7 +284,7 @@ static void add_ping_point(CTX, uint64_t ref, int64_t lo, int64_t hi)
 
 	if(ctx->bestidx < 0)
 		;
-	else if(urtt >= ctx->bestrtt)
+	else if(ctx->bestrtt < urtt)
 		goto out;
 
 	ctx->ref = ref;
@@ -266,11 +298,10 @@ static void add_ping_point(CTX, uint64_t ref, int64_t lo, int64_t hi)
 
 	note_poll_time(ctx);
 out:
-	if(switch_to_next(ctx) >= 0) {
+	if(select_unpinged(ctx) >= 0)
 		ctx->state = TS_PING_WAIT;
-	} else {
+	else
 		ping_pass_complete(ctx);
-	}
 }
 
 static void add_poll_point(CTX, uint64_t ref, int64_t lo, int64_t hi)
@@ -283,6 +314,8 @@ static void add_poll_point(CTX, uint64_t ref, int64_t lo, int64_t hi)
 		rtt = 0xFFFFFFFFLL;
 
 	uint urtt = (uint)rtt;
+
+	ctx->lastrtt = urtt;
 
 	struct serv* sv = current(ctx);
 
@@ -297,7 +330,7 @@ static void add_poll_point(CTX, uint64_t ref, int64_t lo, int64_t hi)
 
 	consider_synching(ctx);
 
-	int ival = imax(ctx->interval, 60);
+	int ival = imax(ctx->interval, 1);
 
 	set_timed(ctx, TS_POLL_WAIT, ival);
 }
@@ -404,7 +437,7 @@ static void send_ping_request(CTX)
 	} else if(ctx->failures < 1) {
 		ctx->failures++;
 		set_timed(ctx, TS_PING_WAIT, 1);
-	} else if(switch_to_next(ctx) >= 0) {
+	} else if(select_unpinged(ctx) >= 0) {
 		set_timed(ctx, TS_PING_WAIT, 1);
 	} else {
 		ping_pass_complete(ctx);
@@ -416,7 +449,7 @@ static void handle_ping_timeout(CTX)
 	if(ctx->failures < 1) {
 		ctx->failures++;
 		send_ping_request(ctx);
-	} else if(switch_to_next(ctx) >= 0) {
+	} else if(select_unpinged(ctx) >= 0) {
 		send_ping_request(ctx);
 	} else {
 		ping_pass_complete(ctx);
@@ -429,14 +462,14 @@ static void send_poll_request(CTX)
 		/* success, wait for reply */
 		set_timed(ctx, TS_POLL_SENT, 1);
 	} else if(ctx->failures < 3) {
-		/* retry in 10s, noting a failure */
+		/* retry in 60s, noting a failure */
 		ctx->failures++;
-		set_timed(ctx, TS_POLL_WAIT, 10);
+		set_timed(ctx, TS_POLL_WAIT, 60);
 	} else {
 		/* we're out of retries with this server */
 		/* drop it and check if we've got spares */
 		mark_current(ctx, SF_FAIL);
-		pick_next_server(ctx);
+		switch_to_backup(ctx);
 	}
 }
 
@@ -444,31 +477,22 @@ static void handle_poll_timeout(CTX)
 {
 	if(ctx->failures < 3) {
 		ctx->failures++;
-		set_timed(ctx, TS_POLL_WAIT, 10 - 1);
+		set_timed(ctx, TS_POLL_WAIT, 60 - 1);
 	} else {
-		set_timed(ctx, TS_SELECT, 10);
+		mark_current(ctx, SF_FAIL);
+		set_timed(ctx, TS_SELECT, 1);
 	}
 }
 
 static void start_selection(CTX)
 {
-	for(int i = 0; i < NSERVS; i++)
-		ctx->servs[i].flags &= ~SF_MARK;
+	ctx->bestidx = -1;
+	ctx->bestrtt = 0;
 
-	if(ctx->current >= 0) {
-		struct serv* sv = current(ctx);
-		ctx->bestidx = ctx->current;
-		ctx->bestrtt = sv->rtt;
-	} else {
-		ctx->bestidx = -1;
-		ctx->bestrtt = 0;
-	}
-
-	if(switch_to_next(ctx) >= 0) {
+	if(select_unpinged(ctx) >= 0)
 		send_ping_request(ctx);
-	} else {
+	else
 		ping_pass_complete(ctx);
-	}
 }
 
 void handle_timeout(CTX)

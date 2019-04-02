@@ -25,7 +25,10 @@ struct top {
 };
 
 #define CTX struct top* ctx __attribute__((unused))
+#define MSG struct ucmsg* msg __attribute__((unused))
 #define UC (&ctx->uc)
+
+typedef struct ucattr* attr;
 
 static void prep_context(CTX, int argc, char** argv)
 {
@@ -115,41 +118,36 @@ static struct ucmsg* send_recv(CTX)
 	return recv_reply(ctx);
 }
 
-static char* fmt_state(char* p, char* e, struct ucmsg* msg)
+static char* fmt_server_rtt(char* p, char* e, int* rtt)
 {
-	int* sp = uc_get_int(msg, ATTR_STATE);
-	int state = sp ? *sp : 0;
-	char* tag;
+	if(!rtt)
+		return p;
 
-	switch(state) {
-		case TS_IDLE:
-			tag = "Stopped";
-			break;
-		case TS_SELECT:
-		case TS_PING_SENT:
-		case TS_PING_WAIT:
-			tag = "Picking server";
-			break;
-		case TS_POLL_SENT:
-		case TS_POLL_WAIT:
-			tag = "Synchronized";
-			break;
-		default:
-			return p;
+	uint urtt = *(uint*)rtt;
+
+	if(urtt < 1000) {
+		p = fmtstr(p, e, " rtt ");
+		p = fmtuint(p, e, urtt);
+		p = fmtstr(p, e, "us");
+	} else {
+		p = fmtstr(p, e, " rtt ");
+		p = fmtuint(p, e, urtt/1000);
+		p = fmtstr(p, e, "ms");
 	}
 
-	return fmtstr(p, e, tag);
+	return p;
 }
 
-static char* fmt_server(char* p, char* e, struct ucmsg* msg)
+static char* fmt_current(char* p, char* e, struct ucmsg* msg)
 {
 	struct ucattr* at = uc_get(msg, ATTR_ADDR);
 	int* port = uc_get_int(msg, ATTR_PORT);
+	int* rtt = uc_get_int(msg, ATTR_RTT);
 
 	if(!at || !port)
-		return p;
+		return fmtstr(p, e, "No server selected");
 
-	p = fmtstr(p, e, ", server ");
+	p = fmtstr(p, e, "Server ");
 
 	if(uc_paylen(at) == 4)
 		p = fmtip(p, e, uc_payload(at));
@@ -163,13 +161,7 @@ static char* fmt_server(char* p, char* e, struct ucmsg* msg)
 		p = fmtint(p, e, *port);
 	}
 
-	//int* stratum = uc_get_int(msg, ATTR_STRATUM);
-
-	//if(stratum) {
-	//	p = fmtstr(p, e, " (stratum ");
-	//	p = fmtint(p, e, *stratum);
-	//	p = fmtstr(p, e, ")");
-	//}
+	p = fmt_server_rtt(p, e, rtt);
 
 	return p;
 }
@@ -255,13 +247,27 @@ static char* fmt_ntp_dt(char* p, char* e, int64_t dt)
 
 static char* fmt_wakeup(char* p, char* e, struct ucmsg* msg)
 {
+	int* fl = uc_get_int(msg, ATTR_FAILURES);
 	int* tp = uc_get_int(msg, ATTR_TIMELEFT);
 
-	if(!tp) return p;
+	if(fl && tp) {
+		p = fmtchar(p, e, '\n');
+		p = fmtstr(p, e, "Retrying after ");
 
-	p = fmtchar(p, e, '\n');
-	p = fmtstr(p, e, "Next check in");
-	p = fmt_dt_int(p, e, *tp);
+		if(*fl == 1) {
+			p = fmtstr(p, e, "a failure");
+		} else {
+			p = fmtint(p, e, *fl);
+			p = fmtstr(p, e, " failures");
+		}
+
+		p = fmtstr(p, e, " in");
+		p = fmt_dt_int(p, e, *tp);
+	} else if(tp) {
+		p = fmtchar(p, e, '\n');
+		p = fmtstr(p, e, "Next check in");
+		p = fmt_dt_int(p, e, *tp);
+	}
 
 	return p;
 }
@@ -311,23 +317,180 @@ static char* fmt_times(char* p, char* e, struct ucmsg* msg)
 	return p;
 }
 
+static void output(char* buf, char* end)
+{
+	writeall(STDOUT, buf, end - buf);
+}
+
+static void report_idle(CTX, MSG)
+{
+	FMTBUF(p, e, buf, 100);
+	p = fmtstr(p, e, "Service stopped");
+	FMTENL(p, e);
+
+	output(buf, p);
+}
+
+static void report_select(CTX, MSG)
+{
+	int* timeleft = uc_get_int(msg, ATTR_TIMELEFT);
+
+	FMTBUF(p, e, buf, 100);
+
+	p = fmtstr(p, e, "Starting server selection");
+
+	if(timeleft) {
+		p = fmtstr(p, e, " in ");
+		p = fmt_dt_int(p, e, *timeleft);
+	}
+
+	FMTENL(p, e);
+
+	output(buf, p);
+}
+
+static char* fmt_server_address(char* p, char* e, attr ip, int* port)
+{
+	if(!ip)
+		return fmtstr(p, e, "???");
+
+	if(uc_paylen(ip) == 4)
+		p = fmtip(p, e, uc_payload(ip));
+	else if(uc_paylen(ip) == 16)
+		p = fmtstr(p, e, "(ipv6)");
+	else
+		p = fmtstr(p, e, "(---)");
+
+	if(!port)
+		p = fmtstr(p, e, ":??");
+	else if(*port != 123) {
+		p = fmtstr(p, e, ":");
+		p = fmtint(p, e, *port);
+	}
+
+	return p;
+}
+
+static char* fmt_server(char* p, char* e, attr at)
+{
+	attr ip = uc_sub(at, ATTR_ADDR);
+	int* port = uc_sub_int(at, ATTR_PORT);
+	int* rtt = uc_sub_int(at, ATTR_RTT);
+
+	p = fmt_server_address(p, e, ip, port);
+
+	if(!rtt)
+		p = fmtstr(p, e, " not pinged yet");
+	else
+		p = fmt_server_rtt(p, e, rtt);
+
+	p = fmtchar(p, e, '\n');
+
+	return p;
+}
+
+static char* fmt_failed(char* p, char* e, attr at)
+{
+	attr ip = uc_sub(at, ATTR_ADDR);
+	int* port = uc_sub_int(at, ATTR_PORT);
+
+	p = fmt_server_address(p, e, ip, port);
+
+	p = fmtstr(p, e, " unreachable");
+
+	p = fmtchar(p, e, '\n');
+
+	return p;
+}
+
+static void report_ping(CTX, MSG)
+{
+	attr at;
+
+	FMTBUF(p, e, buf, 512);
+
+	p = fmtstr(p, e, "Selecting server to use\n");
+
+	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
+		if(uc_is_nest(at, ATTR_SERVER))
+			p = fmt_server(p, e, at);
+		else if(uc_is_nest(at, ATTR_FAILED))
+			p = fmt_failed(p, e, at);
+
+	int* tp = uc_get_int(msg, ATTR_TIMELEFT);
+
+	if(tp) {
+		p = fmtstr(p, e, "Next in");
+		p = fmt_dt_int(p, e, *tp);
+		p = fmtchar(p, e, '\n');
+	}
+
+	FMTEND(p, e);
+
+	output(buf, p);
+}
+
+static void report_poll(CTX, MSG)
+{
+	FMTBUF(p, e, buf, 512);
+	p = fmt_current(p, e, msg);
+	p = fmt_times(p, e, msg);
+	p = fmt_wakeup(p, e, msg);
+	FMTENL(p, e);
+
+	output(buf, p);
+}
+
 static void cmd_status(CTX)
 {
 	struct ucmsg* msg;
+	int cmd;
 
 	uc_put_hdr(UC, CMD_TI_STATUS);
 	uc_put_end(UC);
 
 	msg = send_recv(ctx);
 
-	FMTBUF(p, e, output, 512);
-	p = fmt_state(p, e, msg);
-	p = fmt_server(p, e, msg);
-	p = fmt_times(p, e, msg);
-	p = fmt_wakeup(p, e, msg);
-	FMTENL(p, e);
+	if((cmd = msg->cmd) < 0)
+		fail(NULL, NULL, cmd);
 
-	writeall(STDOUT, output, p - output);
+	if(cmd == REP_TI_IDLE)
+		report_idle(ctx, msg);
+	else if(cmd == REP_TI_SELECT)
+		report_select(ctx, msg);
+	else if(cmd == REP_TI_PING)
+		report_ping(ctx, msg);
+	else if(cmd == REP_TI_POLL)
+		report_poll(ctx, msg);
+}
+
+static void cmd_srlist(CTX)
+{
+	struct ucmsg* msg;
+	attr at;
+	int cmd;
+
+	uc_put_hdr(UC, CMD_TI_SRLIST);
+	uc_put_end(UC);
+
+	msg = send_recv(ctx);
+
+	if((cmd = msg->cmd) < 0)
+		fail(NULL, NULL, cmd);
+	if(cmd != REP_TI_PING)
+		fail("unexpected reply", NULL, 0);
+
+	FMTBUF(p, e, buf, 512);
+
+	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
+		if(uc_is_nest(at, ATTR_SERVER))
+			p = fmt_server(p, e, at);
+		else if(uc_is_nest(at, ATTR_FAILED))
+			p = fmt_failed(p, e, at);
+
+	FMTEND(p, e);
+
+	output(buf, p);
 }
 
 static int parse_ip4_server(char* arg, byte ip[4], int* port)
@@ -404,15 +567,27 @@ static void cmd_reset(CTX)
 	send_check(ctx);
 }
 
+static void cmd_force(CTX)
+{
+	no_more_arguments(ctx);
+
+	uc_put_hdr(UC, CMD_TI_FORCE);
+	uc_put_end(UC);
+
+	send_check(ctx);
+}
+
 static const struct cmd {
 	char name[8];
 	void (*call)(CTX);
 } commands[] = {
 	{ "status", cmd_status },
 	{ "server", cmd_server },
+	{ "list",   cmd_srlist },
 	{ "retry",  cmd_retry  },
 	{ "reset",  cmd_reset  },
-	{ "stop",   cmd_reset  }
+	{ "stop",   cmd_reset  },
+	{ "sync",   cmd_force  }
 };
 
 static const struct cmd* find_command(CTX)

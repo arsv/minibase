@@ -13,6 +13,8 @@
 #include "timed.h"
 #include "common.h"
 
+#define UC struct ucbuf* uc
+
 typedef struct ucattr* attr;
 
 static int send_reply(struct conn* cn, struct ucbuf* uc)
@@ -76,6 +78,88 @@ static int time_left(CTX)
 	return (int)its.value.sec;
 }
 
+static void put_server_addr(UC, struct serv* ss)
+{
+	if(ss->flags & SF_IPv6)
+		uc_put_bin(uc, ATTR_ADDR, ss->addr, 16);
+	else
+		uc_put_bin(uc, ATTR_ADDR, ss->addr, 4);
+
+	uc_put_int(uc, ATTR_PORT, ss->port);
+}
+
+static void put_rtt_in_us(UC, uint rtt)
+{
+	int64_t rtt64 = (int64_t)rtt;
+	uint urtt = (uint)((rtt64 * 1000000) >> 32);
+	uc_put_int(uc, ATTR_RTT, urtt);
+}
+
+static void report_ping(CTX, UC)
+{
+	int i, n = NSERVS;
+
+	uc_put_hdr(uc, REP_TI_PING);
+
+	uc_put_int(uc, ATTR_TIMELEFT, time_left(ctx));
+
+	for(i = 0; i < n; i++) {
+		struct serv* sv = &ctx->servs[i];
+		int flags = sv->flags;
+
+		if(!(flags & SF_SET))
+			continue;
+
+		int tag = ATTR_SERVER;
+
+		if(flags & (SF_FAIL | SF_KILL))
+			tag = ATTR_FAILED;
+
+		attr at = uc_put_nest(uc, tag);
+		put_server_addr(uc, sv);
+		if(flags & SF_RTT)
+			put_rtt_in_us(uc, sv->rtt);
+		uc_end_nest(uc, at);
+	}
+}
+
+static void report_poll(CTX, UC)
+{
+	uc_put_hdr(uc, REP_TI_POLL);
+
+	uc_put_int(uc, ATTR_TIMELEFT, time_left(ctx));
+
+	if(ctx->failures)
+		uc_put_int(uc, ATTR_FAILURES, ctx->failures);
+
+	if(ctx->synctime) {
+		uc_put_i64(uc, ATTR_SYNCTIME, ctx->synctime);
+		uc_put_i64(uc, ATTR_OFFSET, ctx->syncdt);
+	} if(ctx->polltime != ctx->synctime) {
+		uc_put_i64(uc, ATTR_POLLTIME, ctx->polltime);
+	}
+
+	if(ctx->current < 0)
+		return;
+
+	struct serv* ss = current(ctx);
+
+	put_server_addr(uc, ss);
+
+	if(ctx->polltime)
+		put_rtt_in_us(uc, ctx->lastrtt);
+}
+
+static void report_idle(CTX, UC)
+{
+	uc_put_hdr(uc, REP_TI_IDLE);
+}
+
+static void report_select(CTX, UC)
+{
+	uc_put_hdr(uc, REP_TI_SELECT);
+}
+
 static int cmd_status(CTX, CN, MSG)
 {
 	char cbuf[512];
@@ -83,30 +167,24 @@ static int cmd_status(CTX, CN, MSG)
 	int state = ctx->state;
 
 	uc_buf_set(&uc, cbuf, sizeof(cbuf));
-	uc_put_hdr(&uc, 0);
 
-	if(state)
-		uc_put_int(&uc, ATTR_STATE, state);
-
-	if(state != TS_IDLE)
-		uc_put_int(&uc, ATTR_TIMELEFT, time_left(ctx));
-
-	if(ctx->synctime) {
-		uc_put_i64(&uc, ATTR_SYNCTIME, ctx->synctime);
-		uc_put_i64(&uc, ATTR_OFFSET, ctx->syncdt);
-	} if(ctx->polltime != ctx->synctime) {
-		uc_put_i64(&uc, ATTR_POLLTIME, ctx->polltime);
-	}
-
-	if(ctx->current > 0) {
-		struct serv* ss = current(ctx);
-
-		if(ss->flags & SF_IPv6)
-			uc_put_bin(&uc, ATTR_ADDR, ss->addr, 16);
-		else
-			uc_put_bin(&uc, ATTR_ADDR, ss->addr, 4);
-
-		uc_put_int(&uc, ATTR_PORT, ss->port);
+	switch(state) {
+		case TS_IDLE:
+			report_idle(ctx, &uc);
+			break;
+		case TS_SELECT:
+			report_select(ctx, &uc);
+			break;
+		case TS_PING_SENT:
+		case TS_PING_WAIT:
+			report_ping(ctx, &uc);
+			break;
+		case TS_POLL_SENT:
+		case TS_POLL_WAIT:
+			report_poll(ctx, &uc);
+			break;
+		default:
+			return -EFAULT;
 	}
 
 	uc_put_end(&uc);
@@ -230,6 +308,18 @@ static int got_usable_servers(CTX)
 	return 0;
 }
 
+static int cmd_srlist(CTX, CN, MSG)
+{
+	char cbuf[512];
+	struct ucbuf uc;
+
+	uc_buf_set(&uc, cbuf, sizeof(cbuf));
+	report_ping(ctx, &uc);
+	uc_put_end(&uc);
+
+	return send_reply(cn, &uc);
+}
+
 static int cmd_server(CTX, CN, MSG)
 {
 	int ret;
@@ -283,14 +373,38 @@ static int cmd_reset(CTX, CN, MSG)
 	return 0;
 }
 
+static int cmd_force(CTX, CN, MSG)
+{
+	int state = ctx->state;
+
+	switch(state) {
+		case TS_IDLE:
+			return -ENOTCONN;
+		case TS_PING_SENT:
+		case TS_PING_WAIT:
+		case TS_POLL_SENT:
+			return -EINPROGRESS;
+		case TS_POLL_WAIT:
+			break;
+		default:
+			return -EFAULT;
+	}
+
+	set_timed(ctx, TS_POLL_WAIT, 1);
+
+	return 0;
+}
+
 static const struct cmd {
 	int cmd;
 	int (*call)(CTX, CN, MSG);
 } commands[] = {
 	{ CMD_TI_STATUS,  cmd_status  },
 	{ CMD_TI_SERVER,  cmd_server  },
+	{ CMD_TI_SRLIST,  cmd_srlist  },
 	{ CMD_TI_RETRY,   cmd_retry   },
-	{ CMD_TI_RESET,   cmd_reset   }
+	{ CMD_TI_RESET,   cmd_reset   },
+	{ CMD_TI_FORCE,   cmd_force   }
 };
 
 static int dispatch_cmd(CTX, CN, MSG)
