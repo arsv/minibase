@@ -38,7 +38,7 @@ static void get_flags(int fd, struct ifreq* ifr, char* name)
 	int nlen = strlen(name);
 	int ret;
 
-	if(nlen > sizeof(ifr->name))
+	if(nlen > (int)sizeof(ifr->name))
 		fail("device name too long", NULL, 0);
 
 	memzero(ifr, sizeof(*ifr));
