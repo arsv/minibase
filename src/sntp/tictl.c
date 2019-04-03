@@ -299,7 +299,7 @@ static char* fmt_times(char* p, char* e, struct ucmsg* msg)
 		p = fmt_dt_s64(p, e, ref - *synctime);
 		p = fmtstr(p, e, " ago");
 		if(dt) {
-			p = fmtstr(p, e, ", offset ");
+			p = fmtstr(p, e, ", ");
 			p = fmt_ntp_dt(p, e, *dt);
 		} if(rt) {
 			p = fmtstr(p, e, " rtt ");
