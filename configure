@@ -157,7 +157,7 @@ exec $cc -ffreestanding \\
 END
 else
 cat >> mini-cc <<END
-exec $cc -ffreestanding \\
+exec $cc -ffreestanding -fomit-frame-pointer \\
 	-fno-asynchronous-unwind-tables -fno-stack-protector \\
 	-static -fno-pie -fno-PIE -fno-pic -fno-PIC $lto \\
 	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib -MD \\
