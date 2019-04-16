@@ -75,6 +75,7 @@ if [ -z "$arch" ]; then
 		mipsn32)   arch=mips32 ;;
 		mipsn32el) arch=mips32 ;;
 		mipsel)    arch=mips ;;
+		armv*)     arch=arm ;;
 		*) arch="$mach"
 	esac
 	test -n "$arch" || die "Cannot determine target arch"
