@@ -417,6 +417,8 @@ int start_connection(void)
 
 	trigger_authentication();
 
+	set_timer(1);
+
 	return 0;
 }
 
@@ -470,6 +472,8 @@ static void nlm_authenticate(MSG)
 	prime_eapol_state();
 
 	trigger_associaction();
+
+	set_timer(1);
 }
 
 static void nlm_associate(MSG)
@@ -515,8 +519,6 @@ int start_disconnect(void)
 
 	trigger_disconnect();
 
-	set_timer(1);
-
 	return 0;
 }
 
@@ -539,6 +541,20 @@ void note_disconnect(void)
 {
 	reset_eapol_state();
 
+	authstate = AS_IDLE;
+
+	handle_disconnect();
+}
+
+void timeout_associate(void)
+{
+	authstate = AS_IDLE;
+
+	handle_disconnect();
+}
+
+void timeout_authenticate(void)
+{
 	authstate = AS_IDLE;
 
 	handle_disconnect();

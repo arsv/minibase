@@ -195,6 +195,8 @@ void routine_fg_scan(void);
 void routine_bg_scan(void);
 int maybe_start_scan(void);
 void note_disconnect(void);
+void timeout_authenticate(void);
+void timeout_associate(void);
 
 void reset_device(void);
 void handle_netdown(void);

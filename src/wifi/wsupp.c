@@ -205,6 +205,10 @@ static void timer_expired(void)
 		routine_bg_scan();
 	else if(authstate == AS_DISCONNECTING)
 		note_disconnect();
+	else if(authstate == AS_AUTHENTICATING)
+		timeout_authenticate();
+	else if(authstate == AS_ASSOCIATING)
+		timeout_associate();
 	else if(authstate != AS_IDLE)
 		abort_connection();
 	else
