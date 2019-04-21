@@ -302,9 +302,11 @@ static void print_status_line(CTX, MSG, int state)
 			if(state == WS_SCANNING)
 				p = fmtstr(p, e, ", scanning now");
 		} else if(state == WS_SCANNING) {
-			p = fmtstr(p, e, " scanning now");
-		} else if(state == WS_UNKNOWN) {
-			p = fmtstr(p, e, " idle");
+			p = fmtstr(p, e, " scanning");
+		} else if(state == WS_STOPPED) {
+			p = fmtstr(p, e, " stopped");
+		} else if(state == WS_MONITOR) {
+			p = fmtstr(p, e, " monitoring");
 		} else {
 			p = fmtstr(p, e, " state ");
 			p = fmtint(p, e, state);

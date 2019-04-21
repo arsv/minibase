@@ -10,6 +10,7 @@
 #define CMD_WI_NEUTRAL      WI(4)
 #define CMD_WI_CONNECT      WI(5)
 #define CMD_WI_DETACH       WI(6)
+#define CMD_WI_RESET        WI(7)
 
 #define REP_WI_NET_DOWN     WI(0)
 #define REP_WI_SCANNING     WI(1)
@@ -18,6 +19,8 @@
 #define REP_WI_DISCONNECT   WI(4)
 #define REP_WI_NO_CONNECT   WI(5)
 #define REP_WI_CONNECTED    WI(6)
+#define REP_WI_EXTERNAL     WI(7)
+#define REP_WI_ABORTED      WI(8)
 
 #define ATTR_SSID       1
 #define ATTR_PSK        2
@@ -39,10 +42,10 @@
 #define ATTR_TIME      18
 #define ATTR_IES       19
 
-/* ATTR_STATE = authstate */
-#define WS_UNKNOWN         0
-#define WS_SCANNING        1
-#define WS_CONNECTING      2
-#define WS_CONNECTED       3
-#define WS_RFKILLED        4
-#define WS_STOPPING        5
+#define WS_STOPPED         0
+#define WS_MONITOR         1
+#define WS_SCANNING        2
+#define WS_CONNECTING      3
+#define WS_CONNECTED       4
+#define WS_RFKILLED        5
+#define WS_STOPPING        6

@@ -44,27 +44,11 @@ int bring_iface_up(void)
 	return 0;
 }
 
-static void clear_device(void)
+void clear_device(void)
 {
 	ifindex = 0;
 	memzero(ifname, sizeof(ifname));
 	memzero(ifaddr, sizeof(ifaddr));
-}
-
-void reset_device(void)
-{
-	reset_eapol_state();
-	clear_scan_table();
-
-	authstate = AS_IDLE;
-	scanstate = SS_IDLE;
-
-	close_rfkill();
-	close_rawsock();
-	close_netlink();
-	clr_timer();
-
-	clear_device();
 }
 
 int set_device(char* name)

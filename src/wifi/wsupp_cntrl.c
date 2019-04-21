@@ -90,6 +90,16 @@ void report_no_connect(void)
 	report_simple(REP_WI_NO_CONNECT);
 }
 
+void report_aborted(void)
+{
+	report_simple(REP_WI_ABORTED);
+}
+
+void report_external(void)
+{
+	report_simple(REP_WI_EXTERNAL);
+}
+
 static void report_station(int cmd)
 {
 	struct ucbuf uc;
@@ -153,8 +163,6 @@ static int common_wifi_state(void)
 		return WS_RFKILLED;
 	if(authstate == AS_NETDOWN)
 		return WS_STOPPING;
-	if(authstate == AS_EXTERNAL)
-		return WS_STOPPING;
 	if(authstate == AS_DISCONNECTING)
 		return WS_STOPPING;
 	if(authstate != AS_IDLE)
@@ -162,7 +170,12 @@ static int common_wifi_state(void)
 	if(scanstate != SS_IDLE)
 		return WS_SCANNING;
 
-	return WS_UNKNOWN; /* should never be reached */
+	if(opermode == OP_MONITOR)
+		return WS_MONITOR;
+	if(opermode == OP_STOPPED)
+		return WS_STOPPED;
+
+	return -1; /* should never be reached */
 }
 
 static void put_status_wifi(struct ucbuf* uc)
@@ -254,7 +267,7 @@ static int cmd_setdev(CN, MSG)
 	char* name;
 	int ret;
 
-	if(!(opermode == OP_DETACH))
+	if(!(opermode == OP_STOPPED))
 		return -EBUSY;
 	if(!(name = uc_get_str(msg, ATTR_NAME)))
 		return -EINVAL;
@@ -293,6 +306,25 @@ static int cmd_neutral(CN, MSG)
 	cn->rep = 1;
 
 	clr_timer();
+
+	return 0;
+}
+
+static int cmd_reset(CN, MSG)
+{
+	int ret;
+
+	clr_timer();
+	opermode = OP_STOPPED;
+
+	if((ret = force_disconnect()) < 0)
+		return ret;
+	if((ret = start_void_scan()) < 0)
+		return ret;
+
+	opermode = OP_MONITOR;
+	authstate = AS_IDLE;
+	scanstate = SS_IDLE;
 
 	return 0;
 }
@@ -364,6 +396,7 @@ static const struct cmd {
 	{ CMD_WI_SCAN,    cmd_scan    },
 	{ CMD_WI_CONNECT, cmd_connect },
 	{ CMD_WI_NEUTRAL, cmd_neutral },
+	{ CMD_WI_RESET,   cmd_reset   },
 	{ CMD_WI_DETACH,  cmd_detach  }
 };
 

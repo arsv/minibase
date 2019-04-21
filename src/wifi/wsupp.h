@@ -14,7 +14,6 @@
 #define AS_CONNECTED       4
 #define AS_DISCONNECTING   5
 #define AS_NETDOWN         7
-#define AS_EXTERNAL        8
 
 /* eapolstate */
 #define ES_IDLE            0
@@ -29,11 +28,12 @@
 #define SS_SCANDUMP        2
 
 /* opermode */
-#define OP_DETACH          0 /* no active device */
-#define OP_MONITOR         1 /* passive scanning */
-#define OP_ONESHOT         2 /* connecting to AP, auto-reset on failure */
-#define OP_ACTIVE          3 /* AP set, at least one successful connection */
-#define OP_RESCAN          4 /* lost connection, re-trying the same BSS */
+#define OP_STOPPED         0 /* no scanning, just keep the device */
+#define OP_DETACH          1 /* drop currently active device */
+#define OP_MONITOR         2 /* passive scanning */
+#define OP_ONESHOT         3 /* connecting to AP, auto-reset on failure */
+#define OP_ACTIVE          4 /* AP set, at least one successful connection */
+#define OP_RESCAN          5 /* lost connection, re-trying the same BSS */
 
 /* scan.type */
 #define ST_WPS         (1<<0)
@@ -150,6 +150,7 @@ int start_void_scan(void);
 int start_scan(int freq);
 int start_disconnect(void);
 int start_connection(void);
+int force_disconnect(void);
 
 void quit(const char* msg, char* arg, int err) noreturn;
 void abort_connection(void);
@@ -166,6 +167,8 @@ void reassess_wifi_situation(void);
 void handle_connect(void);
 void handle_disconnect(void);
 void handle_rfrestored(void);
+void handle_external(void);
+void handle_timeout(void);
 void check_new_scan_results(void);
 int run_stamped_scan(void);
 
@@ -179,6 +182,7 @@ void clr_timer(void);
 int get_timer(void);
 
 void reset_station(void);
+void clear_device(void);
 int set_station(byte* ssid, int slen, byte psk[32]);
 
 void report_net_down(void);
@@ -188,6 +192,8 @@ void report_scan_fail(void);
 void report_no_connect(void);
 void report_disconnect(void);
 void report_connected(void);
+void report_external(void);
+void report_aborted(void);
 
 void trigger_dhcp(void);
 
@@ -195,8 +201,7 @@ void routine_fg_scan(void);
 void routine_bg_scan(void);
 int maybe_start_scan(void);
 void note_disconnect(void);
-void timeout_authenticate(void);
-void timeout_associate(void);
+void note_nl_timeout(void);
 
 void reset_device(void);
 void handle_netdown(void);

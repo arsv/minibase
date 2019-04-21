@@ -206,9 +206,9 @@ static void timer_expired(void)
 	else if(authstate == AS_DISCONNECTING)
 		note_disconnect();
 	else if(authstate == AS_AUTHENTICATING)
-		timeout_authenticate();
+		note_nl_timeout();
 	else if(authstate == AS_ASSOCIATING)
-		timeout_associate();
+		note_nl_timeout();
 	else if(authstate != AS_IDLE)
 		abort_connection();
 	else

@@ -281,6 +281,36 @@ void reset_station(void)
 	clear_ap_ssid();
 }
 
+void reset_device(void)
+{
+	reset_eapol_state();
+	clear_scan_table();
+
+	opermode = OP_STOPPED;
+	authstate = AS_IDLE;
+	scanstate = SS_IDLE;
+
+	close_rfkill();
+	close_rawsock();
+	close_netlink();
+	clr_timer();
+
+	clear_device();
+}
+
+static void snap_to_neutral(void)
+{
+	reset_station();
+	opermode = OP_MONITOR;
+}
+
+static void snap_to_stopped(void)
+{
+	clr_timer();
+	reset_station();
+	opermode = OP_STOPPED;
+}
+
 static void set_current_ap(struct scan* sc)
 {
 	ap.success = 0;
@@ -400,6 +430,22 @@ static void try_some_other_ap(void)
 	reassess_wifi_situation();
 }
 
+/* Netlink AUTHENTICATE or ASSOCIATE command timed out */
+
+void handle_timeout(void)
+{
+	report_aborted();
+	snap_to_stopped();
+}
+
+/* Netlink layer detected another supplicant working on the same device */
+
+void handle_external(void)
+{
+	report_external();
+	snap_to_stopped();
+}
+
 /* Netlink reports AP connection has been lost. */
 
 void handle_disconnect(void)
@@ -408,23 +454,22 @@ void handle_disconnect(void)
 
 	report_disconnect();
 
-	if(opermode == OP_DETACH) {
-		/* we were disconnecting to drop the device */
-		reset_device();
-	} else if(opermode == OP_MONITOR) {
-		/* we were simply disconnecting (wifi dc) */
-		clear_ap_bssid();
-		clear_ap_ssid();
-	} else { /* we were not planning to disconnect at all */
+	/* was this disconnect intentional? */
 
-		if(opermode == OP_RESCAN)     /* re-connect failed */
-			opermode = OP_ACTIVE; /* try another BSS   */
+	if(opermode == OP_DETACH) /* disconnect to drop the device */
+		return reset_device();
+	if(opermode == OP_MONITOR) /* commanded disconnect (wifi dc) */
+		return reset_station();
 
-		if(ap.success)                /* we were connected */
-			rescan_current_ap();  /* try to re-connect */
-		else /* we were *not* successful in connecting to this BSS */
-			try_some_other_ap();
-	}
+	/* nope, it was unintentional */
+
+	if(opermode == OP_RESCAN)     /* re-connect failed */
+		opermode = OP_ACTIVE; /* try another BSS   */
+
+	if(ap.success)                /* we were connected */
+		rescan_current_ap();  /* try to re-connect */
+	else /* we were *not* successful in connecting to this BSS */
+		try_some_other_ap();
 }
 
 /* Netlink reported ENETDOWN and we timed out waiting for rfkill. */
@@ -487,13 +532,6 @@ void routine_fg_scan(void)
 	}
 }
 
-static void snap_to_neutral(void)
-{
-	clear_ap_bssid();
-	clear_ap_ssid();
-	opermode = OP_MONITOR;
-}
-
 static void idle_then_rescan(void)
 {
 	set_timer(TIME_TO_FG_SCAN);
@@ -501,6 +539,8 @@ static void idle_then_rescan(void)
 
 void reassess_wifi_situation(void)
 {
+	if(opermode == OP_STOPPED)
+		return;
 	if(opermode == OP_MONITOR)
 		return;
 	if(authstate != AS_IDLE)

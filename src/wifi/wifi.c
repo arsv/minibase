@@ -268,6 +268,21 @@ static void cmd_neutral(CTX)
 	};
 }
 
+static void cmd_reset(CTX)
+{
+	int ret;
+
+	connect_to_wictl(ctx);
+
+	uc_put_hdr(UC, CMD_WI_RESET);
+	uc_put_end(UC);
+
+	no_other_options(ctx);
+
+	if((ret = send_recv_cmd(ctx)) < 0)
+		fail(NULL, NULL, ret);
+}
+
 static void wait_for_scan_results(CTX)
 {
 	struct ucmsg* msg;
@@ -415,6 +430,10 @@ static void wait_for_connect(CTX)
 				warn_bss(ctx, "cannot connect to", msg);
 				failures++;
 				break;
+			case REP_WI_EXTERNAL:
+				fail("another supplicant detected", NULL, 0);
+			case REP_WI_ABORTED:
+				fail("connection attempt aborted", NULL, 0);
 			case REP_WI_NO_CONNECT:
 				if(failures)
 					fail("no more APs in range", NULL, 0);
@@ -548,6 +567,7 @@ static const struct cmdrec {
 	{ "connect",    cmd_connect },
 	{ "dc",         cmd_neutral },
 	{ "disconnect", cmd_neutral },
+	{ "reset",      cmd_reset   },
 	{ "saved",      cmd_saved   },
 	{ "forget",     cmd_forget  },
 	{ "bss",        cmd_bss     }

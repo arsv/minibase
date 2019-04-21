@@ -446,15 +446,14 @@ static void trigger_disconnect(void)
    operation, and should only happen in response to another supplicant
    trying to work on the same device. */
 
-static void snap_to_disabled(char* why)
+static void snap_to_external(char* why)
 {
-	opermode = OP_DETACH;
-	authstate = AS_EXTERNAL;
+	authstate = AS_IDLE;
 
 	warn("EAPOL", why, 0);
 
 	reset_eapol_state();
-	handle_disconnect();
+	handle_external();
 }
 
 /* See comments around prime_eapol_state() / allow_eapol_sends() on why
@@ -464,10 +463,10 @@ static void snap_to_disabled(char* why)
 
 static void nlm_authenticate(MSG)
 {
-	if(authstate == AS_EXTERNAL)
+	if(authstate == AS_IDLE)
 		return;
 	if(authstate != AS_AUTHENTICATING)
-		return snap_to_disabled("out-of-order AUTH");
+		return snap_to_external("out-of-order AUTH");
 
 	prime_eapol_state();
 
@@ -478,10 +477,10 @@ static void nlm_authenticate(MSG)
 
 static void nlm_associate(MSG)
 {
-	if(authstate == AS_EXTERNAL)
+	if(authstate == AS_IDLE)
 		return;
 	if(authstate != AS_ASSOCIATING)
-		return snap_to_disabled("out-of-order ASSOC");
+		return snap_to_external("out-of-order ASSOC");
 
 	allow_eapol_sends();
 
@@ -490,34 +489,44 @@ static void nlm_associate(MSG)
 
 static void nlm_connect(MSG)
 {
-	if(authstate == AS_EXTERNAL)
+	if(authstate == AS_IDLE)
 		return;
 	if(authstate != AS_CONNECTING)
-		snap_to_disabled("out-of-order CONNECT");
+		snap_to_external("out-of-order CONNECT");
 
 	authstate = AS_CONNECTED;
 }
 
 /* start_disconnect is for user requests,
-   abort_connection gets called if EAPOL negotiations fail. */
+   abort_connection gets called if EAPOL negotiations fail.
+
+   Some cards, in some cases, may silently ignore DISCONNECT request.
+   There's no errors, but there's not disconnect notification either.
+
+   Missing notification would stall the state machine here, so every
+   DISCONNECT attempt gets a short timer, and if that expires we just
+   assume the card is in disconnected state already. */
 
 int start_disconnect(void)
 {
-	if(netlink <= 0)
-		return -ENOTCONN;
-	/* not ENODEV here ^ to prevent the client from
-	   trying to pick a device and retry the request */
-
 	switch(authstate) {
-		case AS_IDLE:
-			return -ENOTCONN;
+		case AS_CONNECTING:
+		case AS_CONNECTED:
+			break;
 		case AS_NETDOWN:
 			return -ENETDOWN;
 		case AS_DISCONNECTING:
 			return -EBUSY;
+		default:
+			return -ENOTCONN;
 	}
 
+	if(netlink <= 0) /* should never really happen after the switch() */
+		return -ENODEV;
+
 	trigger_disconnect();
+
+	set_timer(1);
 
 	return 0;
 }
@@ -530,31 +539,24 @@ void abort_connection(void)
 	reassess_wifi_situation();
 }
 
-/* Some cards, in some cases, may silently ignore DISCONNECT request.
-   There's no errors, but there's not disconnect notification either.
+int force_disconnect(void)
+{
+	if(netlink <= 0)
+		return -ENODEV;
 
-   Missing notification would stall the state machine here, so every
-   DISCONNECT attempt gets a short timer, and if that expires we just
-   assume the card is in disconnected state already. */
+	trigger_disconnect();
+
+	return 0;
+}
+
+/* This gets called on DISCONNECT message below, and also
+   on DISCONNECT timeout. We do not make distinction atm,
+   a timed-out disconnect is assumed to be successful. */
 
 void note_disconnect(void)
 {
 	reset_eapol_state();
 
-	authstate = AS_IDLE;
-
-	handle_disconnect();
-}
-
-void timeout_associate(void)
-{
-	authstate = AS_IDLE;
-
-	handle_disconnect();
-}
-
-void timeout_authenticate(void)
-{
 	authstate = AS_IDLE;
 
 	handle_disconnect();
@@ -566,6 +568,20 @@ static void nlm_disconnect(MSG)
 		return;
 
 	note_disconnect();
+}
+
+/* AUTHENTICATE or ASSOCIATE timed out. Bad news. */
+
+void note_nl_timeout(void)
+{
+	if(authstate == AS_AUTHENTICATING)
+		warn("timed-out", "AUTHENTICATE", 0);
+	else if(authstate == AS_ASSOCIATING)
+		warn("timed-out", "AUTHENTICATE", 0);
+
+	authstate = AS_IDLE;
+
+	handle_timeout();
 }
 
 /* EAPOL code does negotiations in the user space, but the resulting
