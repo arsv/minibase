@@ -718,21 +718,28 @@ static void snap_to_netdown(void)
 static void handle_auth_error(int err)
 {
 	if(authstate == AS_DISCONNECTING) {
+		warn(NULL, "DISCONNECT", err);
 		authstate = AS_IDLE;
 		reassess_wifi_situation();
 	} else if(authstate == AS_AUTHENTICATING) {
+		warn(NULL, "AUTHENTICATE", err);
 		authstate = AS_IDLE;
 		if(err == -ENOENT)
 			start_scan(ap.freq);
 	} else if(authstate == AS_ASSOCIATING) {
+		warn(NULL, "ASSOCIATE", err);
 		if(err == -EINVAL)
 			authstate = AS_IDLE;
 		else
 			abort_connection();
 	} else if(authstate == AS_CONNECTING) {
+		warn(NULL, "CONNECT", err);
 		abort_connection();
 	} else if(authstate == AS_CONNECTED) {
+		warn("while connected:", NULL, err);
 		abort_connection();
+	} else {
+		warn("unexpected NL error:", NULL, err);
 	}
 }
 
@@ -744,6 +751,8 @@ static void genl_error(struct nlerr* msg)
 		handle_scan_error(msg->errno);
 	else if(authstate != AS_IDLE)
 		handle_auth_error(msg->errno);
+	else
+		warn("stray NL error", NULL, msg->errno);
 }
 
 static const struct cmd {
