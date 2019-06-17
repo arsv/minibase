@@ -264,15 +264,15 @@ static int cmd_detach(CN, MSG)
 
 static int cmd_setdev(CN, MSG)
 {
-	char* name;
+	int* ifi;
 	int ret;
 
 	if(!(opermode == OP_STOPPED))
 		return -EBUSY;
-	if(!(name = uc_get_str(msg, ATTR_NAME)))
+	if(!(ifi = uc_get_int(msg, ATTR_IFI)))
 		return -EINVAL;
 
-	if((ret = set_device(name)) < 0)
+	if((ret = open_netlink(*ifi)) < 0)
 		return ret;
 	if((ret = start_void_scan()) < 0)
 		return ret;
@@ -467,6 +467,15 @@ void setup_control(void)
 void unlink_control(void)
 {
 	sys_unlink(WICTL);
+}
+
+void quit(const char* msg, char* arg, int err)
+{
+	if(msg || arg || err)
+		warn(msg, arg, err);
+
+	unlink_control();
+	_exit(0xFF);
 }
 
 void handle_control(void)

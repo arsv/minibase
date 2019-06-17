@@ -1,4 +1,6 @@
 #include <bits/rfkill.h>
+#include <bits/ioctl/socket.h>
+#include <sys/ioctl.h>
 #include <sys/file.h>
 
 #include <format.h>
@@ -16,7 +18,7 @@
    The only somewhat reliable way to be notified is by listening to /dev/rfkill.
    But rfkill device is provided by a standalone module that may not be loadeded
    at any given time, and may get un-/re-loaded. Normally this does not happens,
-   so wimon keeps the fd open. However if open attempt fails, wsupp will try to
+   so wsupp keeps the fd open. However if open attempt fails, wsupp will try to
    re-open it on any suitable occasion. This may lead to redundant open calls
    in case rfkill is in fact missing, but there's probably no other way around
    this. Hopefully events that trigger reopen attempts are rare.
@@ -31,17 +33,42 @@
    time some managed link gets un-killed, followed by attempt to re-establish
    connection. */
 
+#define IFF_UP (1<<0)
+
 int rfkill;
 int rfkilled;
 static int rfkidx;
 
-/* The interface gets brought up with simple ioctls. It could have been done
-   with RTNL as well, but setting up RTNL for this mere reason hardly makes
-   sense.
+int bring_iface_up(void)
+{
+	int ret, fd = netlink;
+	char* name = ifname;
+	uint nlen = strlen(ifname);
+	struct ifreq ifr;
 
-   Current code works on interface named $ifname, in contrast with GENL code
-   that uses $ifindex instead. Renaming the interface while wsupp runs *will*
-   confuse it. */
+	if(nlen > sizeof(ifr.name))
+		return -ENAMETOOLONG;
+
+	memzero(&ifr, sizeof(ifr));
+	memcpy(ifr.name, name, nlen);
+
+	if((ret = sys_ioctl(fd, SIOCGIFFLAGS, &ifr)) < 0) {
+		warn("ioctl SIOCGIFFLAGS", name, ret);
+		return ret;
+	}
+
+	if(ifr.ival & IFF_UP)
+		return 0;
+
+	ifr.ival |= IFF_UP;
+
+	if((ret = sys_ioctl(fd, SIOCSIFFLAGS, &ifr)) < 0) {
+		warn("ioctl SIOCSIFFLAGS", name, ret);
+		return ret;
+	}
+
+	return 0;
+}
 
 static int match_rfkill(int idx)
 {
@@ -59,13 +86,13 @@ static int match_rfkill(int idx)
 
 static void handle_event(struct rfkill_event* re)
 {
-	if(rfkidx < 0) {
-		if(match_rfkill(re->idx))
-			rfkidx = re->idx;
-		else
+	if(rfkidx >= 0) {
+		if(re->idx != rfkidx)
 			return;
-	} else if(re->idx != rfkidx) {
-		return;
+	} else { /* not set yet */
+		if(!match_rfkill(re->idx))
+			return;
+		rfkidx = re->idx;
 	}
 
 	if(re->soft || re->hard) {

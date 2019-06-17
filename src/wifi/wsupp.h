@@ -109,6 +109,12 @@ extern struct ap {
 	int rescans;
 } ap;
 
+/* Netlink connection */
+
+extern struct netlink nl;
+extern int netlink; /* socket fd (also nl.fd) */
+extern int nl80211; /* family, for messages */
+
 /* Encryption parameters */
 
 extern byte PSK[32];
@@ -130,7 +136,7 @@ void unlink_control(void);
 int open_rawsock(void);
 void close_rawsock(void);
 
-int open_netlink();
+int open_netlink(int ifi);
 void close_netlink();
 void handle_netlink(void);
 void handle_rawsock(void);

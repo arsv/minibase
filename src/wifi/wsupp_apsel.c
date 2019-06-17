@@ -294,8 +294,6 @@ void reset_device(void)
 	close_rawsock();
 	close_netlink();
 	clr_timer();
-
-	clear_device();
 }
 
 static void snap_to_neutral(void)
