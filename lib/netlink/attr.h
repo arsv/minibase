@@ -12,6 +12,7 @@ struct nlattr* nl_nest(struct nlattr* at);
 #define nl_int(at, tt) (tt*)(nl_bin(at, sizeof(tt)))
 #define nl_u8(at) nl_int(at, uint8_t)
 #define nl_u16(at) nl_int(at, uint16_t)
+#define nl_i32(at) nl_int(at, int32_t)
 #define nl_u32(at) nl_int(at, uint32_t)
 #define nl_u64(at) nl_int(at, uint64_t)
 
