@@ -88,8 +88,8 @@ not resolve it completely.
 The danger of T3 attacks is that they may disclose some patterns in the way
 the person chooses the passphrases, effectively reducing their already low
 entropy. That and the fact that T3 may be upgraded to T2 by getting a hold
-on the device later. Crankshafts are expected to be small and easy to lose,
-and by necessity carry device identification data on them.
+on the device later. Hand-cranks (SD or USB) are expected to be small and easy
+to lose, and by necessity carry device identification data on them.
 
 
 Why not LUKS?
@@ -122,13 +122,13 @@ The format of the header itself is way too complex for reasons that make no
 sense when used in a saner overall setup. Striping adds complexity in order
 to "hide" the keys on the drive to hinder key recovery -- but the same problem
 is much better solved by having the keys (along with the kernel) on cheap SD
-cards and setting compromised ones on fire, Said cards could also double as
+cards and setting compromised ones on fire. Said cards could also double as
 hardware key slots *and* as backup key storage.
 
 LUKS supports configurable cipher settings, adding complexity and increasing
-the chances of user errors. The choice of ciphers is one of the things that
-should not be left to the users. The rare use cases that could benefit from
-configurable ciphers are rare and would likely require dedicated tools anyway.
+the chances of T0 and user errors. The choice of ciphers is one of the things
+that should not be left to the users. The rare cases that could benefit from
+configurable ciphers would likely require dedicated tools anyway.
 
 Current implementation allows configuring hash functions for PBKDF2 instead
 of just picking one and sticking with it, but does *not* allow replacing
