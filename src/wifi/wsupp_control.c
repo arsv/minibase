@@ -82,8 +82,18 @@ static void report_station(int cmd)
 
 void report_scan_end(int err)
 {
-	(void)err;
-	report_simple(REP_WI_SCAN_END);
+	char buf[64];
+	struct ucbuf uc = {
+		.brk = buf,
+		.ptr = buf,
+		.end = buf + sizeof(buf)
+	};
+
+	uc_put_hdr(&uc, REP_WI_SCAN_END);
+	if(err) uc_put_int(&uc, ATTR_ERROR, err);
+	uc_put_end(&uc);
+
+	send_report(uc.brk, uc.ptr - uc.brk);
 }
 
 void report_connecting(void)
@@ -212,7 +222,6 @@ static int cmd_detach(CN, MSG)
 		return ret;
 
 	close_netlink();
-	close_rfkill();
 
 	return 0;
 }
@@ -229,10 +238,8 @@ static int cmd_setdev(CN, MSG)
 
 	if((ret = open_netlink(*ifi)) < 0)
 		return ret;
-	if((ret = ap_monitor()) < 0)
+	if((ret = ap_resume()) < 0)
 		return ret;
-
-	retry_rfkill();
 
 	cn->rep = 1;
 
@@ -243,7 +250,7 @@ static int cmd_scan(CN, MSG)
 {
 	int ret;
 
-	if(ifindex < 0)
+	if(ifindex <= 0)
 		return -ENODEV;
 	if((ret = start_scan(0)) < 0)
 		return ret;
@@ -265,18 +272,12 @@ static int cmd_neutral(CN, MSG)
 	return 0;
 }
 
-static int cmd_reset(CN, MSG)
+static int cmd_resume(CN, MSG)
 {
-	int ret;
+	if(ifindex <= 0)
+		return -ENODEV;
 
-	if(ifindex >= 0)
-		if((ret = force_disconnect()) < 0)
-			return ret;
-
-	if((ret = ap_reset()) < 0)
-		return ret;
-
-	return 0;
+	return ap_resume();
 }
 
 /* ACK to the command should preceed any notifications caused by the command.
@@ -324,7 +325,7 @@ static const struct cmd {
 	{ CMD_WI_CONNECT, cmd_connect },
 	{ CMD_WI_NEUTRAL, cmd_neutral },
 	{ CMD_WI_DETACH,  cmd_detach  },
-	{ CMD_WI_RESET,   cmd_reset   }
+	{ CMD_WI_RESUME,  cmd_resume  }
 };
 
 static int dispatch_cmd(CN, MSG)

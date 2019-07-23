@@ -261,7 +261,7 @@ static void cmd_neutral(CTX)
 
 	no_other_options(ctx);
 
-	if((ret = send_recv_cmd(ctx)) == -EALREADY)
+	if((ret = send_recv_cmd(ctx)) == -ECANCELED)
 		return;
 	else if(ret < 0)
 		fail(NULL, NULL, ret);
@@ -273,13 +273,13 @@ static void cmd_neutral(CTX)
 			break;
 }
 
-static void cmd_reset(CTX)
+static void cmd_resume(CTX)
 {
 	int ret;
 
 	connect_to_wictl(ctx);
 
-	uc_put_hdr(UC, CMD_WI_RESET);
+	uc_put_hdr(UC, CMD_WI_RESUME);
 	uc_put_end(UC);
 
 	no_other_options(ctx);
@@ -291,10 +291,16 @@ static void cmd_reset(CTX)
 static void wait_for_scan_results(CTX)
 {
 	struct ucmsg* msg;
+	int* err;
 
 	while((msg = recv_reply(ctx)))
 		if(msg->cmd == REP_WI_SCAN_END)
 			break;
+
+	if(!msg)
+		fail("no reply", NULL, 0); /* should never happen */
+	if((err = uc_get_int(msg, ATTR_ERROR)) && *err)
+		fail(NULL, NULL, *err);
 }
 
 static void fetch_dump_scan_list(CTX)
@@ -434,10 +440,11 @@ static void wait_for_connect(CTX)
 				failures++;
 				break;
 			case REP_WI_NO_CONNECT:
-				if(failures)
+				if(failures > 1)
 					fail("no more APs in range", NULL, 0);
-				else
+				else if(!failures)
 					fail("no suitable APs", NULL, 0);
+				return;
 		}
 	}
 }
@@ -566,7 +573,7 @@ static const struct cmdrec {
 	{ "connect",    cmd_connect },
 	{ "dc",         cmd_neutral },
 	{ "disconnect", cmd_neutral },
-	{ "reset",      cmd_reset   },
+	{ "resume",     cmd_resume  },
 	{ "saved",      cmd_saved   },
 	{ "forget",     cmd_forget  },
 	{ "bss",        cmd_bss     }

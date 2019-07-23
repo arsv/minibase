@@ -24,8 +24,7 @@
 #define OP_ABORTING        24
 
 #define OP_NETDOWN         30
-#define OP_RFKILLED        31
-#define OP_EXTERNAL        32
+#define OP_EXTERNAL        31
 
 int operstate;
 int rfkilled;
@@ -83,90 +82,26 @@ static int connect_to_something(void)
 	return proceed_with_connect();
 }
 
-/* RFkill interface notifies us that the kill switch has been released.
-   If we were interrupted by rfkill, we should resume operations. */
-
-void radio_restored(void)
-{
-	if(!rfkilled)
-		return;
-
-	rfkilled = 0;
-
-	if(operstate != OP_RFKILLED) /* we weren't doing anything */
-		return;
-
-	ap.rescans = 0;
-
-	if(ap.freq) /* we were tuned to a particular BSS */
-		operstate = OP_BSS_SCAN; /* try to find it again */
-	else if(ap.slen) /* we were searching for a particular network */
-		operstate = OP_NET_SCAN; /* keep doing that */
-	else /* we were just monitoring */
-		operstate = OP_FG_SCAN;
-
-	start_scan(ap.freq); /* full scan if no active BSS */
-}
-
-/* RFkill reports the card has been suppressed. */
-
-void radio_killed(void)
-{
-	if(rfkilled)
-		return;
-
-	rfkilled = 1;
-
-	if(operstate != OP_NETDOWN)
-		return;
-
-	operstate = OP_RFKILLED;
-
-	clear_timer();
-}
-
-/* We got netdown but timed out waiting for rfkill.
-   It has to be a true netdown then, not rfkill.
-   Stop all operations and close the device. */
-
-static void rfkill_timeout(void)
-{
-	if(operstate != OP_NETDOWN) /* probably OP_RFKILL already */
-		return;
-
-	operstate = OP_STOPPED;
-
-	clear_ssid_bssid();
-}
-
 /* ENETDOWN from any request means the device has been reset, and
-   connection lost. So we should reset all our associated state.
+   connection lost. So we should reset all our associated state. */
 
-   Initially we stay tuned to the network. If ENETDOWN was caused by
-   rfkill, we will attempt to re-connect to the same station. But if
-   it was a true netdown, we will release the device.
-
-   From our point of view, rfkill events are just stray events and
-   we cannot rely on their timing. ENETDOWN, on the other hand, comes
-   in response to our request, typically a scan request. So we always
-   work off ENETDOWN. */
-
-static void check_rf_netdown(void)
+static void snap_to_netdown(void)
 {
-	operstate = OP_NETDOWN;
-
 	close_rawsock();
 	reset_eapol_state();
 	reset_auth_state();
 	reset_scan_state();
 	clear_timer();
+	clear_all_bss_marks();
+
+	if(!ap.success)
+		clear_ssid_bssid();
+	if(ap.slen)
+		operstate = OP_NETDOWN;
+	else
+		operstate = OP_STOPPED;
 
 	report_no_connect();
-
-	if(rfkilled)
-		operstate = OP_RFKILLED;
-	else
-		set_timer(1, rfkill_timeout);
 }
 
 static void routine_fg_scan(void)
@@ -293,9 +228,9 @@ static void reassess_situation(void)
 
 static void lost_good_connection(void)
 {
+	clear_timer();
+
 	ap.rescans = 0;
-	/* mark the corresponding scanline good */
-	mark_current_bss_good();
 
 	rescan_current_bss();
 }
@@ -313,9 +248,9 @@ static void snap_to_monitoring(void)
 
 static void unexpected_disconnect(int err)
 {
-	if(operstate == OP_CONNECTED) /* radio connection failed */
+	if(operstate == OP_CONNECTING) /* radio connection failed */
 		goto next;
-	if(operstate == OP_EAPOL) /* EAPOL negotiations failed */
+	else if(operstate == OP_EAPOL) /* EAPOL negotiations failed */
 		goto next;
 	else if(operstate == OP_CONNECTED)
 		goto good;
@@ -328,9 +263,11 @@ good:
 	/* else abnormal termination, do not re-connect */
 next:
 	if(err == -ENETDOWN) /* device down, stop connection attempts */
-		return check_rf_netdown();
+		return snap_to_netdown();
 	if(err == -EINVAL) /* messed up NL command somewhere */
 		return snap_to_monitoring();
+
+	clear_timer();
 
 	return try_another_bss();
 }
@@ -406,6 +343,7 @@ void eapol_success(void)
 
 	ap.rescans = 0;
 	ap.success = 1;
+	mark_current_bss_good();
 
 	set_timer(5*60, routine_bg_scan);
 
@@ -441,7 +379,7 @@ void scan_ended(int err)
 	report_scan_end(err);
 
 	if(err == -ENETDOWN)
-		return check_rf_netdown();
+		return snap_to_netdown();
 
 	if(operstate == OP_NET_SCAN)
 		return try_another_bss();
@@ -460,6 +398,8 @@ static int can_change_network(void)
 
 	if(operstate == OP_STOPPED)
 		return yes;
+	if(operstate == OP_NETDOWN)
+		return yes;
 	if(operstate == OP_MONITORING)
 		return yes;
 	if(operstate == OP_SEARCHING)
@@ -477,6 +417,7 @@ int set_network(byte* ssid, int slen, byte psk[32])
 	if(slen > (int)sizeof(ap.ssid))
 		return -ENAMETOOLONG;
 
+	memzero(&ap, sizeof(ap));
 	memcpy(ap.ssid, ssid, slen);
 	ap.slen = slen;
 
@@ -499,26 +440,6 @@ int time_to_scan(void)
 	else return -1;
 
 	return get_timer();
-}
-
-/* User request to start monitoring (typically after setting up a device) */
-
-int ap_monitor(void)
-{
-	int ret;
-
-	if(operstate == OP_EXTERNAL)
-		operstate = OP_STOPPED;
-	if(operstate != OP_STOPPED)
-		return -EBUSY;
-
-	if((ret = start_scan(0)) < 0)
-		return ret;
-
-	operstate = OP_FG_SCAN;
-	set_timer(1*60, routine_fg_scan);
-
-	return 0;
 }
 
 /* User request to select network and connect.
@@ -565,19 +486,27 @@ int ap_disconnect(void)
 	if(operstate == OP_FG_SCAN)
 		goto out;
 
-	clear_timer();
-	force_disconnect();
-	set_timer(10, routine_fg_scan);
+	if(operstate == OP_NETDOWN) {
+		operstate = OP_STOPPED;
+	} else {
+		force_disconnect();
+		clear_timer();
+		set_timer(10, routine_fg_scan);
+		operstate = OP_MONITORING;
+	}
 
-	operstate = OP_MONITORING;
+	ret = -ECANCELED;
 out:
 	return ret;
 }
 
 /* User request to stop monitoring (before detaching from the device) */
 
-static void clear_ap_state(void)
+int ap_detach(void)
 {
+	if(!can_change_network())
+		return -EISCONN;
+
 	reset_auth_state();
 	reset_eapol_state();
 
@@ -587,21 +516,31 @@ static void clear_ap_state(void)
 	clear_timer();
 
 	operstate = OP_STOPPED;
-}
-
-int ap_detach(void)
-{
-	if(!can_change_network())
-		return -EISCONN;
-
-	clear_ap_state();
 
 	return 0;
 }
 
-int ap_reset(void)
-{
-	clear_ap_state();
+/* User request to resume operations */
 
-	return ap_monitor();
+int ap_resume(void)
+{
+	int ret;
+
+	if(operstate == OP_NETDOWN)
+		;
+	else if(operstate == OP_STOPPED)
+		;
+	else if(operstate == OP_EXTERNAL)
+		;
+	else return -EALREADY;
+
+	if((ret = start_scan(0)) < 0)
+		return ret;
+
+	if(ap.success)
+		operstate = OP_NET_SCAN;
+	else
+		operstate = OP_MONITORING;
+
+	return 0;
 }

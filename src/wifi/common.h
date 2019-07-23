@@ -10,7 +10,7 @@
 #define CMD_WI_NEUTRAL      WI(4)
 #define CMD_WI_CONNECT      WI(5)
 #define CMD_WI_DETACH       WI(6)
-#define CMD_WI_RESET        WI(7)
+#define CMD_WI_RESUME       WI(7)
 
 #define REP_WI_SCAN_END     WI(1)
 #define REP_WI_CONNECTING   WI(2)
@@ -37,6 +37,7 @@
 #define ATTR_ADDR      17
 #define ATTR_TIME      18
 #define ATTR_IES       19
+#define ATTR_ERROR     20
 
 #define WS_STOPPED         0
 #define WS_MONITOR         1

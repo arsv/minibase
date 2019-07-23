@@ -75,7 +75,6 @@ static void clear_ondemand_fds(void)
 {
 	netlink = -1;
 	rawsock = -1;
-	rfkill = -1;
 }
 
 static void set_pollfd(struct pollfd* pfd, int fd)
@@ -134,26 +133,13 @@ static void check_rawsock(struct pollfd* pf)
 	pf->fd = -1;
 }
 
-static void check_rfkill(struct pollfd* pf)
-{
-	if(pf->revents & POLLIN)
-		handle_rfkill();
-	if(!(pf->revents & ~POLLIN))
-		return;
-
-	sys_close(rfkill);
-	rfkill = -1;
-	pf->fd = -1;
-}
-
 static void update_pollfds(void)
 {
 	set_pollfd(&pfds[0], netlink);
 	set_pollfd(&pfds[1], rawsock);
 	set_pollfd(&pfds[2], ctrlfd);
-	set_pollfd(&pfds[3], rfkill);
 
-	int i, n = 4;
+	int i, n = 3;
 
 	for(i = 0; i < nconns; i++)
 		set_pollfd(&pfds[n+i], conns[i].fd);
@@ -164,7 +150,7 @@ static void update_pollfds(void)
 
 static void check_polled_fds(void)
 {
-	int i, n = 4;
+	int i, n = 3;
 
 	for(i = 0; i < nconns; i++)
 		check_conn(&pfds[n+i], &conns[i]);
@@ -172,7 +158,6 @@ static void check_polled_fds(void)
 	check_netlink(&pfds[0]);
 	check_rawsock(&pfds[1]);
 	check_control(&pfds[2]);
-	check_rfkill(&pfds[3]);
 }
 
 void clear_timer(void)

@@ -33,7 +33,6 @@ extern int ifindex;
 extern byte ifaddr[6];
 
 extern int ctrlfd;    /* control socket */
-extern int rfkill;    /* fd, /dev/rfkill */
 extern int rawsock;   /* fd, EAPOL socket */
 extern int netlink;   /* fd, GENL */
 
@@ -45,7 +44,6 @@ extern int nconns;
 extern int operstate;
 extern int scanstate;
 extern int authstate;
-extern int rfkilled;
 
 extern struct heap {
 	void* org;
@@ -113,13 +111,6 @@ void report_disconnect(void);
 void report_no_connect(void);
 void report_link_ready(void);
 
-/* RFkill section */
-void handle_rfkill(void);
-void retry_rfkill(void);
-void close_rfkill(void);
-void radio_restored(void);
-void radio_killed(void);
-
 /* EAPOL section */
 int open_rawsock(void);
 void close_rawsock(void);
@@ -165,11 +156,10 @@ void mark_current_bss_good(void);
 void clear_all_bss_marks(void);
 
 /* Top-level state machine */
-int ap_monitor(void);
 int ap_connect(byte* ssid, int slen, byte psk[32]);
 int ap_disconnect(void);
 int ap_detach(void);
-int ap_reset(void);
+int ap_resume(void);
 int time_to_scan(void);
 
 void trigger_dhcp(void);

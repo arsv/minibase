@@ -305,9 +305,8 @@ static const struct stdesc {
 	{ 21, "EAPOL exchange" },
 	{ 23, "disconnecting" },
 	{ 24, "aborting connection" },
-	{ 30, "disabled" },
-	{ 31, "RF-killed" },
-	{ 32, "external supplicant" },
+	{ 30, "link down" },
+	{ 31, "external supplicant" },
 };
 
 static const char* state_string(int state)
