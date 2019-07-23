@@ -1,7 +1,7 @@
 #include <netlink.h>
 #include <netlink/genl.h>
 #include <netlink/genl/nl80211.h>
-#include <netlink/dump.h>
+
 #include <string.h>
 #include <util.h>
 
@@ -12,7 +12,7 @@ int ifindex;
 char ifname[32];
 byte ifaddr[6];
 int nl80211; /* family id */
-int drvnoauth;
+int drvconnect;
 
 static int nle(const char* msg, const char* arg, int ret)
 {
@@ -78,10 +78,7 @@ static int query_wiphy(int ifi)
 	if(!got_connect)
 		return nle("NL80211_CMD_CONNECT", "not supported", 0);
 
-	if(!got_authenticate)
-		warn("no AUTHENTICATE command", NULL, 0);
-
-	drvnoauth = !got_authenticate;
+	drvconnect = !got_authenticate;
 
 	return 0;
 }

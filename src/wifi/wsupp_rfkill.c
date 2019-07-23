@@ -36,7 +36,6 @@
 #define IFF_UP (1<<0)
 
 int rfkill;
-int rfkilled;
 static int rfkidx;
 
 int bring_iface_up(void)
@@ -84,7 +83,7 @@ static int match_rfkill(int idx)
 	return (sys_stat(path, &st) >= 0);
 }
 
-static void handle_event(struct rfkill_event* re)
+static void check_rfkill_event(struct rfkill_event* re)
 {
 	if(rfkidx >= 0) {
 		if(re->idx != rfkidx)
@@ -96,15 +95,11 @@ static void handle_event(struct rfkill_event* re)
 	}
 
 	if(re->soft || re->hard) {
-		rfkilled = 1;
-		clr_timer();
+		radio_killed();
 	} else {
-		rfkilled = 0;
-
 		if((bring_iface_up()) < 0)
 			return;
-
-		handle_rfrestored();
+		radio_restored();
 	}
 }
 
@@ -148,6 +143,6 @@ void handle_rfkill(void)
 		if(re->type != RFKILL_TYPE_WLAN)
 			continue;
 
-		handle_event(re);
+		check_rfkill_event(re);
 	}
 }

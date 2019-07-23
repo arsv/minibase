@@ -2,351 +2,477 @@
 
 #include "wsupp.h"
 
-/* AP selection code.
+/* AP selection code. This is the top-level logic: run some scans,
+   initiate connection, handle disconnect, switch to other AP etc.
+   Most of the work happens in other modules, this one coordinates
+   things. */
 
-   In accordance with IEEE 802.11, this tool assumes that all APs
-   sharing the same SSID are parts of the same network. When the user
-   commands connection to a certain AP, this only means a fixed SSID.
-   The supplicant is free to choose any BSSID advertising that SSID,
-   and fall back to another one if connection fails. Limited roaming
-   is possible as well. If connection is lost, the tool will try to
-   re-connect to the same AP but failing that, attempts may be made
-   with different APs of the same network.
+/* operstate */
+#define OP_STOPPED          0
+#define OP_MONITORING       1
+#define OP_CONNECTED        2
+#define OP_SEARCHING        3
 
-   This assumption is quite important, half of the code below would
-   not be there if we were targeting a fixed BSSID.
+#define OP_FG_SCAN         10
+#define OP_BG_SCAN         11
+#define OP_NET_SCAN        12
+#define OP_BSS_SCAN        13
 
-   At this moment, fixed BSSIDs are not supported at all.
-   The standard doesn't require it, and as far as I can tell, the few
-   cases where it could be useful are much better served by ../temp/wifi
-   instead. */
+#define OP_CONNECTING      20
+#define OP_EAPOL           21
+#define OP_DISCONNECTING   23
+#define OP_ABORTING        24
 
-#define TIME_TO_FG_SCAN 1*60
-#define TIME_TO_BG_SCAN 5*60
+#define OP_NETDOWN         30
+#define OP_RFKILLED        31
+#define OP_EXTERNAL        32
 
-/* IEs = Information Elements.
+int operstate;
+int rfkilled;
 
-   Ref. IEEE 802.11-2012 8.4.2 Information elements,
-                         8.4.2.27 RSNE
+int aborterr;
+int abortstate;
 
-   The following two tell the AP which ciphers we'd like to use.
-   We send them twice: first in ASSOCIATE request, and then also
-   in EAPOL packet 3/4. No idea why, but it must be done like that. */
-
-struct ies {
-	byte type;
-	byte len;
-	byte payload[];
-};
-
-const char ies_ccmp_ccmp[] = {
-	0x30, 0x14, /* ies { type = 48, len = 20 } */
-	    0x01, 0x00, /* version 1 */
-	    0x00, 0x0F, 0xAC, 0x04, /* CCMP group data chipher */
-	    0x01, 0x00, /* pairwise chipher suite count */
-	    0x00, 0x0F, 0xAC, 0x04, /* CCMP pairwise chipher */
-	    0x01, 0x00, /* authentication and key management */
-	    0x00, 0x0F, 0xAC, 0x02, /* PSK and RSNA key mgmt */
-	    0x00, 0x00, /* preauth capabilities */
-};
-
-const char ies_ccmp_tkip[] = {
-	0x30, 0x14,      /* everything's the same, except for: */
-	    0x01, 0x00,
-	    0x00, 0x0F, 0xAC, 0x02, /* TKIP group data chipher */
-	    0x01, 0x00,
-	    0x00, 0x0F, 0xAC, 0x04,
-	    0x01, 0x00,
-	    0x00, 0x0F, 0xAC, 0x02,
-	    0x00, 0x00,
-};
-
-/* Scans provide IEs for APs in range. These should contain SSID
-   and the cipher sets supported by the APs. We have to do some
-   parsing here to match those against our current ap.ssid and
-   the ciphers we support.
-
-   Parsing is done only when needed (that is, when we are choosing
-   next AP to connect to) and results are kept specific to current
-   struct ap settings. Most scan results, most of the time, do not
-   get parsed because we're either idle or happily connected.
-
-   In case some AP decides to change its IEs without going silent
-   (or does so in-between our scans), we clear some of the flags
-   set here in reset_ies_data() to force re-parsing on the next
-   call to reassess_wifi_situation().
-
-   Ref. IEEE 802.11-2012 8.4.2 Information elements, 8.4.2.27 RSNE */
-
-static uint get2le(byte* p, byte* e)
+static void clear_bssid(void)
 {
-	if(p + 3 > e)
-		return 0;
-
-	return (p[0] & 0xFF)
-	    | ((p[1] & 0xFF) << 8);
-}
-
-static uint get4be(byte* p, byte* e)
-{
-	if(p + 4 > e)
-		return 0;
-
-	return (p[0] << 24)
-	     | (p[1] << 16)
-	     | (p[2] <<  8)
-	     | (p[3]);
-}
-
-static uint find_int(byte* buf, int cnt, uint val)
-{
-	byte* p = buf;
-	byte* e = buf + 4*cnt;
-
-	for(; p < e; p += 4)
-		if(get4be(p, e) == val)
-			return 1;
-
-	return 0;
-}
-
-static void parse_rsn_ie(struct scan* sc, int len, byte* buf)
-{
-	byte* p = buf;
-	byte* e = buf + len;
-
-	uint version = get2le(p, e);   p += 2;
-
-	if(version != 1)
-		return;
-
-	uint group = get4be(p, e);     p += 4;
-	uint pcnt = get2le(p, e);      p += 2;
-	byte* pair = p;                p += 4*pcnt;
-	uint acnt = get2le(p, e);      p += 2;
-	byte* akms = p;              //p += 4*acnt;
-
-	if(!(find_int(pair, pcnt, 0x000FAC04)))
-		return; /* no pairwise CCMP */
-	if(!(find_int(akms, acnt, 0x000FAC02)))
-		return; /* no PSK AKM */
-
-	if(group == 0x000FAC02) /* TKIP groupwise */
-		sc->flags |=  SF_TKIP;
-	else if(group == 0x000FAC04) /* CCMP groupwise */
-		; /* we're good as is */
-	else /* unsupported groupwise cipher */
-		return;
-
-	sc->flags |= SF_GOOD;
-}
-
-static struct ies* find_ie(void* buf, uint len, int type)
-{
-	void* ptr = buf;
-	void* end = buf + len;
-
-	while(ptr < end) {
-		struct ies* ie = ptr;
-		int ielen = sizeof(*ie) + ie->len;
-
-		if(ptr + ielen > end)
-			break;
-		if(ie->type == type)
-			return ie;
-
-		ptr += ielen;
-	}
-
-	return NULL;
-}
-
-static void check_ap_ies(struct scan* sc)
-{
-	struct ies* ie;
-	byte* buf = sc->ies;
-	uint len = sc->ieslen;
-
-	sc->flags |= SF_SEEN;
-
-	if(!(ie = find_ie(buf, len, 0)))
-		return; /* no SSID */
-	if(ie->len != ap.slen)
-		return; /* wrong SSID */
-	if(memcmp(ie->payload, ap.ssid, ap.slen))
-		return; /* wrong SSID */
-
-	if(!(ie = find_ie(buf, len, 48)))
-		return; /* no RSN entry */
-
-	parse_rsn_ie(sc, ie->len, ie->payload);
-}
-
-/* Impose slight preference for the 5GHz band. Only matters if there are
-   several connectable APs (which is rare in itself) in different bands.
-
-   Signal limit is set to avoid picking weak 5GHz APs over strong 2GHz ones.
-   The number is arbitrary and shouldn't matter much as long as it's high
-   enough to not interfere with nearby APs.
-
-   Hard-coded; making it controllable takes way more code than it's worth. */
-
-static int band_score(struct scan* sc)
-{
-	if(sc->signal < -7500) /* -75dBm */
-		return 0;
-	if(sc->freq / 1000 == 5) /* 5GHz */
-		return 1;
-	return 0;
-}
-
-static int cmp(int a, int b)
-{
-	if(a > b)
-		return 1;
-	if(a < b)
-		return -1;
-	return 0;
-}
-
-static int compare(struct scan* sc, struct scan* best)
-{
-	int r;
-
-	if(!best)
-		return 1;
-	if((r = cmp(band_score(sc), band_score(best))))
-		return r;
-	if((r = cmp(sc->signal, best->signal)))
-		return r;
-
-	return 0;
-}
-
-/* We never sort the scanlist, we just pick the best non-marked AP,
-   mark it and try to connect until there's no more APs left. */
-
-static struct scan* get_best_ap(void)
-{
-	struct scan* sc;
-	struct scan* best = NULL;
-
-	for(sc = scans; sc < scans + nscans; sc++) {
-		if(!sc->freq)
-			continue; /* empty slot */
-		if(!sc->ies)
-			continue; /* scan dump in progress? */
-
-		if(sc->flags & SF_TRIED)
-			continue; /* already tried that */
-		if(!(sc->flags & SF_SEEN))
-			check_ap_ies(sc);
-		if(!(sc->flags & SF_GOOD))
-			continue; /* bad crypto */
-		if(compare(sc, best) <= 0)
-			continue;
-
-		best = sc;
-	}
-
-	return best;
-}
-
-static void clear_ap_bssid(void)
-{
-	ap.success = 0;
-	ap.rescans = 0;
 	ap.freq = 0;
+	ap.rescans = 0;
 
 	memzero(&ap.bssid, sizeof(ap.bssid));
 }
 
-static void clear_ap_ssid(void)
+static void clear_ssid_bssid(void)
 {
-	struct scan* sc;
-
-	ap.slen = 0;
-	ap.freq = 0;
-
-	memzero(&ap.ssid, sizeof(ap.ssid));
-	memzero(PSK, sizeof(PSK));
-
-	for(sc = scans; sc < scans + nscans; sc++)
-		sc->flags &= ~(SF_GOOD | SF_TKIP | SF_SEEN | SF_TRIED);
+	memzero(&ap, sizeof(ap));
 }
 
-void reset_station(void)
+static void connect_timeout(void)
 {
-	clear_ap_bssid();
-	clear_ap_ssid();
+	abort_connection(-ETIMEDOUT);
 }
 
-void reset_device(void)
+static int proceed_with_connect(void)
 {
-	reset_eapol_state();
-	clear_scan_table();
+	int ret;
 
-	opermode = OP_STOPPED;
-	authstate = AS_IDLE;
-	scanstate = SS_IDLE;
+	aborterr = 0;
 
-	close_rfkill();
+	if((ret = prime_eapol_state()) < 0)
+		return ret;
+	if((ret = open_rawsock()) < 0)
+		return ret;
+	if((ret = start_connection()) < 0)
+		return ret;
+
+	set_timer(2, connect_timeout);
+
+	operstate = OP_CONNECTING;
+
+	report_connecting();
+
+	return ret;
+}
+
+static int connect_to_something(void)
+{
+	int ret;
+
+	if((ret = pick_best_bss()) < 0)
+		return ret;
+
+	return proceed_with_connect();
+}
+
+/* RFkill interface notifies us that the kill switch has been released.
+   If we were interrupted by rfkill, we should resume operations. */
+
+void radio_restored(void)
+{
+	if(!rfkilled)
+		return;
+
+	rfkilled = 0;
+
+	if(operstate != OP_RFKILLED) /* we weren't doing anything */
+		return;
+
+	ap.rescans = 0;
+
+	if(ap.freq) /* we were tuned to a particular BSS */
+		operstate = OP_BSS_SCAN; /* try to find it again */
+	else if(ap.slen) /* we were searching for a particular network */
+		operstate = OP_NET_SCAN; /* keep doing that */
+	else /* we were just monitoring */
+		operstate = OP_FG_SCAN;
+
+	start_scan(ap.freq); /* full scan if no active BSS */
+}
+
+/* RFkill reports the card has been suppressed. */
+
+void radio_killed(void)
+{
+	if(rfkilled)
+		return;
+
+	rfkilled = 1;
+
+	if(operstate != OP_NETDOWN)
+		return;
+
+	operstate = OP_RFKILLED;
+
+	clear_timer();
+}
+
+/* We got netdown but timed out waiting for rfkill.
+   It has to be a true netdown then, not rfkill.
+   Stop all operations and close the device. */
+
+static void rfkill_timeout(void)
+{
+	if(operstate != OP_NETDOWN) /* probably OP_RFKILL already */
+		return;
+
+	operstate = OP_STOPPED;
+
+	clear_ssid_bssid();
+}
+
+/* ENETDOWN from any request means the device has been reset, and
+   connection lost. So we should reset all our associated state.
+
+   Initially we stay tuned to the network. If ENETDOWN was caused by
+   rfkill, we will attempt to re-connect to the same station. But if
+   it was a true netdown, we will release the device.
+
+   From our point of view, rfkill events are just stray events and
+   we cannot rely on their timing. ENETDOWN, on the other hand, comes
+   in response to our request, typically a scan request. So we always
+   work off ENETDOWN. */
+
+static void check_rf_netdown(void)
+{
+	operstate = OP_NETDOWN;
+
 	close_rawsock();
-	close_netlink();
-	clr_timer();
+	reset_eapol_state();
+	reset_auth_state();
+	reset_scan_state();
+	clear_timer();
+
+	report_no_connect();
+
+	if(rfkilled)
+		operstate = OP_RFKILLED;
+	else
+		set_timer(1, rfkill_timeout);
 }
 
-static void snap_to_neutral(void)
+static void routine_fg_scan(void)
 {
-	reset_station();
-	opermode = OP_MONITOR;
+	int ret;
+
+	if(operstate != OP_MONITORING)
+		return;
+
+	if((ret = start_scan(0)) >= 0)
+		operstate = OP_FG_SCAN;
+
+	set_timer(1*60, routine_fg_scan);
 }
 
-static void snap_to_stopped(void)
+static void routine_bg_scan(void)
 {
-	clr_timer();
-	reset_station();
-	opermode = OP_STOPPED;
+	int ret;
+
+	if(operstate != OP_CONNECTED)
+		return;
+
+	if((ret = start_scan(0)) >= 0)
+		operstate = OP_BG_SCAN;
+
+	set_timer(5*60, routine_bg_scan);
 }
 
-static void set_current_ap(struct scan* sc)
+/* "Searching scan" happens when we lost a good connection.
+   The logic here is to keep running scan every 10s for about a minute
+   it case it comes back, and then if it doesn't switch to a more relaxed
+   scan rate. The goal here is to pick up rebooting APs fast. */
+
+static void searching_scan(void)
 {
-	ap.success = 0;
-	ap.freq = sc->freq;
+	int ret;
 
-	memcpy(ap.bssid, sc->bssid, MACLEN);
+	if(operstate != OP_SEARCHING)
+		return;
 
-	if(sc->flags & SF_TKIP) {
-		ap.txies = ies_ccmp_tkip;
-		ap.iesize = sizeof(ies_ccmp_tkip);
-		ap.tkipgroup = 1;
+	if(ap.rescans > 10)
+		clear_bssid();
+	else
+		ap.rescans++;
+
+	if((ret = start_scan(0)) >= 0)
+		operstate = OP_NET_SCAN;
+
+	set_timer(10, searching_scan);
+}
+
+static void expected_disconnect(void)
+{
+	clear_ssid_bssid();
+
+	set_timer(5, routine_fg_scan);
+
+	operstate = OP_MONITORING;
+}
+
+static void try_another_bss(void)
+{
+	int ret;
+
+	if((ret = connect_to_something()) >= 0)
+		return;
+
+	force_disconnect();
+	report_no_connect();
+
+	if(ap.success) {
+		set_timer(10, searching_scan);
+
+		operstate = OP_SEARCHING;
 	} else {
-		ap.txies = ies_ccmp_ccmp;
-		ap.iesize = sizeof(ies_ccmp_ccmp);
-		ap.tkipgroup = 0;
+		clear_ssid_bssid();
+
+		set_timer(1*60, routine_fg_scan);
+
+		operstate = OP_MONITORING;
 	}
 }
 
-static struct scan* find_current_ap(void)
+static void reconnect_current(void)
 {
-	struct scan* sc;
+	if(!current_bss_in_scans()) /* the AP is gone */
+		return try_another_bss();
+	if((proceed_with_connect()) < 0)
+		return try_another_bss();
 
-	if(!nonzero(ap.bssid, 6))
-		return NULL;
-
-	for(sc = scans; sc < scans + nscans; sc++)
-		if(!memcmp(sc->bssid, ap.bssid, 6))
-			return sc;
-
-	return NULL;
+	/* else connection attempt is ongoing */
 }
 
-/* Fixed AP mode means fixed SSID, *not* fixed BSSID, and we should be
-   ready to roam between multiple APs sharing the same SSID. There's
-   almost no difference between roading and fixed mode except for AP
-   selection rules. */
+static void rescan_current_bss(void)
+{
+	int ret;
 
-int set_station(byte* ssid, int slen, byte psk[32])
+	operstate = OP_BSS_SCAN;
+	ap.rescans++;
+
+	if((ret = start_scan(ap.freq)) >= 0)
+		return;
+
+	operstate = OP_SEARCHING;
+	set_timer(10, searching_scan);
+}
+
+/* We lost AP, rescanned the frequency and it's not there.
+   Now it's time to run a full scan, maybe there are other APs
+   from that network around. */
+
+static void reassess_situation(void)
+{
+	int ret;
+
+	operstate = OP_NET_SCAN;
+
+	if((ret = start_scan(0)) < 0)
+		return;
+
+	operstate = OP_SEARCHING;
+	set_timer(10, searching_scan);
+}
+
+static void lost_good_connection(void)
+{
+	ap.rescans = 0;
+	/* mark the corresponding scanline good */
+	mark_current_bss_good();
+
+	rescan_current_bss();
+}
+
+static void snap_to_monitoring(void)
+{
+	force_disconnect();
+	report_no_connect();
+	clear_ssid_bssid();
+
+	set_timer(1*60, routine_fg_scan);
+
+	operstate = OP_MONITORING;
+}
+
+static void unexpected_disconnect(int err)
+{
+	if(operstate == OP_CONNECTED) /* radio connection failed */
+		goto next;
+	if(operstate == OP_EAPOL) /* EAPOL negotiations failed */
+		goto next;
+	else if(operstate == OP_CONNECTED)
+		goto good;
+	else if(operstate == OP_BG_SCAN)
+		goto good;
+	else return; /* we weren't connected or trying to connect? */
+good:
+	if(err >= 0)
+		return lost_good_connection();
+	/* else abnormal termination, do not re-connect */
+next:
+	if(err == -ENETDOWN) /* device down, stop connection attempts */
+		return check_rf_netdown();
+	if(err == -EINVAL) /* messed up NL command somewhere */
+		return snap_to_monitoring();
+
+	return try_another_bss();
+}
+
+/* Connection attempt may fail with -ENOENT if the BSS is not the card's
+   scan cache. This is quite common, not a big deal, and not a reason to
+   drop the BSS. Instead, we run a fast single-frequency scan to refresh
+   the cache, and only if it's not found on rescan we try to switch BSS. */
+
+static void try_fast_rescan(void)
+{
+	if(!ap.rescans)
+		rescan_current_bss();
+	else /* tried rescanning this bss already */
+		reassess_situation();
+}
+
+/* Netlink reports AP connection has been lost or terminated. */
+
+void connection_ended(int err)
+{
+	clear_timer();
+
+	if(operstate == OP_ABORTING) {
+		err = aborterr;
+		operstate = abortstate;
+	}
+
+	if(operstate == OP_CONNECTING && err == -ENOENT)
+		return try_fast_rescan();
+
+	report_disconnect();
+
+	if(operstate == OP_DISCONNECTING)
+		return expected_disconnect();
+
+	return unexpected_disconnect(err);
+}
+
+static void abort_timeout(void)
+{
+	reset_auth_state();
+
+	connection_ended(-ETIMEDOUT);
+}
+
+/* This gets called from various places in case of unrecoverable
+   errors. Handled here and not in nlauth solely because DISCONNECT
+   has to be timed. */
+
+void abort_connection(int err)
+{
+	int ret;
+
+	aborterr = err;
+	abortstate = operstate;
+	operstate = OP_ABORTING;
+
+	if((ret = start_disconnect()) < 0)
+		connection_ended(ret);
+	else
+		set_timer(1, abort_timeout);
+}
+
+/* EAPOL negotionations have completed, the connection is now fully usable */
+
+void eapol_success(void)
+{
+	if(operstate != OP_EAPOL)
+		return;
+
+	operstate = OP_CONNECTED;
+
+	ap.rescans = 0;
+	ap.success = 1;
+
+	set_timer(5*60, routine_bg_scan);
+
+	/* report */
+
+	trigger_dhcp();
+
+	report_link_ready();
+}
+
+/* Netlink reports (unencrypted) radio link has been established with the AP */
+
+void connection_ready(void)
+{
+	int ret;
+
+	if(operstate != OP_CONNECTING)
+		return;
+
+	operstate = OP_EAPOL;
+
+	if((ret = allow_eapol_sends()) >= 0)
+		return;
+
+	abort_connection(ret);
+}
+
+/* Netlink reports end of scan. May be successful or not
+   depending on err, but don't really care in most cases. */
+
+void scan_ended(int err)
+{
+	report_scan_end(err);
+
+	if(err == -ENETDOWN)
+		return check_rf_netdown();
+
+	if(operstate == OP_NET_SCAN)
+		return try_another_bss();
+	if(operstate == OP_BSS_SCAN)
+		return reconnect_current();
+
+	if(operstate == OP_FG_SCAN)
+		operstate = OP_MONITORING;
+	else if(operstate == OP_BG_SCAN)
+		operstate = OP_CONNECTED;
+}
+
+static int can_change_network(void)
+{
+	int yes = 1;
+
+	if(operstate == OP_STOPPED)
+		return yes;
+	if(operstate == OP_MONITORING)
+		return yes;
+	if(operstate == OP_SEARCHING)
+		return yes;
+	if(operstate == OP_FG_SCAN)
+		return yes;
+	if(operstate == OP_NET_SCAN)
+		return yes;
+
+	return 0;
+}
+
+int set_network(byte* ssid, int slen, byte psk[32])
 {
 	if(slen > (int)sizeof(ap.ssid))
 		return -ENAMETOOLONG;
@@ -354,205 +480,128 @@ int set_station(byte* ssid, int slen, byte psk[32])
 	memcpy(ap.ssid, ssid, slen);
 	ap.slen = slen;
 
-	clear_ap_bssid();
+	clear_bssid();
+	clear_all_bss_marks();
 
 	memcpy(PSK, psk, 32);
 
 	return 0;
 }
 
-static int connect_to_something(void)
+int time_to_scan(void)
 {
-	struct scan* sc;
+	if(operstate == OP_MONITORING)
+		;
+	else if(operstate == OP_SEARCHING)
+		;
+	else if(operstate == OP_CONNECTED)
+		;
+	else return -1;
+
+	return get_timer();
+}
+
+/* User request to start monitoring (typically after setting up a device) */
+
+int ap_monitor(void)
+{
 	int ret;
 
-	while((sc = get_best_ap())) {
-		set_current_ap(sc);
+	if(operstate == OP_EXTERNAL)
+		operstate = OP_STOPPED;
+	if(operstate != OP_STOPPED)
+		return -EBUSY;
 
-		if((ret = start_connection()) < 0)
-			return ret;
+	if((ret = start_scan(0)) < 0)
+		return ret;
 
-		sc->flags |= SF_TRIED;
+	operstate = OP_FG_SCAN;
+	set_timer(1*60, routine_fg_scan);
 
-		return !!sc;
+	return 0;
+}
+
+/* User request to select network and connect.
+
+   With current implementation, we do not support setting network without
+   any APs in range, and report -ENOENT immediately. */
+
+int ap_connect(byte* ssid, int slen, byte psk[32])
+{
+	int ret;
+
+	if(!can_change_network())
+		return -EISCONN;
+	if((ret = set_network(ssid, slen, psk)) < 0)
+		return ret;
+	if((ret = connect_to_something()) >= 0)
+		return ret;
+
+	clear_ssid_bssid();
+
+	return ret;
+}
+
+/* User request to disconnect and drop current network */
+
+int ap_disconnect(void)
+{
+	int ret;
+
+	if((ret = start_disconnect()) >= 0) {
+		set_timer(1, abort_timeout);
+		operstate = OP_DISCONNECTING;
+		return 0;
 	}
 
-	return !!sc;
+	clear_ssid_bssid();
+	reset_auth_state();
+	reset_eapol_state();
+
+	if(operstate == OP_STOPPED)
+		goto out;
+	if(operstate == OP_MONITORING)
+		goto out;
+	if(operstate == OP_FG_SCAN)
+		goto out;
+
+	clear_timer();
+	force_disconnect();
+	set_timer(10, routine_fg_scan);
+
+	operstate = OP_MONITORING;
+out:
+	return ret;
 }
 
-void handle_connect(void)
+/* User request to stop monitoring (before detaching from the device) */
+
+static void clear_ap_state(void)
 {
-	struct scan* sc;
+	reset_auth_state();
+	reset_eapol_state();
 
-	ap.success = 1;
+	clear_ssid_bssid();
+	reset_scan_state();
+	clear_scan_table();
+	clear_timer();
 
-	set_timer(TIME_TO_BG_SCAN);
-
-	if(opermode == OP_RESCAN)
-		opermode = OP_ACTIVE;
-	if(opermode == OP_ONESHOT)
-		opermode = OP_ACTIVE;
-
-	if((sc = find_current_ap()))
-		sc->flags &= ~SF_TRIED;
-
-	trigger_dhcp();
-
-	report_connected();
+	operstate = OP_STOPPED;
 }
 
-static void rescan_current_ap(void)
+int ap_detach(void)
 {
-	ap.success = 0;
-	/* keep the rest of ap in place */
-	opermode = OP_RESCAN;
+	if(!can_change_network())
+		return -EISCONN;
 
-	start_scan(ap.freq);
+	clear_ap_state();
+
+	return 0;
 }
 
-void reconnect_to_current_ap(void)
+int ap_reset(void)
 {
-	if(opermode == OP_RESCAN)
-		opermode = OP_ACTIVE;
+	clear_ap_state();
 
-	if(find_current_ap())
-		start_connection();
-	else
-		reassess_wifi_situation();
-}
-
-static void try_some_other_ap(void)
-{
-	clear_ap_bssid();
-
-	reassess_wifi_situation();
-}
-
-/* Netlink AUTHENTICATE or ASSOCIATE command timed out */
-
-void handle_timeout(void)
-{
-	report_aborted();
-	snap_to_stopped();
-}
-
-/* Netlink layer detected another supplicant working on the same device */
-
-void handle_external(void)
-{
-	report_external();
-	snap_to_stopped();
-}
-
-/* Netlink reports AP connection has been lost. */
-
-void handle_disconnect(void)
-{
-	clr_timer();
-
-	report_disconnect();
-
-	/* was this disconnect intentional? */
-
-	if(opermode == OP_DETACH) /* disconnect to drop the device */
-		return reset_device();
-	if(opermode == OP_MONITOR) /* commanded disconnect (wifi dc) */
-		return reset_station();
-
-	/* nope, it was unintentional */
-
-	if(opermode == OP_RESCAN)     /* re-connect failed */
-		opermode = OP_ACTIVE; /* try another BSS   */
-
-	if(ap.success)                /* we were connected */
-		rescan_current_ap();  /* try to re-connect */
-	else /* we were *not* successful in connecting to this BSS */
-		try_some_other_ap();
-}
-
-/* Netlink reported ENETDOWN and we timed out waiting for rfkill. */
-
-void handle_netdown(void)
-{
-	opermode = OP_DETACH;
-
-	handle_disconnect();
-}
-
-/* RFkill code reports the interface to be back online.
-
-   Note that if rfkill happened on a live connection, disconnect will
-   happen as usual and it will be the re-scan attempt that will fail
-   with -ENETDOWN. In this case we will see OP_RESCAN. */
-
-void handle_rfrestored(void)
-{
-	if(authstate != AS_NETDOWN)
-		return; /* weren't connected before rfkill */
-
-	authstate = AS_IDLE;
-
-	if(opermode == OP_RESCAN)
-		rescan_current_ap();
-	else
-		reassess_wifi_situation();
-}
-
-/* Foreground scan means scanning while not connected,
-   background respectively means there's an active connection. */
-
-void routine_bg_scan(void)
-{
-	start_void_scan();
-	set_timer(TIME_TO_BG_SCAN);
-}
-
-void routine_fg_scan(void)
-{
-	if(!ap.slen) {
-		set_timer(TIME_TO_FG_SCAN);
-		start_void_scan();
-	} else if(ap.freq) {
-		set_timer(10);
-
-		if(++ap.rescans % 6)
-			start_scan(ap.freq);
-		else
-			start_full_scan();
-
-		if(ap.rescans >= 6*5) { /* 5 minutes */
-			ap.freq = 0;
-			ap.rescans = 0;
-		}
-	} else {
-		set_timer(TIME_TO_FG_SCAN);
-		start_full_scan();
-	}
-}
-
-static void idle_then_rescan(void)
-{
-	set_timer(TIME_TO_FG_SCAN);
-}
-
-void reassess_wifi_situation(void)
-{
-	if(opermode == OP_STOPPED)
-		return;
-	if(opermode == OP_MONITOR)
-		return;
-	if(authstate != AS_IDLE)
-		return;
-	if(scanstate != SS_IDLE)
-		return;
-
-	if(connect_to_something())
-		return;
-
-	report_no_connect();
-
-	if(opermode == OP_ONESHOT)
-		snap_to_neutral();
-	else
-		idle_then_rescan();
+	return ap_monitor();
 }

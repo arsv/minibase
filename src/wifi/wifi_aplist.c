@@ -137,16 +137,6 @@ static int scan_ord(const void* a, const void* b)
 	return 0;
 }
 
-static void get_int(MSG, int attr, int* val)
-{
-	int* p;
-
-	if((p = uc_get_int(msg, attr)))
-		*val = *p;
-	else
-		*val = 0;
-}
-
 static char* fmt_bss(char* p, char* e, MSG)
 {
 	attr bssid = uc_get(msg, ATTR_BSSID);
@@ -155,36 +145,6 @@ static char* fmt_bss(char* p, char* e, MSG)
 		return fmtstr(p, e, "(no BSSID)");
 
 	return fmtmac(p, e, uc_payload(bssid));
-}
-
-static char* fmt_freq(char* p, char* e, MSG)
-{
-	int freq;
-
-	get_int(msg, ATTR_FREQ, &freq);
-
-	if(freq) {
-		p = fmtstr(p, e, " ");
-		p = fmt_chan_and_freq(p, e, freq);
-	}
-
-	return p;
-}
-
-static char* fmt_station(char* p, char* e, MSG)
-{
-	attr ssid = uc_get(msg, ATTR_SSID);
-
-	p = fmtstr(p, e, "AP ");
-
-	if(ssid) {
-		p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
-		p = fmtstr(p, e, " ");
-	}
-
-	p = fmt_bss(p, e, msg);
-
-	return fmt_freq(p, e, msg);
 }
 
 static void sub_int(AT, int attr, int* val)
@@ -276,41 +236,118 @@ static char* fmt_device(char* p, char* e, char* name, int* ifi)
 	return p;
 }
 
-static void print_status_line(CTX, MSG, int state)
+static char* fmt_sec(char* p, char* e, int tm)
 {
-	char* ifname = uc_get_str(msg, ATTR_NAME);
-	int* ifindex = uc_get_int(msg, ATTR_IFI);
-	attr bss = uc_get(msg, ATTR_BSSID);
+	int min = tm / 60;
+	int sec = tm % 50;
+
+	if(min > 0) {
+		p = fmtint(p, e, min);
+		p = fmtstr(p, e, "m ");
+	}
+
+	p = fmtint(p, e, sec);
+	p = fmtstr(p, e, "s");
+
+	return p;
+}
+
+static void print_network_line(CTX, MSG)
+{
+	attr ssid = uc_get(msg, ATTR_SSID);
+	attr bssid = uc_get(msg, ATTR_BSSID);
+	int* freq = uc_get_int(msg, ATTR_FREQ);
 
 	FMTBUF(p, e, buf, 200);
 
-	if(state == WS_CONNECTED) {
-		p = fmtstr(p, e, "Connected ");
-		p = fmt_station(p, e, msg);
-	} else {
-		p = fmtstr(p, e, "Device ");
-		p = fmt_device(p, e, ifname, ifindex);
+	if(bssid) {
+		p = fmtstr(p, e, "Using AP ");
 
-		if(state == WS_RFKILLED) {
-			p = fmtstr(p, e, " rf-killed");
-		} else if(state == WS_STOPPING) {
-			p = fmtstr(p, e, " stopping");
-		} else if(bss) {
-			p = fmtstr(p, e, " idle ");
-			p = fmt_station(p, e, msg);
-
-			if(state == WS_SCANNING)
-				p = fmtstr(p, e, ", scanning now");
-		} else if(state == WS_SCANNING) {
-			p = fmtstr(p, e, " scanning");
-		} else if(state == WS_STOPPED) {
-			p = fmtstr(p, e, " stopped");
-		} else if(state == WS_MONITOR) {
-			p = fmtstr(p, e, " monitoring");
+		if(uc_paylen(bssid) == 6) {
+			p = fmtmac(p, e, uc_payload(bssid));
 		} else {
-			p = fmtstr(p, e, " state ");
-			p = fmtint(p, e, state);
+			p = fmtstr(p, e, "(invalid)");
 		}
+		if(ssid) {
+			p = fmtstr(p, e, " ");
+			p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
+		}
+		if(freq) {
+			p = fmtstr(p, e, " ");
+			p = fmt_chan_and_freq(p, e, *freq);
+		}
+	} else if(ssid) {
+		p = fmtstr(p, e, "Network ");
+		p = fmtstr(p, e, " ");
+		p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
+	} else {
+		return;
+	}
+
+	FMTENL(p, e);
+
+	output(ctx, buf, p - buf);
+}
+
+static const struct stdesc {
+	int state;
+	const char* descr;
+} state_strings[] = {
+	{  0, "stopped" },
+	{  1, "monitoring" },
+	{  2, "connected" },
+	{  3, "lost connection" },
+	{ 10, "scanning" },
+	{ 11, "connected, scanning" },
+	{ 12, "lost connection, scanning" },
+	{ 13, "scanning for lost AP" },
+	{ 20, "connecting" },
+	{ 21, "EAPOL exchange" },
+	{ 23, "disconnecting" },
+	{ 24, "aborting connection" },
+	{ 30, "disabled" },
+	{ 31, "RF-killed" },
+	{ 32, "external supplicant" },
+};
+
+static const char* state_string(int state)
+{
+	const struct stdesc* st;
+
+	for(st = state_strings; st < ARRAY_END(state_strings); st++)
+		if(st->state == state)
+			return st->descr;
+
+	return NULL;
+}
+
+static void print_device_line(CTX, MSG)
+{
+	int* state = uc_get_int(msg, ATTR_STATE);
+	char* ifname = uc_get_str(msg, ATTR_NAME);
+	int* ifindex = uc_get_int(msg, ATTR_IFI);
+	int* timeout = uc_get_int(msg, ATTR_TIME);
+
+	FMTBUF(p, e, buf, 200);
+
+	p = fmtstr(p, e, "Device ");
+	p = fmt_device(p, e, ifname, ifindex);
+
+	if(state) {
+		const char* descr = state_string(*state);
+
+		if(descr) {
+			p = fmtstr(p, e, ", ");
+			p = fmtstr(p, e, descr);
+		} else {
+			p = fmtstr(p, e, ", state ");
+			p = fmtint(p, e, *state);
+		}
+	}
+
+	if(timeout) {
+		p = fmtstr(p, e, ", next scan in ");
+		p = fmt_sec(p, e, *timeout);
 	}
 
 	FMTENL(p, e);
@@ -337,7 +374,8 @@ void dump_status(CTX, MSG)
 	init_output(ctx);
 
 	print_scan_results(ctx, msg, 1);
-	print_status_line(ctx, msg, *state);
+	print_device_line(ctx, msg);
+	print_network_line(ctx, msg);
 
 	fini_output(ctx);
 }
@@ -355,7 +393,6 @@ void warn_sta(CTX, char* text, MSG)
 {
 	FMTBUF(p, e, sta, 50);
 	p = fmt_bss(p, e, msg);
-	p = fmt_freq(p, e, msg);
 	FMTEND(p, e);
 
 	warn(text, sta, 0);

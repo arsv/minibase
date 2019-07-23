@@ -26,9 +26,8 @@ static sigset_t defsigset;
 static struct pollfd pfds[3+NCONNS];
 static int npfds;
 static struct timespec pollts;
-static int timerset;
+static callptr timercall;
 
-int opermode;
 int pollset;
 int sigterm;
 int done;
@@ -72,7 +71,7 @@ static void setup_signals(void)
 /* These do not get opened on startup. To avoid confusion with stdin,
    make sure they are all set to -1. */
 
-static void clr_ondemand_fds(void)
+static void clear_ondemand_fds(void)
 {
 	netlink = -1;
 	rawsock = -1;
@@ -176,43 +175,34 @@ static void check_polled_fds(void)
 	check_rfkill(&pfds[3]);
 }
 
-void clr_timer(void)
+void clear_timer(void)
 {
 	pollts.sec = 0;
 	pollts.nsec = 0;
-	timerset = 0;
+	timercall = NULL;
 }
 
-void set_timer(int seconds)
+void set_timer(int seconds, callptr cb)
 {
 	pollts.sec = seconds;
 	pollts.nsec = 0;
-	timerset = 1;
+	timercall = cb;
 }
 
 int get_timer(void)
 {
-	return timerset ? pollts.sec : -1;
+	return timercall ? pollts.sec : -1;
 }
 
 static void timer_expired(void)
 {
-	clr_timer();
+	callptr cb = timercall;
 
-	if(authstate == AS_NETDOWN)
-		handle_netdown();
-	else if(authstate == AS_CONNECTED)
-		routine_bg_scan();
-	else if(authstate == AS_DISCONNECTING)
-		note_disconnect();
-	else if(authstate == AS_AUTHENTICATING)
-		note_nl_timeout();
-	else if(authstate == AS_ASSOCIATING)
-		note_nl_timeout();
-	else if(authstate != AS_IDLE)
-		abort_connection();
-	else
-		routine_fg_scan();
+	pollts.sec = 0;
+	pollts.nsec = 0;
+	timercall = NULL;
+
+	if(cb) cb();
 }
 
 static void shutdown(void)
@@ -236,10 +226,10 @@ int main(int argc, char** argv)
 	init_heap_ptrs();
 	setup_signals();
 	setup_control();
-	clr_ondemand_fds();
+	clear_ondemand_fds();
 
 	while(1) {
-		struct timespec* ts = timerset ? &pollts : NULL;
+		struct timespec* ts = timercall ? &pollts : NULL;
 
 		if(!pollset)
 			update_pollfds();

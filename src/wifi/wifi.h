@@ -47,7 +47,8 @@ struct top {
 
 typedef struct ucattr* attr;
 
-void find_wifi_device(char out[32]);
+void find_wifi_device(char name[32]);
+int get_ifindex(char name[32]);
 
 void dump_status(CTX, MSG);
 void dump_scanlist(CTX, MSG);

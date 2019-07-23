@@ -4,7 +4,6 @@
 #include <netlink.h>
 #include <netlink/genl.h>
 #include <netlink/genl/nl80211.h>
-#include <netlink/dump.h>
 
 #include <string.h>
 #include <util.h>
@@ -12,8 +11,8 @@
 #include "wsupp.h"
 #include "wsupp_netlink.h"
 
-/* 
-	# scan
+/* Command sequence here:
+
 	<- NL80211_CMD_TRIGGER_SCAN      start_scan
 	-> NL80211_CMD_TRIGGER_SCAN      nlm_trigger_scan
 	-> NL80211_CMD_NEW_SCAN_RESULTS  nlm_scan_results
@@ -23,11 +22,19 @@
 	...
 	-> NL80211_CMD_NEW_SCAN_RESULTS* nlm_scan_results
 	-> NLMSG_DONE                    genl_done
-*/
 
-#define SR_SCANNING_ONE_FREQ (1<<0)
-#define SR_RECONNECT_CURRENT (1<<1)
-#define SR_CONNECT_SOMETHING (1<<2)
+   The card reports start-of-scan with frequencies to be scanned,
+   performs the scan, then reports end-of-scan. A separate command
+   is needed to fetch the results.
+
+   Scan results are stored internally on the card, but this storage
+   is typically *very* short-term (seconds, single-digit) and therefore
+   cannot be relied upon. */
+
+/* scanstate */
+#define SS_IDLE            0
+#define SS_SCANNING        1
+#define SS_SCANDUMP        2
 
 uint scanseq;
 int scanstate;
@@ -39,62 +46,48 @@ void reset_scan_state(void)
 	scanreq = 0;
 }
 
-/* The weird logic below handles the cases when a re-scan or a routine
-   scheduled scan coincides with a user-requested full range scan. */
-
-int start_scan(int freq)
+static int trigger_scan(int freq)
 {
 	struct nlattr* at;
-	int ret;
-
-	if(netlink <= 0)
-		return -ENODEV;
-
-	if(scanstate == SS_IDLE) {
-		/* no ongoing scan, great */
-		if(freq > 0)
-			scanreq |= SR_RECONNECT_CURRENT;
-		if(freq < 0)
-			scanreq |= SR_CONNECT_SOMETHING;
-	} else if(scanreq & SR_SCANNING_ONE_FREQ) {
-		/* ongoing single-freq scan, bad */
-		return -EBUSY;
-	} else { /* ongoing whole-range scan */
-		if(freq > 0)
-			scanreq |= SR_RECONNECT_CURRENT;
-		if(freq < 0)
-			scanreq |= SR_CONNECT_SOMETHING;
-		return 0;
-	}
 
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_TRIGGER_SCAN, 0);
 	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
 
-	if(freq > 0) {
-		scanreq |= SR_SCANNING_ONE_FREQ | SR_RECONNECT_CURRENT;
+	if(freq) {
 		at = nl_put_nest(&nl, NL80211_ATTR_SCAN_FREQUENCIES);
 		nl_put_u32(&nl, 0, freq); /* FREQUENCIES[0] = freq */
 		nl_end_nest(&nl, at);
 	}
 
-	if((ret = nl_send(&nl)) < 0) {
-		scanreq = 0;
-		return ret;
-	}
+	scanseq = nl.seq;
 
+	return nl_send(&nl);
+}
+
+/* The weird logic below handles the cases when a re-scan or a routine
+   scheduled scan coincides with a user-requested full range scan. */
+
+int start_scan(int freq)
+{
+	int ret;
+
+	if(netlink <= 0)
+		return -ENODEV;
+
+	if(scanstate == SS_IDLE) /* no ongoing scan, great */
+		;
+	else if(scanreq) /* ongoing single-freq scan, bad */
+		return -EBUSY;
+	else /* ongoing whole-range scan */
+		return 0;
+
+	if((ret = trigger_scan(freq)) < 0)
+		return ret;
+
+	scanreq = freq;
 	scanstate = SS_SCANNING;
 
 	return 0;
-}
-
-int start_void_scan(void)
-{
-	return start_scan(0);
-}
-
-int start_full_scan(void)
-{
-	return start_scan(-1);
 }
 
 static void mark_stale_scan_slots(struct nlgen* msg)
@@ -145,7 +138,7 @@ static void trigger_scan_dump(void)
 {
 	int ret;
 
-	if(!(scanreq & SR_SCANNING_ONE_FREQ))
+	if(!scanreq)
 		reset_ies_data();
 
 	nl_new_cmd(&nl, nl80211, NL80211_CMD_GET_SCAN, 0);
@@ -156,6 +149,7 @@ static void trigger_scan_dump(void)
 		reset_scan_state();
 	} else {
 		scanstate = SS_SCANDUMP;
+		scanseq = nl.seq;
 	}
 }
 
@@ -212,7 +206,7 @@ void nlm_trigger_scan(MSG)
 
 	mark_stale_scan_slots(msg);
 
-	report_scanning();
+	//report_scanning();
 }
 
 /* Non-MULTI scan results command means the card is done scanning,
@@ -233,10 +227,9 @@ void nlm_scan_aborted(MSG)
 	if(scanstate != SS_SCANNING)
 		return;
 
-	warn("scan aborted", NULL, 0);
-	report_scan_fail();
-
 	reset_scan_state();
+
+	scan_ended(-EINTR);
 }
 
 /* NLMSG_DONE indicates the end of a dump. The only kind of dumps
@@ -258,8 +251,6 @@ static void drop_stale_scan_slots(void)
 
 void nlm_scan_done(void)
 {
-	int current = scanreq;
-
 	if(scanstate != SS_SCANDUMP)
 		return;
 
@@ -268,12 +259,7 @@ void nlm_scan_done(void)
 	drop_stale_scan_slots();
 	maybe_trim_heap();
 
-	report_scan_done();
-
-	if(current & SR_RECONNECT_CURRENT)
-		return reconnect_to_current_ap();
-	if(current & SR_CONNECT_SOMETHING)
-		return reassess_wifi_situation();
+	scan_ended(0);
 }
 
 /* Netlink errors caused by scan-related commands; we track those
@@ -285,5 +271,6 @@ void nlm_scan_error(int err)
 	if(!err) return; /* stray ACK */
 
 	reset_scan_state();
-	report_scan_fail();
+
+	scan_ended(err);
 }

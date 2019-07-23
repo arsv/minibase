@@ -29,6 +29,17 @@
 
    The final result of negotiations is PTK and GTK. */
 
+/* eapolstate */
+#define ES_IDLE            0
+#define ES_WAITING_1_4     1
+#define ES_WAITING_2_4     2
+#define ES_WAITING_3_4     3
+#define ES_NEGOTIATED      4
+
+/* return codes */
+#define IGNORE 0
+#define ACCEPTED 0
+
 int rawsock;
 
 int eapolstate;
@@ -54,9 +65,9 @@ int gtkindex;
 
 static char packet[1024];
 
-static void send_packet_2(void);
-static void send_packet_4(void);
-static void send_group_2(void);
+static int send_packet_2(void);
+static int send_packet_4(void);
+static int send_group_2(void);
 
 /* A socket bound to an interface enters failed state if the interface
    goes down, which happens during rfkill. If this happens, we have to
@@ -243,17 +254,6 @@ static void pmk_to_ptk()
 
 /* The rest of the code deals with AP connection */
 
-static void ignore(char* why)
-{
-	warn("EAPOL", why, 0);
-}
-
-static void abort(char* why)
-{
-	warn("EAPOL", why, 0);
-	abort_connection();
-}
-
 /* Message 3 comes with a bunch of IEs (apparently?), among which
    there should be one with the GTK. The whole thing is really
    messed up, so refer to the standard for clues. KDE structure
@@ -265,7 +265,7 @@ static const char kde_type_gtk[4] = { 0x00, 0x0F, 0xAC, 0x01 };
 
 static int store_gtk(int idx, byte* buf, int len)
 {
-	int explen = ap.tkipgroup ? 32 : 16;
+	int explen = ap.gtklen; /* 16 for CCMP, 32 for TKIP */
 
 	if(len != explen)
 		return -1;
@@ -274,10 +274,10 @@ static int store_gtk(int idx, byte* buf, int len)
 
 	memcpy(GTK, buf, 16);
 
-	/* From wpa_supplicant: swap Tx/Rx for Michael MIC.
-	   No idea where this comes from, but it's necessary
-	   to get the right key. */
-	if(ap.tkipgroup) {
+	/* From wpa_supplicant: swap Tx/Rx for Michael MIC for
+	   TKIP GTK. No idea where this comes from, but it's
+	   necessary to get the right key. */
+	if(explen == 32) {
 		memcpy(GTK + 16, buf + 24, 8);
 		memcpy(GTK + 24, buf + 16, 8);
 	}
@@ -321,20 +321,6 @@ static int fetch_gtk(char* buf, int len)
 	return -1;
 }
 
-static int fill_rand(void)
-{
-	int ret;
-
-	if((ret = sys_getrandom(snonce, sizeof(snonce), 0)) < 0) {
-		warn("getrandom", NULL, ret);
-	} else if(ret != sizeof(snonce)) {
-		warn("not enough randomness", NULL, ret);
-		ret = -EAGAIN;
-	};
-
-	return ret;
-}
-
 static void cleanup_keys(void)
 {
 	memzero(packet, sizeof(packet));
@@ -366,33 +352,44 @@ void reset_eapol_state(void)
    Packets sent until then get silently dropped somewhere. So at the time we
    get packet 1/4, we may not yet be able to reply.
 
-   To get around this, we prime the EAPOL state machine before we send
-   ASSOCIATE request and let it receive packet 1/4 early, but only reply
-   with 2/4 once netlink reports association.
+   To get around this, we prime the EAPOL state machine before AUTHENTICATE
+   request and let it receive packet 1/4 early, but only reply with 2/4 once
+   netlink reports association.
 
    Since it all depends on relative timing of unrelated events, we can not
    be sure it always happens like this. We may get 1/4 after ASSOCIATE msg,
-   so we must be ready to reply immediately as well. */
+   so we must be ready to reply immediately as well.
 
-void prime_eapol_state(void)
+   Note on RNG: getrandom() may fail, and if it does it's better to not even
+   attempt to start the connection. */
+
+int prime_eapol_state(void)
 {
 	eapolstate = ES_WAITING_1_4;
 	eapolsends = 0;
+
+	return sys_getrandom(snonce, sizeof(snonce), GRND_NONBLOCK);
 }
 
-void allow_eapol_sends(void)
+int allow_eapol_sends(void)
 {
-	if(eapolstate == ES_WAITING_1_4)
+	if(eapolstate == ES_WAITING_1_4) {
 		eapolsends = 1;
-	else
-		send_packet_2();
+		return 0;
+	}
+	if(eapolstate == ES_WAITING_2_4) {
+		int ret = send_packet_2();
+		return ret < 0 ? ret : 0;
+	}
+
+	/* should never happen */
+	return -EINVAL;
 }
 
 static int send_packet(char* buf, int len)
 {
-	int fd = rawsock;
+	int ret, fd = rawsock;
 	struct sockaddr_ll dest;
-	long wr;
 
 	memzero(&dest, sizeof(dest));
 	dest.family = AF_PACKET;
@@ -401,16 +398,12 @@ static int send_packet(char* buf, int len)
 	dest.halen = 6;
 	memcpy(dest.addr, amac, 6);
 
-	if((wr = sys_sendto(fd, buf, len, 0, &dest, sizeof(dest))) < 0)
-		warn("EAPOL send", NULL, wr);
-	else if(wr != len)
-		warn("EAPOL send", "incomplete", 0);
-	else
-		return 0;
+	if((ret = sys_sendto(fd, buf, len, 0, &dest, sizeof(dest))) < 0)
+		warn("send", "EAPOL", ret);
+	else if(ret != len)
+		ret = -EMSGSIZE;
 
-	abort_connection();
-
-	return -1;
+	return ret;
 }
 
 static int ptype(struct eapolkey* ek, int bits)
@@ -427,28 +420,27 @@ static int ptype(struct eapolkey* ek, int bits)
 	return 1;
 }
 
-static void recv_packet_1(struct eapolkey* ek)
+static int recv_packet_1(struct eapolkey* ek)
 {
 	/* wpa_supplicant does not check ek->version */
 
 	if(ek->type != EAPOL_KEY_RSN)
-		return abort("packet 1/4 wrong type");
+		return IGNORE; /* wrong type */
 	if(!ptype(ek, KI_PAIRWISE | KI_ACK))
-		return ignore("packet 1/4 wrong bits");
+		return IGNORE; /* wrong bits */
 
 	version = ek->version;
 	memcpy(anonce, ek->nonce, sizeof(anonce));
 	memcpy(replay, ek->replay, sizeof(replay));
 
-	if(fill_rand() < 0)
-		return abort_connection();
-
 	pmk_to_ptk();
 
 	if(eapolsends)
 		return send_packet_2();
-	else
-		eapolstate = ES_WAITING_2_4;
+
+	eapolstate = ES_WAITING_2_4;
+
+	return ACCEPTED;
 }
 
 /* Packet 2/4 must carry IEs, the same ones we've sent already
@@ -459,9 +451,10 @@ static void recv_packet_1(struct eapolkey* ek)
    The fact they match exactly the ASSOCIATE payload may be accidental.
    Really needs a reference here. But they do seem to match in practice. */
 
-static void send_packet_2(void)
+static int send_packet_2(void)
 {
 	struct eapolkey* ek = (struct eapolkey*) packet;
+	int ret;
 
 	ek->version = version;
 	ek->pactype = EAPOL_KEY;
@@ -485,36 +478,38 @@ static void send_packet_2(void)
 
 	make_mic(ek->mic, KCK, packet, paclen);
 
-	if(send_packet(packet, paclen))
-		return;
+	if((ret = send_packet(packet, paclen)) < 0)
+		return ret;
 
 	eapolstate = ES_WAITING_3_4;
+
+	return 0;
 }
 
-static void recv_packet_3(struct eapolkey* ek)
+static int recv_packet_3(struct eapolkey* ek)
 {
 	char* pacbuf = (char*)ek;
 	int paclen = 4 + ntohs(ek->paclen);
 
 	if(ptype(ek, KI_PAIRWISE | KI_ACK))
-		return abort("packet 1/4 resend detected");
+		return IGNORE; /* packet 1/4 resend */
 	if(!ptype(ek, KI_PAIRWISE | KI_ACK | KI_MIC | KI_ENCRYPTED | KI_SECURE))
-		return abort("packet 3/4 wrong bits");
+		return IGNORE; /* packet 3/4 wrong bits */
 
 	if(memcmp(anonce, ek->nonce, sizeof(anonce)))
-		return abort("packet 3/4 nonce changed");
+		return -EBADMSG; /* nonce changed */
 	if(memcmp(replay, ek->replay, sizeof(replay)) >= 0)
-		return abort("packet 3/4 replay fail");
+		return -EBADMSG; /* replay chech failure */
 	if(check_mic(ek->mic, KCK, pacbuf, paclen))
-		return abort("packet 3/4 bad MIC");
+		return -EBADMSG; /* bad MIC */
 
 	char* payload = ek->payload;
 	int paylen = ntohs(ek->paylen);
 
 	if(unwrap_key(KEK, payload, paylen))
-		return abort("packet 3/4 cannot unwrap");
+		return -ENOKEY; /* cannot unwrap */
 	if(fetch_gtk(payload + 8, paylen - 8))
-		return abort("packet 3/4 cannot fetch GTK");
+		return -ENOKEY; /* cannot fetch GTK */
 
 	memcpy(RSC, ek->rsc, 6); /* it's 8 bytes but only 6 are used */
 	memcpy(replay, ek->replay, sizeof(replay));
@@ -522,9 +517,10 @@ static void recv_packet_3(struct eapolkey* ek)
 	return send_packet_4();
 }
 
-static void send_packet_4(void)
+static int send_packet_4(void)
 {
 	struct eapolkey* ek = (struct eapolkey*) packet;
+	int ret;
 
 	ek->version = version;
 	ek->pactype = 3;
@@ -545,16 +541,20 @@ static void send_packet_4(void)
 
 	make_mic(ek->mic, KCK, packet, paclen);
 
-	if(send_packet(packet, paclen))
-		return;
+	if((ret = send_packet(packet, paclen)) < 0)
+		return ret;
 
 	eapolstate = ES_NEGOTIATED;
 
-	upload_ptk();
-	upload_gtk();
-	cleanup_keys();
+	if((ret = upload_ptk()) < 0)
+		return ret;
+	if((ret = upload_gtk()) < 0)
+		return ret;
 
-	handle_connect();
+	cleanup_keys();
+	eapol_success();
+
+	return 0;
 }
 
 /* Group rekey packets may arrive at any time, and they are the only
@@ -565,27 +565,27 @@ static void send_packet_4(void)
    arriving after packet 4/4 has been sent will be treated as
    group rekey request, and rejected if they don't look like one. */
 
-static void recv_group_1(struct eapolkey* ek)
+static int recv_group_1(struct eapolkey* ek)
 {
 	char* pacbuf = (char*)ek;
 	int paclen = 4 + ntohs(ek->paclen);
 
 	if(ek->type != EAPOL_KEY_RSN)
-		return ignore("re-keying with a different key type");
+		return IGNORE; /* re-keying with a different key type */
 	if(!ptype(ek, KI_SECURE | KI_ENCRYPTED | KI_ACK | KI_MIC))
-		return ignore("not a rekey request packet");
+		return IGNORE; /* not a rekey request packet */
 	if(memcmp(replay, ek->replay, sizeof(replay)) >= 0)
-		return ignore("packet 1/2 replay");
+		return IGNORE; /* replay check fail */
 	if(check_mic(ek->mic, KCK, pacbuf, paclen))
-		return ignore("packet 1/2 bad MIC");
+		return IGNORE; /* bad MIC */
 
 	char* payload = ek->payload;
 	int paylen = ntohs(ek->paylen);
 
 	if(unwrap_key(KEK, payload, paylen))
-		return abort("packet 1/2 cannot unwrap");
+		return -ENOKEY; /* cannot unwrap */
 	if(fetch_gtk(payload + 8, paylen - 8))
-		return abort("packet 1/2 cannot fetch GTK");
+		return -ENOKEY; /* cannot fetch GTK */
 
 	memcpy(RSC, ek->rsc, 6); /* it's 8 bytes but only 6 are used */
 	memcpy(replay, ek->replay, sizeof(replay));
@@ -593,9 +593,10 @@ static void recv_group_1(struct eapolkey* ek)
 	return send_group_2();
 }
 
-void send_group_2(void)
+static int send_group_2(void)
 {
 	struct eapolkey* ek = (struct eapolkey*) packet;
+	int ret;
 
 	ek->version = version;
 	ek->pactype = 3;
@@ -616,19 +617,22 @@ void send_group_2(void)
 
 	make_mic(ek->mic, KCK, packet, paclen);
 
-	if(send_packet(packet, paclen))
-		return;
+	if((ret = send_packet(packet, paclen)) < 0)
+		return ret;
 
-	upload_gtk();
+	if((ret = upload_gtk()) < 0)
+		return ret;
+
+	return 0;
 }
 
-static void dispatch(struct eapolkey* ek)
+static int dispatch(struct eapolkey* ek)
 {
 	switch(eapolstate) {
 		case ES_WAITING_1_4: return recv_packet_1(ek);
 		case ES_WAITING_3_4: return recv_packet_3(ek);
 		case ES_NEGOTIATED: return recv_group_1(ek);
-		default: return ignore("unexpected packet");
+		default: return IGNORE;
 	}
 }
 
@@ -638,25 +642,26 @@ void handle_rawsock(void)
 	int psize = sizeof(packet);
 	int asize = sizeof(sender);
 	int fd = rawsock;
-	int rd;
+	int rd, ret;
 
 	if((rd = sys_recvfrom(fd, packet, psize, 0, &sender, &asize)) < 0)
 		return warn("EAPOL", NULL, rd);
 
 	if(memcmp(ap.bssid, sender.addr, 6))
-		return warn("EAPOL", "stray packet", 0);
+		return; /* stray packet */
 
 	struct eapolkey* ek = (struct eapolkey*) packet;
 	int eksize = sizeof(*ek);
 
 	if(rd < eksize)
-		return ignore("packet too short");
+		return; /* packet too short */
 	if(ntohs(ek->paclen) + 4 != rd)
-		return ignore("packet size mismatch");
+		return; /* packet size mismatch */
 	if(eksize + ntohs(ek->paylen) > rd)
-		return ignore("truncated payload");
+		return; /* truncated payload */
 	if(ek->pactype != EAPOL_KEY)
-		return ignore("not a KEY packet");
+		return; /* not a KEY packet */
 
-	return dispatch(ek);
+	if((ret = dispatch(ek)) < 0)
+		abort_connection(ret);
 }

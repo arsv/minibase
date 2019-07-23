@@ -12,15 +12,11 @@
 #define CMD_WI_DETACH       WI(6)
 #define CMD_WI_RESET        WI(7)
 
-#define REP_WI_NET_DOWN     WI(0)
-#define REP_WI_SCANNING     WI(1)
-#define REP_WI_SCAN_DONE    WI(2)
-#define REP_WI_SCAN_FAIL    WI(3)
-#define REP_WI_DISCONNECT   WI(4)
-#define REP_WI_NO_CONNECT   WI(5)
-#define REP_WI_CONNECTED    WI(6)
-#define REP_WI_EXTERNAL     WI(7)
-#define REP_WI_ABORTED      WI(8)
+#define REP_WI_SCAN_END     WI(1)
+#define REP_WI_CONNECTING   WI(2)
+#define REP_WI_DISCONNECT   WI(3)
+#define REP_WI_NO_CONNECT   WI(4)
+#define REP_WI_LINK_READY   WI(5)
 
 #define ATTR_SSID       1
 #define ATTR_PSK        2

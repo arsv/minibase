@@ -65,41 +65,6 @@ static void report_simple(int cmd)
 	send_report(uc.brk, uc.ptr - uc.brk);
 }
 
-void report_net_down(void)
-{
-	report_simple(REP_WI_NET_DOWN);
-}
-
-void report_scanning(void)
-{
-	report_simple(REP_WI_SCANNING);
-}
-
-void report_scan_done(void)
-{
-	report_simple(REP_WI_SCAN_DONE);
-}
-
-void report_scan_fail(void)
-{
-	report_simple(REP_WI_SCAN_FAIL);
-}
-
-void report_no_connect(void)
-{
-	report_simple(REP_WI_NO_CONNECT);
-}
-
-void report_aborted(void)
-{
-	report_simple(REP_WI_ABORTED);
-}
-
-void report_external(void)
-{
-	report_simple(REP_WI_EXTERNAL);
-}
-
 static void report_station(int cmd)
 {
 	struct ucbuf uc;
@@ -115,14 +80,30 @@ static void report_station(int cmd)
 	send_report(uc.brk, uc.ptr - uc.brk);
 }
 
+void report_scan_end(int err)
+{
+	(void)err;
+	report_simple(REP_WI_SCAN_END);
+}
+
+void report_connecting(void)
+{
+	report_station(REP_WI_CONNECTING);
+}
+
 void report_disconnect(void)
 {
 	report_station(REP_WI_DISCONNECT);
 }
 
-void report_connected(void)
+void report_no_connect(void)
 {
-	report_station(REP_WI_CONNECTED);
+	report_simple(REP_WI_NO_CONNECT);
+}
+
+void report_link_ready(void)
+{
+	report_station(REP_WI_LINK_READY);
 }
 
 static int send_reply(CN, struct ucbuf* uc)
@@ -155,29 +136,6 @@ static uint estimate_status(void)
 	return scansp + 128;
 }
 
-static int common_wifi_state(void)
-{
-	if(authstate == AS_CONNECTED)
-		return WS_CONNECTED;
-	if(authstate == AS_NETDOWN && rfkilled)
-		return WS_RFKILLED;
-	if(authstate == AS_NETDOWN)
-		return WS_STOPPING;
-	if(authstate == AS_DISCONNECTING)
-		return WS_STOPPING;
-	if(authstate != AS_IDLE)
-		return WS_CONNECTING;
-	if(scanstate != SS_IDLE)
-		return WS_SCANNING;
-
-	if(opermode == OP_MONITOR)
-		return WS_MONITOR;
-	if(opermode == OP_STOPPED)
-		return WS_STOPPED;
-
-	return -1; /* should never be reached */
-}
-
 static void put_status_wifi(struct ucbuf* uc)
 {
 	int tm;
@@ -187,11 +145,11 @@ static void put_status_wifi(struct ucbuf* uc)
 
 	uc_put_int(uc, ATTR_IFI, ifindex);
 	uc_put_str(uc, ATTR_NAME, ifname);
-	uc_put_int(uc, ATTR_STATE, common_wifi_state());
+	uc_put_int(uc, ATTR_STATE, operstate);
 
 	if(ap.slen)
 		uc_put_bin(uc, ATTR_SSID, ap.ssid, ap.slen);
-	if((tm = get_timer()) >= 0)
+	if((tm = time_to_scan()) >= 0)
 		uc_put_int(uc, ATTR_TIME, tm);
 
 	if(!ap.freq)
@@ -246,20 +204,17 @@ static int cmd_status(CN, MSG)
 
 static int cmd_detach(CN, MSG)
 {
-	int ret = 0;
-	int inm = opermode;
+	int ret;
 
 	if(ifindex <= 0)
 		return -EALREADY;
+	if((ret = ap_detach()) < 0)
+		return ret;
 
-	opermode = OP_DETACH;
+	close_netlink();
+	close_rfkill();
 
-	if(inm == OP_ONESHOT || inm == OP_ACTIVE)
-		ret = start_disconnect();
-	else
-		reset_device();
-
-	return ret;
+	return 0;
 }
 
 static int cmd_setdev(CN, MSG)
@@ -267,15 +222,17 @@ static int cmd_setdev(CN, MSG)
 	int* ifi;
 	int ret;
 
-	if(!(opermode == OP_STOPPED))
+	if(ifindex > 0)
 		return -EBUSY;
 	if(!(ifi = uc_get_int(msg, ATTR_IFI)))
 		return -EINVAL;
 
 	if((ret = open_netlink(*ifi)) < 0)
 		return ret;
-	if((ret = start_void_scan()) < 0)
+	if((ret = ap_monitor()) < 0)
 		return ret;
+
+	retry_rfkill();
 
 	cn->rep = 1;
 
@@ -286,7 +243,9 @@ static int cmd_scan(CN, MSG)
 {
 	int ret;
 
-	if((ret = start_void_scan()) < 0)
+	if(ifindex < 0)
+		return -ENODEV;
+	if((ret = start_scan(0)) < 0)
 		return ret;
 
 	cn->rep = 1;
@@ -298,14 +257,10 @@ static int cmd_neutral(CN, MSG)
 {
 	int ret;
 
-	opermode = OP_MONITOR;
-
-	if((ret = start_disconnect()) < 0)
+	if((ret = ap_disconnect()) < 0)
 		return ret;
 
 	cn->rep = 1;
-
-	clr_timer();
 
 	return 0;
 }
@@ -314,28 +269,33 @@ static int cmd_reset(CN, MSG)
 {
 	int ret;
 
-	clr_timer();
-	opermode = OP_STOPPED;
+	if(ifindex >= 0)
+		if((ret = force_disconnect()) < 0)
+			return ret;
 
-	if((ret = force_disconnect()) < 0)
+	if((ret = ap_reset()) < 0)
 		return ret;
-	if((ret = start_void_scan()) < 0)
-		return ret;
-
-	opermode = OP_MONITOR;
-	authstate = AS_IDLE;
-	scanstate = SS_IDLE;
 
 	return 0;
 }
 
-static int configure_station(MSG)
+/* ACK to the command should preceed any notifications caused by the command.
+   Since reassess_wifi_situation() is a pretty long and involved piece of code,
+   we reply early to make sure possible messages generated while starting
+   connection do not confuse the client.
+
+   Note at this point reassess_wifi_situation() does *not* generate any
+   notifications. Not even SCANNING, that one is issued reactively on
+   NL80211_CMD_TRIGGER_SCAN. */
+
+static int cmd_connect(CN, MSG)
 {
 	struct ucattr* assid;
 	struct ucattr* apsk;
+	int ret;
 
-	reset_station();
-
+	if(ifindex <= 0)
+		return -ENODEV;
 	if(!(assid = uc_get(msg, ATTR_SSID)))
 		return -EINVAL;
 	if(!(apsk = uc_get(msg, ATTR_PSK)))
@@ -346,45 +306,12 @@ static int configure_station(MSG)
 
 	if(uc_paylen(apsk) != 32)
 		return -EINVAL;
-
-	return set_station(ssid, slen, uc_payload(apsk));
-}
-
-/* ACK to the command should preceed any notifications caused by the command.
-   Since reassess_wifi_situation() is pretty long and involved piece of code,
-   we reply early to make sure possible messages generated while starting
-   connection do not confuse the client.
-
-   Note at this point reassess_wifi_situation() does *not* generate any
-   notifications. Not even SCANNING, that one is issued reactively on
-   NL80211_CMD_TRIGGER_SCAN. */
-
-static int cmd_connect(CN, MSG)
-{
-	int ret;
-
-	if(ifindex <= 0)
-		return -ENODEV;
-	if(authstate != AS_IDLE)
-		return -EBUSY;
-	if(scanstate != SS_IDLE)
-		return -EBUSY;
-
-	if((ret = configure_station(msg)) < 0)
+	if((ret = ap_connect(ssid, slen, uc_payload(apsk))) < 0)
 		return ret;
-
-	opermode = OP_ONESHOT; /* reset if cannot connect right away */
-
-	/* early reply because reassess_wifi_situation may send reports */
-	ret = reply(cn, 0);
 
 	cn->rep = 1; /* for connect/no-connect notifications */
 
-	clr_timer();
-
-	reassess_wifi_situation();
-
-	return ret;
+	return 0;
 }
 
 static const struct cmd {
@@ -396,8 +323,8 @@ static const struct cmd {
 	{ CMD_WI_SCAN,    cmd_scan    },
 	{ CMD_WI_CONNECT, cmd_connect },
 	{ CMD_WI_NEUTRAL, cmd_neutral },
-	{ CMD_WI_RESET,   cmd_reset   },
-	{ CMD_WI_DETACH,  cmd_detach  }
+	{ CMD_WI_DETACH,  cmd_detach  },
+	{ CMD_WI_RESET,   cmd_reset   }
 };
 
 static int dispatch_cmd(CN, MSG)

@@ -7,7 +7,7 @@ struct nlgen;
 extern uint scanseq;
 extern uint authseq;
 extern int nl80211; /* family id */
-extern int drvnoauth;
+extern int drvconnect;
 
 void reset_auth_state(void);
 void reset_scan_state(void);

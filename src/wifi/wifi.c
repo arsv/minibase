@@ -16,7 +16,8 @@
 
 ERRTAG("wifi");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
-	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT NENOBUFS);
+	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT NENOBUFS NEISCONN
+	NEAGAIN);
 
 void* heap_alloc(CTX, uint size)
 {
@@ -204,16 +205,23 @@ static void send_check_cmd(CTX)
 static void cmd_device(CTX)
 {
 	char *name;
+	int ifi;
 
 	if(!(name = shift_arg(ctx)))
 		fail("need device name", NULL, 0);
 
 	no_other_options(ctx);
 
+	/* This is suboptimal, but we try to connect first and
+	   resolve device name after that. Not worth the trouble
+	   messing with the socket to resolve the name first. */
 	connect_to_wictl(ctx);
 
+	if((ifi = getifindex(ctx->fd, name)) < 0)
+		fail(NULL, name, ifi);
+
 	uc_put_hdr(UC, CMD_WI_SETDEV);
-	uc_put_str(UC, ATTR_NAME, name);
+	uc_put_int(UC, ATTR_IFI, ifi);
 	uc_put_end(UC);
 
 	send_check_cmd(ctx);
@@ -260,12 +268,9 @@ static void cmd_neutral(CTX)
 	else if(ret > 0)
 		fail("unexpected notification", NULL, 0);
 
-	while((msg = recv_reply(ctx))) {
+	while((msg = recv_reply(ctx)))
 		if(msg->cmd == REP_WI_DISCONNECT)
 			break;
-		if(msg->cmd == REP_WI_NET_DOWN)
-			break;
-	};
 }
 
 static void cmd_reset(CTX)
@@ -287,14 +292,9 @@ static void wait_for_scan_results(CTX)
 {
 	struct ucmsg* msg;
 
-	while((msg = recv_reply(ctx))) {
-		if(msg->cmd == REP_WI_SCAN_FAIL)
-			fail("scan failed", NULL, 0);
-		if(msg->cmd == REP_WI_SCAN_DONE)
+	while((msg = recv_reply(ctx)))
+		if(msg->cmd == REP_WI_SCAN_END)
 			break;
-		if(msg->cmd == REP_WI_NET_DOWN)
-			fail("net down", NULL, 0);
-	}
 }
 
 static void fetch_dump_scan_list(CTX)
@@ -312,14 +312,14 @@ static void fetch_dump_scan_list(CTX)
 	dump_scanlist(ctx, msg);
 }
 
-static void set_scan_device(CTX, char* name)
+static void set_scan_device(CTX, int ifi, char* name)
 {
 	int ret;
 
 	warn("scanning device", name, 0);
 
 	uc_put_hdr(UC, CMD_WI_SETDEV);
-	uc_put_str(UC, ATTR_NAME, name);
+	uc_put_int(UC, ATTR_IFI, ifi);
 	uc_put_end(UC);
 
 	if((ret = send_recv_cmd(ctx)) < 0)
@@ -329,9 +329,14 @@ static void set_scan_device(CTX, char* name)
 static void pick_scan_device(CTX)
 {
 	char name[32];
+	int ifi;
 
 	find_wifi_device(name);
-	set_scan_device(ctx, name);
+
+	if((ifi = getifindex(ctx->fd, name)) < 0)
+		fail(NULL, name, ifi);
+
+	set_scan_device(ctx, ifi, name);
 }
 
 static void cmd_scan(CTX)
@@ -421,19 +426,13 @@ static void wait_for_connect(CTX)
 
 	while((msg = recv_reply(ctx))) {
 		switch(msg->cmd) {
-			case REP_WI_NET_DOWN:
-				fail(NULL, NULL, -ENETDOWN);
-			case REP_WI_CONNECTED:
+			case REP_WI_LINK_READY:
 				warn_sta(ctx, "connected to", msg);
 				return;
 			case REP_WI_DISCONNECT:
 				warn_bss(ctx, "cannot connect to", msg);
 				failures++;
 				break;
-			case REP_WI_EXTERNAL:
-				fail("another supplicant detected", NULL, 0);
-			case REP_WI_ABORTED:
-				fail("connection attempt aborted", NULL, 0);
 			case REP_WI_NO_CONNECT:
 				if(failures)
 					fail("no more APs in range", NULL, 0);

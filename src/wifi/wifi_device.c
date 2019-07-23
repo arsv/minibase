@@ -11,7 +11,15 @@
 #include "common.h"
 #include "wifi.h"
 
-/* Service startup */
+/* If the service has no device assigned, the client should try to pick
+   one for it to use. This is done by scanning all available netdevs in
+   /sys, looking for those with phy80211 entry.
+
+   The client only needs to send ifindex to the service. However, error
+   reporting is much easier if the name is available as well, so we
+   provide the name as well.
+
+   TODO: warn about multiple available devices. */
 
 static int is_wifi_device(char* dir, char* name)
 {

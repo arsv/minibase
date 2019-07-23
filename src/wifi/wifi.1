@@ -11,8 +11,8 @@ Show status, including BSSIDs for all APs.
 .IP "\fBwifi scan\fR" 4
 Scan for available access points.
 .IP "\fBwifi connect\fR [\fIssid\fR]" 4
-Connect to named AP, or the strongest AP the service has PSK for.
-.IP "\fBwifi disconnect\fR" 4
+Connect to named AP.
+.IP "\fBwifi disconnect\fR (also \fBdc\fR)" 4
 Disconnect from current AP, but keep the service running.
 .IP "\fBwifi forget\fR \fIssid\fR" 4
 Forget PSK for given \fIssid\fR.
@@ -20,6 +20,8 @@ Forget PSK for given \fIssid\fR.
 Configure the service to use specified device.
 .IP "\fBwifi detach\fR" 4
 Stop using configured device, switch into idle mode.
+.IP "\fBwifi reset\fR" 4
+Reset the service without detaching from the device.
 '''
 .SH USAGE
 When connection to a new AP for the first time, \fBwifi\fR will

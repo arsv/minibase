@@ -4,7 +4,6 @@
 #include <netlink.h>
 #include <netlink/genl.h>
 #include <netlink/genl/nl80211.h>
-#include <netlink/dump.h>
 
 #include <string.h>
 #include <util.h>
@@ -18,8 +17,8 @@
    each driving its own state machine. Most wifi cards can often scan and
    connect at the same time.
 
-   Most NL commands have delayed effects, and any (non-scan) errors are
-   handled exactly the same way, so we do not request ACKs. */
+   All important NL commands have delayed effects, so we do not request ACKs
+   and instead react to incoming events. */
 
 char txbuf[512];
 char rxbuf[8*1024];
@@ -68,8 +67,11 @@ void close_netlink(void)
 
 	sys_close(netlink);
 	memzero(&nl, sizeof(nl));
+
 	netlink = -1;
 	pollset = 0;
+
+	ifindex = 0;
 }
 
 static void genl_done(struct nlmsg* msg)
@@ -82,12 +84,18 @@ static void genl_done(struct nlmsg* msg)
 
 static void genl_error(struct nlerr* msg)
 {
-	if(msg->nlm.seq == scanseq)
-		nlm_scan_error(msg->errno);
-	else if(msg->nlm.seq == authseq)
-		nlm_auth_error(msg->errno);
-	else
-		warn("stray NL error", NULL, msg->errno);
+	uint seq = msg->seq;
+	int err = msg->errno;
+
+	if(!err)
+		return; /* stray ACK? don't need these */
+	if(seq == scanseq)
+		return nlm_scan_error(err);
+	if(seq == authseq)
+		return nlm_auth_error(err);
+
+	/* upload_ptk or upload_gtk, no seq for those */
+	abort_connection(err);
 }
 
 static const struct cmd {
@@ -127,6 +135,8 @@ static int match_ifi(struct nlgen* msg)
 
 	return 1;
 }
+
+/* Poll reports there's something to read on the netlink fd */
 
 void handle_netlink(void)
 {
