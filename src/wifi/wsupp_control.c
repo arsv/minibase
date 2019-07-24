@@ -392,18 +392,16 @@ void setup_control(void)
 	ctrlfd = fd;
 }
 
-void unlink_control(void)
+void exit_control(void)
 {
 	sys_unlink(WICTL);
+	_exit(0xFF);
 }
 
 void quit(const char* msg, char* arg, int err)
 {
-	if(msg || arg || err)
-		warn(msg, arg, err);
-
-	unlink_control();
-	_exit(0xFF);
+	warn(msg, arg, err);
+	exit_control();
 }
 
 void handle_control(void)

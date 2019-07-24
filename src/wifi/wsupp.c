@@ -27,17 +27,14 @@ static struct pollfd pfds[3+NCONNS];
 static int npfds;
 static struct timespec pollts;
 static callptr timercall;
-
 int pollset;
-int sigterm;
-int done;
 
 static void sighandler(int sig)
 {
 	switch(sig) {
 		case SIGINT:
 		case SIGTERM:
-			sigterm = 1;
+			exit_control();
 	}
 }
 
@@ -190,15 +187,6 @@ static void timer_expired(void)
 	if(cb) cb();
 }
 
-static void shutdown(void)
-{
-	if(sigterm > 1)
-		fail("second SIGTERM, exiting", NULL, 0);
-
-	sigterm = 2;
-	quit(NULL, NULL, 0);
-}
-
 int main(int argc, char** argv)
 {
 	int i = 1, ret;
@@ -224,8 +212,6 @@ int main(int argc, char** argv)
 			timer_expired();
 		else if(ret != -EINTR)
 			quit("ppoll", NULL, ret);
-		if(sigterm)
-			shutdown();
 	};
 
 	return 0; /* never reached */

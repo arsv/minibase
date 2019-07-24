@@ -101,9 +101,9 @@ void clear_timer(void);
 
 /* Control */
 void setup_control(void);
-void unlink_control(void);
 void handle_control(void);
 void handle_conn(struct conn* cn);
+void exit_control(void) noreturn;
 
 void report_scan_end(int err);
 void report_connecting(void);
