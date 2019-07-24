@@ -3,9 +3,9 @@
 #include <sys/socket.h>
 #include <sys/file.h>
 #include <sys/fpath.h>
-#include <sys/timer.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/ppoll.h>
 
 #include <nlusctl.h>
 #include <string.h>
@@ -27,6 +27,39 @@ static char txbuf[100];
 
 #define REPLIED 1
 
+static int send_buffer(int fd, void* buf, int len)
+{
+	struct timespec ts = { 1, 0 };
+	struct pollfd pfd = { fd, POLLOUT, 0 };
+	int ret;
+again:
+	if((ret = sys_send(fd, buf, len, 0)) >= len)
+		return ret;
+
+	if(ret < 0) {
+		if(ret != -EAGAIN)
+			return ret;
+	} else if(ret) {
+		buf += ret;
+		len -= ret;
+	}
+
+	if((ret = sys_ppoll(&pfd, 1, &ts, NULL)) < 0)
+		return ret;
+	else if(ret == 0)
+		return -ETIMEDOUT;
+
+	if((ret = sys_send(fd, buf, len, 0)) < 0)
+		return ret;
+
+	goto again;
+}
+
+static void drop_connection(CN)
+{
+	sys_shutdown(cn->fd, SHUT_RDWR);
+}
+
 static void send_report(char* buf, int len)
 {
 	struct conn* cn;
@@ -36,17 +69,10 @@ static void send_report(char* buf, int len)
 		if(!cn->rep || (fd = cn->fd) <= 0)
 			continue;
 
-		struct itimerval old, itv = {
-			.interval = { 0, 0 },
-			.value = { 1, 0 }
-		};
+		if(send_buffer(fd, buf, len) >= 0)
+			continue;
 
-		sys_setitimer(ITIMER_REAL, &itv, &old);
-
-		if(sys_write(fd, buf, len) < 0)
-			sys_shutdown(fd, SHUT_RDWR);
-
-		sys_setitimer(ITIMER_REAL, &old, NULL);
+		drop_connection(cn);
 	}
 }
 
@@ -118,10 +144,15 @@ void report_link_ready(void)
 
 static int send_reply(CN, struct ucbuf* uc)
 {
-	if(uc->ptr - uc->brk < 8)
+	int fd = cn->fd;
+	void* buf = uc->brk;
+	long len = uc->ptr - uc->brk;
+
+	if(len < 8)
 		warn("attempt to send less than 8 bytes", NULL, 0);
 
-	writeall(cn->fd, uc->brk, uc->ptr - uc->brk);
+	if(send_buffer(fd, buf, len) < 0)
+		drop_connection(cn);
 
 	return REPLIED;
 }
@@ -355,21 +386,19 @@ void handle_conn(struct conn* cn)
 		.rptr = rxbuf,
 		.end = rxbuf + sizeof(rxbuf)
 	};
-	struct itimerval old, itv = {
-		.interval = { 0, 0 },
-		.value = { 1, 0 }
-	};
-
-	sys_setitimer(0, &itv, &old);
 
 	while(1) {
-		if((ret = uc_recv(fd, &ur, 0)) < 0)
+		if((ret = uc_recv(fd, &ur, 0)) > 0)
+			; /* got complete message */
+		else if(ret == 0 || ret == -EAGAIN)
+			return;
+		else /* error that isn't EAGAIN */
 			break;
 		if((ret = dispatch_cmd(cn, ur.msg)) < 0)
 			break;
 	}
 
-	sys_setitimer(0, &old, NULL);
+	drop_connection(cn);
 }
 
 void setup_control(void)
@@ -409,9 +438,10 @@ void handle_control(void)
 	int cfd, sfd = ctrlfd;
 	struct sockaddr addr;
 	int addr_len = sizeof(addr);
+	int flags = SOCK_NONBLOCK;
 	struct conn *cn;
 
-	while((cfd = sys_accept(sfd, &addr, &addr_len)) > 0)
+	while((cfd = sys_accept4(sfd, &addr, &addr_len, flags)) > 0)
 		if((cn = grab_conn_slot()))
 			cn->fd = cfd;
 		else
