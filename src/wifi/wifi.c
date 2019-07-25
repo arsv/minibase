@@ -73,14 +73,12 @@ static void connect_to_wictl(CTX)
 static void send_command(CTX)
 {
 	int wr, fd = ctx->fd;
-	char* txbuf = ctx->uc.brk;
-	int txlen = ctx->uc.ptr - ctx->uc.brk;
 
 	if(!ctx->connected)
 		fail("socket not connected", NULL, 0);
 
-	if((wr = writeall(fd, txbuf, txlen)) < 0)
-		fail("write", NULL, wr);
+	if((wr = uc_send_whole(fd, &ctx->uc)) < 0)
+		fail("uc-send", NULL, wr);
 }
 
 static struct ucmsg* recv_reply(CTX)
@@ -88,7 +86,7 @@ static struct ucmsg* recv_reply(CTX)
 	struct urbuf* ur = &ctx->ur;
 	int ret, fd = ctx->fd;
 
-	if((ret = uc_recv(fd, ur, 1)) < 0)
+	if((ret = uc_recv_shift(fd, ur)) < 0)
 		fail("recv", "wictl", ret);
 
 	return ur->msg;
@@ -126,7 +124,7 @@ static struct ucmsg* recv_large(CTX)
 		ur->end = buf + len;
 	}
 
-	while((ret = uc_recv(fd, ur, 1)) < 0) {
+	while((ret = uc_recv_shift(fd, ur)) < 0) {
 		if(ret != -ENOBUFS)
 			fail("recv", "wictl", ret);
 

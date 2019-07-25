@@ -27,40 +27,12 @@ static char txbuf[100];
 
 #define REPLIED 1
 
-static int send_buffer(int fd, void* buf, int len)
-{
-	struct timespec ts = { 1, 0 };
-	struct pollfd pfd = { fd, POLLOUT, 0 };
-	int ret;
-again:
-	if((ret = sys_send(fd, buf, len, 0)) >= len)
-		return ret;
-
-	if(ret < 0) {
-		if(ret != -EAGAIN)
-			return ret;
-	} else if(ret) {
-		buf += ret;
-		len -= ret;
-	}
-
-	if((ret = sys_ppoll(&pfd, 1, &ts, NULL)) < 0)
-		return ret;
-	else if(ret == 0)
-		return -ETIMEDOUT;
-
-	if((ret = sys_send(fd, buf, len, 0)) < 0)
-		return ret;
-
-	goto again;
-}
-
 static void drop_connection(CN)
 {
 	sys_shutdown(cn->fd, SHUT_RDWR);
 }
 
-static void send_report(char* buf, int len)
+static void send_report(struct ucbuf* uc)
 {
 	struct conn* cn;
 	int fd;
@@ -69,7 +41,7 @@ static void send_report(char* buf, int len)
 		if(!cn->rep || (fd = cn->fd) <= 0)
 			continue;
 
-		if(send_buffer(fd, buf, len) >= 0)
+		if(uc_send_timed(cn->fd, uc) >= 0)
 			continue;
 
 		drop_connection(cn);
@@ -88,7 +60,7 @@ static void report_simple(int cmd)
 	uc_put_hdr(&uc, cmd);
 	uc_put_end(&uc);
 
-	send_report(uc.brk, uc.ptr - uc.brk);
+	send_report(&uc);
 }
 
 static void report_station(int cmd)
@@ -103,7 +75,7 @@ static void report_station(int cmd)
 	uc_put_int(&uc, ATTR_FREQ, ap.freq);
 	uc_put_end(&uc);
 
-	send_report(uc.brk, uc.ptr - uc.brk);
+	send_report(&uc);
 }
 
 void report_scan_end(int err)
@@ -119,7 +91,7 @@ void report_scan_end(int err)
 	if(err) uc_put_int(&uc, ATTR_ERROR, err);
 	uc_put_end(&uc);
 
-	send_report(uc.brk, uc.ptr - uc.brk);
+	send_report(&uc);
 }
 
 void report_connecting(void)
@@ -144,14 +116,7 @@ void report_link_ready(void)
 
 static int send_reply(CN, struct ucbuf* uc)
 {
-	int fd = cn->fd;
-	void* buf = uc->brk;
-	long len = uc->ptr - uc->brk;
-
-	if(len < 8)
-		warn("attempt to send less than 8 bytes", NULL, 0);
-
-	if(send_buffer(fd, buf, len) < 0)
+	if(uc_send_timed(cn->fd, uc) < 0)
 		drop_connection(cn);
 
 	return REPLIED;
@@ -379,25 +344,15 @@ static int dispatch_cmd(CN, MSG)
 void handle_conn(struct conn* cn)
 {
 	int ret, fd = cn->fd;
+	struct ucmsg* msg;
 
-	struct urbuf ur = {
-		.buf = rxbuf,
-		.mptr = rxbuf,
-		.rptr = rxbuf,
-		.end = rxbuf + sizeof(rxbuf)
-	};
-
-	while(1) {
-		if((ret = uc_recv(fd, &ur, 0)) > 0)
-			; /* got complete message */
-		else if(ret == 0 || ret == -EAGAIN)
-			return;
-		else /* error that isn't EAGAIN */
-			break;
-		if((ret = dispatch_cmd(cn, ur.msg)) < 0)
-			break;
-	}
-
+	if((ret = uc_recv_whole(fd, rxbuf, sizeof(rxbuf))) < 0)
+		goto err;
+	if(!(msg = uc_msg(rxbuf, ret)))
+		goto err;
+	if((ret = dispatch_cmd(cn, msg)) >= 0)
+		return;
+err:
 	drop_connection(cn);
 }
 
