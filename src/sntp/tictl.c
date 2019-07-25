@@ -91,7 +91,7 @@ static struct ucmsg* recv_reply(CTX)
 	struct urbuf* ur = &ctx->ur;
 	int ret, fd = ctx->fd;
 
-	if((ret = uc_recv(fd, ur, 1)) < 0)
+	if((ret = uc_recv_shift(fd, ur)) < 0)
 		fail("recv", NULL, ret);
 
 	return ur->msg;

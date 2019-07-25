@@ -427,19 +427,15 @@ static int dispatch_cmd(CTX, CN, MSG)
 void check_client(CTX, CN)
 {
 	int ret, fd = cn->fd;
+	struct ucmsg* msg;
 	char buf[100];
 
-	struct urbuf ur = {
-		.buf = buf,
-		.mptr = buf,
-		.rptr = buf,
-		.end = buf + sizeof(buf)
-	};
-
-	while(1) {
-		if((ret = uc_recv(fd, &ur, 0)) < 0)
-			break;
-		if((ret = dispatch_cmd(ctx, cn, ur.msg)) < 0)
-			break;
-	}
+	if((ret = uc_recv_whole(fd, buf, sizeof(buf))) < 0)
+		goto err;
+	if(!(msg = uc_msg(buf, ret)))
+		goto err;
+	if((ret = dispatch_cmd(ctx, cn, msg)) >= 0)
+		return;
+err:
+	sys_shutdown(fd, SHUT_RDWR);
 }
