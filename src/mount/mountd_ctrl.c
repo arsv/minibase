@@ -38,17 +38,13 @@
    In case of file (fd) mounts, /dev/loopN is set up before
    doing the mount, the same way GNU make does it with -o loop. */
 
-struct rct {
-	int fd;
-	struct urbuf* ur;
-	struct ucbuf* uc;
-};
+#define MSG struct ucmsg* msg __unused
+#define UX struct ucaux* ux __unused
 
-#define RCT struct rct* rct
-
-int reply(RCT, int rep, int attr, char* value)
+static int reply(int fd, int rep, int attr, char* value)
 {
 	char txbuf[200];
+	int ret;
 
 	struct ucbuf uc = {
 		.brk = txbuf,
@@ -60,15 +56,16 @@ int reply(RCT, int rep, int attr, char* value)
 	if(attr) uc_put_str(&uc, attr, value);
 	uc_put_end(&uc);
 
-	sys_send(rct->fd, uc.brk, uc.ptr - uc.brk, 0);
+	if((ret = uc_send_timed(fd, &uc)) < 0)
+		return ret;
 
 	return REPLIED;
 }
 
-static void* get_scm(struct ucbuf* uc, int type, int size)
+static void* get_scm(struct ucaux* ux, int type, int size)
 {
-	void* p = uc->brk;
-	void* e = uc->ptr;
+	void* p = ux->buf;
+	void* e = p + ux->len;
 	struct cmsg* cm;
 
 	if(!(cm = cmsg_get(p, e, SOL_SOCKET, type)))
@@ -79,14 +76,14 @@ static void* get_scm(struct ucbuf* uc, int type, int size)
 	return cmsg_payload(cm);
 }
 
-static struct ucred* get_scm_creds(RCT)
+static struct ucred* get_scm_creds(struct ucaux* ux)
 {
-	return get_scm(rct->uc, SCM_CREDENTIALS, sizeof(struct ucred));
+	return get_scm(ux, SCM_CREDENTIALS, sizeof(struct ucred));
 }
 
-static int* get_scm_fd(RCT)
+static int* get_scm_fd(struct ucaux* ux)
 {
-	return get_scm(rct->uc, SCM_RIGHTS, sizeof(int));
+	return get_scm(ux, SCM_RIGHTS, sizeof(int));
 }
 
 static void make_path(char* buf, int len, char* pref, char* name)
@@ -116,9 +113,8 @@ static int has_slashes(char* name)
 	return 0;
 }
 
-static char* get_attr_name(RCT)
+static char* get_attr_name(MSG)
 {
-	struct ucmsg* msg = rct->ur->msg;
 	char* name;
 
 	if(!(name = uc_get_str(msg, ATTR_NAME)))
@@ -129,14 +125,12 @@ static char* get_attr_name(RCT)
 	return name;
 }
 
-static int get_flag_attr(RCT, int key)
+static int get_flag_attr(MSG, int key)
 {
-	struct ucmsg* msg = rct->ur->msg;
-
 	return !!uc_get(msg, key);
 }
 
-static int mount(RCT, char* name, int flags, struct ucred* uc, int isloop)
+static int mount(int fd, char* name, int flags, struct ucred* uc, int isloop)
 {
 	int ret;
 	int fst;
@@ -172,29 +166,29 @@ static int mount(RCT, char* name, int flags, struct ucred* uc, int isloop)
 
 done:
 	sys_chmod(devpath, 0000);
-	return reply(rct, 0, ATTR_PATH, mntpath);
+	return reply(fd, 0, ATTR_PATH, mntpath);
 fail:
 	sys_rmdir(mntpath);
 	return ret;
 }
 
-static int cmd_mount(RCT)
+static int cmd_mount(int fd, MSG, UX)
 {
 	char* name;
 	int flags = MS_NODEV | MS_NOSUID | MS_SILENT | MS_RELATIME;
 	struct ucred* uc;
 
-	if(!(name = get_attr_name(rct)))
+	if(!(name = get_attr_name(msg)))
 		return -EINVAL;
-	if(!(uc = get_scm_creds(rct)))
+	if(!(uc = get_scm_creds(ux)))
 		return -EINVAL;
-	if(get_flag_attr(rct, ATTR_RDONLY))
+	if(get_flag_attr(msg, ATTR_RDONLY))
 		flags |= MS_RDONLY;
 
-	return mount(rct, name, flags, uc, 0);
+	return mount(fd, name, flags, uc, 0);
 }
 
-static int cmd_mount_fd(RCT)
+static int cmd_mount_fd(int fd, MSG, UX)
 {
 	int* ffd;
 	int idx;
@@ -202,11 +196,11 @@ static int cmd_mount_fd(RCT)
 	char* base;
 	struct ucred* uc;
 
-	if(!(base = get_attr_name(rct)))
+	if(!(base = get_attr_name(msg)))
 		return -EINVAL;
-	if(!(uc = get_scm_creds(rct)))
+	if(!(uc = get_scm_creds(ux)))
 		return -EINVAL;
-	if(!(ffd = get_scm_fd(rct)))
+	if(!(ffd = get_scm_fd(ux)))
 		return -EINVAL;
 	if((idx = setup_loopback(*ffd, base)) < 0)
 		return idx;
@@ -216,20 +210,20 @@ static int cmd_mount_fd(RCT)
 	p = fmtint(p, e, idx);
 	FMTEND(p, e);
 
-	int ret = mount(rct, name, flags, uc, 1);
+	int ret = mount(fd, name, flags, uc, 1);
 
 	if(ret < 0) unset_loopback(idx);
 
 	return ret;
 }
 
-static int cmd_umount(RCT)
+static int cmd_umount(int fd, MSG, UX)
 {
 	int ret;
 	char* name;
 	int flags = 0;
 
-	if(!(name = get_attr_name(rct)))
+	if(!(name = get_attr_name(msg)))
 		return -EINVAL;
 
 	int nlen = strlen(name);
@@ -255,15 +249,15 @@ static int cmd_umount(RCT)
 	return 0;
 }
 
-static int cmd_grab(RCT)
+static int cmd_grab(int fd, MSG, UX)
 {
 	char* name;
 	struct ucred* uc;
 	int ret;
 
-	if(!(name = get_attr_name(rct)))
+	if(!(name = get_attr_name(msg)))
 		return -EINVAL;
-	if(!(uc = get_scm_creds(rct)))
+	if(!(uc = get_scm_creds(ux)))
 		return -EINVAL;
 
 	int nlen = strlen(name);
@@ -274,18 +268,18 @@ static int cmd_grab(RCT)
 	if((ret = grab_blkdev(devpath, uc)) < 0)
 		return ret;
 
-	return reply(rct, 0, ATTR_PATH, devpath);
+	return reply(fd, 0, ATTR_PATH, devpath);
 }
 
-static int cmd_release(RCT)
+static int cmd_release(int fd, MSG, UX)
 {
 	char* name;
 	struct ucred* uc;
 	int ret;
 
-	if(!(name = get_attr_name(rct)))
+	if(!(name = get_attr_name(msg)))
 		return -EINVAL;
-	if(!(uc = get_scm_creds(rct)))
+	if(!(uc = get_scm_creds(ux)))
 		return -EINVAL;
 
 	int nlen = strlen(name);
@@ -296,12 +290,12 @@ static int cmd_release(RCT)
 	if((ret = release_blkdev(devpath, uc)) < 0)
 		return ret;
 
-	return reply(rct, 0, 0, NULL);
+	return reply(fd, 0, 0, NULL);
 }
 
 static const struct cmd {
 	int cmd;
-	int (*call)(RCT);
+	int (*call)(int fd, MSG, UX);
 } cmds[] = {
 	{ CMD_MOUNT,     cmd_mount     },
 	{ CMD_MOUNT_FD,  cmd_mount_fd  },
@@ -310,11 +304,11 @@ static const struct cmd {
 	{ CMD_RELEASE,   cmd_release   }
 };
 
-static void close_all_cmsg_fds(struct ucbuf* uc)
+static void close_all_cmsg_fds(struct ucaux* ux)
 {
 	struct cmsg* cm;
-	void* p = uc->brk;
-	void* e = uc->ptr;
+	void* p = ux->buf;
+	void* e = p + ux->len;
 
 	for(cm = cmsg_first(p, e); cm; cm = cmsg_next(cm, e)) {
 		if(cm->level != SOL_SOCKET)
@@ -330,78 +324,36 @@ static void close_all_cmsg_fds(struct ucbuf* uc)
 	}
 }
 
-static void dispatch_cmd(RCT)
+static int dispatch(int fd, struct ucmsg* msg, struct ucaux* ux)
 {
-	struct ucmsg* msg = rct->ur->msg;
+	const struct cmd* p;
 
-	const struct cmd* p = cmds;
-	const struct cmd* e = cmds + ARRAY_SIZE(cmds);
-	int ret = -ENOSYS;
+	for(p = cmds; p < ARRAY_END(cmds); p++)
+		if(p->cmd == msg->cmd)
+			return p->call(fd, msg, ux);
 
-	for(; p < e; p++)
-		if(p->cmd == msg->cmd) {
-			ret = p->call(rct);
-			break;
-		}
-
-	if(ret <= 0)
-		reply(rct, ret, 0, NULL);
-	/* else it's REPLIED */
-
-	close_all_cmsg_fds(rct->uc);
-}
-
-static void set_timer(struct itimerval* old, int sec)
-{
-	struct itimerval itv = {
-		.interval = { 0, 0 },
-		.value = { sec, 0 }
-	};
-
-	sys_setitimer(0, &itv, old);
-}
-
-static void clr_timer(struct itimerval* old)
-{
-	sys_setitimer(0, old, NULL);
-}
-
-static void set_urbuf(struct urbuf* ur, void* buf, int len)
-{
-	ur->buf = buf;
-	ur->mptr = buf;
-	ur->rptr = buf;
-	ur->end = buf + len;
-}
-
-static void set_ucbuf(struct ucbuf* uc, void* buf, int len)
-{
-	uc->brk = buf;
-	uc->ptr = buf;
-	uc->end = buf + len;
+	return -ENOSYS;
 }
 
 void handle(int fd)
 {
 	char rxbuf[200];
 	char control[64];
-	struct itimerval itv;
-	struct urbuf ur;
-	struct ucbuf uc;
+	struct ucmsg* msg;
 	int ret;
+	struct ucaux ux = { control, sizeof(control) };
 
-	set_urbuf(&ur, rxbuf, sizeof(rxbuf));
-	set_ucbuf(&uc, control, sizeof(control));
+	if((ret = uc_recvmsg(fd, rxbuf, sizeof(rxbuf), &ux)) < 0)
+		goto err;
+	if(!(msg = uc_msg(rxbuf, ret)))
+		goto err;
 
-	set_timer(&itv, 1);
-
-	struct rct rct = { fd, &ur, &uc };
-
-	while((ret = uc_recvmsg(fd, &ur, &uc, 0)) > 0)
-		dispatch_cmd(&rct);
-
-	if(ret < 0 && ret != -EBADF && ret != -EAGAIN)
-		sys_shutdown(fd, SHUT_RDWR);
-
-	clr_timer(&itv);
+	if((ret = dispatch(fd, msg, &ux)) > 0)
+		goto out; /* replied already */
+	if((ret = reply(fd, ret, 0, NULL)) >= 0)
+		goto out;
+err:
+	sys_shutdown(fd, SHUT_RDWR);
+out:
+	close_all_cmsg_fds(&ux);
 }

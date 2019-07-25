@@ -73,8 +73,9 @@ static void accept_connection(CTX, int sfd)
 	int cfd;
 	struct sockaddr_un addr;
 	int addrlen = sizeof(addr);
+	int flags = SOCK_NONBLOCK;
 
-	while((cfd = sys_accept(sfd, &addr, &addrlen)) >= 0) {
+	while((cfd = sys_accept4(sfd, &addr, &addrlen, flags)) >= 0) {
 		if(ctx->nconns < NCONNS) {
 			int i = ctx->nconns++;
 			pfds[i+1].fd = cfd;
