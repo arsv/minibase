@@ -3,7 +3,6 @@
 
 #include <sys/file.h>
 #include <sys/mman.h>
-#include <sys/timer.h>
 #include <sys/signal.h>
 #include <sys/socket.h>
 
@@ -63,7 +62,7 @@ static int send_reply(UC, CN)
 {
 	uc_put_end(uc);
 
-	writeall(cn->fd, uc->brk, uc->ptr - uc->brk);
+	uc_send_timed(cn->fd, uc);
 
 	return REPLIED;
 }
@@ -95,20 +94,6 @@ static int reply(CN, int err)
 
 /* Notifcations */
 
-static void send_notification(struct conn* cn)
-{
-	struct itimerval old, itv = {
-		.interval = { 0, 0 },
-		.value = { 1, 0 }
-	};
-
-	sys_setitimer(0, &itv, &old);
-
-	reply(cn, 0);
-
-	sys_setitimer(0, &old, NULL);
-}
-
 void notify_dead(int pid)
 {
 	struct conn* cn;
@@ -117,7 +102,7 @@ void notify_dead(int pid)
 		if(cn->pid != pid)
 			continue;
 
-		send_notification(cn);
+		reply(cn, 0);
 
 		cn->pid = 0;
 	}
@@ -390,28 +375,21 @@ static int dispatch_cmd(CN, MSG)
 
 void handle_conn(struct conn* cn)
 {
-	char rxbuf[200];
 	int fd = cn->fd;
-	int rd, ret;
+	int ret;
+	struct ucmsg* msg;
+	char buf[200];
 
-	struct urbuf ur = {
-		.buf = rxbuf,
-		.mptr = rxbuf,
-		.rptr = rxbuf,
-		.end = rxbuf + sizeof(rxbuf)
-	};
-	struct itimerval old, itv = {
-		.interval = { 0, 0 },
-		.value = { 1, 0 }
-	};
-
-	sys_setitimer(0, &itv, &old);
-
-	while((rd = uc_recv(fd, &ur, 0)) > 0)
-		if((ret = dispatch_cmd(cn, ur.msg)) <= 0)
-			reply(cn, ret);
-
-	sys_setitimer(0, &old, NULL);
+	if((ret = uc_recv_whole(fd, buf, sizeof(buf))) < 0)
+		goto err;
+	if(!(msg = uc_msg(buf, ret)))
+		goto err;
+	if((ret = dispatch_cmd(cn, msg)) > 0)
+		return; /* replied already */
+	if((ret = reply(cn, ret)) >= 0)
+		return; /* code-only reply successful */
+err:
+	sys_shutdown(fd, SHUT_RDWR);
 }
 
 void accept_ctrl(int sfd)
@@ -419,9 +397,10 @@ void accept_ctrl(int sfd)
 	int cfd;
 	struct sockaddr addr;
 	int addr_len = sizeof(addr);
+	int flags = SOCK_NONBLOCK;
 	struct conn *cn;
 
-	while((cfd = sys_accept(sfd, &addr, &addr_len)) > 0) {
+	while((cfd = sys_accept4(sfd, &addr, &addr_len, flags)) > 0) {
 		if((cn = grab_conn_slot())) {
 			cn->fd = cfd;
 		} else {
