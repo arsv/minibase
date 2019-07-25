@@ -29,11 +29,15 @@ int sigchld;
 static void child_died(int cfd, int pid, int status)
 {
 	(void)pid; /* maybe check if it's the right one? */
+	int ret;
 
 	if(WIFSIGNALED(status))
-		reply(cfd, REP_DEAD, ATTR_SIGNAL, WTERMSIG(status));
+		ret = reply(cfd, REP_DEAD, ATTR_SIGNAL, WTERMSIG(status));
 	else
-		reply(cfd, REP_DEAD, ATTR_STATUS, WEXITSTATUS(status));
+		ret = reply(cfd, REP_DEAD, ATTR_STATUS, WEXITSTATUS(status));
+
+	if(ret < 0)
+		sys_shutdown(cfd, SHUT_RDWR);
 }
 
 static void wait_pids(int flags)

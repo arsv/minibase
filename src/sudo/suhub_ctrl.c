@@ -14,7 +14,7 @@ char rxbuf[1024];
 char txbuf[16];
 char control[256]; /* ~18 bytes per cmsghdr, 4 to 5 cmsghdr-s */
 
-void reply(int fd, int rep, int attr, int arg)
+int reply(int fd, int rep, int attr, int arg)
 {
 	struct ucbuf uc = {
 		.brk = txbuf,
@@ -22,20 +22,17 @@ void reply(int fd, int rep, int attr, int arg)
 		.end = txbuf + sizeof(txbuf)
 	};
 
-	if(fd < 0)
-		return;
-
 	uc_put_hdr(&uc, rep);
 	if(attr) uc_put_int(&uc, attr, arg);
 	uc_put_end(&uc);
 
-	sys_send(fd, uc.brk, uc.ptr - uc.brk, 0);
+	return uc_send_timed(fd, &uc);
 }
 
-void* get_scm(struct ucbuf* uc, int type, int size)
+static void* get_scm(struct ucaux* ux, int type, int size)
 {
-	void* p = uc->brk;
-	void* e = uc->ptr;
+	void* p = ux->buf;
+	void* e = p + ux->len;
 	struct cmsg* cm;
 
 	if(!(cm = cmsg_get(p, e, SOL_SOCKET, type)))
@@ -74,16 +71,16 @@ static void prep_argv_array(int argc, char** argv, struct ucmsg* msg)
 	argv[i] = NULL;
 }
 
-static int cmd_exec(int* cpid, struct ucmsg* msg, struct ucbuf* uc)
+static int cmd_exec(int* cpid, struct ucmsg* msg, struct ucaux* ux)
 {
 	int nfds = 4;
 	int* fds;
 	struct ucred* cr;
 	int argc;
 
-	if(!(fds = get_scm(uc, SCM_RIGHTS, nfds*sizeof(int))))
+	if(!(fds = get_scm(ux, SCM_RIGHTS, nfds*sizeof(int))))
 		return -EINVAL;
-	if(!(cr = get_scm(uc, SCM_CREDENTIALS, sizeof(*cr))))
+	if(!(cr = get_scm(ux, SCM_CREDENTIALS, sizeof(*cr))))
 		return -EINVAL;
 	if(!(argc = count_args(msg)))
 		return -EINVAL;
@@ -94,9 +91,9 @@ static int cmd_exec(int* cpid, struct ucmsg* msg, struct ucbuf* uc)
 	return spawn(cpid, argv, fds, cr);
 }
 
-static int cmd_kill(int* cpid, struct ucmsg* msg, struct ucbuf* uc)
+static int cmd_kill(int* cpid, struct ucmsg* msg, struct ucaux* ux)
 {
-	(void)uc;
+	(void)ux;
 	int sig, *p;
 
 	if((p = uc_get_int(msg, ATTR_SIGNAL)))
@@ -112,17 +109,17 @@ static int cmd_kill(int* cpid, struct ucmsg* msg, struct ucbuf* uc)
 
 static const struct cmd {
 	int cmd;
-	int (*call)(int* cpid, struct ucmsg* msg, struct ucbuf* uc);
+	int (*call)(int* cpid, struct ucmsg* msg, struct ucaux* ux);
 } cmds[] = {
 	{ CMD_EXEC, cmd_exec },
 	{ CMD_KILL, cmd_kill }
 };
 
-static void close_all_cmsg_fds(struct ucbuf* uc)
+static void close_all_cmsg_fds(struct ucaux* ux)
 {
 	struct cmsg* cm;
-	void* p = uc->brk;
-	void* e = uc->ptr;
+	void* p = ux->buf;
+	void* e = p + ux->len;
 
 	for(cm = cmsg_first(p, e); cm; cm = cmsg_next(cm, e)) {
 		if(cm->level != SOL_SOCKET)
@@ -138,52 +135,35 @@ static void close_all_cmsg_fds(struct ucbuf* uc)
 	}
 }
 
-static void dispatch_cmd(int fd, int* cpid, struct ucmsg* msg, struct ucbuf* uc)
+static int dispatch(int fd, int* cpid, struct ucmsg* msg, struct ucaux* ux)
 {
-	const struct cmd* p = cmds;
-	const struct cmd* e = cmds + ARRAY_SIZE(cmds);
-	int ret = -ENOSYS;
+	const struct cmd* p;
 
-	for(; p < e; p++)
-		if(p->cmd == msg->cmd) {
-			ret = p->call(cpid, msg, uc);
-			break;
-		}
+	for(p = cmds; p < ARRAY_END(cmds); p++)
+		if(p->cmd == msg->cmd)
+			return p->call(cpid, msg, ux);
 
-	reply(fd, ret, 0, 0);
-	close_all_cmsg_fds(uc);
+	return -ENOSYS;
 }
 
 void handle(int fd, int* cpid)
 {
 	int ret;
+	struct ucmsg* msg;
+	struct ucaux ux = { control, sizeof(control) };
 
-	struct urbuf ur = {
-		.buf = rxbuf,
-		.mptr = rxbuf,
-		.rptr = rxbuf,
-		.end = rxbuf + sizeof(rxbuf)
-	};
-	struct ucbuf uc = {
-		.brk = control,
-		.ptr = control,
-		.end = control + sizeof(control)
-	};
-	struct itimerval old, itv = {
-		.interval = { 0, 0 },
-		.value = { 1, 0 }
-	};
+	if((ret = uc_recvmsg(fd, rxbuf, sizeof(rxbuf), &ux)) < 0)
+		goto err;
+	if(!(msg = uc_msg(rxbuf, ret)))
+		goto err;
 
-	sys_setitimer(0, &itv, &old);
+	ret = dispatch(fd, cpid, msg, &ux);
 
-	while(1) {
-		if((ret = uc_recvmsg(fd, &ur, &uc, 0)) < 0)
-			break;
-		dispatch_cmd(fd, cpid, ur.msg, &uc);
-	}
+	if((ret = reply(fd, ret, 0, 0)) >= 0)
+		goto out;
+err:
+	sys_shutdown(fd, SHUT_RDWR);
+out:
+	close_all_cmsg_fds(&ux);
 
-	if(ret < 0 && ret != -EBADF && ret != -EAGAIN)
-		sys_shutdown(fd, SHUT_RDWR);
-
-	sys_setitimer(0, &old, NULL);
 }

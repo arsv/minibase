@@ -201,7 +201,7 @@ static void wait_listen(int fd, char* command)
 	int started = 0;
 
 	while(1) {
-		if((ret = uc_recv(fd, &ur, !0)) == -EINTR) {
+		if((ret = uc_recv_shift(fd, &ur)) == -EINTR) {
 			pass_signal(fd);
 			continue;
 		} else if(ret <= 0) {
