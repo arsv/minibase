@@ -1,85 +1,36 @@
-#include <bits/errno.h>
 #include <sys/socket.h>
-
-#include <cdefs.h>
-#include <string.h>
 #include <nlusctl.h>
 
-static void shift_buf(struct urbuf* ur)
+/* Server-side recv for packet with ancillary data.
+
+   Same code as uc_recv_whole basically, with one additional
+   buffer for the ancillary data. And sys_recvmsg() instead
+   of sys_recv(). */
+
+int uc_recvmsg(int fd, void* buf, int len, struct ucaux* ux)
 {
-	int shift = ur->mptr - ur->buf;
+	int ret, flags = MSG_CMSG_CLOEXEC;
+	struct ucmsg* msg = buf;
 
-	ur->msg = NULL;
-
-	if(!shift) return;
-
-	memmove(ur->buf, ur->mptr, ur->rptr - ur->mptr);
-
-	ur->mptr -= shift;
-	ur->rptr -= shift;
-}
-
-static int take_complete_msg(struct urbuf* ur)
-{
-	struct ucmsg* msg = NULL;
-
-	if(!(msg = uc_msg(ur->mptr, ur->rptr - ur->mptr)))
-		return -EBADMSG;
-
-	ur->msg = msg;
-	ur->mptr += msg->len;
-
-	return msg->len;
-}
-
-int uc_recvmsg(int fd, struct urbuf* ur, struct ucbuf* uc, int block)
-{
-	int left, rd, ret;
-	int flags = MSG_CMSG_CLOEXEC;
-	long total = 0;
-
-	if(!block) flags |= MSG_DONTWAIT;
-
-	uc->ptr = uc->brk;
-	ur->msg = NULL;
-
-	if((ret = take_complete_msg(ur)) >= 0)
-		return 0;
-
-	shift_buf(ur);
-
-	struct iovec iov;
-	struct msghdr msg = {
+	struct iovec iov = {
+		.base = buf,
+		.len = len
+	};
+	struct msghdr packet = {
 		.iov = &iov,
 		.iovlen = 1,
-		.control = uc->brk,
-		.controllen = uc->end - uc->brk
+		.control = ux->buf,
+		.controllen = ux->len
 	};
 
-	while(1) {
-		if((left = ur->end - ur->rptr) <= 0)
-			return -ENOBUFS;
-
-		iov.base = ur->rptr;
-		iov.len = left;
-
-		if((rd = sys_recvmsg(fd, &msg, flags)) < 0)
-			return rd;
-		else if(!rd)
-			break;
-
-		ur->rptr += rd;
-		total += rd;
-		uc->ptr = uc->brk + msg.controllen;
-
-		if((ret = take_complete_msg(ur)) >= 0)
-			return total;
-
-		flags = 0;
-	}
-
-	if(ur->mptr < ur->rptr)
+	if((ret = sys_recvmsg(fd, &packet, flags)) < 0)
+		return ret;
+	if((ret < sizeof(*msg))) /* should never happen */
 		return -EBADMSG;
-	else
-		return -EBADF;
+	if(msg->len != ret)
+		return -EBADMSG;
+
+	ux->len = packet.controllen;
+
+	return ret;
 }

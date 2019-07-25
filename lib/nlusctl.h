@@ -24,6 +24,11 @@ struct urbuf {
 	struct ucmsg* msg;
 };
 
+struct ucaux {
+	void* buf;
+	int len;
+};
+
 struct ucmsg {
 	uint32_t len;
 	int32_t cmd;
@@ -83,5 +88,10 @@ int uc_paylen(struct ucattr* at);
 
 void uc_dump(struct ucmsg* msg);
 
-int uc_recv(int fd, struct urbuf* ur, int block);
-int uc_recvmsg(int fd, struct urbuf* ur, struct ucbuf* uc, int block);
+int uc_recv_shift(int fd, struct urbuf* ur);
+int uc_send_block(int fd, struct ucbuf* uc);
+int uc_send_whole(int fd, struct ucbuf* uc);
+
+int uc_recv_whole(int fd, void* buf, int len);
+int uc_send_timed(int fd, struct ucbuf* uc);
+int uc_recvmsg(int fd, void* buf, int len, struct ucaux* ux);
