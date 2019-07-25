@@ -107,7 +107,7 @@ struct ucmsg* recv_reply(CTX)
 	if(!ctx->ur.buf)
 		init_small_rxbuf(ctx);
 
-	while((ret = uc_recv(ctx->fd, &ctx->ur, !0)) < 0)
+	while((ret = uc_recv_shift(ctx->fd, &ctx->ur)) < 0)
 		fail("recv", NULL, ret);
 
 	return ctx->ur.msg;

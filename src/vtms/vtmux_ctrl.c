@@ -202,32 +202,16 @@ static void shutdown_conn(struct conn* cn)
 void recv_conn(struct conn* cn)
 {
 	int ret, fd = cn->fd;
+	struct ucmsg* msg;
 
-	struct urbuf ur = {
-		.buf = rxbuf,
-		.mptr = rxbuf,
-		.rptr = rxbuf,
-		.end = rxbuf + sizeof(rxbuf)
-	};
-	struct itimerval old, itv = {
-		.interval = { 0, 0 },
-		.value = { 1, 0 }
-	};
-
-	sys_setitimer(0, &itv, &old);
-
-	while(1) {
-		if((ret = uc_recv(fd, &ur, 0)) < 0)
-			break;
-
-		if((ret = dispatch_cmd(cn, ur.msg)) < 0)
-			break;
-	}
-
-	if(ret < 0 && ret != -EBADF && ret != -EAGAIN)
-		shutdown_conn(cn);
-
-	sys_setitimer(0, &old, NULL);
+	if((ret = uc_recv_whole(fd, rxbuf, sizeof(rxbuf))) < 0)
+		goto err;
+	if(!(msg = uc_msg(rxbuf, ret)))
+		goto err;
+	if((ret = dispatch_cmd(cn, msg)) >= 0)
+		return;
+err:
+	shutdown_conn(cn);
 }
 
 void accept_ctrl(void)
@@ -235,9 +219,10 @@ void accept_ctrl(void)
 	int cfd;
 	struct sockaddr addr;
 	int addr_len = sizeof(addr);
+	int flags = SOCK_NONBLOCK;
 	struct conn *cn;
 
-	while((cfd = sys_accept(ctrlfd, &addr, &addr_len)) > 0) {
+	while((cfd = sys_accept4(ctrlfd, &addr, &addr_len, flags)) > 0) {
 		if((cn = grab_conn_slot())) {
 			cn->fd = cfd;
 			pollset = 0;
