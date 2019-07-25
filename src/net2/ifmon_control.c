@@ -3,7 +3,6 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
 #include <sys/socket.h>
-#include <sys/timer.h>
 
 #include <nlusctl.h>
 #include <format.h>
@@ -21,7 +20,7 @@
 
 int ctrlfd;
 
-static void send_report(char* buf, int len, int ifi)
+static void send_report(struct ucbuf* uc, int ifi)
 {
 	struct conn* cn;
 	int fd;
@@ -29,18 +28,8 @@ static void send_report(char* buf, int len, int ifi)
 	for(cn = conns; cn < conns + nconns; cn++) {
 		if(cn->rep != ifi || (fd = cn->fd) <= 0)
 			continue;
-
-		struct itimerval old, itv = {
-			.interval = { 0, 0 },
-			.value = { 1, 0 }
-		};
-
-		sys_setitimer(ITIMER_REAL, &itv, &old);
-
-		if(sys_write(fd, buf, len) < 0)
+		if(uc_send_timed(fd, uc) < 0)
 			sys_shutdown(fd, SHUT_RDWR);
-
-		sys_setitimer(ITIMER_REAL, &old, NULL);
 	}
 }
 
@@ -56,7 +45,7 @@ void report_done(LS)
 	uc_put_hdr(&uc, REP_IF_DONE);
 	uc_put_end(&uc);
 
-	send_report(uc.brk, uc.ptr - uc.brk, ls->ifi);
+	send_report(&uc, ls->ifi);
 }
 
 static int send_reply(struct conn* cn, struct ucbuf* uc)
@@ -341,28 +330,16 @@ void handle_conn(struct conn* cn)
 {
 	int ret, fd = cn->fd;
 	char buf[100];
+	struct ucmsg* msg;
 
-	struct urbuf ur = {
-		.buf = buf,
-		.mptr = buf,
-		.rptr = buf,
-		.end = buf + sizeof(buf)
-	};
-	struct itimerval old, itv = {
-		.interval = { 0, 0 },
-		.value = { 1, 0 }
-	};
-
-	sys_setitimer(0, &itv, &old);
-
-	while(1) {
-		if((ret = uc_recv(fd, &ur, 0)) < 0)
-			break;
-		if((ret = dispatch_cmd(cn, ur.msg)) < 0)
-			break;
-	}
-
-	sys_setitimer(0, &old, NULL);
+	if((ret = uc_recv_whole(fd, buf, sizeof(buf))) < 0)
+		goto err;
+	if(!(msg = uc_msg(buf, ret)))
+		goto err;
+	if((ret = dispatch_cmd(cn, msg)) >= 0)
+		return;
+err:
+	sys_shutdown(fd, SHUT_RDWR);
 }
 
 void accept_ctrl(int sfd)
@@ -370,9 +347,10 @@ void accept_ctrl(int sfd)
 	struct sockaddr addr;
 	int addr_len = sizeof(addr);
 	struct conn *cn;
+	int flags = SOCK_NONBLOCK;
 	int fd;
 
-	while((fd = sys_accept(sfd, &addr, &addr_len)) > 0) {
+	while((fd = sys_accept4(sfd, &addr, &addr_len, flags)) > 0) {
 		if(!(cn = grab_conn_slot())) {
 			sys_close(fd);
 		} else {
