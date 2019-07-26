@@ -186,3 +186,13 @@ void uc_dump(struct ucmsg* msg)
 	dump_header(msg);
 	dump_attrs_in(msg);
 }
+
+void uc_dump_rx(struct urbuf* ur)
+{
+	uc_dump(ur->msg);
+}
+
+void uc_dump_tx(struct ucbuf* uc)
+{
+	uc_dump((struct ucmsg*)uc->brk);
+}

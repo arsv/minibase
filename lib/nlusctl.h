@@ -87,6 +87,8 @@ void* uc_payload(struct ucattr* at);
 int uc_paylen(struct ucattr* at);
 
 void uc_dump(struct ucmsg* msg);
+void uc_dump_rx(struct urbuf* ur);
+void uc_dump_tx(struct ucbuf* uc);
 
 int uc_recv_shift(int fd, struct urbuf* ur);
 int uc_send_block(int fd, struct ucbuf* uc);
