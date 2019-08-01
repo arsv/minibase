@@ -15,7 +15,6 @@
 #include <util.h>
 #include <main.h>
 
-#include "common.h"
 #include "udevmod.h"
 
 /* This service does few things that require monitoring udev events:
@@ -29,9 +28,6 @@
    and then switches to listening for udev events. */
 
 ERRTAG("udevmod");
-
-#define OPTS "s"
-#define OPT_s (1<<0)
 
 #define UDEV_MGRP_KERNEL   (1<<0)
 #define UDEV_MGRP_LIBUDEV  (1<<1)
@@ -125,8 +121,6 @@ static void dev_added(CTX)
 	if((devname = getval(ctx, "DEVNAME")))
 		trychown(ctx, subsystem, devname);
 
-	if(ctx->startup)
-		return;
 	if(!strcmp(subsystem, "input"))
 		probe_input(ctx);
 }
@@ -135,8 +129,6 @@ static void dev_removed(CTX)
 {
 	char* subsystem = getval(ctx, "SUBSYSTEM");
 
-	if(ctx->startup)
-		return;
 	if(!strcmp(subsystem, "input"))
 		clear_input(ctx);
 }
@@ -167,9 +159,6 @@ static void rebroadcast(CTX)
 		.pid = ctx->pid,
 		.groups = UDEV_MGRP_LIBUDEV
 	};
-
-	if(ctx->startup)
-		return;
 
 	if((ret = sys_sendto(fd, buf, len, 0, &addr, sizeof(addr))) >= 0)
 		return;
@@ -336,18 +325,13 @@ static void suppress_sigpipe(void)
 int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
-	int i = 1, opts = 0;
 
-	if(i < argc && argv[i][0] == '-')
-		opts = argbits(OPTS, argv[i++] + 1);
-	if(i < argc)
+	if(argc > 1)
 		fail("too many arguments", NULL, 0);
 
 	memzero(ctx, sizeof(*ctx));
 
 	ctx->envp = argv + argc + 1;
-	ctx->opts = opts;
-	ctx->startup = (opts & OPT_s);
 
 	open_udev(ctx);
 

@@ -20,11 +20,6 @@ Some device nodes in /dev may need non-standard permissions to be usable,
 or to fit the system configuration better. If configured to do so, udevmod
 will \fBchmod\fR(2) and \fBchown\fR(2) the nodes as they appear in /dev.
 '''
-.SH OPTIONS
-.IP "\fB-s\fR" 4
-Startup mode. Do not retransmit events for libudev clients and do not tag
-devices for libinput clients. Use this when running udevmod within initrd.
-'''
 .SH CONFIGURATION
 A single text configuration file, /etc/devices, describes access modes
 for device nodes:

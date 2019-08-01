@@ -13,7 +13,6 @@
 #include <util.h>
 #include <dirs.h>
 
-#include "common.h"
 #include "udevmod.h"
 
 /* Most apps written with libudev need their input devices tagged
@@ -359,9 +358,6 @@ static void touch(char* path)
 
 void init_inputs(CTX)
 {
-	if(ctx->startup)
-		return;
-
 	makedir(HERE "/run/udev");
 	makedir(HERE "/run/udev/data");
 

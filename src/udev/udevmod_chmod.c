@@ -6,9 +6,9 @@
 
 #include <format.h>
 #include <string.h>
+#include <dirs.h>
 #include <util.h>
 
-#include "common.h"
 #include "udevmod.h"
 
 /* Allow chowning/chmodding certain node, mdev-style.
@@ -26,6 +26,8 @@
 	~input root:input 0660
 
    Names are /dev-relative, so that's /dev/rtc0 above. */
+
+#define UDEVCONF    HERE "/etc/devices"
 
 static int load_file(struct mbuf* mb, const char* name)
 {

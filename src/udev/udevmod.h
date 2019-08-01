@@ -45,12 +45,9 @@ struct evbits {
 struct top {
 	int udev;
 	char** envp;
-	int opts;
 
 	int fd;  /* of a running modprobe -p process */
 	int pid;
-
-	int startup;
 
 	struct mbuf config;
 	struct mbuf passwd;
