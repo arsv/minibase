@@ -1,0 +1,6 @@
+This directory contains device-mounting service, meant to be the primary
+way of mounting removable block devices (fs images, etc) in a running system.
+
+Pretty much any user-initiated mount request should go through this service.
+
+See ../root for tools dealing with the system partitions and filesystems.

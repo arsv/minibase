@@ -1,3 +1,5 @@
 runwith
 findblk
 switchroot
+kmount
+reboot

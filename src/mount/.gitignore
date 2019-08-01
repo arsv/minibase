@@ -1,7 +1,5 @@
 locfg
-kmount
 pmount
 mountd
-reboot
 *.img
 *.bin
