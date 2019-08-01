@@ -11,10 +11,11 @@
 #include <string.h>
 #include <util.h>
 #include <main.h>
-
-#include "common.h"
+#include <dirs.h>
 
 ERRTAG("sockmod");
+
+#define SOCKCFG HERE "/etc/sockmod"
 
 struct fbuf {
 	char* ptr;

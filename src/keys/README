@@ -1,0 +1,12 @@
+This directory contains a couple of services whose purpose is to handle
+system-wide hotkeys. There are two currently: keymon that works on input
+devices (keys on keyboard) and acpid which listens for ACPI events (power
+button, lid switch etc on PCs).
+
+Typical use for these is setting up system reboot on C-A-Del, VT switching
+on C-A-Fx, soft power off, sleep on lid close and so on.
+
+There is currently no special support for GPIO buttons, and it's not clear
+whether there should be any. Current idea for GPIO is to use gpio_keys to
+make them look like regular input devices, and then handle those events via
+keymon.
