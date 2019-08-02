@@ -21,7 +21,7 @@
    svctl should spawn this tool when it's done.
 
    There's no other way to do umount -a in minitools, in particular
-   mount -u cannot do that. This is because shutdown is the only situation
+   kmount -u cannot do that. This is because shutdown is the only situation
    when umount -a makes sense, and handling -a requires lots of code
    not used in any other umount modes (reading mountinfo etc.) */
 
