@@ -1,0 +1,12 @@
+This directory contains several tools meant for managing the root filesystem,
+like locating the device, mounting it and so on. Some of these tools only make
+sense within an initrd.
+
+The environment these get to run in is quite different from anything that runs
+under a supervisor, and the task itself makes no sense in a system that's
+already running, so these have been moved into their own directory.
+
+Note these is not a complete set of tool for a viable initrd, just the stuff
+that fits nowhere else. Typical initrd would likely use modprobe annd msh which
+are normally a part of the regular system, and disk encryption tools which are
+in their own directory.
