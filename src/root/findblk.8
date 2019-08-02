@@ -1,35 +1,89 @@
 .TH findblk 8
 '''
 .SH NAME
-\fBfindblk\fR \- locate block devices
+\fBfindblk\fR \- locate block device and symlink named partitions
+'''
+.SH SYNOPSIS
+\fBfindblk\fR \fIwwid:eui.0123456789ABCD\fI \fI1\fB:\fIboot\fR \fI2\fB:\fIroot\fR ...
+.P
+Find block device described by \fIwwid:eui.0123456789ABCD\fR, symlink its 1st
+partition to \fB/dev/mapper/\fIboot\fR and 2nd partition to \fB/dev/mapper/\fIroot\fR.
 '''
 .SH DESCRIPTION
-\fBfindblk\fR reads \fBblktab\fR(5) and attempts to locate devices
-and partitions described there. Each partition named \fIlabel\fR in blktab
-then gets a symlink /dev/mapper/\fIlabel\fR pointing to its current kernel
-devices (like say /dev/sda1). Subsequent \fBmount\fR(8) commands are
-expected to use these symlinks instead of the kernel names.
+\fBfindblk\fR is meant to be run from initrd to locate system partitions.
 .P
-\fBfindblk\fR scans devices already present in the system, and if necessary
-waits for devices to appear. If all partitions have been located, \fBfindblk\fR
-exits successfully and the system may proceed to mount them.
-'''
-.SH USAGE
-This tool should be run from initrd after the modules needed for the listed
-block devices have been loaded.
-'''
-.SH FILES
-.IP "/etc/blktab" 4
-List of block devices and partitions to locate.
+By the time the kernel starts running initrd code, the device containing
+the real root partition may be ready yet. Furthermore, it may not be clear
+what's the name of the device node for the partition, because or unreliable
+initialization order, so a simple mount would not work:
 .P
-\fBfindblk\fR also needs /dev and /sys mounted.
+.nf
+    mount /dev/\fIsda2\fR /newroot          # or is it sdb2?
+    mount /dev/\fIsda1\fR /newroot/boot
+.fi
+.P
+This tool waits for block devices to appear, and attempt to identify
+particular devices using hardware serials or partition table IDs,
+effectively assigning persistent names than can be passed to mount:
+.P
+.nf
+    findblk \fIwwid:....\fR 1:boot 2:root         # this time it's is sda
+    kmount /dev/mapper/root /newroot        # root is a symlink to ../sda2
+    kmount /dev/mapper/boot /newroot/boot   # boot is a symlink to ../sda1
+.fi
+.P
+By the time kmount gets to run, the device is ready, and the name that
+gets passed does not depend on kernel initialization order.
+.P
+This trick is not limited to kmount. The mapper symlinks can be used to
+run fsck, disk encryption tooling and pretty much anything else that needs
+a block device name.
+'''
+.SH OPTIONS
+Several properties can be used to identify a particular device:
+.IP "\fBname:\fIsda\fR" 4
+Raw kernel device node name; \fBfindblk\fR will wait for it to appear.
+.IP "\fBmbr:\fI00112233\fR" 4
+MBR disk identifier. Can be set with \fBfdisk\fR or other similar tools.
+If specified, \fBfindblk\fR will attempt to read the device.
+.IP "\fBgpt:\fI0011-2233-...\fR" 4
+GPT disk UUID. Similar to MBR disk ID, for GPT-partitioned drives.
+.IP "\fBwwid:\fI001122334455...\fR" 4
+SCSI disk WWID, hardware identifier.
+Matches /sys/block/\fIsda\fR/wwid or /sys/block/\fIsda\fR/device/wwid.
+SATA and NVME typically provide it.
+.IP "\fBcid:\fI001122..\fR" 4
+SD/MMC card ID, hardware identifier.
+Matches /sys/block/\fImmcblk0\fR/device/cid.
+Typically only available if the card shows up as \fImmcblkN\fR in Linux;
+not available via USB SD readers.
+.IP "\fBserial:\fI...\fR" 4
+Generic serial entry. May be available for some USB devices.
+Matches /sys/block/\fIsda\fR/device/serial.
+.P
+Using \fBmbr\fR and \fBgpt\fR identifier forces \fBfindblk\fR to read a small
+amount of data from all block devices available in the system until it finds
+the one that matches. On the flip side, both are easily editable and work the
+same way with pretty much any variety of block devices, whereas hardware IDs
+tend to be bus-specific.
 '''
 .SH NOTES
-\fBfindblk\fR is unable to recognize a situation when a devices is present
-but some of its partitions are missing; it will keep waiting for the missing
-partitions.
+In case device initialization relies on modaliases and dynamically loaded
+kernel modules, this tool must be run alongside some udev agent handling
+modalias requests. #TODO
 .P
-\fBfindblk\fR cannot handle encrypted partitions. Use \fBpassblk\fR(8) instead.
+The time this tool spends waiting for devices is limited to 5s.
+If the time runs out and the requested device has not been found, findblk
+exists with error, likely prompting a reboot.
+.P
+Both /dev and /sys must be mounted prior to running \fBfindblk\fR.
+'''
+.SH CAVEATS
+This tool is meant for the cases when a single device (possibly containing
+multiple partitions) needs to be located. It can be used to locate multiple
+devices, just run several times with approriate device IDs. It would work,
+but it may be suboptimal, since every invocation will go through all devices
+available in the system.
 '''
 .SH SEE ALSO
-\fBpassblk\fR(8), \fBblktab\fR(5).
+\fBblkpass\fR(8).
