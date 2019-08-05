@@ -1,4 +1,9 @@
-Tools dealing with udev events and udev-related things.
+This directory contains two versions of essentially the same tool.
+The larger one, udevmod, is a regular long-running never-exiting service
+for general use. The second, smaller one (devinit) is meant for initrd
+use only and does normally exit.
 
-Note there's a tool similar to findblk in ../dcrypt/
-These two are kept separated despite sharing some code.
+Both tools run modprobe whenever kernel reports a new modaliased device.
+udevmod also implements some libudev compatibility behavior (to allow
+running unmodified X and Weston atop of it) and minimalistic device node
+chmod/chown which has no use atm and should be removed at some point.

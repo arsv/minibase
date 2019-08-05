@@ -1,0 +1,23 @@
+.TH devinit 8
+'''
+.SH NAME
+\fBdevinit\fR \- initrd udev module autoloader
+'''
+.SH DESCRIPTION
+This a simple tool that only does two things:
+.IP "*" 2
+starts a script, /etc/devinit, and waits for it to finish;
+.IP "*" 2
+keeps probing modaliases while the script is running.
+.P
+It is only meant to be used in initrd environment, the script
+it runs should be waiting for the system partitions while devinit
+is loading modules for the device containing them.
+.P
+When the script exists, so does the tool itself.
+'''
+.SH FILES
+.IP "/etc/modpipe" 4
+This script should start \fBmodprobe\fR(8) in pipe mode (\fB-p\fR).
+.IP "/etc/devinit" 4
+The payload script to run, see \fBfindblk\fR(8).

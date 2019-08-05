@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "+++ devinit start"
+sleep 3
+echo "+++ devinit exit"

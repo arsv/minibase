@@ -1,0 +1,7 @@
+#!/bin/sh
+
+echo "+++ devinit modpipe"
+
+while read i; do
+	echo modprobe "$i"
+done
