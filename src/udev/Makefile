@@ -5,4 +5,4 @@ $(eval $(call service,udevmod,8))
 
 devinit: devinit.o
 
-udevmod: udevmod.o udevmod_alias.o udevmod_chmod.o udevmod_input.o
+udevmod: udevmod.o udevmod_alias.o udevmod_input.o

@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include <printf.h>
+#include <dirs.h>
 #include <util.h>
 
 #include "udevmod.h"
@@ -27,7 +28,7 @@ void open_modprobe(CTX)
 		fail("fork", NULL, pid);
 
 	if(pid == 0) {
-		char* argv[] = { "/sbin/modprobe", "-qbp", NULL };
+		char* argv[] = { HERE "/etc/udev/modpipe", NULL };
 		sys_dup2(fds[0], STDIN);
 		sys_close(fds[1]);
 		ret = sys_execve(*argv, argv, ctx->envp);
@@ -67,7 +68,7 @@ static void run_modprobe(CTX, char* name)
 	}
 
 	if(pid == 0) {
-		char* argv[] = { "/sbin/modprobe", "-qb", name, NULL };
+		char* argv[] = { HERE "/etc/udev/modprobe", name, NULL };
 		ret = sys_execve(*argv, argv, ctx->envp);
 		fail("execve", *argv, ret);
 	} else {

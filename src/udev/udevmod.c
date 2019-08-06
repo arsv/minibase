@@ -32,50 +32,6 @@ ERRTAG("udevmod");
 #define UDEV_MGRP_KERNEL   (1<<0)
 #define UDEV_MGRP_LIBUDEV  (1<<1)
 
-/* Several events often come at once, so whatever files have been loaded
-   should preferably be kept through the processing of the whole bunch.
-   However, keeping them in memory for long is not good.
-
-   So with any files loaded, do a timed wait and if there are no events
-   for ~1s, unload them. */
-
-static void unload(struct mbuf* mb)
-{
-	if(!mb->buf) return;
-
-	sys_munmap(mb->buf, mb->len);
-
-	mb->buf = NULL;
-	mb->len = 0;
-}
-
-static int notempty(struct mbuf* mb)
-{
-	return !!(mb->buf);
-}
-
-static void wait_drop_files(CTX, int fd)
-{
-	struct pollfd pfd = { .fd = fd, .events = POLLIN };
-	struct timespec ts = { 1, 0 };
-	int ret;
-
-	if(notempty(&ctx->config))
-		;
-	else if(notempty(&ctx->passwd))
-		;
-	else if(notempty(&ctx->group))
-		;
-	else return; /* no need to wait */
-
-	if((ret = sys_ppoll(&pfd, 1, &ts, NULL)) != 0)
-		return;
-
-	unload(&ctx->config);
-	unload(&ctx->passwd);
-	unload(&ctx->group);
-}
-
 /* No point in doing a single-pass parsing for the events, it's easy
    enough to just pick the values as needed. Key here is something
    like MODALIAS or DEVPATH. */
@@ -112,14 +68,14 @@ char* getval(CTX, char* key)
 
 static void dev_added(CTX)
 {
-	char *alias, *subsystem, *devname;
+	char *alias, *subsystem;
 
 	if((alias = getval(ctx, "MODALIAS")))
 		modprobe(ctx, alias);
 	if(!(subsystem = getval(ctx, "SUBSYSTEM")))
 		return;
-	if((devname = getval(ctx, "DEVNAME")))
-		trychown(ctx, subsystem, devname);
+	//if((devname = getval(ctx, "DEVNAME")))
+	//	trychown(ctx, subsystem, devname);
 
 	if(!strcmp(subsystem, "input"))
 		probe_input(ctx);
@@ -173,8 +129,6 @@ static void recv_event(CTX)
 	int rd, fd = ctx->udev;
 	int max = sizeof(ctx->uevent) - 2;
 	char* buf = ctx->uevent;
-
-	wait_drop_files(ctx, fd);
 
 	if((rd = sys_recv(fd, buf, max, 0)) < 0)
 		fail("recv", "udev", rd);

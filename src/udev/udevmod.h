@@ -49,10 +49,6 @@ struct top {
 	int fd;  /* of a running modprobe -p process */
 	int pid;
 
-	struct mbuf config;
-	struct mbuf passwd;
-	struct mbuf group;
-
 	uint sep;
 	uint ptr;
 	char uevent[1024+2];
@@ -69,8 +65,6 @@ struct top {
 void open_modprobe(CTX);
 void stop_modprobe(CTX);
 void modprobe(CTX, char* alias);
-
-void trychown(CTX, char* subsystem, char* devname);
 
 void init_inputs(CTX);
 void probe_input(CTX);

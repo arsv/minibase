@@ -1,0 +1,7 @@
+#!/bin/sh
+
+echo "+++ udevmod modpipe"
+
+while read i; do
+	echo modprobe "$i"
+done
