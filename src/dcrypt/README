@@ -1,8 +1,3 @@
 Disk encryption stuff.
 
 See ../../doc/dcrypt.txt on how this is expected to be used.
-
-Current design has wrapped keys and plaintext blktab with device
-identification data. This may change at some point; it makes sense
-to protect device ids as well. However, doing so in non-hostile to
-the users way would require some work.

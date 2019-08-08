@@ -11,12 +11,24 @@
 #include <format.h>
 #include <util.h>
 
-#include "common.h"
 #include "passblk.h"
 
-int dmfd;
+/* Once the keys are successfully unwrapped, we need to set up encryption
+   layer over the specified partitions. The following is basically equivalent
+   to running mainline dmsetup like this:
 
-void open_dm_control(void)
+	dmsetup create $name
+	dmsetup load $name --table crypto aes-xts-plain64 ... M:N ...
+
+   with M:N being the major and minor numbers of the underlying encrypted
+   device. See device-mapper documentations.
+
+   DM ioctls are run on /dev/mapper/control, and we attemp to open that file
+   very early, before starting the input code. This allows us to fail early,
+   without asking for passphrase, in case DM itself is missing or badly
+   misconfigured. */
+
+void init_mapper(CTX)
 {
 	char* control = "/dev/mapper/control";
 	int fd, ret;
@@ -27,15 +39,15 @@ void open_dm_control(void)
 	};
 
 	if((fd = sys_open(control, O_RDONLY)) < 0)
-		quit(NULL, control, fd);
+		fail(NULL, control, fd);
 
 	if((ret = sys_ioctl(fd, DM_VERSION, &dmi)) < 0)
-		quit("ioctl", "DM_VERSION", ret);
+		fail("ioctl", "DM_VERSION", ret);
 
 	if(dmi.version[0] != DM_VERSION_MAJOR)
-		quit("unsupported dm version", NULL, 0);
+		fail("unsupported dm version", NULL, 0);
 
-	dmfd = fd;
+	ctx->mapfd = fd;
 }
 
 static void putstr(char* buf, char* src, int len)
@@ -44,11 +56,12 @@ static void putstr(char* buf, char* src, int len)
 	buf[len] = '\0';
 }
 
-static void dm_create(struct part* pt)
+static void dm_create(CTX, struct part* pt)
 {
 	char* label = pt->label;
 	uint nlen = strlen(label);
-	long ret;
+	int fd = ctx->mapfd;
+	int ret;
 
 	struct dm_ioctl dmi = {
 		.version = { DM_VERSION_MAJOR, 0, 0 },
@@ -57,22 +70,23 @@ static void dm_create(struct part* pt)
 	};
 
 	if(nlen > sizeof(dmi.name) - 1)
-		quit(NULL, label, ENAMETOOLONG);
+		fail(NULL, label, ENAMETOOLONG);
 
 	putstr(dmi.name, label, nlen);
 
-	if((ret = sys_ioctl(dmfd, DM_DEV_CREATE, &dmi)) < 0)
-		quit("ioctl", "DM_DEV_CREATE", ret);
+	if((ret = sys_ioctl(fd, DM_DEV_CREATE, &dmi)) < 0)
+		fail("ioctl", "DM_DEV_CREATE", ret);
 
-	pt->dmi = minor(dmi.dev);
+	pt->dmidx = minor(dmi.dev);
 }
 
-static int dm_single(char* name, uint64_t size, char* targ, char* opts)
+static void dm_single(CTX, struct part* pt, char* targ, char* opts)
 {
 	struct dm_ioctl* dmi;
 	struct dm_target_spec* dts;
 	char* optstring;
 
+	char* name = pt->label;
 	uint nlen = strlen(name);
 	uint tlen = strlen(targ);
 	uint olen = strlen(opts);
@@ -97,14 +111,14 @@ static int dm_single(char* name, uint64_t size, char* targ, char* opts)
 
 	memzero(dts, sizeof(*dts));
 	dts->start = 0;
-	dts->length = size / 512;
+	dts->length = pt->size / 512;
 	dts->status = 0;
 	dts->next = 0;
 
 	if(nlen > sizeof(dmi->name) - 1)
-		quit(NULL, name, -ENAMETOOLONG);
+		fail(NULL, name, -ENAMETOOLONG);
 	if(tlen > sizeof(dts->type) - 1)
-		quit(NULL, targ, -ENAMETOOLONG);
+		fail(NULL, targ, -ENAMETOOLONG);
 
 	putstr(dmi->name, name, nlen);
 	putstr(dts->type, targ, tlen);
@@ -112,16 +126,19 @@ static int dm_single(char* name, uint64_t size, char* targ, char* opts)
 
 	int ret;
 
-	if((ret = sys_ioctl(dmfd, DM_TABLE_LOAD, req)) < 0)
-		quit("ioctl DM_TABLE_LOAD", name, ret);
-
-	return ret;
+	if((ret = sys_ioctl(ctx->mapfd, DM_TABLE_LOAD, req)) < 0)
+		fail("ioctl DM_TABLE_LOAD", name, ret);
 }
 
-static int dm_crypt(struct part* pt, char* cipher, void* key, int keylen)
+static void dm_crypt(CTX, struct part* pt)
 {
-	FMTBUF(p, e, buf, strlen(cipher) + 2*keylen + 50);
-	p = fmtstr(p, e, cipher);
+	int keyidx = pt->keyidx;
+	int keyoffset = HDRSIZE + KEYSIZE*keyidx;
+	void* key = ctx->keydata + keyoffset;
+	int keylen = KEYSIZE;
+
+	FMTBUF(p, e, buf, 256);
+	p = fmtstr(p, e, "aes-xts-plain64");
 	p = fmtstr(p, e, " ");
 	p = fmtbytes(p, e, key, keylen);
 	p = fmtstr(p, e, " 0 ");
@@ -131,137 +148,39 @@ static int dm_crypt(struct part* pt, char* cipher, void* key, int keylen)
 	p = fmtstr(p, e, " 0 1 allow_discards");
 	FMTEND(p, e);
 
-	return dm_single(pt->label, pt->size, "crypt", buf);
+	dm_single(ctx, pt, "crypt", buf);
 }
 
-static int dm_suspend(char* name, int flags)
+static void redo_symlink(CTX, struct part* pt)
 {
-	uint nlen = strlen(name);
 	int ret;
 
-	struct dm_ioctl dmi = {
-		.version = { DM_VERSION_MAJOR, 0, 0 },
-		.flags = flags,
-		.data_size = sizeof(dmi)
-	};
+	FMTBUF(lp, le, link, 200);
+	lp = fmtstr(lp, le, "/dev/mapper/");
+	lp = fmtstr(lp, le, pt->label);
+	FMTEND(lp, le);
 
-	if(nlen > sizeof(dmi.name) - 1)
-		quit(NULL, name, -ENAMETOOLONG);
+	FMTBUF(tp, te, targ, 200);
+	tp = fmtstr(tp, te, "../dm-");
+	tp = fmtint(tp, te, pt->dmidx);
+	FMTEND(tp, te);
 
-	putstr(dmi.name, name, nlen);
+	(void)sys_unlink(link);
 
-	if((ret = sys_ioctl(dmfd, DM_DEV_SUSPEND, &dmi)) < 0) {
-		//warn("ioctl", "DM_DEV_SUSPEND", ret);
+	if((ret = sys_symlink(targ, link)) < 0)
+		fail(NULL, link, ret);
+}
+
+void decrypt_parts(CTX)
+{
+	int i, n = ctx->nparts;
+
+	for(i = 0; i < n; i++) {
+		struct part* pt = &ctx->parts[i];
+
+		dm_create(ctx, pt);
+		dm_crypt(ctx, pt);
+
+		redo_symlink(ctx, pt);
 	}
-
-	return ret;
-}
-
-static void dm_remove(char* name)
-{
-	uint nlen = strlen(name);
-	int ret;
-
-	struct dm_ioctl dmi = {
-		.version = { DM_VERSION_MAJOR, 0, 0 },
-		.flags = 0,
-		.data_size = sizeof(dmi)
-	};
-
-	if(nlen > sizeof(dmi.name) - 1)
-		quit(NULL, name, ENAMETOOLONG);
-
-	putstr(dmi.name, name, nlen);
-
-	if((ret = sys_ioctl(dmfd, DM_DEV_REMOVE, &dmi)) < 0)
-		quit("ioctl", "DM_DEV_REMOVE", ret);
-}
-
-static int create_dm_crypt(struct part* pt)
-{
-	char* label = pt->label;
-	void* key = get_key(pt->keyidx);
-	char* cipher = "aes-xts-plain64";
-	int ret;
-
-	dm_create(pt);
-
-	if((ret = dm_crypt(pt, cipher, key, KEYSIZE)))
-		goto out;
-	if((ret = dm_suspend(label, 0)))
-		goto out;
-out:
-	if(ret < 0)
-		dm_remove(label);
-
-	return ret;
-}
-
-static void remove_dm_crypt(char* name)
-{
-	dm_single(name, 512, "error", "");
-	dm_suspend(name, 0);
-	dm_remove(name);
-}
-
-static int query_rdev_size(struct part* pt)
-{
-	int fd, ret;
-	struct stat st;
-
-	char* pref = "/dev/";
-	char* name = pt->name;
-
-	FMTBUF(p, e, path, strlen(pref) + strlen(name) + 4);
-	p = fmtstr(p, e, pref);
-	p = fmtstr(p, e, name);
-	FMTEND(p, e);
-
-	if((fd = sys_open(path, O_RDONLY)) < 0)
-		quit("open", path, fd);
-	if((ret = sys_fstat(fd, &st)) < 0)
-		quit("stat", path, ret);
-	if((ret = sys_ioctl(fd, BLKGETSIZE64, &(pt->size))))
-		quit("ioctl BLKGETSIZE64", path, ret);
-
-	pt->rdev = st.rdev;
-
-	sys_close(fd);
-
-	return 0;
-}
-
-void query_part_inodes(void)
-{
-	struct part* pt;
-
-	for(pt = parts; pt < parts + nparts; pt++)
-		query_rdev_size(pt);
-}
-
-void setup_devices(void)
-{
-	struct part* pt;
-	int ret = 0;
-
-	for(pt = parts; pt < parts + nparts; pt++)
-		if(!pt->keyidx)
-			continue;
-		else if((ret = create_dm_crypt(pt)) < 0)
-			break;
-	if(ret >= 0)
-		return;
-
-	for(pt--; pt >= parts; pt--)
-		if(pt->keyidx)
-			remove_dm_crypt(pt->label);
-}
-
-void unset_devices(void)
-{
-	struct part* pt;
-
-	for(pt = parts; pt < parts + nparts; pt++)
-		if(pt->keyidx)
-			remove_dm_crypt(pt->label);
 }

@@ -68,7 +68,7 @@ int ask(char* tag, char* buf, int len)
 static int scrypt(void* D, int dlen, void* P, int plen, void* S, int slen)
 {
 	int n = SCRYPT_N;
-	int r = SCRYPT_P;
+	int r = SCRYPT_R;
 	int p = SCRYPT_P;
 
 	struct scrypt sc;

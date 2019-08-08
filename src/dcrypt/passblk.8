@@ -1,42 +1,25 @@
 .TH passblk 8
 '''
 .SH NAME
-\fBpassblk\fR \- passphrase prompt and block device locator
-'''
-.SH DESCRIPTION
-\fBpassblk\fR reads \fBblktab\fR(5) and attempts to locate devices
-and partitions described there. Each partition named \fIlabel\fR in blktab
-then gets a symlink /dev/mapper/\fIlabel\fR pointing to its current kernel
-devices (like say /dev/sda1 or /dev/dm-1). Subsequent \fBmount\fR(8) commands
-are expected to use these symlinks instead of the kernel names.
-.P
-\fBpassblk\fR scans devices already present in the system, and if necessary
-waits for devices to appear. If all partitions have been located, \fBpassblk\fR
-exits successfully and the system may proceed to mount them.
-.P
-If any partitions are listed as encrypted, \fBpassblk\fR presents the user
-with a passphrase prompt. Once the correct passphrase has been entered
-and the keys unwrapped, \fBpassblk\fR sets up relevant dm-crypt devices so
-that /dev/mapper/\fIlabel\fR symlinks would be usable for mounting them.
+\fBpassblk\fR \- passphrase prompt for encrypted block devices
 '''
 .SH USAGE
-This tool should be run from initrd after the modules needed for the listed
-block devices have been loaded.
-'''
-.SH FILES
-.IP "/etc/blktab" 4
-List of block devices and partitions to locate.
-.IP "/etc/dekeys" 4
-Disk encryption keys, AES-wrapped. See \fBdektool\fR(8).
+This tools should only be used from initrd.
 .P
-\fBpassblk\fR also needs /dev and /sys mounted.
+\fBpassblk\fR \fIkeyfile.bin\fR \fIroot\fR \fIhome\fR ...
+.P
+Ask passphrase to unlock \fIkeyfile.bin\fR, then use the keys there
+to set up encryption layer for \fB/dev/mapper/\fIroot\fR and
+\fB/dev/mapper/\fIboot\fR respectively.
+.P
+In case the keys are not used in order, key index can be specified explicitly:
+.P
+\fBpassblk\fR \fIkeyfile.bin\fR \fI1\fB:\fIroot\fR \fI3\fB:\fIvar\fR ...
+.P
+Key are indexed starting from 1.
 '''
 .SH NOTES
-\fBpassblk\fR is unable to recognize a situation when a devices is present
-but some of its partitions are missing; it will keep waiting for the missing
-partitions.
-.P
-The encryption algorithm is XTS-AES-128.
+The encryption algorithm is always XTS-AES-128, with 256-bit keys.
 '''
 .SH SEE ALSO
-\fBfindblk\fR(8), \fBblktab\fR(5), \fBdektool\fR(8).
+\fBfindblk\fR(8), \fBdektool\fR(8).
