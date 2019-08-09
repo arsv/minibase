@@ -154,8 +154,8 @@ static int next_dyn_entry(CTX, struct phdr* ph, struct dhdr* dyn, int i)
 	if(ptr >= end)
 		return -1;
 
-	copy_x64(elfdyn, ptr, tag, &dyn->tag);
-	copy_x64(elfdyn, ptr, val, &dyn->val);
+	load_x64(dyn->tag, elfdyn, ptr, tag);
+	load_x64(dyn->val, elfdyn, ptr, val);
 
 	if(!dyn->tag)
 		return -1;
@@ -232,8 +232,8 @@ static int load_dyn_section(CTX, struct phdr* ph, int i)
 
 	if(type != PT_DYNAMIC) return -1;
 
-	copy_x64(elfphdr, loc, offset, &ph->offset);
-	copy_x64(elfphdr, loc, filesz, &ph->filesz);
+	load_x64(ph->offset, elfphdr, loc, offset);
+	load_x64(ph->filesz, elfphdr, loc, filesz);
 
 	return 0;
 }

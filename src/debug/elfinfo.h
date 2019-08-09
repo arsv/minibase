@@ -60,30 +60,46 @@ void use_strings_at_address(CTX, uint64_t off, uint64_t len);
 void use_strings_at_offset(CTX, uint64_t off, uint64_t len);
 const char* lookup_string(CTX, uint off);
 
-static inline void copy_one_byte(uint8_t* src, uint8_t* dst)
+/* The problem with parsing ELFs is that the files can be either ELF32
+   or ELF64, and the byte order may or may not match that of the host.
+   To keep the code somewhat palatable, we extend all ELF32 fields
+   to match ELF64, and use macros so that the code has one-line loads
+   equivalent to
+
+       dst = ptr->field
+
+   which gets expanded to if() covering both bitness and endianess.
+
+   This was originally done with pointers, and had some protection against
+   using say load_16 on a 32-bit long field, but GCC did not like that so
+   it got rewritten to use assignements. Stuff like
+
+       load_32(foo, elfstruct, ptr, field)
+
+   will result in invalid data unless both foo and field are uint32-s. */
+
+static inline uint16_t swab_u16(int xe, uint16_t src)
 {
-	*dst = *src;
+	return xe ? swabs(src) : src;
 }
 
-static inline void copy_swab_u16(int xe, uint16_t* src, uint16_t* dst)
+static inline uint32_t swab_u32(int xe, uint32_t src)
 {
-	*dst = xe ? swabs(*src) : *src;
+	return xe ? swabl(src) : src;
 }
 
-static inline void copy_swab_u32(int xe, uint32_t* src, uint32_t* dst)
+static inline uint64_t ext_long(int xe, uint32_t src)
 {
-	*dst = xe ? swabl(*src) : *src;
+	return (uint64_t)(xe ? swabl(src) : src);
 }
 
-static inline void copy_swab_u64(int xe, uint64_t* src, uint64_t* dst)
+
+static inline uint64_t swab_x64(int xe, uint64_t src)
 {
-	*dst = xe ? swabx(*src) : *src;
+	return xe ? swabx(src) : src;
 }
 
-static inline void copy_ext_long(int xe, uint32_t* src, uint64_t* dst)
-{
-	*dst = (uint64_t)(xe ? swabl(*src) : *src);
-}
+/* Renames so that we can use typy##32 and type##64 below uniformly */
 
 #define elfhdr32  struct elf32hdr*
 #define elfhdr64  struct elf64hdr*
@@ -96,25 +112,41 @@ static inline void copy_ext_long(int xe, uint32_t* src, uint64_t* dst)
 #define elfsym32 struct elf32sym*
 #define elfsym64 struct elf64sym*
 
-#define copy_u8(type, ptr, fld, dst) \
-	copy_one_byte(elf64 ? \
-			&(((type##64)ptr)->fld) : \
-			&(((type##32)ptr)->fld), dst)
-#define copy_u16(type, ptr, fld, dst) \
-	copy_swab_u16(elfxe, elf64 ? \
-			&(((type##64)ptr)->fld) : \
-			&(((type##32)ptr)->fld), dst)
-#define copy_u32(type, ptr, fld, dst) \
-	copy_swab_u32(elfxe, elf64 ? \
-			&(((type##64)ptr)->fld) : \
-			&(((type##32)ptr)->fld), dst)
-#define copy_x64(type, ptr, fld, dst) { \
+/* load(dst, type, ptr, field) means dst = ((type)ptr)->field */
+
+#define load_u8(dst, type, ptr, field) { \
 	if(elf64) \
-		copy_swab_u64(elfxe, &(((type##64)ptr)->fld), dst);\
+		dst = ((type##64)ptr)->field; \
 	else \
-		copy_ext_long(elfxe, &(((type##32)ptr)->fld), dst);\
+		dst = ((type##32)ptr)->field; \
 }
 
-#define take_u16(type, ptr, field) copy_u16(type, ptr, field, &field)
-#define take_u32(type, ptr, field) copy_u32(type, ptr, field, &field)
-#define take_x64(type, ptr, field) copy_x64(type, ptr, field, &field)
+#define load_u16(dst, type, ptr, field) { \
+	if(elf64) \
+		dst = swab_u16(elfxe, ((type##64)ptr)->field); \
+	else \
+		dst = swab_u16(elfxe, ((type##32)ptr)->field); \
+}
+
+#define load_u32(dst, type, ptr, field) { \
+	if(elf64) \
+		dst = swab_u32(elfxe, ((type##64)ptr)->field); \
+	else \
+		dst = swab_u32(elfxe, ((type##32)ptr)->field); \
+}
+
+#define load_x64(dst, type, ptr, field) { \
+	if(elf64) \
+		dst = swab_x64(elfxe, ((type##64)ptr)->field); \
+	else \
+		dst = ext_long(elfxe, ((type##32)ptr)->field); \
+}
+
+/* take(type, ptr, field) means field = ((type)ptr)->field
+
+   This is used to extract struct fields into local variables with
+   the same exact name. */
+
+#define take_u16(type, ptr, field) load_u16(field, type, ptr, field)
+#define take_u32(type, ptr, field) load_u32(field, type, ptr, field)
+#define take_x64(type, ptr, field) load_x64(field, type, ptr, field)

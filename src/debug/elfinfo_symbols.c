@@ -44,12 +44,12 @@ static void load_symbol(CTX, SM, void* ptr)
 	int elf64 = ctx->elf64;
 	int elfxe = ctx->elfxe;
 
-	copy_u32(elfsym, ptr, name, &sm->name);
-	copy_u8(elfsym, ptr, info, &sm->info);
-	copy_u8(elfsym, ptr, other, &sm->other);
-	copy_u16(elfsym, ptr, shndx, &sm->shndx);
-	copy_x64(elfsym, ptr, value, &sm->addr);
-	copy_x64(elfsym, ptr, size, &sm->size);
+	load_u32(sm->name,  elfsym, ptr, name);
+	load_u8(sm->info,   elfsym, ptr, info);
+	load_u8(sm->other,  elfsym, ptr, other);
+	load_u16(sm->shndx, elfsym, ptr, shndx);
+	load_x64(sm->addr,  elfsym, ptr, value);
+	load_x64(sm->size,  elfsym, ptr, size);
 }
 
 static int dec_digits_in(uint x)
@@ -261,13 +261,13 @@ static int load_section(CTX, SH, int i, uint type)
 	uint16_t shentsize = ctx->shentsize;
 	void* ptr = ctx->buf + shoff + i*shentsize;
 
-	copy_u32(elfshdr, ptr, type,   &sh->type);
+	load_u32(sh->type, elfshdr, ptr, type);
 
 	if(type && sh->type != type) return -1;
 
-	copy_u32(elfshdr, ptr, name,   &sh->name);
-	copy_x64(elfshdr, ptr, offset, &sh->offset);
-	copy_x64(elfshdr, ptr, size,   &sh->size);
+	load_u32(sh->name,   elfshdr, ptr, name);
+	load_x64(sh->offset, elfshdr, ptr, offset);
+	load_x64(sh->size,   elfshdr, ptr, size);
 
 	return 0;
 }

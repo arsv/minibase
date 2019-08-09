@@ -114,8 +114,8 @@ static void copy_header_data(CTX)
 	int elf64 = ctx->elf64;
 	int elfxe = ctx->elfxe;
 
-	copy_u16(elfhdr, eh, type, &ctx->elftype);
-	copy_u16(elfhdr, eh, machine, &ctx->machine);
+	load_u16(ctx->elftype, elfhdr, eh, type);
+	load_u16(ctx->machine, elfhdr, eh, machine);
 }
 
 static void init_sections_table(CTX)
@@ -124,10 +124,10 @@ static void init_sections_table(CTX)
 	int elf64 = ctx->elf64;
 	int elfxe = ctx->elfxe;
 
-	copy_x64(elfhdr, eh, shoff, &ctx->shoff);
-	copy_u16(elfhdr, eh, shnum, &ctx->shnum);
-	copy_u16(elfhdr, eh, shentsize, &ctx->shentsize);
-	copy_u16(elfhdr, eh, shstrndx, &ctx->shstrndx);
+	load_x64(ctx->shoff, elfhdr, eh, shoff);
+	load_u16(ctx->shnum, elfhdr, eh, shnum);
+	load_u16(ctx->shentsize, elfhdr, eh, shentsize);
+	load_u16(ctx->shstrndx,  elfhdr, eh, shstrndx);
 
 	if(!ctx->shoff)
 		return;
@@ -146,10 +146,10 @@ static void init_program_table(CTX)
 	int elf64 = ctx->elf64;
 	int elfxe = ctx->elfxe;
 
-	copy_x64(elfhdr, eh, phoff, &ctx->phoff);
-	copy_u16(elfhdr, eh, phnum, &ctx->phnum);
-	copy_u16(elfhdr, eh, phentsize, &ctx->phentsize);
-	copy_x64(elfhdr, eh, entry, &ctx->entry);
+	load_x64(ctx->phoff,     elfhdr, eh, phoff);
+	load_u16(ctx->phnum,     elfhdr, eh, phnum);
+	load_u16(ctx->phentsize, elfhdr, eh, phentsize);
+	load_x64(ctx->entry,     elfhdr, eh, entry);
 
 	if(!ctx->phoff)
 		return;

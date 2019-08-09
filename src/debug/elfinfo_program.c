@@ -186,13 +186,13 @@ static void load_phdr(CTX, struct phdr* ph, int i)
 
 	memzero(ph, sizeof(*ph));
 
-	copy_u32(elfphdr, loc, type,   &ph->type);
-	copy_u32(elfphdr, loc, flags,  &ph->flags);
+	load_u32(ph->type,   elfphdr, loc, type);
+	load_u32(ph->flags,  elfphdr, loc, flags);
 
-	copy_x64(elfphdr, loc, offset, &ph->offset);
-	copy_x64(elfphdr, loc, vaddr,  &ph->vaddr);
-	copy_x64(elfphdr, loc, filesz, &ph->filesz);
-	copy_x64(elfphdr, loc, memsz,  &ph->memsz);
+	load_x64(ph->offset, elfphdr, loc, offset);
+	load_x64(ph->vaddr,  elfphdr, loc, vaddr);
+	load_x64(ph->filesz, elfphdr, loc, filesz);
+	load_x64(ph->memsz,  elfphdr, loc, memsz);
 }
 
 static void dump_prentry(CTX, int i, struct ppad* pp)
