@@ -15,29 +15,61 @@
 
 #define MOD struct kmod* mod
 
+static inline uint16_t swab_u16(int xe, uint16_t src)
+{
+	return xe ? swabs(src) : src;
+}
+
+static inline uint32_t swab_u32(int xe, uint32_t src)
+{
+	return xe ? swabl(src) : src;
+}
+
+static inline uint64_t ext_long(int xe, uint32_t src)
+{
+	return (uint64_t)(xe ? swabl(src) : src);
+}
+
+
+static inline uint64_t swab_x64(int xe, uint64_t src)
+{
+	return xe ? swabx(src) : src;
+}
+
 #define elfhdr32  struct elf32hdr*
 #define elfhdr64  struct elf64hdr*
 #define elfshdr32 struct elf32shdr*
 #define elfshdr64 struct elf64shdr*
 
-#define copy_u16(type, ptr, fld, dst) \
-	copy_swab_u16(elfxe, elf64 ? \
-			&(((type##64)ptr)->fld) : \
-			&(((type##32)ptr)->fld), dst)
-#define copy_u32(type, ptr, fld, dst) \
-	copy_swab_u32(elfxe, elf64 ? \
-			&(((type##64)ptr)->fld) : \
-			&(((type##32)ptr)->fld), dst)
-#define copy_x64(type, ptr, fld, dst) { \
+#define load_u16(dst, type, ptr, field) { \
 	if(elf64) \
-		copy_swab_u64(elfxe, &(((type##64)ptr)->fld), dst);\
+		dst = swab_u16(elfxe, ((type##64)ptr)->field); \
 	else \
-		copy_ext_long(elfxe, &(((type##32)ptr)->fld), dst);\
+		dst = swab_u16(elfxe, ((type##32)ptr)->field); \
 }
 
-#define take_u16(type, ptr, field) copy_u16(type, ptr, field, &field)
-#define take_u32(type, ptr, field) copy_u32(type, ptr, field, &field)
-#define take_x64(type, ptr, field) copy_x64(type, ptr, field, &field)
+#define load_u32(dst, type, ptr, field) { \
+	if(elf64) \
+		dst = swab_u32(elfxe, ((type##64)ptr)->field); \
+	else \
+		dst = swab_u32(elfxe, ((type##32)ptr)->field); \
+}
+
+#define load_x64(dst, type, ptr, field) { \
+	if(elf64) \
+		dst = swab_x64(elfxe, ((type##64)ptr)->field); \
+	else \
+		dst = ext_long(elfxe, ((type##32)ptr)->field); \
+}
+
+/* take(type, ptr, field) means field = ((type)ptr)->field
+
+   This is used to extract struct fields into local variables with
+   the same exact name. */
+
+#define take_u16(type, ptr, field) load_u16(field, type, ptr, field)
+#define take_u32(type, ptr, field) load_u32(field, type, ptr, field)
+#define take_x64(type, ptr, field) load_x64(field, type, ptr, field)
 
 static inline void copy_one_byte(uint8_t* src, uint8_t* dst)
 {
