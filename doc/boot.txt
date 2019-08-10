@@ -5,11 +5,12 @@ wait for devices and deal with non-persistent device names in order to locate
 system partitions. See Embedded section below for non-initrd boot.
 
 * The kernel loads initrd, starts /init (msh script)
-* init starts udevmod in background (using `runwith`) to load modules
-* init runs findblk or passblk to find system partitions
-	* pass/findblk waits for devices to appear if necessary
+* init starts devinit in foreground to load modules
+* devinit starts /etc/devinit (msh script)
+* devinit script runs findblk (+ passblk) to find system partitions
+	* findblk waits for devices to appear if necessary
 	* passblk prompts for passphrase and sets up disk encryption
-* once partitions are located, runwith kills udevmod and exits
+* once partitions are located, devinit exits
 * init calls mount on all system partitions
 * init execs into switchroot
 
@@ -17,7 +18,7 @@ system partitions. See Embedded section below for non-initrd boot.
 	* moves mounts onto the real root
 	* cleans up initrd
 	* pivots the root
-* switchroot execs into /sbin/system/start (msh script) on the real
+* switchroot execs into /etc/boot/start (msh script) on the real
   root partition
 
 * start sets up basic process environment
