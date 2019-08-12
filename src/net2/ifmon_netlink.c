@@ -249,13 +249,10 @@ void handle_rtnl(void)
 
 void setup_rtnl(void)
 {
-	int mgrp_link = RTMGRP_LINK | RTMGRP_NOTIFY;
-	int mgrp_ipv4 = RTMGRP_IPV4_IFADDR | RTMGRP_IPV4_ROUTE;
-
 	nl_init(&nl);
 	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
 	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
-	nl_connect(&nl, NETLINK_ROUTE, mgrp_link | mgrp_ipv4);
+	nl_connect(&nl, NETLINK_ROUTE, RTMGRP_LINK);
 
 	trigger_link_dump();
 
