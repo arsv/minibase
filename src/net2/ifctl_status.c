@@ -41,6 +41,7 @@ static char* fmt_link(char* p, char* e, struct ucattr* at)
 	int* ifi = uc_sub_int(at, ATTR_IFI);
 	char* name = uc_sub_str(at, ATTR_NAME);
 	char* mode = uc_sub_str(at, ATTR_MODE);
+	int* state = uc_sub_int(at, ATTR_STATE);
 
 	if(!ifi || !name)
 		return p;
@@ -57,6 +58,18 @@ static char* fmt_link(char* p, char* e, struct ucattr* at)
 	if(mode) {
 		p = fmtstr(p, e, ": ");
 		p = fmtstr(p, e, mode);
+	}
+
+	if(state) {
+		int st = *state;
+
+		p = fmtstr(p, e, ", state ");
+		p = fmthex(p, e, st & 0xFF);
+
+		if(st & (1<<8))
+			p = fmtstr(p, e, ", carrier");
+		if(st & (1<<9))
+			p = fmtstr(p, e, ", badname");
 	}
 
 	p = fmtstr(p, e, "\n");

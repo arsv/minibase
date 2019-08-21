@@ -1,33 +1,41 @@
 #define NLINKS 10
 #define NCONNS 10
-#define NPROCS 10
 #define NMARKS 50
 
 #define TAGLEN 16
 #define IFNLEN 16
 
-/* link.flags, state-tracking */
-#define LF_CARRIER  (1<<0)  /* Carrier present (IFF_RUNNING) */
-#define LF_SETUP    (1<<1)  /* Setup script is running */
-#define LF_REQUEST  (1<<2)  /* DHCP request script is running */
-#define LF_DISCONT  (1<<3)  /* DHCP discontinuous mode */
-#define LF_ERROR    (1<<4)  /* Setup script failed */
-#define LF_MISNAMED (1<<5)  /* Last reported name does not match link.name */
-/* user-controllable */
-#define LF_STOP     (1<<6)
-#define LF_DHCP     (1<<7)
-#define LF_ONCE     (1<<8)
+#define LS_IDLE          0x00
+#define LS_SPAWN_MODE    0x01
+#define LS_SPAWN_STOP    0x02
+#define LS_DROP          0x03
 
-#define LN_SETUP    (1<<0)
-#define LN_REQUEST  (1<<1)
-#define LN_RENEW    (1<<2)
-#define LN_CANCEL   (1<<3)
+#define LS_SEND_DISCOVER 0x15
+#define LS_SEND_ACK      0x16
+#define LS_SEND_RENEW    0x17
+#define LS_SEND_RELEASE  0x18
+
+#define LS_ADD_IP        0x20
+#define LS_ADD_ROUTE     0x21
+#define LS_DEL_ROUTE     0x22
+#define LS_DEL_IP        0x23
+
+#define LS_SPAWN_GW      0x30
+#define LS_SPAWN_DNS     0x31
+#define LS_SPAWN_NTP     0x32
+
+#define LF_CARRIER     (1<<0)
+#define LF_TOUCHED     (1<<1)
+#define LF_DHCP_AUTO   (1<<8)
+#define LF_DHCP_ONCE   (1<<9)
+#define LF_SHUTDOWN   (1<<10)
 
 struct link {
 	int ifi;
-	uint seq;
-	short flags;
-	short needs;
+	int seq;
+	int pid;
+	int state;
+	int flags;
 	char name[IFNLEN];
 	char mode[TAGLEN];
 };
@@ -38,33 +46,27 @@ struct conn {
 	int rep;
 };
 
-struct proc {
-	int pid;
+struct dhcp {
 	int ifi;
 };
 
-#define LS struct link* ls __unused
-
 extern char** environ;
-extern int netlink;
-extern int pollset;
+extern int rtnlfd;
+extern int ctrlfd;
+extern int sigfd;
 
-extern struct link links[];
-extern struct conn conns[];
-extern struct proc procs[];
-extern int nprocs;
+extern struct link links[NLINKS];
+extern struct conn conns[NCONNS];
 extern int nconns;
 extern int nlinks;
-extern int ctrlfd;
+
+#define LS struct link* ls __unused
 
 void quit(const char* msg, char* arg, int err) noreturn;
 
-void accept_ctrl(int fd);
 void handle_conn(struct conn* cn);
-void unlink_ctrl(void);
-void setup_ctrl(void);
 
-void setup_rtnl(void);
+void setup_netlink(void);
 void handle_rtnl(void);
 void got_sigchld(void);
 
@@ -72,29 +74,30 @@ struct link* grab_link_slot(void);
 struct link* find_link_slot(int ifi);
 void free_link_slot(struct link* ls);
 
-struct proc* grab_proc_slot(void);
-struct proc* find_proc_slot(int pid);
-void free_proc_slot(struct proc* ch);
-
 struct conn* grab_conn_slot(void);
 void free_conn_slot(struct conn* cn);
-
-int any_procs_left(void);
-int any_procs_running(LS);
-void kill_all_procs(LS);
-int kill_tagged(LS, int tag);
-void stop_link_procs(struct link* ls, int drop);
-
-void report_done(LS);
 
 void set_timeout(int sec);
 void timer_expired(void);
 
 int check_marked(int ifi);
+int is_marked(int ifi);
 void unmark_link(int ifi);
 
 void spawn_identify(int ifi, char* name);
-int assess_link(LS);
-void reassess_link(LS);
+int spawn_mode(LS);
+int spawn_stop(LS);
 
 void request_link_name(LS);
+int update_link_name(LS);
+
+void report_done(LS);
+void report_errno(LS, int err);
+void report_exit(LS, int status);
+
+void link_wait(LS, int state);
+void link_next(LS, int state);
+void setup_control(void);
+void accept_ctrl(void);
+void check_links(void);
+void script_exit(LS, int status);

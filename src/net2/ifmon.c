@@ -1,12 +1,16 @@
+#include <bits/socket/unix.h>
 #include <sys/file.h>
 #include <sys/fpath.h>
 #include <sys/ppoll.h>
 #include <sys/signal.h>
+#include <sys/signalfd.h>
+#include <sys/socket.h>
 #include <sys/time.h>
 
 #include <netlink.h>
 #include <sigset.h>
 #include <string.h>
+#include <printf.h>
 #include <util.h>
 #include <main.h>
 
@@ -16,15 +20,12 @@
 ERRTAG("ifmon");
 
 char** environ;
+static int signalfd;
 
-static sigset_t defsigset;
-struct pollfd pfds[2+NCONNS];
-static int pollkey[2+NCONNS];
-int pollset;
-int npfds;
-
-int sigterm;
-int sigchld;
+static void unlink_ctrl(void)
+{
+	sys_unlink(IFCTL);
+}
 
 void quit(const char* msg, char* arg, int err)
 {
@@ -36,85 +37,71 @@ static void sighandler(int sig)
 {
 	switch(sig) {
 		case SIGINT:
-		case SIGTERM: sigterm = 1; break;
-		case SIGCHLD: sigchld = 1; break;
+		case SIGTERM:
+			unlink_ctrl();
+			_exit(0xFF);
 	}
 }
 
-static void sigaction(int sig, struct sigaction* sa)
+static void setup_signals(void)
 {
-	int ret;
+	int ret, fd;
+	SIGHANDLER(sa, sighandler, 0);
 
-	if((ret = sys_sigaction(sig, sa, NULL)) < 0)
-		quit("sigaction", NULL, ret);
-}
+	if((ret = sys_sigaction(SIGTERM, &sa, NULL)) < 0)
+		quit("sigaction", "SIGTERM", ret);
+	if((ret = sys_sigaction(SIGINT, &sa, NULL)) < 0)
+		quit("sigaction", "SIGINT", ret);
 
-static void sigprocmask(int sig, sigset_t* mask, sigset_t* mold)
-{
-	int ret;
+	int flags = SFD_NONBLOCK | SFD_CLOEXEC;
+	sigset_t mask;
 
-	if((ret = sys_sigprocmask(sig, mask, mold)) < 0)
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGCHLD);
+
+	if((fd = sys_signalfd(-1, &mask, flags)) < 0)
+		quit("signalfd", NULL, fd);
+	if((ret = sys_sigprocmask(SIG_BLOCK, &mask, NULL)) < 0)
 		quit("sigprocmask", NULL, ret);
+
+	signalfd = fd;
 }
 
-void setup_signals(void)
+static void read_singals(void)
 {
-	SIGHANDLER(sa, sighandler, SA_RESTART);
+	struct siginfo si;
+	int rd, fd = signalfd;
 
-	sigaddset(&sa.mask, SIGCHLD);
-	sigprocmask(SIG_BLOCK, &sa.mask, &defsigset);
-
-	sigaddset(&sa.mask, SIGINT);
-	sigaddset(&sa.mask, SIGTERM);
-	sigaddset(&sa.mask, SIGHUP);
-	sigaddset(&sa.mask, SIGALRM);
-
-	sigaction(SIGINT,  &sa);
-	sigaction(SIGTERM, &sa);
-	sigaction(SIGHUP,  &sa);
-	sigaction(SIGALRM, &sa);
-
-	sa.flags &= ~SA_RESTART;
-	sigaction(SIGCHLD, &sa);
-
-	sa.handler = SIG_IGN;
-	sigaction(SIGPIPE, &sa);
-}
-
-static void set_pollfd(int fd, int tag)
-{
-	int i = npfds;
-
-	if(fd <= 0)
+	if((rd = sys_read(fd, &si, sizeof(si))) < 0)
+		quit("read", "sigfd", rd);
+	else if(!rd)
 		return;
 
-	pfds[i].fd = fd;
-	pfds[i].events = POLLIN;
-	pollkey[i] = tag;
+	tracef("signal %i\n", si.signo);
 
-	npfds++;
+	if(si.signo == SIGCHLD)
+		got_sigchld();
 }
 
-void update_pollfds(void)
+static void set_pollfd(struct pollfd* pfd, int fd)
 {
-	int i;
-
-	npfds = 2;
-
-	for(i = 0; i < nconns; i++)
-		set_pollfd(conns[i].fd,  1 + i);
-
-	pollset = 1;
+	pfd->fd = fd;
+	pfd->events = POLLIN;
 }
 
-void setup_pollfds(void)
+static int prepare_pollfds(struct pollfd* pfds, int maxpfds)
 {
-	npfds = 0;
+	int i, n = nconns;
+	int p = 0;
 
-	set_pollfd(netlink, 0);
-	set_pollfd(ctrlfd, 0);
+	set_pollfd(&pfds[p++], rtnlfd);
+	set_pollfd(&pfds[p++], ctrlfd);
+	set_pollfd(&pfds[p++], signalfd);
 
-	update_pollfds();
+	for(i = 0; i < n; i++)
+		set_pollfd(&pfds[p++], conns[i].fd);
+
+	return p;
 }
 
 static void check_netlink(int revents)
@@ -122,71 +109,96 @@ static void check_netlink(int revents)
 	if(revents & POLLIN)
 		handle_rtnl();
 	if(revents & ~POLLIN)
-		quit("lost netlink connection", NULL, 0);
+		quit("poll", "rtnl", 0);
 }
 
 static void check_control(int revents)
 {
 	if(revents & POLLIN)
-		accept_ctrl(ctrlfd);
+		accept_ctrl();
 	if(revents & ~POLLIN)
 		quit("poll", "ctrl", 0);
 }
 
-static void close_conn(struct conn* cn)
+static void check_signals(int revents)
 {
-	if(cn->fd <= 0)
-		return;
-
-	sys_close(cn->fd);
-	memzero(cn, sizeof(*cn));
-
-	pollset = 0;
+	if(revents & POLLIN)
+		read_singals();
+	if(revents & ~POLLIN)
+		quit("poll", "sigfd", 0);
 }
 
-static void check_conn(struct pollfd* pf, struct conn* cn)
+static void close_conn(struct conn* cn)
 {
-	if(!(cn->fd)) /* should not happen */
-		return;
-	if(pf->revents & (POLLIN | POLLHUP))
+	sys_close(cn->fd);
+	free_conn_slot(cn);
+}
+
+static void check_conn(struct conn* cn, int revents)
+{
+	if(revents & POLLIN)
 		handle_conn(cn);
-	if(pf->revents & POLLHUP)
+	if(revents & ~POLLIN)
 		close_conn(cn);
 }
 
-static void check_polled_fds(void)
+static struct conn* find_conn_for_fd(int fd, int* next)
 {
-	int i, k;
+	int i = *next;
 
-	check_netlink(pfds[0].revents);
-	check_control(pfds[1].revents);
+	while(i < nconns) {
+		struct conn* cn = &conns[i++];
 
-	for(i = 2; i < npfds; i++)
-		if((k = pollkey[i]) > 0)
-			check_conn(&pfds[i], &conns[k - 1]);
+		if(cn->fd == fd) {
+			*next = i;
+			return cn;
+		}
+	}
 
-	if(pollset) return;
-
-	update_pollfds();
+	*next = i;
+	return NULL;
 }
 
-static void stop_wait_procs(void)
+static void check_polled_fds(struct pollfd* pfds, int n)
 {
-	sigterm = 0;
-	struct timespec ts = { 1, 0 };
+	int p = 0, ic = 0;
+	struct conn* cn;
 
-	kill_all_procs(NULL);
+	check_netlink(pfds[p++].revents);
+	check_control(pfds[p++].revents);
+	check_signals(pfds[p++].revents);
 
-	while(1) {
-		if(!any_procs_left())
-			break;
-		if(sys_ppoll(NULL, 0, &ts, &defsigset) < 0)
-			break;
-		if(sigchld)
-			got_sigchld();
-		if(sigterm)
-			break;
+	while(p < n) {
+		struct pollfd* pfd = &pfds[p++];
+
+		if((cn = find_conn_for_fd(pfd->fd, &ic)))
+			check_conn(cn, pfd->revents);
+		else
+			tracef("unhandled fd %i\n", pfd->fd);
 	}
+
+	check_links();
+}
+
+static void timed_out_waiting(void)
+{
+
+}
+
+static void poll(void)
+{
+	struct pollfd pfds[4+NCONNS+NLINKS];
+	int maxpfds = ARRAY_SIZE(pfds);
+	int npfds = prepare_pollfds(pfds, maxpfds);
+
+	int ret = sys_ppoll(pfds, npfds, NULL, NULL);
+
+	if(ret < 0)
+		quit("ppoll", NULL, ret);
+	if(ret > 0)
+		check_polled_fds(pfds, npfds);
+	else
+		timed_out_waiting();
 }
 
 int main(int argc, char** argv)
@@ -196,29 +208,9 @@ int main(int argc, char** argv)
 
 	environ = argv + argc + 1;
 
-	setup_ctrl();
-	setup_rtnl();
-
+	setup_control();
+	setup_netlink();
 	setup_signals();
-	setup_pollfds();
 
-	while(!sigterm) {
-		sigchld = 0;
-
-		int r = sys_ppoll(pfds, npfds, NULL, &defsigset);
-
-		if(sigchld)
-			got_sigchld();
-		if(r == -EINTR)
-			; /* signal has been caught and handled */
-		else if(r < 0)
-			quit("ppoll", NULL, r);
-		if(r > 0)
-			check_polled_fds();
-	}
-
-	stop_wait_procs();
-	unlink_ctrl();
-
-	return 0;
+	while(1) poll();
 }

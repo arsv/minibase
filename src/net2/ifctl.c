@@ -296,69 +296,6 @@ static void req_also(CTX)
 	store_device_also(ctx, mode);
 }
 
-static void set_active_name(CTX, char* name)
-{
-	uc_put_hdr(UC, CMD_IF_NAME);
-	uc_put_int(UC, ATTR_IFI, ctx->ifi);
-	uc_put_str(UC, ATTR_NAME, name);
-	uc_put_end(UC);
-
-	send_check(ctx);
-}
-
-static void req_setname(CTX)
-{
-	char* name = shift_arg(ctx);
-
-	no_other_options(ctx);
-
-	set_active_name(ctx, name);
-}
-
-static void req_upname(CTX)
-{
-	no_other_options(ctx);
-
-	set_active_name(ctx, ctx->name);
-}
-
-static void rename_interface(CTX, char* name)
-{
-	struct netlink nl;
-	char rxbuf[256];
-	char txbuf[256];
-	int ret;
-
-	nl_init(&nl);
-	nl_set_txbuf(&nl, rxbuf, sizeof(rxbuf));
-	nl_set_rxbuf(&nl, txbuf, sizeof(txbuf));
-	nl_connect(&nl, NETLINK_ROUTE, 0);
-
-	struct ifinfomsg* msg;
-
-	nl_header(&nl, msg, RTM_NEWLINK, 0,
-		.family = 0,
-		.type = 0,
-		.index = ctx->ifi,
-		.flags = 0,
-		.change = 0);
-	nl_put_str(&nl, IFLA_IFNAME, name);
-
-	if((ret = nl_send_recv_ack(&nl)) < 0)
-		fail(NULL, NULL, ret);
-}
-
-static void req_rename(CTX)
-{
-	char* name = shift_arg(ctx);
-
-	no_other_options(ctx);
-
-	rename_interface(ctx, name);
-
-	set_active_name(ctx, name);
-}
-
 static void req_stop(CTX)
 {
 	no_other_options(ctx);
@@ -366,12 +303,6 @@ static void req_stop(CTX)
 	identify_device(ctx);
 
 	uc_put_hdr(UC, CMD_IF_STOP);
-	uc_put_int(UC, ATTR_IFI, ctx->ifi);
-	uc_put_end(UC);
-
-	send_check(ctx);
-
-	uc_put_hdr(UC, CMD_IF_DROP);
 	uc_put_int(UC, ATTR_IFI, ctx->ifi);
 	uc_put_end(UC);
 
@@ -425,9 +356,6 @@ static const struct cmd {
 	{ "reconnect", req_reconnect },
 	{ "identify",  req_identify  },
 	{ "id",        req_show_id   },
-	{ "set-name",  req_setname   },
-	{ "upname",    req_upname    },
-	{ "rename",    req_rename    },
 };
 
 static int invoke(CTX, const struct cmd* cc)

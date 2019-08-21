@@ -2,11 +2,13 @@
 
 #include <sys/file.h>
 #include <sys/fpath.h>
+#include <sys/signal.h>
 #include <sys/socket.h>
 
 #include <nlusctl.h>
 #include <format.h>
 #include <string.h>
+#include <printf.h>
 #include <util.h>
 
 #include "common.h"
@@ -14,6 +16,7 @@
 
 #define TIMEOUT 1
 #define REPLIED 1
+#define LATER 1
 
 #define CN struct conn* cn __unused
 #define MSG struct ucmsg* msg __unused
@@ -48,20 +51,42 @@ void report_done(LS)
 	send_report(&uc, ls->ifi);
 }
 
+void report_errno(LS, int err)
+{
+	char buf[64];
+	struct ucbuf uc = {
+		.brk = buf,
+		.ptr = buf,
+		.end = buf + sizeof(buf)
+	};
+
+	uc_put_hdr(&uc, REP_IF_DONE);
+	uc_put_int(&uc, ATTR_ERRNO, err);
+	uc_put_end(&uc);
+
+	send_report(&uc, ls->ifi);
+}
+
+void report_exit(LS, int status)
+{
+	char buf[64];
+	struct ucbuf uc = {
+		.brk = buf,
+		.ptr = buf,
+		.end = buf + sizeof(buf)
+	};
+
+	uc_put_hdr(&uc, REP_IF_DONE);
+	uc_put_int(&uc, ATTR_STATUS, status);
+	uc_put_end(&uc);
+
+	send_report(&uc, ls->ifi);
+}
+
 static int send_reply(struct conn* cn, struct ucbuf* uc)
 {
 	writeall(cn->fd, uc->brk, uc->ptr - uc->brk);
 	return REPLIED;
-}
-
-static int assess_link_busy(CN, LS)
-{
-	int ret;
-
-	if((ret = assess_link(ls)) == -EBUSY)
-		cn->rep = ls->ifi;
-
-	return ret;
 }
 
 int reply(struct conn* cn, int err)
@@ -94,6 +119,7 @@ static int cmd_status(CN, MSG)
 		uc_put_int(&uc, ATTR_IFI, ls->ifi);
 		uc_put_str(&uc, ATTR_NAME, ls->name);
 		uc_put_str(&uc, ATTR_MODE, ls->mode);
+		uc_put_int(&uc, ATTR_STATE, ls->state);
 		uc_end_nest(&uc, at);
 	}
 
@@ -106,22 +132,19 @@ static int cmd_mode(CN, MSG)
 {
 	struct link* ls;
 	int* pi;
-	char* name;
 	char* mode;
+	int ret;
 
 	if(!(pi = uc_get_int(msg, ATTR_IFI)))
 		return -EINVAL;
 	if(!(mode = uc_get_str(msg, ATTR_MODE)))
 		return -EINVAL;
-	if(!(name = uc_get_str(msg, ATTR_NAME)))
-		return -EINVAL;
+	if(!is_marked(*pi))
+		return -ENODEV;
 
 	uint mlen = strlen(mode);
-	uint nlen = strlen(name);
 
 	if(mlen > sizeof(ls->mode)-1)
-		return -EINVAL;
-	if(nlen > sizeof(ls->name)-1)
 		return -EINVAL;
 	if((ls = find_link_slot(*pi)))
 		return -EALREADY;
@@ -130,168 +153,99 @@ static int cmd_mode(CN, MSG)
 
 	ls->ifi = *pi;
 	memcpy(ls->mode, mode, mlen + 1);
-	memcpy(ls->name, name, nlen + 1);
-	ls->needs = LN_SETUP;
-	ls->flags = LF_MISNAMED;
 
-	request_link_name(ls);
+	if((ret = update_link_name(ls)) < 0) {
+		free_link_slot(ls);
+		return ret;
+	}
 
-	return 0;
-}
+	tracef("link %s mode %s\n", ls->name, ls->mode);
 
-static int cmd_name(CN, MSG)
-{
-	struct link* ls;
-	int* pi;
-	char* name;
-
-	if(!(pi = uc_get_int(msg, ATTR_IFI)))
-		return -EINVAL;
-	if(!(name = uc_get_str(msg, ATTR_NAME)))
-		return -EINVAL;
-
-	uint nlen = strlen(name);
-
-	if(nlen > sizeof(ls->name)-1)
-		return -EINVAL;
-	if(!(ls = find_link_slot(*pi)))
-		return -ENOENT;
-
-	memcpy(ls->name, name, nlen + 1);
-	ls->flags |= LF_MISNAMED;
-
-	request_link_name(ls);
+	link_next(ls, LS_SPAWN_MODE);
+	cn->ifi = ls->ifi;
 
 	return 0;
 }
 
 static int cmd_stop(CN, MSG)
 {
-	int* pi;
 	struct link* ls;
+	int* pi;
 
 	if(!(pi = uc_get_int(msg, ATTR_IFI)))
 		return -EINVAL;
 	if(!(ls = find_link_slot(*pi)))
-		return -ENOENT;
+		return -ENODEV;
+	if(ls->flags & LF_SHUTDOWN)
+		return -EALREADY;
 
-	kill_all_procs(ls);
-	ls->needs = 0;
+	tracef("cmd_stop %s\n", ls->name);
 
-	if(ls->flags & LF_DISCONT)
-		ls->needs |= LN_CANCEL;
+	ls->flags |= LF_SHUTDOWN;
+	link_next(ls, LS_SPAWN_STOP);
+	cn->ifi = ls->ifi;
 
-	ls->flags |= LF_STOP;
+	return 0;
+}
 
-	return assess_link_busy(cn, ls);
+static int cmd_kill(CN, MSG)
+{
+	struct link* ls;
+	int* pi;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(*pi)))
+		return -ENODEV;
+
+	int ret, pid = ls->pid;
+
+	if(pid <= 0)
+		return -ECHILD;
+	if((ret = sys_kill(pid, SIGTERM)) < 0)
+		return ret;
+
+	return 0;
 }
 
 static int cmd_drop(CN, MSG)
 {
-	int* pi;
 	struct link* ls;
+	int* pi;
 
 	if(!(pi = uc_get_int(msg, ATTR_IFI)))
 		return -EINVAL;
 	if(!(ls = find_link_slot(*pi)))
-		return -ENOENT;
+		return -ENODEV;
 
-	if(any_procs_running(ls) || ls->needs)
-		return -ENOTEMPTY;
+	if(ls->pid > 0)
+		sys_kill(ls->pid, SIGTERM);
 
 	free_link_slot(ls);
 
 	return 0;
 }
 
-static int enable_link_dhcp(CN, MSG, int bits)
-{
-	int* pi;
-	struct link* ls;
-
-	if(!(pi = uc_get_int(msg, ATTR_IFI)))
-		return -EINVAL;
-	if(!(ls = find_link_slot(*pi)))
-		return -ENOENT;
-
-	int flags = ls->flags;
-
-	if(flags & LF_DHCP)
-		return -EALREADY;
-
-	ls->flags |= bits;
-
-	if(!(flags & LF_CARRIER))
-		return 0;
-
-	ls->needs |= LN_REQUEST;
-
-	reassess_link(ls);
-
-	return 0;
-}
-
 static int cmd_dhcp_auto(CN, MSG)
 {
-	return enable_link_dhcp(cn, msg, LF_DHCP);
+	return -ENOSYS;
 }
 
 static int cmd_dhcp_once(CN, MSG)
 {
-	return enable_link_dhcp(cn, msg, LF_DHCP | LF_ONCE);
+	return -ENOSYS;
 }
 
 static int cmd_dhcp_stop(CN, MSG)
 {
-	int* pi;
-	struct link* ls;
-
-	if(!(pi = uc_get_int(msg, ATTR_IFI)))
-		return -EINVAL;
-	if(!(ls = find_link_slot(*pi)))
-		return -ENOENT;
-
-	int flags = ls->flags;
-
-	if(!(flags & LF_DHCP))
-		return -ENOTCONN;
-
-	ls->flags = (flags & ~(LF_DHCP | LF_ONCE));
-
-	if(flags & LF_REQUEST)
-		kill_all_procs(ls);
-	else if(flags & LF_DISCONT)
-		ls->needs |= LN_CANCEL;
-
-	return assess_link_busy(cn, ls);
+	return -ENOSYS;
 }
 
 /* Simulate cable reconnect */
 
 static int cmd_reconnect(CN, MSG)
 {
-	int* pi;
-	struct link* ls;
-
-	if(!(pi = uc_get_int(msg, ATTR_IFI)))
-		return -EINVAL;
-	if(!(ls = find_link_slot(*pi)))
-		return -ENOENT;
-
-	int flags = ls->flags;
-	int needs = ls->needs;
-
-	if(!(flags & LF_DHCP))
-		return -ENOTCONN;
-
-	if(flags & LF_REQUEST)
-		kill_all_procs(ls);
-	if(flags & LF_DISCONT)
-		needs |= LN_CANCEL;
-
-	ls->needs = needs | LN_REQUEST;
-
-	return assess_link_busy(cn, ls);
+	return -ENOSYS;
 }
 
 static const struct cmd {
@@ -300,16 +254,16 @@ static const struct cmd {
 } commands[] = {
 	{ CMD_IF_STATUS,    cmd_status    },
 	{ CMD_IF_MODE,      cmd_mode      },
-	{ CMD_IF_NAME,      cmd_name      },
-	{ CMD_IF_STOP,      cmd_stop      },
 	{ CMD_IF_DROP,      cmd_drop      },
+	{ CMD_IF_STOP,      cmd_stop      },
+	{ CMD_IF_KILL,      cmd_kill      },
 	{ CMD_IF_DHCP_AUTO, cmd_dhcp_auto },
 	{ CMD_IF_DHCP_ONCE, cmd_dhcp_once },
 	{ CMD_IF_DHCP_STOP, cmd_dhcp_stop },
 	{ CMD_IF_RECONNECT, cmd_reconnect }
 };
 
-static int dispatch_cmd(struct conn* cn, struct ucmsg* msg)
+static int dispatch(struct conn* cn, struct ucmsg* msg)
 {
 	const struct cmd* cd;
 	int cmd = msg->cmd;
@@ -336,57 +290,44 @@ void handle_conn(struct conn* cn)
 		goto err;
 	if(!(msg = uc_msg(buf, ret)))
 		goto err;
-	if((ret = dispatch_cmd(cn, msg)) >= 0)
+	if((ret = dispatch(cn, msg)) >= 0)
 		return;
 err:
 	sys_shutdown(fd, SHUT_RDWR);
 }
 
-void accept_ctrl(int sfd)
+void accept_ctrl(void)
 {
 	struct sockaddr addr;
 	int addr_len = sizeof(addr);
 	struct conn *cn;
 	int flags = SOCK_NONBLOCK;
-	int fd;
+	int sfd = ctrlfd;
+	int cfd;
 
-	while((fd = sys_accept4(sfd, &addr, &addr_len, flags)) > 0) {
-		if(!(cn = grab_conn_slot())) {
-			sys_close(fd);
-		} else {
-			cn->fd = fd;
-			pollset = 0;
-		}
+	while((cfd = sys_accept4(sfd, &addr, &addr_len, flags)) > 0) {
+		if(!(cn = grab_conn_slot()))
+			sys_close(cfd);
+		else
+			cn->fd = cfd;
 	}
 }
 
-void unlink_ctrl(void)
+void setup_control(void)
 {
-	sys_unlink(IFCTL);
-}
-
-void setup_ctrl(void)
-{
-	int fd;
+	int fd, ret;
+	const int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
 	struct sockaddr_un addr = {
 		.family = AF_UNIX,
 		.path = IFCTL
 	};
 
-	const int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
 	if((fd = sys_socket(AF_UNIX, flags, 0)) < 0)
 		fail("socket", "AF_UNIX", fd);
-
-	long ret;
-
-	ctrlfd = fd;
-
 	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
 		fail("bind", addr.path, ret);
-	else if((ret = sys_listen(fd, 1)))
+	if((ret = sys_listen(fd, 1)))
 		quit("listen", addr.path, ret);
-	else
-		return;
 
-	ctrlfd = -1;
+	ctrlfd = fd;
 }

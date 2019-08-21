@@ -1,5 +1,6 @@
 #include <bits/errno.h>
 #include <bits/socket/inet.h>
+#include <sys/signal.h>
 
 #include <netlink.h>
 #include <netlink/rtnl/link.h>
@@ -9,15 +10,26 @@
 #include <netlink/dump.h>
 
 #include <string.h>
+#include <printf.h>
 #include <util.h>
 
 #include "ifmon.h"
 
 struct netlink nl;
-int netlink;
+int rtnlfd;
 
 char txbuf[512];
 char rxbuf[4096];
+
+static void link_carrier_up(LS)
+{
+	tracef("link %s carrier up\n", ls->name);
+}
+
+static void link_carrier_down(LS)
+{
+	tracef("link %s carrier down\n", ls->name);
+}
 
 static void send_check(void)
 {
@@ -44,6 +56,8 @@ void request_link_name(struct link* ls)
 		.change = 0);
 
 	send_check();
+
+	ls->seq = nl.seq;
 }
 
 static void new_link_notification(struct ifinfomsg* msg)
@@ -51,11 +65,10 @@ static void new_link_notification(struct ifinfomsg* msg)
 	char* name;
 	uint nlen;
 
-	/* Skip unnamed links; should never happen but who knows. */
 	if(!(name = nl_str(ifi_get(msg, IFLA_IFNAME))))
-		return;
-	if((nlen = strlen(name)) > IFNLEN-1)
-		return warn("ignoring long name link", name, 0);
+		return; /* skip unnamed links */
+	if((nlen = strlen(name)) > IFNLEN)
+		return; /* skip long names */
 
 	spawn_identify(msg->index, name);
 }
@@ -66,42 +79,37 @@ static void check_link_name(LS, struct ifinfomsg* msg)
 
 	if(!(name = nl_str(ifi_get(msg, IFLA_IFNAME))))
 		return;
-
+	
 	uint nlen = strlen(name);
 	uint olen = strlen(ls->name);
 
-	if(olen == nlen && !memcmp(ls->name, name, nlen))
-		ls->flags &= ~LF_MISNAMED;
-	else
-		ls->flags |=  LF_MISNAMED;
+	if(nlen != olen)
+		; /* length changed */
+	else if(memcmp(name, ls->name, nlen))
+		; /* same length, different content */
+	else return;
+
+	(void)update_link_name(ls);
 }
 
 static void link_state_changed(LS, struct ifinfomsg* msg)
 {
-	int hadcarrier = (ls->flags & LF_CARRIER);
-	int gotcarrier = (msg->flags & IFF_RUNNING);
+	int oldflags = ls->flags;
+	int newflags = oldflags;
 
-	if(!hadcarrier && gotcarrier) {
-		ls->flags |= LF_CARRIER;
-
-		if(ls->flags & LF_DHCP)
-			ls->needs |= LN_REQUEST;
-	} else if(hadcarrier && !gotcarrier) {
-		ls->flags &= ~LF_CARRIER;
-		ls->needs &= ~LN_REQUEST;
-
-		if(ls->flags & LF_REQUEST)
-			kill_all_procs(ls);
-		else if(ls->flags & LF_DISCONT)
-			ls->needs |= LN_CANCEL;
-
-		if(ls->flags & LF_ONCE)
-			ls->flags &= ~(LF_DHCP | LF_ONCE);
-	}
+	if(msg->flags & IFF_RUNNING)
+		newflags |=  LF_CARRIER;
+	else
+		newflags &= ~LF_CARRIER;
 
 	check_link_name(ls, msg);
 
-	reassess_link(ls);
+	ls->flags = newflags;
+
+	if(!(oldflags & LF_CARRIER) && (newflags & LF_CARRIER))
+		link_carrier_up(ls);
+	if((oldflags & LF_CARRIER) && !(newflags & LF_CARRIER))
+		link_carrier_down(ls);
 }
 
 static void msg_new_link(struct ifinfomsg* msg)
@@ -113,88 +121,52 @@ static void msg_new_link(struct ifinfomsg* msg)
 
 	int ifi = msg->index;
 
-	if(!check_marked(ifi))
-		new_link_notification(msg);
-	else if((ls = find_link_slot(ifi)))
+	tracef("msg_new_link seq %i\n", msg->nlm.seq);
+
+	if((ls = find_link_slot(ifi)))
 		link_state_changed(ls, msg);
+	else if(!check_marked(ifi))
+		new_link_notification(msg);
 }
 
 static void msg_del_link(struct ifinfomsg* msg)
 {
 	struct link* ls;
 	int ifi = msg->index;
+	int pid;
 
 	unmark_link(ifi);
 
 	if((ls = find_link_slot(ifi)))
 		return;
 
-	kill_all_procs(ls);
+	if((pid = ls->pid) > 0)
+		sys_kill(pid, SIGTERM);
+
 	free_link_slot(ls);
 }
 
-
-static void* ifa_bin(struct ifaddrmsg* msg, int key, int size)
-{
-	return nl_bin(nl_attr_k_in(NLPAYLOAD(msg), key), size);
-}
-
-static void msg_new_addr(struct ifaddrmsg* msg)
+static struct link* find_link_seq(int seq)
 {
 	struct link* ls;
-	struct ifa_cacheinfo* ci;
-	const uint32_t unset = ~((uint32_t)0);
+	int lq;
 
-	if(!(ls = find_link_slot(msg->index)))
-		return;
-	if(!(ls->flags & LF_DHCP))
-		return;
-	if(!(ci = ifa_bin(msg, IFA_CACHEINFO, sizeof(*ci))))
-		return;
-	if(ci->valid == unset)
-		return;
-	if(ci->prefered || !ci->valid)
-		return;
+	for(ls = links; ls < links + nlinks; ls++)
+		if((lq = ls->seq) && (lq == seq))
+			return ls;
 
-	ls->needs |= LN_RENEW;
-	reassess_link(ls);
-}
-
-static void link_error(LS, int errno)
-{
-	warn("rtnl", ls->name, errno);
+	return NULL;
 }
 
 static void msg_rtnl_err(struct nlerr* msg)
 {
 	struct link* ls;
 
-	for(ls = links; ls < links + nlinks; ls++) {
-		if(!ls->ifi)
-			continue;
-		if(ls->seq != msg->seq)
-			continue;
-
-		ls->seq = 0;
-
-		return link_error(ls, msg->errno);
+	if((ls = find_link_seq(msg->seq))) {
+		warn("rtnl", ls->name, msg->errno);
+	} else {
+		warn("rtnl", NULL, msg->errno);
 	}
-
-	warn("rtnl", NULL, msg->errno);
-}
-
-static void trigger_link_dump(void)
-{
-	struct ifinfomsg* req;
-
-	nl_header(&nl, req, RTM_GETLINK, NLM_F_REQUEST | NLM_F_DUMP);
-
-	send_check();
-}
-
-static void msg_rtnl_done(struct nlmsg* msg)
-{
-	(void)msg;
 }
 
 typedef void (*rth)(struct nlmsg* msg);
@@ -205,12 +177,9 @@ struct rtnh {
 	uint hdr;
 } rtnlcmds[] = {
 #define MSG(cmd, func, mm) { cmd, (rth)(func), sizeof(struct mm) }
-	MSG(NLMSG_NOOP,   NULL,          nlmsg),
-	MSG(NLMSG_DONE,   msg_rtnl_done, nlmsg),
 	MSG(NLMSG_ERROR,  msg_rtnl_err,  nlerr),
 	MSG(RTM_NEWLINK,  msg_new_link,  ifinfomsg),
 	MSG(RTM_DELLINK,  msg_del_link,  ifinfomsg),
-	MSG(RTM_NEWADDR,  msg_new_addr,  ifaddrmsg),
 #undef MSG
 	{ 0, NULL, 0 }
 };
@@ -237,24 +206,27 @@ void handle_rtnl(void)
 	int ret;
 	struct nlmsg* msg;
 
-	if((ret = nl_recv_nowait(&nl)) < 0) {
-		warn("recv", "rtnl", ret);
-		return;
+	while((ret = nl_recv_nowait(&nl)) > 0) {
+		while((msg = nl_get_nowait(&nl))) {
+			dispatch(msg);
+			nl_shift_rxbuf(&nl);
+		}
+	} if(ret < 0 && ret != -EAGAIN) {
+		quit("recv", "rtnl", ret);
 	}
-	while((msg = nl_get_nowait(&nl)))
-		dispatch(msg);
-
-	nl_shift_rxbuf(&nl);
 }
 
-void setup_rtnl(void)
+void setup_netlink(void)
 {
+	struct ifinfomsg* req;
+
 	nl_init(&nl);
 	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
 	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
 	nl_connect(&nl, NETLINK_ROUTE, RTMGRP_LINK);
 
-	trigger_link_dump();
+	nl_header(&nl, req, RTM_GETLINK, NLM_F_REQUEST | NLM_F_DUMP);
+	send_check();
 
-	netlink = nl.fd;
+	rtnlfd = nl.fd;
 }

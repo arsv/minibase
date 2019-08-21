@@ -1,5 +1,5 @@
 #!/bin/sh
 
-echo "+++ mode-lan $1"
+echo "+++ stop-lan $1"
 
 #./ifctl $1 auto-dhcp

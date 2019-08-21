@@ -1,5 +1,0 @@
-#!/bin/sh
-
-echo "+++ conf-request $1"
-
-#./dhcp $1 request
