@@ -94,156 +94,31 @@ It is possible to assign persistent user-defined device names to identifiable
 devices with ifmon. See below on how it's implemented. Unlike in FDO systems
 however, the choice of the naming scheme is free and host-local. If there's
 only one LAN and one Wi-Fi card on the host, they can be just "lan" and "wan"
-with ifmon. No need to bother with "enp37s0" and "wlp36s0".
+with ifmon, not "enp37s0" and "wlp36s0".
 
 Custom interface names are completely optional for ifmon. It is perfectly
 fine to keep the kernel names and just use $1 in relevant profile scripts.
 
 
-The DHCP problem
-~~~~~~~~~~~~~~~~
-DHCP is a funky protocol. It is always client-initiated (unlike say WPA),
-the active phases are very short compared to the time between them, and
-the data received for the most part is not used within the DHCP client
-itself.
-
-Because of that, the two obvious approaches — having a long-running DHCP
-client service like with NTP, or connection-long process like temp/wpa —
-are both questionable for DHCP. Something connection-long would require one
-process per connection which would sleep for the majority of the time it is
-alive, only to keep ~20 bytes of data that's not even particularly important.
-A DHCP client service would make some sense, but doing that would force an
-event-driven state machine implementation for a protocol that's sequential.
-
-With the service approach, there's also a huge incentive to merge it into
-ifmon like systemd folks did with their networkd. Now, the non-dhcp part
-of ifmon is already unpleasant enough and would better do without any
-additional event-driven stuff.
-
-So instead, ifmon includes support for "discontinuous-mode" DHCP clients.
-The client gets spawned as a separate process, sets up the link and exits,
-saving the data needed for renew/release somewhere in the file system.
-When the time comes to renew, release or drop the lease, ifmon runs dhcp
-client again with appropriate options.
-
-	/etc/net/conf-request eth1   # spawned by ifmon to configure the link
-	/etc/net/conf-renew eth1     # spawned by ifmon when addr timer runs out
-	/etc/net/conf-cancel eth1    # link went down, delete lease file
-
-The allows to have a short-running, sequential DHCP client at the expense
-of some temporary file storage and a bit of additional code within ifmon.
-The client must be written to support this mode of course.
-
-To allow some interactive use and debugging, the DHCP client here also
-supports a foreground, connection-long operation. This mode should not
-be used with ifmon, although ifmon should still handle it gracefully.
-It this mode, it gets the lease, then sleeps for the lease time to renew it,
-and releases it on SIGINT.
-
-
-DHCP as a generic profile
-~~~~~~~~~~~~~~~~~~~~~~~~~
-An early concept for profiles were something like that: on link event $foo,
-ifmon would spawn /etc/net/$foo-$profile, with the events being "setup"
-(the link has been identified), "enabled" (IFF_UP) and "carrier" (IFF_RUNNING),
-"renew" (address expired). This approach would have allowed implementing dhcp
-as a generic link profile.
-
-The idea got scrapped. Auto-dhcp profile turns out to be really unusual
-with respect to the events it needs, and also mostly independent from link
-setup. This quickly leads to very messy /etc/net profiles with lots of 
-awkwardly-named scripts that mostly duplicate each other. And yet, since ifmon
-still has to implement some of the DHCP renew logic (timers), it wasn't truly
-generic.
-
-So instead, the decision was made to have a single script per profile
-for link setup, and handle DHCP independently and uniformly for all links.
-
-This is a limitation, but not a practically important one. Any setup that
-does not fit into this model would likely be unusual (and uncommon) enough
-to warrant replacing ifmon with something else, something tailored to the
-particular use case.
-
-
-Scheduling DHCP renewals
-~~~~~~~~~~~~~~~~~~~~~~~~
-For discontinuous-mode dhcp client, how should ifmon know when to call it
-again to renew the lease? The obvious solution would be to let it IPC back
-to ifmon and schedule the next run. This would be fine, except for the
-coupling between dhcp and ifmon.
-
-Turns out the Linux kernel has a sort of built-in DHCP renew timers accessible
-via Netlink which both ifmon and dhcp can use to schedule renews without having
-to communicate directly.
-
-How it works: dhcp client adds the IP address with two additional fields,
-preferred-lifetime and valid-lifetime. Valid lifetime should be the lease time,
-and preferred is the renew timer. The kernel itself counts those timers down,
-and issues an event when preferred life time becomes zero. The event reaches
-ifmon, which proceeds to spawn the renew script.
-
-This still requires dhcp to be aware of this feature, but it's better that
-requiring it to talk to ifmon specifically.
-
-Possible caveat: this only works once. If dhcp fails to renew the address,
-it has to update the time somehow, otherwise no further attempts will be made
-to renew it and it will just expire at the end of valid-lifetime.
-
-
-Note on existing DHCP implementations
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Most standalone DHCP clients (dhcpcd, udhcpc) are written with either
-connection-long foreground mode in mind, like interactive dhcp here;
-or as long-running single-link processes forking into background once
-the lease has been obtained. The latter can only work with persistent
-interface names, and should be avoided even then.
-
-Systemd-networkd is a combined link monitor / long-running dhcp service.
-Earlier versions of ifmon followed this design, but current one is different.
-
-
-Naming and re-naming devices
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Re-naming devices
+~~~~~~~~~~~~~~~~~
 Neither ifmon nor Netlink it listens to use device names. Devices are always
-referred to using ifindex internally. The scripts are spawned with device names
-however. Name changes must be properly synchronized with script start points
-to avoid spawning scripts with invalid arguments.
+referred to using ifindex internally. Interface names passed to the scripts
+are obtained from respective ifindexes immediately before spawning the script
+via ioctl SIOCGIFNAME.
 
-Example: profile script renames eth2 (ifindex 3) to say "lan1", then instructs
-ifmon to run dhcp on this interfaces and exits. Now there's a race condition.
-Depending on how fast name change notification arrives over netlink, ifmon
-may spawn either `request eth2` (incorrect) or `request lan1` (correct).
-
-The solution is simple but somewhat counter-intuitive. The name that ifmon
-stores internally for each managed device is the *expected* name, and it is
-always assigned externally through the control interface. Ifmon then tracks
-whether the last netlink-reported name for this device matches the expected
-name, and suspends any attempts to execute event scripts if it doesn't.
-
-When a device gets renamed, ifmon must be notified of the change.
-
-Internally, the most straightforward way to rename devices is to do it at
-identification stage, that is, map device-id to (name, profile) pair
-instead of just profile. However, depending on particular configuration,
-renaming can be done later in the profile script at the cost of just one
-extra `ifctl` call.
-
-# Note 1: as of now, device-id gets mapped to profile and any renaming must
-# be done in the profile script. Renaming is optional, and code-wise it is
-# easier to implement this way.
-
-# Note 2: the whole naming thing would be *almost* a non-issue if the profile
-# script were the only script ifmon would run for a managed device. However,
-# DHCP support means name handling must be implemented properly.
+It is generally fine to re-name devices in mode-* scripts. It's up to the
+tool used there to handle name clashes and such. Re-naming back may be done
+in stop-* scripts if necessary.
 
 
 Long-running network-dependent services
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 One of the functions ifmon performs is serializing network-related events.
-At any given time, at most one `foo $interface` may be running for a given
-$interface. And at most one without an $interface argument. This is a minor
-limitation that helps in keeping the scripts simple and sequential, as if
-written to run on static devices during system startup.
+At any given time, at most one `foo $interface` script may be running for
+a given $interface. And at most one without an $interface argument. This
+is a minor limitation that helps in keeping the scripts simple and sequential,
+as if written to run on static devices during system startup.
 
 This design however requires the scripts themselves to be short-running.
 If something long-running needs to be started in response to any of
@@ -256,10 +131,33 @@ supervision code within ifmon, beyond the bare minimum required to run event
 scripts. Unlike `svhub`, ifmon does not capture the output of the scripts
 it runs.
 
-The only exception to this is DHCP, in particular /etc/net/conf-request which
-may run a connection-long client. See DHCP notes above. Even so, dhcp is at
-or even slightly above the limit of what should be done in event ifmon-
-spawned scripts.
+The only exception to this is DHCP, which is expected to run as a direct
+child process to ifmon. This is mostly due to the tight coupling between
+the two; while current design makes them separate executables, it is possible
+to integrate DHCP client functionality into ifmon, it was done like that at
+some point, and for instance systemd-networkd does it like that as well.
+
+
+Stopping and switching interfaces
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+While the mode-* scripts alone are enough to initialize devices once,
+switching profiles requires complementary set of stop-* scripts to undo
+the changes done in mode-* script, at least in some cases.
+
+Example: mode-wifi might run
+
+	wifi device "$1"
+
+but running `wifi device` twice may not be possible without `wifi detach`
+in-between. That's the case with current `wifi` implementation, and it may
+be with other tools as well. So for this profile, stop-wifi would be
+
+	wifi detach
+
+Stop scripts are important for long-running link-handling services like wsupp,
+but may also come handy when mode-* scripts change the state of the link.
+For instance, mode-lan that assigns a static ip and some routes may benefit
+from having stop-lan that would flush the interface and the routes.
 
 
 General Internet connectivity scripts
@@ -279,23 +177,3 @@ profile script. For dynamic (dhcp) routes, `dhcp` itself would run a script
 when it gets default-route entry in its packet. Instead of tracking the state
 of the kernel routing table, relevant commands are placed right next to where
 the route gets added.
-
-
-Releasing DHCP addresses
-~~~~~~~~~~~~~~~~~~~~~~~~
-ifmon never bothers to release addresses. It's optional to begin with,
-pretty much impossible to do reliably on Wi-Fi connection (a very important
-use case here), and probably makes no sense with wired connections. For the
-sake of uniformity, both wired and wireless links get treated the same way:
-the link goes down, the lease gets deleted and forgotten about.
-
-The client does support DHCPRELEASE, but mostly for debugging purposes.
-At least some servers behave differently depending on whether the address
-was released. Request after release takes much longer and may trigger
-timeouts in `dhcp`. Without release, subsequent request often works as renew,
-prompting immediate reply from the server.
-
-Busybox sends DHCPRELEASE unicast from a regular UDP socket. This tool does
-broadcast from a raw socket instead. Attempts to send UDP and immediately
-delete IPs from the interface are racy, and the race is easy to trigger in
-practice. The servers I have around seem to be ok with broadcast releases.
