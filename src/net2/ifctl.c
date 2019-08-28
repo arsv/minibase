@@ -6,7 +6,6 @@
 #include <sys/socket.h>
 
 #include <nlusctl.h>
-#include <printf.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
@@ -113,16 +112,6 @@ struct ucmsg* recv_reply(CTX)
 	return ur->msg;
 }
 
-static int recv_code(CTX)
-{
-	struct ucmsg* msg;
-
-	if(!(msg = recv_reply(ctx)))
-		fail("connection lost", NULL, 0);
-
-	return msg->cmd;
-}
-
 static struct ucmsg* send_recv_msg(CTX)
 {
 	struct ucmsg* msg;
@@ -147,17 +136,70 @@ static void send_check(CTX)
 {
 	int ret;
 
-	if((ret = send_recv_cmd(ctx)) == 0)
-		return;
+	if((ret = send_recv_cmd(ctx)) < 0)
+		fail(NULL, NULL, ret);
 	else if(ret > 0)
 		fail("unexpected reply", NULL, ret);
-	else if(ret != -EBUSY)
-		fail(NULL, NULL, ret);
+}
 
-	if((ret = recv_code(ctx)) < 0)
-		fail(NULL, NULL, ret);
-	if(ret != REP_IF_DONE)
-		fail("unexpected reply", NULL, ret);
+static void fail_exit_code(char* script, int code)
+{
+	FMTBUF(p, e, buf, 100);
+	p = fmtstr(p, e, script);
+	p = fmtstr(p, e, " failed with code ");
+	p = fmthex(p, e, code);
+	FMTENL(p, e);
+
+	fail(buf, NULL, 0);
+}
+
+static void drop_link(CTX)
+{
+	uc_put_hdr(UC, CMD_IF_DROP);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
+	uc_put_end(UC);
+
+	send_check(ctx);
+}
+
+static void wait_for_mode(CTX)
+{
+	struct ucmsg* msg;
+
+	while((msg = recv_reply(ctx))) {
+		if(msg->cmd != REP_IF_MODE)
+			continue;
+
+		int* errno = uc_get_int(msg, ATTR_ERRNO);
+		int* xcode = uc_get_int(msg, ATTR_XCODE);
+
+		if(errno || xcode)
+			drop_link(ctx);
+		if(errno)
+			fail(NULL, "mode", *errno);
+		if(xcode)
+			fail_exit_code("mode", *xcode);
+
+		break;
+	}
+}
+
+static void wait_for_stop(CTX)
+{
+	struct ucmsg* msg;
+	int* code;
+
+	while((msg = recv_reply(ctx))) {
+		if(msg->cmd != REP_IF_STOP)
+			continue;
+
+		if((code = uc_get_int(msg, ATTR_ERRNO)))
+			fail(NULL, "stop", *code);
+		if((code = uc_get_int(msg, ATTR_XCODE)))
+			fail_exit_code("stop", *code);
+
+		break;
+	}
 }
 
 /* Cmdline arguments */
@@ -279,6 +321,7 @@ static void req_mode(CTX)
 
 	check_no_active(ctx, mode);
 	set_active_mode(ctx, mode);
+	wait_for_mode(ctx);
 
 	store_device_mode(ctx, mode);
 }
@@ -292,6 +335,7 @@ static void req_also(CTX)
 	identify_device(ctx);
 
 	set_active_mode(ctx, mode);
+	wait_for_mode(ctx);
 
 	store_device_also(ctx, mode);
 }
@@ -307,6 +351,7 @@ static void req_stop(CTX)
 	uc_put_end(UC);
 
 	send_check(ctx);
+	wait_for_stop(ctx);
 
 	clear_device_entry(ctx);
 }

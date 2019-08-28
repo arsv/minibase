@@ -4,7 +4,6 @@
 #include <nlusctl.h>
 #include <format.h>
 #include <string.h>
-#include <printf.h>
 #include <util.h>
 
 #include "common.h"

@@ -8,7 +8,6 @@
 #include <nlusctl.h>
 #include <format.h>
 #include <string.h>
-#include <printf.h>
 #include <util.h>
 
 #include "common.h"
@@ -21,22 +20,23 @@
 #define CN struct conn* cn __unused
 #define MSG struct ucmsg* msg __unused
 
-int ctrlfd;
-
-static void send_report(struct ucbuf* uc, int ifi)
+static void send_report(CTX, LS, struct ucbuf* uc)
 {
+	struct conn* conns = ctx->conns;
+	int nconns = ctx->nconns;
 	struct conn* cn;
+	int ifi = ls->ifi;
 	int fd;
 
 	for(cn = conns; cn < conns + nconns; cn++) {
-		if(cn->rep != ifi || (fd = cn->fd) <= 0)
+		if(cn->ifi != ifi || (fd = cn->fd) <= 0)
 			continue;
 		if(uc_send_timed(fd, uc) < 0)
 			sys_shutdown(fd, SHUT_RDWR);
 	}
 }
 
-void report_done(LS)
+static void report(CTX, LS, int cmd, int key, int val)
 {
 	char buf[64];
 	struct ucbuf uc = {
@@ -45,42 +45,31 @@ void report_done(LS)
 		.end = buf + sizeof(buf)
 	};
 
-	uc_put_hdr(&uc, REP_IF_DONE);
+	uc_put_hdr(&uc, cmd);
+	if(key && val) uc_put_int(&uc, key, val);
 	uc_put_end(&uc);
 
-	send_report(&uc, ls->ifi);
+	send_report(ctx, ls, &uc);
 }
 
-void report_errno(LS, int err)
+void report_mode_errno(CTX, LS, int err)
 {
-	char buf[64];
-	struct ucbuf uc = {
-		.brk = buf,
-		.ptr = buf,
-		.end = buf + sizeof(buf)
-	};
-
-	uc_put_hdr(&uc, REP_IF_DONE);
-	uc_put_int(&uc, ATTR_ERRNO, err);
-	uc_put_end(&uc);
-
-	send_report(&uc, ls->ifi);
+	report(ctx, ls, REP_IF_MODE, ATTR_ERRNO, err);
 }
 
-void report_exit(LS, int status)
+void report_mode_exit(CTX, LS, int code)
 {
-	char buf[64];
-	struct ucbuf uc = {
-		.brk = buf,
-		.ptr = buf,
-		.end = buf + sizeof(buf)
-	};
+	report(ctx, ls, REP_IF_MODE, ATTR_XCODE, code);
+}
 
-	uc_put_hdr(&uc, REP_IF_DONE);
-	uc_put_int(&uc, ATTR_STATUS, status);
-	uc_put_end(&uc);
+void report_stop_errno(CTX, LS, int err)
+{
+	report(ctx, ls, REP_IF_STOP, ATTR_ERRNO, err);
+}
 
-	send_report(&uc, ls->ifi);
+void report_stop_exit(CTX, LS, int code)
+{
+	report(ctx, ls, REP_IF_STOP, ATTR_XCODE, code);
 }
 
 static int send_reply(struct conn* cn, struct ucbuf* uc)
@@ -101,12 +90,15 @@ int reply(struct conn* cn, int err)
 	return send_reply(cn, &uc);
 }
 
-static int cmd_status(CN, MSG)
+static int cmd_status(CTX, CN, MSG)
 {
-	char cbuf[512];
+	char cbuf[2048];
 	struct ucbuf uc;
 	struct link* ls;
 	struct ucattr* at;
+
+	struct link* links = ctx->links;
+	int nlinks = ctx->nlinks;
 
 	uc_buf_set(&uc, cbuf, sizeof(cbuf));
 	uc_put_hdr(&uc, 0);
@@ -116,10 +108,20 @@ static int cmd_status(CN, MSG)
 			continue;
 
 		at = uc_put_nest(&uc, ATTR_LINK);
+
 		uc_put_int(&uc, ATTR_IFI, ls->ifi);
-		uc_put_str(&uc, ATTR_NAME, ls->name);
-		uc_put_str(&uc, ATTR_MODE, ls->mode);
-		uc_put_int(&uc, ATTR_STATE, ls->state);
+		uc_put_int(&uc, ATTR_FLAGS, ls->flags);
+
+		if(ls->name[0])
+			uc_put_str(&uc, ATTR_NAME, ls->name);
+		if(ls->mode[0])
+			uc_put_str(&uc, ATTR_MODE, ls->mode);
+
+		if(ls->flags & LF_RUNNING)
+			uc_put_int(&uc, ATTR_PID, ls->pid);
+		else if(ls->pid)
+			uc_put_int(&uc, ATTR_XCODE, ls->pid);
+
 		uc_end_nest(&uc, at);
 	}
 
@@ -128,129 +130,184 @@ static int cmd_status(CN, MSG)
 	return send_reply(cn, &uc);
 }
 
-static int cmd_mode(CN, MSG)
+static int cmd_mode(CTX, CN, MSG)
 {
 	struct link* ls;
 	int* pi;
 	char* mode;
-	int ret;
 
 	if(!(pi = uc_get_int(msg, ATTR_IFI)))
 		return -EINVAL;
 	if(!(mode = uc_get_str(msg, ATTR_MODE)))
 		return -EINVAL;
-	if(!is_marked(*pi))
-		return -ENODEV;
 
 	uint mlen = strlen(mode);
 
-	if(mlen > sizeof(ls->mode)-1)
+	if(!mlen || mlen > sizeof(ls->mode))
 		return -EINVAL;
-	if((ls = find_link_slot(*pi)))
-		return -EALREADY;
-	if(!(ls = grab_link_slot()))
-		return -ENOMEM;
+	if(!(ls = find_link_slot(ctx, *pi)))
+		return -ENODEV;
+	if(ls->mode[0])
+		return -EBUSY;
 
-	ls->ifi = *pi;
-	memcpy(ls->mode, mode, mlen + 1);
+	memzero(ls->mode, sizeof(ls->mode));
+	memcpy(ls->mode, mode, mlen);
 
-	if((ret = update_link_name(ls)) < 0) {
-		free_link_slot(ls);
-		return ret;
-	}
-
-	tracef("link %s mode %s\n", ls->name, ls->mode);
-
-	link_next(ls, LS_SPAWN_MODE);
+	ls->flags &= ~LF_FAILED;
+	ls->flags |= LF_NEED_MODE | LF_MARKED;
 	cn->ifi = ls->ifi;
 
 	return 0;
 }
 
-static int cmd_stop(CN, MSG)
+static int cmd_stop(CTX, CN, MSG)
 {
 	struct link* ls;
 	int* pi;
 
 	if(!(pi = uc_get_int(msg, ATTR_IFI)))
 		return -EINVAL;
-	if(!(ls = find_link_slot(*pi)))
+	if(!(ls = find_link_slot(ctx, *pi)))
 		return -ENODEV;
-	if(ls->flags & LF_SHUTDOWN)
-		return -EALREADY;
+	if(!(ls->mode[0]))
+		return -ESRCH;
 
-	tracef("cmd_stop %s\n", ls->name);
+	int flags = ls->flags;
 
-	ls->flags |= LF_SHUTDOWN;
-	link_next(ls, LS_SPAWN_STOP);
-	cn->ifi = ls->ifi;
-
-	return 0;
-}
-
-static int cmd_kill(CN, MSG)
-{
-	struct link* ls;
-	int* pi;
-
-	if(!(pi = uc_get_int(msg, ATTR_IFI)))
-		return -EINVAL;
-	if(!(ls = find_link_slot(*pi)))
-		return -ENODEV;
-
-	int ret, pid = ls->pid;
-
-	if(pid <= 0)
-		return -ECHILD;
-	if((ret = sys_kill(pid, SIGTERM)) < 0)
-		return ret;
-
-	return 0;
-}
-
-static int cmd_drop(CN, MSG)
-{
-	struct link* ls;
-	int* pi;
-
-	if(!(pi = uc_get_int(msg, ATTR_IFI)))
-		return -EINVAL;
-	if(!(ls = find_link_slot(*pi)))
-		return -ENODEV;
-
-	if(ls->pid > 0)
+	if(!(flags & LF_RUNNING))
+		;
+	else if((flags & LS_MASK) == LS_DHCP)
+		sys_kill(ls->pid, SIGINT);
+	else
 		sys_kill(ls->pid, SIGTERM);
 
-	free_link_slot(ls);
+	cn->ifi = ls->ifi;
+	ls->flags &= ~(LF_FAILED | LF_AUTO_DHCP | LF_DHCP_ONCE);
+	ls->flags &= ~(LF_NEED_MODE);
+	ls->flags |= LF_NEED_STOP | LF_MARKED;
 
 	return 0;
 }
 
-static int cmd_dhcp_auto(CN, MSG)
+static int cmd_kill(CTX, CN, MSG)
 {
-	return -ENOSYS;
+	struct link* ls;
+	int* pi;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(ctx, *pi)))
+		return -ENODEV;
+
+	int ret;
+
+	if((ls->flags & LF_RUNNING) <= 0)
+		return -ECHILD;
+	if((ret = sys_kill(ls->pid, SIGTERM)) < 0)
+		return ret;
+
+	return 0;
 }
 
-static int cmd_dhcp_once(CN, MSG)
+static int cmd_drop(CTX, CN, MSG)
 {
-	return -ENOSYS;
+	struct link* ls;
+	int* pi;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(ctx, *pi)))
+		return -ENODEV;
+
+	if(ls->flags & LF_RUNNING)
+		sys_kill(ls->pid, SIGTERM);
+
+	ls->flags &= ~(LF_ENABLED | LF_CARRIER);
+	ls->pid = 0;
+	memzero(ls->mode, sizeof(ls->mode));
+
+	return 0;
 }
 
-static int cmd_dhcp_stop(CN, MSG)
+static int cmd_dhcp_auto(CTX, CN, MSG)
 {
-	return -ENOSYS;
+	int* pi;
+	struct link* ls;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(ctx, *pi)))
+		return -ENODEV;
+
+	int flags = ls->flags;
+
+	flags |= LF_AUTO_DHCP | LF_MARKED;
+
+	if(flags & LF_CARRIER)
+		flags |= LF_NEED_DHCP;
+
+	ls->flags = flags;
+
+	return 0;
 }
 
-/* Simulate cable reconnect */
-
-static int cmd_reconnect(CN, MSG)
+static int cmd_dhcp_once(CTX, CN, MSG)
 {
-	return -ENOSYS;
+	int* pi;
+	struct link* ls;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(ctx, *pi)))
+		return -ENODEV;
+
+	int flags = ls->flags;
+
+	flags |= LF_AUTO_DHCP | LF_DHCP_ONCE | LF_MARKED;
+
+	if(flags & LF_CARRIER)
+		flags |= LF_NEED_DHCP;
+
+	ls->flags = flags;
+
+	return 0;
+}
+
+static int cmd_dhcp_stop(CTX, CN, MSG)
+{
+	int* pi;
+	struct link* ls;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(ctx, *pi)))
+		return -ENODEV;
+
+	ls->flags &= ~(LF_AUTO_DHCP | LF_DHCP_ONCE);
+
+	sighup_running_dhcp(ls);
+
+	return 0;
+}
+
+static int cmd_reconnect(CTX, CN, MSG)
+{
+	struct link* ls;
+	int* pi;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(ctx, *pi)))
+		return -ENODEV;
+
+	simulate_reconnect(ctx, ls);
+
+	return 0;
 }
 
 static const struct cmd {
 	int cmd;
-	int (*call)(CN, MSG);
+	int (*call)(CTX, CN, MSG);
 } commands[] = {
 	{ CMD_IF_STATUS,    cmd_status    },
 	{ CMD_IF_MODE,      cmd_mode      },
@@ -263,7 +320,7 @@ static const struct cmd {
 	{ CMD_IF_RECONNECT, cmd_reconnect }
 };
 
-static int dispatch(struct conn* cn, struct ucmsg* msg)
+static int dispatch(CTX, CN, MSG)
 {
 	const struct cmd* cd;
 	int cmd = msg->cmd;
@@ -274,13 +331,13 @@ static int dispatch(struct conn* cn, struct ucmsg* msg)
 			break;
 	if(!cd->cmd)
 		ret = reply(cn, -ENOSYS);
-	else if((ret = cd->call(cn, msg)) <= 0)
+	else if((ret = cd->call(ctx, cn, msg)) <= 0)
 		ret = reply(cn, ret);
 
 	return ret;
 }
 
-void handle_conn(struct conn* cn)
+void handle_conn(CTX, CN)
 {
 	int ret, fd = cn->fd;
 	char buf[100];
@@ -290,30 +347,73 @@ void handle_conn(struct conn* cn)
 		goto err;
 	if(!(msg = uc_msg(buf, ret)))
 		goto err;
-	if((ret = dispatch(cn, msg)) >= 0)
+	if((ret = dispatch(ctx, cn, msg)) >= 0)
 		return;
 err:
 	sys_shutdown(fd, SHUT_RDWR);
 }
 
-void accept_ctrl(void)
+struct conn* grab_conn_slot(CTX)
+{
+	struct conn* conns = ctx->conns;
+	struct conn* cn;
+	int nconns = ctx->nconns;
+
+	for(cn = conns; cn < conns + nconns; cn++)
+		if(cn->fd < 0)
+			return cn;
+
+	if(nconns >= NCONNS)
+		return NULL;
+
+	ctx->nconns = nconns + 1;
+
+	return &conns[nconns];
+}
+
+void accept_ctrl(CTX)
 {
 	struct sockaddr addr;
 	int addr_len = sizeof(addr);
 	struct conn *cn;
 	int flags = SOCK_NONBLOCK;
-	int sfd = ctrlfd;
+	int sfd = ctx->ctrlfd;
 	int cfd;
 
 	while((cfd = sys_accept4(sfd, &addr, &addr_len, flags)) > 0) {
-		if(!(cn = grab_conn_slot()))
+		if(!(cn = grab_conn_slot(ctx)))
 			sys_close(cfd);
 		else
 			cn->fd = cfd;
 	}
 }
 
-void setup_control(void)
+void close_conn(CTX, struct conn* cn)
+{
+	struct conn* conns = ctx->conns;
+	int nconns = ctx->nconns;
+
+	sys_close(cn->fd);
+
+	if(nconns <= 0)
+		return; /* should never happen */
+
+	int i = nconns - 1;
+
+	cn->fd = -1;
+
+	if(cn != conns + i) /* non-last entry */
+		return;
+
+	while(i >= 0)
+		if(conns[i].fd >= 0)
+			break;
+		else i--;
+
+	ctx->nconns = i + 1;
+}
+
+void setup_control(CTX)
 {
 	int fd, ret;
 	const int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
@@ -329,5 +429,5 @@ void setup_control(void)
 	if((ret = sys_listen(fd, 1)))
 		quit("listen", addr.path, ret);
 
-	ctrlfd = fd;
+	ctx->ctrlfd = fd;
 }

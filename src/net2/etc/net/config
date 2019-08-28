@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "+++ config $1 start"
+sleep 30
+echo "+++ config $1 exit"

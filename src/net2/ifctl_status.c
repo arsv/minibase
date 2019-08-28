@@ -36,12 +36,49 @@ static void fill_links(MSG, struct ucattr** idx, int n)
 			idx[i++] = at;
 }
 
+static char* fmt_flags(char* p, char* e, struct ucattr* at)
+{
+	int* pf = uc_sub_int(at, ATTR_FLAGS);
+
+	if(!pf) return p;
+
+	int flags = *pf;
+
+	if(flags & IF_FLAG_CARRIER)
+		p = fmtstr(p, e, ", carrier");
+	if(flags & IF_FLAG_AUTO_DHCP) {
+		if(flags & IF_FLAG_DHCP_ONCE)
+			p = fmtstr(p, e, ", dhcp-once");
+		else
+			p = fmtstr(p, e, ", auto-dhcp");
+	} if(flags & IF_FLAG_FAILED) {
+		p = fmtstr(p, e, ", failed");
+	}
+
+	if((flags & IF_FLAG_RUNNING)) {
+		int what = flags & IF_STATE_MASK;
+
+		p = fmtstr(p, e, ", running ");
+		if(what == IF_STATE_IDEF)
+			p = fmtstr(p, e, "identify");
+		else if(what == IF_STATE_MODE)
+			p = fmtstr(p, e, "mode");
+		else if(what == IF_STATE_STOP)
+			p = fmtstr(p, e, "stop");
+		else {
+			p = fmtstr(p, e, "0x");
+			p = fmthex(p, e, what);
+		}
+	}
+
+	return p;
+}
+
 static char* fmt_link(char* p, char* e, struct ucattr* at)
 {
 	int* ifi = uc_sub_int(at, ATTR_IFI);
 	char* name = uc_sub_str(at, ATTR_NAME);
 	char* mode = uc_sub_str(at, ATTR_MODE);
-	int* state = uc_sub_int(at, ATTR_STATE);
 
 	if(!ifi || !name)
 		return p;
@@ -54,24 +91,12 @@ static char* fmt_link(char* p, char* e, struct ucattr* at)
 	} else {
 		p = fmtstr(p, e, "(unnamed)");
 	}
-
 	if(mode) {
-		p = fmtstr(p, e, ": ");
+		p = fmtstr(p, e, " mode ");
 		p = fmtstr(p, e, mode);
 	}
 
-	if(state) {
-		int st = *state;
-
-		p = fmtstr(p, e, ", state ");
-		p = fmthex(p, e, st & 0xFF);
-
-		if(st & (1<<8))
-			p = fmtstr(p, e, ", carrier");
-		if(st & (1<<9))
-			p = fmtstr(p, e, ", badname");
-	}
-
+	p = fmt_flags(p, e, at);
 	p = fmtstr(p, e, "\n");
 
 	return p;

@@ -1,5 +1,7 @@
 #!/bin/sh
 
-echo "+++ stop-lan $1"
+echo "+++ stop-lan $1 enter"
 
-#./ifctl $1 auto-dhcp
+sleep 2
+
+echo "+++ stop-lan $1 leave"
