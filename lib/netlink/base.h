@@ -98,5 +98,7 @@ struct nlgen {
 
 /* Message type checks */
 
+struct nlmsg* nl_msg(void* buf, int len);
 struct nlerr* nl_err(struct nlmsg* msg);
 struct nlgen* nl_gen(struct nlmsg* msg);
+int nl_len(struct nlmsg* msg);
