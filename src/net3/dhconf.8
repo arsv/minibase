@@ -1,0 +1,38 @@
+.TH dhconf 8
+'''
+.SH NAME
+\fBdhconf\fR \- DHCP client
+'''
+.SH SYNOPSIS
+.IP "\fBdhconf\fR \fIeth0\fR" 4
+.P
+Configure given interface, stay in foreground until signalled, release address,
+flush the interface and exit.
+'''
+.SH OPTIONS
+.IP "\fB-p\fR" 4
+Do not print lease information onto stdout.
+.IP "\fB-q\fR" 4
+Quiet mode; suppress error messages, do not print anything.
+'''
+.SH SIGNALS
+.IP "\fBSIGINT\fR" 4
+Host-initiated shutdown; release the address, de-configure interface.
+.IP "\fBSIGHUP\fR" 4
+The link has been lost; de-configure interface, do not attempt to release the
+address.
+.IP "\fBSIGTERM\fR" 4
+The system is going down; exit immediated, do not de-configure the interface.
+'''
+.SH SCRIPTS
+The following scripts are spawned if present once the lease has been obtained:
+.IP "/etc/net/dhcp-gw \fIeth0\fR \fI192.168.1.1\fR" 4
+Router address option / default gateway.
+.IP "/etc/net/dhcp-dns \fIeth0\fR \fI10.1.2.3\fR ..." 4
+Name server. Multiple addresses may be passed.
+.IP "/etc/net/dhcp-ntp \fIeth0\fR \fI10.2.4.5\fR ..." 4
+NTP server. Multiple addresses possible.
+.P
+These scripts should be used to configure other system services,
+like DNS resolver or time sync daemon. The scripts must be short-running;
+\fBdhconf\fR will wait till they exit.
