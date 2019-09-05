@@ -10,9 +10,9 @@ struct nlmsg* nl_msg(void* buf, int len)
 {
 	struct nlmsg* msg = buf;
 
-	if(len < sizeof(msg))
+	if(len < sizeof(*msg))
 		return NULL;
-	if(msg->len > len)
+	if(len < msg->len)
 		return NULL;
 
 	return msg;
