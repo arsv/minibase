@@ -182,7 +182,7 @@ static int cmd_stop(CTX, CN, MSG)
 		sys_kill(ls->pid, SIGTERM);
 
 	cn->ifi = ls->ifi;
-	ls->flags &= ~(LF_FAILED | LF_AUTO_DHCP | LF_DHCP_ONCE);
+	ls->flags &= ~(LF_FAILED | LF_AUTO_DHCP);
 	ls->flags &= ~(LF_NEED_MODE);
 	ls->flags |= LF_NEED_STOP | LF_MARKED;
 
@@ -251,28 +251,6 @@ static int cmd_dhcp_auto(CTX, CN, MSG)
 	return 0;
 }
 
-static int cmd_dhcp_once(CTX, CN, MSG)
-{
-	int* pi;
-	struct link* ls;
-
-	if(!(pi = uc_get_int(msg, ATTR_IFI)))
-		return -EINVAL;
-	if(!(ls = find_link_slot(ctx, *pi)))
-		return -ENODEV;
-
-	int flags = ls->flags;
-
-	flags |= LF_AUTO_DHCP | LF_DHCP_ONCE | LF_MARKED;
-
-	if(flags & LF_CARRIER)
-		flags |= LF_NEED_DHCP;
-
-	ls->flags = flags;
-
-	return 0;
-}
-
 static int cmd_dhcp_stop(CTX, CN, MSG)
 {
 	int* pi;
@@ -283,7 +261,7 @@ static int cmd_dhcp_stop(CTX, CN, MSG)
 	if(!(ls = find_link_slot(ctx, *pi)))
 		return -ENODEV;
 
-	ls->flags &= ~(LF_AUTO_DHCP | LF_DHCP_ONCE);
+	ls->flags &= ~LF_AUTO_DHCP;
 
 	sighup_running_dhcp(ls);
 
@@ -315,7 +293,6 @@ static const struct cmd {
 	{ CMD_IF_STOP,      cmd_stop      },
 	{ CMD_IF_KILL,      cmd_kill      },
 	{ CMD_IF_DHCP_AUTO, cmd_dhcp_auto },
-	{ CMD_IF_DHCP_ONCE, cmd_dhcp_once },
 	{ CMD_IF_DHCP_STOP, cmd_dhcp_stop },
 	{ CMD_IF_RECONNECT, cmd_reconnect }
 };

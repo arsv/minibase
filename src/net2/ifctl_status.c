@@ -47,10 +47,7 @@ static char* fmt_flags(char* p, char* e, struct ucattr* at)
 	if(flags & IF_FLAG_CARRIER)
 		p = fmtstr(p, e, ", carrier");
 	if(flags & IF_FLAG_AUTO_DHCP) {
-		if(flags & IF_FLAG_DHCP_ONCE)
-			p = fmtstr(p, e, ", dhcp-once");
-		else
-			p = fmtstr(p, e, ", auto-dhcp");
+		p = fmtstr(p, e, ", dhcp");
 	} if(flags & IF_FLAG_FAILED) {
 		p = fmtstr(p, e, ", failed");
 	}

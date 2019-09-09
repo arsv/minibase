@@ -16,7 +16,6 @@
 #define LF_CARRIER     (1<<5)
 #define LF_MARKED      (1<<6)
 #define LF_AUTO_DHCP   (1<<7)
-#define LF_DHCP_ONCE   (1<<8)
 
 #define LF_RUNNING    (1<<10)
 #define LF_STATUS     (1<<11)
