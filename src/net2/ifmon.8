@@ -33,19 +33,5 @@ been successfully identified and assigned a profile, ifmon then runs
 .P
 to configure the device.
 '''
-.SS DHCP
-In addition to new device events, ifmon can also be instructed to monitor
-carrier events and spawn \fBdhcp\fR to configure and then renew dynamic
-IP addresses. See \fBauto-dhcp\fR, \fBdhcp-once\fR and \fBstop-dhcp\fR
-commands in \fBifctl\fR(1). If told to do so, ifmon will spawn
-.P
-.nf
-	/etc/net/conf-request \fIeth1\fR
-	/etc/net/conf-renew \fIeth1\fR
-	/etc/net/conf-cancel \fIeth1\fR
-.fi
-.P
-which are expected to invoke \fBdhcp\fR in discontinuous mode.
-'''
 .SH SEE ALSO
 \fBifctl\fR(1).

@@ -274,7 +274,7 @@ static void store_timings(CTX, MSG, int optlen)
 	uint lt = ntohl(*opt);
 
 	ctx->lease_time = lt;
-	ctx->renew_time = 10;
+	ctx->renew_time = lt/2;
 }
 
 static void store_options(CTX, MSG, int optlen)
