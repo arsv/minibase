@@ -28,40 +28,76 @@
 
 int running;
 
-static void stop_running(int pid)
+static int kill_script(int sig)
 {
-	int ret, status;
-	struct itimerval old, itv = {
-		.interval = { 0, 0 },
-		.value = { 1, 0 }
-	};
+	int pid = running;
+
+	if(pid <= 0) return -ESRCH;
+
+	return sys_kill(pid, sig);
+}
+
+int sighup_script(void)
+{
+	return kill_script(SIGHUP);
+}
+
+int sigint_script(void)
+{
+	return kill_script(SIGINT);
+}
+
+void force_script(void)
+{
+	int pid = running;
+
+	if(pid <= 0) return;
 
 	sys_kill(pid, SIGTERM);
-
-	sys_setitimer(0, &itv, &old);
-	ret = sys_waitpid(pid, &status, 0);
-	sys_setitimer(0, &old, NULL);
-
-	if(ret < 0)
-		warn("wait", NULL, ret);
 
 	running = 0;
 }
 
-void trigger_dhcp(void)
+void stop_wait_script(void)
 {
-	char* script = HERE "/etc/net/wifi-wpa";
 	int pid = running;
+	int ret, status;
 
-	if(pid > 0)
-		stop_running(pid);
-
-	if(sys_access(script, X_OK) < 0)
+	if(pid <= 0)
 		return;
+	if((ret = sys_kill(pid, SIGTERM)) < 0)
+		return;
+
+	(void)sys_waitpid(pid, &status, 0);
+}
+
+void check_script(void)
+{
+	int pid, status;
+
+	if((pid = sys_waitpid(-1, &status, WNOHANG)) <= 0)
+		return;
+	if(pid != running)
+		return;
+
+	running = 0;
+
+	script_exit(status);
+}
+
+int spawn_script(void)
+{
+	char* script = HERE "/etc/net/wifi-link";
+	int ret, pid;
+
+	if(running > 0)
+		return -EBUSY;
+	if((ret = sys_access(script, X_OK)) < 0)
+		return 0;
 
 	if((pid = sys_fork()) < 0) {
 		warn("fork", NULL, pid);
-		return;
+		return ret;
 	}
 
 	if(pid == 0) {
@@ -72,4 +108,6 @@ void trigger_dhcp(void)
 	}
 
 	running = pid;
+
+	return pid;
 }

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "+++ wifi-link"
+
+exec ../net3/dhconf -q "$1"

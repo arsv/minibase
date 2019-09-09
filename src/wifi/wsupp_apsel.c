@@ -26,6 +26,9 @@
 #define OP_NETDOWN         30
 #define OP_EXTERNAL        31
 
+#define OP_WAIT_DISCONN    40
+#define OP_WAIT_ABORT      41
+
 int operstate;
 int rfkilled;
 
@@ -314,6 +317,12 @@ static void abort_timeout(void)
 	connection_ended(-ETIMEDOUT);
 }
 
+static void swait_timeout(void)
+{
+	force_script();
+	script_exit(-1);
+}
+
 /* This gets called from various places in case of unrecoverable
    errors. Handled here and not in nlauth solely because DISCONNECT
    has to be timed. */
@@ -324,18 +333,41 @@ void abort_connection(int err)
 
 	aborterr = err;
 	abortstate = operstate;
+
+	operstate = OP_WAIT_ABORT;
+
+	if((ret = sighup_script()) >= 0)
+		return set_timer(2, swait_timeout);
+
 	operstate = OP_ABORTING;
 
-	if((ret = start_disconnect()) < 0)
-		connection_ended(ret);
+	if((ret = start_disconnect()) >= 0)
+		return set_timer(1, abort_timeout);
+
+	connection_ended(ret);
+}
+
+void script_exit(int status)
+{
+	if(operstate == OP_WAIT_DISCONN)
+		operstate = OP_DISCONNECTING;
+	else if(operstate == OP_WAIT_ABORT)
+		operstate = OP_ABORTING;
 	else
+		return;
+
+	if(start_disconnect() >= 0)
 		set_timer(1, abort_timeout);
+	else
+		connection_ended(-ESRCH);
 }
 
 /* EAPOL negotionations have completed, the connection is now fully usable */
 
 void eapol_success(void)
 {
+	int ret;
+
 	if(operstate != OP_EAPOL)
 		return;
 
@@ -347,11 +379,10 @@ void eapol_success(void)
 
 	set_timer(5*60, routine_bg_scan);
 
-	/* report */
-
-	trigger_dhcp();
-
-	report_link_ready();
+	if((ret = spawn_script()) < 0)
+		abort_connection(ret);
+	else
+		report_link_ready();
 }
 
 /* Netlink reports (unencrypted) radio link has been established with the AP */
@@ -469,9 +500,14 @@ int ap_disconnect(void)
 {
 	int ret;
 
+	if((ret = sigint_script()) >= 0) {
+		operstate = OP_WAIT_DISCONN;
+		set_timer(2, swait_timeout);
+		return 0;
+	}
 	if((ret = start_disconnect()) >= 0) {
-		set_timer(1, abort_timeout);
 		operstate = OP_DISCONNECTING;
+		set_timer(1, abort_timeout);
 		return 0;
 	}
 

@@ -32,9 +32,13 @@ int pollset;
 static void sighandler(int sig)
 {
 	switch(sig) {
+		case SIGCHLD:
+			return check_script();
+		case SIGHUP:
 		case SIGINT:
 		case SIGTERM:
-			exit_control();
+			stop_wait_script();
+			return exit_control();
 	}
 }
 
@@ -53,16 +57,12 @@ static void setup_signals(void)
 	sigaddset(&sa.mask, SIGINT);
 	sigaddset(&sa.mask, SIGTERM);
 	sigaddset(&sa.mask, SIGHUP);
-	sigaddset(&sa.mask, SIGALRM);
+	sigaddset(&sa.mask, SIGCHLD);
 
 	sigaction(SIGINT,  &sa);
 	sigaction(SIGTERM, &sa);
 	sigaction(SIGHUP,  &sa);
-	sigaction(SIGALRM, &sa);
-
-	sa.handler = SIG_IGN;
-
-	sigaction(SIGPIPE, &sa);
+	sigaction(SIGCHLD, &sa);
 }
 
 /* These do not get opened on startup. To avoid confusion with stdin,

@@ -162,4 +162,10 @@ int ap_detach(void);
 int ap_resume(void);
 int time_to_scan(void);
 
-void trigger_dhcp(void);
+int spawn_script(void);
+void check_script(void);
+void script_exit(int status);
+int sigint_script(void);
+int sighup_script(void);
+void stop_wait_script(void);
+void force_script(void);
