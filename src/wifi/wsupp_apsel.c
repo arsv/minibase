@@ -103,8 +103,6 @@ static void snap_to_netdown(void)
 		operstate = OP_NETDOWN;
 	else
 		operstate = OP_STOPPED;
-
-	report_no_connect();
 }
 
 static void routine_fg_scan(void)
@@ -241,7 +239,6 @@ static void lost_good_connection(void)
 static void snap_to_monitoring(void)
 {
 	force_disconnect();
-	report_no_connect();
 	clear_ssid_bssid();
 
 	set_timer(1*60, routine_fg_scan);
@@ -265,10 +262,13 @@ good:
 		return lost_good_connection();
 	/* else abnormal termination, do not re-connect */
 next:
-	if(err == -ENETDOWN) /* device down, stop connection attempts */
+	if(err == -ENETDOWN) { /* device down, stop connection attempts */
+		report_no_connect();
 		return snap_to_netdown();
-	if(err == -EINVAL) /* messed up NL command somewhere */
+	} else if(err == -EINVAL) { /* messed up NL command somewhere */
+		report_no_connect();
 		return snap_to_monitoring();
+	}
 
 	clear_timer();
 
@@ -443,6 +443,18 @@ static int can_change_network(void)
 	return 0;
 }
 
+static int need_resume_first(void)
+{
+	int yes = 1;
+
+	if(operstate == OP_STOPPED)
+		return yes;
+	if(operstate == OP_NETDOWN)
+		return yes;
+
+	return 0;
+}
+
 int set_network(byte* ssid, int slen, byte psk[32])
 {
 	if(slen > (int)sizeof(ap.ssid))
@@ -484,6 +496,8 @@ int ap_connect(byte* ssid, int slen, byte psk[32])
 
 	if(!can_change_network())
 		return -EISCONN;
+	if(need_resume_first())
+		return -ENONET;
 	if((ret = set_network(ssid, slen, psk)) < 0)
 		return ret;
 	if((ret = connect_to_something()) >= 0)
@@ -562,13 +576,8 @@ int ap_resume(void)
 {
 	int ret;
 
-	if(operstate == OP_NETDOWN)
-		;
-	else if(operstate == OP_STOPPED)
-		;
-	else if(operstate == OP_EXTERNAL)
-		;
-	else return -EALREADY;
+	if(!need_resume_first())
+		return -EALREADY;
 
 	if((ret = start_scan(0)) < 0)
 		return ret;

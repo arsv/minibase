@@ -273,6 +273,8 @@ static int cmd_resume(CN, MSG)
 	if(ifindex <= 0)
 		return -ENODEV;
 
+	cn->rep = 1;
+
 	return ap_resume();
 }
 
