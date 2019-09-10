@@ -18,6 +18,11 @@
 
 char rxbuf[4096];
 
+static void enabled_rise(CTX, LS)
+{
+	ls->flags |= LF_NEED_POKE | LF_MARKED;
+}
+
 static void carrier_rise(CTX, LS)
 {
 	int flags = ls->flags;
@@ -112,6 +117,8 @@ static void new_link_notification(CTX, struct ifinfomsg* msg)
 	ls->ifi = ifi;
 	memcpy(ls->name, name, nlen);
 
+	if(msg->flags & IFF_UP)
+		ls->flags |= LF_ENABLED;
 	if(msg->flags & IFF_RUNNING)
 		ls->flags |= LF_CARRIER;
 
@@ -139,18 +146,26 @@ static void check_link_name(CTX, LS, struct ifinfomsg* msg)
 
 static void link_state_changed(CTX, LS, struct ifinfomsg* msg)
 {
+	int msgflags = msg->flags;
 	int oldflags = ls->flags;
 	int newflags = oldflags;
 
-	if(msg->flags & IFF_RUNNING)
+	if(msgflags & IFF_RUNNING)
 		newflags |=  LF_CARRIER;
 	else
 		newflags &= ~LF_CARRIER;
+
+	if(msgflags & IFF_UP)
+		newflags |=  LF_ENABLED;
+	else
+		newflags &= ~LF_ENABLED;
 
 	check_link_name(ctx, ls, msg);
 
 	ls->flags = newflags;
 
+	if(!(oldflags & LF_ENABLED) && (newflags & LF_ENABLED))
+		enabled_rise(ctx, ls);
 	if(!(oldflags & LF_CARRIER) && (newflags & LF_CARRIER))
 		carrier_rise(ctx, ls);
 	if((oldflags & LF_CARRIER) && !(newflags & LF_CARRIER))

@@ -36,6 +36,7 @@
 #define IF_STATE_MODE         0x01
 #define IF_STATE_STOP         0x02
 #define IF_STATE_DHCP         0x03
+#define IF_STATE_POKE         0x04
 
 #define IF_FLAG_ENABLED     (1<<4)
 #define IF_FLAG_CARRIER     (1<<5)

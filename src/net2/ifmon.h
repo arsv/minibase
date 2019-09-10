@@ -11,6 +11,7 @@
 #define LS_MODE         0x01
 #define LS_STOP         0x02
 #define LS_DHCP         0x03
+#define LS_POKE         0x04
 
 #define LF_ENABLED     (1<<4)
 #define LF_CARRIER     (1<<5)
@@ -24,6 +25,7 @@
 #define LF_NEED_MODE  (1<<16)
 #define LF_NEED_STOP  (1<<17)
 #define LF_NEED_DHCP  (1<<18)
+#define LF_NEED_POKE  (1<<19)
 
 struct link {
 	int ifi;

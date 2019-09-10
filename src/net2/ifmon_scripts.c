@@ -177,6 +177,18 @@ void spawn_dhcp(CTX, LS)
 	(void)spawn(ctx, ls, common);
 }
 
+void spawn_poke(CTX, LS)
+{
+	FMTBUF(p, e, script, 100);
+	p = fmtstr(p, e, HERE "/etc/net/poke-");
+	p = fmtstrn(p, e, ls->mode, sizeof(ls->mode));
+	FMTEND(p, e);
+
+	set_current_script(ls, LS_POKE);
+
+	(void)spawn(ctx, ls, script);
+}
+
 static void script_exit(CTX, LS, int status)
 {
 	int what = ls->flags & LS_MASK;
@@ -258,6 +270,8 @@ void check_links(CTX)
 			spawn_mode(ctx, ls);
 		if(can_run(ls, LF_NEED_STOP))
 			spawn_stop(ctx, ls);
+		if(can_run(ls, LF_NEED_POKE))
+			spawn_poke(ctx, ls);
 		if(can_run(ls, LF_NEED_DHCP))
 			spawn_dhcp(ctx, ls);
 
