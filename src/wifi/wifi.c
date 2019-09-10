@@ -271,19 +271,23 @@ static void cmd_neutral(CTX)
 			break;
 }
 
-static void cmd_resume(CTX)
+static void resume_service(CTX)
 {
 	int ret;
-
-	connect_to_wictl(ctx);
 
 	uc_put_hdr(UC, CMD_WI_RESUME);
 	uc_put_end(UC);
 
-	no_other_options(ctx);
-
 	if((ret = send_recv_cmd(ctx)) < 0)
 		fail(NULL, NULL, ret);
+}
+
+static void cmd_resume(CTX)
+{
+	no_other_options(ctx);
+	connect_to_wictl(ctx);
+
+	resume_service(ctx);
 }
 
 static void wait_for_scan_results(CTX)
@@ -418,6 +422,15 @@ again:
 		setdev = 1;
 
 		goto again;
+	} else if(!uc_get(msg, ATTR_SCAN)) {
+		if(setdev)
+			fail("no APs in range", NULL, 0);
+
+		resume_service(ctx);
+		wait_for_scan_results(ctx);
+		setdev = 1;
+
+		goto again;
 	}
 
 	check_suitable_aps(ctx, msg);
@@ -466,11 +479,15 @@ static void start_conn_scan(CTX)
 
 	if((ret = send_conn_request(ctx)) >= 0)
 		return;
-	if(ret != -ENODEV)
+	if(ret == -ENODEV) {
+		pick_scan_device(ctx);
+		wait_for_scan_results(ctx);
+	} else if(ret == -ENONET) {
+		resume_service(ctx);
+		wait_for_scan_results(ctx);
+	} else {
 		goto err;
-
-	pick_scan_device(ctx);
-	wait_for_scan_results(ctx);
+	}
 
 	if((ret = send_conn_request(ctx)) >= 0)
 		return;
