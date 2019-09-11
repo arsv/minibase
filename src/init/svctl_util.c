@@ -50,10 +50,7 @@ void expect_large(CTX)
 	int rxlen = 1024;
 	void* rxbuf = heap_alloc(ctx, rxlen);
 
-	ctx->ur.buf = rxbuf;
-	ctx->ur.mptr = rxbuf;
-	ctx->ur.rptr = rxbuf;
-	ctx->ur.end = rxbuf + rxlen;
+	ur_buf_set(&ctx->ur, rxbuf, sizeof(rxbuf));
 }
 
 static void extend_urbuf(CTX)
@@ -64,10 +61,10 @@ static void extend_urbuf(CTX)
 		fail("heap misallocation trap", NULL, 0);
 
 	int rxext = 1024;
-	void* new = heap_alloc(ctx, rxext);
-	void* end = new + rxext;
 
-	ctx->ur.end = end;
+	(void)heap_alloc(ctx, rxext);
+
+	ctx->ur.end += rxext;
 }
 
 void flush_output(CTX)
@@ -130,10 +127,7 @@ void start_request(CTX, int cmd, int count, int paylen)
 	else
 		brk = heap_alloc(ctx, (len = total));
 
-	ctx->uc.brk = brk;
-	ctx->uc.ptr = brk;
-	ctx->uc.end = brk + len;
-
+	uc_buf_set(&ctx->uc, brk, len);
 	uc_put_hdr(&ctx->uc, cmd);
 }
 
@@ -145,18 +139,13 @@ void add_str_attr(CTX, int key, char* val)
 void send_request(CTX)
 {
 	int wr, fd = ctx->fd;
-	char* txbuf = ctx->uc.brk;
-	int txlen = ctx->uc.ptr - ctx->uc.brk;
-
-	if(!txlen)
-		fail("trying to send an empty message", NULL, 0);
 
 	uc_put_end(&ctx->uc);
 
 	if(!ctx->connected)
 		connect_socket(ctx);
 
-	if((wr = writeall(fd, txbuf, txlen)) < 0)
+	if((wr = uc_send_whole(fd, &ctx->uc)) < 0)
 		fail("write", NULL, wr);
 
 	memzero(&ctx->uc, sizeof(ctx->uc));
@@ -164,16 +153,13 @@ void send_request(CTX)
 
 static void init_small_rxbuf(CTX)
 {
-	if(ctx->uc.brk == ctx->smallbuf)
+	if(ctx->uc.buf == ctx->smallbuf)
 		fail("smallbuf tx-locked", NULL, 0);
 
 	void* buf = ctx->smallbuf;
 	int len = sizeof(ctx->smallbuf);
 
-	ctx->ur.buf = buf;
-	ctx->ur.mptr = buf;
-	ctx->ur.rptr = buf;
-	ctx->ur.end = buf + len;
+	ur_buf_set(&ctx->ur, buf, len);
 }
 
 struct ucmsg* recv_reply(CTX)

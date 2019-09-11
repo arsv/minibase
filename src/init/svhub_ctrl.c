@@ -38,33 +38,17 @@ static int start_long_reply(UC)
 	if((ret = brk_error(brk, end)))
 		return ret;
 
-	uc->brk = brk;
-	uc->ptr = brk;
-	uc->end = brk + len;
-
+	uc_buf_set(uc, brk, len);
 	uc_put_hdr(uc, 0);
 
 	return 0;
-}
-
-static void start_short_reply(UC, char* buf, int len)
-{
-	memzero(uc, sizeof(*uc));
-
-	uc->brk = buf;
-	uc->ptr = buf;
-	uc->end = buf + len;
-
-	uc_put_hdr(uc, 0);
 }
 
 static int send_reply(UC, CN)
 {
 	uc_put_end(uc);
 
-	uc_send_timed(cn->fd, uc);
-
-	return REPLIED;
+	return uc_send_timed(cn->fd, uc);
 }
 
 static int send_long_reply(UC, CN)
@@ -81,12 +65,7 @@ static int reply(CN, int err)
 	struct ucbuf uc;
 	char buf[20];
 
-	memzero(&uc, sizeof(uc));
-
-	uc.brk = buf;
-	uc.ptr = buf;
-	uc.end = buf + sizeof(buf);
-
+	uc_buf_set(&uc, buf, sizeof(buf));
 	uc_put_hdr(&uc, err);
 
 	return send_reply(&uc, cn);
@@ -187,13 +166,13 @@ static void put_ring_buf(struct ucbuf* uc, struct proc* rc)
 
 	int tail = ptr % RINGSIZE;
 	int head = RINGSIZE - tail;
-	struct ucattr* at;
+	void* payload;
 
-	if(!(at = uc_put_attr(uc, ATTR_RING, RINGSIZE)))
+	if(!(payload = uc_put_attr(uc, ATTR_RING, RINGSIZE)))
 		return;
 
-	memcpy(at->payload, buf + tail, head);
-	memcpy(at->payload + head, buf, tail);
+	memcpy(payload, buf + tail, head);
+	memcpy(payload + head, buf, tail);
 }
 
 static int cmd_status(CN, MSG, RC)
@@ -229,8 +208,7 @@ static int cmd_getpid(CN, MSG, RC)
 	if(rc->pid <= 0)
 		return -ECHILD;
 
-	start_short_reply(&uc, buf, sizeof(buf));
-
+	uc_buf_set(&uc, buf, sizeof(buf));
 	uc_put_int(&uc, ATTR_PID, rc->pid);
 
 	return send_reply(&uc, cn);
