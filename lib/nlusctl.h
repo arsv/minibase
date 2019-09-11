@@ -10,10 +10,9 @@
    with a single rx/tx buffer. */
 
 struct ucbuf {
-	char* brk;
+	char* buf;
 	char* ptr;
 	char* end;
-	int over;
 };
 
 struct urbuf {
@@ -30,7 +29,7 @@ struct ucaux {
 };
 
 struct ucmsg {
-	uint32_t len;
+	int32_t len;
 	int32_t cmd;
 	char payload[];
 } __packed;
@@ -45,8 +44,9 @@ void uc_buf_set(struct ucbuf* uc, char* buf, size_t len);
 
 void uc_put_hdr(struct ucbuf* uc, int cmd);
 void uc_put_end(struct ucbuf* uc);
+int uc_overflow(struct ucbuf* uc);
 
-struct ucattr* uc_put_attr(struct ucbuf* uc, int key, size_t len);
+void* uc_put_attr(struct ucbuf* uc, int key, size_t len);
 void uc_put_bin(struct ucbuf* uc, int key, void* buf, size_t len);
 void uc_put_int(struct ucbuf* uc, int key, int v);
 void uc_put_str(struct ucbuf* uc, int key, char* str);

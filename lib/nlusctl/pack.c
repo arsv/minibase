@@ -2,17 +2,30 @@
 #include <string.h>
 #include <nlusctl.h>
 
+int uc_overflow(struct ucbuf* uc)
+{
+	void* buf = uc->buf;
+	void* ptr = uc->ptr;
+	void* end = uc->end;
+
+	return (ptr > end || ptr < buf);
+}
+
 static void* uc_alloc(struct ucbuf* uc, int len)
 {
 	int pad = (4 - len % 4) % 4;
+	void* buf = uc->buf;
 	void* ret = uc->ptr;
-	void* ptr = ret + len + pad;
 	void* end = uc->end;
+	void* ptr = ret + len + pad;
 
-	if(ptr > end)
-		uc->over = 1;
-	if(uc->over)
+	if(ret > end || ret < buf) { /* already overflowed */
 		return NULL;
+	}
+	if(ptr > end || ptr < buf) { /* overflow on this allocation */
+		uc->end = ptr + 1;
+		return NULL;
+	}
 
 	/* stop valgrind from complaining about uninitialized padding */
 	memzero(ret + len, pad);
@@ -24,27 +37,16 @@ static void* uc_alloc(struct ucbuf* uc, int len)
 
 void uc_buf_set(struct ucbuf* uc, char* buf, size_t len)
 {
-	uc->brk = buf;
+	uc->buf = buf;
 	uc->ptr = buf;
 	uc->end = buf + len;
-	uc->over = 0;
-}
-
-static struct ucmsg* uc_msg_hdr(struct ucbuf* uc)
-{
-	struct ucmsg* msg = (struct ucmsg*) uc->brk;
-
-	if(uc->brk + sizeof(*msg) > uc->ptr)
-		return NULL;
-
-	return msg;
 }
 
 void uc_put_hdr(struct ucbuf* uc, int cmd)
 {
 	struct ucmsg* msg;
 
-	uc->ptr = uc->brk;
+	uc->ptr = uc->buf;
 
 	if(!(msg = uc_alloc(uc, sizeof(*msg))))
 		return;
@@ -55,15 +57,17 @@ void uc_put_hdr(struct ucbuf* uc, int cmd)
 
 void uc_put_end(struct ucbuf* uc)
 {
-	struct ucmsg* msg;
+	void* buf = uc->buf;
+	void* ptr = uc->ptr;
+	struct ucmsg* msg = buf;
 
-	if(!(msg = uc_msg_hdr(uc)))
-		return;
+	if(buf + sizeof(*msg) > ptr)
+		return; /* invalid message */
 
-	msg->len = uc->ptr - uc->brk;
+	msg->len = uc->ptr - uc->buf;
 }
 
-struct ucattr* uc_put_attr(struct ucbuf* uc, int key, size_t len)
+void* uc_put_attr(struct ucbuf* uc, int key, size_t len)
 {
 	struct ucattr* at;
 	int total = sizeof(*at) + len;
@@ -74,37 +78,28 @@ struct ucattr* uc_put_attr(struct ucbuf* uc, int key, size_t len)
 	at->len = total;
 	at->key = key;
 
-	return at;
+	return at->payload;
 }
 
 void uc_put_bin(struct ucbuf* uc, int key, void* buf, size_t len)
 {
-	struct ucattr* at;
+	void* ptr = uc_put_attr(uc, key, len);
 
-	if(!(at = uc_put_attr(uc, key, len)))
-		return;
-
-	memcpy(at->payload, buf, len);
+	if(ptr) memcpy(ptr, buf, len);
 }
 
 void uc_put_int(struct ucbuf* uc, int key, int v)
 {
-	struct ucattr* at;
+	int* ptr = uc_put_attr(uc, key, sizeof(*ptr));
 
-	if(!(at = uc_put_attr(uc, key, sizeof(v))))
-		return;
-
-	*((int*) at->payload) = v;
+	if(ptr) *ptr = v;
 }
 
 void uc_put_i64(struct ucbuf* uc, int key, int64_t v)
 {
-	struct ucattr* at;
+	int64_t* ptr = uc_put_attr(uc, key, sizeof(*ptr));
 
-	if(!(at = uc_put_attr(uc, key, sizeof(v))))
-		return;
-
-	*((int64_t*) at->payload) = v;
+	if(ptr) *ptr = v;
 }
 
 void uc_put_str(struct ucbuf* uc, int key, char* str)
@@ -114,12 +109,21 @@ void uc_put_str(struct ucbuf* uc, int key, char* str)
 
 void uc_put_flag(struct ucbuf* uc, int key)
 {
-	uc_put_attr(uc, key, 0);
+	(void)uc_put_attr(uc, key, 0);
 }
 
 struct ucattr* uc_put_nest(struct ucbuf* uc, int key)
 {
-	return uc_put_attr(uc, key, 0);
+	struct ucattr* at;
+	int total = sizeof(*at);
+
+	if(!(at = uc_alloc(uc, total)))
+		return NULL;
+
+	at->len = total;
+	at->key = key;
+
+	return at;
 }
 
 void uc_end_nest(struct ucbuf* uc, struct ucattr* at)

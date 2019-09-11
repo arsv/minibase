@@ -194,5 +194,5 @@ void uc_dump_rx(struct urbuf* ur)
 
 void uc_dump_tx(struct ucbuf* uc)
 {
-	uc_dump((struct ucmsg*)uc->brk);
+	uc_dump((struct ucmsg*)uc->buf);
 }

@@ -15,13 +15,17 @@
 
 int uc_send_timed(int fd, struct ucbuf* uc)
 {
-	void* buf = uc->brk;
-	long len = uc->ptr - uc->brk;
+	void* buf = uc->buf;
+	void* ptr = uc->ptr;
+	void* end = uc->end;
+
+	if(ptr > end || ptr < buf)
+		return -ENOBUFS;
+
+	long len = uc->ptr - uc->buf;
 
 	if(len < sizeof(struct ucmsg))
 		return -EINVAL;
-	if(uc->over)
-		return -ENOBUFS;
 
 	struct timespec ts = { 1, 0 };
 	struct pollfd pfd = { fd, POLLOUT, 0 };
