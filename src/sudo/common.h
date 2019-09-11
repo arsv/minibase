@@ -1,6 +1,6 @@
 #include <dirs.h>
 
-#define CONFDIR HERE "/etc/suhub"
+#define CONFDIR HERE "/etc/sudo"
 #define CONTROL RUN_CTRL "/suhub"
 
 #define SH(c) TAGGED('S', 'H', c)
