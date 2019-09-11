@@ -1,6 +1,5 @@
 #include <nlusctl.h>
 
-static char buf[1024];
 static const char bytes[] = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 };
 static const char blong[] = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -9,13 +8,11 @@ static const char blong[] = {
 
 int main(void)
 {
-	struct ucbuf ucb = {
-		.brk = buf,
-		.ptr = buf,
-		.end = buf + sizeof(buf)
-	}, *uc = &ucb;
+	char buf[1024];
+	struct ucbuf ucb, *uc = &ucb;
 	struct ucattr* at;
 
+	uc_buf_set(uc, buf, sizeof(buf));
 	uc_put_hdr(uc, 0x53550012);
 
 	uc_put_flag(uc, 1);
