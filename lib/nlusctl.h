@@ -40,7 +40,10 @@ struct ucattr {
 	char payload[];
 } __packed;
 
-void uc_buf_set(struct ucbuf* uc, char* buf, size_t len);
+void uc_buf_set(struct ucbuf* uc, void* buf, size_t len);
+
+void ur_buf_set(struct urbuf* ur, void* buf, size_t len);
+void ur_buf_change(struct urbuf* ur, void* newbuf, size_t newlen);
 
 void uc_put_hdr(struct ucbuf* uc, int cmd);
 void uc_put_end(struct ucbuf* uc);

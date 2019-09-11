@@ -35,7 +35,7 @@ static void* uc_alloc(struct ucbuf* uc, int len)
 	return ret;
 }
 
-void uc_buf_set(struct ucbuf* uc, char* buf, size_t len)
+void uc_buf_set(struct ucbuf* uc, void* buf, size_t len)
 {
 	uc->buf = buf;
 	uc->ptr = buf;

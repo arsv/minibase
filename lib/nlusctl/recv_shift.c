@@ -6,6 +6,15 @@
 /* Client-side recv, with shift buffer to handle a continuous
    stream of messages. Meant to be used on blocking fd-s. */
 
+void ur_buf_set(struct urbuf* ur, void* buf, size_t len)
+{
+	ur->buf = buf;
+	ur->mptr = buf;
+	ur->rptr = buf;
+	ur->end = buf + len;
+	ur->msg = NULL;
+}
+
 static void shift_buf(struct urbuf* ur)
 {
 	int shift = ur->mptr - ur->buf;
