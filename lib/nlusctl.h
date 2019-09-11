@@ -93,6 +93,7 @@ void uc_dump_tx(struct ucbuf* uc);
 int uc_recv_shift(int fd, struct urbuf* ur);
 int uc_send_block(int fd, struct ucbuf* uc);
 int uc_send_whole(int fd, struct ucbuf* uc);
+int uc_send_msg(int fd, struct ucbuf* uc, void* ancillary, int alen);
 
 int uc_recv_whole(int fd, void* buf, int len);
 int uc_send_timed(int fd, struct ucbuf* uc);
