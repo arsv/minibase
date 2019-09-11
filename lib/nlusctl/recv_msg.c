@@ -23,6 +23,8 @@ int uc_recvmsg(int fd, void* buf, int len, struct ucaux* ux)
 		.controllen = ux->len
 	};
 
+	ux->len = 0;
+
 	if((ret = sys_recvmsg(fd, &packet, flags)) < 0)
 		return ret;
 	if((ret < sizeof(*msg))) /* should never happen */
