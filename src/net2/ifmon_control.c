@@ -39,12 +39,9 @@ static void send_report(CTX, LS, struct ucbuf* uc)
 static void report(CTX, LS, int cmd, int key, int val)
 {
 	char buf[64];
-	struct ucbuf uc = {
-		.brk = buf,
-		.ptr = buf,
-		.end = buf + sizeof(buf)
-	};
+	struct ucbuf uc;
 
+	uc_buf_set(&uc, buf, sizeof(buf));
 	uc_put_hdr(&uc, cmd);
 	if(key && val) uc_put_int(&uc, key, val);
 	uc_put_end(&uc);
@@ -74,7 +71,11 @@ void report_stop_exit(CTX, LS, int code)
 
 static int send_reply(struct conn* cn, struct ucbuf* uc)
 {
-	writeall(cn->fd, uc->brk, uc->ptr - uc->brk);
+	int ret;
+
+	if((ret = uc_send_timed(cn->fd, uc)) < 0)
+		return ret;
+
 	return REPLIED;
 }
 

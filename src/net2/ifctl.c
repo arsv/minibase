@@ -36,14 +36,8 @@ static void init_socket(CTX)
 {
 	int fd;
 
-	ctx->uc.brk = ctx->txbuf;
-	ctx->uc.ptr = ctx->txbuf;
-	ctx->uc.end = ctx->txbuf + sizeof(ctx->txbuf);
-
-	ctx->ur.buf = ctx->rxbuf;
-	ctx->ur.mptr = ctx->rxbuf;
-	ctx->ur.rptr = ctx->rxbuf;
-	ctx->ur.end = ctx->rxbuf + sizeof(ctx->rxbuf);
+	uc_buf_set(&ctx->uc, ctx->txbuf, sizeof(ctx->txbuf));
+	ur_buf_set(&ctx->ur, ctx->rxbuf, sizeof(ctx->rxbuf));
 
 	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
 		fail("socket", "AF_UNIX", fd);
@@ -91,13 +85,10 @@ static void resolve_device(CTX)
 void send_command(CTX)
 {
 	int wr, fd = ctx->fd;
-	char* txbuf = ctx->uc.brk;
-	int txlen = ctx->uc.ptr - ctx->uc.brk;
 
 	if(!ctx->connected)
 		connect_socket(ctx);
-
-	if((wr = writeall(fd, txbuf, txlen)) < 0)
+	if((wr = uc_send_whole(fd, &ctx->uc)) < 0)
 		fail("write", NULL, wr);
 }
 
