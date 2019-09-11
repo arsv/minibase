@@ -63,11 +63,7 @@ static void connect_to_wictl(CTX)
 	ctx->fd = fd;
 	ctx->connected = 1;
 
-	struct ucbuf* uc = &ctx->uc;
-
-	uc->brk = ctx->txbuf;
-	uc->ptr = ctx->txbuf;
-	uc->end = ctx->txbuf + sizeof(ctx->txbuf);
+	uc_buf_set(&ctx->uc, ctx->txbuf, sizeof(ctx->txbuf));
 }
 
 static void send_command(CTX)
@@ -95,13 +91,7 @@ static struct ucmsg* recv_reply(CTX)
 /* We cannot use small ctx->rxbuf to receive AP list, which tends to be
    several KB in size in most cases. So we need to switch ctx->ur from
    txbuf to a large heap-allocated buffer, and optionally grow the buffer
-   if the messages happens to be larger the initial estimate of 1 page.
-
-   Care must be taken when switching the buffers to not lose whatever
-   messages may still be in rxbuf. Especially the incomplete ones, that
-   would mess up everything.
-
-   Half of this code should be moved to nlusctl at some point. */
+   if the messages happens to be larger the initial estimate of 1 page. */
 
 static struct ucmsg* recv_large(CTX)
 {
@@ -112,16 +102,7 @@ static struct ucmsg* recv_large(CTX)
 	if(ur->buf == ctx->rxbuf) {
 		void* buf = heap_alloc(ctx, len);
 
-		long moff = ur->mptr - ur->buf;
-		long roff = ur->rptr - ur->buf;
-
-		if(roff > 0)
-			memcpy(buf, ur->buf, roff);
-
-		ur->buf = buf;
-		ur->mptr = buf + moff;
-		ur->rptr = buf + roff;
-		ur->end = buf + len;
+		ur_buf_change(ur, buf, len);
 	}
 
 	while((ret = uc_recv_shift(fd, ur)) < 0) {
@@ -129,6 +110,7 @@ static struct ucmsg* recv_large(CTX)
 			fail("recv", "wictl", ret);
 
 		(void)heap_alloc(ctx, len);
+
 		ur->end += len;
 	}
 
@@ -166,12 +148,7 @@ static void init_context(CTX, int argc, char** argv)
 	ctx->argc = argc;
 	ctx->argv = argv;
 
-	struct urbuf* ur = &ctx->ur;
-
-	ur->buf = ctx->rxbuf;
-	ur->mptr = ctx->rxbuf;
-	ur->rptr = ctx->rxbuf;
-	ur->end = ctx->rxbuf + sizeof(ctx->rxbuf);
+	ur_buf_set(&ctx->ur, ctx->rxbuf, sizeof(ctx->rxbuf));
 }
 
 static void no_other_options(CTX)

@@ -51,12 +51,9 @@ static void send_report(struct ucbuf* uc)
 static void report_simple(int cmd)
 {
 	char buf[64];
-	struct ucbuf uc = {
-		.brk = buf,
-		.ptr = buf,
-		.end = buf + sizeof(buf)
-	};
+	struct ucbuf uc;
 
+	uc_buf_set(&uc, buf, sizeof(buf));
 	uc_put_hdr(&uc, cmd);
 	uc_put_end(&uc);
 
@@ -81,12 +78,9 @@ static void report_station(int cmd)
 void report_scan_end(int err)
 {
 	char buf[64];
-	struct ucbuf uc = {
-		.brk = buf,
-		.ptr = buf,
-		.end = buf + sizeof(buf)
-	};
+	struct ucbuf uc;
 
+	uc_buf_set(&uc, buf, sizeof(buf));
 	uc_put_hdr(&uc, REP_WI_SCAN_END);
 	if(err) uc_put_int(&uc, ATTR_ERROR, err);
 	uc_put_end(&uc);
