@@ -9,6 +9,7 @@
 #include <nlusctl.h>
 #include <string.h>
 #include <format.h>
+#include <printf.h>
 #include <cmsg.h>
 #include <util.h>
 
@@ -43,15 +44,11 @@
 
 static int reply(int fd, int rep, int attr, char* value)
 {
+	struct ucbuf uc;
 	char txbuf[200];
 	int ret;
 
-	struct ucbuf uc = {
-		.brk = txbuf,
-		.ptr = txbuf,
-		.end = txbuf + sizeof(txbuf)
-	};
-
+	uc_buf_set(&uc, txbuf, sizeof(txbuf));
 	uc_put_hdr(&uc, rep);
 	if(attr) uc_put_str(&uc, attr, value);
 	uc_put_end(&uc);
@@ -309,6 +306,7 @@ static void close_all_cmsg_fds(struct ucaux* ux)
 	struct cmsg* cm;
 	void* p = ux->buf;
 	void* e = p + ux->len;
+	int ret;
 
 	for(cm = cmsg_first(p, e); cm; cm = cmsg_next(cm, e)) {
 		if(cm->level != SOL_SOCKET)
@@ -319,8 +317,10 @@ static void close_all_cmsg_fds(struct ucaux* ux)
 		int* fp = cmsg_payload(cm);
 		int* fe = cmsg_paylend(cm);
 
-		for(; fp < fe; fp++)
-			sys_close(*fp);
+		for(; fp < fe; fp++) {
+			if((ret = sys_close(*fp)) < 0)
+				warn("close", NULL, ret);
+		}
 	}
 }
 

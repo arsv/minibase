@@ -75,15 +75,18 @@ static void accept_connection(CTX, int sfd)
 	int addrlen = sizeof(addr);
 	int flags = SOCK_NONBLOCK;
 
-	while((cfd = sys_accept4(sfd, &addr, &addrlen, flags)) >= 0) {
-		if(ctx->nconns < NCONNS) {
-			int i = ctx->nconns++;
-			pfds[i+1].fd = cfd;
-			pfds[i+1].events = POLLIN;
-		} else {
-			sys_shutdown(cfd, SHUT_RDWR);
-			sys_close(cfd);
-		}
+	if((cfd = sys_accept4(sfd, &addr, &addrlen, flags)) >= 0)
+		;
+	else if(cfd == -EAGAIN)
+		return;
+	else fail("accept", NULL, cfd);
+
+	if(ctx->nconns < NCONNS) {
+		int i = ctx->nconns++;
+		pfds[i+1].fd = cfd;
+		pfds[i+1].events = POLLIN;
+	} else {
+		sys_close(cfd);
 	}
 }
 

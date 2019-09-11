@@ -61,14 +61,6 @@ int init_socket(void)
 	return fd;
 }
 
-static void send_simple(int fd, char* buf, int len)
-{
-	int ret;
-
-	if((ret = sys_send(fd, buf, len, 0)) < 0)
-		fail("send", NULL, ret);
-}
-
 static int put_cmsg_fd(char* buf, int size, int fd)
 {
 	char* p = buf;
@@ -77,26 +69,6 @@ static int put_cmsg_fd(char* buf, int size, int fd)
 	p = cmsg_put(p, e, SOL_SOCKET, SCM_RIGHTS, &fd, sizeof(fd));
 
 	return p - buf;
-}
-
-static void send_with_anc(int fd, char* txbuf, int txlen, char* anc, int anlen)
-{
-	int ret;
-
-	struct iovec iov = {
-		.base = txbuf,
-		.len = txlen
-	};
-
-	struct msghdr msg = {
-		.iov = &iov,
-		.iovlen = 1,
-		.control = anc,
-		.controllen = anlen
-	};
-
-	if((ret = sys_sendmsg(fd, &msg, 0)) < 0)
-		fail("send", NULL, ret);
 }
 
 static void recv_reply(int fd, int nlen)
@@ -145,27 +117,25 @@ static void cmd_name_fd(int cmd, char* name, int ffd)
 {
 	int nlen = strlen(name);
 	int sfd = init_socket();
+	int ret;
 
 	char txbuf[20 + nlen];
-	struct ucbuf uc = {
-		.brk = txbuf,
-		.ptr = txbuf,
-		.end = txbuf + sizeof(txbuf)
-	};
+	struct ucbuf uc;
 
+	uc_buf_set(&uc, txbuf, sizeof(txbuf));
 	uc_put_hdr(&uc, cmd);
 	uc_put_str(&uc, ATTR_NAME, basename(name));
 	uc_put_end(&uc);
 
-	int txlen = uc.ptr - uc.brk;
-
 	if(ffd < 0) {
-		send_simple(sfd, uc.brk, uc.ptr - uc.brk);
+		if((ret = uc_send_whole(sfd, &uc)) < 0)
+			fail("send", NULL, ret);
 	} else {
 		char ancillary[32];
 		int anlen = put_cmsg_fd(ancillary, sizeof(ancillary), ffd);
 
-		send_with_anc(sfd, txbuf, txlen, ancillary, anlen);
+		if((ret = uc_send_msg(sfd, &uc, ancillary, anlen)) < 0)
+			fail("send", NULL, ret);
 	}
 
 	recv_reply(sfd, nlen);

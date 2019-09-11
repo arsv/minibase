@@ -86,8 +86,6 @@ int setup_loopback(int pfd, char* base)
 		break;
 	}
 
-	sys_close(cfd);
-
 	return ret;
 }
 
