@@ -19,37 +19,7 @@ typedef struct ucattr* attr;
 
 static int send_reply(struct conn* cn, struct ucbuf* uc)
 {
-	int fd = cn->fd;
-	void* buf = uc->brk;
-	long len = uc->ptr - uc->brk;
-
-	if(len < 0)
-		return -EINVAL;
-
-	struct timespec ts = { 1, 0 };
-	struct pollfd pfd = { fd, POLLOUT, 0 };
-	int ret;
-again:
-	if((ret = sys_send(fd, buf, len, 0)) >= len)
-		return ret;
-
-	if(ret < 0) {
-		if(ret != -EAGAIN)
-			return ret;
-	} else if(ret) {
-		buf += ret;
-		len -= ret;
-	}
-
-	if((ret = sys_ppoll(&pfd, 1, &ts, NULL)) < 0)
-		return ret;
-	else if(ret == 0)
-		return -ETIMEDOUT;
-
-	if((ret = sys_send(fd, buf, len, 0)) < 0)
-		return ret;
-
-	goto again;
+	return uc_send_timed(cn->fd, uc);
 }
 
 static int reply(struct conn* cn, int err)

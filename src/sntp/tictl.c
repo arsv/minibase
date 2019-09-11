@@ -41,14 +41,8 @@ static void prep_context(CTX, int argc, char** argv)
 	ctx->argv = argv;
 	ctx->argi = i;
 
-	ctx->uc.brk = ctx->txbuf;
-	ctx->uc.ptr = ctx->txbuf;
-	ctx->uc.end = ctx->txbuf + sizeof(ctx->txbuf);
-
-	ctx->ur.buf = ctx->rxbuf;
-	ctx->ur.mptr = ctx->rxbuf;
-	ctx->ur.rptr = ctx->rxbuf;
-	ctx->ur.end = ctx->rxbuf + sizeof(ctx->rxbuf);
+	uc_buf_set(&ctx->uc, ctx->txbuf, sizeof(ctx->txbuf));
+	ur_buf_set(&ctx->ur, ctx->rxbuf, sizeof(ctx->rxbuf));
 }
 
 static int init_socket(CTX)
@@ -74,16 +68,11 @@ static int init_socket(CTX)
 static void send_command(CTX)
 {
 	int wr, fd;
-	char* txbuf = ctx->uc.brk;
-	int txlen = ctx->uc.ptr - ctx->uc.brk;
 
 	if(!(fd = ctx->fd))
 		fd = init_socket(ctx);
-
-	if((wr = sys_send(fd, txbuf, txlen, 0)) < 0)
+	if((wr = uc_send_whole(fd, &ctx->uc)) < 0)
 		fail("send", NULL, wr);
-	if(wr != txlen)
-		fail("incomplete send", NULL, 0);
 }
 
 static struct ucmsg* recv_reply(CTX)
