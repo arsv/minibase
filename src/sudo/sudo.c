@@ -61,29 +61,6 @@ int init_socket(void)
 	return fd;
 }
 
-static int prep_message(char* cmd, int argn, char** args)
-{
-	struct ucbuf uc = {
-		.brk = txbuf,
-		.ptr = txbuf,
-		.end = txbuf + sizeof(txbuf)
-	};
-
-	uc_put_hdr(&uc, CMD_EXEC);
-
-	uc_put_str(&uc, ATTR_ARGV, cmd);
-
-	for(int i = 0; i < argn; i++)
-		uc_put_str(&uc, ATTR_ARGV, args[i]);
-
-	uc_put_end(&uc);
-
-	if(uc.over)
-		fail("argument list too long", NULL, 0);
-
-	return uc.ptr - uc.brk;
-}
-
 static int prep_ancillary(void)
 {
 	char* p = ancillary;
@@ -111,23 +88,20 @@ static int prep_ancillary(void)
 static void start_command(int fd, char* cmd, int argn, char** args)
 {
 	int ret;
-
-	int txlen = prep_message(cmd, argn, args);
 	int anlen = prep_ancillary();
+	struct ucbuf uc;
 
-	struct iovec iov = {
-		.base = txbuf,
-		.len = txlen
-	};
+	uc_buf_set(&uc, txbuf, sizeof(txbuf));
+	uc_put_hdr(&uc, CMD_EXEC);
 
-	struct msghdr msg = {
-		.iov = &iov,
-		.iovlen = 1,
-		.control = &ancillary,
-		.controllen = anlen
-	};
+	uc_put_str(&uc, ATTR_ARGV, cmd);
 
-	if((ret = sys_sendmsg(fd, &msg, MSG_NOSIGNAL)) < 0)
+	for(int i = 0; i < argn; i++)
+		uc_put_str(&uc, ATTR_ARGV, args[i]);
+
+	uc_put_end(&uc);
+
+	if((ret = uc_send_msg(fd, &uc, ancillary, anlen)) < 0)
 		fail("send", NULL, ret);
 }
 
@@ -170,17 +144,17 @@ static void pass_signal(int fd)
 	if(!signal)
 		return;
 
-	struct ucbuf uc = {
-		.brk = txbuf,
-		.ptr = txbuf,
-		.end = txbuf + sizeof(txbuf)
-	};
+	struct ucbuf uc;
 
+	uc_buf_set(&uc, txbuf, sizeof(txbuf));
 	uc_put_hdr(&uc, CMD_KILL);
 	uc_put_int(&uc, ATTR_SIGNAL, signal);
 	uc_put_end(&uc);
 
-	int txlen = uc.ptr - uc.brk;
+	if(uc_overflow(&uc))
+		fail("send", NULL, -ENOBUFS);
+
+	int txlen = uc.ptr - uc.buf;
 
 	if((ret = sys_send(fd, txbuf, txlen, MSG_NOSIGNAL)) < 0)
 		fail("send", NULL, ret);
@@ -189,16 +163,12 @@ static void pass_signal(int fd)
 static void wait_listen(int fd, char* command)
 {
 	int ret;
-	struct urbuf ur = {
-		.buf = rxbuf,
-		.mptr = rxbuf,
-		.rptr = rxbuf,
-		.end = rxbuf + sizeof(rxbuf)
-	};
-
 	int code;
+	struct urbuf ur;
 	struct ucmsg* msg = NULL;
 	int started = 0;
+
+	ur_buf_set(&ur, rxbuf, sizeof(rxbuf));
 
 	while(1) {
 		if((ret = uc_recv_shift(fd, &ur)) == -EINTR) {

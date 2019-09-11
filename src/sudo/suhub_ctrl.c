@@ -16,12 +16,9 @@ char control[256]; /* ~18 bytes per cmsghdr, 4 to 5 cmsghdr-s */
 
 int reply(int fd, int rep, int attr, int arg)
 {
-	struct ucbuf uc = {
-		.brk = txbuf,
-		.ptr = txbuf,
-		.end = txbuf + sizeof(txbuf)
-	};
+	struct ucbuf uc;
 
+	uc_buf_set(&uc, txbuf, sizeof(txbuf));
 	uc_put_hdr(&uc, rep);
 	if(attr) uc_put_int(&uc, attr, arg);
 	uc_put_end(&uc);
