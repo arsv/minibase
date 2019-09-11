@@ -29,24 +29,18 @@ static struct ucbuf uc;
 
 static void start_reply(int cmd)
 {
-	char* buf = NULL;
-	int len;
-
-	buf = txbuf;
-	len = sizeof(txbuf);
-
-	uc.brk = buf;
-	uc.ptr = buf;
-	uc.end = buf + len;
-
+	uc_buf_set(&uc, txbuf, sizeof(txbuf));
 	uc_put_hdr(&uc, cmd);
 }
 
 static int send_reply(CN)
 {
+	int ret;
+
 	uc_put_end(&uc);
 
-	writeall(cn->fd, uc.brk, uc.ptr - uc.brk);
+	if((ret = uc_send_timed(cn->fd, &uc)) < 0)
+		return ret;
 
 	return REPLIED;
 }

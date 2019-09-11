@@ -47,10 +47,7 @@ void start_request(CTX, int cmd)
 
 	brk = ctx->recbuf;
 
-	ctx->uc.brk = brk;
-	ctx->uc.ptr = brk;
-	ctx->uc.end = brk + len;
-
+	uc_buf_set(&ctx->uc, brk, len);
 	uc_put_hdr(&ctx->uc, cmd);
 }
 
@@ -67,28 +64,21 @@ void add_int_attr(CTX, int key, int val)
 void send_request(CTX)
 {
 	int wr, fd = ctx->fd;
-	char* txbuf = ctx->uc.brk;
-	int txlen = ctx->uc.ptr - ctx->uc.brk;
-
-	if(!txlen)
-		fail("trying to send an empty message", NULL, 0);
 
 	uc_put_end(&ctx->uc);
 
 	if(!ctx->connected)
 		connect_socket(ctx);
 
-	if((wr = sys_send(fd, txbuf, txlen, 0)) < 0)
-		fail("write", NULL, wr);
-	else if(wr < txlen)
-		fail("incomplete write", NULL, 0);
+	if((wr = uc_send_whole(fd, &ctx->uc)) < 0)
+		fail("send", NULL, wr);
 
 	memzero(&ctx->uc, sizeof(ctx->uc));
 }
 
 static void init_small_rxbuf(CTX)
 {
-	if(ctx->uc.brk == ctx->recbuf)
+	if(ctx->uc.buf == ctx->recbuf)
 		fail("smallbuf tx-locked", NULL, 0);
 
 	void* buf = ctx->recbuf;
