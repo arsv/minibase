@@ -1,7 +1,11 @@
 #include <bits/socket/inet.h>
 #include <bits/errno.h>
+#include <sys/socket.h>
+#include <sys/creds.h>
 
 #include <netlink.h>
+#include <netlink/pack.h>
+#include <netlink/recv.h>
 #include <netlink/rtnl/addr.h>
 #include <netlink/rtnl/link.h>
 #include <netlink/rtnl/route.h>
@@ -18,9 +22,6 @@ ERRTAG("ip4addr");
 #define OPT_u (1<<1)
 #define OPT_f (1<<2)
 
-char txbuf[1024];
-char rxbuf[3*1024];
-
 struct top {
 	int argc;
 	int argi;
@@ -29,7 +30,8 @@ struct top {
 	int opts;
 	uint ifi;
 
-	struct netlink nl;
+	int nl;
+	struct ncbuf nc;
 };
 
 #define CTX struct top* ctx
@@ -54,77 +56,113 @@ static void check_parse_ipmask(uint8_t ip[5], char* arg)
 		fail("invalid address", arg, 0);
 }
 
+static int send_recv_ack(CTX, struct ncbuf* nc, int seq)
+{
+	int fd = ctx->nl;
+	byte buf[64];
+	struct nlmsg* msg;
+	struct nlerr* err;
+	int ret;
+
+	if((ret = nc_send(fd, nc)) < 0)
+		fail("send", "NETLINK", ret);
+	if((ret = nl_recv(fd, buf, sizeof(buf))) < 0)
+		fail("recv", "NETLINK", ret);
+	if(!(msg = nl_msg(buf, ret)))
+		fail("recv", "NETLINK", -EBADMSG);
+	if(msg->seq != seq)
+		fail("recv", "NETLINK", -EBADMSG);
+	if(!(err = nl_err(msg)))
+		fail("recv", "NETLINK", -EBADMSG);
+
+	return err->errno;
+}
+
 static void flush_iface(CTX)
 {
-	struct netlink* nl = &ctx->nl;
+	struct ncbuf* nc = &ctx->nc;
 	struct ifaddrmsg* req;
+	int ret;
 
-	nl_header(nl, req, RTM_DELADDR, 0,
-		.family = AF_INET,
-		.prefixlen = 0,
-		.flags = 0,
-		.scope = 0,
-		.index = ctx->ifi);
+	nc_header(nc, RTM_DELADDR, NLM_F_ACK, 0);
 
-	long ret = nl_send_recv_ack(nl);
+	if(!(req = nc_fixed(nc, sizeof(*req))))
+		goto send;
 
-	while((ret = nl_send_recv_ack(nl)) >= 0)
-		;
-	if(ret != -EADDRNOTAVAIL)
-		fail("netlink", "RTM_DELADDR", nl->err);
+	req->family = AF_INET;
+	req->index = ctx->ifi;
+send:
+	if((ret = send_recv_ack(ctx, nc, 0)) >= 0)
+		goto send;
+	else if(ret != -EADDRNOTAVAIL)
+		fail(NULL, "DELADDR", ret);
 }
 
 static void set_iface_state(CTX, int up)
 {
-	struct netlink* nl = &ctx->nl;
+	struct ncbuf* nc = &ctx->nc;
 	struct ifinfomsg* req;
+	int ret;
 
-	nl_header(nl, req, RTM_NEWLINK, 0,
-		.family = AF_INET,
-		.type = 0,
-		.index = ctx->ifi,
-		.flags = up ? IFF_UP : 0,
-		.change = IFF_UP);
+	nc_header(nc, RTM_NEWLINK, NLM_F_ACK, 0);
 
-	if(nl_send_recv_ack(nl))
-		fail("netlink", "RTM_NEWLINK", nl->err);
+	if(!(req = nc_fixed(nc, sizeof(*req))))
+		goto send;
+
+	req->family = AF_INET;
+	req->index = ctx->ifi;
+	req->flags = up ? IFF_UP : 0;
+	req->change = IFF_UP;
+send:
+	if((ret = send_recv_ack(ctx, nc, 0)) < 0)
+		fail(NULL, "NEWLINK", ret);
 }
 
 static void set_iface_address(CTX, uint8_t ipm[5])
 {
-	struct netlink* nl = &ctx->nl;
+	struct ncbuf* nc = &ctx->nc;
 	struct ifaddrmsg* req;
+	int ret;
 
-	nl_header(nl, req, RTM_NEWADDR, NLM_F_REPLACE,
-		.family = AF_INET,
-		.prefixlen = ipm[4],
-		.flags = 0,
-		.scope = 0,
-		.index = ctx->ifi);
-	nl_put(nl, IFA_LOCAL, ipm, 4);
+	nc_header(nc, RTM_NEWADDR, NLM_F_ACK, 0);
 
-	if(nl_send_recv_ack(nl))
-		fail("netlink", "RTM_NEWADDR", nl->err);
+	if(!(req = nc_fixed(nc, sizeof(*req))))
+		goto send;
+
+	req->family = AF_INET,
+	req->prefixlen = ipm[4],
+	req->index = ctx->ifi;
+
+	nc_put(nc, IFA_LOCAL, ipm, 4);
+send:
+	if((ret = send_recv_ack(ctx, nc, 0)) < 0)
+		fail(NULL, "NEWADDR", ret);
 }
 
 static void setup_netlink(CTX, char* ifname)
 {
-	struct netlink* nl = NL;
-	int ifi, ret;
+	int domain = PF_NETLINK;
+	int type = SOCK_RAW | SOCK_CLOEXEC;
+	int protocol = NETLINK_ROUTE;
+	struct sockaddr_nl nls = {
+		.family = AF_NETLINK,
+		.pid = sys_getpid(),
+		.groups = 0
+	};
+	int fd, ifi, ret;
 
-	nl_init(nl);
+	if((fd = sys_socket(domain, type, protocol)) < 0)
+		fail("socket", "NETLINK", fd);
+	if((ret = sys_bind(fd, (struct sockaddr*)&nls, sizeof(nls))) < 0)
+		fail("bind", "NETLINK", ret);
 
-	nl_set_rxbuf(nl, rxbuf, sizeof(rxbuf));
-	nl_set_txbuf(nl, txbuf, sizeof(txbuf));
-
-	if((ret = nl_connect(nl, NETLINK_ROUTE, 0)) < 0)
-		fail("netlink connect", NULL, ret);
 	if(!ifname)
 		fail("need interface name", NULL, 0);
-	if((ifi = getifindex(nl->fd, ifname)) <= 0)
+	if((ifi = getifindex(fd, ifname)) <= 0)
 		fail("unknown interface", ifname, 0);
 
 	ctx->ifi = ifi;
+	ctx->nl = fd;
 }
 
 static void parse_args(CTX, int argc, char** argv)
@@ -144,10 +182,13 @@ int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
 	uint8_t ip[5];
+	byte buf[64];
 
 	memzero(ctx, sizeof(*ctx));
 
 	parse_args(ctx, argc, argv);
+
+	nc_buf_set(&ctx->nc, buf, sizeof(buf));
 
 	setup_netlink(ctx, shift_arg(ctx));
 

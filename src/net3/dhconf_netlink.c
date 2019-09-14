@@ -1,10 +1,10 @@
 #include <bits/socket.h>
 #include <bits/socket/inet.h>
 #include <netlink.h>
-#include <netlink/cmd.h>
+#include <netlink/pack.h>
+#include <netlink/recv.h>
 #include <netlink/rtnl/addr.h>
 #include <netlink/rtnl/route.h>
-#include <bits/ioctl/socket.h>
 #include <sys/socket.h>
 #include <sys/creds.h>
 #include <sys/file.h>
@@ -50,15 +50,21 @@ static void fini_netlink(CTX)
 static int send_recv_ack(CTX, struct ncbuf* nc, int seq)
 {
 	int fd = ctx->nlfd;
+	struct nlmsg* msg;
+	struct nlerr* err;
 	byte buf[256];
 	int ret;
 
 	if((ret = nc_send(fd, nc)) < 0)
 		return ret;
-	if((ret = nc_recv_ack(fd, buf, sizeof(buf), seq)) < 0)
+	if((ret = nl_recv(fd, buf, sizeof(buf))) < 0)
 		return ret;
+	if(!(msg = nl_msg(buf, ret)))
+		return -EBADMSG;
+	if(!(err = nl_err(msg)))
+		return -EBADMSG;
 
-	return 0;
+	return err->errno;
 }
 
 static void put_lease_timing(struct ncbuf* nc, int lt, int rt)
@@ -79,17 +85,17 @@ static void add_ip_address(CTX)
 	struct ncbuf nc;
 	struct ifaddrmsg* req;
 	int ret, seq = ctx->seq++;
+	int flags = NLM_F_ACK | NLM_F_CREATE | NLM_F_REPLACE;
 
 	int mask = get_ctx_net_prefix_bits(ctx);
 	int lt = ctx->lease_time;
 	int rt = ctx->renew_time;
 
-	if(!(req = nc_struct(&nc, buf, sizeof(buf), sizeof(*req))))
-		quit(ctx, "netlink RTM_NEWADDR", -ENOBUFS);
+	nc_buf_set(&nc, buf, sizeof(buf));
+	nc_header(&nc, RTM_NEWADDR, flags, seq);
 
-	int flags = NLM_F_REQUEST | NLM_F_ACK | NLM_F_CREATE | NLM_F_REPLACE;
-
-	nc_header(&req->nlm, RTM_NEWADDR, flags, seq);
+	if(!(req = nc_fixed(&nc, sizeof(*req))))
+		goto send;
 
 	req->family = AF_INET;
 	req->prefixlen = mask;
@@ -99,9 +105,7 @@ static void add_ip_address(CTX)
 
 	nc_put(&nc, IFA_LOCAL, ctx->ourip, 4);
 	put_lease_timing(&nc, lt, rt);
-
-	nc_length(&req->nlm, &nc);
-
+send:
 	if((ret = send_recv_ack(ctx, &nc, seq)) < 0)
 		quit(ctx, "netlink RTM_NEWADDR", ret);
 }
@@ -113,10 +117,11 @@ static void del_ip_address(CTX)
 	struct ifaddrmsg* req;
 	int ret, seq = ctx->seq++;
 
-	if(!(req = nc_struct(&nc, buf, sizeof(buf), sizeof(*req))))
-		quit(ctx, "netlink RTM_DELADDR", -ENOBUFS);
+	nc_buf_set(&nc, buf, sizeof(buf));
+	nc_header(&nc, RTM_DELADDR, NLM_F_ACK, seq);
 
-	nc_header(&req->nlm, RTM_DELADDR, NLM_F_REQUEST | NLM_F_ACK, seq);
+	if(!(req = nc_fixed(&nc, sizeof(*req))))
+		goto send;
 
 	req->family = AF_INET;
 	req->prefixlen = get_ctx_net_prefix_bits(ctx);
@@ -125,12 +130,10 @@ static void del_ip_address(CTX)
 	req->index = ctx->ifindex;
 
 	nc_put(&nc, IFA_LOCAL, ctx->ourip, 4);
-
-	nc_length(&req->nlm, &nc);
-
-	ret = send_recv_ack(ctx, &nc, seq);
-
-	if(ret < 0 && ret != -EADDRNOTAVAIL)
+send:
+	if((ret = send_recv_ack(ctx, &nc, seq)) >= 0)
+		return;
+	else if(ret != -EADDRNOTAVAIL)
 		warn(NULL, "RTM_DELADDR", ret);
 }
 
@@ -140,17 +143,17 @@ static void add_default_route(CTX)
 	struct ncbuf nc;
 	struct rtmsg* req;
 	uint8_t* gw;
-	int seq = ctx->seq++;
+	int ret, seq = ctx->seq++;
+	int flags = NLM_F_ACK | NLM_F_CREATE | NLM_F_EXCL;
 
 	if(!(gw = get_ctx_opt(ctx, DHCP_ROUTER_IP, 4)))
 		return;
 
-	if(!(req = nc_struct(&nc, buf, sizeof(buf), sizeof(*req))))
-		quit(ctx, "netlink RTM_NEWROUTE", -ENOBUFS);
+	nc_buf_set(&nc, buf, sizeof(buf));
+	nc_header(&nc, RTM_NEWROUTE, flags, seq);
 
-	int flags = NLM_F_REQUEST | NLM_F_ACK | NLM_F_CREATE | NLM_F_EXCL;
-
-	nc_header(&req->nlm, RTM_NEWROUTE, flags, seq);
+	if(!(req = nc_fixed(&nc, sizeof(*req))))
+		goto send;
 
 	req->family = ARPHRD_EETHER; /* Important! EOPNOTSUPP if wrong. */
 	req->dst_len = 0;
@@ -164,12 +167,10 @@ static void add_default_route(CTX)
 
 	nc_put_int(&nc, RTA_OIF, ctx->ifindex);
 	nc_put(&nc, RTA_GATEWAY, gw, 4);
-
-	nc_length(&req->nlm, &nc);
-
-	int ret = send_recv_ack(ctx, &nc, seq);
-
-	if(ret < 0 && ret != -EEXIST)
+send:
+	if((ret = send_recv_ack(ctx, &nc, seq)) >= 0)
+		return;
+	else if(ret != -EEXIST)
 		quit(ctx, "netlink RTM_NEWROUTE", ret);
 }
 

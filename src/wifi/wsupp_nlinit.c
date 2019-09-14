@@ -1,5 +1,8 @@
 #include <netlink.h>
-#include <netlink/genl.h>
+#include <netlink/attr.h>
+#include <netlink/pack.h>
+#include <netlink/recv.h>
+#include <netlink/genl/ctrl.h>
 #include <netlink/genl/nl80211.h>
 
 #include <string.h>
@@ -14,24 +17,116 @@ byte ifaddr[6];
 int nl80211; /* family id */
 int drvconnect;
 
+struct nlpair {
+	int id;
+	char* name;
+};
+
 static int nle(const char* msg, const char* arg, int ret)
 {
 	warn(msg, arg, ret);
 	return ret < 0 ? ret : -1;
 }
 
-static int query_iface(int ifi)
+static int send_recv(int fd, struct nlgen** out)
+{
+	int ret;
+	struct nlmsg* msg;
+	struct nlerr* err;
+	struct nlgen* gen;
+
+	*out = NULL;
+
+	if((ret = nc_send(fd, &nc)) < 0)
+		return ret;
+	if((ret = nr_recv(fd, &nr)) < 0)
+		return ret;
+
+	if(!(msg = nr_next(&nr)))
+		return -EAGAIN;
+
+	if((err = nl_err(msg))) {
+		if((ret = err->errno) < 0)
+			return ret;
+		else
+			return -EBADMSG;
+	} else if(!(gen = nl_gen(msg))) {
+		return -EBADMSG;
+	}
+
+	*out = gen;
+
+	return 0;
+}
+
+static int find_group(struct nlattr* groups, char* name)
+{
+	struct nlattr* at;
+
+	for(at = nl_sub_0(groups); at; at = nl_sub_n(groups, at)) {
+		if(!nl_attr_is_nest(at))
+			continue;
+
+		char* gn = nl_sub_str(at, 1);
+		uint32_t* id = nl_sub_u32(at, 2);
+
+		if(!gn || !id)
+			continue;
+		if(strcmp(gn, name))
+			continue;
+
+		return *id;
+	}
+
+	return -ENOENT;
+}
+
+static int query_family(int fd, char* name, struct nlpair* grps, int ngrps)
+{
+	struct nlgen* msg;
+	int ret;
+
+	nc_header(&nc, GENL_ID_CTRL, 0, 0);
+	nc_gencmd(&nc, CTRL_CMD_GETFAMILY, 1);
+	nc_put_str(&nc, CTRL_ATTR_FAMILY_NAME, name);
+
+	if((ret = send_recv(fd, &msg)))
+		return ret;
+
+	uint16_t* grpid = nl_get_u16(msg, CTRL_ATTR_FAMILY_ID);
+	struct nlattr* groups = nl_get_nest(msg, CTRL_ATTR_MCAST_GROUPS);
+
+	if(!grpid)
+		return -EBADMSG;
+	if(!groups)
+		return -ENOENT;
+
+	for(int i = 0; i < ngrps; i++) {
+		struct nlpair* np = &grps[i];
+		int id;
+
+		if((id = find_group(groups, np->name)) <= 0)
+			return -ENOENT;
+
+		np->id = id;
+	}
+
+	return *grpid;
+}
+
+static int query_iface(int fd, int ifi)
 {
 	struct nlgen* msg;
 	struct nlattr* mac;
 	char* name;
+	int ret;
 
-	nl_new_cmd(&nl, nl80211, NL80211_CMD_GET_INTERFACE, 0);
-	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifi);
+	nc_header(&nc, nl80211, 0, 0);
+	nc_gencmd(&nc, NL80211_CMD_GET_INTERFACE, 0);
+	nc_put_int(&nc, NL80211_ATTR_IFINDEX, ifi);
 
-	if(!(msg = nl_send_recv_genl(&nl)))
-		return nle("NL80211_CMD_GET_INTERFACE", NULL, nl.err);
-
+	if((ret = send_recv(fd, &msg)) < 0)
+		return nle("NL80211_CMD_GET_INTERFACE", NULL, ret);
 	if(!(name = nl_get_str(msg, NL80211_ATTR_IFNAME)))
 		return nle("NL80211_ATTR_IFNAME", NULL, -ENOENT);
 	if(strlen(name) > sizeof(ifname)-1)
@@ -48,20 +143,21 @@ static int query_iface(int ifi)
 	return 0;
 }
 
-static int query_wiphy(int ifi)
+static int query_wiphy(int fd, int ifi)
 {
 	struct nlgen* msg;
 	struct nlattr* cmds;
 	struct nlattr* at;
-	int* cmd;
+	int ret, *cmd;
 	int got_authenticate = 0;
 	int got_connect = 0;
 
-	nl_new_cmd(&nl, nl80211, NL80211_CMD_GET_WIPHY, 0);
-	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifi);
+	nc_header(&nc, nl80211, 0, 0);
+	nc_gencmd(&nc, NL80211_CMD_GET_WIPHY, 0);
+	nc_put_int(&nc, NL80211_ATTR_IFINDEX, ifi);
 
-	if(!(msg = nl_send_recv_genl(&nl)))
-		return nle("NL80211_CMD_GET_WIPHY", NULL, nl.err);
+	if((ret = send_recv(fd, &msg)))
+		return nle("NL80211_CMD_GET_WIPHY", NULL, ret);
 	if(!(cmds = nl_get(msg, NL80211_ATTR_SUPPORTED_COMMANDS)))
 		return nle("NL80211_ATTR_SUPPORTED_COMMANDS", NULL, -ENOENT);
 	if(!(cmds = nl_nest(cmds)))
@@ -83,18 +179,17 @@ static int query_wiphy(int ifi)
 	return 0;
 }
 
-int init_netlink(int ifi)
+int init_netlink(int fd, int ifi)
 {
 	char* family = "nl80211";
 	struct nlpair grps[] = {
 		{ -1, "mlme" },
-		{ -1, "scan" },
-		{  0, NULL } };
+		{ -1, "scan" } };
 	int ret;
 
 	(void)ifi;
 
-	if((ret = query_family_grps(&nl, family, grps)) < 0)
+	if((ret = query_family(fd, family, grps, ARRAY_SIZE(grps))) < 0)
 		return nle("NL family", family, ret);
 	if(grps[0].id < 0)
 		return nle("NL group nl80211", grps[0].name, -ENOENT);
@@ -103,14 +198,14 @@ int init_netlink(int ifi)
 
 	nl80211 = ret;
 
-	if((ret = query_iface(ifi)) < 0)
+	if((ret = query_iface(fd, ifi)) < 0)
 		return ret;
-	if((ret = query_wiphy(ifi)) < 0)
+	if((ret = query_wiphy(fd, ifi)) < 0)
 		return ret;
 
-	if((ret = nl_subscribe(&nl, grps[0].id)) < 0)
+	if((ret = nl_subscribe(fd, grps[0].id)) < 0)
 		return nle("NL subscribe nl80211", grps[0].name, ret);
-	if((ret = nl_subscribe(&nl, grps[1].id)) < 0)
+	if((ret = nl_subscribe(fd, grps[1].id)) < 0)
 		return nle("NL subscribe nl80211", grps[1].name, ret);
 
 	return 0;

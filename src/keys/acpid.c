@@ -1,23 +1,23 @@
 #include <bits/errno.h>
 #include <sys/proc.h>
+#include <sys/creds.h>
+#include <sys/socket.h>
 
 #include <netlink.h>
-#include <netlink/genl.h>
+#include <netlink/pack.h>
+#include <netlink/attr.h>
+#include <netlink/recv.h>
+#include <netlink/genl/ctrl.h>
 
 #include <format.h>
 #include <string.h>
+#include <dirs.h>
 #include <util.h>
 #include <main.h>
 
 ERRTAG("acpid");
 
-static const char confdir[] = "/etc/acpi";
-
-struct top {
-	struct netlink nl;
-	char txbuf[50];
-	char rxbuf[2048];
-};
+static const char confdir[] = HERE "/etc/acpi";
 
 struct acpievent {
         char cls[20];
@@ -25,6 +25,8 @@ struct acpievent {
         int type;
         int data;
 };
+
+#define CTX struct top* ctx
 
 static const struct action {
 	char cls[20];
@@ -96,56 +98,112 @@ static struct acpievent* get_acpi_event(struct nlmsg* nlm)
 	return nl_get_of_len(msg, 1, sizeof(*evt));
 }
 
-static void setup_netlink(struct top* ctx)
+static int fetch_group_id(struct nlattr* groups, char* name)
 {
+	struct nlattr* at;
+
+	for(at = nl_sub_0(groups); at; at = nl_sub_n(groups, at)) {
+		if(!nl_attr_is_nest(at))
+			continue;
+
+		char* gn = nl_sub_str(at, 1);
+		int* id = nl_sub_i32(at, 2);
+
+		if(!gn || !id)
+			continue;
+		if(!strcmp(gn, name))
+			return *id;
+	}
+
+	return -ENOENT;
+}
+
+static void subscribe_group(int fd, void* rxbuf, int rxlen)
+{
+	struct ncbuf nc;
+	byte txbuf[64];
+	struct nlmsg* msg;
+	struct nlgen* gen;
+	struct nlerr* err;
 	char* family = "acpi_event";
 	char* group = "acpi_mc_group";
-	struct nlpair grps[] = { { -1, group }, { 0, NULL } };
-	struct netlink* nl = &ctx->nl;
-	int ret, gid, fid;
+	int ret, gid;
 
-	nl_init(nl);
-	nl_set_txbuf(nl, ctx->txbuf, sizeof(ctx->txbuf));
-	nl_set_rxbuf(nl, ctx->rxbuf, sizeof(ctx->rxbuf));
+	nc_buf_set(&nc, txbuf, sizeof(txbuf));
 
-	if((ret = nl_connect(nl, NETLINK_GENERIC, 0)) < 0)
-		fail("NL connect", "genl", ret);
+	nc_header(&nc, GENL_ID_CTRL, 0, 0);
+	nc_gencmd(&nc, CTRL_CMD_GETFAMILY, 1);
+	nc_put_str(&nc, CTRL_ATTR_FAMILY_NAME, family);
 
-	if((fid = query_family_grps(nl, family, grps)) < 0)
-		fail("NL family", family, fid);
+	if((ret = nc_send(fd, &nc)) < 0)
+		fail("send", "NETLINK", ret);
+	if((ret = nl_recv(fd, rxbuf, rxlen)) < 0)
+		fail("recv", "NETLINK", ret);
+	if(!(msg = nl_msg(rxbuf, ret)) || (ret != nl_len(msg)))
+		fail("recv", "NETLINK", -EBADMSG);
+	if((err = nl_err(msg)))
+		fail("netlink", "GETFAMILY", err->errno);
+	else if(!(gen = nl_gen(msg)))
+		fail("netlink", "GETFAMILY", -EBADMSG);
 
-	if((gid = grps[0].id) < 0)
-		fail("NL group", group, -ENOENT);
+	struct nlattr* groups;
+	
+	if(!(groups = nl_get_nest(gen, CTRL_ATTR_MCAST_GROUPS)))
+		fail("missing NL groups in", family, 0);
+	if((gid = fetch_group_id(groups, group)) < 0)
+		fail("missing NL group", group, 0);
+	if((ret = nl_subscribe(fd, gid)) < 0)
+		fail("subscribe", group, ret);
+}
 
-	if((ret = nl_subscribe(nl, gid)) < 0)
-		fail("NL subscribe ", group, ret);
+static int open_netlink_socket(void)
+{
+	int domain = PF_NETLINK;
+	int protocol = NETLINK_GENERIC;
+	int type = SOCK_RAW;
+	struct sockaddr_nl nls = {
+		.family = AF_NETLINK,
+		.pid = sys_getpid(),
+		.groups = 0
+	};
+	int fd, ret;
+
+	if((fd = sys_socket(domain, type, protocol)) < 0)
+		fail("socket", "NETLINK", fd);
+	if((ret = sys_bind(fd, (struct sockaddr*)&nls, sizeof(nls))) < 0)
+		fail("bind", "NETLINK", ret);
+
+	return fd;
 }
 
 int main(int argc, char** argv)
 {
 	char** envp = argv + argc + 1;
-
-	struct top context, *ctx = &context;
-	memzero(ctx, sizeof(*ctx));
-
-	struct netlink* nl = &ctx->nl;
-	struct nlmsg* nlm;
+	struct nlmsg* msg;
 	struct acpievent* evt;
 	const struct action* act;
+	struct nrbuf nr;
+	char buf[2048];
+	int ret, fd;
 
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);
 
-	setup_netlink(ctx);
+	fd = open_netlink_socket();
+	subscribe_group(fd, buf, sizeof(buf));
+	nr_buf_set(&nr, buf, sizeof(buf));
+recv:
+	if((ret = nr_recv(fd, &nr)) < 0)
+		fail("recv", "NETLINK", ret);
+next:
+	if(!(msg = nr_next(&nr)))
+		goto recv;
+	if(!(evt = get_acpi_event(msg)))
+		goto next;
+	if(!(act = event_action(evt)))
+		goto next;
 
-	while((nlm = nl_recv(nl))) {
-		if(!(evt = get_acpi_event(nlm)))
-			continue;
-		if(!(act = event_action(evt)))
-			continue;
+	spawn_handler(act->script, envp);
 
-		spawn_handler(act->script, envp);
-	}
-
-	return 0;
+	goto next;
 }

@@ -200,6 +200,7 @@ int main(int argc, char** argv)
 	setup_signals();
 	setup_control();
 	clear_ondemand_fds();
+	setup_netlink();
 
 	while(1) {
 		struct timespec* ts = timercall ? &pollts : NULL;

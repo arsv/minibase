@@ -253,12 +253,12 @@ static void set_current_bss(struct scan* sc)
 	ap.pairwise = RSN_CIPHER_CCMP;
 
 	if(sc->flags & SF_TKIP) {
-		ap.txies = ies_ccmp_tkip;
+		ap.txies = (void*)ies_ccmp_tkip;
 		ap.iesize = sizeof(ies_ccmp_tkip);
 		ap.gtklen = 32;
 		ap.group = RSN_CIPHER_TKIP;
 	} else {
-		ap.txies = ies_ccmp_ccmp;
+		ap.txies = (void*)ies_ccmp_ccmp;
 		ap.iesize = sizeof(ies_ccmp_ccmp);
 		ap.gtklen = 16;
 		ap.group = RSN_CIPHER_CCMP;

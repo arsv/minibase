@@ -58,7 +58,7 @@ extern struct ap {
 	ushort slen;
 	byte ssid[SSIDLEN];
 	/* encryption settings */
-	const void* txies;
+	void* txies;
 	uint iesize;
 	uint gtklen;
 	uint akm;
@@ -122,6 +122,7 @@ void eapol_failure(void);
 void eapol_success(void);
 
 /* Netlink section */
+void setup_netlink(void);
 int open_netlink(int ifi);
 void close_netlink(void);
 void handle_netlink(void);

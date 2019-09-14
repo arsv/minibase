@@ -1,5 +1,5 @@
 #include <netlink.h>
-#include <netlink/genl.h>
+#include <netlink/pack.h>
 #include <netlink/genl/nl80211.h>
 
 #include "wsupp.h"
@@ -22,41 +22,46 @@
 
 int upload_ptk(void)
 {
-	uint8_t seq[6] = { 0, 0, 0, 0, 0, 0 };
+	byte seq[6] = { 0, 0, 0, 0, 0, 0 };
 	struct nlattr* at;
+	int fd = netlink;
 
-	nl_new_cmd(&nl, nl80211, NL80211_CMD_NEW_KEY, 0);
-	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
-	nl_put(&nl, NL80211_ATTR_MAC, ap.bssid, sizeof(ap.bssid));
+	nc_header(&nc, nl80211, 0, nlseq++);
+	nc_gencmd(&nc, NL80211_CMD_NEW_KEY, 0);
 
-	nl_put_u8(&nl, NL80211_ATTR_KEY_IDX, 0);
-	nl_put_u32(&nl, NL80211_ATTR_KEY_CIPHER, ap.pairwise);
-	nl_put(&nl, NL80211_ATTR_KEY_DATA, PTK, 16);
-	nl_put(&nl, NL80211_ATTR_KEY_SEQ, seq, 6);
+	nc_put_int(&nc, NL80211_ATTR_IFINDEX, ifindex);
+	nc_put(&nc, NL80211_ATTR_MAC, ap.bssid, sizeof(ap.bssid));
 
-	at = nl_put_nest(&nl, NL80211_ATTR_KEY_DEFAULT_TYPES);
-	nl_put_empty(&nl, NL80211_KEY_DEFAULT_TYPE_UNICAST);
-	nl_end_nest(&nl, at);
+	nc_put_byte(&nc, NL80211_ATTR_KEY_IDX, 0);
+	nc_put_int(&nc, NL80211_ATTR_KEY_CIPHER, ap.pairwise);
+	nc_put(&nc, NL80211_ATTR_KEY_DATA, PTK, 16);
+	nc_put(&nc, NL80211_ATTR_KEY_SEQ, seq, 6);
 
-	return nl_send(&nl);
+	at = nc_put_nest(&nc, NL80211_ATTR_KEY_DEFAULT_TYPES);
+	nc_put_flag(&nc, NL80211_KEY_DEFAULT_TYPE_UNICAST);
+	nc_end_nest(&nc, at);
+
+	return nc_send(fd, &nc);
 }
 
 int upload_gtk(void)
 {
 	struct nlattr* at;
+	int fd = netlink;
 
-	nl_new_cmd(&nl, nl80211, NL80211_CMD_NEW_KEY, 0);
-	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
+	nc_header(&nc, nl80211, 0, nlseq++);
+	nc_gencmd(&nc, NL80211_CMD_NEW_KEY, 0);
 
-	nl_put_u8(&nl, NL80211_ATTR_KEY_IDX, gtkindex);
-	nl_put(&nl, NL80211_ATTR_KEY_SEQ, RSC, 6);
+	nc_put_int(&nc, NL80211_ATTR_IFINDEX, ifindex);
 
-	nl_put_u32(&nl, NL80211_ATTR_KEY_CIPHER, ap.group);
-	nl_put(&nl, NL80211_ATTR_KEY_DATA, GTK, ap.gtklen);
+	nc_put_byte(&nc, NL80211_ATTR_KEY_IDX, gtkindex);
+	nc_put_int(&nc, NL80211_ATTR_KEY_CIPHER, ap.group);
+	nc_put(&nc, NL80211_ATTR_KEY_DATA, GTK, ap.gtklen);
+	nc_put(&nc, NL80211_ATTR_KEY_SEQ, RSC, 6);
 
-	at = nl_put_nest(&nl, NL80211_ATTR_KEY_DEFAULT_TYPES);
-	nl_put_empty(&nl, NL80211_KEY_DEFAULT_TYPE_MULTICAST);
-	nl_end_nest(&nl, at);
+	at = nc_put_nest(&nc, NL80211_ATTR_KEY_DEFAULT_TYPES);
+	nc_put_flag(&nc, NL80211_KEY_DEFAULT_TYPE_MULTICAST);
+	nc_end_nest(&nc, at);
 
-	return nl_send(&nl);
+	return nc_send(fd, &nc);
 }

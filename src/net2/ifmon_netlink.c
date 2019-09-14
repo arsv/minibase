@@ -5,11 +5,11 @@
 #include <sys/creds.h>
 
 #include <netlink.h>
+#include <netlink/attr.h>
 #include <netlink/rtnl/link.h>
 #include <netlink/rtnl/addr.h>
 #include <netlink/rtnl/route.h>
 #include <netlink/rtnl/mgrp.h>
-#include <netlink/dump.h>
 
 #include <string.h>
 #include <util.h>

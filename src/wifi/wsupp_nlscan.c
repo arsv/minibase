@@ -2,7 +2,8 @@
 #include <sys/file.h>
 
 #include <netlink.h>
-#include <netlink/genl.h>
+#include <netlink/pack.h>
+#include <netlink/attr.h>
 #include <netlink/genl/nl80211.h>
 
 #include <string.h>
@@ -49,19 +50,25 @@ void reset_scan_state(void)
 static int trigger_scan(int freq)
 {
 	struct nlattr* at;
+	int seq = nlseq++;
+	int ret, fd = netlink;
 
-	nl_new_cmd(&nl, nl80211, NL80211_CMD_TRIGGER_SCAN, 0);
-	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
+	scanseq = seq;
+
+	nc_header(&nc, nl80211, 0, seq);
+	nc_gencmd(&nc, NL80211_CMD_TRIGGER_SCAN, 0);
+	nc_put_int(&nc, NL80211_ATTR_IFINDEX, ifindex);
 
 	if(freq) {
-		at = nl_put_nest(&nl, NL80211_ATTR_SCAN_FREQUENCIES);
-		nl_put_u32(&nl, 0, freq); /* FREQUENCIES[0] = freq */
-		nl_end_nest(&nl, at);
+		at = nc_put_nest(&nc, NL80211_ATTR_SCAN_FREQUENCIES);
+		nc_put_int(&nc, 0, freq); /* FREQUENCIES[0] = freq */
+		nc_end_nest(&nc, at);
 	}
 
-	scanseq = nl.seq;
+	if((ret = nc_send(fd, &nc)) < 0)
+		return ret;
 
-	return nl_send(&nl);
+	return 0;
 }
 
 /* The weird logic below handles the cases when a re-scan or a routine
@@ -136,20 +143,22 @@ static void reset_ies_data(void)
 
 static void trigger_scan_dump(void)
 {
-	int ret;
+	int ret, fd = netlink;
+	int seq = nlseq++;
 
 	if(!scanreq)
 		reset_ies_data();
 
-	nl_new_cmd(&nl, nl80211, NL80211_CMD_GET_SCAN, 0);
-	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
+	nc_header(&nc, nl80211, NLM_F_DUMP, seq);
+	nc_gencmd(&nc, NL80211_CMD_GET_SCAN, 0);
+	nc_put_int(&nc, NL80211_ATTR_IFINDEX, ifindex);
 
-	if((ret = nl_send_dump(&nl)) < 0) {
-		warn("nl-send", "scan dump", ret);
+	if((ret = nc_send(fd, &nc)) < 0) {
+		warn("send", "scan dump", ret);
 		reset_scan_state();
 	} else {
 		scanstate = SS_SCANDUMP;
-		scanseq = nl.seq;
+		scanseq = seq;
 	}
 }
 

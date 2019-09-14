@@ -3,7 +3,8 @@
 #include <bits/types.h>
 
 #include <netlink.h>
-#include <netlink/genl.h>
+#include <netlink/pack.h>
+#include <netlink/attr.h>
 #include <netlink/genl/nl80211.h>
 
 #include <string.h>
@@ -109,37 +110,42 @@ int retried;
 
 static void put_command(int cmd)
 {
-	nl_new_cmd(&nl, nl80211, cmd, 0);
+	int seq = nlseq++;
+
+	authseq = seq;
+
+	nc_header(&nc, nl80211, 0, seq);
+	nc_gencmd(&nc, cmd, 0);
 }
 
 static void put_ssid_bss_attrs(void)
 {
-	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
-	nl_put(&nl, NL80211_ATTR_MAC, ap.bssid, sizeof(ap.bssid));
-	nl_put_u32(&nl, NL80211_ATTR_WIPHY_FREQ, ap.freq);
-	nl_put(&nl, NL80211_ATTR_SSID, ap.ssid, ap.slen);
+	nc_put_int(&nc, NL80211_ATTR_IFINDEX, ifindex);
+	nc_put(&nc, NL80211_ATTR_MAC, ap.bssid, sizeof(ap.bssid));
+	nc_put_int(&nc, NL80211_ATTR_WIPHY_FREQ, ap.freq);
+	nc_put(&nc, NL80211_ATTR_SSID, ap.ssid, ap.slen);
 }
 
 static void put_bss_auth_attrs(void)
 {
-	nl_put_u32(&nl, NL80211_ATTR_AUTH_TYPE, 0); /* OpenSystem (?) */
+	nc_put_int(&nc, NL80211_ATTR_AUTH_TYPE, 0); /* OpenSystem (?) */
 }
 
 static void put_wpa_auth_attrs(void)
 {
-	nl_put_empty(&nl, NL80211_ATTR_PRIVACY);
-	nl_put_u32(&nl, NL80211_ATTR_WPA_VERSIONS, (1<<1)); /* WPA2 */
-	nl_put_u32(&nl, NL80211_ATTR_CIPHER_SUITES_PAIRWISE, ap.pairwise);
-	nl_put_u32(&nl, NL80211_ATTR_CIPHER_SUITE_GROUP, ap.group);
-	nl_put_u32(&nl, NL80211_ATTR_AKM_SUITES, ap.akm);
-	nl_put(&nl, NL80211_ATTR_IE, ap.txies, ap.iesize);
+	nc_put_flag(&nc, NL80211_ATTR_PRIVACY);
+	nc_put_int(&nc, NL80211_ATTR_WPA_VERSIONS, (1<<1)); /* WPA2 */
+	nc_put_int(&nc, NL80211_ATTR_CIPHER_SUITES_PAIRWISE, ap.pairwise);
+	nc_put_int(&nc, NL80211_ATTR_CIPHER_SUITE_GROUP, ap.group);
+	nc_put_int(&nc, NL80211_ATTR_AKM_SUITES, ap.akm);
+	nc_put(&nc, NL80211_ATTR_IE, ap.txies, ap.iesize);
 }
 
 static int send_command(void)
 {
-	authseq = nl.seq;
+	int fd = netlink;
 
-	return nl_send(&nl);
+	return nc_send(fd, &nc);
 }
 
 static int trigger_authentication(void)
@@ -175,8 +181,9 @@ static int trigger_connect(void)
 
 static int trigger_disconnect(void)
 {
-	nl_new_cmd(&nl, nl80211, NL80211_CMD_DISCONNECT, 0);
-	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifindex);
+	put_command(NL80211_CMD_DISCONNECT);
+
+	nc_put_int(&nc, NL80211_ATTR_IFINDEX, ifindex);
 
 	return send_command();
 }

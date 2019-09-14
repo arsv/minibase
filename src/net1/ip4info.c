@@ -1,7 +1,12 @@
 #include <bits/socket/inet.h>
 #include <bits/errno.h>
+#include <sys/creds.h>
+#include <sys/socket.h>
 
 #include <netlink.h>
+#include <netlink/pack.h>
+#include <netlink/recv.h>
+#include <netlink/attr.h>
 #include <netlink/rtnl/addr.h>
 #include <netlink/rtnl/link.h>
 #include <netlink/rtnl/route.h>
@@ -28,28 +33,35 @@ ERRTAG("ip4info");
    accessible to format links and routes properly. Route data is not
    cached, just show one message at a time. */
 
-struct heap hp;
-struct netlink nl;
-struct bufout bo;
-
-struct ip4addr {
-	uint ifi;
-	uint flags;
-	byte ip[4];
-	byte mask;
-} **ips;
-
-struct ip4link {
-	uint ifi;
-	char name[20];
-} **ifs;
-
 char ifbuf[1024];
 
-char txbuf[512];
+char txbuf[1024];
 char rxbuf[5*1024];
 
 char outbuf[1024];
+
+struct top {
+	int netlink;
+
+	struct heap hp;
+	struct bufout bo;
+	struct ncbuf nc;
+	struct nrbuf nr;
+
+	struct ip4addr {
+		uint ifi;
+		uint flags;
+		byte ip[4];
+		byte mask;
+	} **ips;
+
+	struct ip4link {
+		uint ifi;
+		char name[20];
+	} **ifs;
+};
+
+#define CTX struct top* ctx
 
 static struct nlattr* ifa_get(struct ifaddrmsg* msg, uint16_t key)
 {
@@ -74,13 +86,13 @@ static char* fmtipm(char* p, char* e, uint8_t* ip, uint8_t mask)
 	return p;
 }
 
-void** reindex(void* p0, void* p1, int size)
+void** reindex(CTX, void* p0, void* p1, int size)
 {
 	if((p1 - p0) % size)
 		fail("heap corrupted", NULL, 0);
 
 	int n = (p1 - p0)/size;
-	void** idx = halloc(&hp, (n+1)*sizeof(void*));
+	void** idx = halloc(&ctx->hp, (n+1)*sizeof(void*));
 
 	int i;
 
@@ -91,23 +103,36 @@ void** reindex(void* p0, void* p1, int size)
 	return idx;
 }
 
-struct ip4link** index_ifs(void* p0, void* p1)
+typedef struct ip4link* linkptr;
+typedef struct ip4addr* addrptr;
+
+static void index_ifs(CTX, void* p0, void* p1)
 {
-	return (struct ip4link**)reindex(p0, p1, sizeof(struct ip4link));
+	ctx->ifs = (linkptr*)reindex(ctx, p0, p1, sizeof(struct ip4link));
 }
 
-struct ip4addr** index_ips(void* p0, void* p1)
+static void index_ips(CTX, void* p0, void* p1)
 {
-	return (struct ip4addr**)reindex(p0, p1, sizeof(struct ip4addr));
+	ctx->ips = (addrptr*)reindex(ctx, p0, p1, sizeof(struct ip4addr));
 }
 
-void store_ip(struct ifaddrmsg* msg)
+static void fail_nlerr(struct nlmsg* msg, char* tag)
+{
+	struct nlerr* err;
+
+	if(!(err = nl_err(msg)))
+		fail("invalid netlink error", NULL, 0);
+	else
+		fail(NULL, tag, err->errno);
+}
+
+static void store_addr(CTX, struct ifaddrmsg* msg)
 {
 	uint8_t* addr = nl_bin(ifa_get(msg, IFA_ADDRESS), 4);
 
 	if(!addr) return;
 
-	struct ip4addr* rec = halloc(&hp, sizeof(*rec));
+	struct ip4addr* rec = halloc(&ctx->hp, sizeof(*rec));
 
 	rec->ifi = msg->index;
 	rec->flags = msg->flags;
@@ -115,36 +140,65 @@ void store_ip(struct ifaddrmsg* msg)
 	memcpy(rec->ip, addr, 4);
 }
 
-void fetch_ips(void)
+static void recv_all_addrs(CTX, char* cmdtag)
 {
-	struct ifaddrmsg* msg;
+	struct ifaddrmsg* ifm;
+	struct nrbuf* nr = &ctx->nr;
+	int fd = ctx->netlink;
+	int ret;
+recv:
+	if((ret = nr_recv(fd, nr)) <= 0)
+		fail("recv", "NETLINK", ret);
 
-	nl_header(&nl, msg, RTM_GETADDR, 0,
-		.family = AF_INET,
-		.prefixlen = 0,
-		.flags = 0,
-		.scope = 0,
-		.index = 0);
+	struct nlmsg* msg;
+next:
+	if(!(msg = nr_next(nr)))
+		goto recv;
+	if(msg->type == NLMSG_DONE)
+		return;
+	if(msg->type == NLMSG_ERROR)
+		fail_nlerr(msg, cmdtag);
+	if(msg->type != RTM_NEWADDR)
+		fail("recv", "NETLINK", -EBADMSG);
+	if(!(ifm = nl_cast(msg, sizeof(*ifm))))
+		fail("recv", "NETLINK", -EBADMSG);
 
-	if(nl_send_dump(&nl))
-		fail("netlink", "RTM_GETADDR", nl.err);
+	store_addr(ctx, ifm);
 
-	void* p0 = hp.ptr;
-
-	while((nl_recv_multi_into(&nl, msg)))
-		store_ip(msg);
-	if(nl.err)
-		fail("netlink", "RTM_GETADDR", nl.err);
-
-	void* p1 = hp.ptr;
-
-	ips = index_ips(p0, p1);
+	goto next;
 }
 
-void store_if(struct ifinfomsg* msg)
+static void* heap_ptr(CTX)
+{
+	return ctx->hp.ptr;
+}
+
+static void fetch_ips(CTX)
+{
+	struct ifaddrmsg* req;
+	struct ncbuf* nc = &ctx->nc;
+	int ret, fd = ctx->netlink;
+
+	nc_header(nc, RTM_GETADDR, NLM_F_DUMP, 0);
+
+	(void)nc_fixed(nc, sizeof(*req));
+
+	if((ret = nc_send(fd, nc)) < 0)
+		fail("send", "NETLINK", ret);
+
+	void* p0 = heap_ptr(ctx);
+
+	recv_all_addrs(ctx, "GETADDR");
+
+	void* p1 = heap_ptr(ctx);
+
+	index_ips(ctx, p0, p1);
+}
+
+static void store_iface(CTX, struct ifinfomsg* msg)
 {
 	char* name = nl_str(ifl_get(msg, IFLA_IFNAME));
-	struct ip4link* rec = halloc(&hp, sizeof(*rec));
+	struct ip4link* rec = halloc(&ctx->hp, sizeof(*rec));
 
 	rec->ifi = msg->index;
 	memset(rec->name, 0, sizeof(rec->name));
@@ -153,33 +207,57 @@ void store_if(struct ifinfomsg* msg)
 		memcpy(rec->name, name, strlen(name));
 }
 
-void fetch_ifs(void)
+static void recv_all_ifaces(CTX, char* cmdtag)
 {
-	struct ifinfomsg* msg;
+	struct ifinfomsg* ifm;
+	struct nrbuf* nr = &ctx->nr;
+	int fd = ctx->netlink;
+	int ret;
+recv:
+	if((ret = nr_recv(fd, nr)) <= 0)
+		fail("recv", "NETLINK", ret);
 
-	nl_header(&nl, msg, RTM_GETLINK, 0,
-		.family = 0,
-		.type = 0,
-		.index = 0,
-		.flags = 0,
-		.change = 0);
+	struct nlmsg* msg;
+next:
+	if(!(msg = nr_next(nr)))
+		goto recv;
+	if(msg->type == NLMSG_DONE)
+		return;
+	if(msg->type == NLMSG_ERROR)
+		fail_nlerr(msg, cmdtag);
+	if(msg->type != RTM_NEWLINK)
+		fail("recv", "NETLINK", -EBADMSG);
+	if(!(ifm = nl_cast(msg, sizeof(*ifm))))
+		fail("recv", "NETLINK", -EBADMSG);
 
-	if(nl_send_dump(&nl))
-		fail("netlink", "RTM_GETLINK", nl.err);
+	store_iface(ctx, ifm);
 
-	void* p0 = hp.ptr;
-
-	while((nl_recv_multi_into(&nl, msg)))
-		store_if(msg);
-	if(nl.err)
-		fail("netlink", "RTM_GETLINK", nl.err);
-
-	void* p1 = hp.ptr;
-
-	ifs = index_ifs(p0, p1);
+	goto next;
 }
 
-void show_iface(struct ip4link* lk, struct ip4addr** ips)
+static void fetch_ifs(CTX)
+{
+	struct ifinfomsg* req;
+	struct ncbuf* nc = &ctx->nc;
+	int ret, fd = ctx->netlink;
+
+	nc_header(nc, RTM_GETLINK, NLM_F_DUMP, 0);
+
+	(void)nc_fixed(nc, sizeof(*req));
+
+	if((ret = nc_send(fd, nc)) < 0)
+		fail("send", "NETLINK", ret);
+
+	void* p0 = heap_ptr(ctx);
+
+	recv_all_ifaces(ctx, "GETLINK");
+
+	void* p1 = heap_ptr(ctx);
+
+	index_ifs(ctx, p0, p1);
+}
+
+void show_iface(CTX, linkptr lk)
 {
 	char* p = ifbuf;
 	char* e = ifbuf + sizeof(ifbuf) - 1;
@@ -195,10 +273,11 @@ void show_iface(struct ip4link* lk, struct ip4addr** ips)
 
 	p = fmtstr(p, e, ":");
 
-	struct ip4addr **qq, *q;
+	addrptr* qq;
+	addrptr q;
 	int hasaddr = 0;
 
-	for(qq = ips; (q = *qq); qq++) {
+	for(qq = ctx->ips; (q = *qq); qq++) {
 		if(q->ifi != lk->ifi)
 			continue;
 		hasaddr = 1;
@@ -209,22 +288,25 @@ void show_iface(struct ip4link* lk, struct ip4addr** ips)
 	}
 
 	*p++ = '\n';
-	bufout(&bo, ifbuf, p - ifbuf);
+	bufout(&ctx->bo, ifbuf, p - ifbuf);
 }
 
-void banner(char* msg)
+static void banner(CTX, char* msg)
 {
-	bufout(&bo, msg, strlen(msg));
-	bufout(&bo, "\n", 1);
+	bufout(&ctx->bo, msg, strlen(msg));
+	bufout(&ctx->bo, "\n", 1);
 }
 
-void list_ipconf(void)
+static void list_ipconf(CTX)
 {
-	struct ip4link** q;
+	linkptr* ifs = ctx->ifs;
+	linkptr* q;
 
-	banner("Interfaces");
-	for(q = ifs; *q; q++)
-		show_iface(*q, ips);
+	banner(ctx, "Interfaces");
+
+	for(q = ifs; *q; q++) {
+		show_iface(ctx, *q);
+	}
 }
 
 char* fmt_route_dst(char* p, char* e, struct rtmsg* msg)
@@ -245,18 +327,18 @@ char* fmt_route_dst(char* p, char* e, struct rtmsg* msg)
 	return p;
 }
 
-char* ifi_to_name(uint ifi)
+static char* ifi_to_name(CTX, uint ifi)
 {
 	struct ip4link** q;
 
-	for(q = ifs; *q; q++)
+	for(q = ctx->ifs; *q; q++)
 		if((*q)->ifi == ifi)
 			break;
 
 	return *q ? (*q)->name : NULL;
 }
 
-char* fmt_route_dev(char* p, char* e, struct rtmsg* msg)
+static char* fmt_route_dev(char* p, char* e, struct rtmsg* msg, CTX)
 {
 	uint32_t* oif;
 	char* name;
@@ -264,7 +346,7 @@ char* fmt_route_dev(char* p, char* e, struct rtmsg* msg)
 	if(!(oif = nl_u32(rt_get(msg, RTA_OIF))))
 		goto out;
 
-	if((name = ifi_to_name(*oif))) {
+	if((name = ifi_to_name(ctx, *oif))) {
 		p = fmtstr(p, e, name);
 	} else {
 		p = fmtstr(p, e, "#");
@@ -318,7 +400,7 @@ char* fmt_route_misc(char* p, char* e, struct rtmsg* msg)
 	return p;
 }
 
-void show_route(struct rtmsg* msg)
+static void show_route(CTX, struct rtmsg* msg)
 {
 	char* p = ifbuf;
 	char* e = ifbuf + sizeof(ifbuf) - 1;
@@ -328,70 +410,118 @@ void show_route(struct rtmsg* msg)
 
 	p = fmtstr(p, e, "  ");
 
-	p = fmt_route_dev(p, e, msg);
+	p = fmt_route_dev(p, e, msg, ctx);
 	p = fmt_route_dst(p, e, msg);
 	p = fmt_route_gw(p, e, msg);
 	p = fmt_route_misc(p, e, msg);
 
 	*p++ = '\n';
 
-	bufout(&bo, ifbuf, p - ifbuf);
+	bufout(&ctx->bo, ifbuf, p - ifbuf);
 }
 
-void list_routes(void)
+static void recv_all_routes(CTX, char* cmdtag)
 {
-	struct rtmsg* msg;
+	struct rtmsg* rtm;
+	struct nrbuf* nr = &ctx->nr;
+	int fd = ctx->netlink;
+	int ret;
+recv:
+	if((ret = nr_recv(fd, nr)) <= 0)
+		fail("recv", "NETLINK", ret);
 
-	nl_header(&nl, msg, RTM_GETROUTE, 0, .family = AF_INET);
+	struct nlmsg* msg;
+next:
+	if(!(msg = nr_next(nr)))
+		goto recv;
+	if(msg->type == NLMSG_DONE)
+		return;
+	if(msg->type == NLMSG_ERROR)
+		fail_nlerr(msg, cmdtag);
+	if(msg->type != RTM_NEWROUTE)
+		fail("recv", "NETLINK", -EBADMSG);
+	if(!(rtm = nl_cast(msg, sizeof(*rtm))))
+		fail("recv", "NETLINK", -EBADMSG);
 
-	if(nl_send_dump(&nl))
-		fail("netlink", "RTM_GETROUTE", nl.err);
+	show_route(ctx, rtm);
 
-	banner("Routes");
-
-	while((nl_recv_multi_into(&nl, msg)))
-		show_route(msg);
-	if(nl.err)
-		fail("netlink", "RTM_GETROUTE", nl.err);
+	goto next;
 }
 
-void empty_line(void)
+static void list_routes(CTX)
 {
-	bufout(&bo, "\n", 1);
+	struct rtmsg* req;
+	struct ncbuf* nc = &ctx->nc;
+	int fd = ctx->netlink;
+	int ret;
+
+	nc_header(nc, RTM_GETROUTE, NLM_F_DUMP, 0);
+
+	if(!(req = nc_fixed(nc, sizeof(*req))))
+		goto send;
+
+	req->family = AF_INET;
+send:
+	if((ret = nc_send(fd, nc)) < 0)
+		fail("send", "NETLINK", ret);
+
+	banner(ctx, "Routes");
+
+	recv_all_routes(ctx, "GETROUTE");
 }
 
-void setup(void)
+static void setup(CTX)
 {
-	hinit(&hp, PAGE);
+	int domain = PF_NETLINK;
+	int type = SOCK_RAW | SOCK_CLOEXEC;
+	int protocol = NETLINK_ROUTE;
+	struct sockaddr_nl nls = {
+		.family = AF_NETLINK,
+		.pid = sys_getpid(),
+		.groups = 0
+	};
+	int fd, ret;
 
-	nl_init(&nl);
-	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
-	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
-	nl_connect(&nl, NETLINK_ROUTE, 0);
+	hinit(&ctx->hp, PAGE);
 
-	bo.fd = STDOUT;
-	bo.buf = outbuf;
-	bo.ptr = 0;
-	bo.len = sizeof(outbuf);
+	if((fd = sys_socket(domain, type, protocol)) < 0)
+		fail("socket", "NETLINK", fd);
+	if((ret = sys_bind(fd, (struct sockaddr*)&nls, sizeof(nls))) < 0)
+		fail("bind", "NETLINK", ret);
+
+	ctx->netlink = fd;
+
+	bufoutset(&ctx->bo, STDOUT, outbuf, sizeof(outbuf));
+
+	nc_buf_set(&ctx->nc, txbuf, sizeof(txbuf));
+	nr_buf_set(&ctx->nr, rxbuf, sizeof(rxbuf));
+}
+
+static void flush(CTX)
+{
+	bufoutflush(&ctx->bo);
 }
 
 int main(int argc, char** argv)
 {
+	struct top context, *ctx = &context;
 	(void)argv;
 	int i = 1;
 
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
-	setup();
+	memzero(ctx, sizeof(*ctx));
 
-	fetch_ifs();
-	fetch_ips();
+	setup(ctx);
 
-	list_ipconf();
-	list_routes();
+	fetch_ifs(ctx);
+	fetch_ips(ctx);
 
-	bufoutflush(&bo);
+	list_ipconf(ctx);
+	list_routes(ctx);
+
+	flush(ctx);
 
 	return 0;
 }

@@ -1,11 +1,15 @@
 #include <sys/socket.h>
 #include <sys/file.h>
+#include <sys/creds.h>
 
 #include <netlink.h>
-#include <netlink/genl.h>
+#include <netlink/recv.h>
+#include <netlink/pack.h>
+#include <netlink/attr.h>
 #include <netlink/genl/nl80211.h>
 
 #include <string.h>
+#include <printf.h>
 #include <util.h>
 
 #include "wsupp.h"
@@ -23,8 +27,17 @@
 char txbuf[512];
 char rxbuf[8*1024];
 
-struct netlink nl;
-int netlink; /* = nl.fd */
+int netlink; /* file descriptor */
+uint nlseq;
+
+struct nrbuf nr;
+struct ncbuf nc;
+
+void setup_netlink(void)
+{
+	nr_buf_set(&nr, rxbuf, sizeof(rxbuf));
+	nc_buf_set(&nc, txbuf, sizeof(txbuf));
+}
 
 /* Subscribing to nl80211 only becomes possible after nl80211 kernel
    module gets loaded and initialized, which may happen after wsupp
@@ -33,25 +46,36 @@ int netlink; /* = nl.fd */
 
 int open_netlink(int ifi)
 {
-	int ret;
+	int domain = PF_NETLINK;
+	int type = SOCK_RAW | SOCK_NONBLOCK | SOCK_CLOEXEC;
+	int protocol = NETLINK_GENERIC;
+	struct sockaddr_nl nls = {
+		.family = AF_NETLINK,
+		.pid = sys_getpid(),
+		.groups = 0
+	};
+	int fd, ret;
 
 	if(netlink >= 0)
-		return 0;
+		return -EBUSY;
 
-	nl_init(&nl);
-	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
-	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
-
-	if((ret = nl_connect(&nl, NETLINK_GENERIC, 0)) < 0) {
-		warn("nl-connect", NULL, ret);
-		return ret;
-	}
-	if((ret = init_netlink(ifi)) < 0) {
-		sys_close(nl.fd);
-		return ret;
+	if((fd = sys_socket(domain, type, protocol)) < 0) {
+		warn("socket", "NETLINK", fd);
+		return fd;
 	}
 
-	netlink = nl.fd;
+	if((ret = sys_bind(fd, (struct sockaddr*)&nls, sizeof(nls))) < 0) {
+		warn("bind", "NETLINK", ret);
+		sys_close(fd);
+		return ret;
+	}
+
+	if((ret = init_netlink(fd, ifi)) < 0) {
+		sys_close(fd);
+		return ret;
+	}
+
+	netlink = fd;
 	pollset = 0;
 
 	return 0;
@@ -66,10 +90,13 @@ void close_netlink(void)
 	reset_scan_state();
 
 	sys_close(netlink);
-	memzero(&nl, sizeof(nl));
+	nr.ptr = nr.buf;
 
 	netlink = -1;
 	pollset = 0;
+	nlseq = 0;
+
+	// nr_reset
 
 	ifindex = 0;
 }
@@ -140,16 +167,22 @@ static int match_ifi(struct nlgen* msg)
 
 void handle_netlink(void)
 {
-	int ret;
+	int ret, fd = netlink;
 
 	struct nlerr* err;
 	struct nlmsg* msg;
 	struct nlgen* gen;
 
-	if((ret = nl_recv_nowait(&nl)) < 0)
-		quit("nl-recv", NULL, ret);
+	if((ret = nr_recv(fd, &nr)) > 0)
+		;
+	else if(ret == -EAGAIN)
+		return;
+	else if(ret < 0)
+		quit("recv", "NETLINK", ret);
+	else
+		quit("EOF", "NETLINK", 0);
 
-	while((msg = nl_get_nowait(&nl)))
+	while((msg = nr_next(&nr))) {
 		if(msg->type == NLMSG_DONE)
 			genl_done(msg);
 		else if((err = nl_err(msg)))
@@ -159,6 +192,5 @@ void handle_netlink(void)
 		else if(!match_ifi(gen))
 			;
 		else dispatch(gen);
-
-	nl_shift_rxbuf(&nl);
+	}
 }
