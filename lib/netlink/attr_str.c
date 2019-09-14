@@ -1,7 +1,6 @@
+#include <netlink.h>
+#include <netlink/attr.h>
 #include <cdefs.h>
-
-#include "base.h"
-#include "attr.h"
 
 int nl_check_zstr(char* buf, size_t len)
 {

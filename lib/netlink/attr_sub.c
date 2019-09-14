@@ -1,7 +1,6 @@
+#include <netlink.h>
+#include <netlink/attr.h>
 #include <cdefs.h>
-
-#include "base.h"
-#include "attr.h"
 
 struct nlattr* nl_sub_0(struct nlattr* at)
 {

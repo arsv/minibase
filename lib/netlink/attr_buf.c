@@ -1,7 +1,5 @@
+#include <netlink.h>
 #include <cdefs.h>
-
-#include "base.h"
-#include "attr.h"
 
 static size_t extend_to_4bytes(size_t n)
 {

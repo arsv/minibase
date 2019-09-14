@@ -1,7 +1,5 @@
+#include <netlink.h>
 #include <cdefs.h>
-
-#include "base.h"
-#include "attr.h"
 
 void* nl_bin(struct nlattr* at, unsigned len)
 {

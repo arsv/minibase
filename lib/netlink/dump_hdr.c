@@ -2,12 +2,12 @@
 #include <string.h>
 #include <util.h>
 
-#include "base.h"
-#include "dump.h"
-#include "attr.h"
-#include "rtnl/addr.h"
-#include "rtnl/link.h"
-#include "rtnl/route.h"
+#include <netlink.h>
+#include <netlink/attr.h>
+#include <netlink/dump.h>
+#include <netlink/rtnl/addr.h>
+#include <netlink/rtnl/link.h>
+#include <netlink/rtnl/route.h>
 
 static void hexdump(char* inbuf, int inlen)
 {

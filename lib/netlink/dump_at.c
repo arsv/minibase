@@ -4,9 +4,9 @@
 #include <format.h>
 #include <util.h>
 
-#include "base.h"
-#include "dump.h"
-#include "attr.h"
+#include <netlink.h>
+#include <netlink/attr.h>
+#include <netlink/dump.h>
 
 static void dump_attr(char* pref, struct nlattr* at);
 

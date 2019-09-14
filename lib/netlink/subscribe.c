@@ -1,9 +1,9 @@
 #include <sys/socket.h>
-#include "ctx.h"
+#include <netlink.h>
+#include <netlink/pack.h>
 
-long nl_subscribe(struct netlink* nl, int id)
+int nl_subscribe(int fd, int id)
 {
-	int fd = nl->fd;
 	int lvl = SOL_NETLINK;
 	int opt = NETLINK_ADD_MEMBERSHIP;
 

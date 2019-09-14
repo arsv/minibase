@@ -1,10 +1,5 @@
+#include <netlink.h>
 #include <cdefs.h>
-#include "base.h"
-
-int nl_len(struct nlmsg* msg)
-{
-	return msg->len;
-}
 
 struct nlmsg* nl_msg(void* buf, int len)
 {

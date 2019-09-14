@@ -1,5 +1,5 @@
+#include <netlink.h>
 #include <cdefs.h>
-#include "base.h"
 
 struct nlerr* nl_err(struct nlmsg* msg)
 {
