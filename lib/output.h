@@ -13,12 +13,14 @@ struct bufout {
 	char* buf;
 };
 
-long bufout(struct bufout* bo, char* data, int len);
-long bufoutflush(struct bufout* bo);
+void bufoutset(struct bufout* bo, int fd, void* buf, uint len);
+
+int bufout(struct bufout* bo, char* data, int len);
+int bufoutflush(struct bufout* bo);
 
 /* Buffered output with pre-defined extern buffer */
 
-long writeout(char* data, int len);
-long flushout(void);
+int writeout(char* data, int len);
+int flushout(void);
 
 #endif

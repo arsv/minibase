@@ -5,10 +5,18 @@
 /* Buffered output. Works like syswrite() but only actually calls syswrite
    with block of around bo->len size. */
 
-long bufout(struct bufout* bo, char* data, int len)
+void bufoutset(struct bufout* bo, int fd, void* buf, uint len)
+{
+	bo->fd = fd;
+	bo->buf = buf;
+	bo->ptr = 0;
+	bo->len = len;
+}
+
+int bufout(struct bufout* bo, char* data, int len)
 {
 	int rem = bo->len - bo->ptr;
-	long ret = 0;
+	int ret = 0;
 
 	if(len <= rem) {
 		/* the best case, all the data fits in buffer */
@@ -52,9 +60,9 @@ long bufout(struct bufout* bo, char* data, int len)
 	return ret;
 }
 
-long bufoutflush(struct bufout* bo)
+int bufoutflush(struct bufout* bo)
 {
-	long ret = 0;
+	int ret = 0;
 
 	if(bo->ptr) {
 		ret = writeall(bo->fd, bo->buf, bo->ptr);
