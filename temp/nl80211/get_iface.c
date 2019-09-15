@@ -1,8 +1,13 @@
 #include <bits/socket/inet.h>
 #include <bits/errno.h>
+#include <sys/socket.h>
+#include <sys/creds.h>
 
 #include <netlink.h>
-#include <netlink/genl.h>
+#include <netlink/recv.h>
+#include <netlink/pack.h>
+#include <netlink/attr.h>
+#include <netlink/genl/ctrl.h>
 #include <netlink/genl/nl80211.h>
 #include <netlink/dump.h>
 
@@ -13,36 +18,81 @@
 #include <util.h>
 #include <main.h>
 
-/* Dumping ip stack state has almost nothing in common with configuring it,
-   so this is not a part of ip4cfg, at least for now.
+ERRTAG("get_iface");
 
-   Unlike ip4cfg which is expected to be used in startup scripts and such,
-   this tool is only expected to be run manually, by a human user trying
-   to figure out what's wrong with the configuration. So it should provide
-   a nice overview of the configuration, even if it requires combining data
-   from multiple RTNL requests. */
+char txbuf[128];
+char rxbuf[8*1024-256];
 
-ERRTAG("getif");
+struct nrbuf nr;
+struct ncbuf nc;
 
-struct netlink nl;
-char txbuf[512];
-char rxbuf[7*1024];
+static int open_socket(void)
+{
+	int domain = PF_NETLINK;
+	int type = SOCK_RAW;
+	int protocol = NETLINK_GENERIC;
+	struct sockaddr_nl nls = {
+		.family = AF_NETLINK,
+		.pid = sys_getpid(),
+		.groups = 0
+	};
+	int fd, ret;
 
-/* Link and IP lists are cached in the heap, because we need freely
-   accessible to format links and routes properly. Route data is not
-   cached, just show one message at a time. */
+	if((fd = sys_socket(domain, type, protocol)) < 0)
+		fail("socket", "NETLINK", fd);
+	if((ret = sys_bind(fd, (struct sockaddr*)&nls, sizeof(nls))) < 0)
+		fail("bind", "NETLINK", ret);
+
+	return fd;
+}
+
+static struct nlgen* send_recv(int fd)
+{
+	int ret;
+	struct nlmsg* msg;
+	struct nlerr* err;
+	struct nlgen* gen;
+
+	if((ret = nc_send(fd, &nc)) < 0)
+		fail("send", NULL, ret);
+	if((ret = nr_recv(fd, &nr)) < 0)
+		fail("recv", NULL, ret);
+
+	if(!(msg = nr_next(&nr)))
+		fail("recv", NULL, -EAGAIN);
+
+	if((err = nl_err(msg))) {
+		if((ret = err->errno) < 0)
+			fail(NULL, NULL, ret);
+		else
+			fail(NULL, NULL, -EBADMSG);
+	} else if(!(gen = nl_gen(msg))) {
+		fail(NULL, NULL, -EBADMSG);
+	}
+
+	return gen;
+}
+
+static int query_group(int fd, char* name)
+{
+	nc_header(&nc, GENL_ID_CTRL, 0, 0);
+	nc_gencmd(&nc, CTRL_CMD_GETFAMILY, 1);
+	nc_put_str(&nc, CTRL_ATTR_FAMILY_NAME, name);
+
+	struct nlgen* msg = send_recv(fd);
+
+	uint16_t* grpid = nl_get_u16(msg, CTRL_ATTR_FAMILY_ID);
+
+	if(!grpid)
+		fail(NULL, NULL, -ENOENT);
+
+	return *grpid;
+}
 
 int main(int argc, char** argv)
 {
 	int ifi;
-	int ret;
 	char* p;
-	char* family = "nl80211";
-	struct nlpair grps[] = {
-		{ -1, "mlme" },
-		{ -1, "scan" },
-		{  0, NULL } };
-	struct nlgen* msg;
 
 	if(argc != 2)
 		fail("bad call", NULL, 0);
@@ -50,27 +100,17 @@ int main(int argc, char** argv)
 	if(!(p = parseint(argv[1], &ifi)) || *p)
 		fail("bad ifindex:", argv[1], 0);
 
-	nl_init(&nl);
-	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
-	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
+	nc_buf_set(&nc, txbuf, sizeof(txbuf));
+	nr_buf_set(&nr, rxbuf, sizeof(rxbuf));
 
-	if((ret = nl_connect(&nl, NETLINK_GENERIC, 0)) < 0)
-		fail("nl-connect", NULL, ret);
+	int fd = open_socket();
+	int nl80211 = query_group(fd, "nl80211");
 
-	if((ret = query_family_grps(&nl, family, grps)) < 0)
-		fail("NL family", family, ret);
-	if(grps[0].id < 0)
-		fail("NL group nl80211", grps[0].name, -ENOENT);
-	if(grps[1].id < 0)
-		fail("NL group nl80211", grps[1].name, -ENOENT);
+	nc_header(&nc, nl80211, 0, 0);
+	nc_gencmd(&nc, NL80211_CMD_GET_INTERFACE, 0);
+	nc_put_int(&nc, NL80211_ATTR_IFINDEX, ifi);
 
-	int nl80211 = ret;
-
-	nl_new_cmd(&nl, nl80211, NL80211_CMD_GET_INTERFACE, 0);
-	nl_put_u32(&nl, NL80211_ATTR_IFINDEX, ifi);
-
-	if(!(msg = nl_send_recv_genl(&nl)))
-		fail("netlink", NULL, nl.err);
+	struct nlgen* msg = send_recv(fd);
 
 	nl_dump_gen(msg);
 

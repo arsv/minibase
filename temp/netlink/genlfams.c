@@ -1,8 +1,13 @@
 #include <bits/errno.h>
+#include <sys/socket.h>
+#include <sys/creds.h>
 
 #include <netlink.h>
-#include <netlink/genl/ctrl.h>
+#include <netlink/attr.h>
+#include <netlink/pack.h>
+#include <netlink/recv.h>
 #include <netlink/dump.h>
+#include <netlink/genl/ctrl.h>
 #include <string.h>
 #include <format.h>
 #include <output.h>
@@ -73,33 +78,64 @@ static void dump_family(struct bufout* bo, struct nlgen* msg)
 	dump_groups(bo, msg);
 }
 
+static int open_socket(void)
+{
+	int domain = PF_NETLINK;
+	int type = SOCK_RAW;
+	int protocol = NETLINK_GENERIC;
+	struct sockaddr_nl nls = {
+		.family = AF_NETLINK,
+		.pid = sys_getpid(),
+		.groups = 0
+	};
+	int fd, ret;
+
+	if((fd = sys_socket(domain, type, protocol)) < 0)
+		fail("socket", "NETLINK", fd);
+	if((ret = sys_bind(fd, (struct sockaddr*)&nls, sizeof(nls))) < 0)
+		fail("bind", "NETLINK", ret);
+
+	return fd;
+}
+
 int main(noargs)
 {
-	struct netlink nl;
-	struct nlgen* msg;
-	char txbuf[100];
-	int ret;
+	struct ncbuf nc;
+	struct nrbuf nr;
+	struct nlmsg* msg;
+	struct nlerr* err;
+	struct nlgen* gen;
+	struct bufout bo;
+	byte txbuf[64];
+	int ret, fd;
 
-	nl_init(&nl);
-	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
-	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
-	nl_connect(&nl, NETLINK_GENERIC, 0);
+	nc_buf_set(&nc, txbuf, sizeof(txbuf));
+	nr_buf_set(&nr, rxbuf, sizeof(rxbuf));
+	bufoutset(&bo, STDOUT, outbuf, sizeof(outbuf));
 
-	nl_new_cmd(&nl, GENL_ID_CTRL, CTRL_CMD_GETFAMILY, 1);
+	fd = open_socket();
 
-	if((ret = nl_send_dump(&nl)) < 0)
+	nc_header(&nc, GENL_ID_CTRL, NLM_F_DUMP, 0);
+	nc_gencmd(&nc, CTRL_CMD_GETFAMILY, 1);
+
+	if((ret = nc_send(fd, &nc)) < 0)
 		fail("send", NULL, ret);
+recv:
+	if((ret = nr_recv(fd, &nr)) < 0)
+		fail("recv", NULL, ret);
+next:
+	if(!(msg = nr_next(&nr)))
+		goto recv;
+	if(msg->type == NLMSG_DONE)
+		goto out;
+	if((err = nl_err(msg)))
+		fail(NULL, NULL, err->errno);
+	if(!(gen = nl_gen(msg)))
+		fail(NULL, NULL, -EBADMSG);
 
-	struct bufout bo = {
-		.fd = STDOUT,
-		.buf = outbuf,
-		.ptr = 0,
-		.len = sizeof(outbuf)
-	};
-
-	while((msg = nl_recv_genl_multi(&nl)))
-		dump_family(&bo, msg);
-
+	dump_family(&bo, gen);
+	goto next;
+out:
 	bufoutflush(&bo);
 
 	return 0;
