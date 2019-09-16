@@ -5,10 +5,15 @@
 
 #include <string.h>
 #include <format.h>
+#include <printf.h>
 #include <util.h>
 #include <main.h>
 
 #include <netlink.h>
+#include <netlink/attr.h>
+#include <netlink/pack.h>
+#include <netlink/recv.h>
+#include <netlink/dump.h>
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/nl80211.h>
 
@@ -17,6 +22,10 @@
    of minitools. */
 
 ERRTAG("wiscan");
+
+#define ST_FAMILY   1
+#define ST_SCANNING 2
+#define ST_DUMPING  3
 
 /* All commands this tool sends are small (50 bytes or less), the output
    lines are formed and printed individually, but incoming packets may be
@@ -27,6 +36,15 @@ ERRTAG("wiscan");
 char outbuf[512];
 char txbuf[512];
 char rxbuf[15*1024];
+
+struct ncbuf nc;
+struct nrbuf nr;
+
+int netlink;
+int nl80211;
+int ifindex;
+
+int state;
 
 static int isprint(int c)
 {
@@ -64,7 +82,7 @@ struct ies {
 	uint8_t payload[];
 };
 
-char* format_ies(char* p, char* e, char* buf, int len)
+static char* format_ies(char* p, char* e, char* buf, int len)
 {
 	char* ptr = buf;
 	char* end = buf + len;
@@ -84,7 +102,7 @@ char* format_ies(char* p, char* e, char* buf, int len)
 	return p;
 }
 
-char* format_mac(char* p, char* e, unsigned char mac[6])
+static char* format_mac(char* p, char* e, unsigned char mac[6])
 {
 	int i;
 
@@ -97,7 +115,7 @@ char* format_mac(char* p, char* e, unsigned char mac[6])
 	return p;
 }
 
-char* format_signal(char* p, char* e, int strength)
+static char* format_signal(char* p, char* e, int strength)
 {
 	p = fmtint(p, e, strength / 100);
 	p = fmtchar(p, e, '.');
@@ -106,7 +124,7 @@ char* format_signal(char* p, char* e, int strength)
 	return p;
 }
 
-char* format_freq(char* p, char* e, int freq)
+static char* format_freq(char* p, char* e, int freq)
 {
 	p = fmtchar(p, e, '@');
 	p = fmtchar(p, e, ' ');
@@ -115,9 +133,10 @@ char* format_freq(char* p, char* e, int freq)
 	return p;
 }
 
-void print_scan_entry(struct nlgen* msg)
+static void handle_scan_entry(struct nlgen* msg)
 {
 	struct nlattr* bss = nl_get_nest(msg, NL80211_ATTR_BSS);
+
 	if(!bss) return;
 
 	char* p = outbuf;
@@ -146,6 +165,14 @@ void print_scan_entry(struct nlgen* msg)
 	writeall(STDOUT, outbuf, p - outbuf);
 }
 
+static void send_request(void)
+{
+	int ret, fd = netlink;
+
+	if((ret = nc_send(fd, &nc)) < 0)
+		fail("send", "NETLINK", ret);
+}
+
 /* NL80211_CMD_GET_SCAN requests current state of the stations list
    from the device. It may be used during scan, and long after scan,
    but only makes sense immediately after NL80211_CMD_NEW_SCAN_RESULTS.
@@ -153,74 +180,31 @@ void print_scan_entry(struct nlgen* msg)
    Unlike NL80211_CMD_TRIGGER_SCAN, this one works for non-privileged
    users, but the results are often useless. */
 
-void request_ssid_list(struct netlink* nl, int nl80211, int ifindex)
+static void handle_scan_results(void)
 {
-	struct nlgen* gen;
+	nc_header(&nc, nl80211, NLM_F_DUMP, 0);
+	nc_gencmd(&nc, NL80211_CMD_GET_SCAN, 0);
+	nc_put_int(&nc, NL80211_ATTR_IFINDEX, ifindex);
 
-	nl_new_cmd(nl, nl80211, NL80211_CMD_GET_SCAN, 0);
-	nl_put_u64(nl, NL80211_ATTR_IFINDEX, ifindex);
+	send_request();
 
-	if(nl_send_dump(nl))
-		fail("NL80211_CMD_GET_SCAN", NULL, nl->err);
-
-	while(nl_recv_multi_into(nl, gen)) {
-		if(gen->cmd == NL80211_CMD_NEW_SCAN_RESULTS)
-			print_scan_entry(gen);
-	} if(nl->err) {
-		fail("NL80211_CMD_GET_SCAN", NULL, nl->err);
-	}
+	state = ST_DUMPING;
 }
 
-/* CTRL_CMD_GETFAMILY provides both family id *and* multicast group ids
-   we need for subscription. So we do it all in a single request. */
-
-struct nlpair {
-	const char* name;
-	int id;
-};
-
-void query_nl_family(struct netlink* nl,
-                     struct nlpair* fam, struct nlpair* mcast)
+static void request_scan(void)
 {
-	struct nlgen* gen;
-	struct nlattr* at;
+	nc_header(&nc, nl80211, 0, 0);
+	nc_gencmd(&nc, NL80211_CMD_TRIGGER_SCAN, 0);
+	nc_put_int(&nc, NL80211_ATTR_IFINDEX, ifindex);
 
-	nl_new_cmd(nl, GENL_ID_CTRL, CTRL_CMD_GETFAMILY, 1);
-	nl_put_str(nl, CTRL_ATTR_FAMILY_NAME, fam->name);
+	send_request();
 
-	if(!(gen = nl_send_recv_genl(nl)))
-		fail("CTRL_CMD_GETFAMILY", fam->name, nl->err);
-
-	uint16_t* grpid = nl_get_u16(gen, CTRL_ATTR_FAMILY_ID);
-	struct nlattr* groups = nl_get_nest(gen, CTRL_ATTR_MCAST_GROUPS);
-
-	if(!grpid)
-		fail("unknown nl family", fam->name, 0);
-	if(!groups)
-		fail("no mcast groups for", fam->name, 0);
-
-	fam->id = *grpid;
-
-	for(at = nl_sub_0(groups); at; at = nl_sub_n(groups, at)) {
-		if(!nl_attr_is_nest(at))
-			continue;
-
-		char* name = nl_sub_str(at, 1);
-		uint32_t* id = nl_sub_u32(at, 2);
-
-		if(!name || !id)
-			continue;
-
-		struct nlpair* mc;
-		for(mc = mcast; mc->name; mc++)
-			if(!strcmp(name, mc->name))
-				mc->id = *id;
-	}
+	state = ST_SCANNING;
 }
 
-void socket_subscribe(struct netlink* nl, int id, const char* name)
+void socket_subscribe(int id, const char* name)
 {
-	int fd = nl->fd;
+	int fd = netlink;
 	int lvl = SOL_NETLINK;
 	int opt = NETLINK_ADD_MEMBERSHIP;
 	int ret;
@@ -229,118 +213,155 @@ void socket_subscribe(struct netlink* nl, int id, const char* name)
 		fail("setsockopt NETLINK_ADD_MEMBERSHIP", name, ret);
 }
 
-int resolve_80211_subscribe_scan(struct netlink* nl)
+static int find_group(struct nlattr* groups, char* name)
 {
-	struct nlpair fam = { "nl80211", -1 };
-	struct nlpair mcast[] = { { "scan", -1 }, { NULL, 0 } };
+	struct nlattr* at;
 
-	query_nl_family(nl, &fam, mcast);
+	for(at = nl_sub_0(groups); at; at = nl_sub_n(groups, at)) {
+		if(!nl_attr_is_nest(at))
+			continue;
 
-	struct nlpair* p;
+		char* gn = nl_sub_str(at, 1);
+		uint32_t* id = nl_sub_u32(at, 2);
 
-	for(p = mcast; p->name; p++)
-		if(p->id >= 0)
-			socket_subscribe(nl, p->id, p->name);
-		else
-			fail("unknown 802.11 mcast group", p->name, 0);
+		if(!gn || !id)
+			continue;
+		if(strcmp(gn, name))
+			continue;
 
-	return fam.id;
+		return *id;
+	}
+
+	return -ENOENT;
 }
 
-/* The following strongly assumes that scan results arrive after ACK
-   or ERR for NL80211_CMD_TRIGGER_SCAN. It's not clear whether there
-   are any guarantees on this.
-
-   Note NL80211_CMD_NEW_SCAN_RESULTS and NL80211_CMD_SCAN_ABORTED here
-   and *not* replies to NL80211_CMD_TRIGGER_SCAN!
-   Instead those packets are mcast notifications (seq=0) we've subscribed
-   to earlier in resolve_80211_subscribe_scan(). */
-
-void request_scan(struct netlink* nl, int nl80211, int ifindex)
+static void handle_family(struct nlgen* msg)
 {
-	struct nlgen* msg;
-	int* idx;
+	int id, ret;
 
-	nl_new_cmd(nl, nl80211, NL80211_CMD_TRIGGER_SCAN, 0);
-	nl_put_u64(nl, NL80211_ATTR_IFINDEX, ifindex);
+	uint16_t* grpid = nl_get_u16(msg, CTRL_ATTR_FAMILY_ID);
+	struct nlattr* groups = nl_get_nest(msg, CTRL_ATTR_MCAST_GROUPS);
 
-	if(nl_send_recv_ack(nl))
-		fail("NL80211_CMD_TRIGGER_SCAN", NULL, nl->err);
+	if(!grpid)
+		fail("nl80211 missing", NULL, 0);
+	if(!groups)
+		fail("no event groups", NULL, 0);
 
-	while((msg = nl_recv_genl(nl))) {
-		if(!(idx = nl_get_i32(msg, NL80211_ATTR_IFINDEX)))
-			continue;
-		if(*idx != ifindex)
-			continue;
-		if(msg->cmd == NL80211_CMD_SCAN_ABORTED)
-			fail("aborted", NULL, 0);
-		if(msg->cmd == NL80211_CMD_NEW_SCAN_RESULTS)
-			break;
-	} if(nl->err) {
-		fail("nl-recv", NULL, nl->err);
-	}
+	if((id = find_group(groups, "scan")) < 0)
+		fail("no scan group", NULL, 0);
+
+	if((ret = nl_subscribe(netlink, id)) < 0)
+		fail("cannot subscribe scan", NULL, ret);
+
+	nl80211 = *grpid;
+
+	request_scan();
 }
 
-static int query_interface(struct netlink* nl, int nl80211, char* name)
+static void request_family(void)
 {
-	struct nlgen* msg;
-	int* idx;
+	char* name = "nl80211";
 
-	int ifindex = -1;
+	nc_header(&nc, GENL_ID_CTRL, 0, 0);
+	nc_gencmd(&nc, CTRL_CMD_GETFAMILY, 1);
+	nc_put_str(&nc, CTRL_ATTR_FAMILY_NAME, name);
 
-	nl_new_cmd(nl, nl80211, NL80211_CMD_GET_INTERFACE, 0);
-	if(nl_send_dump(nl))
-		fail("nl-send", NULL, nl->err);
+	send_request();
 
-	while((msg = nl_recv_genl_multi(nl))) {
-		if(!(idx = nl_get_i32(msg, NL80211_ATTR_IFINDEX)))
-			continue;
-		if(name) {
-			char* nn = nl_get_str(msg, NL80211_ATTR_IFNAME);
-			if(!nn || strcmp(nn, name)) continue;
-			ifindex = *idx;
-			break;
-		} else if(ifindex < 0 || ifindex > *idx) {
-			ifindex = *idx;
-		}
-	} if(nl->err) {
-		fail("nl-recv", NULL, nl->err);
+	state = ST_FAMILY;
+}
+
+static void open_socket(void)
+{
+	int domain = PF_NETLINK;
+	int type = SOCK_RAW;
+	int protocol = NETLINK_GENERIC;
+	struct sockaddr_nl nls = {
+		.family = AF_NETLINK,
+		.pid = sys_getpid(),
+		.groups = 0
+	};
+	int fd, ret;
+
+	if((fd = sys_socket(domain, type, protocol)) < 0)
+		fail("socket", "NETLINK", fd);
+	if((ret = sys_bind(fd, (struct sockaddr*)&nls, sizeof(nls))) < 0)
+		fail("bind", "NETLINK", ret);
+
+	netlink = fd;
+}
+
+static void handle_genl(struct nlgen* msg)
+{
+	int cmd = msg->cmd;
+
+	if(state == ST_FAMILY) {
+		if(cmd == CTRL_CMD_NEWFAMILY)
+			return handle_family(msg);
+	} else if(state == ST_SCANNING) {
+		if(cmd == NL80211_CMD_TRIGGER_SCAN)
+			return; /* no need to handle this */
+		if(cmd == NL80211_CMD_NEW_SCAN_RESULTS)
+			return handle_scan_results();
+		if(cmd == NL80211_CMD_SCAN_ABORTED)
+			fail("scan aborted", NULL, 0);
+	} else if(state == ST_DUMPING) {
+		if(cmd == NL80211_CMD_NEW_SCAN_RESULTS)
+			return handle_scan_entry(msg);
 	}
 
-	if(ifindex < 0) {
-		if(name)
-			fail("interface not found:", name, 0);
-		else
-			fail("no interfaces to scan on", NULL, 0);
-	}
+	fail("unexpected reply", NULL, cmd);
+}
 
-	return ifindex;
+static void handle_events(void)
+{
+	int ret, fd = netlink;
+	struct nlmsg* msg;
+	struct nlerr* err;
+	struct nlgen* gen;
+recv:
+	if((ret = nr_recv(fd, &nr)) < 0)
+		fail("recv", "NETLINK", ret);
+next:
+	if(!(msg = nr_next(&nr)))
+		goto recv;
+	if((err = nl_err(msg)))
+		fail(NULL, NULL, err->errno);
+	if(msg->type == NLMSG_DONE && state == ST_DUMPING)
+		return;
+	if(!(gen = nl_gen(msg)))
+		fail(NULL, NULL, -EBADMSG);
+
+	handle_genl(gen);
+
+	goto next;
+}
+
+static void resolve_iface(char* name)
+{
+	int ret, fd = netlink;
+
+	if((ret = getifindex(fd, name)) < 0)
+		fail(NULL, name, ret);
+
+	ifindex = ret;
 }
 
 int main(int argc, char** argv)
 {
-	struct netlink nl;
-	char* ifname = NULL;
-	int ret;
-
+	if(argc < 2)
+		fail("too few arguments", NULL, 0);
 	if(argc > 2)
 		fail("too many arguments", NULL, 0);
-	if(argc == 2)
-		ifname = argv[1];
 
-	nl_init(&nl);
-	nl_set_rxbuf(&nl, rxbuf, sizeof(rxbuf));
-	nl_set_txbuf(&nl, txbuf, sizeof(txbuf));
+	nc_buf_set(&nc, txbuf, sizeof(txbuf));
+	nr_buf_set(&nr, rxbuf, sizeof(rxbuf));
 
-	if((ret = nl_connect(&nl, NETLINK_GENERIC, 0)) < 0)
-		fail("netlink connect", NULL, ret);
+	open_socket();
+	resolve_iface(argv[1]);
+	request_family();
 
-	int nl80211 = resolve_80211_subscribe_scan(&nl);
-	int ifindex = query_interface(&nl, nl80211, ifname);
-
-	request_scan(&nl, nl80211, ifindex);
-
-	request_ssid_list(&nl, nl80211, ifindex);
+	handle_events();
 
 	return 0;
 }
