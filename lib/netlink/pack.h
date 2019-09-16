@@ -30,6 +30,6 @@ int nn_recv(int fd, void* buf, int len);
 struct nlattr* nc_put_nest(struct ncbuf* nc, uint16_t type);
 void nc_end_nest(struct ncbuf* nc, struct nlattr* at);
 
-struct nlmsg* nc_message(struct ncbuf* nc);
+struct nlmsg* nc_msg(struct ncbuf* nc);
 
 int nl_subscribe(int fd, int id);
