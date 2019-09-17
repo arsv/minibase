@@ -43,10 +43,10 @@ Components currently included in the package:
   * simple non-graphical greeter (ctrlvt).
 
   * network interface monitor (ifmon)
-  * DHCP client (dhcp)
+  * DHCP client (dhconf)
   * Wi-Fi client and connection manager (wsupp) [WPA2-PSK only]
   * manual interface setup tools (ip4cfg, ip4info) [incomplete]
-  - no sntpd yet.
+  * time synchronization (SNTP) service (timed)
 
   * simple interactive shell (cmd).
   * basic command line tools (cat, ls, du, df etc).
