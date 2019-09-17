@@ -96,7 +96,7 @@ void close_netlink(void)
 	pollset = 0;
 	nlseq = 0;
 
-	// nr_reset
+	nr_reset(&nr);
 
 	ifindex = 0;
 }
