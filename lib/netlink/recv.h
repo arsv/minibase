@@ -31,6 +31,7 @@ int nl_recv(int fd, void* buf, int len);
 void nr_buf_set(struct nrbuf* nr, void* buf, unsigned len);
 int nr_recv(int fd, struct nrbuf* nr);
 struct nlmsg* nr_next(struct nrbuf* nr);
+void nr_reset(struct nrbuf* nr);
 
 /* Late (post-bind) subscription for event groups. Does a single ioctl
    on the netlink socket. GENL event group ids are dynamic, are require
