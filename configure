@@ -36,7 +36,6 @@ while [ $# -gt 0 ]; do
 		STRIP)  setkey strip ;;
 		cflags) appval cflags; unset optim ;;
 		CFLAGS) appval cflags; unset optim ;;
-		clang)  clang=yes ;;
 		devel)  append cflags "-Wall -g -DDEVEL"; unset optim ;;
 		debug)  append cflags "-Wall -g" ;;
 		wextra) append cflags "-Wextra" ;;
@@ -57,14 +56,10 @@ test -z "$ar" && ar="${cross}ar"
 test -z "$strip" && strip="${cross}strip"
 
 case "$cc" in
-	*clang*) clang=yes ;;
+	*clang*) die "clang is not supported" ;;
 esac
 
-if [ -n "$clang" -a -z "$cc" ]; then
-	cc="clang${target:+ --target=$target}"
-elif [ -z "$cc" ]; then
-	cc="${cross}gcc"
-fi
+test -z "$cc" && cc="${cross}gcc"
 
 if [ -z "$arch" ]; then
 	mach=`$cc -dumpmachine`
@@ -83,7 +78,7 @@ if [ -z "$arch" ]; then
 fi
 
 # Default meaning of qemu=something is to use qemu-something,
-# however if it's qemu=/path/to/qemu-blah than use that unchanged.
+# however if it's qemu=/path/to/qemu-blah then use that unchanged.
 if [ -z "$qemu" ]; then
 	host=`uname -m`
 	if [ "$host" = "$mach" ]; then
@@ -145,17 +140,6 @@ END
 # and it would do so even if given -ffreestanding -static. This is not
 # acceptable for minibase, so the code below tries to force non-PIE mode.
 
-if [ -n "$clang" ]; then
-cat >> mini-cc <<END
-exec $cc -ffreestanding \\
-        -fno-asynchronous-unwind-tables -fno-stack-protector -fno-vectorize \\
-	-static -nopie -fno-pic -fno-plt $lto \\
-	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib -MD \\
-	-Wno-unused-command-line-argument -Wno-gnu \\
-	$cflags "\$@" \\
-	-nostdlib \${needslib:+\$base/lib/all.a}
-END
-else
 cat >> mini-cc <<END
 exec $cc -ffreestanding -fomit-frame-pointer \\
 	-fno-asynchronous-unwind-tables -fno-stack-protector \\
@@ -164,7 +148,6 @@ exec $cc -ffreestanding -fomit-frame-pointer \\
 	$cflags "\$@" \\
 	-nostdlib -Wl,-\\( \${needslib:+\$base/lib/all.a -lgcc} -Wl,-\\)
 END
-fi
 
 chmod a+x mini-cc
 
