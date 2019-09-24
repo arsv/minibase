@@ -7,7 +7,7 @@ int main(int argc, char** argv)
 	char** p;
 
 	for(p = envp; *p; p++)
-		tracef("[%li] %s\n", p - envp, *p);
+		tracef("[%i] %s\n", (int)(p - envp), *p);
 
 	return 0;
 }
