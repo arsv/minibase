@@ -182,7 +182,7 @@ static const struct cmd {
 	{ "symbols",   dump_symbols        },
 	{ "src",       dump_sources        },
 	{ "sources",   dump_sources        },
-	{ "prog",      dump_program_header },
+	{ "seg",       dump_program_header },
 	{ "program",   dump_program_header },
 	{ "ld",        dump_program_interp },
 	{ "interp",    dump_program_interp },
