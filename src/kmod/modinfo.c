@@ -380,7 +380,7 @@ static int looks_like_file(char* name)
 
 int main(int argc, char** argv)
 {
-	int opts, i = 1;
+	int opts = 0, i = 1;
 	struct top context, *ctx = &context;
 	char* module;
 
