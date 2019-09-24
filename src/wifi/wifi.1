@@ -6,11 +6,9 @@
 .SH SYNOPSIS
 .IP "\fBwifi\fR" 4
 Show current status.
-.IP "\fBwifi bss\fR" 4
-Show status, including BSSIDs for all APs.
 .IP "\fBwifi scan\fR" 4
 Scan for available access points.
-.IP "\fBwifi connect\fR [\fIssid\fR]" 4
+.IP "\fBwifi connect\fR [\fIssid\fR]" (also \fBap\fR) 4
 Connect to named AP.
 .IP "\fBwifi disconnect\fR (also \fBdc\fR)" 4
 Disconnect from current AP, but keep the service running.
@@ -24,13 +22,12 @@ Stop using configured device, switch into idle mode.
 Resume operations on an interface that was down.
 '''
 .SH USAGE
-When connection to a new AP for the first time, \fBwifi\fR will
-ask for passphrase. If the connection is successful, the PSK will
-be saved and subsequent commands will not ask anything.
+When connection to a new AP for the first time, \fBwifi\fR will ask for
+passphrase. If the connection is successful, the PSK will be saved and
+subsequent commands will not ask anything.
 '''
 .SH NOTES
-Most of the work happens in \fBwsupp\fR(8), this is merely a client
-tool.
+Most of the work happens in \fBwsupp\fR(8), this is merely a client tool.
 '''
 .SH SEE ALSO
 \fBwsupp\fR(8).

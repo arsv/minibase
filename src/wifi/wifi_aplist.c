@@ -176,12 +176,8 @@ static void print_scanline(CTX, AT)
 	p = fmtint(p, e, (signal)/100);
 	p = fmtstr(p, e, " ");
 	p = fmtpad(p, e, 4, fmt_chan_or_freq(p, e, freq));
-
-	if(ctx->showbss) {
-		p = fmtstr(p, e, "  ");
-		p = fmtmac(p, e, bssid);
-	}
-
+	p = fmtstr(p, e, "  ");
+	p = fmtmac(p, e, bssid);
 	p = fmtstr(p, e, "  ");
 	p = fmt_ies_line(p, e, ies, ctx);
 

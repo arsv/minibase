@@ -218,12 +218,6 @@ static void cmd_status(CTX)
 	dump_status(ctx, msg);
 }
 
-static void cmd_bss(CTX)
-{
-	ctx->showbss = 1;
-	cmd_status(ctx);
-}
-
 static void cmd_neutral(CTX)
 {
 	struct ucmsg* msg;
@@ -568,7 +562,6 @@ static const struct cmdrec {
 	{ "resume",     cmd_resume  },
 	{ "saved",      cmd_saved   },
 	{ "forget",     cmd_forget  },
-	{ "bss",        cmd_bss     }
 };
 
 static void dispatch(CTX, char* name)
