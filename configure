@@ -1,6 +1,6 @@
 #!/bin/sh
 
-unset arch cross target cc ar strip tp lto cflags
+unset arch cross target cc ar strip tp lto cflags uselds
 
 commanddir=/sbin
 servicedir=/sbin/service
@@ -9,6 +9,8 @@ systemdir=/sbin/system
 man1dir=/sman/man1
 man5dir=/sman/man5
 man8dir=/sman/man8
+
+uselds=yes
 
 die() { echo "$@" >&2; exit 1; }
 accept() { eval "$key=\$val"; unset val; }
@@ -43,6 +45,7 @@ while [ $# -gt 0 ]; do
 		lto)    lto="-flto " ;;
 		qemu)   accept ;;
 		only) shift; only="$@"; break ;;
+		nolds) unset uselds ;;
 		*) die "Unexpected argument $key" ;;
 	esac; shift
 
@@ -134,20 +137,40 @@ for _ in "\$@"; do
 	esac
 done
 
-END
-
-# GCC may be configured to produce PIEs without explicit -pie options,
-# and it would do so even if given -ffreestanding -static. This is not
-# acceptable for minibase, so the code below tries to force non-PIE mode.
-
-cat >> mini-cc <<END
-exec $cc -ffreestanding -fomit-frame-pointer \\
+set $cc -ffreestanding -fomit-frame-pointer \\
 	-fno-asynchronous-unwind-tables -fno-stack-protector \\
 	-static -fno-pie -fno-PIE -fno-pic -fno-PIC $lto \\
 	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib -MD \\
-	$cflags "\$@" \\
-	-nostdlib -Wl,-\\( \${needslib:+\$base/lib/all.a -lgcc} -Wl,-\\)
+	$cflags "\$@"
+
 END
+# ^above: GCC may be configured to produce PIEs without explicit -pie options,
+# and it would do so even if given -ffreestanding -static. This is not
+# acceptable for minibase, so the code below tries to force non-PIE mode.
+
+# Below: use custom linker script if available, otherwise link with lib/all.a
+# and libgcc.a; note it must be a linker group because reasons.
+
+ldscript="lib/arch/$arch/static.ld"
+
+if [ -n "$uselds" -a -f "$ldscript" ]; then
+cat >> mini-cc <<END
+test -n "\$needslib" && \
+	set "\$@" -nostdlib \\
+		-Wl,-\\( \$base/lib/all.a -lgcc -Wl,-\\) \\
+		-T \$base/$ldscript
+
+exec "\$@"
+END
+else
+cat >> mini-cc <<END
+test -n "\$needslib" && \
+	set "\$@" -nostdlib \\
+		-Wl,-\\( \$base/lib/all.a -lgcc -Wl,-\\)
+
+exec "\$@"
+END
+fi
 
 chmod a+x mini-cc
 
