@@ -313,7 +313,7 @@ void remove_psk_entry(CTX)
 
 void list_saved_psks(CTX)
 {
-	struct config cfg;
+	struct config* cfg = &ctx->cfg;
 	struct saved* sv;
 
 	char out[1024];
@@ -326,10 +326,10 @@ void list_saved_psks(CTX)
 
 	read_config(ctx);
 
-	if(!cfg.buf || !cfg.len)
+	if(!cfg->buf || !cfg->len)
 		fail("no saved PSKs", NULL, 0);
 
-	for(sv = first(&cfg); sv; sv = next(&cfg, sv)) {
+	for(sv = first(cfg); sv; sv = next(cfg, sv)) {
 		FMTBUF(p, e, buf, 100);
 		p = fmt_ssid(p, e, sv->ssid, sv->slen);
 		FMTENL(p, e);
