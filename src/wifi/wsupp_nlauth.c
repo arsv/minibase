@@ -74,8 +74,8 @@
    until we get CONNECT notification. Before that, it's racy.
    We handle this the same way mainline wpa_supplicant does, namely
    but not attepting to disconnect AUTHENTICATEd or ASSOCIATEd
-   connections. Instead, we handle catch EALREADY from AUTHENTICATE,
-   try to disconnect, and the repeat the AUTHENTICATE command again.
+   connections. Instead, if we catch -EALREADY from AUTHENTICATE,
+   we try to disconnect, and then repeat AUTHENTICATE command again.
 
    This AUTH-DISCONNECT-AUTH is handled by the state machine here,
    but timed externally by the apsel code (which handles all timing

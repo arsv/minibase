@@ -15,20 +15,29 @@
 #include "wsupp.h"
 #include "wsupp_netlink.h"
 
-/* Netlink is used to control the card: run scans, initiate connections
-   and so on. Netlink code is event-driven, and comprises of two effectively
-   independent command streams, one for scanning and one for connection,
-   each driving its own state machine. Most wifi cards can often scan and
-   connect at the same time.
+/* Netlink is used to communicate with the kernel driver for the card.
+   The supplicant sends commands (start start, start connection) and waits
+   for events coming from the driver (lost connection, scan done and so on).
 
-   All important NL commands have delayed effects, so we do not request ACKs
-   and instead react to incoming events. */
+   There are effectively two independent streams of commands/events here,
+   one for scans and one for connection commands. Incoming events get
+   routed here to the module that handles them depending on event type.
+
+   NL commands are not ACK-ed; card control commands have delayed effects,
+   which get reported as events. For both auth and scan, we send command and
+   then wait for completion events.
+
+   We do however care a lot about command errors. To match incoming nlerr
+   message to the modules that needs them, we save seq numbers in authseq
+   and scanseq respectively, and use those to tell which module should handle
+   the failure. In GENL, nlerr does not carry the command itself, so seq is
+   the only way to identify incoming errors */
 
 char txbuf[512];
 char rxbuf[8*1024];
 
 int netlink; /* file descriptor */
-uint nlseq;
+uint nlseq; /* common seq counter for both streams */
 
 struct nrbuf nr;
 struct ncbuf nc;
@@ -41,8 +50,9 @@ void setup_netlink(void)
 
 /* Subscribing to nl80211 only becomes possible after nl80211 kernel
    module gets loaded and initialized, which may happen after wsupp
-   starts. To mend this, netlink socket is opened and initialized
-   as a part of device setup. */
+   starts. We open netlink socket late, as a part of device setup,
+   and close it when detaching from device. This trick also simplifies
+   nlinit a lot, allowing to do it synchronously. */
 
 int open_netlink(int ifi)
 {

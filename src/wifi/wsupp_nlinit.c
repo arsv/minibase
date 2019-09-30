@@ -11,6 +11,22 @@
 #include "wsupp.h"
 #include "wsupp_netlink.h"
 
+/* The code here runs on a fresh NL socket right after it's been created.
+   It does essentially the following:
+
+	* query nl80211 family and group ids
+	* query wireless interface
+	* query driver capabilities
+	* subscribe to event groups
+
+   The first two are request-response exchanges over NL, but unlike the
+   actual wifi stuff, they are very fast because we are querying the kernel
+   and not the device. Because of that, and because the socket is fresh and
+   we know it won't have any events until we subscribe to those, we can run
+   the queries synchronously, simplifying the code a lot. Once we're done,
+   we subscribe to the events and past that point, all incoming messages go
+   through handle_netlink(). */
+
 int ifindex;
 char ifname[32];
 byte ifaddr[6];
@@ -58,6 +74,9 @@ static int send_recv(int fd, struct nlgen** out)
 
 	return 0;
 }
+
+/* GENL family and event group IDs are dynamic. We have to query them
+   by sending a command to pre-defined family GENL_ID_CTRL. Yikes. */
 
 static int find_group(struct nlattr* groups, char* name)
 {
@@ -114,6 +133,10 @@ static int query_family(int fd, char* name, struct nlpair* grps, int ngrps)
 	return *grpid;
 }
 
+/* Interface query. We need to make sure the ifindex we got is valid
+   and refers to a nl80211 device. This is also how we get our MAC for
+   the EAPOL negotiations later. */
+
 static int query_iface(int fd, int ifi)
 {
 	struct nlgen* msg;
@@ -142,6 +165,10 @@ static int query_iface(int fd, int ifi)
 
 	return 0;
 }
+
+/* Driver capabilities query. We need to know whether the driver uses
+   separate AUTHENTICATE/ASSOCIATE commands, or it's a straight CONNECT.
+   See comments in wsupp_nlauth.c on why it's important. */
 
 static int query_wiphy(int fd, int ifi)
 {
@@ -178,6 +205,10 @@ static int query_wiphy(int fd, int ifi)
 
 	return 0;
 }
+
+/* Note we must delay event subscription until after we're done with
+   synchronous commands! Subscribing earlier means a chance of stray
+   events getting in the way. */
 
 int init_netlink(int fd, int ifi)
 {
