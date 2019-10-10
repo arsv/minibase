@@ -6,6 +6,7 @@
 
 #include <format.h>
 #include <string.h>
+#include <memoff.h>
 #include <output.h>
 #include <util.h>
 #include <main.h>

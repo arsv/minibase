@@ -4,6 +4,7 @@
 
 #include <string.h>
 #include <format.h>
+#include <memoff.h>
 #include <time.h>
 #include <util.h>
 #include <main.h>

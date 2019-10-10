@@ -1,4 +1,5 @@
 #include <endian.h>
+#include <memoff.h>
 #include <string.h>
 
 #include "common.h"

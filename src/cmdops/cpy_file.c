@@ -6,6 +6,7 @@
 #include <sys/splice.h>
 
 #include <format.h>
+#include <memoff.h>
 #include <string.h>
 #include <util.h>
 

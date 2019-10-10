@@ -3,6 +3,7 @@
 #include <sys/inotify.h>
 
 #include <string.h>
+#include <memoff.h>
 #include <util.h>
 #include <main.h>
 

@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include <format.h>
+#include <memoff.h>
 #include <util.h>
 #include <time.h>
 #include <main.h>
