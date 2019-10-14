@@ -234,6 +234,9 @@ static struct saved* find_entry(CTX)
 	struct config* cfg = &ctx->cfg;
 	struct saved* sv;
 
+	if(!ctx->slen)
+		return NULL;
+
 	for(sv = first(cfg); sv; sv = next(cfg, sv))
 		if(!memcmp(ctx->ssid, sv->ssid, 32))
 			return sv;
