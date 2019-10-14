@@ -423,10 +423,10 @@ static void wait_for_connect(CTX)
 				break;
 			case REP_WI_NO_CONNECT:
 				if(failures > 1)
-					fail("no more APs in range", NULL, 0);
+					warn("no more APs in range", NULL, 0);
 				else if(!failures)
-					fail("no suitable APs", NULL, 0);
-				return;
+					warn("no suitable APs", NULL, 0);
+				_exit(0xFF);
 		}
 	}
 }
