@@ -3,6 +3,6 @@
 echo "+++ mode-lan $1 enter"
 
 ./ifctl $1 auto-dhcp
-sleep 2
+sleep 1
 
 echo "+++ mode-lan $1 leave"

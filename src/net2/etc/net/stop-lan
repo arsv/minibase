@@ -2,6 +2,6 @@
 
 echo "+++ stop-lan $1 enter"
 
-sleep 2
+sleep 1
 
 echo "+++ stop-lan $1 leave"
