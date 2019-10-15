@@ -273,8 +273,7 @@ static void print_network_line(CTX, MSG)
 			p = fmt_chan_and_freq(p, e, *freq);
 		}
 	} else if(ssid) {
-		p = fmtstr(p, e, "Network ");
-		p = fmtstr(p, e, " ");
+		p = fmtstr(p, e, "Searching for SSID ");
 		p = fmt_ssid(p, e, uc_payload(ssid), uc_paylen(ssid));
 	} else {
 		return;
