@@ -12,6 +12,7 @@
 #include <netlink/rtnl/mgrp.h>
 
 #include <string.h>
+#include <printf.h>
 #include <util.h>
 
 #include "ifmon.h"
@@ -195,8 +196,10 @@ static void msg_del_link(CTX, struct ifinfomsg* msg)
 	if((ls = find_link_slot(ctx, ifi)))
 		return;
 
-	if(ls->flags & LF_RUNNING)
+	if(ls->flags & LF_RUNNING) {
+		tracef("killing %i\n", ls->pid);
 		sys_kill(ls->pid, SIGTERM);
+	}
 
 	free_link_slot(ctx, ls);
 }

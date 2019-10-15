@@ -31,11 +31,6 @@ int update_link_name(CTX, LS)
 	return 0;
 }
 
-int get_running(LS)
-{
-	return (ls->flags & LS_MASK);
-}
-
 void sighup_running_dhcp(LS)
 {
 	int flags = ls->flags;
@@ -48,11 +43,10 @@ void sighup_running_dhcp(LS)
 	sys_kill(ls->pid, SIGHUP);
 }
 
-void clear_link_mode(CTX, LS)
+static void clear_link_mode(CTX, LS)
 {
 	memzero(ls->mode, sizeof(ls->mode));
 	ls->flags &= ~LF_CARRIER;
-	ls->pid = 0;
 }
 
 static int spawn(CTX, LS, char* path)
@@ -192,8 +186,6 @@ void spawn_poke(CTX, LS)
 static void script_exit(CTX, LS, int status)
 {
 	int what = ls->flags & LS_MASK;
-
-	ls->flags &= ~LF_RUNNING;
 
 	if(what == LS_MODE)
 		report_mode_exit(ctx, ls, status);

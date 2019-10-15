@@ -270,7 +270,13 @@ static void req_identify(CTX)
 	if(!mode[0])
 		return;
 
-	set_active_mode(ctx, mode);
+	uc_put_hdr(UC, CMD_IF_IDMODE);
+	uc_put_int(UC, ATTR_IFI, ctx->ifi);
+	uc_put_str(UC, ATTR_NAME, ctx->name);
+	uc_put_str(UC, ATTR_MODE, mode);
+	uc_put_end(UC);
+
+	send_check(ctx);
 }
 
 static void check_no_active(CTX, char* mode)

@@ -131,6 +131,45 @@ static int cmd_status(CTX, CN, MSG)
 	return send_reply(cn, &uc);
 }
 
+static int set_mode(CTX, CN, MSG, LS)
+{
+	char* mode;
+
+	if(!(mode = uc_get_str(msg, ATTR_MODE)))
+		return -EINVAL;
+
+	uint mlen = strlen(mode);
+
+	if(!mlen || mlen > sizeof(ls->mode))
+		return -EINVAL;
+
+	memzero(ls->mode, sizeof(ls->mode));
+	memcpy(ls->mode, mode, mlen);
+
+	ls->flags &= ~LF_FAILED;
+	ls->flags |= LF_NEED_MODE | LF_MARKED;
+
+	cn->ifi = ls->ifi;
+
+	return 0;
+}
+
+static int cmd_idmode(CTX, CN, MSG)
+{
+	struct link* ls;
+	int* pi;
+
+	if(!(pi = uc_get_int(msg, ATTR_IFI)))
+		return -EINVAL;
+	if(!(ls = find_link_slot(ctx, *pi)))
+		return -ENODEV;
+
+	if((ls->flags & LS_MASK) != LS_IDEF)
+		return -EBUSY;
+
+	return set_mode(ctx, cn, msg, ls);
+}
+
 static int cmd_mode(CTX, CN, MSG)
 {
 	struct link* ls;
@@ -141,24 +180,15 @@ static int cmd_mode(CTX, CN, MSG)
 		return -EINVAL;
 	if(!(mode = uc_get_str(msg, ATTR_MODE)))
 		return -EINVAL;
-
-	uint mlen = strlen(mode);
-
-	if(!mlen || mlen > sizeof(ls->mode))
-		return -EINVAL;
 	if(!(ls = find_link_slot(ctx, *pi)))
 		return -ENODEV;
+
 	if(ls->mode[0])
 		return -EBUSY;
+	if(ls->flags & LF_RUNNING)
+		return -EBUSY;
 
-	memzero(ls->mode, sizeof(ls->mode));
-	memcpy(ls->mode, mode, mlen);
-
-	ls->flags &= ~LF_FAILED;
-	ls->flags |= LF_NEED_MODE | LF_MARKED;
-	cn->ifi = ls->ifi;
-
-	return 0;
+	return set_mode(ctx, cn, msg, ls);
 }
 
 static int cmd_stop(CTX, CN, MSG)
@@ -202,7 +232,7 @@ static int cmd_kill(CTX, CN, MSG)
 
 	int ret;
 
-	if((ls->flags & LF_RUNNING) <= 0)
+	if(!(ls->flags & LF_RUNNING))
 		return -ECHILD;
 	if((ret = sys_kill(ls->pid, SIGTERM)) < 0)
 		return ret;
@@ -289,6 +319,7 @@ static const struct cmd {
 	int (*call)(CTX, CN, MSG);
 } commands[] = {
 	{ CMD_IF_STATUS,    cmd_status    },
+	{ CMD_IF_IDMODE,    cmd_idmode    },
 	{ CMD_IF_MODE,      cmd_mode      },
 	{ CMD_IF_DROP,      cmd_drop      },
 	{ CMD_IF_STOP,      cmd_stop      },
