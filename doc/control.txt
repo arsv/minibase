@@ -1,0 +1,246 @@
+Runtime control for long-running services
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This project employs a set common conventions for all of its controllable
+services, with few minor variations. Upon startup, the service named foosrv
+creates (binds) a unix domain socket (AF_UNIX)
+
+	/run/ctrl/foosrv
+
+and listens for incoming connections. A matching control tool, fooctl, is
+meant to be used as an interactive command. When invoked, fooctl connects
+to the socket, sends commands, receives replies, waits for events etc and
+then exits.
+
+Client connections are supposed to be short. The client is only there to
+request and observe service state changes. Since the client tool is supposed
+to be used by the (singular) human user, there should be at most about one
+instance running at any given time. To allow for some error recovery, most
+services do accept several control connections at a time, but tend to have
+a pretty low limit on the number of active connections.
+
+
+File system interaction
+~~~~~~~~~~~~~~~~~~~~~~~
+It is up to the system to ensure /run/ctrl exists and is a directory.
+Typically this means `mkdir /run/ctrl` somewhere in early system startup
+scripts, probably shortly after mounting /run as a tmpfs.
+
+Individual services will abort if bind() fails, for instance because the
+socket in question already exists. This is done mostly because that's how
+syscalls work, but it also helps preventing dual instances of the same
+service running at the same time. The socket dirent is used as a lock to
+prevent the second invocation.
+
+Whenever possible, the services attempt to unlink their socket on exit
+to allow themselves to be restarted. It may so happen however that a service
+dies without clearing the socket up (think SIGKILL or SIGSEGV), in which
+case it won't be able to restart. There is no handling for such cases in
+this project. If the unbound socket remains in the system after the service
+dies, it has to be removed to let the service restart.
+
+See "Sticky sockets" below for some discussion of a proper fix to this issue.
+
+
+Security and permissions
+~~~~~~~~~~~~~~~~~~~~~~~~
+File system permissions fully control the access to the sockets. In most
+cases, there are no further check on the service side; if the client can
+connect() to a socket, it can run any commands on that socket.
+
+Setting socket permissions is tricky since socket nodes are temporary and
+cannot be handled like regular files. There are two workaround for this:
+set permissions for the directory (/run/ctrl) instead; or use `sockmod`
+to set them dynamically when the socket appears.
+
+# Note this project is written with a particular setup in mind that
+# only requires a dedicated wheel group.
+
+Directory permissions fit well with setups that use some dedicated group
+id to grant control over the system (`wheel` group or similar), so that
+this group can access the sockets and everyone else should not be able to.
+For more intricate setups, use `sockmod` instead.
+
+
+Functional (non-control) sockets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Some services are expected to provide some IPC for other processes in
+the system, not just the privileged wheel group, as a part of their normal
+operations (think for instance host name resolution service). Sockets for
+this kind of IPC are created in /run directly, not in /run/ctrl:
+
+	/run/resolved
+
+These functional sockets in general will follow different conventions,
+like for instance allowing large number of concurrent connections, and
+may use different protocols for communication. 
+
+The services that provide functional sockets may also provide control sockets
+if necessary:
+
+	/run/resolved        <-- functional
+	/run/ctrl/resolved   <-- control
+
+In this example, /run/resolved is available for all processes in the system,
+and allows the clients to perform name resolution only, while the control
+socket requires privileged access and allows to reconfigure the resolver
+(set DNS forwarders and so on).
+
+
+Per-command permissions
+~~~~~~~~~~~~~~~~~~~~~~~
+The default assumption regarding control sockets is that anyone who can
+connect() can run all the commands there. There is no generic way to restrict
+particular commands.
+
+The service may require credentials to be passed as a part of its control
+protocol, and do something based on those, but so far it does not look like
+this trick will be used for permissions check.
+
+
+Sticky sockets
+~~~~~~~~~~~~~~
+This is a proposal for a kernel change that would make the scheme described
+above simpler and more reliable. Also, this is the reason for not attempting
+userspace workarounds.
+
+Linux already allows creating sockets with mknod, even though the resulting
+FS nodes are completely useless. The idea is to make them useful, in a way
+that won't break existing code too much.
+
+Let's call a local socket with the sticky bit set a "sticky socket".
+This combination is meaningless and should never happen with conventional
+use of local sockets, so we can assign pretty much semantics to it.
+
+Trying to bind() a sticky socket should
+	* fail with EBUSY if it is already bound by another process
+	* fail with EPERM unless the calling process owns the socket
+	  (euid = uid of the socket), or it has CAP_CHOWN
+	* succeed otherwise
+
+With sticky sockets, permission setup becomes simple and straightforward:
+
+	mknod /run/ctrl/wsupp s
+	chgrp wifi /run/ctrl/wsupp
+	...
+	exec wimon
+
+The service only needs to know the name of the socket to bind.
+All passwd/group parsing code remains in chown where it belong.
+
+
+Wire protocol for control sockets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The common protocol several long-running services in minibase use for their
+control sockets is a simplified version of generic netlink (GENL) protocol.
+
+The parties exchange messages over a stream connection.
+Each message consists of a header optionally followed by attributes:
+
+    +-----------+
+    |  length   |   <-- header         Attributes:
+    |  command  |                                      +-----+-----+
+    +-----+-----+                     +-----+-----+    | len | key |
+    | len | key |   <-- attribute     | len | key |    +-----+-----+
+    +-----+-----+                     +-----+-----+    | some _nul |
+    | value.... |                     | 3322 1100 |    | l_te rmin |
+    | ......    |                     +-----+-----+    | ated stri |
+    +-----+-----+                       0x00112233     | ng\0      | <--+
+    | len | key |   <-- attribute                      +-----------+    |
+    +-----+-----+                     +-----+-----+                     |
+    | value..   |                     | len | key |    +-----+-----+    |
+    +-----+-----+                     +-----+-----+    | len | key |    |
+    | len | key |   <-- attribute     | 7766 5544 |    +-----+-----+    |
+    +-----+-----+                     | 3322 1100 |    | 0F45 A8B3 |    |
+    | value.... |                     +-----+-----+    | 1379      | <--+
+    | ......... |                       0x0011..77     +-----+-----+    |
+    +-----+-----+                                         raw MAC       |
+                                                                        |
+    <- 4 bytes ->                                       padded to 4 bytes
+
+
+All integers are host-endian. Lengths are in bytes and include respective
+headers. All attributes start at 4 byte boundary within the message.
+
+Attribute length is the (unpadded) length of the payload. For strings,
+length includes terminating \0. Message length is always a multiple of 4
+and includes trailing padding if necessary.
+
+Attributes may be nested -- the payload of the enclosing attribute is then
+a sequence of attributes just like the message payload.
+
+
+Communication is assumed to be synchronous (request-reply). The service
+replies with .command == 0 on success, .command = (-errno) < 0 on failure.
+There is exactly one reply for each request. It is assumed that the client
+knows what kind of reply to expect for each request issued.
+
+(Provisional: replies with .command > 0 are notifications not caused by client
+requests. Pulling notifications out of the stream should leave a proper request
+reply sequence. It is up to the service to decide whether to use them, and how.
+Clients that do not expect notifications should treat them as protocol errors.)
+
+Commands are service-specific. Negative values are expected to be system-wide
+errno(3) codes. Error messages may include attributes.
+
+Attribute keys are service-specific. The service defines which keys should be
+used for each command. Current implementation silently ignores unexpected keys.
+The same key may be used several times within the same payload if both parties
+are known to expect this. If multiple uses of the key are not expected,
+the first attribute with the key is used and the rest get silently ignored.
+
+Integer payloads shorter than 4 bytes should be extended to 4 bytes for
+transmission.
+
+
+Differences between nlusctl and GENL
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+nlusctl only runs over point-to-point connections. Netlink (RTNL and GENL)
+apparently have some support for ethernet-like point-to-net communication,
+which would explain .pid field in the request.
+
+nlusctl does not support asynchronous communication modes. So no .seq and
+no ACK or REQUEST flags.
+
+There are no multi-part replies in nlusctl. The client is always expected to
+be able to receive the whole message in a reasonable amount of time, and the
+service may drop the connection if it takes too long.
+In GENL, multipart messages relax this assumption, allowing a sort of iterator
+within the kernel to be queried one item at a time.
+
+In GENL, DUMP flags affect the meaning of the .cmd field.
+In nlusctl, distinct values of the .command field are used for this purpose.
+
+GENL commands have .version field, nlusctl is expected to use distinct .cmd
+values -- if it is going to be needed at all.
+
+Combining all that, nlusctl drops most of the fields found in GENL headers,
+and removes distinction between struct nlmsg/nlgen/nlerr. This was one of the
+biggest reasons to choose a custom protocol over GENL.
+
+
+GENL and nlusctl use different encoding for lists of similar items within
+the same payload. GENL, because of the very weird way they parse the messages
+within the kernel, must use a nested attribute with 0, 1, 2, ... keys:
+
+	[ ATTR_SOMETHING,
+		[ 0, value ],
+		[ 1, value ],
+		[ 2, value ] ]
+
+In contrast, nlusctl uses top-level multi-keys for this purpose:
+
+	[ ATTR_SOMETHING, value ],
+	[ ATTR_SOMETHING, value ],
+	[ ATTR_SOMETHING, value ]
+
+The trick GENL uses needs an extra header and breaks key => type-of-payload
+relation since the enumeration keys may happen to match (and often do match)
+unrelated ATTR_* constants.
+
+Otherwise the format of the attributes is the same in GENL, RTNL and nlusct.
+This was done intentionally to share as much parsing code as possible.
+
+
+Library support
+~~~~~~~~~~~~~~~
+See ../lib/nlusctl.h and ../lib/nlusctl/

@@ -1,5 +1,5 @@
-Overview
-~~~~~~~~
+The role of disk encryption
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Disk encryption passphrase replaces traditional login prompt in minibase.
 The system boots (by whatever means) the kernel and initrd with the early
 userspace, which then
@@ -14,10 +14,14 @@ of the device. No additional attempts to authenticate the user are made,
 except maybe for lightweight pin-like prompts when entering high-risk
 zones (root session / admin panel) or waking the device from sleep mode.
 
+This way, the password prompt does actually provide some protection for
+the stored data, instead of being a pointless hurdle for the legitimate
+user. See also login.txt.
+
 
 Design and threat model
 ~~~~~~~~~~~~~~~~~~~~~~~
-Bulk data on all system disks is encrypted with AES-XTS with high-entropy
+Bulk data on all system disks is encrypted with XTS-AES with high-entropy
 keys (DEKs), one per partition. NIST key wrap with a passphrase-derived
 key (KEK) is used to protect the DEKs. Wrapped DEKs, along with the kernel
 and the tools needed to unwrap and install them, are stored in initrd.
@@ -59,7 +63,7 @@ as in, that is not something bulk disk encryption should bother with.
 
 T1 is mostly about OS and hardware security. All we can do is assume that
 the OS is correct, is not compromised and is in control of the hardware.
-This assumption is very problematic, but cannot be deal with at the level
+This assumption is very problematic, but cannot be dealt with at the level
 of OS-based disk encryption. B2 paired with reasonably tamper-proof firmware
 provides some protection against evil maid attacks, but that's about it.
 
@@ -76,7 +80,7 @@ The point of hand-crank boot is to reduce T2 to either T5 or T3 in most cases.
 If wrapped DEKs are kept separate from the encrypted data, it is much more
 likely that the attackers will get either of them but not both. T2 proper may
 happen with B1 setup (DEKs stored on the device) or in case the attackers 
-manage to get a hold on both the device and the hand-crank. If either happens,
+manage to get a hold on both the device and the boot media. If either happens,
 the security of the bulk data is reduced to that of the passphrase-derived KEK.
 
 For any scenario that allows an attack on the KEK, such attack will likely be
@@ -88,7 +92,7 @@ not resolve it completely.
 The danger of T3 attacks is that they may disclose some patterns in the way
 the person chooses the passphrases, effectively reducing their already low
 entropy. That and the fact that T3 may be upgraded to T2 by getting a hold
-on the device later. Hand-cranks (SD or USB) are expected to be small and easy
+on the device later. Boot media (SD or USB) are expected to be small and easy
 to lose, and by necessity carry device identification data on them.
 
 
@@ -141,11 +145,11 @@ of T0, and that all while they still have PBKDF2 as the only choice for KDF
 and DEKs stored in a way that makes KEK their only protection.
 
 
-Mitigating the consequences of losing a hand-crank
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Mitigating the consequences of a lost boot media
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The default IV in NIST key wrap covers all 8 bytes, ensuring very low
 false-positive risk if the expected value is there after unwrapping it.
-This means T3 is doable for any attacker who gets the hand-crank alone,
+This means T3 is doable for any attacker who gets the boot media alone,
 without the bulk data.
 
 It would be really good to make it so that the success of unwrapping
@@ -168,10 +172,10 @@ matching IV to conceal the original passphrase if N is high enough to be of
 any use for detecting typos.
 
 
-Another issue with hand-cranks is the possibility of disclosing device
+Another issue with boot media is the possibility of disclosing device
 IDs used to locate the partitions to decrypt/mount (WWN, CID, whatever).
 This one is easy to address by storing HMACs instead of plaintext IDs,
 at the expense of making the mount tab file somewhat unreadable.
 
 It is not clear whether the risk and chances of leaking these IDs are
-large enought to bother.
+large enough to bother.

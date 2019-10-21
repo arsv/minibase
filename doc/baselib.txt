@@ -1,0 +1,116 @@
+Quick introduction to the base library
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This project comes with a custom bundled C library and does not rely on
+an external one like most userspace C projects do. It builds more like
+the Linux kernel than like say GNU coreutils or even busybox, using
+a freestanding compiler.  All library functions used in the project are
+provided by the project.
+
+
+A major feature of the base library is the way it deals with syscalls:
+
+	if((fd = sys_open(name, flags)) < 0)
+		/* fd is negative error code, e.g. -ENOENT */
+	else
+		/* fd is a valid descriptor */
+
+Syscall names are prefixed with sys_, unlike in POSIX, so there is a clear
+distinction between syscalls and library functions. Syscall code is inlined,
+that sys_open above is not a function call. There is no global errno, the
+calls return error code on failure.
+
+The library does (almost) no wrapping for syscalls. Whatever the kernel
+interface and semantics for the call is, it's the same in the userspace.
+E.g. sys_ppoll does update its timestamp argument.
+
+
+
+What is struct top* ctx?
+~~~~~~~~~~~~~~~~~~~~~~~~
+Global variables declared the usual way force at least a page to be allocated
+for .bss segment, even though the total size of the variables may be way less
+than a whole page. To avoid wasting a whole page, the variables get moved to
+the stack. There's always at least one dirty page of stack so no loss happens.
+
+Busybox has struct G which is exactly the same thing.
+
+POSIX libc applications cannot drop .bss completely because of errno (and other
+accidentally linked global stuff). In this project, it is possible, and quite
+a lot of smaller tools have no .bss/.data segments.
+
+Unlike .bss/.data, the stuff in the stack cannot be addressed statically.
+The workaround is to pass the pointer to every single function that uses
+them:
+
+	struct top {
+		int foo;
+	};
+
+	void do_blah(struct top* ctx, ...)
+	{
+		ctx->foo++;
+	}
+
+	int main(...) {
+		struct top context = { ... }, *ctx = &context;
+
+		do_blah(ctx, ...);
+
+		...
+	}
+
+This way, first-argument register holds the base address and all globals
+are accesses via offsets to that address. The base address is not known
+at link time but once set early in main(), it does not change.
+
+
+Extended syscalls
+~~~~~~~~~~~~~~~~~
+There are several groups of "syscall extensions" in Linux when a newly
+introduced syscall supersedes an older one, like so:
+
+	sys_open(fd, name, mode) = sys_openat(AT_FDCWD, fd, name, mode)
+
+Pretty much al at-file syscalls operate like that.
+
+In a lot of cases, the code using them looks better with the original calls.
+
+The preferred approach taken in this project is define older syscalls
+as macros over the newer ones. Even though there is NR_open, sys_open()
+calls NR_openat with at=AT_FDCWD to emulate the behavior of the original
+call.
+
+Rationale: on the kernel side of things, using newer NR-s seems to be the
+preferred approach, to the point they are willing to make older NR-s defines
+conditional in the headers. There are no real downsides to doing this either,
+except maybe for strace not spelling the exact syscalls used.
+
+
+Handling signals
+~~~~~~~~~~~~~~~~
+The way signal handlers work in Linux is weird. It seems to be designed around
+some compatibility issues (POSIX sigaction perhaps?) and makes little sense out
+of that context. Normally it is all heavily wrapped by a POSIX libc, and most
+users aren't even aware of the issue. In this project, wrappers are much
+thinner, so more of this stuff is visible.
+
+Signal handlers are not really functions. They cannot return, instead they are
+supposed to call sys_sigreturn() to restore process context and continue
+with the regular program flow. Linux sys_sigaction however is designed to use
+regular functions as signal handlers.
+
+	struct sigaction sa = {
+		.handler = sighandler,
+		.flags = SA_RESTORER | ...,
+		.restorer = sigrestorer
+	}
+
+With this setup, sighandler is allowed to return, and the return address is
+sigrestorer, which has to be a chunk of assembly invoking NR_sigreturn.
+
+Pretty much none of this is ever relevant in the code that uses signals.
+The library defines a macro, SIGHANDLER, to create this structure and fill
+the .restorer field so that the .handler would work as expected.
+
+# Note this another case of extended syscalls, the actual syscalls used are
+# NR_rt_sigaction and NR_rt_sigreturn respectively.
