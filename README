@@ -115,10 +115,13 @@ into small executables.
 
 Contributing
 ~~~~~~~~~~~~
+THIS IS NOT A COMMUNITY PROJECT. DO NOT SEND PATCHES OR PULL REQUESTS.
+
 Do not send patches for minibase itself. Doing so will likely only slow
 the project down. If there's a bug to be fixed, or a tool that you think
-should be in minibase, open an issue. The ability to scrap and re-design
-certain tools unimpeded is way too important for the project at this stage.
+should be in minibase, or a target to support, open an issue. The ability
+to scrap and re-design certain tools unimpeded is way too important for
+the project at this stage.
 
 Not every tool is worth including in mini-BASE. Just like in any other
 case, it is perfectly ok to have dedicated repos and dedicated packages
