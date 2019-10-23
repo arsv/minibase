@@ -499,15 +499,20 @@ static void process_module(CTX, struct mod* md)
 
 	if((name = get_info_entry(ctx, mod, "name"))) {
 		check_name_stem_match(ctx, md, name);
+		dump_module_aliases(ctx, mod, name);
 	} else {
 		int len = md->slen;
-		char buf[len + 1];
-		memcpy(buf, md->path + md->dlen + 1, len);
-		buf[len] = '\0';
-		name = buf;
-	}
+		char* ptr = md->path + md->dlen + 1;
 
-	dump_module_aliases(ctx, mod, name);
+		FMTBUF(p, e, base, 200);
+		p = fmtstrn(p, e, ptr, len);
+		FMTEND(p, e);
+
+		if(len >= 200)
+			warn(NULL, base, -ENAMETOOLONG);
+		else
+			dump_module_aliases(ctx, mod, base);
+	}
 }
 
 static struct mod* find_indexed_module(CTX, char* name, uint nlen)
