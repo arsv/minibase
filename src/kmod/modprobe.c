@@ -4,7 +4,6 @@
 
 #include <string.h>
 #include <format.h>
-#include <printf.h>
 #include <util.h>
 #include <dirs.h>
 #include <main.h>
@@ -364,8 +363,6 @@ static char* match_alias(char* ls, char* le, char* name)
 		p++; /* skip trailing * matching nothing */
 	if(*n || p >= e || !isspace(*p))
 		return NULL;
-	while(p < e && isspace(*p))
-		p++;
 
 	return p;
 }
@@ -631,19 +628,11 @@ static int insert_dependencies(CTX, char* deps, char* dend)
 	return 0;
 }
 
-static void insert(CTX, char* name, char* pars)
+static void insert_named(CTX, char* name, char* pars)
 {
 	struct line ln;
 
 	ctx->nmatching++;
-
-	if(query_alias(ctx, &ln, name) >= 0) {
-		long len = ln.end - ln.val;
-		char alias[len+1];
-		memcpy(alias, ln.sep, len);
-		alias[len] = '\0';
-		name = alias;
-	}
 
 	if(blacklisted(ctx, name))
 		return;
@@ -666,6 +655,20 @@ static void insert(CTX, char* name, char* pars)
 		return;
 
 	ctx->ninserted++;
+}
+
+static void insert(CTX, char* name, char* pars)
+{
+	struct line ln;
+
+	if(query_alias(ctx, &ln, name) < 0)
+		return insert_named(ctx, name, pars);
+
+	FMTBUF(p, e, real, 256);
+	p = fmtstrn(p, e, ln.val, ln.end - ln.val);
+	FMTEND(p, e);
+
+	return insert_named(ctx, real, pars);
 }
 
 static void insert_one(CTX)
