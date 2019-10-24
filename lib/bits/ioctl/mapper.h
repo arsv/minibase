@@ -30,6 +30,7 @@
 /* dm_ioctl.flags */
 #define DM_READONLY_FLAG              (1<<0)
 #define DM_SUSPEND_FLAG               (1<<1)
+#define DM_EXISTS_FLAG                (1<<2)
 #define DM_PERSISTENT_DEV_FLAG        (1<<3)
 #define DM_STATUS_TABLE_FLAG          (1<<4)
 #define DM_ACTIVE_PRESENT_FLAG        (1<<5)
