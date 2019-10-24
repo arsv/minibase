@@ -100,13 +100,6 @@ static char* fmt_repeat(char* p, char* e, char* str, int n)
 	return p;
 }
 
-static char* fmt_clear_screen(char* p, char* e)
-{
-	p = fmt_move(p, e, 1, 1);
-	p = fmtstr(p, e, CSI "J");
-	return p;
-}
-
 static char* fmt_park_cursor(char* p, char* e, CTX)
 {
 	return fmt_move(p, e, ctx->rows, 1);
@@ -248,21 +241,42 @@ static void refresh_screen(CTX)
 	output(buf, p);
 }
 
-static void clear_input_box(CTX)
+static char* fmt_scroll_area(char* p, char* e, int fr, int to)
 {
-	int r = ctx->inrow - 3;
-	int c = ctx->incol - 5;
-	int w = ctx->inlen + 10;
+	p = fmtstr(p, e, CSI);
+	p = fmtint(p, e, fr);
+	p = fmtstr(p, e, ";");
+	p = fmtint(p, e, to);
+	p = fmtstr(p, e, "r");
 
-	FMTBUF(p, e, buf, 1024);
+	return p;
+}
 
-	for(int i = 0; i < 7; i++) {
-		p = fmt_move(p, e, r++, c);
-		p = fmt_repeat(p, e, " ", w);
-	}
+static void clear_screen_init(CTX)
+{
+	int srf = ctx->inrow + 3;
+	int srt = ctx->rows;
 
+	FMTBUF(p, e, buf, 256);
+	p = fmtstr(p, e, CSI "2J");
+	p = fmtstr(p, e, CSI "?25l");
+	p = fmt_scroll_area(p, e, srf, srt);
 	p = fmt_park_cursor(p, e, ctx);
+	FMTEND(p, e);
 
+	output(buf, p);
+}
+
+static void clear_screen_fini(CTX)
+{
+	int srf = 1;
+	int srt = ctx->rows;
+
+	FMTBUF(p, e, buf, 256);
+	p = fmtstr(p, e, CSI "2J");
+	p = fmtstr(p, e, CSI "?25h");
+	p = fmt_scroll_area(p, e, srf, srt);
+	p = fmt_park_cursor(p, e, ctx);
 	FMTEND(p, e);
 
 	output(buf, p);
@@ -272,7 +286,7 @@ void start_terminal(CTX)
 {
 	apply_termio_flags(ctx);
 	update_term_size(ctx);
-	clear_input_box(ctx);
+	clear_screen_init(ctx);
 	refresh_screen(ctx);
 }
 
@@ -378,7 +392,7 @@ static void set_timer(CTX, int sec)
 
 static void terminate_input(CTX)
 {
-	clear_input_box(ctx);
+	clear_screen_fini(ctx);
 	reset_termio_flags(ctx);
 }
 
@@ -494,7 +508,8 @@ void handle_sigwinch(CTX)
 	update_term_size(ctx);
 
 	FMTBUF(p, e, buf, 1024);
-	p = fmt_clear_screen(p, e);
+	p = fmt_move(p, e, 1, 1);
+	p = fmtstr(p, e, CSI "J");
 	p = fmt_draw_dialog(p, e, ctx);
 	p = fmt_park_cursor(p, e, ctx);
 	FMTEND(p, e);
