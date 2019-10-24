@@ -64,7 +64,7 @@ static void parse_part_labels(CTX, int argc, char** argv)
 	for(i = 2; i < argc; i++) {
 		char* arg = argv[i];
 
-		if(arg[0] == '-' && arg[1]) {
+		if(arg[0] == '-' && !arg[1]) {
 			ki++;
 			continue;
 		}
@@ -77,9 +77,9 @@ static void parse_part_labels(CTX, int argc, char** argv)
 			arg = sep + 1;
 			ki = itemp - 1;
 		}
-		if(ki >= NUMKEYS)
+		if(ki > NUMKEYS)
 			fail("key index out of range:", arg, 0);
-		if(n >= NUMKEYS)
+		if(n > NUMKEYS)
 			fail("too many partitions", NULL, 0);
 
 		struct part* pt = &ctx->parts[n++];
@@ -107,6 +107,8 @@ static void stat_part_node(CTX, struct part* pt)
 		fail(NULL, path, ret);
 	if((ret = sys_ioctl(fd, BLKGETSIZE64, &pt->size)))
 		fail("ioctl BLKGETSIZE64", path, ret);
+
+	pt->rdev = st.rdev;
 }
 
 static void validate_parts(CTX)
@@ -131,8 +133,6 @@ static void setup_args(CTX, int argc, char** argv)
 	parse_part_labels(ctx, argc, argv);
 
 	load_key_data(ctx, argv[1]);
-
-	return;
 
 	validate_parts(ctx);
 }
