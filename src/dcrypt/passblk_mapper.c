@@ -151,6 +151,27 @@ static void dm_crypt(CTX, struct part* pt)
 	dm_single(ctx, pt, "crypt", buf);
 }
 
+static void dm_resume(CTX, struct part* pt)
+{
+	char* name = pt->label;
+	int nlen = strlen(name);
+	int ret;
+
+	struct dm_ioctl dmi = {
+		.version = { DM_VERSION_MAJOR, 0, 0 },
+		.flags = DM_EXISTS_FLAG,
+		.data_size = sizeof(dmi)
+	};
+
+	if(nlen > sizeof(dmi.name) - 1)
+		fail(NULL, name, -ENAMETOOLONG);
+
+	putstr(dmi.name, name, nlen);
+
+	if((ret = sys_ioctl(ctx->mapfd, DM_DEV_SUSPEND, &dmi)) < 0)
+		fail("ioctl DM_DEV_SUSPEND", name, ret);
+}
+
 static void redo_symlink(CTX, struct part* pt)
 {
 	int ret;
@@ -180,6 +201,7 @@ void decrypt_parts(CTX)
 
 		dm_create(ctx, pt);
 		dm_crypt(ctx, pt);
+		dm_resume(ctx, pt);
 
 		redo_symlink(ctx, pt);
 	}
