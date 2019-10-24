@@ -144,9 +144,9 @@ static char* fmt_color_reset(char* p, char* e)
 static char* fmt_box_top(char* p, char* e, CTX, int r, int c, int w)
 {
 	p = fmt_move(p, e, r, c);
-	p = fmtstr(p, e, "┏");
-	p = fmt_repeat(p, e, "━", w);
-	p = fmtstr(p, e, "┓");
+	p = fmtstr(p, e, "┌");
+	p = fmt_repeat(p, e, "─", w);
+	p = fmtstr(p, e, "┐");
 
 	return p;
 }
@@ -154,9 +154,9 @@ static char* fmt_box_top(char* p, char* e, CTX, int r, int c, int w)
 static char* fmt_box_pad(char* p, char* e, CTX, int r, int c, int w)
 {
 	p = fmt_move(p, e, r, c);
-	p = fmtstr(p, e, "┃");
+	p = fmtstr(p, e, "│");
 	p = fmt_repeat(p, e, " ", w);
-	p = fmtstr(p, e, "┃");
+	p = fmtstr(p, e, "│");
 
 	return p;
 }
@@ -164,9 +164,9 @@ static char* fmt_box_pad(char* p, char* e, CTX, int r, int c, int w)
 static char* fmt_box_bot(char* p, char* e, CTX, int r, int c, int w)
 {
 	p = fmt_move(p, e, r, c);
-	p = fmtstr(p, e, "┗");
-	p = fmt_repeat(p, e, "━", w);
-	p = fmtstr(p, e, "┛");
+	p = fmtstr(p, e, "└");
+	p = fmt_repeat(p, e, "─", w);
+	p = fmtstr(p, e, "┘");
 
 	return p;
 }
