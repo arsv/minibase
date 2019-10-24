@@ -25,10 +25,9 @@
    when umount -a makes sense, and handling -a requires lots of code
    not used in any other umount modes (reading mountinfo etc.) */
 
-#define OPTS "phr"
+#define OPTS "ph"
 #define OPT_p (1<<0)	/* poweroff */
 #define OPT_h (1<<1)	/* halt */
-#define OPT_r (1<<2)	/* reboot */
 
 ERRTAG("reboot");
 ERRLIST(NEPERM NENOENT NEBADF NEFAULT NELOOP NENOMEM NENOTDIR NEOVERFLOW
@@ -206,37 +205,6 @@ static void umountall(void)
 		if(!done[i]) umount2(mps[i]);
 }
 
-static void sleep(int sec)
-{
-	struct timespec ts = { sec, 0 };
-
-	sys_nanosleep(&ts, NULL);
-}
-
-static void warn_pause(void)
-{
-	FMTBUF(p, e, buf, 50);
-
-	p = fmtstr(p, e, "\rRebooting in ");
-	char* q = p;
-
-	sys_write(STDOUT, "\n", 1);
-
-	for(int i = 10; i > 0; i--) {
-		p = fmtint(q, e, i);
-		p = fmtstr(p, e, " second");
-		if(i > 1) p = fmtstr(p, e, "s");
-		p = fmtstr(p, e, "...\033[K");
-
-		sys_write(STDOUT, buf, p - buf);
-
-		sleep(1);
-	}
-
-	char* final = "\r\033[K";
-	sys_write(STDOUT, final, strlen(final));
-}
-
 static noreturn void wait_child(int pid)
 {
 	int ret, status;
@@ -262,13 +230,9 @@ int main(int argc, char** argv)
 		mode = RB_POWER_OFF;
 	else if(opts == OPT_h)
 		mode = RB_HALT_SYSTEM;
-	else if(opts == OPT_r)
-		mode = RB_AUTOBOOT;
 	else if(opts)
-		fail("cannot use -phr together", NULL, 0);
-	else warn_pause();
-
-	warn("proceeding to sync and umount", NULL, 0);
+		fail("cannot use -ph together", NULL, 0);
+	else mode = RB_AUTOBOOT;
 
 	if((ret = sys_sync()) < 0)
 		warn("sync", NULL, ret);
