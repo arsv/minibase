@@ -50,7 +50,7 @@ void expect_large(CTX)
 	int rxlen = 1024;
 	void* rxbuf = heap_alloc(ctx, rxlen);
 
-	ur_buf_set(&ctx->ur, rxbuf, sizeof(rxbuf));
+	ur_buf_set(&ctx->ur, rxbuf, rxlen);
 }
 
 static void extend_urbuf(CTX)

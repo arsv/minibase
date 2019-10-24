@@ -231,18 +231,18 @@ int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
 	memzero(&context, sizeof(context));
-	cmdptr cmd;
+	cmdptr handler;
 
 	init_args(ctx, argc, argv);
 
 	if(argc > 1)
-		cmd = resolve(shift_arg(ctx));
+		handler = resolve(shift_arg(ctx));
 	else
-		cmd = cmd_list;
+		handler = cmd_list;
 
 	init_socket(ctx);
 
-	cmd(ctx);
+	handler(ctx);
 
 	flush_output(ctx);
 
