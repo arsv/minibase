@@ -97,8 +97,8 @@ Most tools can be run right from their source directories.
 Just how small exactly?
 ~~~~~~~~~~~~~~~~~~~~~~~
 The largest individual executable so far is `wsupp`, the WPA supplicant.
-Statically linked for x86_64, it's about 34 KiB in size. Realistically
-it also needs `dhcp` (18 KiB) to work, and the client tool `wifi` (12 KiB).
+Statically linked for x86_64, it's about 25 KiB in size. Realistically
+it also needs `dhconf` (12 KiB) to work, and the client tool `wifi` (16 KiB).
 
 `msh` is about 16 KiB. `cmd` (interactive shell) is about 18 KiB.
 `svhub` (pid 1 for the majority of system's uptime) is about 10 KiB.
@@ -115,27 +115,13 @@ into small executables.
 
 Contributing
 ~~~~~~~~~~~~
-THIS IS NOT A COMMUNITY PROJECT. DO NOT SEND PATCHES OR PULL REQUESTS.
+This is not a community project. Do not send patches or pull requests.
 
-Do not send patches for minibase itself. Doing so will likely only slow
-the project down. If there's a bug to be fixed, or a tool that you think
-should be in minibase, or a target to support, open an issue. The ability
-to scrap and re-design certain tools unimpeded is way too important for
-the project at this stage.
+If there's a bug to be fixed, or a tool that you think should be in minibase,
+or a target to support, open an issue.
 
-Not every tool is worth including in mini-BASE. Just like in any other
-case, it is perfectly ok to have dedicated repos and dedicated packages
-for some tools, especially if different developers are involved.
+This will probably change around 1.0 release but not earlier.
 
-The best way to actually contribute to the project is to write something
-that would fit well alongside minibase in a running system. In most cases,
-it likely won't even be tied to minibase, and would work just well in runit
-or s6 or even systemd based installation.
-
-Area of particular interest: lightweight GUI desktop components.
-Something to run atop of X or Wayland once minibase gets you there.
-This includes both the primary desktop and things like a nice GUI greeter
-to replace `ctrlvt` which is really only a stub.
 
 
 Licensing
