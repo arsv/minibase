@@ -5,22 +5,22 @@ which means that during system operations, several distinct executables
 run as pid 1, exec'ing sequentially into each other. Typical chain of pid 1
 executables looks like this:
 
-	/linuxrc              # msh script
+	initrd /linuxrc              # msh script
 	 |
 	 v
-	switchroot
+	initrd switchroot
 	 |
 	 v
-	/etc/boot/start       # msh script
+	rootfs /etc/boot/start       # msh script
 	 |
 	 v
-	svhub
+	rootfs svhub
 	 |
 	 v
-	/etc/boot/reboot      # msh script
+	rootfs /etc/boot/reboot      # msh script
 	 |
 	 v
-	reboot
+	rootfs reboot
 
 Startup and shutdown stages (everything above and below svhub) are for the most
 part strictly sequential, doing one thing at a time. When it gets to svhub,
@@ -212,7 +212,7 @@ Use a simple, easily-mountable, possibly read-only filesystem (on a separate
 device if necessary) to hold the base OS, spawn userspace managers as regular
 services, and do not depend on them being available during startup.
 
-if dedicated simple rootfs is out of question, it is up to the system builder
+If dedicated simple rootfs is out of question, it is up to the system builder
 to figure out how to boot the system in a reliable manner. This will likely
 require writing a number of rather tricky tools.
 
@@ -296,7 +296,7 @@ Shutdown sequence
 ~~~~~~~~~~~~~~~~~
 svhub normally does not exit on its own (and neither should the services it
 runs). It can be commanded to exit, in which case it kills all its children,
-waits for them to dies, and execs into one of the shutdown scripts depending
+waits for them to die, and execs into one of the shutdown scripts depending
 on which command it's gotten:
 
     /etc/boot/reboot
