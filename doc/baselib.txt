@@ -21,7 +21,7 @@ calls return error code on failure.
 
 The library does (almost) no wrapping for syscalls. Whatever the kernel
 interface and semantics for the call is, it's the same in the userspace.
-E.g. sys_ppoll does update its timestamp argument.
+For instance, sys_ppoll does update its timestamp argument.
 
 
 
@@ -112,5 +112,101 @@ Pretty much none of this is ever relevant in the code that uses signals.
 The library defines a macro, SIGHANDLER, to create this structure and fill
 the .restorer field so that the .handler would work as expected.
 
-# Note this another case of extended syscalls, the actual syscalls used are
-# NR_rt_sigaction and NR_rt_sigreturn respectively.
+# Note this is another case of extended syscalls, the actual syscalls used
+# are NR_rt_sigaction and NR_rt_sigreturn respectively.
+
+
+Memory allocation
+~~~~~~~~~~~~~~~~~
+There are no universal malloc/free in the base library. None of the library
+functions rely on being able to allocate arbitrary amounts of memory either.
+Memory management is always left to the application.
+
+Whenever necessary, library functions expect to be provided with pre-allocated
+memory space to work with.
+
+The way applications from this project manage memory varies. Some have
+constant memory footprint. Some use heap (via sys_brk) in data-stack mode,
+without conventional free(). Some use sys_mmap for large buffers.
+
+
+Formatted output
+~~~~~~~~~~~~~~~~
+There is no general-purpose printf in the library. The problem with printf
+is that it's a runtime interpreter, which means the compiler does not know
+which sequences have been used and has to compile support for all of them.
+Even if that wasn't an issue, removing stuff from printf is not an easy task,
+not something a compiler or linker can do. This all really doesn't bode well
+with the whole small and static idea.
+
+So instead, the library has a set of explicit formatting functions that work
+like this:
+
+	char buf[N];
+
+	char* p = buf; /* current pointer, initially at the start of buf */
+	char* e = buf + sizeof(buf) - 1; /* end of buffer, 1 char to spare */
+
+	p = fmtstr(p, e, "Some number: ");
+	p = fmtint(p, e, 123);
+
+	*p = '\0'; /* terminate the string using the spare char */
+
+All fmt* functions advance p, so that it always points to remaining space in
+buf, while also ensuring p <= e.
+
+The linker can then easily pick only the functions used, making sure there's
+no dead formatting code in the executable, like it would be with printf. And
+this scheme also make it very easy to write application-specific formatters,
+something that's very difficult with printf.
+
+# Why (p, e) tuple instead of a struct? It actually makes code simpler.
+# The first argument and the return value share registers on all supported
+# targets, so fmt* effectively mutate the first arg register in place.
+#
+# The second pointer, e, could be left in place as well across several fmt*
+# calls, but the language is not expressive enough to describe it.
+
+Formatting is always done into a buffer of fixed size, similar to snprintf.
+There are no corresponding stream-printing functions similar to printf proper
+or fprintf. Buffered output, whenever necessary, is always explicit.
+
+Note there is a simple printf implementation defined in printf.h, but it is
+only meant to be used for printf debugging. Check the comments there on its
+limitations.
+
+
+Error reporting
+~~~~~~~~~~~~~~~
+Almost all cases where errors are reported to the user in this project are
+handled by the following two functions:
+
+	warn(msg, arg, ret);
+	fail(msg, arg, ret);
+
+The first one just prints the message, the second one also does _exit(-1).
+
+The message printed is always "tag: msg arg: err", but if msg or arg are NULL
+or ret is 0 relevant parts are skipped, resulting in "tag: msg: err" etc.
+This may sound extremely limiting compared to say BSDish err() family, but
+actually turns out fine.
+
+The last argument is the negative error from syscall:
+
+	if((ret = sys_foo(blah)) < 0)
+		fail("foo", blah, ret);
+
+Error codes are reported as literally "ENOENT", "EINVAL" in cases where
+convential libc would use "No such file or directory", "Invalid argument"
+respectively. Any error code that has no corresponding string in the list
+gets reported as a raw integer (e.g. -111), the user may look it up later
+using `errno` tool.
+
+The idea behind this setup is to only have the strings for the set of codes
+that syscalls used in a particular application may actually return. Linux
+defines a lot of error codes, but the vast majority of syscalls only return
+a handful. Linking the rest in would result in dead data.
+
+ERRTAG and ERRLIST macros define the static data needed for warn and fail,
+namely the leading tag and the list of "ENOENT" etc strings. These should
+always be in the same file with main().
