@@ -24,7 +24,6 @@ interface and semantics for the call is, it's the same in the userspace.
 For instance, sys_ppoll does update its timestamp argument.
 
 
-
 What is struct top* ctx?
 ~~~~~~~~~~~~~~~~~~~~~~~~
 Global variables declared the usual way force at least a page to be allocated
@@ -32,7 +31,7 @@ for .bss segment, even though the total size of the variables may be way less
 than a whole page. To avoid wasting a whole page, the variables get moved to
 the stack. There's always at least one dirty page of stack so no loss happens.
 
-Busybox has struct G which is exactly the same thing.
+Busybox has `struct G` which is exactly the same thing.
 
 POSIX libc applications cannot drop .bss completely because of errno (and other
 accidentally linked global stuff). In this project, it is possible, and quite
@@ -86,6 +85,19 @@ conditional in the headers. There are no real downsides to doing this either,
 except maybe for strace not spelling the exact syscalls used.
 
 
+Prototype for main()
+~~~~~~~~~~~~~~~~~~~~
+The entry trampoline `_start.s` only supplies argc and argv to the C code:
+
+	int main(int argc, char** argv);
+
+There is no envp there. If needed, it can be derived like this:
+
+	char** envp = argv + argc + 1;
+
+It's rarely used and easy to do in C. No point in doing it in assembly.
+
+
 Handling signals
 ~~~~~~~~~~~~~~~~
 The way signal handlers work in Linux is weird. It seems to be designed around
@@ -118,7 +130,7 @@ the .restorer field so that the .handler would work as expected.
 
 Memory allocation
 ~~~~~~~~~~~~~~~~~
-There are no universal malloc/free in the base library. None of the library
+There is no universal malloc/free in the base library. None of the library
 functions rely on being able to allocate arbitrary amounts of memory either.
 Memory management is always left to the application.
 
@@ -202,11 +214,11 @@ respectively. Any error code that has no corresponding string in the list
 gets reported as a raw integer (e.g. -111), the user may look it up later
 using `errno` tool.
 
-The idea behind this setup is to only have the strings for the set of codes
-that syscalls used in a particular application may actually return. Linux
-defines a lot of error codes, but the vast majority of syscalls only return
-a handful. Linking the rest in would result in dead data.
+This setup allows executables to link only the strings for the set of codes
+that syscalls the application uses can actually return. Linux defines a lot
+of error codes, but the vast majority of syscalls only return a handful.
+Linking the rest in would result in dead data.
 
 ERRTAG and ERRLIST macros define the static data needed for warn and fail,
-namely the leading tag and the list of "ENOENT" etc strings. These should
-always be in the same file with main().
+namely the leading tag and the list of error strings. These should always
+be in the same file with main().
