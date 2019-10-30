@@ -87,11 +87,20 @@ For a proper build, run
 To try the tools without setting up a VM, configure and build
 the project in development mode:
 
-    make clean
     ./configure devel
     make
 
 Most tools can be run right from their source directories.
+
+Run `make clean` when switching between devel and regular build
+to force the objects to be rebuilt with the new compiler flags.
+
+To build only the tools from a particular directory:
+
+    make -C src/wifi
+    make -C src/wifi install
+
+This should be run after configure.
 
 
 Just how small exactly?
@@ -121,7 +130,6 @@ If there's a bug to be fixed, or a tool that you think should be in minibase,
 or a target to support, open an issue.
 
 This will probably change around 1.0 release but not earlier.
-
 
 
 Licensing
