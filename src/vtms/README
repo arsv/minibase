@@ -1,26 +1,246 @@
-Virtual terminal multiplexer (vtmux) spawns VT-grabbing clients,
-provides them with access to KMS/input devices, and allows the user
-to switch between VTs.
+Virtual Terminal MUltipleXer allows running several processes willing to
+access /dev/input devices and/or become KMS masters concurrently by proxying
+their access to those devices, and multiplexing data streams in order to
+implement conventional VT switching.
 
-Since VT-grabbing clients are usually user sessions, vtmux also
-indirectly deals with user logins. Within systemd the equivalent
-tool is called "logind".
+Or in other words, vtmux is needed to run one wayland compositor on tty1,
+another one on tty2, and a regular text mode console on tty3, Xorg on tty4,
+and still have C-A-Fn VT switching work as expected.
 
-Viewed another way, vtmux is a multi-client version of weston-launch.
+On the basic level, vtmux is a special-purpose supervisor that spawns
+top-level VC/DRM clients (Xorg, Wayland compositors and so on). In a properly
+configured system, vtmux should be the only process with non-mediated access
+to DRM/input devices. Any Xorg server, Wayland compositors and so on must
+be running under vtmux.
 
-See ../../doc/vtmux.txt for more detailed description,
-and ../../doc/login.txt on how it fits within the planned
-user session management infrastructure.
+
+Historical background
+~~~~~~~~~~~~~~~~~~~~~
+Long time ago, Linux had a singular unitary "console" provided by BIOS,
+which had text output and keyboard input, aka a TTY. It was a part of the
+PC platform Linux was running on. Linux had a notion of virtual consoles,
+multiple emulated TTYs implemented atop of this BIOS-provided one.
+C-A-Fn keys were used to switch between the emulated TTYs, making one of
+them active.
+
+Fast forward to current year. Lots of things have changed. Linux does not
+rely on BIOS anymore, in fact it runs on platforms that do not and never
+had anything resembling BIOS. Linux now has input subsystem, which provides
+input devices (plural; often 10 to 20 of them in a single PC), some of which
+may be keyboards. Linux also has the DRM, the Direct Rendering Manager,
+which manages graphical output devices (plural), which in turn can have
+multiple hot-pluggable connectors (plural) for actual monitors to be
+attached to. There is no inherent relation between the input subsystem
+and the DRM. No notion of a singular TTY. No "monitor+keyboard" abstraction,
+but a bunch of mutually unrelated keyboards and monitors.
+
+Yet users still expect C-A-Fn to work the same way it did with BIOS.
+
+To make it kinda sorta work, Linux includes a kernel-mode terminal emulator
+to replace the missing BIOS code, and a bunch of awful, awful interfaces to
+switch (multiplex) arbitrary set of input and output devices between several
+applications running simultaneously, so that the whole contraption could
+work in a way that resembles the old BIOS virtual console switching.
 
 
+Mode of operation
+~~~~~~~~~~~~~~~~~
+With respect to DRM and input devices, the kernel only defines the interface
+to switch them, not the policy. It is up to the userspace to define which
+clients get access to which devices, and how the switch happens.
 
-Test-running vtmux is only possible on a dedicated box with some
-sort of remote command access (ssh etc). Make sure no other process
-(logind) is trying to manage the VTs. There are sample scripts in ./etc,
-adjust them to match the host configuration. Current version of vtmux
-should run just fine right out of the ssh session.
+The policy implemented in this particular tools is this: at most one DRM
+client can be active at a time; the active DRM client is given access to
+(and assumed to actually use) all of DRM and input devices.
 
-Naturally vtmux can only run as root.
+This policy is simple to implement, and good enough for instance to try
+a new Wayland compositor while keeping the primary Xorg session running
+in background, or to let the user check several DEs by simply switching
+between them with C-A-Fn. It may also fit certain use cases where
+complete focus switch is desirable, like for instance doing work on one
+tty and keeping entertainment in another.
 
-Use ./unlock to re-enable kernel controlled VT switching in case
-vtmux stops working and leaves VT switching locked.
+There is no explicit support for splitting devices between several DRM
+clients, like for instance having Xorg on one monitor and Wayland on another
+monitor active at the same time. Doing that would require either a dedicated
+tool similar to but still distinct from vtmux, or some creative use of Linux
+containers, with several copies of vtmux running in each of them.
+
+
+Configuration
+~~~~~~~~~~~~~
+Clients are "pinned" to a particular console. When a switch is requested
+to say tty2, and the client is not running yet, vtmux attempts to spawn
+
+	/etc/vtmux/tty2
+
+Each C-A-Fn maps to a particular process to spawn.
+There is also tty0 which is the greeter, see below.
+
+Spawned clients gets their fds 0,1,2 redirected to /dev/ttyN and fd 3
+is the control channel to vtmux, used to request access to DRM and input
+devices. See ../../doc/wlauch.txt for protocol description.
+
+On startup, vtmux initiates switch to a given tty, starting the client
+there.
+
+There is no key binding configuration in vtmux, it does not listen to
+keyboard events, and it disabled in-kernel handling for C-A-Fn combos
+(see below on VT_LOCKSWITCH). Another process, like `keymon` from ../keys,
+should handle keyboard events and call `vtctl` to initiate VT switch.
+
+
+Technical background
+~~~~~~~~~~~~~~~~~~~~
+Linux is not very well suited for proxying device access in userspace.
+A process cannot listen(2) on a device node and accept(2) connections.
+Even if it were possible (think FUSE), multiple context switches would
+occur exactly where they should not: in latency-sensitive input code,
+and potentially very fast frame-flipping code.
+
+Instead, the client processes get actual open device fds and communicate
+directly with the kernel.
+
+Opening a device file from userspace makes the kernel allocate its internal
+file-block structure. Re-opening the same device allocates another block, but
+dup(2)ing a fd does not: the copy of the descriptor references the same shared
+file-block structure, even if the fds end up in different processes.
+Passing a fd through a unix domain socket is equivalent to duping it.
+
+Both DRI and input devices have dedicated ioctls to "disable" the file-block
+structure. Disabled inputs never become ready for reading and read nothing.
+Disabled DRIs do not allow any output (kind of, see below on mastering).
+
+The ioctls can be performed via any of the fds referring to the block, as long
+as the calling process has enough privileges to do so. The block becomes
+disabled for *all* fds referring to it. Disabling one block does not affect
+other blocks referring to the same device.
+
+Upon client request, vtmux opens the device and sends the fd over the socket.
+The client gets a copy of the fd and uses it for device access. Vtmux keeps
+its copy and uses it to disable the underlying file-block whenever the client
+becomes inactive.
+
+
+Notes on DRI masters
+~~~~~~~~~~~~~~~~~~~~
+DRI devices (/dev/dri/cardN) handle both benign ops like GPU-accelerated
+rendering to off-sreen buffers and privileged ops like modesetting (KMS),
+video output configuration, frame buffer allocation, frame flipping.
+
+Any process willing to use GPU must be able to open /dev/dri/cardN.
+Only display servers should be able to do modesetting, and only one at a time.
+And display servers are not supposed to have root privileges.
+
+So the devices files themselves are not protected, and can be opened by almost
+anyone. For each DRI device, at most one file-block at a time may be designated
+a "master". Privileged ops may only be performed on a fd referring to
+the master block. The process performing them does not need any additional
+privileges, only a fd referring to the master block.
+
+Setting or removing master status from a block requires root privileges and
+a fd referring to the block. Multiplexer revokes master from inactive clients,
+and sets it for client on the active VT. The clients themselves cannot change
+their master status, but can do master-only ioctl when they are active.
+
+Clients may get the master status suddenly revoked from underneath them and
+must be ready to deal with unexpected EAGAINs from privileged ioctls.
+VT switches are usually signalled, but signal delivery is inherently racy.
+
+Clients that get the master status suddenly bestowed upon them must be prepared
+to re-initialize the device, or at least check its configuration.
+
+
+Input device revocation
+~~~~~~~~~~~~~~~~~~~~~~~
+There is no such thing as input mastering. Inputs are single-purpose and
+should not be readable for non-privileged processes.
+
+Unlike DRIs, disabled input devices cannot be re-enabled. The reasons for this
+are not clear at all. The clients are supposed to re-open all inputs each time
+their VT becomes active.
+
+Like with DRIs, disabling file-block requires root privileges.
+
+
+VTs in KMS environments
+~~~~~~~~~~~~~~~~~~~~~~~
+Display servers that use KMS and input devices do not really need VTs at all.
+It's enough to have DRI and input multiplexing in place for them to work.
+Once the process becomes DRI master, it can do anything with the video outputs,
+and inputs are not affected by VT switching at all.
+
+If all clients would use KMS and input, it would be possible to throw out
+VT code from the kernel, remove VT_* ioctl from vtmux, and only do fd
+multiplexing. This would also work well with kmscon. VT system, at this point,
+is a kind of in-kernel KMS display manager providing services for non-KMS-aware
+userspace clients, and does not belong in kernel space.
+
+In a mixed environment, with clients that may still rely on VTs interfaces,
+vtmux cannot tell for sure whether any given client is KMS-aware or not, so
+it allocates a VT for all clients uniformly. VT switching in this case is
+like engaging/disengaging this in-kernel display manager.
+
+All clients also get their stdin, stdout and stderr redirected to respective
+/dev/ttyN device, whether it makes sense or not. In KMS-only environment, it
+would probably be better for vtmux to leave standard fds as is.
+
+
+Why explicit keyboard input / VT_LOCKSWITCH?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C-A-Fn key combos are usually handled within the kernel. During startup,
+vtmux disables this in-kernel handling, and waits to be commanded a VT
+switch via its control socket instead.
+
+There are several reasons for this, the primary being that it makes the
+switching code within vtmux somewhat saner. When the command comes from
+within vtmux, the sequence is clear: disengage current client, switch VT,
+engage new client. This would also work exactly the same way on a pure KMS
+kernel with no VT support.
+
+With the switching completely controlled by vtmux, we can also decide
+whether we want to switch or not, effectively implementing disabled VTs.
+
+Conventional method of doing the switch is reactive in nature and depends
+heavily on the in-kernel VT subsystem. The kernel informs us that it wants
+to switch, we disengage current client and report that to the kernel, the
+kernel switches and informs up, we engage another client.
+
+
+Greeter console
+~~~~~~~~~~~~~~~
+The idea behind greeter is similar to the C-A-Del window in MS Windows.
+It's a dedicated client that the user can bring up on demand to perform
+certain privileged operations. There's a stub implementation in this
+directory called ctrlvt which implements shutdown/reboot/poweroff/sleep
+and also password-protected lock.
+
+# a better greeter should probably show which VTs have something running
+# or bound to them, and possibly also some simplified equivalent of top
+# with an option to kill offending processes.
+
+Greeter is configured as pinned on non-existent tty0, but actually runs
+on tty13 or above, to avoid conflicts with ttys accessible via C-A-Fn.
+There is nothing special about it otherwise, just another DRM client.
+
+Since it runs on a different VT, switching to greeter yanks DRM and input
+from any other VTs, which means decent protection against eavesdropping
+regardless of what runs on those other VTs.
+
+
+Trying vtmux
+~~~~~~~~~~~~
+Upon startup vtmux will lock VT switching, and may NOT unlock it in case
+of abnormal exit. Make sure to have something like "sleep 30; ./unlock"
+running somewhere, or at least some way to run it on request (maybe via
+an ssh session).
+
+Unlocking VTs while vtmux is running may interfere with its operation.
+Switching VTs in a way that's not visible to vtmux (e.g. with C-A-Left
+while in text mode, or with chvt(8)) will result in DRI/input devices being
+engaged to a background VT.
+
+Any switch performed by vtmux will lock VTs back again.
+
+For any sort of debugging, run vtmux -n. This will prevent it from using
+the tty is started on for any of the clients.
