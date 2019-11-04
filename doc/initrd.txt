@@ -1,0 +1,233 @@
+Booting with initrd
+~~~~~~~~~~~~~~~~~~~
+Initrd (initramfs) is a small filesystem image that gets loaded alongside the
+kernel (or as a part of the kernel) into the RAM by the bootloader. Since it
+is already in RAM by the time the kernel starts, the code needed to mount it
+is very simple, unconditional and device-independent.
+
+With initrd, the task of locating and mounting the real root filesystem gets
+moved to the userspace, resulting in less awful kernel space code and much
+more flexibility in implementing those things.
+
+Indications for using initrd:
+
+	* modular kernel, with modules for either the device containing
+	  the real root, or the filesystem used there
+
+	* device containing the real root is identified by something other
+	  than a fixed major:minor pair
+
+	* something needs to be done prior to mounting the real root
+	  (fsck, encryption, device mapper setup etc)
+
+Realistically, with current Linux, only some SoC-based systems can safely get
+away without initrd. For anything else, in particular anything PC-like, initrd
+is pretty much unavoidable.
+
+This project provides several tools designed specifically for use in initrd.
+
+# Technical note: modern Linux systems use initramfs, with initrd proper
+# considered outdated, and this project only really supports initramfs.
+# However, the distinction is not really important outside of the kernel,
+# so in this file, "initrd" is used to refer to either.
+
+
+Startup script
+~~~~~~~~~~~~~~
+The kernel "mounts" initrd as filesystem root and spawns a single process,
+typically /init or /linuxrc, as pid 1. Typical contents:
+
+    #!/bin/msh
+
+    # mount required virtual filesystems
+    mount -vc /dev /sys /proc
+
+    # wait for devices, see below
+    devinit # creates /dev/mapper/root
+
+    # mount the real root filesystem
+    kmount /root /dev/mapper/root
+
+    # transition to the real root
+    exec switchroot /root /etc/boot/start
+
+The overall goal of this script is simply to get the real root mounted
+somewhere, and then call switchroot to that directory.
+
+
+Locating the root device
+~~~~~~~~~~~~~~~~~~~~~~~~
+There are essentially three problems to solve at this stage: load driver
+modules for the storage device and the bus it's on; wait for the device to
+be initialized; and finally, since Linux gives uniform names to device nodes
+(like /dev/sdX), figure out which node corresponds to the right device.
+
+The tools that address them are `devinit` and `findblk`. The role of devinit
+is to handle kernel-initiated module loading requests, which is normally done
+by udev service (`udevmod` here). Unlike the service, `devinit` does not need
+to run indefinitely. Instead, it spawns a script, /etc/devinit, and does its
+thing only until the script exits.
+
+The script runs with udev events being handled in the background. Its role is
+to wait until the right device appears in /dev, which is what `findblk` does.
+Typical contents of /etc/devinit:
+
+    #!/bin/msh
+
+    findblk mbr:00112233 1:boot 2:root
+
+See man pages for `devinit` and `findblk` for detailed description.
+
+To work properly, `devinit` needs one more script, /etc/modpipe:
+
+    #!/bin/msh
+
+    exec modprobe -p
+
+See modprobe man page on what it does.
+
+
+Statically-located root devices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In case the kernel is module but the list of module to load is known ahead
+of time, `devinit` should be skipped, and both `modprobe` and `findblk` should
+be called directly from /init:
+
+    #!/bin/msh
+
+    mount -vc /dev /sys /proc
+
+    modprobe some-mmc-controller
+
+    findblk name:mmcblk0 p1:root
+
+    kmount /root /dev/mapper/root
+
+    exec switchroot /root /etc/boot/start
+
+The reason to use `findblk` in the example above is to pause the script
+until /dev/mmcblk0 appears, since modprobe does not wait for the module
+to initialize. In simpler cases, it can be replaced with `waitfor` msh
+built-in.
+
+If the name of the device node is static, and it does not require waiting,
+`findblk` stage can be skipped as well:
+
+    #!/bin/msh
+
+    mount -vc /dev /sys /proc
+
+    kmount /root /dev/mmcblk0p1
+
+    exec switchroot /root /etc/boot/start
+
+At this point, the need to use initrd in the first place should be questioned.
+
+
+Encrypted rootfs
+~~~~~~~~~~~~~~~~
+Encryption layer must be setup up before mounting the file system.
+Sample /etc/devinit using `passblk`:
+
+    #!/bin/msh
+
+    findblk mbr:00112233 1:root
+
+    passblk /etc/keyfile root
+
+See `passblk` man page for a detailed description. The end result, again, will
+be a mountable partition pointed to by /dev/mapper/root.
+
+Running `passblk` from devinit given the kernel a chance to request encryption
+support modules if those aren't loaded. Alternatively, the module can be loaded
+statically in /init, and `findblk` can be called there as well:
+
+    #!/bin/msh
+
+    mount -vc /dev /sys /proc
+
+    modprobe crypto_engine
+    modprobe crypto_user
+    modprobe cryptd
+    modprobe cbc
+    modprobe ecb
+    modprobe xts
+    modprobe dm-crypt
+
+    devinit
+
+    passblk /etc/keyfile root
+
+    kmount /root /dev/mapper/root
+
+    exec switchroot /root /etc/boot/start
+
+Depending on configuration, some module may need to be loaded statically even
+if `passblk` gets called from /etc/devinit.
+
+
+Entering to the real root
+~~~~~~~~~~~~~~~~~~~~~~~~~
+Once the root partition is mounted, /init should exec into `switchroot`,
+which will subsequently exec into the next stage, which in the examples above
+is `/etc/boot/start`. Not much else to discuss here, check the man page for
+`switchroot` for detailed description of what exactly it does.
+
+Note this is the one of the few points outside of the kernel where the
+distinction between initrd proper and initramfs matters. `switchroot` only
+works with initramfs. Switching from initrd proper requires a different tool
+that would perform a different syscall sequence. There is no such tool in this
+project at this moment. Initrd proper (as in, initial ramdisk) is generally
+considered deprecated in favor of initramfs.
+
+
+Virtual and non-root filesystems
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+It is up to the system builder to decide whether to mount particular virtual
+filesystems in initrd, or delay it to the real root startup script. There are
+several that need to be mounted early: /dev, /sys and possibly /proc. This
+depends solely on the tools used in initrd. For instance, `findblk` needs both
+/dev and /sys to work.
+
+In case separate partitions are used for /var or some other directories,
+those probably should be located and possibly mounted from initrd as well.
+This mostly depends on the convenience of running devinit (and/or findblk)
+from the real root.
+
+`switchroot` will attempt to preserve any mount points when switching from
+the virtual initramfs root to the real filesystem. Check the man page on how
+it works.
+
+
+Which modules to put into initrd
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Ideally, only modules needed to mount the rootfs should be put into initrd.
+Anything that could remain in the real rootfs, should remain there.
+In particular, avoid DRM modules unless absolutely necessary (i.e. graphical
+passphrase prompt or something like that), those tend to be quite large.
+
+Use `depmod` to re-build dependency index and verify that no dependencies
+are missing. Avoid using the full index from the real rootfs; it will work,
+but will take more time than necessary to parse.
+
+
+Modules and compression
+~~~~~~~~~~~~~~~~~~~~~~~
+There are essentially two ways of compressing initrd:
+
+	* compress the whole image
+	* compress individual modules
+
+Compressing the whole image results in the best ration, but forces complete
+decompression early during kernel startup. Compressing modules individually
+and leaving the image uncompressed results in subpar compression ratios, but
+allows only the modules in actual use to be decompressed.
+
+Whole-image compression is therefore preferable for cases where most of the
+initrd contents will be used, while individually compressed modules are better
+when initrd has to carry lots of modules, but only few of them are expected
+to be loaded. The latter is often the case for generic PC distributions.
+
+Avoid dual compression (compressed image with individually compressed modules),
+it serves no purpose and slows down module loading. If the whole image gets
+compressed, leave everything inside uncompressed.
