@@ -1,0 +1,13 @@
+Some documentation on the project as a whole.
+
+    initrd.txt      Booting with initrd
+    startup.txt     System startup sequence (past initrd)
+    login.txt       Re-thinking login
+    dcrypt.txt      Disk encryption
+    shell.txt       The three kinds of shells the system needs
+    wlaunch.txt     The weston-launch protocol
+
+    control.txt     Runtime control for the services
+    baselib.txt     The base library used in the project
+
+For design notes on individual tools, check ../src directories.
