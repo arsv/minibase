@@ -67,29 +67,6 @@ tool similar to but still distinct from vtmux, or some creative use of Linux
 containers, with several copies of vtmux running in each of them.
 
 
-Configuration
-~~~~~~~~~~~~~
-Clients are "pinned" to a particular console. When a switch is requested
-to say tty2, and the client is not running yet, vtmux attempts to spawn
-
-	/etc/vtmux/tty2
-
-Each C-A-Fn maps to a particular process to spawn.
-There is also tty0 which is the greeter, see below.
-
-Spawned clients gets their fds 0,1,2 redirected to /dev/ttyN and fd 3
-is the control channel to vtmux, used to request access to DRM and input
-devices. See ../../doc/wlauch.txt for protocol description.
-
-On startup, vtmux initiates switch to a given tty, starting the client
-there.
-
-There is no key binding configuration in vtmux, it does not listen to
-keyboard events, and it disabled in-kernel handling for C-A-Fn combos
-(see below on VT_LOCKSWITCH). Another process, like `keymon` from ../keys,
-should handle keyboard events and call `vtctl` to initiate VT switch.
-
-
 Technical background
 ~~~~~~~~~~~~~~~~~~~~
 Linux is not very well suited for proxying device access in userspace.

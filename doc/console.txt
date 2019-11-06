@@ -1,0 +1,187 @@
+Virtual consoles
+~~~~~~~~~~~~~~~~
+Or, how do I run Xorg or Wayland?
+
+The primary component that enables GUIs in this project is vtmux, the VT
+multiplexer. It runs as a system service, and spawns processes like Xorg
+or Wayland compositors, providing them with the access to DRM (monitor
+outputs) and input devices. Here's an example of how the relevant part
+of the process tree should look like:
+
+    1 svhub          # top-level supervisor
+     \
+      +- vtmux       # system service, see startup.txt
+       \
+        +- Xorg      # display 0, runs on VT1
+	+- Xorg      # display 1, runs on VT3
+	+- weston    # and this one let's say VT5
+	+- rootsh    # bare Linux terminal on VT10
+
+There may be several of these processes running at once, but only one will
+be active at a time, showing something on the monitor(s) and getting input
+events. This is the "multiplexer" part of vtmux.
+
+Another way to put it is to say that each of these processes "runs on" a
+virtual terminal (VT) and vtmux switches between the VTs, mapping one VT
+at a time onto the real devices. That's not how it really works in modern
+Linux, but it makes for a nice mental model.
+
+
+Starting vtmux
+~~~~~~~~~~~~~~
+Typical contents of /etc/svhub/vtmux:
+
+    #!/sbin/msh
+
+    exec vtmux 3
+
+The argument is the default VT. On startup, vtmux switches to the specified
+VT, starting the client there.
+
+
+Configuring VTs
+~~~~~~~~~~~~~~~
+The idea with vtmux is to pin particular configurations to particulars VTs.
+
+Example: if VT3 is configured to run Xorg/fluxbox, then every time the user
+switches to VT3 with C-A-F3, it would be Xorg with fluxbox. And if say VT5
+is Xorg/i3, then C-A-F5 would always bring up Xorg/i3, and same with say
+Weston on VT7 or a root shell on a bare Linux console on VT10.
+
+The choice of VTs to configure is arbitrary. It is perfectly fine to have
+only VT1, VT5 and VT10; vtmux will refuse to switch to VTs that are not
+configured.
+
+Clients are spawned on demand. If the user switches to a configured VT,
+but the process is not running there, vtmux will attempt to start it.
+Clients are allowed to exit normally (Xorg example: exiting from a wm),
+vtmux will just switch off from that VT. Re-entering the same VT would
+respawn the client.
+
+
+Client scripts
+~~~~~~~~~~~~~~
+The way clients are defined for vtmux is similar to svhub: a script in
+a pre-defined directory which vtmux will exec() in a forked process.
+
+Example, say from VT5, would be /etc/vtmux/tty5:
+
+    #!/sbin/msh
+
+    setenv USER user
+    setenv HOME /home/user
+    setenv SHELL /sbin/cmd
+    
+    cd $HOME
+    
+    groups control
+    setgid $USER
+    setuid $USER
+    
+    setenv XDG_RUNTIME_DIR /tmp/$USER
+    
+    mkdir $XDG_RUNTIME_DIR 0700 $USER:$USER
+    
+    setenv WESTON_TTY_FD 0
+    setenv WESTON_LAUNCHER_SOCK 3
+    
+    waitfor /dev/dri/card0
+    
+    exec /usr/bin/weston
+
+The clients are spawned with fds 0, 1 and 2 pointing to a matching /dev/ttyN
+device, and fd 3 being a communication channel (a socket, see socketpair(2))
+back to vtmux, running weston-launch protocol. That's what WESTON_LAUNCHER_SOCK
+is in the example above.
+
+Just like with svhub, the scripts are spawned with root uid and must drop
+unnecessary privileges. When running under vtmux, clients do *not* need
+extra privileges to access DRM or input devices, only the control channel
+on fd 3. Running clients as root is a VERY BAD IDEA and may disrupt vtmux
+itself among other things.
+
+Some (most?) clients abort if no DRM devices are available during initial
+device scan. When a graphics-capable system boots, the first client may get
+started before DRM modules finish their initialization and fail instantly.
+As a simple workaround, `waitfor` is used to pause script until the first
+DRM device appears.
+
+
+Graphical clients
+~~~~~~~~~~~~~~~~~
+In order to work properly, graphical clients MUST follow the weston-launch
+protocol over the control channel on fd 3 to access DRM and input devices.
+
+Weston supports it out of the box.
+Xorg MUST BE PATCHED to work with vtmux.
+
+Other clients probably require patches as well.
+
+This protocol is DIFFERENT from the one logind uses; vtmux DOES NOT support
+logind protocol and CANNOT run clients configured for logind only.
+
+For information on the protocol itself, see ../src/vtms/proto.txt.
+
+
+Non-graphical clients
+~~~~~~~~~~~~~~~~~~~~~
+Clients that do not use the fd 3 control channel MUST close it.
+
+    #!/sbin/msh
+    
+    close 3   # <-- important!
+    
+    cd /
+    
+    setenv PATH "/usr/bin:/bin:/usr/sbin:/sbin"
+    
+    exec /sbin/cmd
+
+Leaking fd 3 is a low-key security threat, as possession of this fd allows
+effectively gives the process DRM mastering capability.
+
+# That said, leaving it open would allow running something like Xorg
+# manually from that particular shell, which may be useful for debugging.
+
+This issue is mostly limited to shells running on bare Linux TTYs.
+
+
+Keyboard control
+~~~~~~~~~~~~~~~~
+The only way to initiate VT switch with vtmux is to send it a command over
+its control socket, /run/ctrl/vtmux. On its own, vtmux does not handle key
+events, and disables handling of C-A-Fn combos in the kernel.
+
+Starting vtmux alone actually *disables* C-A-Fn!
+
+That's intentional and there are technical reasons for doing so. For once,
+this makes it (relatively) easy to change combos in use, as well as to bind
+unusual ones like C-A-Esc for the greeter.
+
+The service that handles keyboard events in this project is keymon.
+Relevant parts in /etc/keymon:
+
+    C-A-Esc: vtctl 0
+    C-A-F1: vtctl 1
+    C-A-F2: vtctl 2
+    C-A-F3: vtctl 3
+    C-A-F4: vtctl 4
+    C-A-F5: vtctl 5
+    # and the rest if necessary
+
+Like vtmux, keymon a system service and needs to be started during system boot.
+
+
+Configuring greeter
+~~~~~~~~~~~~~~~~~~~
+Greeter is just a regular client assigned to non-existent "VT0".
+Its client script is /etc/vtmux/tty0. It actually gets spawned on some
+high-numbered VT normally not accessible from keyboard, like VT13.
+
+Greeter is what vtmux attempts to switch to without an explicit argument.
+When greeter exists, vtmux switches to the last non-greeter VT (that is,
+the one the greeter was "called" from).
+
+Greeter is supposed to be used as a DE-independent way of performing
+privileged actions like requesting shutdown, putting the system to sleep
+and so on.
