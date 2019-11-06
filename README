@@ -26,26 +26,25 @@ The project is ONGOING but not yet complete or even stable.
 Components currently included in the package:
 
   * batch command runner / script interpreter (msh)
-  * early-stage boot utils (switchroot, modprobe, mount).
-  * non-encrypted block device locator (findblk).
-  * encrypted device locator and passphrase prompt (passblk).
-  * support tooling for disk encryption (dektool, dmcrypt).
-  - no fsck for any file system yet.
+  * early-stage boot utils (switchroot, modprobe, mount)
+  * block device locating tools (devinit, findblk)
+  * block device encryption tools (passblk, dektool, deitool)
+  - no fsck for any file system yet
 
-  * process supervision suite (svhub, reboot).
+  * process supervision suite (svhub, reboot)
 
-  * udev event monitor (udevmod).
-  * syslogd and related tools.
-  * non-privileged mount service (mountd, pmount).
+  * udev event monitor (udevmod)
+  * syslog and related tools (sysklogd)
+  * non-privileged mount service (mountd, pmount)
   * controlled privilege escalation service (suhub, sudo)
 
   * VT/DRI/input multiplexer (vtmux)
-  * simple non-graphical greeter (ctrlvt).
+  * simple non-graphical greeter (ctrlvt)
 
   * network interface monitor (ifmon)
-  * DHCP client (dhconf)
   * Wi-Fi client and connection manager (wsupp) [WPA2-PSK only]
-  * manual interface setup tools (ip4cfg, ip4info) [incomplete]
+  * DHCP client (dhconf)
+  * manual/static interface setup tools (ip4cfg, ip4info) [incomplete]
   * time synchronization (SNTP) service (timed)
 
   * simple interactive shell (cmd).
@@ -69,11 +68,7 @@ with the build scripts are maintained in a dedicated repository:
 
 Get the latest sys-plain or sys-crypt from Releases, check included
 instructions. Inspect the build scripts, rootfs and initrd contents
-to understand how the system boots. Check doc/boot.txt here as well.
-
-Start reading the sources at temp/compat, src/cmdops, src/init.
-
-NOTE: minibase-br lags behind the master branch here.
+to understand how the system boots.
 
 
 How to build and run the tools
