@@ -125,7 +125,7 @@ cat > mini-cc <<END
 #!/bin/sh
 
 case "\$0" in
-	*/*) base=\${0%/*} ;;
+	*/*) base="\${0%/*}" ;;
 	*) echo "\$0 may not be called from PATH" >&2; exit 1 ;;
 esac
 
@@ -140,7 +140,7 @@ done
 set $cc -ffreestanding -fomit-frame-pointer \\
 	-fno-asynchronous-unwind-tables -fno-stack-protector \\
 	-static -fno-pie -fno-PIE -fno-pic -fno-PIC $lto \\
-	-nostdinc -I\$base/lib/arch/$arch -I\$base/lib -MD \\
+	-nostdinc -I"\$base"/lib/arch/$arch -I"\$base"/lib -MD \\
 	$cflags "\$@"
 
 END
@@ -157,8 +157,8 @@ if [ -n "$uselds" -a -f "$ldscript" ]; then
 cat >> mini-cc <<END
 test -n "\$needslib" && \
 	set "\$@" -nostdlib \\
-		-Wl,-\\( \$base/lib/all.a -lgcc -Wl,-\\) \\
-		-T \$base/$ldscript
+		-Wl,-\\( "\$base"/lib/all.a -lgcc -Wl,-\\) \\
+		-T "\$base"/$ldscript
 
 exec "\$@"
 END
@@ -166,7 +166,7 @@ else
 cat >> mini-cc <<END
 test -n "\$needslib" && \
 	set "\$@" -nostdlib \\
-		-Wl,-\\( \$base/lib/all.a -lgcc -Wl,-\\)
+		-Wl,-\\( "\$base"/lib/all.a -lgcc -Wl,-\\)
 
 exec "\$@"
 END
