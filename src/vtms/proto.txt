@@ -1,11 +1,8 @@
-weston-launch protocol for managed DRI/input clients
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The weston-launch protocol
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 This protocol is used by vtmux and must be followed by any clients willing
 to use DRI or input devices while running under vtmux.
 
-
-Identification and control channel
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The application is spawned with an open fd referring to the VT manager ctrl
 channel. The fd is always 3 in vtmux, while in weston-launcher its value is
 passed via WESTON_LAUNCHER_SOCK environment variable.
@@ -29,10 +26,11 @@ replies is this:
 		char payload[];
 	};
 
-However the format for payload[] depends on the code.
+The format for payload[] depends on the code.
 
 The client normally only sends requests to which the manager replies.
 The manager may also send spontaneous notifications.
+
 Negative code indicate error the usual way (-ENOENT etc).
 
 
