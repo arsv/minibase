@@ -12,10 +12,10 @@ of the process tree should look like:
      \
       +- vtmux       # system service, see startup.txt
        \
-        +- Xorg      # display 0, runs on VT1
-	+- Xorg      # display 1, runs on VT3
-	+- weston    # and this one let's say VT5
-	+- rootsh    # bare Linux terminal on VT10
+        +- xorgvt    # X display 0 on VT1
+        +- xorgvt    # X display 1 on VT3
+        +- weston    # and this one let's say VT5
+        +- rootsh    # bare Linux terminal on VT10
 
 There may be several of these processes running at once, but only one will
 be active at a time, showing something on the monitor(s) and getting input
@@ -69,24 +69,24 @@ Example, say from VT5, would be /etc/vtmux/tty5:
     #!/sbin/msh
 
     setenv USER user
-    setenv HOME /home/user
+    setenv HOME /home
     setenv SHELL /sbin/cmd
-    
+
     cd $HOME
-    
+
     groups control
     setgid $USER
     setuid $USER
-    
+
     setenv XDG_RUNTIME_DIR /tmp/$USER
-    
+
     mkdir $XDG_RUNTIME_DIR 0700 $USER:$USER
-    
+
     setenv WESTON_TTY_FD 0
     setenv WESTON_LAUNCHER_SOCK 3
-    
+
     waitfor /dev/dri/card0
-    
+
     exec /usr/bin/weston
 
 The clients are spawned with fds 0, 1 and 2 pointing to a matching /dev/ttyN
@@ -128,13 +128,13 @@ Non-graphical clients
 Clients that do not use the fd 3 control channel MUST close it.
 
     #!/sbin/msh
-    
+
     close 3   # <-- important!
-    
+
     cd /
-    
+
     setenv PATH "/usr/bin:/bin:/usr/sbin:/sbin"
-    
+
     exec /sbin/cmd
 
 Leaking fd 3 is a low-key security threat, as possession of this fd allows
@@ -185,3 +185,73 @@ the one the greeter was "called" from).
 Greeter is supposed to be used as a DE-independent way of performing
 privileged actions like requesting shutdown, putting the system to sleep
 and so on.
+
+
+Starting Xorg
+~~~~~~~~~~~~~
+Mainline xinit is not compatible with vtmux; `xorgvt` should be used instead.
+
+# Two reasons for this. First, the way X startup works, xinit has to be aware
+# of fd 3 and close it for the WM process while leaving it open for the server.
+# Second, xinit relies on PATH to find Xorg and on HOME for its scripts, which
+# is against the principles of this project. Since xinit is not a particularly
+# complex tool, it was deemed easier to replace it with a custom tool instead
+# of trying to patch the required behavior into the mainline one.
+
+A viable X session requires two processes to be started as *siblings*:
+the X server itself, and the top-level client, typically a window manager.
+Here's the relevant part of the process tree:
+
+      +-  vtmux
+       \
+        +- xorgvt
+         \
+          +- Xorg
+          +- window-manager
+
+To get there, vtmux needs to be configured to spawn xorgvt.
+/etc/vtmux/tty3:
+
+    #!/sbin/msh
+
+    setenv USER user
+    setenv HOME /home
+    setenv SHELL /sbin/cmd
+
+    umask 0000
+    setenv XDG_RUNTIME_DIR /tmp/$USER
+    mkdir $XDG_RUNTIME_DIR 0700 $USER:$USER
+    mkdir /tmp/.X11-unix 01777
+    umask 0022
+
+    cd $HOME
+
+    groups control
+    setgid $USER
+    setuid $USER
+
+    setenv WESTON_TTY_FD 0
+    setenv WESTON_LAUNCHER_SOCK 3
+
+    waitfor /dev/dri/card0
+
+    exec /sbin/xorgvt
+
+Then, xorgvt needs to be told how to start the server,
+/etc/X11/server:
+
+    #!/sbin/msh
+
+    exec /usr/bin/Xorg $DISPLAY
+
+and the window manager.
+/etc/X11/client:
+
+    #!/sbin/msh
+
+    /usr/bin/xrdb -retain /etc/X11/xdefaults
+
+    exec /usr/bin/fluxbox
+
+The client script is basically the same thing as xinitrc.
+See xorgvt man page and comments for more details on this.
