@@ -124,7 +124,7 @@ static int spawn(CTX, char* path, char** envp, void (*setup)(CTX))
 	if(pid == 0) {
 		char* argv[] = { path, NULL };
 		setup(ctx);
-		int ret = execvpe(path, argv, envp);
+		int ret = sys_execve(path, argv, envp);
 		fail(NULL, path, ret);
 	}
 
