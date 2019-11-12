@@ -120,7 +120,7 @@ Other clients probably require patches as well.
 This protocol is DIFFERENT from the one logind uses; vtmux DOES NOT support
 logind protocol and CANNOT run clients configured for logind only.
 
-For information on the protocol itself, see ../src/vtms/proto.txt.
+For information on the protocol itself, see ./wlaunch.txt.
 
 
 Non-graphical clients
@@ -185,6 +185,10 @@ the one the greeter was "called" from).
 Greeter is supposed to be used as a DE-independent way of performing
 privileged actions like requesting shutdown, putting the system to sleep
 and so on.
+
+There is a simple implementation called `ctrlvt` in this project.
+It is only meant to be a temporary placeholder, but it give some idea
+as to how a greeter is supposed to work.
 
 
 Starting Xorg
