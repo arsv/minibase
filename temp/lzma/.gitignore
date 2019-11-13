@@ -1,4 +1,5 @@
 lunzip
 luzmem
+libunz
 *.ko
 *.lz

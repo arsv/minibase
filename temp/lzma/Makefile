@@ -1,3 +1,3 @@
-all = lunzip luzmem
+all = lunzip luzmem libunz
 
 include ../rules.mk
