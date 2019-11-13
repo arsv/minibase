@@ -6,6 +6,11 @@
 
 #include "common.h"
 
+/* The idea here is to take a file name and return a mmap'ed buffer
+   with the content of the file. For uncompressed modules, that means
+   just mmaping the file. Compressed .gz and .xz modules get unpacked
+   into a mmaped memory area. */ 
+
 #define MAX_MAP_SIZE 0x7FFFFFFF
 
 int mmap_whole(CTX, struct mbuf* mb, char* name)
