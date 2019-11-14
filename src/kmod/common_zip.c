@@ -9,8 +9,8 @@
 #include "common.h"
 
 /* Built-in support for compresses .lz modules. We take "file.ko.lz" and
-   return a mmaped area with the decompresses content, without spawning
-   any processes.
+   return a mmaped area with decompressed content, without spawning any
+   external processes.
 
    Lzip files include uncompressed size in the footer, we use that to
    pre-allocate output area of the right size. Compresses input files
