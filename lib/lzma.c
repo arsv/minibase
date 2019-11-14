@@ -195,7 +195,7 @@ static int check_buffers(LZ)
 static void init_private(PZ)
 {
 	uint32_t code = 0;
-	
+
 	pz->error = 0;
 	pz->state = STATE_LIT_LIT;
 	pz->pos_state = 0;
