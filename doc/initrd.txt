@@ -69,7 +69,7 @@ to run indefinitely. Instead, it spawns a script, /etc/devinit, and does its
 thing only until the script exits.
 
 The script runs with udev events being handled in the background. Its role is
-to wait until the right device appears in /dev, which is what `findblk` does.
+to wait until the right device appears in /dev.
 Typical contents of /etc/devinit:
 
     #!/bin/msh
@@ -77,7 +77,6 @@ Typical contents of /etc/devinit:
     findblk mbr:00112233 1:boot 2:root
 
 See man pages for `devinit` and `findblk` for detailed description.
-
 To work properly, `devinit` needs one more script, /etc/modpipe:
 
     #!/bin/msh
@@ -162,7 +161,7 @@ statically in /init, and `findblk` can be called there as well:
 
     exec switchroot /root /etc/boot/start
 
-Depending on configuration, some module may need to be loaded statically even
+Depending on configuration, some modules may need to be loaded statically even
 if `passblk` gets called from /etc/devinit.
 
 

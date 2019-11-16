@@ -1,12 +1,19 @@
 Quick introduction to the base library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This project comes with a custom bundled C library and does not rely on
-an external one like most userspace C projects do. It builds more like
-the Linux kernel than like say GNU coreutils or even busybox, using
-a freestanding compiler.  All library functions used in the project are
-provided by the project.
+an external one like most userspace C projects do. The whole thing builds
+with a freestanding compiler, like the Linux kernel but unlike say
+GNU coreutils or busybox. All library functions used in the project
+are provided by the project.
+
+The base library is not POSIX compliant. Nor does it follow the ANSI C
+standard. It is designed to mesh well with the underlying Linux OS and
+not to provide a translation layer on top of it like a POSIX libc would.
+It is much simpler than a POSIX libc could possibly be, too.
 
 
+System calls
+~~~~~~~~~~~~
 A major feature of the base library is the way it deals with syscalls:
 
 	if((fd = sys_open(name, flags)) < 0)
@@ -26,20 +33,23 @@ For instance, sys_ppoll does update its timestamp argument.
 
 What is struct top* ctx?
 ~~~~~~~~~~~~~~~~~~~~~~~~
+The lack of errno in the library allows for a particular memory-saving trick
+with globals in small applications.
+
 Global variables declared the usual way force at least a page to be allocated
 for .bss segment, even though the total size of the variables may be way less
 than a whole page. To avoid wasting a whole page, the variables get moved to
 the stack. There's always at least one dirty page of stack so no loss happens.
 
-Busybox has `struct G` which is exactly the same thing.
+Busybox has `struct G` which is the same exact thing.
 
 POSIX libc applications cannot drop .bss completely because of errno (and other
-accidentally linked global stuff). In this project, it is possible, and quite
-a lot of smaller tools have no .bss/.data segments.
+accidentally linked global stuff, but mostly errno because errno is essentially
+unavoiable). In this project, getting away with no .bss is possible, and quite
+a lot of smaller tools have no .bss/.data segments whatsoever.
 
 Unlike .bss/.data, the stuff in the stack cannot be addressed statically.
-The workaround is to pass the pointer to every single function that uses
-them:
+The workaround is to pass the pointer to every single function that uses them:
 
 	struct top {
 		int foo;
