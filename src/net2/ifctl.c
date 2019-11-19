@@ -23,15 +23,6 @@ ERRTAG("ifctl");
 ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT);
 
-#define OPTS "andxwqr"
-#define OPT_a (1<<0)
-#define OPT_n (1<<1)
-#define OPT_d (1<<2)
-#define OPT_x (1<<3)
-#define OPT_w (1<<4)
-#define OPT_q (1<<5)
-#define OPT_r (1<<6)
-
 static void init_socket(CTX)
 {
 	int fd;
