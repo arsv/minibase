@@ -33,14 +33,14 @@ static void output(char* p, char* e, char* buf)
 	writeall(STDERR, buf, p - buf);
 }
 
-void at_empty(char* pref, struct ucattr* at)
+static void at_empty(char* pref, struct ucattr* at)
 {
 	FMTBUF(p, e, buf, 50);
 	p = tag(p, e, pref, at, " empty");
 	output(p, e, buf);
 }
 
-void at_nest(char* pref, struct ucattr* at)
+static void at_nest(char* pref, struct ucattr* at)
 {
 	FMTBUF(p, e, buf, 50);
 	p = tag(p, e, pref, at, " nest");
@@ -49,25 +49,40 @@ void at_nest(char* pref, struct ucattr* at)
 	dump_rec(pref, at);
 }
 
-void at_string(char* pref, struct ucattr* at, char* str)
-{
-	FMTBUF(p, e, buf, 30 + strlen(str));
-	p = tag(p, e, pref, at, " ");
-	p = fmtstr(p, e, "\"");
-	p = fmtstr(p, e, str);
-	p = fmtstr(p, e, "\"");
-	output(p, e, buf);
-}
+//void at_string(char* pref, struct ucattr* at, char* str)
+//{
+//	char* q;
+//	byte c;
+//
+//	FMTBUF(p, e, buf, 30 + strlen(str));
+//	p = tag(p, e, pref, at, " ");
+//	p = fmtstr(p, e, "\"");
+//
+//	for(q = str; (c = *q); q++) {
+//		if(c >= 0x20 && c < 0x7F) {
+//			p = fmtchar(p, e, c);
+//		} else {
+//			p = fmtstr(p, e, "\\x");
+//			p = fmtbyte(p, e, c);
+//		}
+//	}
+//
+//	p = fmtstr(p, e, "\"");
+//	output(p, e, buf);
+//}
+//
+//void at_int(char* pref, struct ucattr* at, int* val)
+//{
+//	FMTBUF(p, e, buf, 50);
+//	p = tag(p, e, pref, at, " int ");
+//	p = fmtstr(p, e, "0x");
+//	p = fmtpad0(p, e, 8, fmthex(p, e, *val));
+//	p = fmtstr(p, e, " ");
+//	p = fmtint(p, e, *val);
+//	output(p, e, buf);
+//}
 
-void at_int(char* pref, struct ucattr* at, int* val)
-{
-	FMTBUF(p, e, buf, 50);
-	p = tag(p, e, pref, at, " int ");
-	p = fmtint(p, e, *val);
-	output(p, e, buf);
-}
-
-void at_raw(char* pref, struct ucattr* at, void* data, int dlen)
+static void at_raw(char* pref, struct ucattr* at, void* data, int dlen)
 {
 	char* q = data;
 	int i;
@@ -83,7 +98,7 @@ void at_raw(char* pref, struct ucattr* at, void* data, int dlen)
 	output(p, e, buf);
 }
 
-void at_trash(char* pref, struct ucattr* at, void* data, int dlen)
+static void at_trash(char* pref, struct ucattr* at, void* data, int dlen)
 {
 	char* q = data;
 	int i;
@@ -111,17 +126,10 @@ static void dump_attr(char* pref, struct ucattr* at)
 	void* payload = uc_payload(at);
 	int key = at->key;
 
-	char* str;
-	int* val;
-
 	if(paylen == 0)
 		at_empty(pref, at);
-	else if((str = uc_is_str(at, key)))
-		at_string(pref, at, str);
 	else if(uc_is_nest(at, key))
 		at_nest(pref, at);
-	else if((val = uc_is_int(at, key)))
-		at_int(pref, at, val);
 	else if(paylen < 15)
 		at_raw(pref, at, payload, paylen);
 	else
@@ -129,7 +137,7 @@ static void dump_attr(char* pref, struct ucattr* at)
 }
 
 
-void dump_attrs_in(struct ucmsg* msg)
+static void dump_attrs_in(struct ucmsg* msg)
 {
 	struct ucattr* at;
 
