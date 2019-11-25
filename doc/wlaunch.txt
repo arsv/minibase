@@ -121,22 +121,3 @@ least, upon getting cmd > 0 in reply to OPEN, it should repeat recv().
 Handling interrupted switch properly is tricky, and not necessary in most
 cases. VT switching is usually initiated by the user, who should be able
 to retry after a mis-switch. Check src/vtms/stubvt.c for example.
-
-
-Security warning
-~~~~~~~~~~~~~~~~
-The launch tool (weston-launch or vtmux) performs low-key privilege
-escalation for the application it spawns, just like sudo does.
-There must be restrictions on which executables can be spawned this way.
-
-weston-launch comes with a hard-coded absolute path to the executable it is
-allowed to spawn. vtmux comes with a hard-coded absolute path of a directory,
-and only spawns executables from that directory.
-These paths must be at least write-protected from regular users.
-
-weston-launch may be installed suid root. In this case, it trusts the "/"
-inode and must be protected against chroot tricks.
-
-For debug purposes, it may be beneficial to have a copy of weston-launch
-with runtime-configurable command. Such tool is dangerous and should only
-be used in restricted environments.

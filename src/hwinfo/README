@@ -1,0 +1,6 @@
+Tools for querying devices present in the system.
+
+Unlike the common lsusb from usbutils lspci from pciutils, these are capable
+of proviing reasonably readable output without megabytes of device databases.
+
+For `input`, it does not look like there is a common equivalent.

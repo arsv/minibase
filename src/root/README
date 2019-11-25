@@ -1,6 +1,6 @@
 This directory contains several tools meant for managing the root filesystem,
 like locating the device, mounting it and so on. Some of these tools only make
-sense within an initrd.
+sense within initrd.
 
 The environment these get to run in is quite different from anything that runs
 under a supervisor, and the task itself makes no sense in a system that's

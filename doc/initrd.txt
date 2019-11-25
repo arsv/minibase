@@ -35,7 +35,7 @@ This project provides several tools designed specifically for use in initrd.
 Startup script
 ~~~~~~~~~~~~~~
 The kernel "mounts" initrd as filesystem root and spawns a single process,
-typically /init or /linuxrc, as pid 1. Typical contents:
+execing /init or /linuxrc, as pid 1. Typical contents:
 
     #!/bin/msh
 
@@ -114,7 +114,7 @@ If the name of the device node is static, and it does not require waiting,
 
     #!/bin/msh
 
-    mount -vc /dev /sys /proc
+    kmount -vc /dev /sys /proc
 
     kmount /root /dev/mmcblk0p1
 
