@@ -1,0 +1,63 @@
+.TH apphub 8
+'''
+.SH NAME
+\fBapphub\fR \- generic application supervisor
+'''
+.SH DESCRIPTION
+This service spawns applications on user's request. It is meant primarily
+for GUI applications, but can handle pretty much anything that does not
+require user input from stdin or open TTY on stdout.
+.P
+\fBapphub\fR is a regular service that should be started during system boot.
+'''
+.SH USAGE
+Applications to be spawned by \fBapphub\fR are defined by executable files
+in /etc/apphub/. The base name of the file is what needs to be passed to
+\fBappctl\fR in order to spawn the script. When commanded to do so,
+\fBapphub\fR execs the script in a newly spawned process.
+.P
+Sample script, /etc/apphub/foo:
+.P
+.ni
+    #!/sbin/msh
+
+    setenv PATH /usr/bin
+    setuid foo:apps
+
+    invoke /usr/bin/xbigapp
+.fi
+.P
+Application defined by this script can them be started using
+.P
+.ni
+    appctl start foo
+.fi
+.P
+Spawned applications get their arguments and environment from \fBappctl\fR.
+.P
+The scripts inherit credentials from the parent \fBapphub\fR process, which
+typically means root uid and full capabilities. It is up to the script to limit
+capabilities, set uid and groups, and otherwise set up process environment.
+.P
+Applications are expected to not take any input from stdin, and to not output
+anything to either stdout or stderr during normal operations. In the spawned
+process, all three standard file descriptors (0, 1, 2) point to the write end
+of a pipe; \fBapphub\fR reads the other end of the pipe into a ring buffer,
+and lets the user inspect its contents. The collected output is only meant to
+be used for troubleshooting misbehaving applications, it is not supposed to be
+a part of normal operations.
+.P
+The name of the script may be chosen arbitrarily. It is perfectly fine to have
+several scripts exec the same executable, possibly with different options or
+environment settings.
+.P
+Applications may exit at will, and generally are expected to do so.
+'''
+.SH FILES
+.IP "/run/ctrl/apphub" 4
+Control socket.
+.IP "/etc/apphub" 4
+Configuration directory.
+'''
+.SH SEE ALSO
+\fBappctl\fR(1).

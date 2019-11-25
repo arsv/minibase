@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "$0 starting"
+sleep 10
+echo "$0 exiting"

@@ -1,0 +1,4 @@
+#!/bin/sh
+
+echo "$0: cannot start blah" >&2
+exit 255

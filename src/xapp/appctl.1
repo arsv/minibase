@@ -1,0 +1,49 @@
+.TH appctl 1
+'''
+.SH NAME
+\fBappctl\fR \- control tool for \fBapphub\fR(8).
+'''
+.SH SYNOPSIS
+.IP "\fBappctl\fR" 4
+Show the list of applications (running and recently died).
+.IP "\fBappctl start \fIname\fR [\fIarguments\fR]" 4
+Start the named applications. If an instance is already running, indicate
+error.
+.IP "\fBappctl spawn \fIname\fR [\fIarguments\fR]" 4
+Start one more instance of the named applications. Does not check whether
+any are running already.
+.IP "\fBappctl sigterm \fIxid\fR" 4
+Send SIGTERM to a given process.
+.IP "\fBappctl sigkill \fIxid\fR" 4
+Ditto, SIGKILL.
+.IP "\fBappctl show \fIxid\fR" 4
+Dump output buffer for a given application onto stdout.
+.IP "\fBappctl flush \fIxid\fR" 4
+Empty output buffer, and remove the application from the list if it is dead.
+'''
+.SH NOTES
+The \fIname\fR of the application is the name of the script in the config
+directory that \fBapphub\fR spawns; \fBappctl start \fIfoo\fR is a request
+for \fBapphub\fR to spawn \fB/etc/apphub/\fIfoo\fR.
+.P
+Application entries managed by \fIapphub\fR are identified by their \fIxid\fR.
+Running \fBappctl\fR with no arguments shows possible \fIxid\fRs for used with
+other commands.
+.P
+\fBapphub\fR keeps entries for all running applications, and also for those that
+died with non-zero exit status, or with non-empty output buffer. This is to allow
+the user to investigate abnormal exit if necessary. For any given \fIname\fR, at
+most one dead entry (the last one to die) is kept.
+.P
+\fBappctl\fR captures and passes its environment along with \fIarguments\fR to
+the newly spawned processes. This can be used to pass DISPLAY to X11 clients,
+or WAYLAND_DISPLAY to Wayland ones.
+'''
+.SH FILES
+.IP "/etc/apphub" 4
+Configuration directory for \fBapphub\fR.
+.IP "/run/ctrl/apphub" 4
+Control socket.
+'''
+.SH SEE ALSO
+\fBapphub\fR(8).
