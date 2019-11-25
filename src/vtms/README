@@ -73,12 +73,12 @@ Linux is not very well suited for proxying device access in userspace.
 A process cannot listen(2) on a device node and accept(2) connections.
 Even if it were possible (think FUSE), multiple context switches would
 occur exactly where they should not: in latency-sensitive input code,
-and potentially very fast frame-flipping code.
+and in potentially very fast frame-flipping code.
 
 Instead, the client processes get actual open device fds and communicate
 directly with the kernel.
 
-Opening a device file from userspace makes the kernel allocate its internal
+Opening a device file from userspace makes the kernel allocates its internal
 file-block structure. Re-opening the same device allocates another block, but
 dup(2)ing a fd does not: the copy of the descriptor references the same shared
 file-block structure, even if the fds end up in different processes.
@@ -94,9 +94,9 @@ disabled for *all* fds referring to it. Disabling one block does not affect
 other blocks referring to the same device.
 
 Upon client request, vtmux opens the device and sends the fd over the socket.
-The client gets a copy of the fd and uses it for device access. Vtmux keeps
-its copy and uses it to disable the underlying file-block whenever the client
-becomes inactive.
+The client gets a copy of the fd and uses it for device access, while vtmux
+keeps its copy and uses it to disable the underlying file-block whenever
+the client becomes inactive.
 
 
 Notes on DRI masters
@@ -159,8 +159,9 @@ it allocates a VT for all clients uniformly. VT switching in this case is
 like engaging/disengaging this in-kernel display manager.
 
 All clients also get their stdin, stdout and stderr redirected to respective
-/dev/ttyN device, whether it makes sense or not. In KMS-only environment, it
-would probably be better for vtmux to leave standard fds as is.
+/dev/ttyN device, whether it makes sense or not. In KMS-only environment,
+vtmux would rather capture the output somehow, but the presence of legacy VT
+clients makes difficult to implement.
 
 
 Why explicit keyboard input / VT_LOCKSWITCH?
@@ -181,7 +182,9 @@ whether we want to switch or not, effectively implementing disabled VTs.
 Conventional method of doing the switch is reactive in nature and depends
 heavily on the in-kernel VT subsystem. The kernel informs us that it wants
 to switch, we disengage current client and report that to the kernel, the
-kernel switches and informs up, we engage another client.
+kernel switches and informs up, we engage another client. The sequence
+is not easy to implement, potentially racy, and makes it almost impossible
+to implement disabled (unallocated) VTs.
 
 
 Greeter console
@@ -190,7 +193,7 @@ The idea behind greeter is similar to the C-A-Del window in MS Windows.
 It's a dedicated client that the user can bring up on demand to perform
 certain privileged operations. There's a stub implementation in this
 directory called ctrlvt which implements shutdown/reboot/poweroff/sleep
-and also password-protected lock.
+and also password-protected screen lock.
 
 # a better greeter should probably show which VTs have something running
 # or bound to them, and possibly also some simplified equivalent of top
@@ -198,7 +201,7 @@ and also password-protected lock.
 
 Greeter is configured as pinned on non-existent tty0, but actually runs
 on tty13 or above, to avoid conflicts with ttys accessible via C-A-Fn.
-There is nothing special about it otherwise, just another DRM client.
+There is nothing special about it otherwise, just another DRM or VT client.
 
 Since it runs on a different VT, switching to greeter yanks DRM and input
 from any other VTs, which means decent protection against eavesdropping
