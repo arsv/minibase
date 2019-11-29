@@ -4,13 +4,11 @@
 #define CONTROL RUN_CTRL "/apphub"
 
 #define CMD_STATUS     1
-#define CMD_SPAWN_NEW  2
-#define CMD_START_ONE  3
+#define CMD_SPAWN      2
 #define CMD_SIGTERM    4
 #define CMD_SIGKILL    5
-#define CMD_FETCH_OUT  6
-#define CMD_FLUSH_OUT  7
-#define CMD_CLEAR      8
+#define CMD_FETCH      6
+#define CMD_FLUSH      7
 
 #define ATTR_NAME      1
 #define ATTR_ARG       2

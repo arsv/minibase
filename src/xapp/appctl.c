@@ -250,13 +250,13 @@ static int estimate_request_size(CTX)
 	return 64 + 4*count + sum;
 }
 
-static void spawn_request(CTX, UC, int cmd)
+static void spawn_request(CTX, UC)
 {
 	char** argv = argv_left(ctx);
 	int argc = argc_left(ctx);
 	char *var, **envp = ctx->environ;
 
-	uc_put_hdr(uc, cmd);
+	uc_put_hdr(uc, CMD_SPAWN);
 
 	for(int i = 0; i < argc; i++)
 		uc_put_str(uc, ATTR_ARG, argv[i]);
@@ -270,7 +270,7 @@ static void spawn_request(CTX, UC, int cmd)
 	recv_simple_reply(ctx);
 }
 
-static void spawn(CTX, int cmd)
+static void req_spawn(CTX)
 {
 	int est = estimate_request_size(ctx);
 	struct ucbuf uc;
@@ -280,7 +280,7 @@ static void spawn(CTX, int cmd)
 
 		uc_buf_set(&uc, buf, sizeof(buf));
 
-		spawn_request(ctx, &uc, cmd);
+		spawn_request(ctx, &uc);
 	} else {
 		char* buf = sys_brk(NULL);
 		char* end = sys_brk(buf + pagealign(est));
@@ -288,18 +288,8 @@ static void spawn(CTX, int cmd)
 
 		uc_buf_set(&uc, buf, len);
 
-		spawn_request(ctx, &uc, cmd);
+		spawn_request(ctx, &uc);
 	}
-}
-
-static void req_spawn(CTX)
-{
-	spawn(ctx, CMD_SPAWN_NEW);
-}
-
-static void req_start(CTX)
-{
-	spawn(ctx, CMD_START_ONE);
 }
 
 static int shift_xid(CTX)
@@ -359,7 +349,7 @@ static void req_fetch(CTX)
 
 	no_other_options(ctx);
 
-	send_xid_request(ctx, CMD_FETCH_OUT, xid);
+	send_xid_request(ctx, CMD_FETCH, xid);
 
 	struct ucmsg* msg = recv_large(ctx);
 	struct ucattr* at;
@@ -378,7 +368,7 @@ static void req_flush(CTX)
 
 	no_other_options(ctx);
 
-	send_xid_request(ctx, CMD_FLUSH_OUT, xid);
+	send_xid_request(ctx, CMD_FLUSH, xid);
 
 	recv_simple_reply(ctx);
 }
@@ -388,7 +378,6 @@ static const struct cmd {
 	void (*call)(CTX);
 } cmds[] = {
 	{ "spawn",   req_spawn    },
-	{ "start",   req_start    },
 	{ "sigterm", req_sigterm  },
 	{ "sigkill", req_sigkill  },
 	{ "show",    req_fetch    },

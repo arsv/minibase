@@ -168,23 +168,6 @@ static int cmd_status(CTX, CN, MSG)
 	return send_reply(cn, &uc);
 }
 
-static int already_running(CTX, char* name)
-{
-	struct proc* pc = ctx->procs;
-	struct proc* pe = pc + ctx->nprocs;
-	int pid;
-
-	for(; pc < pe; pc++)
-		if(strncmp(name, pc->name, sizeof(pc->name)))
-			continue;
-		else if((pid = pc->pid) <= 0)
-			continue;
-		else
-			return pid;
-
-	return 0;
-}
-
 static int prep_argv_envp(MSG, char** ptrs, int n)
 {
 	char** argp = ptrs;
@@ -225,7 +208,7 @@ static int prep_argv_envp(MSG, char** ptrs, int n)
 	return argc;
 }
 
-static int common_spawn(CTX, MSG)
+static int cmd_spawn(CTX, CN, MSG)
 {
 	char* args[128];
 	int ret;
@@ -240,23 +223,6 @@ static int common_spawn(CTX, MSG)
 		return ret;
 
 	return 0;
-}
-
-static int cmd_start_one(CTX, CN, MSG)
-{
-	char* name = uc_get_str(msg, ATTR_ARG);
-
-	if(!name)
-		return -EINVAL;
-	if(already_running(ctx, name))
-		return -EALREADY;
-
-	return common_spawn(ctx, msg);
-}
-
-static int cmd_spawn_new(CTX, CN, MSG)
-{
-	return common_spawn(ctx, msg);
 }
 
 static struct proc* find_proc(CTX, int xid)
@@ -298,7 +264,7 @@ static int cmd_sigkill(CTX, CN, MSG)
 	return signal_proc(ctx, msg, SIGKILL);
 }
 
-static int cmd_fetch_out(CTX, CN, MSG)
+static int cmd_fetch(CTX, CN, MSG)
 {
 	struct proc* pc;
 	int ret, *xid;
@@ -338,7 +304,7 @@ static int cmd_fetch_out(CTX, CN, MSG)
 	return send_reply(cn, &uc);
 }
 
-static int cmd_flush_out(CTX, CN, MSG)
+static int cmd_flush(CTX, CN, MSG)
 {
 	struct proc* pc;
 	int ret, *xid;
@@ -358,12 +324,11 @@ static const struct cmd {
 	int (*call)(CTX, CN, MSG);
 } commands[] = {
 	{ CMD_STATUS,    cmd_status    },
-	{ CMD_SPAWN_NEW, cmd_spawn_new },
-	{ CMD_START_ONE, cmd_start_one },
+	{ CMD_SPAWN,     cmd_spawn     },
 	{ CMD_SIGTERM,   cmd_sigterm   },
 	{ CMD_SIGKILL,   cmd_sigkill   },
-	{ CMD_FETCH_OUT, cmd_fetch_out },
-	{ CMD_FLUSH_OUT, cmd_flush_out }
+	{ CMD_FETCH,     cmd_fetch     },
+	{ CMD_FLUSH,     cmd_flush     }
 };
 
 static int dispatch(CTX, CN, MSG)
