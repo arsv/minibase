@@ -5,7 +5,7 @@ struct top {
 	int fd;
 
 	byte id[2];
-	byte rand[16];
+	byte rand[8];
 	int avail;
 
 	byte* data;

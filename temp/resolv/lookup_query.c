@@ -3,6 +3,7 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/ppoll.h>
+#include <sys/random.h>
 
 #include <format.h>
 #include <string.h>
@@ -42,6 +43,8 @@ static void prep_socket(CTX)
 		.addr = { 0, 0, 0, 0 }
 	};
 
+	if(ctx->fd > 0) return;
+
 	if((fd = sys_socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 		fail("socket", NULL, fd);
 	if((ret = sys_bind(fd, &self, sizeof(self))) < 0)
@@ -50,31 +53,22 @@ static void prep_socket(CTX)
 	ctx->fd = fd;
 }
 
-static void free_socket(CTX)
-{
-	sys_close(ctx->fd);
-	ctx->fd = -1;
-}
-
 static void prep_ident(CTX)
 {
-	int fd, rd;
-	char* name = "/dev/urandom";
+	int ret;
 
 	if(ctx->avail >= 2)
 		goto got;
 
-	if((fd = sys_open(name, O_RDONLY)) < 0)
-		fail(NULL, name, fd);
-	if((rd = sys_read(fd, ctx->rand, sizeof(ctx->rand))) < 0)
-		fail("read", name, rd);
-	if(rd < 2)
+	if((ret = sys_getrandom(ctx->rand, sizeof(ctx->rand), 0)) < 0)
+		fail("getrandom", NULL, ret);
+	if(ret < 2)
 		fail("cannot get enough random data", NULL, 0);
 
-	sys_close(fd);
-	ctx->avail = rd;
+	ctx->avail = ret;
 got:
 	ctx->avail -= 2;
+
 	memcpy(ctx->id, ctx->rand + ctx->avail, 2);
 	memcpy(ctx->data, ctx->id, 2);
 }
@@ -165,8 +159,6 @@ static struct dnshdr* send_recv(CTX, byte* buf, int len, byte ip[4])
 			goto out;
 	}
 out:
-	free_socket(ctx);
-
 	if(ret < (int)sizeof(struct dnshdr))
 		return NULL;
 
