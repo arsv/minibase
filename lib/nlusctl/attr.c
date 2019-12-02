@@ -1,98 +1,51 @@
 #include <cdefs.h>
 #include <nlusctl.h>
 
-static struct ucmsg* uc_msg_hdr(char* buf, size_t len)
+static struct ucattr* attr_in(void* ptr, void* end)
 {
-	struct ucmsg* msg = (struct ucmsg*) buf;
+	struct ucattr* at = ptr;
 
-	if(len < sizeof(*msg))
+	void* hdrend = ptr + sizeof(*at);
+
+	if(hdrend < ptr || hdrend > end)
 		return NULL;
 
-	return msg;
-}
+	void* payend = ptr + at->len;
 
-int uc_msglen(char* buf, size_t len)
-{
-	struct ucmsg* msg;
-
-	if(!(msg = uc_msg_hdr(buf, len)))
-		return 0;
-
-	return msg->len;
-}
-
-struct ucmsg* uc_msg(char* buf, size_t len)
-{
-	struct ucmsg* msg;
-
-	if(!(msg = uc_msg_hdr(buf, len)))
-		return NULL;
-	if(msg->len > len)
-		return NULL;
-
-	return msg;
-}
-
-static struct ucattr* uc_get_0_in(char* buf, size_t len)
-{
-	struct ucattr* at = (struct ucattr*) buf;
-
-	if(len < sizeof(*at))
-		return NULL;
-	if(at->len > len)
+	if(payend < ptr || payend > end)
 		return NULL;
 
 	return at;
 }
 
-static struct ucattr* uc_get_n_in(char* buf, size_t len, struct ucattr* at)
+struct ucattr* uc_get_0(struct ucattr* msg)
 {
-	char* end = buf + len;
-	char* ptr = (char*) at;
+	void* buf = msg;
+	void* ptr = buf + sizeof(*msg);
+	void* end = buf + msg->len;
 
-	if(ptr < buf)
-		return NULL;
-	if(ptr > end)
-		return NULL;
-	if(!at->len)
-		return NULL;
-
-	int aln = at->len;
-	aln += (4 - aln % 4) % 4;
-	ptr += aln;
-
-	if(ptr + sizeof(*at) > end)
-		return NULL;
-
-	at = (struct ucattr*) ptr;
-
-	if(ptr + at->len > end)
-		return NULL;
-
-	return at;
+	return attr_in(ptr, end);
 }
 
-struct ucattr* uc_get_0(struct ucmsg* msg)
+struct ucattr* uc_get_n(struct ucattr* msg, struct ucattr* at)
 {
-	return uc_get_0_in(msg->payload, msg->len - sizeof(*msg));
+	void* buf = msg;
+	void* ptr = at;
+	void* end = buf + msg->len;
+	int len = at->len;
+
+	if(len <= 0) return NULL;
+
+	len = (len + 3) & ~3;
+
+	ptr += len;
+
+	if(ptr < buf) return NULL;
+
+	return attr_in(ptr, end);
 }
 
-struct ucattr* uc_get_n(struct ucmsg* msg, struct ucattr* ab)
-{
-	return uc_get_n_in(msg->payload, msg->len - sizeof(*msg), ab);
-}
-
-struct ucattr* uc_sub_0(struct ucattr* ab)
-{
-	return uc_get_0_in(ab->payload, ab->len - sizeof(*ab));
-}
-
-struct ucattr* uc_sub_n(struct ucattr* ab, struct ucattr* at)
-{
-	return uc_get_n_in(ab->payload, ab->len - sizeof(*ab), at);
-}
-
-struct ucattr* uc_get(struct ucmsg* msg, int key)
+struct ucattr* uc_get(struct ucattr* msg, int key)
 {
 	struct ucattr* at;
 
@@ -103,15 +56,9 @@ struct ucattr* uc_get(struct ucmsg* msg, int key)
 	return NULL;
 }
 
-struct ucattr* uc_sub(struct ucattr* bt, int key)
+int uc_is_keyed(struct ucattr* at, int key)
 {
-	struct ucattr* at;
-
-	for(at = uc_sub_0(bt); at; at = uc_sub_n(bt, at))
-		if(at->key == key)
-			return at;
-
-	return NULL;
+	return (at->key == key);
 }
 
 void* uc_payload(struct ucattr* at)

@@ -1,206 +1,191 @@
 #include <nlusctl.h>
 #include <format.h>
 #include <string.h>
+#include <output.h>
 #include <util.h>
 
-static void dump_attr(char* pref, struct ucattr* at);
-
-static void dump_rec(char* pref, struct ucattr* bt)
+static int is_nest(struct ucattr* at)
 {
-	struct ucattr* at;
+	void* buf = uc_payload(at);
+	int len = uc_paylen(at);
 
-	FMTBUF(p, e, npf, strlen(pref) + 10);
-	p = fmtstr(p, e, "  ");
-	p = fmtstr(p, e, pref);
-	FMTEND(p, e);
+	void* p = buf;
+	void* e = buf + len;
 
-	for(at = uc_sub_0(bt); at; at = uc_sub_n(bt, at))
-		dump_attr(npf, at);
+	while(p < e) {
+		struct ucattr* at = p;
+		int alen = at->len;
+		int skip = (alen + 3) & ~3;
+
+		if(!skip) break;
+
+		p += skip;
+	}
+
+	return (p == e);
 }
 
-static char* tag(char* p, char* e, char* pref, struct ucattr* at, char* type)
+static char* fmt_chr(char* p, char* e, byte c)
 {
-	p = fmtstr(p, e, pref);
-	p = fmtstr(p, e, "ATTR ");
-	p = fmtint(p, e, at->key);
-	p = fmtstr(p, e, type);
+	if(c < 20 || c >= 0x7F)
+		p = fmtchar(p, e, '.');
+	else
+		p = fmtchar(p, e, c);
+
 	return p;
 }
 
-static void output(char* p, char* e, char* buf)
+static char* fmt_bytes(char* p, char* e, byte* data, int len)
 {
-	FMTENL(p, e);
-	writeall(STDERR, buf, p - buf);
-}
-
-static void at_empty(char* pref, struct ucattr* at)
-{
-	FMTBUF(p, e, buf, 50);
-	p = tag(p, e, pref, at, " empty");
-	output(p, e, buf);
-}
-
-static void at_nest(char* pref, struct ucattr* at)
-{
-	FMTBUF(p, e, buf, 50);
-	p = tag(p, e, pref, at, " nest");
-	output(p, e, buf);
-
-	dump_rec(pref, at);
-}
-
-//void at_string(char* pref, struct ucattr* at, char* str)
-//{
-//	char* q;
-//	byte c;
-//
-//	FMTBUF(p, e, buf, 30 + strlen(str));
-//	p = tag(p, e, pref, at, " ");
-//	p = fmtstr(p, e, "\"");
-//
-//	for(q = str; (c = *q); q++) {
-//		if(c >= 0x20 && c < 0x7F) {
-//			p = fmtchar(p, e, c);
-//		} else {
-//			p = fmtstr(p, e, "\\x");
-//			p = fmtbyte(p, e, c);
-//		}
-//	}
-//
-//	p = fmtstr(p, e, "\"");
-//	output(p, e, buf);
-//}
-//
-//void at_int(char* pref, struct ucattr* at, int* val)
-//{
-//	FMTBUF(p, e, buf, 50);
-//	p = tag(p, e, pref, at, " int ");
-//	p = fmtstr(p, e, "0x");
-//	p = fmtpad0(p, e, 8, fmthex(p, e, *val));
-//	p = fmtstr(p, e, " ");
-//	p = fmtint(p, e, *val);
-//	output(p, e, buf);
-//}
-
-static void at_raw(char* pref, struct ucattr* at, void* data, int dlen)
-{
-	char* q = data;
 	int i;
 
-	FMTBUF(p, e, buf, 80);
-	p = tag(p, e, pref, at, " raw");
-
-	for(i = 0; i < dlen; i++) {
-		p = fmtstr(p, e, " ");
-		p = fmtbyte(p, e, q[i]);
+	p = fmtstr(p, e, "[ ");
+	for(i = 0; i < len; i++) {
+		p = fmtbyte(p, e, data[i]);
+		p = fmtchar(p, e, ' ');
 	}
 
-	output(p, e, buf);
+	p = fmtstr(p, e, "]  ");
+
+	for(i = 0; i < len; i++) {
+		p = fmt_chr(p, e, data[i]);
+	}
+
+	return p;
 }
 
-static void at_trash(char* pref, struct ucattr* at, void* data, int dlen)
+static void prefix(struct bufout* bo, int lvl)
 {
-	char* q = data;
+	for(int i = 0; i < lvl; i++)
+		bufout(bo, "  ", 2);
+}
+
+static void hexline(struct bufout* bo, int lvl, byte* data, int len)
+{
 	int i;
 
-	FMTBUF(p, e, buf, 80);
-	p = tag(p, e, pref, at, "");
+	prefix(bo, lvl);
 
-	for(i = 0; i < dlen; i++) {
-		if(i % 16 == 0) {
-			output(p, e, buf);
-			p = buf;
-			p = fmtstr(p, e, pref);
+	FMTBUF(p, e, buf, 128);
+
+	p = fmtstr(p, e, "# ");
+
+	for(i = 0; i < 16; i++) {
+		if(i < len)
+			p = fmtbyte(p, e, data[i]);
+		else
+			p = fmtstr(p, e, "  ");
+
+		p = fmtstr(p, e, " ");
+	}
+
+	p = fmtstr(p, e, "   ");
+
+	for(i = 0; i < 16; i++) {
+		if(i < len)
+			p = fmt_chr(p, e, data[i]);
+		else
 			p = fmtstr(p, e, " ");
-		}
-		p = fmtstr(p, e, " ");
-		p = fmtbyte(p, e, q[i]);
 	}
 
-	output(p, e, buf);
+	FMTENL(p, e);
+
+	bufout(bo, buf, p - buf);
 }
 
-static void dump_attr(char* pref, struct ucattr* at)
+static void dump_data(struct bufout* bo, int lvl, struct ucattr* at)
+{
+	byte* data = uc_payload(at);
+	int i, len = uc_paylen(at);
+	int lines = len / 16;
+	int trail = len % 16;
+	int count = 0;
+
+	for(i = 0; i < lines; i++) {
+		hexline(bo, lvl, data + count, 16);
+		count += 16;
+	} if(trail > 0) {
+		hexline(bo, lvl, data + count, trail);
+	}
+}
+
+static void dump_attr(struct bufout* bo, int lvl, struct ucattr* at);
+
+static void dump_nest(struct bufout* bo, int lvl, struct ucattr* at)
+{
+	struct ucattr* bt;
+
+	for(bt = uc_get_0(at); bt; bt = uc_get_n(at, bt))
+		dump_attr(bo, lvl, bt);
+}
+
+static void dump_attr(struct bufout* bo, int lvl, struct ucattr* at)
 {
 	int paylen = uc_paylen(at);
 	void* payload = uc_payload(at);
-	int key = at->key;
 
-	if(paylen == 0)
-		at_empty(pref, at);
-	else if(uc_is_nest(at, key))
-		at_nest(pref, at);
-	else if(paylen < 15)
-		at_raw(pref, at, payload, paylen);
+	prefix(bo, lvl);
+
+	FMTBUF(p, e, buf, 120);
+
+	p = fmtstr(p, e, "ATTR ");
+	p = fmtint(p, e, at->key);
+
+	if(paylen <= 0) {
+		p = fmtstr(p, e, " flag");
+	} else if(paylen <= 8) {
+		p = fmtstr(p, e, "  ");
+		p = fmt_bytes(p, e, payload, paylen);
+	} else {
+		p = fmtstr(p, e, " +");
+		p = fmtint(p, e, paylen);
+	}
+
+	FMTENL(p, e);
+
+	bufout(bo, buf, p - buf);
+
+	if(paylen <= 8)
+		return;
+	if(is_nest(at))
+		dump_nest(bo, lvl + 1, at);
 	else
-		at_trash(pref, at, payload, paylen);
+		dump_data(bo, lvl + 1, at);
 }
 
-
-static void dump_attrs_in(struct ucmsg* msg)
+void uc_dump(struct ucattr* msg)
 {
-	struct ucattr* at;
+	byte output[2048];
+	struct bufout bo;
 
-	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
-		dump_attr("  ", at);
-}
+	bufoutset(&bo, STDERR, output, sizeof(output));
 
-static int printable(int c)
-{
-	return (c > 0x20 && c < 0x7F);
-}
-
-static void dump_header(struct ucmsg* msg)
-{
-	int cmd = msg->cmd;
-	int paylen = msg->len - sizeof(*msg);
+	int code = uc_repcode(msg);
+	int paylen = uc_paylen(msg);
 
 	FMTBUF(p, e, buf, 80);
 
-	p = fmtstr(p, e, "NLUS");
-
-	if(cmd < 0) {
-		p = fmtstr(p, e, " error ");
-		p = fmtint(p, e, -cmd);
-	} else {
-		int c1 = (cmd >> 24) & 0xFF;
-		int c2 = (cmd >> 16) & 0xFF;
-
-		if(printable(c1) && printable(c2)) {
-			p = fmtstr(p, e, " ");
-			p = fmtchar(p, e, c1);
-			p = fmtchar(p, e, c2);
-			p = fmtstr(p, e, "(");
-			p = fmtint(p, e, cmd & 0xFFFF);
-			p = fmtstr(p, e, ")");
-		} else {
-			p = fmtstr(p, e, " cmd=");
-			p = fmtint(p, e, cmd);
-		}
-	}
+	p = fmtstr(p, e, "NLUS ");
+	p = fmtint(p, e, code);
 
 	if(paylen > 0) {
-		p = fmtstr(p, e, " payload ");
+		p = fmtstr(p, e, " +");
 		p = fmtint(p, e, paylen);
 	};
 
 	FMTENL(p, e);
 
-	writeall(STDERR, buf, p - buf);
-}
+	bufout(&bo, buf, p - buf);
 
-void uc_dump(struct ucmsg* msg)
-{
-	dump_header(msg);
-	dump_attrs_in(msg);
-}
+	if(is_nest(msg)) {
+		struct ucattr* at;
 
-void uc_dump_rx(struct urbuf* ur)
-{
-	uc_dump(ur->msg);
-}
+		for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
+			dump_attr(&bo, 1, at);
 
-void uc_dump_tx(struct ucbuf* uc)
-{
-	uc_dump((struct ucmsg*)uc->buf);
+	} else {
+		dump_data(&bo, 1, msg);
+	}
+
+	bufoutflush(&bo);
 }
