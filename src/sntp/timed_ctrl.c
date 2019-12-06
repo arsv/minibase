@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <sys/ppoll.h>
 #include <sys/timer.h>
+#include <sys/file.h>
 
 #include <nlusctl.h>
 #include <format.h>
@@ -14,24 +15,36 @@
 #include "common.h"
 
 #define UC struct ucbuf* uc
+#define REPLIED 1
 
 typedef struct ucattr* attr;
 
-static int send_reply(struct conn* cn, struct ucbuf* uc)
+static int send_reply(CTX, struct conn* cn, struct ucbuf* uc)
 {
-	return uc_send_timed(cn->fd, uc);
+	int ret, fd = cn->fd;
+
+	if((ret = uc_send(fd, uc)) != -EAGAIN)
+		return ret;
+	if((ret = uc_wait_writable(fd)) < 0)
+		return ret;
+
+	if((ret = uc_send(fd, uc)) > 0)
+		return ret;
+
+	clear_client(ctx, cn);
+
+	return REPLIED;
 }
 
-static int reply(struct conn* cn, int err)
+static int reply(CTX, struct conn* cn, int err)
 {
 	char cbuf[16];
 	struct ucbuf uc;
 
 	uc_buf_set(&uc, cbuf, sizeof(cbuf));
 	uc_put_hdr(&uc, err);
-	uc_put_end(&uc);
 
-	return send_reply(cn, &uc);
+	return send_reply(ctx, cn, &uc);
 }
 
 static int time_left(CTX)
@@ -69,7 +82,7 @@ static void report_ping(CTX, UC)
 {
 	int i, n = NSERVS;
 
-	uc_put_hdr(uc, REP_TI_PING);
+	uc_put_hdr(uc, REP_PING);
 
 	uc_put_int(uc, ATTR_TIMELEFT, time_left(ctx));
 
@@ -95,7 +108,7 @@ static void report_ping(CTX, UC)
 
 static void report_poll(CTX, UC)
 {
-	uc_put_hdr(uc, REP_TI_POLL);
+	uc_put_hdr(uc, REP_POLL);
 
 	uc_put_int(uc, ATTR_TIMELEFT, time_left(ctx));
 
@@ -122,12 +135,12 @@ static void report_poll(CTX, UC)
 
 static void report_idle(CTX, UC)
 {
-	uc_put_hdr(uc, REP_TI_IDLE);
+	uc_put_hdr(uc, REP_IDLE);
 }
 
 static void report_select(CTX, UC)
 {
-	uc_put_hdr(uc, REP_TI_SELECT);
+	uc_put_hdr(uc, REP_SELECT);
 }
 
 static int cmd_status(CTX, CN, MSG)
@@ -157,9 +170,7 @@ static int cmd_status(CTX, CN, MSG)
 			return -EFAULT;
 	}
 
-	uc_put_end(&uc);
-
-	return send_reply(cn, &uc);
+	return send_reply(ctx, cn, &uc);
 }
 
 static struct serv* find_server_slot(CTX, void* ip, int alen, int port)
@@ -210,8 +221,8 @@ static int check_server(CTX, attr srv)
 {
 	struct serv* sv;
 
-	attr addr = uc_sub(srv, ATTR_ADDR);
-	int* pptr = uc_sub_int(srv, ATTR_PORT);
+	attr addr = uc_get(srv, ATTR_ADDR);
+	int* pptr = uc_get_int(srv, ATTR_PORT);
 
 	if(!addr || !pptr)
 		return -EINVAL;
@@ -285,9 +296,8 @@ static int cmd_srlist(CTX, CN, MSG)
 
 	uc_buf_set(&uc, cbuf, sizeof(cbuf));
 	report_ping(ctx, &uc);
-	uc_put_end(&uc);
 
-	return send_reply(cn, &uc);
+	return send_reply(ctx, cn, &uc);
 }
 
 static int cmd_server(CTX, CN, MSG)
@@ -298,7 +308,7 @@ static int cmd_server(CTX, CN, MSG)
 	wipe_failed(ctx);
 
 	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
-		if((uc_is_nest(at, ATTR_SERVER)))
+		if(uc_is_keyed(at, ATTR_SERVER))
 			if((ret = check_server(ctx, at)) < 0)
 				return ret;
 
@@ -369,27 +379,27 @@ static const struct cmd {
 	int cmd;
 	int (*call)(CTX, CN, MSG);
 } commands[] = {
-	{ CMD_TI_STATUS,  cmd_status  },
-	{ CMD_TI_SERVER,  cmd_server  },
-	{ CMD_TI_SRLIST,  cmd_srlist  },
-	{ CMD_TI_RETRY,   cmd_retry   },
-	{ CMD_TI_RESET,   cmd_reset   },
-	{ CMD_TI_FORCE,   cmd_force   }
+	{ CMD_STATUS,  cmd_status  },
+	{ CMD_SERVER,  cmd_server  },
+	{ CMD_SRLIST,  cmd_srlist  },
+	{ CMD_RETRY,   cmd_retry   },
+	{ CMD_RESET,   cmd_reset   },
+	{ CMD_FORCE,   cmd_force   }
 };
 
 static int dispatch_cmd(CTX, CN, MSG)
 {
 	const struct cmd* cd;
-	int cmd = msg->cmd;
+	int cmd = uc_repcode(msg);
 	int ret;
 
 	for(cd = commands; cd < ARRAY_END(commands); cd++)
 		if(cd->cmd == cmd)
 			break;
 	if(!cd->cmd)
-		ret = reply(cn, -ENOSYS);
+		ret = reply(ctx, cn, -ENOSYS);
 	else if((ret = cd->call(ctx, cn, msg)) <= 0)
-		ret = reply(cn, ret);
+		ret = reply(ctx, cn, ret);
 
 	return ret;
 }
@@ -397,10 +407,10 @@ static int dispatch_cmd(CTX, CN, MSG)
 void check_client(CTX, CN)
 {
 	int ret, fd = cn->fd;
-	struct ucmsg* msg;
+	struct ucattr* msg;
 	char buf[100];
 
-	if((ret = uc_recv_whole(fd, buf, sizeof(buf))) < 0)
+	if((ret = uc_recv(fd, buf, sizeof(buf))) < 0)
 		goto err;
 	if(!(msg = uc_msg(buf, ret)))
 		goto err;

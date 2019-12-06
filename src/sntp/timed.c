@@ -10,6 +10,7 @@
 
 #include <string.h>
 #include <sigset.h>
+#include <nlusctl.h>
 #include <main.h>
 #include <util.h>
 
@@ -40,22 +41,9 @@ struct serv* current(CTX)
 	return sv;
 }
 
-static void clear_ctrl(void)
-{
-	sys_unlink(TIMED_CTRL);
-}
-
 void quit(const char* msg, char* arg, int err)
 {
-	clear_ctrl();
 	fail(msg, arg, err);
-}
-
-static void sighandler(int sig)
-{
-	(void)sig;
-	clear_ctrl();
-	_exit(0);
 }
 
 static void nilhandler(int sig)
@@ -64,18 +52,15 @@ static void nilhandler(int sig)
 	(void)sig;
 }
 
-static void sigaction(int sig, struct sigaction* sa, const char* tag)
-{
-	int ret;
-
-	if((ret = sys_sigaction(sig, sa, NULL)) < 0)
-		fail(tag, NULL, ret);
-}
-
-static void set_signal_mask(void)
+static void setup_signals(CTX)
 {
 	sigset_t set;
 	int ret;
+
+	SIGHANDLER(sa, nilhandler, 0);
+
+	if((ret = sys_sigaction(SIGALRM, &sa, NULL)) < 0)
+		fail("sigaction", "SIGALRM", ret);
 
 	sigemptyset(&set);
 	sigaddset(&set, SIGALRM);
@@ -84,36 +69,16 @@ static void set_signal_mask(void)
 		fail("sigprocmask", NULL, ret);
 }
 
-static void setup_signals(CTX)
-{
-	SIGHANDLER(sa, sighandler, 0);
-
-	sigaction(SIGINT, &sa, "SIGINT");
-	sigaction(SIGTERM, &sa, "SIGTERM");
-
-	sa.handler = nilhandler;
-
-	sigaction(SIGALRM, &sa, "SIGALRM");
-
-	set_signal_mask();
-}
-
 static void setup_control(CTX)
 {
 	int fd, ret;
-	int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = TIMED_CTRL
-	};
+	int flags = SOCK_SEQPACKET | SOCK_NONBLOCK | SOCK_CLOEXEC;
+	char* path = CONTROL;
 
 	if((fd = sys_socket(AF_UNIX, flags, 0)) < 0)
 		fail("socket", "AF_UNIX", fd);
-
-	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
-		fail("bind", addr.path, ret);
-	else if((ret = sys_listen(fd, 1)))
-		quit("listen", addr.path, ret);
+	if((ret = uc_listen(fd, path, 5)) < 0)
+		fail("ucbind", path, ret);
 
 	ctx->ctlfd = fd;
 	ctx->ntpfd = -1;
@@ -144,6 +109,20 @@ static void update_poll_fds(CTX, struct poll* pp)
 		pfds[2+i].fd = ifgoodfd(ctx->conns[i].fd);
 
 	pp->npfds = 2 + n;
+}
+
+void clear_client(CTX, CN)
+{
+	int i, n = 0;
+
+	sys_close(cn->fd);
+	cn->fd = -1;
+
+	for(i = 0; i < NCONNS; i++)
+		if(ctx->conns[i].fd > 0)
+			n = i + 1;
+
+	ctx->nconn = n;
 }
 
 static struct conn* grab_conn_slot(CTX)
@@ -181,20 +160,6 @@ static void check_control(CTX)
 			ctx->pollready = 0;
 		}
 	}
-}
-
-static void clear_client(CTX, CN)
-{
-	int i, n = 0;
-
-	sys_close(cn->fd);
-	cn->fd = -1;
-
-	for(i = 0; i < NCONNS; i++)
-		if(ctx->conns[i].fd > 0)
-			n = i + 1;
-
-	ctx->nconn = n;
 }
 
 static void check_polled_fds(CTX, struct poll* pp)

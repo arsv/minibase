@@ -95,13 +95,14 @@ struct top {
 
 #define CTX struct top* ctx __attribute__((unused))
 #define CN struct conn* cn __attribute__((unused))
-#define MSG struct ucmsg* msg __attribute__((unused))
+#define MSG struct ucattr* msg __attribute__((unused))
 
 void quit(const char* msg, char* arg, int err) noreturn;
 
 void init_clock_state(CTX);
 
 void check_client(CTX, CN);
+void clear_client(CTX, CN);
 void check_packet(CTX);
 void handle_timeout(CTX);
 

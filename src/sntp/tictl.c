@@ -18,15 +18,14 @@ struct top {
 	char** argv;
 
 	int fd;
-	struct ucbuf uc;
-	struct urbuf ur;
 	char txbuf[64];
 	char rxbuf[512];
+
+	struct ucbuf uc;
 };
 
 #define CTX struct top* ctx __attribute__((unused))
-#define MSG struct ucmsg* msg __attribute__((unused))
-#define UC (&ctx->uc)
+#define MSG struct ucattr* msg __attribute__((unused))
 
 typedef struct ucattr* attr;
 
@@ -42,67 +41,67 @@ static void prep_context(CTX, int argc, char** argv)
 	ctx->argi = i;
 
 	uc_buf_set(&ctx->uc, ctx->txbuf, sizeof(ctx->txbuf));
-	ur_buf_set(&ctx->ur, ctx->rxbuf, sizeof(ctx->rxbuf));
 }
 
 static int init_socket(CTX)
 {
 	int fd, ret;
+	char* path = CONTROL;
 
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = TIMED_CTRL
-	};
-
-	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+	if((fd = sys_socket(AF_UNIX, SOCK_SEQPACKET, 0)) < 0)
 		fail("socket", "AF_UNIX", fd);
-
-	if((ret = sys_connect(fd, &addr, sizeof(addr))) < 0)
-		fail(NULL, addr.path, ret);
+	if((ret = uc_connect(fd, path)) < 0)
+		fail("connect", path, ret);
 
 	ctx->fd = fd;
 
 	return fd;
 }
 
-static void send_command(CTX)
+static void send_command(CTX, struct ucbuf* uc)
 {
 	int wr, fd;
 
 	if(!(fd = ctx->fd))
 		fd = init_socket(ctx);
-	if((wr = uc_send_whole(fd, &ctx->uc)) < 0)
+	if((wr = uc_send(fd, uc)) < 0)
 		fail("send", NULL, wr);
 }
 
-static struct ucmsg* recv_reply(CTX)
+static struct ucattr* recv_reply(CTX)
 {
-	struct urbuf* ur = &ctx->ur;
 	int ret, fd = ctx->fd;
+	void* buf = ctx->rxbuf;
+	int len = sizeof(ctx->rxbuf);
+	struct ucattr* msg;
 
-	if((ret = uc_recv_shift(fd, ur)) < 0)
+	if((ret = uc_recv(fd, buf, len)) < 0)
 		fail("recv", NULL, ret);
+	if(!(msg = uc_msg(buf, ret)))
+		fail("invalid message", NULL, 0);
 
-	return ur->msg;
+	return msg;
 }
 
-static void send_check(CTX)
+static void send_check(CTX, struct ucbuf* uc)
 {
-	struct ucmsg* msg;
+	struct ucattr* msg;
 
-	send_command(ctx);
+	send_command(ctx, uc);
 
 	msg = recv_reply(ctx);
 
-	if(msg->cmd > 0)
+	int cmd = uc_repcode(msg);
+
+	if(cmd > 0)
 		fail("unexpected notification", NULL, 0);
-	if(msg->cmd < 0)
-		fail(NULL, NULL, msg->cmd);
+	if(cmd < 0)
+		fail(NULL, NULL, cmd);
 }
 
-static struct ucmsg* send_recv(CTX)
+static struct ucattr* send_recv(CTX, struct ucbuf* uc)
 {
-	send_command(ctx);
+	send_command(ctx, uc);
 
 	return recv_reply(ctx);
 }
@@ -127,7 +126,7 @@ static char* fmt_server_rtt(char* p, char* e, int* rtt)
 	return p;
 }
 
-static char* fmt_current(char* p, char* e, struct ucmsg* msg)
+static char* fmt_current(char* p, char* e, struct ucattr* msg)
 {
 	struct ucattr* at = uc_get(msg, ATTR_ADDR);
 	int* port = uc_get_int(msg, ATTR_PORT);
@@ -234,7 +233,7 @@ static char* fmt_ntp_dt(char* p, char* e, int64_t dt)
 	return fmt_ntp_rt(p, e, dt);
 }
 
-static char* fmt_wakeup(char* p, char* e, struct ucmsg* msg)
+static char* fmt_wakeup(char* p, char* e, struct ucattr* msg)
 {
 	int* fl = uc_get_int(msg, ATTR_FAILURES);
 	int* tp = uc_get_int(msg, ATTR_TIMELEFT);
@@ -261,7 +260,7 @@ static char* fmt_wakeup(char* p, char* e, struct ucmsg* msg)
 	return p;
 }
 
-static char* fmt_times(char* p, char* e, struct ucmsg* msg)
+static char* fmt_times(char* p, char* e, struct ucattr* msg)
 {
 	uint64_t* polltime = uc_get_u64(msg, ATTR_POLLTIME);
 	uint64_t* synctime = uc_get_u64(msg, ATTR_SYNCTIME);
@@ -362,9 +361,9 @@ static char* fmt_server_address(char* p, char* e, attr ip, int* port)
 
 static char* fmt_server(char* p, char* e, attr at)
 {
-	attr ip = uc_sub(at, ATTR_ADDR);
-	int* port = uc_sub_int(at, ATTR_PORT);
-	int* rtt = uc_sub_int(at, ATTR_RTT);
+	attr ip = uc_get(at, ATTR_ADDR);
+	int* port = uc_get_int(at, ATTR_PORT);
+	int* rtt = uc_get_int(at, ATTR_RTT);
 
 	p = fmt_server_address(p, e, ip, port);
 
@@ -380,8 +379,8 @@ static char* fmt_server(char* p, char* e, attr at)
 
 static char* fmt_failed(char* p, char* e, attr at)
 {
-	attr ip = uc_sub(at, ATTR_ADDR);
-	int* port = uc_sub_int(at, ATTR_PORT);
+	attr ip = uc_get(at, ATTR_ADDR);
+	int* port = uc_get_int(at, ATTR_PORT);
 
 	p = fmt_server_address(p, e, ip, port);
 
@@ -401,9 +400,9 @@ static void report_ping(CTX, MSG)
 	p = fmtstr(p, e, "Selecting server to use\n");
 
 	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
-		if(uc_is_nest(at, ATTR_SERVER))
+		if(uc_is_keyed(at, ATTR_SERVER))
 			p = fmt_server(p, e, at);
-		else if(uc_is_nest(at, ATTR_FAILED))
+		else if(uc_is_keyed(at, ATTR_FAILED))
 			p = fmt_failed(p, e, at);
 
 	int* tp = uc_get_int(msg, ATTR_TIMELEFT);
@@ -432,49 +431,48 @@ static void report_poll(CTX, MSG)
 
 static void cmd_status(CTX)
 {
-	struct ucmsg* msg;
+	struct ucattr* msg;
+	struct ucbuf* uc = &ctx->uc;
 	int cmd;
 
-	uc_put_hdr(UC, CMD_TI_STATUS);
-	uc_put_end(UC);
+	uc_put_hdr(uc, CMD_STATUS);
 
-	msg = send_recv(ctx);
+	msg = send_recv(ctx, uc);
 
-	if((cmd = msg->cmd) < 0)
+	if((cmd = uc_repcode(msg)) < 0)
 		fail(NULL, NULL, cmd);
 
-	if(cmd == REP_TI_IDLE)
+	if(cmd == REP_IDLE)
 		report_idle(ctx, msg);
-	else if(cmd == REP_TI_SELECT)
+	else if(cmd == REP_SELECT)
 		report_select(ctx, msg);
-	else if(cmd == REP_TI_PING)
+	else if(cmd == REP_PING)
 		report_ping(ctx, msg);
-	else if(cmd == REP_TI_POLL)
+	else if(cmd == REP_POLL)
 		report_poll(ctx, msg);
 }
 
 static void cmd_srlist(CTX)
 {
-	struct ucmsg* msg;
-	attr at;
+	struct ucattr *msg, *at;
+	struct ucbuf* uc = &ctx->uc;
 	int cmd;
 
-	uc_put_hdr(UC, CMD_TI_SRLIST);
-	uc_put_end(UC);
+	uc_put_hdr(uc, CMD_SRLIST);
 
-	msg = send_recv(ctx);
+	msg = send_recv(ctx, uc);
 
-	if((cmd = msg->cmd) < 0)
+	if((cmd = uc_repcode(msg)) < 0)
 		fail(NULL, NULL, cmd);
-	if(cmd != REP_TI_PING)
+	if(cmd != REP_PING)
 		fail("unexpected reply", NULL, 0);
 
 	FMTBUF(p, e, buf, 512);
 
 	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
-		if(uc_is_nest(at, ATTR_SERVER))
+		if(uc_is_keyed(at, ATTR_SERVER))
 			p = fmt_server(p, e, at);
-		else if(uc_is_nest(at, ATTR_FAILED))
+		else if(uc_is_keyed(at, ATTR_FAILED))
 			p = fmt_failed(p, e, at);
 
 	FMTEND(p, e);
@@ -502,8 +500,9 @@ static int parse_ip4_server(char* arg, byte ip[4], int* port)
 static void cmd_server(CTX)
 {
 	int i, n = ctx->argc - ctx->argi;
+	struct ucbuf* uc = &ctx->uc;
 
-	uc_put_hdr(UC, CMD_TI_SERVER);
+	uc_put_hdr(uc, CMD_SERVER);
 
 	if(n > 4)
 		fail("too many servers", NULL, 0);
@@ -513,21 +512,19 @@ static void cmd_server(CTX)
 		byte ip[16];
 		int port;
 
-		struct ucattr* at = uc_put_nest(UC, ATTR_SERVER);
+		struct ucattr* at = uc_put_nest(uc, ATTR_SERVER);
 
 		if(parse_ip4_server(arg, ip, &port))
-			uc_put_bin(UC, ATTR_ADDR, ip, 4);
+			uc_put_bin(uc, ATTR_ADDR, ip, 4);
 		else
 			fail("invalid address", arg, 0);
 
-		uc_put_int(UC, ATTR_PORT, port);
+		uc_put_int(uc, ATTR_PORT, port);
 
-		uc_end_nest(UC, at);
+		uc_end_nest(uc, at);
 	}
 
-	uc_put_end(UC);
-
-	send_check(ctx);
+	send_check(ctx, uc);
 }
 
 static void no_more_arguments(CTX)
@@ -536,34 +533,30 @@ static void no_more_arguments(CTX)
 		fail("too many arguments", NULL, 0);
 }
 
-static void cmd_retry(CTX)
+static void simple_command(CTX, int cmd)
 {
+	struct ucbuf* uc = &ctx->uc;
+
 	no_more_arguments(ctx);
 
-	uc_put_hdr(UC, CMD_TI_RETRY);
-	uc_put_end(UC);
+	uc_put_hdr(uc, cmd);
 
-	send_check(ctx);
+	send_check(ctx, uc);
+}
+
+static void cmd_retry(CTX)
+{
+	simple_command(ctx, CMD_RETRY);
 }
 
 static void cmd_reset(CTX)
 {
-	no_more_arguments(ctx);
-
-	uc_put_hdr(UC, CMD_TI_RESET);
-	uc_put_end(UC);
-
-	send_check(ctx);
+	simple_command(ctx, CMD_RESET);
 }
 
 static void cmd_force(CTX)
 {
-	no_more_arguments(ctx);
-
-	uc_put_hdr(UC, CMD_TI_FORCE);
-	uc_put_end(UC);
-
-	send_check(ctx);
+	simple_command(ctx, CMD_FORCE);
 }
 
 static const struct cmd {

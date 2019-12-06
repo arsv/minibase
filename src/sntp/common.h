@@ -1,20 +1,18 @@
 #include <dirs.h>
 
-#define TIMED_CTRL HERE "/run/ctrl/timed"
+#define CONTROL RUN_CTRL "/timed"
 
-#define TI(c) TAGGED('T', 'I', c)
+#define CMD_STATUS     1
+#define CMD_SERVER     2
+#define CMD_SRLIST     3
+#define CMD_RETRY      4
+#define CMD_RESET      5
+#define CMD_FORCE      6
 
-#define CMD_TI_STATUS    TI(0)
-#define CMD_TI_SERVER    TI(1)
-#define CMD_TI_SRLIST    TI(2)
-#define CMD_TI_RETRY     TI(3)
-#define CMD_TI_RESET     TI(4)
-#define CMD_TI_FORCE     TI(5)
-
-#define REP_TI_IDLE      TI(0)
-#define REP_TI_SELECT    TI(1)
-#define REP_TI_PING      TI(2)
-#define REP_TI_POLL      TI(3)
+#define REP_IDLE       1
+#define REP_SELECT     2
+#define REP_PING       3
+#define REP_POLL       4
 
 #define ATTR_STATE     1
 
