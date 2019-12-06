@@ -20,11 +20,6 @@
 
 ERRTAG("apphub");
 
-static void clear_ctrl(void)
-{
-	sys_unlink(CONTROL);
-}
-
 static void kill_all_procs(CTX)
 {
 	struct proc* pc = ctx->procs;
@@ -59,13 +54,6 @@ static void kill_all_conns(CTX)
 	ctx->pollset = 0;
 }
 
-void quit(const char* msg, char* arg, int err)
-{
-	clear_ctrl();
-
-	fail(msg, arg, err);
-}
-
 static void sigprocmask(int how, sigset_t* mask)
 {
 	int ret;
@@ -94,29 +82,8 @@ static void open_signalfd(CTX)
 	ctx->sigfd = fd;
 }
 
-static void setup_control(CTX)
-{
-	int fd, ret;
-	int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = CONTROL
-	};
-
-	if((fd = sys_socket(AF_UNIX, flags, 0)) < 0)
-		fail("socket", "AF_UNIX", fd);
-
-	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
-		fail("bind", addr.path, ret);
-	else if((ret = sys_listen(fd, 1)))
-		quit("listen", addr.path, ret);
-
-	ctx->ctlfd = fd;
-}
-
 static void clear_exit(CTX)
 {
-	clear_ctrl();
 	_exit(0xFF);
 }
 
@@ -156,9 +123,9 @@ static void check_signal(CTX)
 	memzero(&si, sizeof(si));
 
 	if((ret = sys_read(fd, &si, sizeof(si))) < 0)
-		quit("read", "sigfd", ret);
+		fail("read", "sigfd", ret);
 	if(ret == 0)
-		quit("signalfd EOF", NULL, 0);
+		fail("signalfd EOF", NULL, 0);
 
 	int sig = si.signo;
 
@@ -363,7 +330,7 @@ static void poll(CTX)
 	if(ctx->timer == TM_NONE) ts = NULL;
 
 	if((ret = sys_ppoll(pfds, npfds, ts, NULL)) < 0)
-		quit("ppoll", NULL, ret);
+		fail("ppoll", NULL, ret);
 
 	if(ret)
 		process_events(ctx);

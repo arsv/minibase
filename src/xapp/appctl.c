@@ -10,6 +10,7 @@
 #include <nlusctl.h>
 #include <string.h>
 #include <format.h>
+#include <output.h>
 #include <util.h>
 #include <main.h>
 #include <netlink.h>
@@ -30,7 +31,7 @@ static void connect_socket(CTX)
 		.path = CONTROL
 	};
 
-	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+	if((fd = sys_socket(AF_UNIX, SOCK_SEQPACKET, 0)) < 0)
 		fail("socket", "AF_UNIX", fd);
 	if((ret = sys_connect(fd, &addr, sizeof(addr))) < 0)
 		fail(NULL, addr.path, ret);
@@ -42,50 +43,43 @@ static void recv_simple_reply(CTX)
 {
 	int ret, fd = ctx->fd;
 	char buf[128];
-	struct ucmsg* msg;
+	struct ucattr* msg;
 
-	if((ret = uc_recv_whole(fd, buf, sizeof(buf))) < 0)
+	if((ret = uc_recv(fd, buf, sizeof(buf))) < 0)
 		fail("recv", NULL, ret);
 	if(!(msg = uc_msg(buf, ret)))
 		fail("recv:", "invalid message", 0);
 
-	if((ret = msg->cmd) < 0)
+	if((ret = uc_repcode(msg)) < 0)
 		fail(NULL, NULL, ret);
 	else if(ret > 0)
 		fail("unexpected notification", NULL, 0);
 }
 
-static struct ucmsg* recv_large(CTX)
+static void* alloc_heap(int size)
 {
-	struct urbuf ur;
-	int size = PAGE;
+	int aligned = pagealign(size);
+
 	void* buf = sys_brk(NULL);
-	void* end = sys_brk(buf + size);
+	void* end = sys_brk(buf + aligned);
+
+	if(end - buf != aligned)
+		fail("brk", NULL, -ENOMEM);
+
+	return buf;
+}
+
+static struct ucattr* recv_large(CTX, void* buf, int size)
+{
 	int ret, fd = ctx->fd;
-	struct ucmsg* msg;
+	struct ucattr* msg;
 
-	ur_buf_set(&ur, buf, end - buf);
-
-	if((ret = uc_recv_shift(fd, &ur)) >= 0)
-		return ur.msg;
-	if(ret != -ENOBUFS)
+	if((ret = uc_recv(fd, buf, size)) < 0)
 		fail("recv", NULL, ret);
-	if(ret < sizeof(*msg))
-		fail("recv", NULL, -EBADMSG);
+	if(!(msg = uc_msg(buf, ret)))
+		fail("invalid message", NULL, 0);
 
-	msg = (void*)buf;
-	int len = msg->len;
-
-	if(len > size) {
-		int need = pagealign(len - size);
-		end = sys_brk(end + need);
-		ur.end = end;
-	}
-
-	if((ret = uc_recv_shift(fd, &ur)) < 0)
-		fail("recv", NULL, ret);
-
-	return ur.msg;
+	return msg;
 }
 
 static void send_request(CTX, struct ucbuf* uc)
@@ -94,7 +88,7 @@ static void send_request(CTX, struct ucbuf* uc)
 
 	int ret, fd = ctx->fd;
 
-	if((ret = uc_send_whole(fd, uc)) < 0)
+	if((ret = uc_send(fd, uc)) < 0)
 		fail("send", NULL, ret);
 }
 
@@ -147,11 +141,11 @@ static char* fmt_status(char* p, char* e, int status)
 
 static void dump_proc(CTX, struct bufout* bo, struct ucattr* at)
 {
-	char* name = uc_sub_str(at, ATTR_NAME);
-	int* xid = uc_sub_int(at, ATTR_XID);
-	int* pid = uc_sub_int(at, ATTR_PID);
-	int* exit = uc_sub_int(at, ATTR_EXIT);
-	int* ring = uc_sub_int(at, ATTR_RING);
+	char* name = uc_get_str(at, ATTR_NAME);
+	int* xid = uc_get_int(at, ATTR_XID);
+	int* pid = uc_get_int(at, ATTR_PID);
+	int* exit = uc_get_int(at, ATTR_EXIT);
+	int* ring = uc_get_int(at, ATTR_RING);
 
 	FMTBUF(p, e, buf, 64);
 
@@ -184,41 +178,41 @@ static void dump_proc(CTX, struct bufout* bo, struct ucattr* at)
 	bufout(bo, buf, p - buf);
 }
 
-static void dump_status(CTX, struct ucmsg* msg)
-{
-	char buf[2048];
-	struct bufout bo;
-	struct ucattr* at;
-	struct ucattr* bt;
-
-	bufoutset(&bo, STDOUT, buf, sizeof(buf));
-
-	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at)) {
-		if(!(bt = uc_is_nest(at, ATTR_PROC)))
-			continue;
-
-		dump_proc(ctx, &bo, bt);
-	}
-
-	bufoutflush(&bo);
-}
-
 static void req_status(CTX)
 {
 	char buf[128];
+	struct ucattr *msg, *at;
 	struct ucbuf uc;
+	struct bufout bo;
+	int start = 0, *next;
 
 	no_other_options(ctx);
 
+	void* heap = alloc_heap(3*PAGE);
+	void* obuf = heap;
+	int osize = PAGE;
+	void* mbuf = heap + 2*PAGE;
+	int msize = 2*PAGE;
+
+	bufoutset(&bo, STDOUT, obuf, osize);
+again:
 	uc_buf_set(&uc, buf, sizeof(buf));
 	uc_put_hdr(&uc, CMD_STATUS);
-	uc_put_end(&uc);
-
+	uc_put_int(&uc, ATTR_NEXT, start);
 	send_request(ctx, &uc);
 
-	struct ucmsg* msg = recv_large(ctx);
+	msg = recv_large(ctx, mbuf, msize);
 
-	dump_status(ctx, msg);
+	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at)) {
+		if(uc_is_keyed(at, ATTR_PROC))
+			dump_proc(ctx, &bo, at);
+	}
+	if((next = uc_get_int(msg, ATTR_NEXT))) {
+		start = *next;
+		goto again;
+	}
+
+	bufoutflush(&bo);
 }
 
 static int estimate_request_size(CTX)
@@ -255,15 +249,19 @@ static void spawn_request(CTX, UC)
 	char** argv = argv_left(ctx);
 	int argc = argc_left(ctx);
 	char *var, **envp = ctx->environ;
+	struct ucattr* at;
 
 	uc_put_hdr(uc, CMD_SPAWN);
 
+	at = uc_put_strs(uc, ATTR_ARGV);
 	for(int i = 0; i < argc; i++)
-		uc_put_str(uc, ATTR_ARG, argv[i]);
-	while((var = *envp++))
-		uc_put_str(uc, ATTR_ENV, var);
+		uc_add_str(uc, argv[i]);
+	uc_end_strs(uc, at);
 
-	uc_put_end(uc);
+	at = uc_put_strs(uc, ATTR_ENVP);
+	while((var = *envp++))
+		uc_add_str(uc, var);
+	uc_end_strs(uc, at);
 
 	send_request(ctx, uc);
 
@@ -315,7 +313,6 @@ static void send_xid_request(CTX, int cmd, int xid)
 	uc_buf_set(&uc, txbuf, sizeof(txbuf));
 	uc_put_hdr(&uc, cmd);
 	uc_put_int(&uc, ATTR_XID, xid);
-	uc_put_end(&uc);
 
 	send_request(ctx, &uc);
 }
@@ -345,21 +342,17 @@ static void req_sigkill(CTX)
 static void req_fetch(CTX)
 {
 	int xid = shift_xid(ctx);
-	int fd = STDOUT;
 
 	no_other_options(ctx);
 
+	int size = 2*PAGE;
+	void* buf = alloc_heap(size);
+
 	send_xid_request(ctx, CMD_FETCH, xid);
 
-	struct ucmsg* msg = recv_large(ctx);
-	struct ucattr* at;
+	struct ucattr* msg = recv_large(ctx, buf, size);
 
-	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at)) {
-		if(at->key != ATTR_RING)
-			continue;
-
-		sys_write(fd, uc_payload(at), uc_paylen(at));
-	}
+	writeall(STDOUT, uc_payload(msg), uc_paylen(msg));
 }
 
 static void req_flush(CTX)

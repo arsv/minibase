@@ -11,13 +11,11 @@
 #include "common.h"
 #include "apphub.h"
 
-#define MSG struct ucmsg* msg
+#define MSG struct ucattr* msg
 #define CN struct conn* cn
 
 #define MAX_COMMAND_BUF 8192
 #define IOBUF_TIMER 30
-
-#define REPLIED 1
 
 void maybe_drop_iobuf(CTX)
 {
@@ -70,12 +68,26 @@ static int prep_recv_buffer(CTX)
 
 static int send_reply(struct conn* cn, struct ucbuf* uc)
 {
-	int ret;
+	int ret, fd = cn->fd;
 
-	if((ret = uc_send_timed(cn->fd, uc)) < 0)
+	if((ret = uc_send(fd, uc)) != -EAGAIN)
+		return ret;
+	if((ret = uc_wait_writable(fd)) < 0)
 		return ret;
 
-	return REPLIED;
+	return uc_send(fd, uc);
+}
+
+static int send_reply_iov(struct conn* cn, struct iovec* iov, int iovcnt)
+{
+	int ret, fd = cn->fd;
+
+	if((ret = uc_send_iov(fd, iov, iovcnt)) != -EAGAIN)
+		return ret;
+	if((ret = uc_wait_writable(fd)) < 0)
+		return ret;
+
+	return uc_send_iov(fd, iov, iovcnt);
 }
 
 static int reply(struct conn* cn, int err)
@@ -85,57 +97,33 @@ static int reply(struct conn* cn, int err)
 
 	uc_buf_set(&uc, cbuf, sizeof(cbuf));
 	uc_put_hdr(&uc, err);
-	uc_put_end(&uc);
 
 	return send_reply(cn, &uc);
 }
 
-static int ensure_iobuf(CTX, int size)
+static int any_procs_left(struct proc* pc, struct proc* pe)
 {
-	void* iobuf = ctx->iobuf;
-	int iolen = ctx->iolen;
+	int xid;
 
-	if(iolen >= size)
-		return 0;
-	if(!iobuf) /* should not happen */
-		return -ENOMEM;
-
-	int need = pagealign(size);
-	int flags = MREMAP_MAYMOVE;
-	int ret;
-
-	iobuf = sys_mremap(iobuf, iolen, need, flags);
-	
-	if((ret = mmap_error(iobuf)))
-		return ret;
-
-	ctx->iobuf = iobuf;
-	ctx->iolen = need;
+	for(; pc < pe; pc++)
+		if((xid = pc->xid))
+			return xid;
 
 	return 0;
 }
 
-static int cmd_status(CTX, CN, MSG)
+static int reply_status(CTX, CN, int start, int nprocs)
 {
-	int active = ctx->nprocs_nonempty;
-
-	if(!active)
-		return 0;
-
-	int est = active*(4+sizeof(struct proc));
-	int ret;
-
-	if((ret = ensure_iobuf(ctx, est)) < 0)
-		return ret;
-
-	(void)msg;
 	struct ucbuf uc;
 
+	struct proc* procs = ctx->procs;
+	struct proc* pc = procs + start;
+	struct proc* pe = pc + nprocs;
+
+	int maxrec = 16 + 5*sizeof(struct ucattr)
+		+ 3*sizeof(int) + sizeof(pc->name);
+
 	uc_buf_set(&uc, ctx->iobuf, ctx->iolen);
-
-	struct proc* pc = ctx->procs;
-	struct proc* pe = pc + ctx->nprocs;
-
 	uc_put_hdr(&uc, 0);
 
 	for(; pc < pe; pc++) {
@@ -144,7 +132,10 @@ static int cmd_status(CTX, CN, MSG)
 		int pid = pc->pid;
 		int ptr = pc->ptr;
 
-		if(!xid) continue;
+		if(uc_space_left(&uc) < maxrec)
+			break;
+		if(!xid)
+			continue;
 
 		at = uc_put_nest(&uc, ATTR_PROC);
 		uc_put_int(&uc, ATTR_XID, pc->xid);
@@ -163,26 +154,73 @@ static int cmd_status(CTX, CN, MSG)
 		uc_end_nest(&uc, at);
 	}
 
-	uc_put_end(&uc);
+	if(any_procs_left(pc, pe))
+		uc_put_int(&uc, ATTR_NEXT, pc - procs);
 
 	return send_reply(cn, &uc);
+}
+
+static int cmd_status(CTX, CN, MSG)
+{
+	int* next = uc_get_int(msg, ATTR_NEXT);
+	int start = next ? *next : 0;
+	int nprocs = ctx->nprocs;
+
+	if(start < 0)
+		return -EINVAL;
+	if(start >= nprocs)
+		return 0;
+
+	return reply_status(ctx, cn, start, nprocs);
+}
+
+/* Both argv and envp are transmitted as inline arrays like this:
+
+       noisy₀with₀some₀arguments₀
+
+   To convert those into proper arrays for execve(), we index them, putting
+   pointers to individual args into pre-allocated area delimited by ap and ae:
+
+       [0] = "noisy"     <-- ap
+       [1] = "with"
+       [2] = "some"
+       [3] = "arguments" 
+       [4] = ...         <-- return
+       [5] = ...
+       [6] = ...         <-- ae
+
+   Note strs should be terminated, but there are no guarantees on that. */
+
+static char** index_strings(char** ap, char** ae, struct ucattr* strs)
+{
+	char* p = uc_payload(strs);
+	char* e = p + uc_paylen(strs);
+
+	while(ap < ae) {
+		char* q = p;
+
+		while(q < e && *q) q++; /* advance to \0 */
+
+		if(q >= e) break; /* no \0 terminator found */
+
+		*ap++ = p;
+
+		p = q + 1;
+	}
+
+	return ap;
 }
 
 static int prep_argv_envp(MSG, char** ptrs, int n)
 {
 	char** argp = ptrs;
 	char** arge = ptrs + n;
-	struct ucattr* at;
 	int argc;
-	char* arg;
 
-	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
-		if(!(arg = uc_is_str(at, ATTR_ARG)))
-			continue;
-		else if(argp >= arge)
-			return -E2BIG;
-		else
-			*(argp++) = arg;
+	struct ucattr* argv = uc_get(msg, ATTR_ARGV);
+	struct ucattr* envp = uc_get(msg, ATTR_ENVP);
+
+	argp = index_strings(argp, arge, argv);
 
 	if(argp >= arge)
 		return -E2BIG;
@@ -191,14 +229,8 @@ static int prep_argv_envp(MSG, char** ptrs, int n)
 
 	argc = argp - ptrs;
 	*(argp++) = NULL;
-	
-	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
-		if(!(arg = uc_is_str(at, ATTR_ENV)))
-			continue;
-		else if(argp >= arge)
-			return -E2BIG;
-		else
-			*(argp++) = arg;
+
+	argp = index_strings(argp, arge, envp);
 
 	if(argp >= arge)
 		return -E2BIG;
@@ -264,10 +296,43 @@ static int cmd_sigkill(CTX, CN, MSG)
 	return signal_proc(ctx, msg, SIGKILL);
 }
 
+static int reply_ring(CTX, CN, void* ring, int ptr)
+{
+	struct ucbuf uc;
+	char buf[128];
+	struct iovec iov[3];
+	int iovcnt, ret;
+
+	if(ptr <= RING_SIZE) {
+		iov[1].base = ring;
+		iov[1].len = ptr;
+
+		iovcnt = 2;
+	} else {
+		int size = RING_SIZE;
+		int off = ptr % size;
+
+		iov[1].base = ring + off;
+		iov[1].len = size - off;
+		iov[2].base = ring;
+		iov[2].len = off;
+
+		iovcnt = 3;
+	}
+
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, 0);
+
+	if((ret = uc_iov_hdr(&iov[0], &uc)) < 0)
+		return ret;
+
+	return send_reply_iov(cn, iov, iovcnt);
+}
+
 static int cmd_fetch(CTX, CN, MSG)
 {
 	struct proc* pc;
-	int ret, *xid;
+	int *xid;
 	void* buf;
 
 	if(!(xid = uc_get_int(msg, ATTR_XID)))
@@ -277,31 +342,9 @@ static int cmd_fetch(CTX, CN, MSG)
 	if(!(buf = pc->buf))
 		return -ENOENT;
 
-	int size = RING_SIZE;
 	int ptr = pc->ptr;
-	int off = ptr % size;
-	int est = 64 + (ptr >= size ? size : ptr);
 
-	if((ret = ensure_iobuf(ctx, est)) < 0)
-		return ret;
-
-	(void)msg;
-	struct ucbuf uc;
-
-	uc_buf_set(&uc, ctx->iobuf, ctx->iolen);
-
-	uc_put_hdr(&uc, 0);
-
-	if(ptr <= size) {
-		uc_put_bin(&uc, ATTR_RING, buf, ptr);
-	} else {
-		uc_put_bin(&uc, ATTR_RING, buf + off, size - off);
-		uc_put_bin(&uc, ATTR_RING, buf, off);
-	}
-
-	uc_put_end(&uc);
-
-	return send_reply(cn, &uc);
+	return reply_ring(ctx, cn, buf, ptr);
 }
 
 static int cmd_flush(CTX, CN, MSG)
@@ -334,7 +377,7 @@ static const struct cmd {
 static int dispatch(CTX, CN, MSG)
 {
 	const struct cmd* cd;
-	int cmd = msg->cmd;
+	int cmd = uc_repcode(msg);
 	int ret;
 
 	for(cd = commands; cd < ARRAY_END(commands); cd++)
@@ -380,7 +423,7 @@ void close_conn(CTX, struct conn* cn)
 void handle_conn(CTX, CN)
 {
 	int ret, fd = cn->fd;
-	struct ucmsg* msg;
+	struct ucattr* msg;
 
 	if((ret = prep_recv_buffer(ctx)) < 0)
 		goto err;
@@ -388,7 +431,7 @@ void handle_conn(CTX, CN)
 	void* iobuf = ctx->iobuf;
 	int iolen = ctx->iolen;
 
-	if((ret = uc_recv_whole(fd, iobuf, iolen)) < 0)
+	if((ret = uc_recv(fd, iobuf, iolen)) < 0)
 		goto err;
 	if(!(msg = uc_msg(iobuf, ret)))
 		goto err;
@@ -435,10 +478,23 @@ void check_socket(CTX)
 	else if(cfd == -EAGAIN)
 		return;
 	else
-		quit("accept", NULL, cfd);
+		fail("accept", NULL, cfd);
 
 	if(!(cn = grab_conn_slot(ctx)))
 		sys_close(cfd);
 	else
 		cn->fd = cfd;
+}
+
+void setup_control(CTX)
+{
+	int fd, ret;
+	int flags = SOCK_SEQPACKET | SOCK_NONBLOCK | SOCK_CLOEXEC;
+
+	if((fd = sys_socket(AF_UNIX, flags, 0)) < 0)
+		fail("socket", "AF_UNIX", fd);
+	if((ret = uc_listen(fd, CONTROL, 5)) < 0)
+		fail("ucbind", CONTROL, ret);
+
+	ctx->ctlfd = fd;
 }

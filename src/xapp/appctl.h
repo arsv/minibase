@@ -6,8 +6,6 @@ struct top {
 	char** environ;
 
 	int fd;
-	struct ucbuf uc;
-	struct urbuf ur;
 	int connected;
 	char txbuf[64];
 	char rxbuf[512];

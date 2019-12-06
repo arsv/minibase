@@ -266,7 +266,7 @@ void check_children(CTX)
 			mark_dead(ctx, pc, status);
 
 	} if(pid < 0 && pid != -ECHILD) {
-		quit("waitpid", NULL, pid);
+		fail("waitpid", NULL, pid);
 	}
 }
 

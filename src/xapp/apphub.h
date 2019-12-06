@@ -60,8 +60,6 @@ struct top {
 
 #define CTX struct top* ctx
 
-void quit(const char* msg, char* arg, int ret) noreturn;
-
 void check_socket(CTX);
 
 void handle_conn(CTX, struct conn* cn);
@@ -79,3 +77,4 @@ void maybe_drop_iobuf(CTX);
 int spawn_child(CTX, char** argv, char** envp);
 
 void check_children(CTX);
+void setup_control(CTX);

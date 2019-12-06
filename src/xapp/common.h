@@ -11,10 +11,11 @@
 #define CMD_FLUSH      7
 
 #define ATTR_NAME      1
-#define ATTR_ARG       2
-#define ATTR_ENV       3
+#define ATTR_ARGV      2
+#define ATTR_ENVP      3
 #define ATTR_XID       4
 #define ATTR_PID       5
 #define ATTR_PROC      6
 #define ATTR_RING      8
 #define ATTR_EXIT      9
+#define ATTR_NEXT     10
