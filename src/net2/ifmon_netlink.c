@@ -252,13 +252,13 @@ void handle_rtnl(CTX)
 again:
 	if((rd = sys_recv(fd, buf + off, max - off, 0)) < 0) {
 		if(rd != -EAGAIN)
-			quit("recv", "NETLINK", rd);
+			fail("recv", "NETLINK", rd);
 		else if(off)
-			quit("recv", "NETLINK", -ENOBUFS);
+			fail("recv", "NETLINK", -ENOBUFS);
 		else
 			return;
 	} if(rd == 0) {
-		quit("EOF", "NETLINK", 0);
+		fail("EOF", "NETLINK", 0);
 	}
 
 	int len = off + rd;
@@ -277,7 +277,7 @@ again:
 	if(p >= e)
 		return;
 	if(p == buf)
-		quit("recv", "NETLINK", -ENOBUFS);
+		fail("recv", "NETLINK", -ENOBUFS);
 
 	off = e - p;
 	memmove(buf, p, off);
@@ -298,9 +298,9 @@ static int connect_netlink(void)
 	int fd, ret;
 
 	if((fd = sys_socket(domain, type, protocol)) < 0)
-		quit("socket", "NETLINK", fd);
+		fail("socket", "NETLINK", fd);
 	if((ret = sys_bind(fd, (struct sockaddr*)&nls, sizeof(nls))) < 0)
-		quit("bind", "NETLINK", ret);
+		fail("bind", "NETLINK", ret);
 
 	return fd;
 }
@@ -323,7 +323,7 @@ static void trigger_link_dump(int fd)
 	int ret;
 
 	if((ret = sys_send(fd, buf, len, 0)) < 0)
-		quit("send", "NETLINK", ret);
+		fail("send", "NETLINK", ret);
 }
 
 void setup_netlink(CTX)

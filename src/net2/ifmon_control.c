@@ -7,6 +7,7 @@
 
 #include <nlusctl.h>
 #include <format.h>
+#include <printf.h>
 #include <string.h>
 #include <util.h>
 
@@ -18,7 +19,19 @@
 #define LATER 1
 
 #define CN struct conn* cn __unused
-#define MSG struct ucmsg* msg __unused
+#define MSG struct ucattr* msg __unused
+
+static int send_timed(int fd, struct ucbuf* uc)
+{
+	int ret;
+
+	if((ret = uc_send(fd, uc)) != -EAGAIN)
+		return ret;
+	if((ret = uc_wait_writable(fd)) < 0)
+		return ret;
+
+	return uc_send(fd, uc);
+}
 
 static void send_report(CTX, LS, struct ucbuf* uc)
 {
@@ -26,13 +39,13 @@ static void send_report(CTX, LS, struct ucbuf* uc)
 	int nconns = ctx->nconns;
 	struct conn* cn;
 	int ifi = ls->ifi;
-	int fd;
+	int fd, ret;
 
 	for(cn = conns; cn < conns + nconns; cn++) {
 		if(cn->ifi != ifi || (fd = cn->fd) <= 0)
 			continue;
-		if(uc_send_timed(fd, uc) < 0)
-			sys_shutdown(fd, SHUT_RDWR);
+		if((ret = send_timed(fd, uc)) < 0)
+			close_conn(ctx, cn);
 	}
 }
 
@@ -44,39 +57,38 @@ static void report(CTX, LS, int cmd, int key, int val)
 	uc_buf_set(&uc, buf, sizeof(buf));
 	uc_put_hdr(&uc, cmd);
 	if(key && val) uc_put_int(&uc, key, val);
-	uc_put_end(&uc);
 
 	send_report(ctx, ls, &uc);
 }
 
 void report_mode_errno(CTX, LS, int err)
 {
-	report(ctx, ls, REP_IF_MODE, ATTR_ERRNO, err);
+	report(ctx, ls, REP_MODE, ATTR_ERRNO, err);
 }
 
 void report_mode_exit(CTX, LS, int code)
 {
-	report(ctx, ls, REP_IF_MODE, ATTR_XCODE, code);
+	report(ctx, ls, REP_MODE, ATTR_XCODE, code);
 }
 
 void report_stop_errno(CTX, LS, int err)
 {
-	report(ctx, ls, REP_IF_STOP, ATTR_ERRNO, err);
+	report(ctx, ls, REP_STOP, ATTR_ERRNO, err);
 }
 
 void report_stop_exit(CTX, LS, int code)
 {
-	report(ctx, ls, REP_IF_STOP, ATTR_XCODE, code);
+	report(ctx, ls, REP_STOP, ATTR_XCODE, code);
 }
 
 static int send_reply(struct conn* cn, struct ucbuf* uc)
 {
-	int ret;
+	int ret, fd = cn->fd;
 
-	if((ret = uc_send_timed(cn->fd, uc)) < 0)
+	if((ret = uc_wait_writable(fd)) < 0)
 		return ret;
 
-	return REPLIED;
+	return uc_send(fd, uc);
 }
 
 int reply(struct conn* cn, int err)
@@ -86,7 +98,6 @@ int reply(struct conn* cn, int err)
 
 	uc_buf_set(&uc, cbuf, sizeof(cbuf));
 	uc_put_hdr(&uc, err);
-	uc_put_end(&uc);
 
 	return send_reply(cn, &uc);
 }
@@ -125,8 +136,6 @@ static int cmd_status(CTX, CN, MSG)
 
 		uc_end_nest(&uc, at);
 	}
-
-	uc_put_end(&uc);
 
 	return send_reply(cn, &uc);
 }
@@ -318,48 +327,49 @@ static const struct cmd {
 	int cmd;
 	int (*call)(CTX, CN, MSG);
 } commands[] = {
-	{ CMD_IF_STATUS,    cmd_status    },
-	{ CMD_IF_IDMODE,    cmd_idmode    },
-	{ CMD_IF_MODE,      cmd_mode      },
-	{ CMD_IF_DROP,      cmd_drop      },
-	{ CMD_IF_STOP,      cmd_stop      },
-	{ CMD_IF_KILL,      cmd_kill      },
-	{ CMD_IF_DHCP_AUTO, cmd_dhcp_auto },
-	{ CMD_IF_DHCP_STOP, cmd_dhcp_stop },
-	{ CMD_IF_RECONNECT, cmd_reconnect }
+	{ CMD_STATUS,    cmd_status    },
+	{ CMD_IDMODE,    cmd_idmode    },
+	{ CMD_MODE,      cmd_mode      },
+	{ CMD_DROP,      cmd_drop      },
+	{ CMD_STOP,      cmd_stop      },
+	{ CMD_KILL,      cmd_kill      },
+	{ CMD_DHCP_AUTO, cmd_dhcp_auto },
+	{ CMD_DHCP_STOP, cmd_dhcp_stop },
+	{ CMD_RECONNECT, cmd_reconnect }
 };
 
 static int dispatch(CTX, CN, MSG)
 {
 	const struct cmd* cd;
-	int cmd = msg->cmd;
+	int cmd = uc_repcode(msg);
 	int ret;
 
 	for(cd = commands; cd < ARRAY_END(commands); cd++)
 		if(cd->cmd == cmd)
-			break;
-	if(!cd->cmd)
-		ret = reply(cn, -ENOSYS);
-	else if((ret = cd->call(ctx, cn, msg)) <= 0)
-		ret = reply(cn, ret);
+			goto got;
 
-	return ret;
+	return reply(cn, -ENOSYS);
+got:
+	if((ret = cd->call(ctx, cn, msg)) > 0)
+		return ret;
+
+	return reply(cn, ret);
 }
 
 void handle_conn(CTX, CN)
 {
 	int ret, fd = cn->fd;
 	char buf[100];
-	struct ucmsg* msg;
+	struct ucattr* msg;
 
-	if((ret = uc_recv_whole(fd, buf, sizeof(buf))) < 0)
+	if((ret = uc_recv(fd, buf, sizeof(buf))) < 0)
 		goto err;
 	if(!(msg = uc_msg(buf, ret)))
 		goto err;
 	if((ret = dispatch(ctx, cn, msg)) >= 0)
 		return;
 err:
-	sys_shutdown(fd, SHUT_RDWR);
+	close_conn(ctx, cn);
 }
 
 struct conn* grab_conn_slot(CTX)
@@ -425,18 +435,13 @@ void close_conn(CTX, struct conn* cn)
 void setup_control(CTX)
 {
 	int fd, ret;
-	const int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = IFCTL
-	};
+	const int flags = SOCK_SEQPACKET | SOCK_NONBLOCK | SOCK_CLOEXEC;
+	char* path = CONTROL;
 
 	if((fd = sys_socket(AF_UNIX, flags, 0)) < 0)
 		fail("socket", "AF_UNIX", fd);
-	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
-		fail("bind", addr.path, ret);
-	if((ret = sys_listen(fd, 1)))
-		quit("listen", addr.path, ret);
+	if((ret = uc_listen(fd, path, 5)) < 0)
+		fail("ucbind", path, ret);
 
 	ctx->ctrlfd = fd;
 }

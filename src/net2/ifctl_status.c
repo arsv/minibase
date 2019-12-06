@@ -16,7 +16,7 @@ static int count_links(MSG)
 	int count = 0;
 
 	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
-		if(uc_is_nest(at, ATTR_LINK))
+		if(uc_is_keyed(at, ATTR_LINK))
 			count++;
 
 	return count;
@@ -30,7 +30,7 @@ static void fill_links(MSG, struct ucattr** idx, int n)
 	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
 		if(i >= n)
 			break;
-		else if(!uc_is_nest(at, ATTR_LINK))
+		else if(!uc_is_keyed(at, ATTR_LINK))
 			continue;
 		else
 			idx[i++] = at;
@@ -38,7 +38,7 @@ static void fill_links(MSG, struct ucattr** idx, int n)
 
 static char* fmt_flags(char* p, char* e, struct ucattr* at)
 {
-	int* pf = uc_sub_int(at, ATTR_FLAGS);
+	int* pf = uc_get_int(at, ATTR_FLAGS);
 
 	if(!pf) return p;
 
@@ -73,9 +73,9 @@ static char* fmt_flags(char* p, char* e, struct ucattr* at)
 
 static char* fmt_link(char* p, char* e, struct ucattr* at)
 {
-	int* ifi = uc_sub_int(at, ATTR_IFI);
-	char* name = uc_sub_str(at, ATTR_NAME);
-	char* mode = uc_sub_str(at, ATTR_MODE);
+	int* ifi = uc_get_int(at, ATTR_IFI);
+	char* name = uc_get_str(at, ATTR_NAME);
+	char* mode = uc_get_str(at, ATTR_MODE);
 
 	if(!ifi || !name)
 		return p;

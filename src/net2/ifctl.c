@@ -28,9 +28,8 @@ static void init_socket(CTX)
 	int fd;
 
 	uc_buf_set(&ctx->uc, ctx->txbuf, sizeof(ctx->txbuf));
-	ur_buf_set(&ctx->ur, ctx->rxbuf, sizeof(ctx->rxbuf));
 
-	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+	if((fd = sys_socket(AF_UNIX, SOCK_SEQPACKET, 0)) < 0)
 		fail("socket", "AF_UNIX", fd);
 
 	ctx->fd = fd;
@@ -39,14 +38,10 @@ static void init_socket(CTX)
 static void connect_socket(CTX)
 {
 	int ret;
+	char* path = CONTROL;
 
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = IFCTL
-	};
-
-	if((ret = sys_connect(ctx->fd, &addr, sizeof(addr))) < 0)
-		fail(NULL, addr.path, ret);
+	if((ret = uc_connect(ctx->fd, path)) < 0)
+		fail(NULL, path, ret);
 
 	ctx->connected = 1;
 }
@@ -76,32 +71,37 @@ static void resolve_device(CTX)
 void send_command(CTX)
 {
 	int wr, fd = ctx->fd;
+	struct ucbuf* uc = &ctx->uc;
 
 	if(!ctx->connected)
 		connect_socket(ctx);
-	if((wr = uc_send_whole(fd, &ctx->uc)) < 0)
+	if((wr = uc_send(fd, uc)) < 0)
 		fail("write", NULL, wr);
 }
 
-struct ucmsg* recv_reply(CTX)
+struct ucattr* recv_reply(CTX)
 {
-	struct urbuf* ur = &ctx->ur;
 	int ret, fd = ctx->fd;
+	void* buf = ctx->rxbuf;
+	int len = sizeof(ctx->rxbuf);
+	struct ucattr* msg;
 
-	if((ret = uc_recv_shift(fd, ur)) < 0)
-		return NULL;
+	if((ret = uc_recv(fd, buf, len)) < 0)
+		fail("recv", NULL, ret);
+	if(!(msg = uc_msg(buf, ret)))
+		fail("recv", NULL, -EBADMSG);
 
-	return ur->msg;
+	return msg;
 }
 
-static struct ucmsg* send_recv_msg(CTX)
+static struct ucattr* send_recv_msg(CTX)
 {
-	struct ucmsg* msg;
+	struct ucattr* msg;
 
 	send_command(ctx);
 
 	while((msg = recv_reply(ctx)))
-		if(msg->cmd <= 0)
+		if(uc_repcode(msg) <= 0)
 			return msg;
 
 	fail("connection lost", NULL, 0);
@@ -109,9 +109,9 @@ static struct ucmsg* send_recv_msg(CTX)
 
 static int send_recv_cmd(CTX)
 {
-	struct ucmsg* msg = send_recv_msg(ctx);
+	struct ucattr* msg = send_recv_msg(ctx);
 
-	return msg->cmd;
+	return uc_repcode(msg);
 }
 
 static void send_check(CTX)
@@ -137,19 +137,20 @@ static void fail_exit_code(char* script, int code)
 
 static void drop_link(CTX)
 {
-	uc_put_hdr(UC, CMD_IF_DROP);
-	uc_put_int(UC, ATTR_IFI, ctx->ifi);
-	uc_put_end(UC);
+	struct ucbuf* uc = &ctx->uc;
+
+	uc_put_hdr(uc, CMD_DROP);
+	uc_put_int(uc, ATTR_IFI, ctx->ifi);
 
 	send_check(ctx);
 }
 
 static void wait_for_mode(CTX)
 {
-	struct ucmsg* msg;
+	struct ucattr* msg;
 
 	while((msg = recv_reply(ctx))) {
-		if(msg->cmd != REP_IF_MODE)
+		if(uc_repcode(msg) != REP_MODE)
 			continue;
 
 		int* errno = uc_get_int(msg, ATTR_ERRNO);
@@ -168,11 +169,11 @@ static void wait_for_mode(CTX)
 
 static void wait_for_stop(CTX)
 {
-	struct ucmsg* msg;
+	struct ucattr* msg;
 	int* code;
 
 	while((msg = recv_reply(ctx))) {
-		if(msg->cmd != REP_IF_STOP)
+		if(uc_repcode(msg) != REP_STOP)
 			continue;
 
 		if((code = uc_get_int(msg, ATTR_ERRNO)))
@@ -204,18 +205,19 @@ static char* shift_arg(CTX)
 
 static int show_status(CTX)
 {
+	struct ucbuf* uc = &ctx->uc;
+	struct ucattr* msg;
+	int cmd;
+
 	no_other_options(ctx);
 	init_socket(ctx);
 
-	uc_put_hdr(UC, CMD_IF_STATUS);
-	uc_put_end(UC);
-
-	struct ucmsg* msg;
+	uc_put_hdr(uc, CMD_STATUS);
 
 	if(!(msg = send_recv_msg(ctx)))
 		fail("connection lost", NULL, 0);
-	if(msg->cmd < 0)
-		fail(NULL, NULL, msg->cmd);
+	if((cmd = uc_repcode(msg)) < 0)
+		fail(NULL, NULL, cmd);
 
 	dump_status(ctx, msg);
 
@@ -238,11 +240,12 @@ static void req_show_id(CTX)
 
 static void set_active_mode(CTX, char* mode)
 {
-	uc_put_hdr(UC, CMD_IF_MODE);
-	uc_put_int(UC, ATTR_IFI, ctx->ifi);
-	uc_put_str(UC, ATTR_NAME, ctx->name);
-	uc_put_str(UC, ATTR_MODE, mode);
-	uc_put_end(UC);
+	struct ucbuf* uc = &ctx->uc;
+
+	uc_put_hdr(uc, CMD_MODE);
+	uc_put_int(uc, ATTR_IFI, ctx->ifi);
+	uc_put_str(uc, ATTR_NAME, ctx->name);
+	uc_put_str(uc, ATTR_MODE, mode);
 
 	send_check(ctx);
 }
@@ -261,36 +264,39 @@ static void req_identify(CTX)
 	if(!mode[0])
 		return;
 
-	uc_put_hdr(UC, CMD_IF_IDMODE);
-	uc_put_int(UC, ATTR_IFI, ctx->ifi);
-	uc_put_str(UC, ATTR_NAME, ctx->name);
-	uc_put_str(UC, ATTR_MODE, mode);
-	uc_put_end(UC);
+	struct ucbuf* uc = &ctx->uc;
+
+	uc_put_hdr(uc, CMD_IDMODE);
+	uc_put_int(uc, ATTR_IFI, ctx->ifi);
+	uc_put_str(uc, ATTR_NAME, ctx->name);
+	uc_put_str(uc, ATTR_MODE, mode);
 
 	send_check(ctx);
 }
 
 static void check_no_active(CTX, char* mode)
 {
-	struct ucmsg* msg;
+	struct ucattr* msg;
 	struct ucattr* at;
 	char* lnmode;
 	char* lnname;
 
-	uc_put_hdr(UC, CMD_IF_STATUS);
-	uc_put_end(UC);
+	struct ucbuf* uc = &ctx->uc;
+	int cmd;
+
+	uc_put_hdr(uc, CMD_STATUS);
 
 	if(!(msg = send_recv_msg(ctx)))
 		fail("connection lost", NULL, 0);
-	if(msg->cmd < 0)
-		fail(NULL, NULL, msg->cmd);
+	if((cmd = uc_repcode(msg)) < 0)
+		fail(NULL, NULL, cmd);
 
 	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at)) {
-		if(!uc_is_nest(at, ATTR_LINK))
+		if(!uc_is_keyed(at, ATTR_LINK))
 			continue;
-		if(!(lnmode = uc_sub_str(at, ATTR_MODE)))
+		if(!(lnmode = uc_get_str(at, ATTR_MODE)))
 			continue;
-		if(!(lnname = uc_sub_str(at, ATTR_NAME)))
+		if(!(lnname = uc_get_str(at, ATTR_NAME)))
 			continue;
 		if(strcmp(lnmode, mode))
 			continue;
@@ -330,13 +336,14 @@ static void req_also(CTX)
 
 static void req_stop(CTX)
 {
+	struct ucbuf* uc = &ctx->uc;
+
 	no_other_options(ctx);
 
 	identify_device(ctx);
 
-	uc_put_hdr(UC, CMD_IF_STOP);
-	uc_put_int(UC, ATTR_IFI, ctx->ifi);
-	uc_put_end(UC);
+	uc_put_hdr(uc, CMD_STOP);
+	uc_put_int(uc, ATTR_IFI, ctx->ifi);
 
 	send_check(ctx);
 	wait_for_stop(ctx);
@@ -346,33 +353,34 @@ static void req_stop(CTX)
 
 static void simple_command(CTX, int cmd)
 {
+	struct ucbuf* uc = &ctx->uc;
+
 	no_other_options(ctx);
 
-	uc_put_hdr(UC, cmd);
-	uc_put_int(UC, ATTR_IFI, ctx->ifi);
-	uc_put_end(UC);
+	uc_put_hdr(uc, cmd);
+	uc_put_int(uc, ATTR_IFI, ctx->ifi);
 
 	send_check(ctx);
 }
 
 static void req_dhcp_auto(CTX)
 {
-	simple_command(ctx, CMD_IF_DHCP_AUTO);
+	simple_command(ctx, CMD_DHCP_AUTO);
 }
 
 static void req_dhcp_once(CTX)
 {
-	simple_command(ctx, CMD_IF_DHCP_ONCE);
+	simple_command(ctx, CMD_DHCP_ONCE);
 }
 
 static void req_dhcp_stop(CTX)
 {
-	simple_command(ctx, CMD_IF_DHCP_STOP);
+	simple_command(ctx, CMD_DHCP_STOP);
 }
 
 static void req_reconnect(CTX)
 {
-	simple_command(ctx, CMD_IF_RECONNECT);
+	simple_command(ctx, CMD_RECONNECT);
 }
 
 static const struct cmd {

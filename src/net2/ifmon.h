@@ -55,8 +55,6 @@ struct top {
 #define CTX struct top* ctx __unused
 #define LS struct link* ls __unused
 
-void quit(const char* msg, char* arg, int err) noreturn;
-
 void handle_conn(CTX, struct conn* cn);
 void close_conn(CTX, struct conn* cn);
 

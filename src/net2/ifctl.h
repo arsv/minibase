@@ -9,7 +9,6 @@ struct top {
 
 	int fd;
 	struct ucbuf uc;
-	struct urbuf ur;
 	int connected;
 	char txbuf[64];
 	char rxbuf[512];
@@ -24,7 +23,7 @@ struct ucattr;
 typedef struct ucattr* attr;
 
 #define CTX struct top* ctx __unused
-#define MSG struct ucmsg* msg __unused
+#define MSG struct ucattr* msg __unused
 #define AT struct ucattr* at __unused
 #define UC (&ctx->uc)
 

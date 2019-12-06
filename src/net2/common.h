@@ -1,34 +1,32 @@
 #include <dirs.h>
 
-#define IFCTL RUN_CTRL "/ifmon"
+#define CONTROL RUN_CTRL "/ifmon"
 #define ETCNET HERE "/etc/net"
 
-#define IF(c) TAGGED('I', 'F', c)
+#define CMD_STATUS      0
+#define CMD_IDMODE      1
+#define CMD_MODE        2
+#define CMD_STOP        3
+#define CMD_KILL        4
+#define CMD_DROP        5
 
-#define CMD_IF_STATUS      IF(0)
-#define CMD_IF_IDMODE      IF(1)
-#define CMD_IF_MODE        IF(2)
-#define CMD_IF_STOP        IF(3)
-#define CMD_IF_KILL        IF(4)
-#define CMD_IF_DROP        IF(5)
+#define CMD_DHCP_AUTO   6
+#define CMD_DHCP_ONCE   7
+#define CMD_DHCP_STOP   8
+#define CMD_RECONNECT   9
 
-#define CMD_IF_DHCP_AUTO   IF(6)
-#define CMD_IF_DHCP_ONCE   IF(7)
-#define CMD_IF_DHCP_STOP   IF(8)
-#define CMD_IF_RECONNECT   IF(9)
+#define REP_MODE        1
+#define REP_STOP        2
 
-#define REP_IF_MODE        IF(1)
-#define REP_IF_STOP        IF(2)
-
-#define ATTR_LINK  1
-#define ATTR_IFI   2
-#define ATTR_NAME  3
-#define ATTR_MODE  4
-#define ATTR_STATE 5
-#define ATTR_ERRNO 6
-#define ATTR_FLAGS 7
-#define ATTR_XCODE 8
-#define ATTR_PID   9
+#define ATTR_LINK       1
+#define ATTR_IFI        2
+#define ATTR_NAME       3
+#define ATTR_MODE       4
+#define ATTR_STATE      5
+#define ATTR_ERRNO      6
+#define ATTR_FLAGS      7
+#define ATTR_XCODE      8
+#define ATTR_PID        9
 
 /* ATTR_STATE above */
 

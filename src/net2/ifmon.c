@@ -18,42 +18,9 @@
 
 ERRTAG("ifmon");
 
-static void unlink_ctrl(void)
-{
-	sys_unlink(IFCTL);
-}
-
-void quit(const char* msg, char* arg, int err)
-{
-	unlink_ctrl();
-	fail(msg, arg, err);
-}
-
-static void sighandler(int sig)
-{
-	switch(sig) {
-		case SIGINT:
-		case SIGTERM:
-			unlink_ctrl();
-			_exit(0xFF);
-	}
-}
-
 static void setup_signals(CTX)
 {
 	int ret, fd;
-	SIGHANDLER(sa, sighandler, 0);
-
-	if((ret = sys_sigaction(SIGTERM, &sa, NULL)) < 0)
-		quit("sigaction", "SIGTERM", ret);
-	if((ret = sys_sigaction(SIGINT, &sa, NULL)) < 0)
-		quit("sigaction", "SIGINT", ret);
-
-	sa.handler = SIG_IGN;
-
-	if((ret = sys_sigaction(SIGPIPE, &sa, NULL)) < 0)
-		quit("sigaction", "SIGPIPE", ret);
-
 	int flags = SFD_NONBLOCK | SFD_CLOEXEC;
 	sigset_t mask;
 
@@ -61,9 +28,9 @@ static void setup_signals(CTX)
 	sigaddset(&mask, SIGCHLD);
 
 	if((fd = sys_signalfd(-1, &mask, flags)) < 0)
-		quit("signalfd", NULL, fd);
+		fail("signalfd", NULL, fd);
 	if((ret = sys_sigprocmask(SIG_BLOCK, &mask, NULL)) < 0)
-		quit("sigprocmask", NULL, ret);
+		fail("sigprocmask", NULL, ret);
 
 	ctx->signalfd = fd;
 }
@@ -74,7 +41,7 @@ static void read_singals(CTX)
 	int rd, fd = ctx->signalfd;
 
 	if((rd = sys_read(fd, &si, sizeof(si))) < 0)
-		quit("read", "sigfd", rd);
+		fail("read", "sigfd", rd);
 	else if(!rd)
 		return;
 
@@ -111,7 +78,7 @@ static void check_netlink(CTX, int revents)
 	if(revents & POLLIN)
 		handle_rtnl(ctx);
 	if(revents & ~POLLIN)
-		quit("poll", "rtnl", 0);
+		fail("poll", "rtnl", 0);
 }
 
 static void check_control(CTX, int revents)
@@ -119,7 +86,7 @@ static void check_control(CTX, int revents)
 	if(revents & POLLIN)
 		accept_ctrl(ctx);
 	if(revents & ~POLLIN)
-		quit("poll", "ctrl", 0);
+		fail("poll", "ctrl", 0);
 }
 
 static void check_signals(CTX, int revents)
@@ -127,7 +94,7 @@ static void check_signals(CTX, int revents)
 	if(revents & POLLIN)
 		read_singals(ctx);
 	if(revents & ~POLLIN)
-		quit("poll", "sigfd", 0);
+		fail("poll", "sigfd", 0);
 }
 
 static void check_conn(CTX, struct conn* cn, int revents)
@@ -182,7 +149,7 @@ static void poll(CTX)
 	int ret = sys_ppoll(pfds, npfds, NULL, NULL);
 
 	if(ret < 0)
-		quit("ppoll", NULL, ret);
+		fail("ppoll", NULL, ret);
 	if(ret > 0)
 		check_polled_fds(ctx, pfds, npfds);
 
