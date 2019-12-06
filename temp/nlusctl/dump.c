@@ -13,7 +13,7 @@ int main(void)
 	struct ucattr* at;
 
 	uc_buf_set(uc, buf, sizeof(buf));
-	uc_put_hdr(uc, 0x53550012);
+	uc_put_hdr(uc, 1122);
 
 	uc_put_flag(uc, 1);
 	uc_put_str(uc, 2, "some string here");
@@ -33,9 +33,7 @@ int main(void)
 
 	uc_put_bin(uc, 9, (char*)blong, sizeof(blong));
 
-	uc_put_end(uc);
-
-	uc_dump((struct ucmsg*)buf);
+	uc_dump((struct ucattr*)buf);
 
 	return 0;
 }
