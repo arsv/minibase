@@ -1,5 +1,0 @@
-#!/bin/sh
-
-echo "foo running"
-sleep 3
-echo "foo done"
