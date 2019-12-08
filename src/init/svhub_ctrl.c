@@ -21,43 +21,31 @@ int ctrlfd;
 #define LATER 1
 
 #define CN struct conn* cn __unused
-#define MSG struct ucmsg* msg __unused
+#define MSG struct ucattr* msg __unused
 #define RC struct proc* rc
-#define UC struct ucbuf* uc
 
-static int start_long_reply(UC)
+static int send_reply(CN, struct ucbuf* uc)
 {
-	int len = PAGE;
-	int ret;
+	int ret, fd = cn->fd;
 
-	void* brk = origbrk;
-	void* end = sys_brk(brk + len);
-
-	memzero(uc, sizeof(*uc));
-
-	if((ret = brk_error(brk, end)))
+	if((ret = uc_wait_writable(fd)) < 0)
 		return ret;
 
-	uc_buf_set(uc, brk, len);
-	uc_put_hdr(uc, 0);
-
-	return 0;
+	return uc_send(fd, uc);
 }
 
-static int send_reply(UC, CN)
+static int send_multi(CN, struct iovec* iov, int iovcnt)
 {
-	uc_put_end(uc);
+	int ret, fd = cn->fd;
 
-	return uc_send_timed(cn->fd, uc);
-}
+	if((ret = uc_wait_writable(fd)) < 0)
+		return ret;
+	if((ret = uc_send_iov(fd, iov, iovcnt)) > 0)
+		return ret;
 
-static int send_long_reply(UC, CN)
-{
-	int ret = send_reply(uc, cn);
+	close_conn(cn);
 
-	sys_brk(origbrk);
-
-	return ret;
+	return REPLIED;
 }
 
 static int reply(CN, int err)
@@ -68,7 +56,7 @@ static int reply(CN, int err)
 	uc_buf_set(&uc, buf, sizeof(buf));
 	uc_put_hdr(&uc, err);
 
-	return send_reply(&uc, cn);
+	return send_reply(cn, &uc);
 }
 
 /* Notifcations */
@@ -91,15 +79,31 @@ void notify_dead(int pid)
 
 static int cmd_list(CN, MSG)
 {
-	struct proc* rc;
 	struct ucbuf uc;
-	int ret;
+	char buf[2048];
 
-	if((ret = start_long_reply(&uc)))
-		return ret;
+	int* next = uc_get_int(msg, ATTR_NEXT);
+	int start = next ? *next : 0;
+	int maxrec = 128;
 
-	for(rc = firstrec(); rc; rc = nextrec(rc)) {
+	if(start < 0)
+		return -EINVAL;
+	if(start >= nprocs)
+		return 0;
+
+	struct proc* rc = procs + start;
+	struct proc* re = procs + nprocs;
+
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, 0);
+
+	for(; rc < re; rc++) {
 		struct ucattr* at;
+
+		if(!rc->name[0])
+			continue;
+		if(uc_space_left(&uc) < maxrec)
+			break;
 
 		at = uc_put_nest(&uc, ATTR_PROC);
 
@@ -115,9 +119,10 @@ static int cmd_list(CN, MSG)
 		uc_end_nest(&uc, at);
 	}
 
-	ret = send_long_reply(&uc, cn);
+	if(rc < re)
+		uc_put_int(&uc, ATTR_NEXT, rc - procs);
 
-	return ret;
+	return send_reply(cn, &uc);
 }
 
 static int cmd_reboot(CN, MSG)
@@ -154,64 +159,63 @@ static int cmd_flushall(CN, MSG)
 
 /* Commands working on a single proc entry */
 
-static void put_ring_buf(struct ucbuf* uc, struct proc* rc)
-{
-	int ptr = rc->ptr;
-	char* buf = ring_buf_for(rc);
-
-	if(rc->ptr <= RINGSIZE) {
-		uc_put_bin(uc, ATTR_RING, buf, ptr);
-		return;
-	}
-
-	int tail = ptr % RINGSIZE;
-	int head = RINGSIZE - tail;
-	void* payload;
-
-	if(!(payload = uc_put_attr(uc, ATTR_RING, RINGSIZE)))
-		return;
-
-	memcpy(payload, buf + tail, head);
-	memcpy(payload + head, buf, tail);
-}
-
 static int cmd_status(CN, MSG, RC)
 {
+	char buf[128];
 	struct ucbuf uc;
-	int ret;
 
-	if((ret = start_long_reply(&uc)) < 0)
-		return ret;
+	uc_buf_set(&uc, buf, sizeof(buf));
 
 	uc_put_str(&uc, ATTR_NAME, rc->name);
 
 	if(rc->pid > 0)
 		uc_put_int(&uc, ATTR_PID, rc->pid);
 	if(rc->ptr)
-		put_ring_buf(&uc, rc);
+		uc_put_flag(&uc, ATTR_RING);
 
 	if(rc->lastrun)
 		uc_put_int(&uc, ATTR_TIME, runtime(rc));
 	if(rc->status && !(rc->flags & P_DISABLED))
 		uc_put_int(&uc, ATTR_EXIT, rc->status);
 
-	ret = send_long_reply(&uc, cn);
-
-	return ret;
+	return send_reply(cn, &uc);
 }
 
-static int cmd_getpid(CN, MSG, RC)
+static int cmd_getbuf(CN, MSG, RC)
 {
 	struct ucbuf uc;
 	char buf[50];
+	struct iovec iov[3];
+	int ret, iovcnt;
+
+	int ptr = rc->ptr;
+	char* ring = ring_buf_for(rc);
+
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, 0);
 
 	if(rc->pid <= 0)
 		return -ECHILD;
+	if(!ring)
+		return -ENOENT;
 
-	uc_buf_set(&uc, buf, sizeof(buf));
-	uc_put_int(&uc, ATTR_PID, rc->pid);
+	if((ret = uc_iov_hdr(&iov[0], &uc)) < 0)
+		return ret;
+	
+	if(ptr <= RINGSIZE) {
+		iov[1].base = ring;
+		iov[1].len = ptr;
+		iovcnt = 2;
+	} else {
+		int off = ptr % RINGSIZE;
+		iov[1].base = ring + off;
+		iov[1].len = RINGSIZE - off;
+		iov[2].base = ring;
+		iov[2].len = off;
+		iovcnt = 3;
+	}
 
-	return send_reply(&uc, cn);
+	return send_multi(cn, iov, iovcnt);
 }
 
 static int kill_proc(struct proc* rc, int sig)
@@ -299,7 +303,7 @@ static const struct pcmd {
 	int (*call)(CN, MSG, RC);
 } pcommands[] = {
 	{ CMD_STATUS,   cmd_status   },
-	{ CMD_GETPID,   cmd_getpid   },
+	{ CMD_GETBUF,   cmd_getbuf   },
 	{ CMD_START,    cmd_start    },
 	{ CMD_STOP,     cmd_stop     },
 	{ CMD_PAUSE,    cmd_pause    },
@@ -318,7 +322,6 @@ static const struct gcmd {
 	{ CMD_SHUTDOWN, cmd_shutdown },
 	{ CMD_POWEROFF, cmd_poweroff },
 	{ CMD_FLUSHALL, cmd_flushall },
-	{ 0,            NULL         }
 };
 
 static int proc_cmd(CN, MSG, const struct pcmd* pc)
@@ -338,7 +341,7 @@ static int dispatch_cmd(CN, MSG)
 {
 	const struct pcmd* pc;
 	const struct gcmd* gc;
-	int cmd = msg->cmd;
+	int cmd = uc_repcode(msg);
 
 	for(pc = pcommands; pc < ARRAY_END(pcommands); pc++)
 		if(pc->cmd == cmd)
@@ -355,10 +358,10 @@ void handle_conn(struct conn* cn)
 {
 	int fd = cn->fd;
 	int ret;
-	struct ucmsg* msg;
+	struct ucattr* msg;
 	char buf[200];
 
-	if((ret = uc_recv_whole(fd, buf, sizeof(buf))) < 0)
+	if((ret = uc_recv(fd, buf, sizeof(buf))) < 0)
 		goto err;
 	if(!(msg = uc_msg(buf, ret)))
 		goto err;
@@ -367,22 +370,20 @@ void handle_conn(struct conn* cn)
 	if((ret = reply(cn, ret)) >= 0)
 		return; /* code-only reply successful */
 err:
-	sys_shutdown(fd, SHUT_RDWR);
+	close_conn(cn);
 }
 
 void accept_ctrl(int sfd)
 {
-	int cfd;
 	struct sockaddr addr;
 	int addr_len = sizeof(addr);
-	int flags = SOCK_NONBLOCK;
+	int cfd, flags = SOCK_NONBLOCK;
 	struct conn *cn;
 
 	while((cfd = sys_accept4(sfd, &addr, &addr_len, flags)) > 0) {
 		if((cn = grab_conn_slot())) {
 			cn->fd = cfd;
 		} else {
-			sys_shutdown(cfd, SHUT_RDWR);
 			sys_close(cfd);
 		}
 	}
@@ -392,29 +393,20 @@ void accept_ctrl(int sfd)
 
 void setup_ctrl(void)
 {
-	int fd;
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = CONTROL
-	};
-	const int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
+	int ret, fd;
+	char* path = CONTROL;
+	const int flags = SOCK_SEQPACKET | SOCK_NONBLOCK | SOCK_CLOEXEC;
 
 	if((fd = sys_socket(AF_UNIX, flags, 0)) < 0)
 		return report("socket", "AF_UNIX", fd);
 
-	long ret;
-	char* name = addr.path;
+	if((ret = uc_listen(fd, path, 5)) < 0) {
+		report("ucbind", path, ret);
+		sys_close(fd);
+		ctrlfd = -1;
+		return;
+	}
 
 	ctrlfd = fd;
 	request(F_UPDATE_PFDS);
-
-	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
-		report("bind", name, ret);
-	else if((ret = sys_listen(fd, 1)))
-		report("listen", name, ret);
-	else
-		return;
-
-	ctrlfd = -1;
-	sys_close(fd);
 }

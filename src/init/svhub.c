@@ -133,7 +133,7 @@ static void close_proc_pipe(struct proc* rc)
 	pollset = 0;
 }
 
-static void close_conn(struct conn* cn)
+void close_conn(struct conn* cn)
 {
 	sys_close(cn->fd);
 	memzero(cn, sizeof(*cn));
@@ -149,27 +149,26 @@ static void close_ctrl(int fd)
 
 static void recv_ctrl(struct pollfd* pf)
 {
-	if(pf->revents & POLLIN)
-		accept_ctrl(pf->fd);
 	if(pf->revents & ~POLLIN)
 		close_ctrl(pf->fd);
+	else if(pf->revents & POLLIN)
+		accept_ctrl(pf->fd);
 }
 
 static void recv_conn(struct pollfd* pf, struct conn* cn)
 {
-	if(pf->revents & POLLIN)
-		handle_conn(cn);
 	if(pf->revents & ~POLLIN)
 		close_conn(cn);
+	else if(pf->revents & POLLIN)
+		handle_conn(cn);
 }
 
 static void recv_proc(struct pollfd* pf, struct proc* rc)
 {
-	if(pf->revents & POLLIN)
-		if(read_into_ring_buf(rc, pf->fd) >= 0)
-			return;
-	if(pf->revents)
+	if(pf->revents & ~POLLIN)
 		close_proc_pipe(rc);
+	else if(pf->revents & POLLIN)
+		read_into_ring_buf(rc);
 }
 
 static void check_polled_fds(void)
@@ -339,7 +338,5 @@ int main(int argc, char** argv)
 			break;
 	}
 reboot:
-	sys_unlink(CONTROL);
-
 	return exec_next();
 };

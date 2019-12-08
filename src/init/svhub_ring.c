@@ -236,9 +236,10 @@ void flush_ring_buf(struct proc* rc)
 	request(F_TRIM_RING);
 }
 
-int read_into_ring_buf(struct proc* rc, int fd)
+int read_into_ring_buf(struct proc* rc)
 {
 	int ptr = rc->ptr;
+	int fd = rc->pipefd;
 	char* buf;
 	int ret;
 

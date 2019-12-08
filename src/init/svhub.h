@@ -70,6 +70,7 @@ struct proc* find_by_name(char* name);
 struct proc* find_by_pid(int pid);
 struct proc* grab_proc_slot(void);
 void free_proc_slot(struct proc* rc);
+void close_conn(struct conn* cn);
 
 struct conn* grab_conn_slot(void);
 void free_conn_slot(struct conn* cn);
@@ -91,7 +92,7 @@ int stop_into(const char* script);
 void notify_dead(int pid);
 
 char* ring_buf_for(struct proc* rc);
-int read_into_ring_buf(struct proc* rc, int fd);
+int read_into_ring_buf(struct proc* rc);
 void trim_ring_area(void);
 void flush_ring_buf(struct proc* rc);
 

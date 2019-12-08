@@ -1,34 +1,214 @@
+#include <bits/socket/unix.h>
 #include <sys/reboot.h>
+#include <sys/socket.h>
+#include <sys/mman.h>
 
 #include <string.h>
 #include <format.h>
+#include <output.h>
+#include <nlusctl.h>
 #include <util.h>
 #include <main.h>
 
 #include "common.h"
-#include "svctl.h"
 
 ERRTAG("svctl");
-ERRLIST(NENOENT NECONNREFUSED NELOOP NENFILE NEMFILE NEINTR NEINVAL NEACCES
-	NEPERM NEIO NEFAULT NENOSYS NEALREADY NEINPROGRESS);
 
-static void no_other_options(CTX)
+struct top {
+	int opts;
+	int argc;
+	int argi;
+	char** argv;
+
+	int fd;
+
+	char smallbuf[128];
+
+	void* brk;
+	void* ptr;
+	void* end;
+};
+
+#define CTX struct top* ctx
+
+void* heap_alloc(CTX, int size)
 {
-	if(ctx->argi < ctx->argc)
-		fail("too many arguments", NULL, 0);
-	if(ctx->opts)
-		fail("bad options", NULL, 0);
+	void* brk;
+	void* end;
+	void* ptr;
+
+	if(!(brk = ctx->brk)) {
+		brk = sys_brk(NULL);
+		ptr = brk;
+		end = brk;
+		ctx->brk = brk;
+	} else {
+		ptr = ctx->ptr;
+		end = ctx->end;
+	}
+
+	void* newptr = ptr + size;
+
+	if(newptr > end) {
+		long need = pagealign(newptr - end);
+		void* newend = sys_brk(end + need);
+
+		if(newptr > newend)
+			fail("brk", NULL, -ENOMEM);
+
+		ctx->end = newend;
+	}
+
+	ctx->ptr = newptr;
+
+	return ptr;
 }
 
-static char* shift_arg(CTX)
+static void heap_trim(CTX, void* to)
 {
-	if(ctx->argi < ctx->argc)
-		return ctx->argv[ctx->argi++];
+	void* brk = ctx->brk;
+	void* ptr = ctx->ptr;
+
+	if(to < brk || to > ptr)
+		fail("invalid trim", NULL, 0);
+
+	ctx->ptr = to;
+}
+
+/* output */
+
+static int cmp_proc(const void* a, const void* b)
+{
+	struct ucattr* at = *((struct ucattr**)a);
+	struct ucattr* bt = *((struct ucattr**)b);
+
+	char* sa = uc_get_str(at, ATTR_NAME);
+	char* sb = uc_get_str(bt, ATTR_NAME);
+
+	if(!sa || !sb)
+		return 0;
+
+	return strcmp(sa, sb);
+}
+
+static void index_procs(CTX, void* ptr, void* end)
+{
+	while(ptr < end) {
+		struct ucattr* msg = ptr;
+		int msglen = msg->len;
+
+		if(msglen <= 0) break;
+
+		ptr += msg->len;
+
+		struct ucattr* at;
+
+		for(at = uc_get_0(msg); at; at = uc_get_n(msg, at)) {
+			struct ucattr** p;
+
+			p = heap_alloc(ctx, sizeof(*p));
+
+			*p = at;
+		}
+	}
+}
+
+static int intlen(int x)
+{
+	int len = 1;
+
+	if(x < 0) { x = -x; len++; };
+
+	for(; x >= 10; len++) x /= 10;
+
+	return len;
+}
+
+static int pid_len(int maxlen, struct ucattr* p)
+{
+	int *pid, len;
+
+	if(!(pid = uc_get_int(p, ATTR_PID)))
+		;
+	else if((len = intlen(*pid)) > maxlen)
+		maxlen = len;
+
+	return maxlen;
+}
+
+static void dump_proc(struct bufout* bo, struct ucattr* at, int maxlen)
+{
+	char buf[100];
+	char* p = buf;
+	char* e = buf + sizeof(buf) - 1;
+	char* q;
+
+	char* name = uc_get_str(at, ATTR_NAME);
+	int* pid = uc_get_int(at, ATTR_PID);
+
+	if(pid)
+		q = fmtint(p, e, *pid);
 	else
-		return NULL;
+		q = fmtstr(p, e, "-");
+
+	p = fmtpad(p, e, maxlen, q);
+
+	if(uc_get(at, ATTR_RING))
+		p = fmtstr(p, e, "*");
+	else
+		p = fmtstr(p, e, " ");
+
+	p = fmtstr(p, e, " ");
+	p = fmtstr(p, e, name ? name : "???");
+
+	*p++ = '\n';
+
+	bufout(bo, buf, p - buf);
 }
 
-static void init_args(CTX, int argc, char** argv)
+static void dump_list(CTX, void* ptr, void* end)
+{
+	struct ucattr** procs = ctx->ptr;
+
+	index_procs(ctx, ptr, end);
+
+	struct ucattr** prend = ctx->ptr;
+
+	qsort(procs, prend - procs, sizeof(*procs), cmp_proc);
+
+	struct ucattr** p;
+	int maxlen = 0;
+	struct bufout bo;
+	char output[2048];
+
+	bufoutset(&bo, STDOUT, output, sizeof(output));
+
+	for(p = procs; p < prend; p++)
+		maxlen = pid_len(maxlen, *p);
+
+	for(p = procs; p < prend; p++)
+		dump_proc(&bo, *p, maxlen);
+
+	bufoutflush(&bo);
+}
+
+static void dump_pid(CTX, struct ucattr* msg)
+{
+	int* pid;
+
+	if(!(pid = uc_get_int(msg, ATTR_PID)))
+		fail("no PID in reply", NULL, 0);
+
+	FMTBUF(p, e, buf, 50);
+	p = fmtint(p, e, *pid);
+	FMTENL(p, e);
+
+	writeall(STDOUT, buf, p - buf);
+}
+
+/* arguments */
+
+static void init_context(CTX, int argc, char** argv)
 {
 	if(argc > 1 && argv[1][0] == '-')
 		fail("no top-level options allowed", NULL, 0);
@@ -36,69 +216,131 @@ static void init_args(CTX, int argc, char** argv)
 	ctx->argi = 1;
 	ctx->argc = argc;
 	ctx->argv = argv;
+
+	ctx->fd = -1;
 }
 
-static struct ucmsg* recv_ok_reply(CTX)
+static void no_other_options(CTX)
 {
-	struct ucmsg* msg = recv_reply(ctx);
-	int cmd = msg->cmd;
+	if(ctx->argi < ctx->argc)
+		fail("too many arguments", NULL, 0);
+}
 
-	if(cmd < 0)
-		fail(NULL, NULL, cmd);
+static char* shift_arg(CTX)
+{
+	if(ctx->argi >= ctx->argc)
+		fail("too few arguments", NULL, 0);
+
+	return ctx->argv[ctx->argi++];
+}
+
+/* socket stuff */
+
+static void send_request(CTX, struct ucbuf* uc)
+{
+	int ret, fd;
+	char* path = CONTROL;
+
+	if((fd = ctx->fd) >= 0)
+		goto send;
+
+	if((fd = sys_socket(AF_UNIX, SOCK_SEQPACKET, 0)) < 0)
+		fail("socket", NULL, fd);
+	if((ret = uc_connect(fd, path)) < 0)
+		fail("connect", path, ret);
+
+	ctx->fd = fd;
+send:
+	if((ret = uc_send(fd, uc)) < 0)
+		fail("send", NULL, ret);
+}
+
+static struct ucattr* recv_reply(CTX)
+{
+	int ret, fd = ctx->fd;
+	void* buf = ctx->smallbuf;
+	int len = sizeof(ctx->smallbuf);
+	struct ucattr* msg;
+
+	if((ret = uc_recv(fd, buf, len)) < 0)
+		fail("recv", NULL, ret);
+	if(!(msg = uc_msg(buf, ret)))
+		fail("recv", NULL, -EBADMSG);
 
 	return msg;
 }
 
-static void recv_empty_ok(CTX)
+static struct ucattr* recv_large(CTX)
 {
-	(void)recv_ok_reply(ctx);
+	int len = 2*PAGE;
+	int ret, fd = ctx->fd;
+	void* buf = heap_alloc(ctx, len);
+	struct ucattr* msg;
+
+	if((ret = uc_recv(fd, buf, len)) < 0)
+		fail("recv", NULL, ret);
+	if(!(msg = uc_msg(buf, ret)))
+		fail("recv", NULL, -EBADMSG);
+
+	heap_trim(ctx, buf + len);
+
+	int rep;
+
+	if((rep = uc_repcode(msg)) < 0)
+		fail(NULL, NULL, rep);
+	else if(rep > 0)
+		fail("unexpected notification", NULL, 0);
+
+	return msg;
 }
 
-static void recv_ok_or_already(CTX)
+static void recv_empty_reply(CTX)
 {
-	struct ucmsg* msg = recv_reply(ctx);
-	int cmd = msg->cmd;
+	struct ucattr* msg = recv_reply(ctx);
+	int rep = uc_repcode(msg);
 
-	if(cmd < 0 && cmd != -EALREADY)
-		fail(NULL, NULL, msg->cmd);
+	if(rep < 0) fail(NULL, NULL, rep);
 }
 
-static char* single_arg(CTX)
+static void simple_void_cmd(CTX, int cmd)
 {
-	char* arg;
-
-	if(!(arg = shift_arg(ctx)))
-		fail("too few arguments", NULL, 0);
+	char buf[128];
+	struct ucbuf uc;
 
 	no_other_options(ctx);
 
-	return arg;
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, cmd);
+
+	send_request(ctx, &uc);
+
+	recv_empty_reply(ctx);
 }
 
 static void send_proc_cmd(CTX, int cmd, char* name)
 {
-	start_request(ctx, cmd, 1, strlen(name));
-	add_str_attr(ctx, ATTR_NAME, name);
-	send_request(ctx);
+	char buf[128];
+	struct ucbuf uc;
+
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, cmd);
+	uc_put_str(&uc, ATTR_NAME, name);
+
+	send_request(ctx, &uc);
 }
 
 static void simple_proc_cmd(CTX, int cmd)
 {
-	char* name = single_arg(ctx);
+	char* name = shift_arg(ctx);
 
-	send_proc_cmd(ctx, cmd, name);
-	recv_empty_ok(ctx);
-}
-
-static void simple_global(CTX, int cmd)
-{
 	no_other_options(ctx);
 
-	start_request(ctx, cmd, 0, 0);
-	send_request(ctx);
+	send_proc_cmd(ctx, cmd, name);
 
-	recv_empty_ok(ctx);
+	recv_empty_reply(ctx);
 }
+
+/* individual commands */
 
 static void cmd_start(CTX)
 {
@@ -112,13 +354,22 @@ static void cmd_stop(CTX)
 
 static void cmd_restart(CTX)
 {
-	char* name = single_arg(ctx);
+	char* name = shift_arg(ctx);
+	struct ucattr* msg;
+	int rep;
 
 	send_proc_cmd(ctx, CMD_STOP, name);
-	recv_ok_or_already(ctx);
+	msg = recv_reply(ctx);
+
+	if((rep = uc_repcode(msg)) == 0)
+		return;
+	if(rep > 0)
+		fail("unexpected notification", NULL, 0);
+	if(rep != -EALREADY)
+		fail(NULL, NULL, rep);
 
 	send_proc_cmd(ctx, CMD_START, name);
-	recv_empty_ok(ctx);
+	recv_empty_reply(ctx);
 }
 
 static void cmd_hup(CTX)
@@ -143,55 +394,77 @@ static void cmd_flush(CTX)
 
 static void cmd_pidof(CTX)
 {
-	char* name = single_arg(ctx);
-
-	send_proc_cmd(ctx, CMD_GETPID, name);
-	dump_pid(ctx, recv_ok_reply(ctx));
-}
-
-static void cmd_show(CTX)
-{
-	char* name = single_arg(ctx);
+	char* name = shift_arg(ctx);
 
 	send_proc_cmd(ctx, CMD_STATUS, name);
-	expect_large(ctx);
-	dump_info(ctx, recv_ok_reply(ctx));
+
+	struct ucattr* msg = recv_reply(ctx);
+
+	dump_pid(ctx, msg);
+}
+
+static void cmd_dump(CTX)
+{
+	char* name = shift_arg(ctx);
+
+	send_proc_cmd(ctx, CMD_GETBUF, name);
+
+	struct ucattr* msg = recv_large(ctx);
+
+	writeall(STDOUT, uc_payload(msg), uc_paylen(msg));
 }
 
 static void cmd_list(CTX)
 {
+	int start = 0;
+	char buf[128];
+	struct ucbuf uc;
+	struct ucattr* msg;
+
 	no_other_options(ctx);
 
-	start_request(ctx, CMD_LIST, 0, 0);
-	send_request(ctx);
+	uc_buf_set(&uc, buf, sizeof(buf));
+next:
+	uc_put_hdr(&uc, CMD_LIST);
+	uc_put_int(&uc, ATTR_NEXT, start);
 
-	expect_large(ctx);
-	dump_list(ctx, recv_ok_reply(ctx));
+	send_request(ctx, &uc);
+
+	msg = recv_large(ctx);
+
+	int* next = uc_get_int(msg, ATTR_NEXT);
+
+	if(!next) goto done;
+
+	start = *next;
+	goto next;
+done:
+	dump_list(ctx, ctx->brk, ctx->ptr);
 }
 
 static void cmd_reload(CTX)
 {
-	simple_global(ctx, CMD_RELOAD);
+	simple_void_cmd(ctx, CMD_RELOAD);
 }
 
 static void cmd_reboot(CTX)
 {
-	simple_global(ctx, CMD_REBOOT);
+	simple_void_cmd(ctx, CMD_REBOOT);
 }
 
 static void cmd_shutdown(CTX)
 {
-	simple_global(ctx, CMD_SHUTDOWN);
+	simple_void_cmd(ctx, CMD_SHUTDOWN);
 }
 
 static void cmd_poweroff(CTX)
 {
-	simple_global(ctx, CMD_POWEROFF);
+	simple_void_cmd(ctx, CMD_POWEROFF);
 }
 
 static void cmd_flushall(CTX)
 {
-	simple_global(ctx, CMD_FLUSH);
+	simple_void_cmd(ctx, CMD_FLUSH);
 }
 
 static const struct cmdrec {
@@ -211,7 +484,7 @@ static const struct cmdrec {
 	{ "reboot",    cmd_reboot   },
 	{ "shutdown",  cmd_shutdown },
 	{ "poweroff",  cmd_poweroff },
-	{ "show",      cmd_show     }
+	{ "dump",      cmd_dump     }
 };
 
 typedef void (*cmdptr)(CTX);
@@ -233,18 +506,14 @@ int main(int argc, char** argv)
 	memzero(&context, sizeof(context));
 	cmdptr handler;
 
-	init_args(ctx, argc, argv);
+	init_context(ctx, argc, argv);
 
 	if(argc > 1)
 		handler = resolve(shift_arg(ctx));
 	else
 		handler = cmd_list;
 
-	init_socket(ctx);
-
 	handler(ctx);
-
-	flush_output(ctx);
 
 	return 0;
 }
