@@ -1,0 +1,25 @@
+.TH ptyhub 8
+'''
+.SH NAME
+\fBptyhub\fR \- TTY/PTY application supervisor
+'''
+.SH DESCRIPTION
+This service spawns applications on user's request, providing them with
+a PTY (pseudoterminal) device.
+.P
+\fBptyhub\fR itself is a system service that should be started during boot.
+'''
+.SH USAGE
+Applications to be spawned by \fBptyhub\fR are defined by executable files
+in /etc/ptyhub/. See \fBapphub\fR(8) for a detailed description of how it
+work; the only difference between \fBptyhub\fR and \fBapphub\fR is that
+\fBptyhub\fR allocates a PTY for the spawned application.
+'''
+.SH FILES
+.IP "/run/ctrl/ptyhub" 4
+Control socket.
+.IP "/etc/ptyhub" 4
+Configuration directory.
+'''
+.SH SEE ALSO
+\fBptyctl\fR(1), \fBapphub\fR(8).

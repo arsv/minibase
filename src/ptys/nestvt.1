@@ -1,0 +1,33 @@
+.TH nestvt 1
+'''
+.SH NAME
+\fBnestvt\fR \- \fBptyhub\fR client for PTY-based terminal emulators.
+'''
+.SH SYNOPSIS
+.IP "\fBnestvt \fIcommand\fR \fIarg arg arg ...\fR\fR" 4
+Start given application.
+.IP "\fBnesvt +\fIxid\fR" 4
+Attach to specified session.
+'''
+.SH DESCRIPTION
+\fBnestvt\fR allows using conventional, PTY-allocating terminal emulator
+as a client for \fBptyhub\fR.
+.P
+In order to support detached sessions, \fBptyhub\fR allocates PTY for each
+process it spawns. Ideally, this one PTY should be enough, and the terminal
+emulator should just request the master side fd from \fBptyhub\fR and proceed
+to use it. Most Linux terminals are designed with a different model of
+operation in mind: the terminal itself allocates a PTY, and spawns the
+application.
+.P
+The role of \fBnestvt\fR is to provide a link between the PTY that \fBptyhub\fR
+allocated, and the one that a convential terminal emulator allocated for its
+own use.
+.P
+Running two PTYs instead of one for a single application is sub-optimal,
+however, this trick does allow using wide variety of terminals together with
+\fBptyhub\fR. This scheme is quite similar to how other detachable terminal
+emulators (screen, tmux, dtach) work.
+'''
+.SH SEE ALSO
+\fBptyhub\fR(8), \fBptyctl\fR(1).

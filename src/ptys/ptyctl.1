@@ -1,0 +1,23 @@
+.TH ptyctl 1
+'''
+.SH NAME
+\fBptyctl\fR \- control tool for \fBptyhub\fR(8).
+'''
+.SH SYNOPSIS
+.IP "\fBptyctl\fR" 4
+Show the list of running applications.
+.IP "\fBptyctl spawn \fIname\fR [\fIarguments\fR]" 4
+Start an instance of the named applications.
+.IP "\fBptyctl sigterm \fIxid\fR" 4
+Send SIGTERM to a given process.
+.IP "\fBptyctl sigkill \fIxid\fR" 4
+Ditto, SIGKILL.
+'''
+.SH FILES
+.IP "/etc/ptyhub" 4
+Configuration directory for \fBptyhub\fR.
+.IP "/run/ctrl/ptyhub" 4
+Control socket.
+'''
+.SH SEE ALSO
+\fBptyhub\fR(8).
