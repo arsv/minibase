@@ -68,7 +68,6 @@ int main(int argc, char** argv)
 
 	terminate_children();
 	restore_initial_tty();
-	clear_ctrl();
 
 	return 0;
 }

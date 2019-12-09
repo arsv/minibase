@@ -211,7 +211,7 @@ void poll_inputs(void)
 		if(ret == -EINTR)
 			; /* signal has been caught and handled */
 		else if(ret < 0)
-			quit("ppoll", NULL, ret);
+			fail("ppoll", NULL, ret);
 		else if(ret > 0)
 			check_polled_fds(n);
 		if(mdevreq)

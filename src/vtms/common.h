@@ -3,14 +3,12 @@
 #define CONTROL RUN_CTRL "/vtmux"
 #define CONFDIR HERE "/etc/vtmux"
 
-#define VT(c) TAGGED('V', 'T', c)
-
-#define CMD_STATUS   VT(1)
-#define CMD_SWITCH   VT(2)
-#define CMD_SPAWN    VT(3)
-#define CMD_SWBACK   VT(4)
-#define CMD_SWLOCK   VT(5)
-#define CMD_UNLOCK   VT(6)
+#define CMD_STATUS   1
+#define CMD_SWITCH   2
+#define CMD_SPAWN    3
+#define CMD_SWBACK   4
+#define CMD_SWLOCK   5
+#define CMD_UNLOCK   6
 
 #define ATTR_VT      1
 #define ATTR_TTY    10

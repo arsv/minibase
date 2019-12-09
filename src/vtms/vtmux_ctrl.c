@@ -19,37 +19,29 @@
 #define REPLIED 1
 
 #define CN struct conn* cn __unused
-#define MSG struct ucmsg* msg __unused
+#define MSG struct ucattr* msg __unused
 
 int ctrlfd;
 
-static char rxbuf[200];
-static char txbuf[600];
-static struct ucbuf uc;
-
-static void start_reply(int cmd)
+static int send_reply(CN, struct ucbuf* uc)
 {
-	uc_buf_set(&uc, txbuf, sizeof(txbuf));
-	uc_put_hdr(&uc, cmd);
-}
+	int ret, fd = cn->fd;
 
-static int send_reply(CN)
-{
-	int ret;
-
-	uc_put_end(&uc);
-
-	if((ret = uc_send_timed(cn->fd, &uc)) < 0)
+	if((ret = uc_wait_writable(fd)) < 0)
 		return ret;
 
-	return REPLIED;
+	return uc_send(fd, uc);
 }
 
 static int reply(CN, int err)
 {
-	start_reply(err);
+	char buf[128];
+	struct ucbuf uc;
 
-	return send_reply(cn);
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, err);
+
+	return send_reply(cn, &uc);
 }
 
 static int cmd_switch(CN, MSG)
@@ -89,48 +81,21 @@ static int cmd_swback(CN, MSG)
 
 /* No up-directory escapes here. Only basenames */
 
-static int name_is_simple(const char* name)
-{
-	const char* p;
-
-	if(!*name)
-		return 0;
-	for(p = name; *p; p++)
-		if(*p == '/')
-			return 0;
-
-	return 1;
-}
-
-static int cmd_spawn(CN, MSG)
-{
-	char* name;
-	int tty;
-
-	if(!(name = uc_get_str(msg, ATTR_NAME)))
-		return -EINVAL;
-	if(!name_is_simple(name))
-		return -EACCES;
-	if((tty = query_empty_tty()) <= 0)
-		return -ENOTTY;
-
-	int ret = spawn(tty, name);
-
-	return ret > 0 ? 0 : ret;
-}
-
 static int cmd_status(CN, MSG)
 {
 	struct term* vt;
 	struct ucattr* at;
+	struct ucbuf uc;
+	char buf[512];
 
-	start_reply(0);
-
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, 0);
 	uc_put_int(&uc, ATTR_TTY, activetty);
 
 	for(vt = terms; vt < terms + nterms; vt++) {
 		if(!vt->tty)
 			continue;
+
 		at = uc_put_nest(&uc, ATTR_VT);
 
 		uc_put_int(&uc, ATTR_TTY, vt->tty);
@@ -143,7 +108,7 @@ static int cmd_status(CN, MSG)
 		uc_end_nest(&uc, at);
 	}
 
-	return send_reply(cn);
+	return send_reply(cn, &uc);
 }
 
 static int cmd_swlock(CN, MSG)
@@ -164,48 +129,52 @@ static const struct cmd {
 } commands[] = {
 	{ CMD_STATUS,  cmd_status },
 	{ CMD_SWITCH,  cmd_switch },
-	{ CMD_SPAWN,   cmd_spawn  },
 	{ CMD_SWBACK,  cmd_swback },
 	{ CMD_SWLOCK,  cmd_swlock },
 	{ CMD_UNLOCK,  cmd_unlock },
-	{ 0,           NULL       }
 };
 
 static int dispatch_cmd(CN, MSG)
 {
 	const struct cmd* cd;
-	int cmd = msg->cmd;
+	int cmd = uc_repcode(msg);
 	int ret;
 
-	for(cd = commands; cd->cmd; cd++)
+	for(cd = commands; cd < ARRAY_END(commands); cd++)
 		if(cd->cmd == cmd)
-			break;
-	if(!cd->cmd)
-		ret = reply(cn, -ENOSYS);
-	else if((ret = cd->call(cn, msg)) <= 0)
-		ret = reply(cn, ret);
+			goto got;
 
-	return ret;
+	return reply(cn, -ENOSYS);
+got:
+	if((ret = cd->call(cn, msg)) > 0)
+		return ret;
+
+	return reply(cn, ret);
 }
 
-static void shutdown_conn(struct conn* cn)
+static void close_conn(struct conn* cn)
 {
-	sys_shutdown(cn->fd, SHUT_RDWR);
+	sys_close(cn->fd);
+	
+	cn->fd = -1;
+
+	pollset = 0;
 }
 
 void recv_conn(struct conn* cn)
 {
 	int ret, fd = cn->fd;
-	struct ucmsg* msg;
+	struct ucattr* msg;
+	char buf[128];
 
-	if((ret = uc_recv_whole(fd, rxbuf, sizeof(rxbuf))) < 0)
+	if((ret = uc_recv(fd, buf, sizeof(buf))) < 0)
 		goto err;
-	if(!(msg = uc_msg(rxbuf, ret)))
+	if(!(msg = uc_msg(buf, ret)))
 		goto err;
 	if((ret = dispatch_cmd(cn, msg)) >= 0)
 		return;
 err:
-	shutdown_conn(cn);
+	close_conn(cn);
 }
 
 void accept_ctrl(void)
@@ -222,7 +191,6 @@ void accept_ctrl(void)
 			pollset = 0;
 		} else {
 			warn("dropping connection", NULL, 0);
-			sys_shutdown(cfd, SHUT_RDWR);
 			sys_close(cfd);
 		}
 	}
@@ -231,30 +199,14 @@ void accept_ctrl(void)
 void setup_ctrl(void)
 {
 	int fd, ret;
-	int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = CONTROL
-	};
+	int flags = SOCK_SEQPACKET | SOCK_NONBLOCK | SOCK_CLOEXEC;
+	char* path = CONTROL;
 
 	if((fd = sys_socket(AF_UNIX, flags, 0)) < 0)
 		fail("socket", "AF_UNIX", fd);
-	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
-		fail("bind", addr.path, ret);
-	if((ret = sys_listen(fd, 1)))
-		quit("listen", addr.path, ret);
+	if((ret = uc_listen(fd, path, 10)) < 0)
+		fail("ucbind", path, ret);
 
 	ctrlfd = fd;
 	pollset = 0;
-}
-
-void clear_ctrl(void)
-{
-	sys_unlink(CONTROL);
-}
-
-void quit(const char* msg, char* arg, int err)
-{
-	clear_ctrl();
-	fail(msg, arg, err);
 }

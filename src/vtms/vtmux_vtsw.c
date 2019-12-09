@@ -62,7 +62,7 @@ static int usable(int mask, int tty)
 	return !(mask & (1 << tty));
 }
 
-int query_empty_tty(void)
+static int query_empty_tty(void)
 {
 	int mask, ret, tty;
 
@@ -360,7 +360,7 @@ void grab_initial_lock(void)
 	int ret;
 
 	if((ret = lock_switch(NULL)) < 0)
-		quit("cannot lock VT switching", NULL, 0);
+		fail("cannot lock VT switching", NULL, 0);
 
 	activetty = ret;
 	initialtty = ret;

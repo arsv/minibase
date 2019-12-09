@@ -104,9 +104,7 @@ void disable_all_devs_for(int tty);
 long ioctl(int fd, int req, void* arg, const char* name);
 long ioctli(int fd, int req, long arg, const char* name);
 
-int spawn(int tty, char* cmd);
 int spawn_pinned(int tty);
-int query_empty_tty(void);
 int query_greeter_tty(void);
 int open_tty_device(int tty);
 int show_greeter(void);
