@@ -11,11 +11,11 @@ meant to be used as an interactive command. When invoked, fooctl connects
 to the socket, sends commands, receives replies, waits for events etc and
 then exits.
 
-Client connections are supposed to be short. The client is only there to
-request and observe service state changes. Since the client tool is supposed
-to be used by the (singular) human user, there should be at most about one
-instance running at any given time. To allow for some error recovery, most
-services do accept several control connections at a time, but tend to have
+Client connections are supposed to be short in most cases. The client is only
+there to request and observe service state changes. Since the client tool
+is supposed to be used by the (singular) human user, there should be at most
+about one instance running at any given time. To allow for some error recovery,
+most services do accept several control connections at a time, but tend to have
 a pretty low limit on the number of active connections.
 
 
@@ -133,12 +133,11 @@ Wire protocol for control sockets
 The common protocol several long-running services in minibase use for their
 control sockets is a simplified version of generic netlink (GENL) protocol.
 
-The parties exchange messages over a stream connection.
-Each message consists of a header optionally followed by attributes:
+The parties exchange messages over a SEQPACKET connection.
+Each message consists of a command optionally followed by attributes:
 
-    +-----------+
-    |  length   |   <-- header         Attributes:
-    |  command  |                                      +-----+-----+
+    +-----+-----+                      Attributes:
+    | len | cmd |   <-- header                         +-----+-----+
     +-----+-----+                     +-----+-----+    | len | key |
     | len | key |   <-- attribute     | len | key |    +-----+-----+
     +-----+-----+                     +-----+-----+    | some _nul |
@@ -159,14 +158,15 @@ Each message consists of a header optionally followed by attributes:
 
 
 All integers are host-endian. Lengths are in bytes and include respective
-headers. All attributes start at 4 byte boundary within the message.
+headers, but do not include padding. Attributes are always padded to 4 bytes.
+For string attributes, length includes the terminating \0.
 
-Attribute length is the (unpadded) length of the payload. For strings,
-length includes terminating \0. Message length is always a multiple of 4
-and includes trailing padding if necessary.
+Attributes may be nested. The payload of the enclosing attribute is then
+a sequence of attributes.
 
-Attributes may be nested -- the payload of the enclosing attribute is then
-a sequence of attributes just like the message payload.
+When stored in memory, the message itself shares format with attributes.
+However, on the wire, the length is not included in the packet payload,
+and goes as metadata through the socket API instead.
 
 
 Communication is assumed to be synchronous (request-reply). The service
@@ -174,10 +174,10 @@ replies with .command == 0 on success, .command = (-errno) < 0 on failure.
 There is exactly one reply for each request. It is assumed that the client
 knows what kind of reply to expect for each request issued.
 
-(Provisional: replies with .command > 0 are notifications not caused by client
-requests. Pulling notifications out of the stream should leave a proper request
-reply sequence. It is up to the service to decide whether to use them, and how.
-Clients that do not expect notifications should treat them as protocol errors.)
+Replies with .command > 0 are notifications not caused by client requests.
+Pulling notifications out of the stream should leave a valid request-reply
+sequence. It is up to the service to decide whether to use them, and how.
+Clients that do not expect notifications should treat them as protocol errors.
 
 Commands are service-specific. Negative values are expected to be system-wide
 errno(3) codes. Error messages may include attributes.
@@ -194,6 +194,10 @@ transmission.
 
 Differences between nlusctl and GENL
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The protocol was originally called "netlink-based userspace control protocol",
+and there were plans to share some of the code. Since then, the protocols have
+diverged a lot. The general format of the attributes is still the same though.
+
 nlusctl only runs over point-to-point connections. Netlink (RTNL and GENL)
 apparently have some support for ethernet-like point-to-net communication,
 which would explain .pid field in the request.
@@ -201,11 +205,9 @@ which would explain .pid field in the request.
 nlusctl does not support asynchronous communication modes. So no .seq and
 no ACK or REQUEST flags.
 
-There are no multi-part replies in nlusctl. The client is always expected to
-be able to receive the whole message in a reasonable amount of time, and the
-service may drop the connection if it takes too long.
-In GENL, multipart messages relax this assumption, allowing a sort of iterator
-within the kernel to be queried one item at a time.
+There are no multi-part replies in nlusctl. Where applicable, the client
+has to request the next part (entry, packet, whatever) explicitly using
+an index of some sort.
 
 In GENL, DUMP flags affect the meaning of the .cmd field.
 In nlusctl, distinct values of the .command field are used for this purpose.
