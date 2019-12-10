@@ -7,7 +7,6 @@
 #include <sys/file.h>
 #include <sys/ppoll.h>
 #include <sys/signal.h>
-#include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/random.h>
 

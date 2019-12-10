@@ -6,7 +6,6 @@
 #include <sys/signal.h>
 #include <sys/socket.h>
 #include <sys/timer.h>
-#include <sys/signalfd.h>
 #include <sys/prctl.h>
 
 #include <string.h>

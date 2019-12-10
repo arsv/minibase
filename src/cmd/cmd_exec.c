@@ -4,7 +4,6 @@
 #include <sys/fpath.h>
 #include <sys/prctl.h>
 #include <sys/signal.h>
-#include <sys/signalfd.h>
 
 #include <sigset.h>
 #include <format.h>

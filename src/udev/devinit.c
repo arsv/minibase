@@ -6,7 +6,6 @@
 #include <sys/dents.h>
 #include <sys/socket.h>
 #include <sys/signal.h>
-#include <sys/signalfd.h>
 #include <sys/mman.h>
 
 #include <string.h>

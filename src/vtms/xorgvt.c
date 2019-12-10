@@ -6,7 +6,6 @@
 #include <sys/creds.h>
 #include <sys/fprop.h>
 #include <sys/signal.h>
-#include <sys/signalfd.h>
 
 #include <format.h>
 #include <string.h>

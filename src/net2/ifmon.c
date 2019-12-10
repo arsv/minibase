@@ -3,7 +3,6 @@
 #include <sys/fpath.h>
 #include <sys/ppoll.h>
 #include <sys/signal.h>
-#include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 

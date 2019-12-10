@@ -3,7 +3,6 @@
 #include <sys/file.h>
 #include <sys/ppoll.h>
 #include <sys/signal.h>
-#include <sys/signalfd.h>
 
 #include <format.h>
 #include <string.h>

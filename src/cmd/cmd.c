@@ -1,6 +1,5 @@
 #include <sys/file.h>
 #include <sys/signal.h>
-#include <sys/signalfd.h>
 #include <sys/ppoll.h>
 #include <sys/mman.h>
 
