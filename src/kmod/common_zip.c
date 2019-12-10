@@ -130,8 +130,6 @@ static int inflate(CTX, struct mbuf* raw, struct mbuf* out, char* name)
 
 	set_lzma_buffers(lz, raw, out);
 
-	lzma_prepare(lz);
-
 	int ret = lzma_inflate(lz);
 
 	if(ret != LZMA_STREAM_END)
