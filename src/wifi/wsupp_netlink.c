@@ -28,7 +28,7 @@
    then wait for completion events.
 
    We do however care a lot about command errors. To match incoming nlerr
-   message to the modules that needs them, we save seq numbers in authseq
+   messages to the modules that needs them, we save seq numbers in authseq
    and scanseq respectively, and use those to tell which module should handle
    the failure. In GENL, nlerr does not carry the command itself, so seq is
    the only way to identify incoming errors */
@@ -188,9 +188,9 @@ void handle_netlink(void)
 	else if(ret == -EAGAIN)
 		return;
 	else if(ret < 0)
-		quit("recv", "NETLINK", ret);
+		fail("recv", "NETLINK", ret);
 	else
-		quit("EOF", "NETLINK", 0);
+		fail("EOF", "NETLINK", 0);
 
 	while((msg = nr_next(&nr))) {
 		if(msg->type == NLMSG_DONE)

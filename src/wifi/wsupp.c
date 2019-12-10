@@ -38,7 +38,7 @@ static void sighandler(int sig)
 		case SIGINT:
 		case SIGTERM:
 			stop_wait_script();
-			return exit_control();
+			_exit(0xFF);
 	}
 }
 
@@ -85,35 +85,28 @@ static void set_pollfd(struct pollfd* pfd, int fd)
 	}
 }
 
-static void close_conn(struct conn* cn)
-{
-	sys_close(cn->fd);
-	memzero(cn, sizeof(*cn));
-	pollset = 0;
-}
-
 static void check_conn(struct pollfd* pf, struct conn* cn)
 {
-	if(pf->revents & POLLIN)
-		handle_conn(cn);
 	if(pf->revents & ~POLLIN)
 		close_conn(cn);
+	else if(pf->revents & POLLIN)
+		handle_conn(cn);
 }
 
 static void check_netlink(struct pollfd* pf)
 {
+	if(pf->revents & ~POLLIN)
+		fail("lost netlink connection", NULL, 0);
 	if(pf->revents & POLLIN)
 		handle_netlink();
-	if(pf->revents & ~POLLIN)
-		quit("lost netlink connection", NULL, 0);
 }
 
 static void check_control(struct pollfd* pf)
 {
+	if(pf->revents & ~POLLIN)
+		fail("lost control socket", NULL, 0);
 	if(pf->revents & POLLIN)
 		handle_control();
-	if(pf->revents & ~POLLIN)
-		quit("lost control socket", NULL, 0);
 
 	pollset = 0;
 }
@@ -212,7 +205,7 @@ int main(int argc, char** argv)
 		else if(ret == 0)
 			timer_expired();
 		else if(ret != -EINTR)
-			quit("ppoll", NULL, ret);
+			fail("ppoll", NULL, ret);
 	};
 
 	return 0; /* never reached */

@@ -91,8 +91,6 @@ extern byte RSC[6];
 extern int gtkindex;
 extern int pollset;
 
-void quit(const char* msg, char* arg, int err) noreturn;
-
 /* Timer */
 typedef void (*callptr)(void);
 void set_timer(int seconds, callptr cb);
@@ -103,6 +101,7 @@ void clear_timer(void);
 void setup_control(void);
 void handle_control(void);
 void handle_conn(struct conn* cn);
+void close_conn(struct conn* cn);
 void exit_control(void) noreturn;
 
 void report_scan_end(int err);

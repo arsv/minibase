@@ -19,125 +19,54 @@ ERRLIST(NENOENT NEINVAL NENOSYS NENOENT NEACCES NEPERM NEBUSY NEALREADY
 	NENETDOWN NENOKEY NENOTCONN NENODEV NETIMEDOUT NENOBUFS NEISCONN
 	NEAGAIN);
 
-void* heap_alloc(CTX, uint size)
-{
-	void* brk = ctx->brk;
-	void* ptr = ctx->ptr;
-
-	if(!brk) {
-		brk = sys_brk(NULL);
-		ptr = brk;
-	}
-
-	ulong left = brk - ptr;
-
-	if(left < size) {
-		ulong need = pagealign(size - left);
-		void* new = sys_brk(brk + need);
-
-		if(brk_error(brk, new))
-			fail("cannot allocate memory", NULL, 0);
-
-		brk = new;
-	}
-
-	ctx->ptr = ptr + size;
-	ctx->brk = brk;
-
-	return ptr;
-}
-
 static void connect_to_wictl(CTX)
 {
 	int ret, fd;
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = WICTL
-	};
+	char* path = CONTROL;
 
-	if((fd = sys_socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+	if((fd = sys_socket(AF_UNIX, SOCK_SEQPACKET, 0)) < 0)
 		fail("socket", "AF_UNIX", fd);
-	if((ret = sys_connect(fd, &addr, sizeof(addr))) < 0)
-		fail("connect", addr.path, ret);
+	if((ret = uc_connect(fd, path)) < 0)
+		fail("connect", path, ret);
 
 	ctx->fd = fd;
-	ctx->connected = 1;
-
-	uc_buf_set(&ctx->uc, ctx->txbuf, sizeof(ctx->txbuf));
 }
 
-static void send_command(CTX)
+static void send_request(CTX, struct ucbuf* uc)
 {
 	int wr, fd = ctx->fd;
 
-	if(!ctx->connected)
-		fail("socket not connected", NULL, 0);
-
-	if((wr = uc_send_whole(fd, &ctx->uc)) < 0)
-		fail("uc-send", NULL, wr);
+	if((wr = uc_send(fd, uc)) < 0)
+		fail("send", NULL, wr);
 }
 
-static struct ucmsg* recv_reply(CTX)
+static struct ucattr* recv_reply(CTX)
 {
-	struct urbuf* ur = &ctx->ur;
 	int ret, fd = ctx->fd;
+	void* buf = ctx->rxbuf;
+	int len = sizeof(ctx->rxbuf);
+	struct ucattr* msg;
 
-	if((ret = uc_recv_shift(fd, ur)) < 0)
-		fail("recv", "wictl", ret);
+	if((ret = uc_recv(fd, buf, len)) < 0)
+		fail("recv", NULL, ret);
+	if(!(msg = uc_msg(buf, ret)))
+		fail("recv", NULL, -EBADMSG);
 
-	return ur->msg;
+	return msg;
 }
 
-/* We cannot use small ctx->rxbuf to receive AP list, which tends to be
-   several KB in size in most cases. So we need to switch ctx->ur from
-   txbuf to a large heap-allocated buffer, and optionally grow the buffer
-   if the messages happens to be larger the initial estimate of 1 page. */
-
-static struct ucmsg* recv_large(CTX)
+static int recv_empty_reply(CTX)
 {
-	struct urbuf* ur = &ctx->ur;
-	int ret, fd = ctx->fd;
-	int len = 4096;
+	struct ucattr* msg = recv_reply(ctx);
 
-	if(ur->buf == ctx->rxbuf) {
-		void* buf = heap_alloc(ctx, len);
-
-		ur_buf_change(ur, buf, len);
-	}
-
-	while((ret = uc_recv_shift(fd, ur)) < 0) {
-		if(ret != -ENOBUFS)
-			fail("recv", "wictl", ret);
-
-		(void)heap_alloc(ctx, len);
-
-		ur->end += len;
-	}
-
-	ctx->ptr = ur->rptr;
-
-	return ur->msg;
+	return uc_repcode(msg);
 }
 
-struct ucmsg* send_recv_msg(CTX)
+struct ucattr* send_recv_msg(CTX, struct ucbuf* uc)
 {
-	send_command(ctx);
+	send_request(ctx, uc);
 
 	return recv_reply(ctx);
-}
-
-struct ucmsg* send_recv_aps(CTX)
-{
-	send_command(ctx);
-
-	return recv_large(ctx);
-}
-
-int send_recv_cmd(CTX)
-{
-	struct ucmsg* msg = send_recv_msg(ctx);
-
-	return msg->cmd;
 }
 
 /* Command line args stuff */
@@ -147,8 +76,7 @@ static void init_context(CTX, int argc, char** argv)
 	ctx->argi = 1;
 	ctx->argc = argc;
 	ctx->argv = argv;
-
-	ur_buf_set(&ctx->ur, ctx->rxbuf, sizeof(ctx->rxbuf));
+	ctx->fd = -1;
 }
 
 static void no_other_options(CTX)
@@ -167,12 +95,49 @@ static char* shift_arg(CTX)
 	return ctx->argv[ctx->argi++];
 }
 
-static void send_check_cmd(CTX)
+static int simple_request(CTX, int cmd)
 {
+	struct ucbuf uc;
+	char buf[128];
+
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, cmd);
+
+	send_request(ctx, &uc);
+
+	return recv_empty_reply(ctx);
+}
+
+static int setdev_request(CTX, int ifi)
+{
+	struct ucbuf uc;
+	char buf[128];
+
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, CMD_SETDEV);
+	uc_put_int(&uc, ATTR_IFI, ifi);
+
+	send_request(ctx, &uc);
+
+	return recv_empty_reply(ctx);
+}
+
+static struct ucattr* fetch_status(CTX)
+{
+	struct ucbuf uc;
+	struct ucattr* msg;
+	char buf[128];
 	int ret;
 
-	if((ret = send_recv_cmd(ctx)) < 0)
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, CMD_STATUS);
+
+	msg = send_recv_msg(ctx, &uc);
+
+	if((ret = uc_repcode(msg)) < 0)
 		fail(NULL, NULL, ret);
+
+	return msg;
 }
 
 /* User commands */
@@ -180,7 +145,7 @@ static void send_check_cmd(CTX)
 static void cmd_device(CTX)
 {
 	char *name;
-	int ifi;
+	int ret, ifi;
 
 	if(!(name = shift_arg(ctx)))
 		fail("need device name", NULL, 0);
@@ -195,50 +160,44 @@ static void cmd_device(CTX)
 	if((ifi = getifindex(ctx->fd, name)) < 0)
 		fail(NULL, name, ifi);
 
-	uc_put_hdr(UC, CMD_WI_SETDEV);
-	uc_put_int(UC, ATTR_IFI, ifi);
-	uc_put_end(UC);
-
-	send_check_cmd(ctx);
+	if((ret = setdev_request(ctx, ifi)) < 0)
+		fail(NULL, NULL, ret);
 }
 
 static void cmd_status(CTX)
 {
-	struct ucmsg* msg;
-
-	connect_to_wictl(ctx);
-
-	uc_put_hdr(UC, CMD_WI_STATUS);
-	uc_put_end(UC);
+	struct ucattr* msg;
 
 	no_other_options(ctx);
 
-	msg = send_recv_aps(ctx);
+	connect_to_wictl(ctx);
+
+	msg = fetch_status(ctx);
+
+	fetch_scan_list(ctx);
 
 	dump_status(ctx, msg);
 }
 
 static void cmd_neutral(CTX)
 {
-	struct ucmsg* msg;
-	int ret;
-
 	connect_to_wictl(ctx);
-
-	uc_put_hdr(UC, CMD_WI_NEUTRAL);
-	uc_put_end(UC);
 
 	no_other_options(ctx);
 
-	if((ret = send_recv_cmd(ctx)) == -ECANCELED)
+	int ret = simple_request(ctx, CMD_NEUTRAL);
+
+	if(ret == -ECANCELED)
 		return;
-	else if(ret < 0)
+	if(ret < 0)
 		fail(NULL, NULL, ret);
-	else if(ret > 0)
+	if(ret > 0)
 		fail("unexpected notification", NULL, 0);
 
+	struct ucattr* msg;
+
 	while((msg = recv_reply(ctx)))
-		if(msg->cmd == REP_WI_DISCONNECT)
+		if(uc_repcode(msg) == REP_DISCONNECT)
 			break;
 }
 
@@ -246,10 +205,7 @@ static void resume_service(CTX)
 {
 	int ret;
 
-	uc_put_hdr(UC, CMD_WI_RESUME);
-	uc_put_end(UC);
-
-	if((ret = send_recv_cmd(ctx)) < 0)
+	if((ret = simple_request(ctx, CMD_RESUME)) < 0)
 		fail(NULL, NULL, ret);
 }
 
@@ -263,46 +219,23 @@ static void cmd_resume(CTX)
 
 static void wait_for_scan_results(CTX)
 {
-	struct ucmsg* msg;
+	struct ucattr* msg;
 	int* err;
 
 	while((msg = recv_reply(ctx)))
-		if(msg->cmd == REP_WI_SCAN_END)
+		if(uc_repcode(msg) == REP_SCAN_END)
 			break;
 
-	if(!msg)
-		fail("no reply", NULL, 0); /* should never happen */
 	if((err = uc_get_int(msg, ATTR_ERROR)) && *err)
 		fail(NULL, NULL, *err);
-}
-
-static void fetch_dump_scan_list(CTX)
-{
-	struct ucmsg* msg;
-
-	uc_put_hdr(UC, CMD_WI_STATUS);
-	uc_put_end(UC);
-
-	msg = send_recv_aps(ctx);
-
-	if(msg->cmd < 0)
-		fail(NULL, NULL, msg->cmd);
-
-	dump_scanlist(ctx, msg);
 }
 
 static void set_scan_device(CTX, int ifi, char* name)
 {
 	int ret;
 
-	warn("scanning device", name, 0);
-
-	uc_put_hdr(UC, CMD_WI_SETDEV);
-	uc_put_int(UC, ATTR_IFI, ifi);
-	uc_put_end(UC);
-
-	if((ret = send_recv_cmd(ctx)) < 0)
-		fail("cannot set device", name, ret);
+	if((ret = setdev_request(ctx, ifi)) < 0)
+		fail(NULL, name, ret);
 }
 
 static void pick_scan_device(CTX)
@@ -320,16 +253,13 @@ static void pick_scan_device(CTX)
 
 static void cmd_scan(CTX)
 {
-	int ret;
-
 	no_other_options(ctx);
 
 	connect_to_wictl(ctx);
 
-	uc_put_hdr(UC, CMD_WI_SCAN);
-	uc_put_end(UC);
+	int ret = simple_request(ctx, CMD_RUNSCAN);
 
-	if((ret = send_recv_cmd(ctx)) >= 0)
+	if(ret >= 0)
 		goto got;
 	else if(ret != -ENODEV)
 		fail(NULL, NULL, ret);
@@ -337,22 +267,25 @@ static void cmd_scan(CTX)
 	pick_scan_device(ctx);
 got:
 	wait_for_scan_results(ctx);
-	fetch_dump_scan_list(ctx);
+
+	fetch_scan_list(ctx);
+	dump_scan_list(ctx);
 }
 
 /* When connecting to a network we don't have PSK for,
    make sure it's range before asking the user for passphrase. */
 
-static void check_suitable_aps(CTX, struct ucmsg* msg)
+static void check_suitable_aps(CTX)
 {
-	attr at, scan, ies;
+	struct ucattr** scans = ctx->scans;
+	int i, n = ctx->count;
 	int seen = 0;
 
-	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at)) {
-		if(!(scan = uc_is_nest(at, ATTR_SCAN)))
-			continue;
-		if(!(ies = uc_sub(scan, ATTR_IES)))
-			continue;
+	for(i = 0; i < n; i++) {
+		struct ucattr* at = scans[i];
+		struct ucattr* ies = uc_get(at, ATTR_IES);
+
+		if(!ies) continue;
 
 		int can = can_use_ap(ctx, ies);
 
@@ -368,77 +301,86 @@ static void check_suitable_aps(CTX, struct ucmsg* msg)
 		fail("no scan results for this SSID", NULL, 0);
 }
 
-static void check_ap_in_range(CTX)
+static void check_ap_available(CTX)
 {
-	struct ucmsg* msg;
-	int setdev = 0;
-again:
-	uc_put_hdr(UC, CMD_WI_STATUS);
-	uc_put_end(UC);
+	fetch_scan_list(ctx);
+	check_suitable_aps(ctx);
+}
 
-	msg = send_recv_aps(ctx);
+static int need_resume(MSG)
+{
+	int* stp = uc_get_int(msg, ATTR_STATE);
 
-	if(msg->cmd < 0)
-		fail(NULL, NULL, msg->cmd);
+	if(!stp) return 0;
+
+	int state = *stp;
+
+	if(state == 0) /* OP_STOPPED */
+		return 1;
+	if(state == 30) /* OP_NETDOWN */
+		return 1;
+	if(state == 31) /* OP_EXTERNAL */
+		return 1;
+
+	return 0;
+}
+
+static void prep_scan_results(CTX)
+{
+	struct ucattr* msg;
+
+	msg = fetch_status(ctx);
 
 	if(uc_get(msg, ATTR_BSSID))
 		fail("already connected", NULL, 0);
 
 	if(!uc_get_int(msg, ATTR_IFI)) {
-		if(setdev)
-			fail("lost active device", NULL, 0);
-
 		pick_scan_device(ctx);
 		wait_for_scan_results(ctx);
-		setdev = 1;
-
-		goto again;
-	} else if(!uc_get(msg, ATTR_SCAN)) {
-		if(setdev)
-			fail("no APs in range", NULL, 0);
-
+	} else if(need_resume(msg)) {
 		resume_service(ctx);
 		wait_for_scan_results(ctx);
-		setdev = 1;
-
-		goto again;
 	}
-
-	check_suitable_aps(ctx, msg);
 }
 
 static void wait_for_connect(CTX)
 {
-	struct ucmsg* msg;
+	struct ucattr* msg;
 	int failures = 0;
 
 	while((msg = recv_reply(ctx))) {
-		switch(msg->cmd) {
-			case REP_WI_LINK_READY:
-				warn_sta(ctx, "connected to", msg);
-				return;
-			case REP_WI_DISCONNECT:
-				warn_bss(ctx, "cannot connect to", msg);
-				failures++;
-				break;
-			case REP_WI_NO_CONNECT:
-				if(failures > 1)
-					warn("no more APs in range", NULL, 0);
-				else if(!failures)
-					warn("no suitable APs", NULL, 0);
-				_exit(0xFF);
+		int rep = uc_repcode(msg);
+
+		if(rep == REP_LINK_READY) {
+			warn_sta(ctx, "connected to", msg);
+			return;
+		} else if(rep == REP_DISCONNECT) {
+			warn_bss(ctx, "cannot connect to", msg);
+			failures++;
+			break;
+		} else if(rep == REP_NO_CONNECT) {
+			if(failures > 1)
+				warn("no more APs in range", NULL, 0);
+			else if(!failures)
+				warn("no suitable APs", NULL, 0);
+			_exit(0xFF);
 		}
 	}
 }
 
 static int send_conn_request(CTX)
 {
-	uc_put_hdr(UC, CMD_WI_CONNECT);
-	uc_put_bin(UC, ATTR_SSID, ctx->ssid, ctx->slen);
-	uc_put_bin(UC, ATTR_PSK, ctx->psk, sizeof(ctx->psk));
-	uc_put_end(UC);
+	struct ucbuf uc;
+	char buf[128];
 
-	return send_recv_cmd(ctx);
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, CMD_CONNECT);
+	uc_put_bin(&uc, ATTR_SSID, ctx->ssid, ctx->slen);
+	uc_put_bin(&uc, ATTR_PSK, ctx->psk, sizeof(ctx->psk));
+
+	send_request(ctx, &uc);
+
+	return recv_empty_reply(ctx);
 }
 
 /* When connecting with a saved PSK, no STATUS request is made
@@ -511,7 +453,8 @@ static void cmd_connect(CTX)
 		start_conn_scan(ctx);
 		wait_for_connect(ctx);
 	} else {
-		check_ap_in_range(ctx);
+		prep_scan_results(ctx);
+		check_ap_available(ctx);
 		ask_passphrase(ctx);
 		start_connection(ctx);
 		wait_for_connect(ctx);
@@ -536,14 +479,14 @@ static void cmd_forget(CTX)
 
 static void cmd_detach(CTX)
 {
+	int ret;
+
 	no_other_options(ctx);
 
 	connect_to_wictl(ctx);
 
-	uc_put_hdr(UC, CMD_WI_DETACH);
-	uc_put_end(UC);
-
-	send_check_cmd(ctx);
+	if((ret = simple_request(ctx, CMD_DETACH)) < 0)
+		fail(NULL, NULL, ret);
 }
 
 typedef void (*cmdptr)(CTX);

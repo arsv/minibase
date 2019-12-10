@@ -41,9 +41,9 @@
    Ref. IEEE 802.11-2012 8.4.2 Information elements,
                          8.4.2.27 RSNE
 
-   We also IEs to transmit here, which we will send with ASSOCIATE command
-   and later in EAPOL packet 3/4, confirming our choice of ciphers and auth
-   scheme to the AP. */
+   We also pick IEs to transmit here, which we will send with the ASSOCIATE
+   command and later in EAPOL packet 3/4, confirming our choice of ciphers
+   and auth scheme to the AP. */
 
 struct ies {
 	byte type;

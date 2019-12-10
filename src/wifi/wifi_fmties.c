@@ -187,7 +187,7 @@ char* fmt_ssid(char* p, char* e, byte* ssid, int slen)
 	return p;
 }
 
-char* fmt_ies_line(char* p, char* e, attr at, CTX)
+char* fmt_ies_line(char* p, char* e, struct ucattr* at, CTX)
 {
 	struct ies* ie;
 
@@ -210,7 +210,7 @@ char* fmt_ies_line(char* p, char* e, attr at, CTX)
 	return p;
 }
 
-int can_use_ap(CTX, attr ies)
+int can_use_ap(CTX, struct ucattr* ies)
 {
 	struct ies* ie;
 

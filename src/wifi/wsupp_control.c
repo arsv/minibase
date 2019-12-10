@@ -23,28 +23,48 @@ static char rxbuf[100];
 static char txbuf[100];
 
 #define CN struct conn* cn __unused
-#define MSG struct ucmsg* msg __unused
+#define MSG struct ucattr* msg __unused
 
 #define REPLIED 1
 
-static void drop_connection(CN)
+void close_conn(CN)
 {
-	sys_shutdown(cn->fd, SHUT_RDWR);
+	int fd = cn->fd;
+	
+	if(fd < 0) return;
+
+	sys_close(fd);
+
+	memzero(cn, sizeof(*cn));
+
+	pollset = 0;
+}
+
+static void send_timed(struct conn* cn, struct ucbuf* uc)
+{
+	int ret, fd = cn->fd;
+
+	if(!cn->rep || fd < 0)
+		return;
+
+	if((ret = uc_send(fd, uc)) > 0)
+		return;
+	else if(ret != -EAGAIN)
+		goto drop;
+	if((ret = uc_wait_writable(fd)) < 0)
+		goto drop;
+	if((ret = uc_send(fd, uc)) > 0)
+		return;
+drop:
+	close_conn(cn);
 }
 
 static void send_report(struct ucbuf* uc)
 {
 	struct conn* cn;
-	int fd;
 
 	for(cn = conns; cn < conns + nconns; cn++) {
-		if(!cn->rep || (fd = cn->fd) <= 0)
-			continue;
-
-		if(uc_send_timed(cn->fd, uc) >= 0)
-			continue;
-
-		drop_connection(cn);
+		send_timed(cn, uc);
 	}
 }
 
@@ -55,7 +75,6 @@ static void report_simple(int cmd)
 
 	uc_buf_set(&uc, buf, sizeof(buf));
 	uc_put_hdr(&uc, cmd);
-	uc_put_end(&uc);
 
 	send_report(&uc);
 }
@@ -70,7 +89,6 @@ static void report_station(int cmd)
 	uc_put_bin(&uc, ATTR_SSID, ap.ssid, ap.slen);
 	uc_put_bin(&uc, ATTR_BSSID, ap.bssid, sizeof(ap.bssid));
 	uc_put_int(&uc, ATTR_FREQ, ap.freq);
-	uc_put_end(&uc);
 
 	send_report(&uc);
 }
@@ -81,37 +99,57 @@ void report_scan_end(int err)
 	struct ucbuf uc;
 
 	uc_buf_set(&uc, buf, sizeof(buf));
-	uc_put_hdr(&uc, REP_WI_SCAN_END);
+	uc_put_hdr(&uc, REP_SCAN_END);
 	if(err) uc_put_int(&uc, ATTR_ERROR, err);
-	uc_put_end(&uc);
 
 	send_report(&uc);
 }
 
-void report_connecting(void)
-{
-	report_station(REP_WI_CONNECTING);
-}
-
 void report_disconnect(void)
 {
-	report_station(REP_WI_DISCONNECT);
+	report_station(REP_DISCONNECT);
 }
 
 void report_no_connect(void)
 {
-	report_simple(REP_WI_NO_CONNECT);
+	report_simple(REP_NO_CONNECT);
 }
 
 void report_link_ready(void)
 {
-	report_station(REP_WI_LINK_READY);
+	report_station(REP_LINK_READY);
 }
 
 static int send_reply(CN, struct ucbuf* uc)
 {
-	if(uc_send_timed(cn->fd, uc) < 0)
-		drop_connection(cn);
+	int ret, fd = cn->fd;
+
+	if((ret = uc_wait_writable(fd)) < 0)
+		return ret;
+	if((ret = uc_send(fd, uc)) > 0)
+		return ret;
+
+	close_conn(cn);
+
+	return REPLIED;
+}
+
+static int send_multi(struct conn* cn, struct ucbuf* uc, void* tail, int tlen)
+{
+	int ret, fd = cn->fd;
+	struct iovec iov[2];
+
+	iov[1].base = tail;
+	iov[1].len = tlen;
+
+	if((ret = uc_iov_hdr(&iov[0], uc)) < 0)
+		goto drop;
+	if((ret = uc_wait_writable(fd)) < 0)
+		goto drop;
+	if((ret = uc_send_iov(fd, iov, 2)) > 0)
+		return ret;
+drop:
+	close_conn(cn);
 
 	return REPLIED;
 }
@@ -122,84 +160,80 @@ static int reply(CN, int err)
 
 	uc_buf_set(&uc, txbuf, sizeof(txbuf));
 	uc_put_hdr(&uc, err);
-	uc_put_end(&uc);
 
 	return send_reply(cn, &uc);
-}
-
-static uint estimate_status(void)
-{
-	uint scansp = nscans*(sizeof(struct scan) + 10*sizeof(struct ucattr));
-
-	scansp += (hp.ptr - hp.org); /* IEs, total size */
-
-	return scansp + 128;
-}
-
-static void put_status_wifi(struct ucbuf* uc)
-{
-	int tm;
-
-	if(ifindex <= 0)
-		return;
-
-	uc_put_int(uc, ATTR_IFI, ifindex);
-	uc_put_str(uc, ATTR_NAME, ifname);
-	uc_put_int(uc, ATTR_STATE, operstate);
-
-	if(ap.slen)
-		uc_put_bin(uc, ATTR_SSID, ap.ssid, ap.slen);
-	if((tm = time_to_scan()) >= 0)
-		uc_put_int(uc, ATTR_TIME, tm);
-
-	if(!ap.freq)
-		return; /* not connected to particular AP */
-
-	uc_put_bin(uc, ATTR_BSSID, ap.bssid, sizeof(ap.bssid));
-	uc_put_int(uc, ATTR_FREQ, ap.freq);
-}
-
-static void put_status_scans(struct ucbuf* uc)
-{
-	struct scan* sc;
-	struct ucattr* nn;
-
-	for(sc = scans; sc < scans + nscans; sc++) {
-		if(!sc->freq)
-			continue;
-
-		nn = uc_put_nest(uc, ATTR_SCAN);
-
-		uc_put_int(uc, ATTR_FREQ,   sc->freq);
-		uc_put_int(uc, ATTR_SIGNAL, sc->signal);
-		uc_put_bin(uc, ATTR_BSSID,  sc->bssid, sizeof(sc->bssid));
-
-		if(sc->ies)
-			uc_put_bin(uc, ATTR_IES,  sc->ies, sc->ieslen);
-
-		uc_end_nest(uc, nn);
-	}
 }
 
 static int cmd_status(CN, MSG)
 {
 	struct ucbuf uc;
-	int ret;
+	char buf[256];
+	int tm;
 
-	if(extend_heap(estimate_status()) < 0)
-		return -ENOMEM;
-
-	uc_buf_set(&uc, hp.ptr, hp.brk - hp.ptr);
+	uc_buf_set(&uc, buf, sizeof(buf));
 	uc_put_hdr(&uc, 0);
-	put_status_wifi(&uc);
-	put_status_scans(&uc);
-	uc_put_end(&uc);
 
-	ret = send_reply(cn, &uc);
+	if(ifindex <= 0)
+		goto send; /* no active device */
 
-	maybe_trim_heap();
+	uc_put_int(&uc, ATTR_IFI, ifindex);
+	uc_put_str(&uc, ATTR_NAME, ifname);
+	uc_put_int(&uc, ATTR_STATE, operstate);
 
-	return ret;
+	if(ap.slen)
+		uc_put_bin(&uc, ATTR_SSID, ap.ssid, ap.slen);
+	if((tm = time_to_scan()) >= 0)
+		uc_put_int(&uc, ATTR_TIME, tm);
+
+	if(!ap.freq)
+		goto send; /* not connected to particular AP */
+
+	uc_put_bin(&uc, ATTR_BSSID, ap.bssid, sizeof(ap.bssid));
+	uc_put_int(&uc, ATTR_FREQ, ap.freq);
+send:
+	return send_reply(cn, &uc);
+}
+
+static int first_nomempty(int start)
+{
+	if(start < 0)
+		return -EINVAL;
+
+	for(int i = start; i < nscans; i++)
+		if(scans[i].freq)
+			return i;
+
+	return -ENOENT;
+}
+
+static int cmd_getscan(CN, MSG)
+{
+	struct ucbuf uc;
+	char buf[256];
+
+	int* start = uc_get_int(msg, ATTR_NEXT);
+	int idx, from = start ? *start : 0;
+
+	if((idx = first_nomempty(from)) < 0)
+		return idx;
+
+	struct scan* sc = &scans[idx];
+	
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, 0);
+
+	uc_put_int(&uc, ATTR_NEXT, idx + 1);
+	uc_put_int(&uc, ATTR_FREQ, sc->freq);
+	uc_put_int(&uc, ATTR_SIGNAL, sc->signal);
+	uc_put_bin(&uc, ATTR_BSSID, sc->bssid, sizeof(sc->bssid));
+
+	if(!sc->ies) {
+		return send_reply(cn, &uc);
+	} else {
+		uc_put_tail(&uc, ATTR_IES, sc->ieslen);
+
+		return send_multi(cn, &uc, sc->ies, sc->ieslen);
+	}
 }
 
 static int cmd_detach(CN, MSG)
@@ -236,7 +270,7 @@ static int cmd_setdev(CN, MSG)
 	return 0;
 }
 
-static int cmd_scan(CN, MSG)
+static int cmd_runscan(CN, MSG)
 {
 	int ret;
 
@@ -264,22 +298,18 @@ static int cmd_neutral(CN, MSG)
 
 static int cmd_resume(CN, MSG)
 {
+	int ret;
+
 	if(ifindex <= 0)
 		return -ENODEV;
 
 	cn->rep = 1;
 
-	return ap_resume();
+	if((ret = ap_resume()) < 0)
+		return ret;
+
+	return 0;
 }
-
-/* ACK to the command should preceed any notifications caused by the command.
-   Since reassess_wifi_situation() is a pretty long and involved piece of code,
-   we reply early to make sure possible messages generated while starting
-   connection do not confuse the client.
-
-   Note at this point reassess_wifi_situation() does *not* generate any
-   notifications. Not even SCANNING, that one is issued reactively on
-   NL80211_CMD_TRIGGER_SCAN. */
 
 static int cmd_connect(CN, MSG)
 {
@@ -311,19 +341,20 @@ static const struct cmd {
 	int cmd;
 	int (*call)(CN, MSG);
 } commands[] = {
-	{ CMD_WI_STATUS,  cmd_status  },
-	{ CMD_WI_SETDEV,  cmd_setdev  },
-	{ CMD_WI_SCAN,    cmd_scan    },
-	{ CMD_WI_CONNECT, cmd_connect },
-	{ CMD_WI_NEUTRAL, cmd_neutral },
-	{ CMD_WI_DETACH,  cmd_detach  },
-	{ CMD_WI_RESUME,  cmd_resume  }
+	{ CMD_STATUS,  cmd_status  },
+	{ CMD_SETDEV,  cmd_setdev  },
+	{ CMD_RUNSCAN, cmd_runscan },
+	{ CMD_GETSCAN, cmd_getscan },
+	{ CMD_CONNECT, cmd_connect },
+	{ CMD_NEUTRAL, cmd_neutral },
+	{ CMD_DETACH,  cmd_detach  },
+	{ CMD_RESUME,  cmd_resume  }
 };
 
 static int dispatch_cmd(CN, MSG)
 {
 	const struct cmd* cd;
-	int cmd = msg->cmd;
+	int cmd = uc_repcode(msg);
 	int ret;
 
 	for(cd = commands; cd < commands + ARRAY_SIZE(commands); cd++)
@@ -340,48 +371,30 @@ static int dispatch_cmd(CN, MSG)
 void handle_conn(struct conn* cn)
 {
 	int ret, fd = cn->fd;
-	struct ucmsg* msg;
+	struct ucattr* msg;
 
-	if((ret = uc_recv_whole(fd, rxbuf, sizeof(rxbuf))) < 0)
+	if((ret = uc_recv(fd, rxbuf, sizeof(rxbuf))) < 0)
 		goto err;
 	if(!(msg = uc_msg(rxbuf, ret)))
 		goto err;
 	if((ret = dispatch_cmd(cn, msg)) >= 0)
 		return;
 err:
-	drop_connection(cn);
+	close_conn(cn);
 }
 
 void setup_control(void)
 {
-	const int flags = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
-	struct sockaddr_un addr = {
-		.family = AF_UNIX,
-		.path = WICTL
-	};
+	const int flags = SOCK_SEQPACKET | SOCK_NONBLOCK | SOCK_CLOEXEC;
+	char* path = CONTROL;
 	int fd, ret;
 
 	if((fd = sys_socket(AF_UNIX, flags, 0)) < 0)
 		fail("socket", "AF_UNIX", fd);
-
-	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
-		fail("bind", addr.path, ret);
-	if((ret = sys_listen(fd, 1)))
-		quit("listen", addr.path, ret);
+	if((ret = uc_listen(fd, path, 5)) < 0)
+		fail("ucbind", path, ret);
 
 	ctrlfd = fd;
-}
-
-void exit_control(void)
-{
-	sys_unlink(WICTL);
-	_exit(0xFF);
-}
-
-void quit(const char* msg, char* arg, int err)
-{
-	warn(msg, arg, err);
-	exit_control();
 }
 
 void handle_control(void)
@@ -392,9 +405,10 @@ void handle_control(void)
 	int flags = SOCK_NONBLOCK;
 	struct conn *cn;
 
-	while((cfd = sys_accept4(sfd, &addr, &addr_len, flags)) > 0)
+	while((cfd = sys_accept4(sfd, &addr, &addr_len, flags)) > 0) {
 		if((cn = grab_conn_slot()))
 			cn->fd = cfd;
 		else
 			sys_close(cfd);
+	}
 }

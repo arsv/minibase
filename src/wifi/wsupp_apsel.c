@@ -70,8 +70,6 @@ static int proceed_with_connect(void)
 
 	operstate = OP_CONNECTING;
 
-	report_connecting();
-
 	return ret;
 }
 
