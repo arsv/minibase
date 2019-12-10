@@ -26,7 +26,9 @@
 #define STATE_LIT_SHORTREP      9
 #define STATE_NONLIT_MATCH     10
 #define STATE_NONLIT_REP       11
+/* not really states */
 #define STATE_INVALID          13
+#define STATE_INITIAL          14
 
 typedef struct {
 	uint32_t probability;
@@ -167,7 +169,7 @@ static void init_lenmodel(lenmodel* lm)
 	init_probs(BMS(lm->high));
 }
 
-static int check_buffers(LZ)
+static void check_buffers(LZ)
 {
 	struct private* pz = private(lz);
 
@@ -175,36 +177,37 @@ static int check_buffers(LZ)
 	void* srcptr = lz->srcptr;
 	void* srcend = lz->srcend;
 
-	if(!srcbuf || !srcptr || !srcend) {
-		error(pz, LZMA_INPUT_OVER);
-		return -1;
-	}
+	if(!srcbuf || !srcptr || !srcend)
+		return error(pz, LZMA_INPUT_OVER);
 
 	void* dstbuf = lz->dstbuf;
 	void* dstptr = lz->dstptr;
 	void* dstend = lz->dstend;
 
-	if(!dstbuf || !dstptr || !dstend) {
-		error(pz, LZMA_OUTPUT_OVER);
-		return -1;
-	}
+	if(!dstbuf || !dstptr || !dstend)
+		return error(pz, LZMA_OUTPUT_OVER);
 
-	return 0;
-}
+	if(pz->state != STATE_INITIAL)
+		return;
 
-static void init_private(PZ)
-{
 	uint32_t code = 0;
-
-	pz->error = 0;
-	pz->state = STATE_LIT_LIT;
-	pz->pos_state = 0;
 
 	for(int i = 0; i < 4; i++)
 		code = (code << 8) | get_byte(pz);
 
 	pz->code = code;
-	pz->range = 0xFFFFFFFFU;
+	pz->state = STATE_LIT_LIT;
+	pz->range = 0xFFFFFFFF;
+}
+
+static void init_private(PZ)
+{
+	pz->error = 0;
+	pz->state = STATE_INITIAL;
+	pz->pos_state = 0;
+	/* these two will be set in check_buffers on the first call() */
+	// pz->code = ...;
+	// pz->range = 0xFFFFFFFF;
 
 	memzero(pz->rep, sizeof(pz->rep));
 
@@ -472,6 +475,8 @@ int lzma_inflate(LZ)
 	struct private* pz = private(lz);
 	int err;
 
+	check_buffers(lz);
+
 	while(!(err = pz->error)) {
 		int p = pz->pos_state;
 		int s = pz->state;
@@ -510,16 +515,6 @@ int lzma_inflate(LZ)
 	return err;
 }
 
-void lzma_prepare(struct lzma* lz)
-{
-	struct private* pz = private(lz);
-
-	if(check_buffers(lz))
-		return;
-
-	init_private(pz);
-}
-
 struct lzma* lzma_create(void* buf, int len)
 {
 	struct private* pz = buf;
@@ -529,6 +524,8 @@ struct lzma* lzma_create(void* buf, int len)
 		return NULL;
 
 	memzero(lz, sizeof(lz));
+
+	init_private(pz);
 
 	return public(pz);
 }
