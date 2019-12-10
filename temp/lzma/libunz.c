@@ -400,8 +400,6 @@ static void inflate(CTX)
 	load_initial_input(ctx);
 	check_file_header(ctx);
 	prep_initial_output(ctx);
-
-	lzma_prepare(lz);
 next:
 	ret = lzma_inflate(lz);
 
