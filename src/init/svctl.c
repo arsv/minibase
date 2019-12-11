@@ -77,10 +77,10 @@ static void heap_trim(CTX, void* to)
 
 /* output */
 
-static int cmp_proc(const void* a, const void* b)
+static int cmp_proc(void* a, void* b)
 {
-	struct ucattr* at = *((struct ucattr**)a);
-	struct ucattr* bt = *((struct ucattr**)b);
+	struct ucattr* at = a;
+	struct ucattr* bt = b;
 
 	char* sa = uc_get_str(at, ATTR_NAME);
 	char* sb = uc_get_str(bt, ATTR_NAME);
@@ -174,7 +174,7 @@ static void dump_list(CTX, void* ptr, void* end)
 
 	struct ucattr** prend = ctx->ptr;
 
-	qsort(procs, prend - procs, sizeof(*procs), cmp_proc);
+	qsortp(procs, prend - procs, cmp_proc);
 
 	struct ucattr** p;
 	int maxlen = 0;
