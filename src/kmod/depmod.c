@@ -164,18 +164,18 @@ static int eqstrnncmp(char* a, int an, char* b, int bn)
 /* Directory scanning section.
    Locate all available modules and build sorted indexes in ctx. */
 
-static int by_path(const void* pa, const void* pb)
+static int by_path(void* pa, void* pb)
 {
-	struct mod* a = *((struct mod**) pa);
-	struct mod* b = *((struct mod**) pb);
+	struct mod* a = pa;
+	struct mod* b = pb;
 
 	return strcmp(a->path, b->path);
 }
 
-static int by_name(const void* pa, const void* pb)
+static int by_name(void* pa, void* pb)
 {
-	struct mod* a = *((struct mod**) pa);
-	struct mod* b = *((struct mod**) pb);
+	struct mod* a = pa;
+	struct mod* b = pb;
 
 	char* aname = a->path + a->dlen + 1;
 	int anlen = a->slen;
@@ -207,8 +207,8 @@ static void index_modules(CTX)
 	ctx->pidx = pidx;
 	ctx->nidx = nidx;
 
-	qsort(pidx, n, sizeof(void*), by_path);
-	qsort(nidx, n, sizeof(void*), by_name);
+	qsortp(pidx, n, by_path);
+	qsortp(nidx, n, by_name);
 }
 
 static int stem_length(char* file)

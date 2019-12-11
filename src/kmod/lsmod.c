@@ -115,11 +115,9 @@ static char** alloc_index(int n)
 	return (char**)brk;
 }
 
-static int cmp(const void* a, const void* b)
+static int cmp(void* a, void* b)
 {
-	char* sa = *((char**)a);
-	char* sb = *((char**)b);
-	return strcmp(sa, sb);
+	return strcmp(a, b);
 }
 
 static void index_lines(struct lineidx* lx, struct strptr* mods)
@@ -132,7 +130,7 @@ static void index_lines(struct lineidx* lx, struct strptr* mods)
 
 	set_line_ptrs(buf, end, idx, n);
 
-	qsort(idx, n, sizeof(char*), cmp);
+	qsortp(idx, n, cmp);
 
 	lx->idx = idx;
 	lx->num = n;
