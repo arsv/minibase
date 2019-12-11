@@ -95,10 +95,10 @@ static void show_vt(CTX, struct bufout* bo, struct ucattr* vt, int active)
 	bufout(bo, buf, p - buf);
 }
 
-static int cmpvt(const void* a, const void* b)
+static int cmpvt(void* a, void* b)
 {
-	struct ucattr* at = *((struct ucattr**)a);
-	struct ucattr* bt = *((struct ucattr**)b);
+	struct ucattr* at = a;
+	struct ucattr* bt = b;
 
 	int* pa = uc_get_int(at, ATTR_TTY);
 	int* pb = uc_get_int(bt, ATTR_TTY);
@@ -130,7 +130,7 @@ static int index_vts(MSG, struct ucattr** dst, int max)
 		if(uc_is_keyed(at, ATTR_VT))
 			dst[i++] = at;
 
-	qsort(dst, nvts, sizeof(void*), cmpvt);
+	qsortp(dst, nvts, cmpvt);
 
 	return nvts;
 }
