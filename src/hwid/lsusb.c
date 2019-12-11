@@ -448,10 +448,10 @@ static void read_sys_bus_usb(CTX)
 
    Bus:dev pairs are volatile and generally change on replugging the dev. */
 
-static int cmpdev(const void* a, const void* b)
+static int cmpdev(void* a, void* b)
 {
-	struct dev* da = *((struct dev**)a);
-	struct dev* db = *((struct dev**)b);
+	struct dev* da = a;
+	struct dev* db = b;
 
 	return natcmp(da->payload, db->payload);
 }
@@ -477,7 +477,7 @@ static void scan_devices(CTX)
 		p += d->len;
 	}
 
-	qsort(idx, count, sizeof(void*), cmpdev);
+	qsortp(idx, count, cmpdev);
 
 	ctx->idx = idx;
 }

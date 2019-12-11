@@ -251,10 +251,10 @@ static void read_sys_bus_pci(CTX)
 
 /* Sorting by slot ("00:1f.6"). */
 
-static int cmpdev(const void* a, const void* b)
+static int cmpdev(void* a, void* b)
 {
-	struct dev* da = *((struct dev**)a);
-	struct dev* db = *((struct dev**)b);
+	struct dev* da = a;
+	struct dev* db = b;
 
 	return memcmp(da->slot, db->slot, sizeof(da->slot));
 }
@@ -280,7 +280,7 @@ static void scan_devices(CTX)
 		p += sizeof(*d);
 	}
 
-	qsort(idx, count, sizeof(void*), cmpdev);
+	qsortp(idx, count, cmpdev);
 
 	ctx->idx = idx;
 }
