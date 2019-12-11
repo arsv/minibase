@@ -109,10 +109,10 @@ static long heap_left(CTX)
 
 /* Result sorting and final output */
 
-static int sizecmp(const void* pa, const void* pb)
+static int sizecmp(void* pa, void* pb)
 {
-	const struct res* a = *((void**)pa);
-	const struct res* b = *((void**)pb);
+	struct res* a = pa;
+	struct res* b = pb;
 
 	if(a->size < b->size)
 		return -1;
@@ -142,7 +142,7 @@ static struct res** index_results(CTX, int count)
 		idx[i++] = rs;
 	}
 
-	qsort(idx, count, sizeof(*idx), sizecmp);
+	qsortp(idx, count, sizecmp);
 
 	return idx;
 }

@@ -283,10 +283,10 @@ static int isdirtype(int t)
 	return (t == DT_DIR || t == DT_LNK_DIR);
 }
 
-static int cmpidx(const void* a, const void* b, long opts)
+static int cmpidx(void* a, void* b, long opts)
 {
-	struct ent* pa = *((struct ent**)a);
-	struct ent* pb = *((struct ent**)b);
+	struct ent* pa = a;
+	struct ent* pb = b;
 
 	if(!(opts & OPT_u)) {
 		int dira = isdirtype(pa->type);
@@ -311,7 +311,7 @@ static void sort_indexed(CTX)
 	for(p = idx; *p; p++)
 		count++;
 
-	qsortx(idx, count, sizeof(void*), cmpidx, opts);
+	qsortx(idx, count, cmpidx, opts);
 }
 
 static char* fmt_name(char* p, char* e, int id, struct mmaped* mp)

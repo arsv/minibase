@@ -243,10 +243,10 @@ static void read_scan(DC, int fd)
 	if(ret < 0) fail("cannot read entries from", dir, ret);
 }
 
-static int cmpidx(const void* a, const void* b)
+static int cmpidx(void* a, void* b)
 {
-	struct shortent* pa = *((struct shortent**)a);
-	struct shortent* pb = *((struct shortent**)b);
+	struct shortent* pa = a;
+	struct shortent* pb = b;
 
 	return strcmp(pa->name, pb->name);
 }
@@ -273,7 +273,7 @@ static void index_entries(DC)
 		p = next_shortent(p);
 	}
 
-	qsort(dc->idx, nents, sizeof(void*), cmpidx);
+	qsortp(dc->idx, nents, cmpidx);
 }
 
 static void scan_dir(TC, int at, char* openname, char* dirname);
