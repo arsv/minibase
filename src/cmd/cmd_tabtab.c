@@ -183,10 +183,10 @@ static void* alloc_mem(TT, int size)
 	return tt->buf + ptr;
 }
 
-static int cmpent(const void* ap, const void* bp)
+static int cmpent(void* ap, void* bp)
 {
-	struct fname* fa = *((struct fname**)ap);
-	struct fname* fb = *((struct fname**)bp);
+	struct fname* fa = ap;
+	struct fname* fb = bp;
 
 	if(fa->isdir && !fb->isdir)
 		return -1;
@@ -223,7 +223,7 @@ static void index_entries(TT)
 		ptr += fn->len;
 	}
 
-	qsort(idx, count, sizeof(void*), cmpent);
+	qsortp(idx, count, cmpent);
 }
 
 static void free_dirlist(TT)

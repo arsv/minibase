@@ -173,12 +173,9 @@ static void append(struct environ* ev, char* name, char* val)
 	ev->count++;
 }
 
-static int cmpvar(const void* a, const void* b)
+static int cmpvar(void* a, void* b)
 {
-	char** sa = (char**) a;
-	char** sb = (char**) b;
-
-	return strcmp(*sa, *sb);
+	return strcmp(a, b);
 }
 
 static void rebuild(CTX, struct environ* ev)
@@ -216,7 +213,7 @@ static void rebuild(CTX, struct environ* ev)
 
 	envp[i++] = NULL;
 
-	qsort(envp, count, sizeof(char*), cmpvar);
+	qsortp(envp, count, cmpvar);
 
 	ctx->envp = envp;
 }
