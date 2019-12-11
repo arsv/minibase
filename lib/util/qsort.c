@@ -4,7 +4,7 @@
 #include <util.h>
 
 /* So this is how qsort is used in minibase: the elements being sorted
-   are usually pointers, and in all cases small enough to put onto stack;
+   are always pointers, and in all cases small enough to put onto stack;
    n is usually reasonably small, but cmp is often relatively expensive,
    and pivot-equal entries are to be expected.
 
@@ -16,33 +16,17 @@
    It's not a faithful implementation though, if it's wrong it's probably
    my fault. */
 
-typedef void (*qexch)(void* a, void* b, size_t sz);
-
-static void exch_long(long* a, long* b, size_t sz __unused)
+static inline void exch(void** a, void** b)
 {
-	long t = *a;
+	void* t;
+	 t = *a;
 	*a = *b;
 	*b = t;
 }
 
-static void exch_int(int* a, int* b, size_t sz __unused)
+static void** pick_pivot(void** S, void** E)
 {
-	int t = *a;
-	*a = *b;
-	*b = t;
-}
-
-static void exch_any(void* a, void* b, size_t sz)
-{
-	char t[sz];
-	memcpy(t, a, sz);
-	memcpy(a, b, sz);
-	memcpy(b, t, sz);
-}
-
-static void* pick_pivot(void* S, void* E, size_t size)
-{
-	return S + size*((E - S)/size/2);
+	return S + (E - S)/2;
 }
 
 /* Bentley-McIlroy 3-way partitioning:
@@ -51,22 +35,22 @@ static void* pick_pivot(void* S, void* E, size_t size)
 
    Equal element are then swapped to the center. */
 
-static void srec(void* S, void* E, size_t size, qcmp3 cmp, qexch exch, long opts);
+static void srec(void** S, void** E, qcmp3 cmp, long opts);
 
-static void sort(void* S, void* E, size_t size, qcmp3 cmp, qexch exch, long opts)
+static void sort(void** S, void** E, qcmp3 cmp, long opts)
 {
-	void* pv = pick_pivot(S, E, size);
+	void** pv = pick_pivot(S, E);
 
-	void* le = S;
-	void* re = E - size;
-	void* ll = le;
-	void* rr = re;
+	void** le = S;
+	void** re = E - 1;
+	void** ll = le;
+	void** rr = re;
 
-	exch(re, pv, size);  /* move pv to the back */
-	pv = re; re -= size;
+	exch(re, pv);  /* move pv to the back */
+	pv = re--;
 
-	void* lp = le;
-	void* rp = re;
+	void** lp = le;
+	void** rp = re;
 	int c;
 
 	/* ll       le       lp                               pv */
@@ -74,125 +58,106 @@ static void sort(void* S, void* E, size_t size, qcmp3 cmp, qexch exch, long opts
 	/*                               rp       re          rr */
 
 	while(1) {
-		while(lp < rp && (c = cmp(lp, pv, opts)) <= 0) {
-			if(c == 0) {
-				exch(le, lp, size);
-				le += size;
-			}
-			lp += size;
+		while(lp < rp && (c = cmp(*lp, *pv, opts)) <= 0) {
+			if(c == 0)
+				exch(le++, lp);
+			lp++;
 		}
-		while(rp > lp && (c = cmp(rp, pv, opts)) >= 0) {
-			if(c == 0) {
-				exch(re, rp, size);
-				re -= size;
-			}
-			rp -= size;
+		while(rp > lp && (c = cmp(*rp, *pv, opts)) >= 0) {
+			if(c == 0)
+				exch(re--, rp);
+			rp--;
 		}
 		if(lp == rp)
 			break;
 
-		exch(lp, rp, size);
+		exch(lp, rp);
 
-		lp += size; if(rp > lp) rp -= size;
+		lp++; if(rp > lp) rp--;
 	}
 
 	/* ll       le          lp                   pv */
 	/* eq eq eq lt lt lt lt gt gt gt gt gt eq eq eq */
 	/*                      rp          re       rr */
 
-	if(cmp(lp, pv, opts) > 0)
-		lp -= size;
-	if(cmp(rp, pv, opts) < 0)
-		rp += size;
+	if(cmp(*lp, *pv, opts) > 0)
+		lp--;
+	if(cmp(*rp, *pv, opts) < 0)
+		rp++;
 
 	/* ll       le       lp                      pv */
 	/* eq eq eq lt lt lt lt gt gt gt gt gt eq eq eq */
 	/*                      rp          re       rr */
 
-	for(pv = ll; pv < le;) {     /* pv is no longer pivot! */
-		exch(pv, lp, size);
-		lp -= size;
-		pv += size;
-	}
-	for(pv = rr; pv > re;) {
-		exch(pv, rp, size);
-		pv -= size;
-		rp += size;
-	}
+	for(pv = ll; pv < le;)      /* pv is no longer pivot! */
+		exch(pv++, lp--);
+	for(pv = rr; pv > re;)
+		exch(pv--, rp++);
 
 	/* ll       lp                               pv */
 	/* lt lt lt lt eq eq eq eq eq eq gt gt gt gt gt */
 	/*          le                   rp re       rr */
 
 	if(lp > ll)
-		srec(ll, lp + size, size, cmp, exch, opts);
+		srec(ll, lp + 1, cmp, opts);
 	if(rp < rr)
-		srec(rp, rr + size, size, cmp, exch, opts);
+		srec(rp, rr + 1, cmp, opts);
 }
 
 /* Special handling for low-n cases */
 
-static void sort2(void* S, size_t size, qcmp3 cmp, qexch exch, long opts)
+static void sort2(void** S, qcmp3 cmp, long opts)
 {
-	void* a0 = S;
-	void* a1 = S + size;
+	void** a0 = S + 0;
+	void** a1 = S + 1;
 
-	if(cmp(a0, a1, opts) > 0)
-		exch(a0, a1, size);
+	if(cmp(*a0, *a1, opts) > 0)
+		exch(a0, a1);
 }
 
-static void sort3(void* S, size_t size, qcmp3 cmp, qexch exch, long opts)
+static void sort3(void** S, qcmp3 cmp, long opts)
 {
-	void* a0 = S;
-	void* a1 = a0 + size;
-	void* a2 = a1 + size;
+	void** a0 = S + 0;
+	void** a1 = S + 1;
+	void** a2 = S + 2;
 
-	if(cmp(a0, a1, opts) > 0)
-		exch(a0, a1, size);
-	if(cmp(a1, a2, opts) > 0)
-		exch(a1, a2, size);
-	if(cmp(a0, a1, opts) > 0)
-		exch(a0, a1, size);
+	if(cmp(*a0, *a1, opts) > 0)
+		exch(a0, a1);
+	if(cmp(*a1, *a2, opts) > 0)
+		exch(a1, a2);
+	if(cmp(*a0, *a1, opts) > 0)
+		exch(a0, a1);
 }
 
-static void srec(void* S, void* E, size_t size, qcmp3 cmp, qexch exch, long opts)
+static void srec(void** S, void** E, qcmp3 cmp, long opts)
 {
 	size_t len = E - S;
-	size_t sz1 = size;
-	size_t sz2 = sz1 + size;
-	size_t sz3 = sz2 + size;
 
-	if(len <= sz1)
+	if(len <= 1)
 		return;
-	if(len == sz2)
-		return sort2(S, size, cmp, exch, opts);
-	if(len == sz3)
-		return sort3(S, size, cmp, exch, opts);
+	if(len == 2)
+		return sort2(S, cmp, opts);
+	if(len == 3)
+		return sort3(S, cmp, opts);
 
-	return sort(S, E, size, cmp, exch, opts);
+	return sort(S, E, cmp, opts);
 }
 
-void qsortx(void* base, size_t n, size_t size, qcmp3 cmp, long opts)
+void qsortx(void* ptrs, size_t n, qcmp3 cmp, long opts)
 {
-	qexch exch;
+	void** S = ptrs;
+	void** E = S + n;
 
-	if(size == sizeof(long))
-		exch = (qexch) exch_long;
-	else if(size == sizeof(int))
-		exch = (qexch) exch_int;
-	else
-		exch = exch_any;
-
-	srec(base, base + n*size, size, cmp, exch, opts);
+	srec(S, E, cmp, opts);
 }
 
-static int cmp2to3(const void* a, const void* b, long arg)
+static int cmp2to3(void* a, void* b, long arg)
 {
 	qcmp2 cmp = (qcmp2)arg;
 	return cmp(a, b);
 }
 
-void qsort(void* base, size_t n, size_t size, qcmp2 cmp)
+void qsortp(void* base, size_t n, qcmp2 cmp)
 {
-	return qsortx(base, n, size, cmp2to3, (long)cmp);
+	return qsortx(base, n, cmp2to3, (long)cmp);
 }

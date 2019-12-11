@@ -8,11 +8,11 @@ int argbits(const char* key, const char* arg);
 char* basename(char* path);
 char* getenv(char** envp, const char* key);
 
-typedef int (*qcmp2)(const void* a, const void* b);
-typedef int (*qcmp3)(const void* a, const void* b, long opts);
+typedef int (*qcmp2)(void* a, void* b);
+typedef int (*qcmp3)(void* a, void* b, long opts);
 
-void qsort(void* base, size_t nmemb, size_t size, qcmp2 cmp);
-void qsortx(void* base, size_t nmemb, size_t size, qcmp3 cmp, long opts);
+void qsortp(void* ptrs, size_t n, qcmp2 cmp);
+void qsortx(void* ptrs, size_t n, qcmp3 cmp, long opts);
 
 long writeall(int fd, void* buf, long len);
 
