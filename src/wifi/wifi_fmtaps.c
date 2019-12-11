@@ -123,10 +123,10 @@ static int cmp_int(struct ucattr* at, struct ucattr* bt, int key)
 	return 0;
 }
 
-static int scan_ord(const void* a, const void* b)
+static int scan_ord(void* a, void* b)
 {
-	struct ucattr* at = *((struct ucattr**)a);
-	struct ucattr* bt = *((struct ucattr**)b);
+	struct ucattr* at = a;
+	struct ucattr* bt = b;
 	int ret;
 
 	if((ret = cmp_int(at, bt, ATTR_SIGNAL)))
@@ -188,7 +188,7 @@ static void print_scan_results(CTX, int nl)
 
 	read_config(ctx);
 
-	qsort(scans, count, sizeof(void*), scan_ord);
+	qsortp(scans, count, scan_ord);
 
 	for(i = 0; i < count; i++)
 		print_scanline(ctx, scans[i]);
