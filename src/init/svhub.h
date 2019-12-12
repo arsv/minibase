@@ -50,7 +50,6 @@ struct conn {
 
 struct ucmsg;
 
-extern void* origbrk;
 extern const char* rbscript;
 extern int ctrlfd;
 extern char* confdir;
@@ -101,8 +100,4 @@ int reload_procs(void);
 void report(char* msg, char* arg, int err);
 void reprec(struct proc* rc, char* msg);
 
-void setup_heap(void);
-void* heap_alloc(int len);
-void trim_heap(void* ptr);
-void flush_heap(void);
 void stop_all_procs(void);

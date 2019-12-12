@@ -23,7 +23,6 @@
 
 const char* rbscript;
 char** environ;
-void* origbrk;
 
 static short flagged;
 
@@ -309,7 +308,6 @@ int main(int argc, char** argv)
 		report("ignoring extra arguments", NULL, 0);
 
 	setup_ctrl();
-	origbrk = sys_brk(NULL);
 
 	if(setup_signals())
 		goto reboot;

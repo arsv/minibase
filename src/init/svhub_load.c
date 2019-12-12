@@ -1,5 +1,4 @@
 #include <sys/file.h>
-#include <sys/mman.h>
 #include <sys/dents.h>
 
 #include <string.h>
@@ -46,19 +45,14 @@ int load_dir_ents(void)
 {
 	char* dir = INITDIR;
 	int fd, ret;
-	int len = 4096;
-	char* buf = origbrk;
-	void* new = sys_brk(buf + len);
-
-	if((ret = brk_error(buf, new)) < 0)
-		return ret;
+	char buf[2048];
 
 	if((fd = sys_open(dir, O_RDONLY | O_DIRECTORY)) < 0) {
 		report("open", dir, fd);
 		return fd;
 	}
 
-	while((ret = sys_getdents(fd, buf, len)) > 0) {
+	while((ret = sys_getdents(fd, buf, sizeof(buf))) > 0) {
 		char* ptr = buf;
 		char* end = buf + ret;
 
@@ -86,7 +80,6 @@ int load_dir_ents(void)
 	}
 
 	sys_close(fd);
-	sys_brk(origbrk);
 
 	return ret;
 }
