@@ -249,6 +249,9 @@ int check_entry(CTX, byte* ssid, int slen)
 	struct config* cfg = &ctx->cfg;
 	struct saved* sv;
 
+	if(!slen)
+		return 0;
+
 	for(sv = first(cfg); sv; sv = next(cfg, sv))
 		if(sv->slen != slen)
 			continue;
