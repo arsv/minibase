@@ -5,16 +5,16 @@
    structure below. The LZMA code then proceedes to advance srcptr
    and dstptr as it reads the input and produces output. Once either
    of those pointers exceeds respective high-water marks (srchwm or
-   dsthwm), inflate() returns LZMA_NEED_INPUT or LZMA_NEED_OUTPUT
+   dsthwm), lzma_inflate() returns LZMA_NEED_INPUT or LZMA_NEED_OUTPUT
    to the caller which is then expected to read/flush the data,
-   update the pointers and call inflate() again.
+   update the pointers and call lzma_inflate() again.
 
    LZMA code can and will overshot hwm-s, by several bytes in case of
    input and by up to ~300 bytes for output. This is expected. The areas
    between hwn and end pointers allow for soft-braking the algorithm,
    making it restartable without much impact on the performance.
    The caller should aim at having around a PAGE between respective hwm
-   and end pointers prior to any inflate() call.
+   and end pointers prior to any lzma_inflate() call.
 
    Hitting either of the end pointers is a hard non-recoverable error
    indicated by LZMA_INPUT_OVER or LZMA_OUTPUT_OVER. Getting those codes
@@ -29,10 +29,10 @@
 
    The private[] part of the structure is pretty involved and does not
    need to be exposed to the caller. See `struct private` in lzma.c.
-   It is, however, must be kept intact between calls to inflate() through
-   a continuous input stream. The caller is expected to reserve a buffer
-   of at least LZMA_SIZE, and use lzma_create() to turn that into a usable
-   `struct lzma`. */
+   It is, however, must be kept intact between calls to lzma_inflate()
+   through a continuous input stream. The caller is expected to reserve
+   a buffer of at least LZMA_SIZE, and use lzma_create() to turn that
+   into a usable `struct lzma`. */
 
 #define LZMA_SIZE 30000
 
