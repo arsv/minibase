@@ -8,7 +8,7 @@ or Wayland compositors, providing them with the access to DRM (monitor
 outputs) and input devices. Here's an example of how the relevant part
 of the process tree should look like:
 
-    1 svhub          # top-level supervisor
+    1 svchub         # top-level supervisor
      \
       +- vtmux       # system service, see startup.txt
        \
@@ -29,7 +29,7 @@ Linux, but it makes for a nice mental model.
 
 Starting vtmux
 ~~~~~~~~~~~~~~
-Typical contents of /etc/svhub/vtmux:
+Typical contents of /etc/init/vtmux:
 
     #!/sbin/msh
 
@@ -61,7 +61,7 @@ respawn the client.
 
 Client scripts
 ~~~~~~~~~~~~~~
-The way clients are defined for vtmux is similar to svhub: a script in
+The way clients are defined for vtmux is similar to svchub: a script in
 a pre-defined directory which vtmux will exec() in a forked process.
 
 Example, say from VT5, would be /etc/vtmux/tty5:
@@ -94,7 +94,7 @@ device, and fd 3 being a communication channel (a socket, see socketpair(2))
 back to vtmux, running weston-launch protocol. That's what WESTON_LAUNCHER_SOCK
 is in the example above.
 
-Just like with svhub, the scripts are spawned with root uid and must drop
+Just like with svchub, the scripts are spawned with root uid and must drop
 unnecessary privileges. When running under vtmux, clients do *not* need
 extra privileges to access DRM or input devices, only the control channel
 on fd 3. Running clients as root is a VERY BAD IDEA and may disrupt vtmux

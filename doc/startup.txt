@@ -15,7 +15,7 @@ The supervisor stage is strictly parallel, while startup and shutdown should
 be mostly sequential. The sequential stages are supposed to be (msh) scripts.
 
 The location of the shutdown scripts is fixed (/etc/boot) because of the way
-they are invoked by svhub. Startup script can be placed anywhere, but for
+they are invoked by svchub. Startup script can be placed anywhere, but for
 consistency we put into /etc/boot as well.
 
 
@@ -45,7 +45,7 @@ Typical contents of /etc/boot/startup:
     
     prctl no-new-privs
     
-    exec /sbin/svhub
+    exec /sbin/svchub
 
 This part is very system-dependent, other than maybe the final exec.
 
@@ -78,7 +78,7 @@ Here the focus is mostly on the system services, that is, services started
 during system startup and expected to stay alive for the whole time until
 system shutdown. During this period, the process tree looks like this:
 
-   1 svhub
+   1 svchub
     \
      +- service1
      +- service2
@@ -96,7 +96,7 @@ system shutdown. During this period, the process tree looks like this:
 
 Pretty much anything useful that happens in the system, happens either in
 the services or in their descendent processes. The root of the tree (pid 1,
-svhub) does very little, essentially just providing some information on
+svchub) does very little, essentially just providing some information on
 the running services.
 
 The important point here is that the system must be designed to match the
@@ -109,8 +109,8 @@ per the definition above.
 
 Service startup scripts
 ~~~~~~~~~~~~~~~~~~~~~~~
-To define a system service, place an executable script into /etc/svhub.
-Typical contents of the script, say, /etc/svhub/foo:
+To define a system service, place an executable script into /etc/init.
+Typical contents of the script, say, /etc/init/foo:
 
     #!/sbin/msh
 
@@ -121,14 +121,14 @@ Typical contents of the script, say, /etc/svhub/foo:
 
     exec /usr/bin/foo
 
-Upon startup, svhub picks up all files in /etc/svhub. If a service gets
+Upon startup, svchub picks up all files in /etc/init. If a service gets
 added later, `svctl reload` should be used to force directory re-scan.
 
 Services are spawned by exec()ing the script in a new-forked process.
 Any process setup including setuid, prctl etc must be done in either
 in the script, or in the binary being spawned.
 
-It is important to exec() into the binary at the end of the script. For svhub,
+It is important to exec() into the binary at the end of the script. For svchub,
 the service is the process it spawned, that's the pid it will monitor and send
 signals to. Keeping the interpreter alive at that pid is at best unnecessary,
 and at worst will prevent the signals from reaching the actual service process.
@@ -137,7 +137,7 @@ and at worst will prevent the signals from reaching the actual service process.
 Output capture and logging
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 Services are not supposed to output anything to stdout or stderr during
-normal operation. For abnormal cases, svhub captures their output into a
+normal operation. For abnormal cases, svchub captures their output into a
 short ring buffer which the user can inspect using `svctl show`.
 
 Services may use syslog (or some other similar service) for logging events
@@ -172,21 +172,23 @@ around by introducing timing constraints:
 
     exec /path/to/binary
 
-In this example, svhub will spawn the script as usual, but waitfor will pause
+In this example, svchub will spawn the script as usual, but waitfor will pause
 the process for several seconds while it is still a script.
 
 
 Shutdown sequence
 ~~~~~~~~~~~~~~~~~
-When commanded to shut down, svhub kills all the services, waits for them
-to dies, and execs into one of the shutdown scripts depending on which command
-it's gotten:
+When commanded to shut down, svchub kills all the services, waits for them
+to dies, and execs into one of the shutdown scripts depending on how exactly
+the system is shutting down:
 
     /etc/boot/reboot
     /etc/boot/shutdown
     /etc/boot/powerdown
 
-There may be system-dependent things there but eventually all three should
+    /etc/boot/failure
+
+There may be system-dependent things there but eventually all these should
 exec into `reboot` with appropriate flags. Example /etc/boot/shutdown:
 
     #!/sbin/msh

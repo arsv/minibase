@@ -31,12 +31,10 @@ Components currently included in the package:
   * block device encryption tools (passblk, dektool, deitool)
   - no fsck for any file system yet
 
-  * process supervision suite (svhub, reboot)
+  * process supervision suite (svchub, reboot)
 
   * udev event monitor (udevmod)
   * syslog and related tools (sysklogd)
-  * non-privileged mount service (mountd, pmount)
-  * controlled privilege escalation service (suhub, sudo)
 
   * VT/DRI/input multiplexer (vtmux)
   * simple non-graphical greeter (ctrlvt)
@@ -51,7 +49,7 @@ Components currently included in the package:
   * basic command line tools (cat, ls, du, df etc).
   * small linux-specific tools (systime, sync, dmesg etc).
 
-  - no package manager / download tool yet.
+  - no package manager yet.
   - no audio tools of any kind.
 
 With everything in place, the system should boot on kernel and minibase alone
@@ -69,6 +67,10 @@ with the build scripts are maintained in a dedicated repository:
 Get the latest sys-plain or sys-crypt from Releases, check included
 instructions. Inspect the build scripts, rootfs and initrd contents
 to understand how the system boots.
+
+The images there tend to lag behind the master branch here.
+However, those images should still give a pretty good idea of how
+the whole thing is supposed to work.
 
 
 How to build and run the tools
@@ -105,7 +107,7 @@ Statically linked for x86_64, it's about 25 KiB in size. Realistically
 it also needs `dhconf` (12 KiB) to work, and the client tool `wifi` (16 KiB).
 
 `msh` is about 16 KiB. `cmd` (interactive shell) is about 18 KiB.
-`svhub` (pid 1 for the majority of system's uptime) is about 10 KiB.
+`svchub` (pid 1 for the majority of system's uptime) is under 10 KiB.
 `vtmux` (logind equivalent) is about 12 KiB.
 
 Why bother making it small? Because it's a side effect of making it readable.
