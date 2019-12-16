@@ -1,44 +1,46 @@
-.TH svhub 8
+.TH svchub 8
 '''
 .SH NAME
-\fBsvhub\fR \- top-level process supervisor
+\fBsvchub\fR \- top-level process supervisor
 '''
 .SH DESCRIPTION
-\fBsvhub\fR runs as PID 1 for most of the system's uptime, spawning
+\fBsvchub\fR runs as PID 1 for most of the system's uptime, spawning
 and monitoring a set of child processes. Whenever a spawned process
-dies, \fBsvhub\fR attempts to re-spawn it.
+dies, \fBsvchub\fR attempts to re-spawn it.
 .P
 The list of services to run is just a list of files in a pre-defined
-directory /etc/init; \fBsvhub\fR tries to \fBexecve\fR(2) each file in
+directory /etc/init; \fBsvchub\fR tries to \fBexecve\fR(2) each file in
 a spawned child process.
 '''
 .SH USAGE
 During system startup, the initial PID 1 (typically \fBinit\fR(8))
-should exec into \fBsvhub\fR, which then will run until commanded to
-shutdown. Once commanded, \fBsvhub\fR stops all services and execs into
+should exec into \fBsvchub\fR, which then will run until commanded to
+shutdown. Once commanded, \fBsvchub\fR stops all services and execs into
 \fB/sbin/reboot\fR(8) which should be available.
 .P
-User interaction with \fBsvhub\fR happens via its control socket.
+User interaction with \fBsvchub\fR happens via its control socket.
 See \fBsvctl\fR(8).
 .P
 The files in /etc/init should be executable scripts setting up process
-environment and exec-ing their respective commands. \fBsvhub\fR passes
+environment and exec-ing their respective commands. \fBsvchub\fR passes
 its credentials and environment to child processes unchanged.
 In most cases child processes should drop extra privileges immediately.
 '''
 .SH FILES
 .IP "/etc/init/\fI...\fR" 4
 Services to spawn.
-.IP "/run/ctrl/svhub" 4
+.IP "/run/ctrl/svchub" 4
 Control socket.
 .P
-When commanded to shut down, svhub exec-s into one of the scripts:
+When commanded to shut down, svchub exec-s into one of the scripts:
 .IP "/etc/boot/reboot" 4
 On SIGINT, SIGTERM or \fBsvctl reboot\fR.
 .IP "/etc/boot/shutdown" 4
 On \fBsvctl shutdown\fR.
 .IP "/etc/boot/poweroff" 4
 On SIGPWR or \fBsvctl poweroff\fR.
+.IP "/etc/boot/failure" 4
+On any non-recoverable error, or with no services left running.
 '''
 .SH SEE ALSO
-\fBsvctl\fR(1), \fBreboot\fR(1), \fBmsh\fR(1).
+\fBsvcctl\fR(1), \fBreboot\fR(1), \fBmsh\fR(1).

@@ -1,6 +1,7 @@
 #include <bits/socket/unix.h>
 #include <sys/reboot.h>
 #include <sys/socket.h>
+#include <sys/proc.h>
 #include <sys/mman.h>
 
 #include <string.h>
@@ -12,7 +13,7 @@
 
 #include "common.h"
 
-ERRTAG("svctl");
+ERRTAG("svcctl");
 
 struct top {
 	int opts;
@@ -113,53 +114,40 @@ static void index_procs(CTX, void* ptr, void* end)
 	}
 }
 
-static int intlen(int x)
-{
-	int len = 1;
-
-	if(x < 0) { x = -x; len++; };
-
-	for(; x >= 10; len++) x /= 10;
-
-	return len;
-}
-
-static int pid_len(int maxlen, struct ucattr* p)
-{
-	int *pid, len;
-
-	if(!(pid = uc_get_int(p, ATTR_PID)))
-		;
-	else if((len = intlen(*pid)) > maxlen)
-		maxlen = len;
-
-	return maxlen;
-}
-
-static void dump_proc(struct bufout* bo, struct ucattr* at, int maxlen)
+static void dump_proc(struct bufout* bo, struct ucattr* at)
 {
 	char buf[100];
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
-	char* q;
 
 	char* name = uc_get_str(at, ATTR_NAME);
 	int* pid = uc_get_int(at, ATTR_PID);
+	int* exit = uc_get_int(at, ATTR_EXIT);
 
-	if(pid)
-		q = fmtint(p, e, *pid);
-	else
-		q = fmtstr(p, e, "-");
+	p = fmtstr(p, e, name ? name : "???");
 
-	p = fmtpad(p, e, maxlen, q);
+	if(pid) {
+		p = fmtstr(p, e, " (pid ");
+		p = fmtint(p, e, *pid);
+		p = fmtstr(p, e, ")");
+	} else if(exit) {
+		int status = *exit;
+		
+		if(WIFEXITED(status)) {
+			p = fmtstr(p, e, " (exit ");
+			p = fmtint(p, e, WEXITSTATUS(status));
+			p = fmtstr(p, e, ")");
+		} else if(WIFSIGNALED(status)) {
+			p = fmtstr(p, e, " (signal ");
+			p = fmtint(p, e, WTERMSIG(status));
+			p = fmtstr(p, e, ")");
+		}
+	} else {
+		p = fmtstr(p, e, " (stopped)");
+	}
 
 	if(uc_get(at, ATTR_RING))
-		p = fmtstr(p, e, "*");
-	else
-		p = fmtstr(p, e, " ");
-
-	p = fmtstr(p, e, " ");
-	p = fmtstr(p, e, name ? name : "???");
+		p = fmtstr(p, e, " *");
 
 	*p++ = '\n';
 
@@ -177,17 +165,13 @@ static void dump_list(CTX, void* ptr, void* end)
 	qsortp(procs, prend - procs, cmp_proc);
 
 	struct ucattr** p;
-	int maxlen = 0;
 	struct bufout bo;
 	char output[2048];
 
 	bufoutset(&bo, STDOUT, output, sizeof(output));
 
 	for(p = procs; p < prend; p++)
-		maxlen = pid_len(maxlen, *p);
-
-	for(p = procs; p < prend; p++)
-		dump_proc(&bo, *p, maxlen);
+		dump_proc(&bo, *p);
 
 	bufoutflush(&bo);
 }
@@ -299,7 +283,10 @@ static void recv_empty_reply(CTX)
 	struct ucattr* msg = recv_reply(ctx);
 	int rep = uc_repcode(msg);
 
-	if(rep < 0) fail(NULL, NULL, rep);
+	if(rep < 0)
+		fail(NULL, NULL, rep);
+	if(rep > 0)
+		fail("unexpected notification", NULL, 0);
 }
 
 static void simple_void_cmd(CTX, int cmd)
@@ -340,6 +327,15 @@ static void simple_proc_cmd(CTX, int cmd)
 	recv_empty_reply(ctx);
 }
 
+static void wait_notification(CTX)
+{
+	struct ucattr* msg = recv_reply(ctx);
+	int rep = uc_repcode(msg);
+
+	if(rep != REP_DIED)
+		fail("unexptected notification", NULL, 0);
+}
+
 /* individual commands */
 
 static void cmd_start(CTX)
@@ -350,6 +346,15 @@ static void cmd_start(CTX)
 static void cmd_stop(CTX)
 {
 	simple_proc_cmd(ctx, CMD_STOP);
+	wait_notification(ctx);
+}
+
+static void cmd_reset(CTX)
+{
+	char* name = shift_arg(ctx);
+
+	send_proc_cmd(ctx, CMD_RESET, name);
+	recv_empty_reply(ctx);
 }
 
 static void cmd_restart(CTX)
@@ -358,33 +363,28 @@ static void cmd_restart(CTX)
 	struct ucattr* msg;
 	int rep;
 
-	send_proc_cmd(ctx, CMD_STOP, name);
+	send_proc_cmd(ctx, CMD_RESET, name);
+	
 	msg = recv_reply(ctx);
+	rep = uc_repcode(msg);
 
-	if((rep = uc_repcode(msg)) == 0)
-		return;
-	if(rep > 0)
-		fail("unexpected notification", NULL, 0);
-	if(rep != -EALREADY)
+	if(rep == -ESRCH || rep == -ECHILD) {
+		/* not running, start it */
+		send_proc_cmd(ctx, CMD_START, name);
+	} else if(rep < 0) {
+		/* does not exist, or cannot restart */
 		fail(NULL, NULL, rep);
-
-	send_proc_cmd(ctx, CMD_START, name);
-	recv_empty_reply(ctx);
+	} else if(rep == 0) {
+		/* success, wait for it to die */
+		wait_notification(ctx);
+	} else {
+		fail("unexpected notification", NULL, 0);
+	}
 }
 
 static void cmd_hup(CTX)
 {
 	simple_proc_cmd(ctx, CMD_HUP);
-}
-
-static void cmd_pause(CTX)
-{
-	simple_proc_cmd(ctx, CMD_PAUSE);
-}
-
-static void cmd_resume(CTX)
-{
-	simple_proc_cmd(ctx, CMD_RESUME);
 }
 
 static void cmd_flush(CTX)
@@ -473,13 +473,12 @@ static const struct cmdrec {
 } commands[] = {
 	{ "hup",       cmd_hup      },
 	{ "pidof",     cmd_pidof    },
-	{ "pause",     cmd_pause    },
+	{ "reset",     cmd_reset    },
 	{ "restart",   cmd_restart  },
 	{ "start",     cmd_start    },
 	{ "stop",      cmd_stop     },
 	{ "flush",     cmd_flush    },
 	{ "flush-all", cmd_flushall },
-	{ "resume",    cmd_resume   },
 	{ "reload",    cmd_reload   },
 	{ "reboot",    cmd_reboot   },
 	{ "shutdown",  cmd_shutdown },
