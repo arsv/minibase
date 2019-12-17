@@ -44,7 +44,7 @@ static void setup_signals(CTX)
 {
 	int fd, ret;
 	int flags = SFD_NONBLOCK | SFD_CLOEXEC;
-	sigset_t mask;
+	struct sigset mask;
 
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGINT);

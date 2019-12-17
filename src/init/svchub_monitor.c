@@ -123,7 +123,7 @@ static int child(CTX, struct proc* rc, int pipe[2])
 {
 	char* dir = INITDIR;
 	char* name = rc->name;
-	sigset_t mask;
+	struct sigset mask;
 
 	sigemptyset(&mask);
 
