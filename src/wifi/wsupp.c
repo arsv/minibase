@@ -22,7 +22,6 @@ ERRTAG("wsupp");
 
 char** environ;
 
-static sigset_t defsigset;
 static struct pollfd pfds[3+NCONNS];
 static int npfds;
 static struct timespec pollts;
@@ -200,7 +199,7 @@ int main(int argc, char** argv)
 
 		if(!pollset)
 			update_pollfds();
-		if((ret = sys_ppoll(pfds, npfds, ts, &defsigset)) > 0)
+		if((ret = sys_ppoll(pfds, npfds, ts, NULL)) > 0)
 			check_polled_fds();
 		else if(ret == 0)
 			timer_expired();
