@@ -54,7 +54,7 @@ static void nilhandler(int sig)
 
 static void setup_signals(CTX)
 {
-	sigset_t set;
+	struct sigset set;
 	int ret;
 
 	SIGHANDLER(sa, nilhandler, 0);
@@ -305,7 +305,7 @@ int main(int argc, char** argv)
 	(void)argv;
 	struct top context, *ctx = &context;
 	struct poll pollctx, *pp = &pollctx;
-	sigset_t empty;
+	struct sigset empty;
 
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);
