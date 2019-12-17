@@ -224,7 +224,7 @@ static void open_signals(CTX)
 {
 	int fd, ret;
 	int flags = SFD_CLOEXEC | SFD_NONBLOCK;
-	sigset_t mask;
+	struct sigset mask;
 
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGCHLD);
