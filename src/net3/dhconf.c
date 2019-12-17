@@ -67,7 +67,7 @@ static void sighandler(int sig)
 static void setup_signals(CTX)
 {
 	int fd, ret;
-	sigset_t mask;
+	struct sigset mask;
 	int flags = SFD_NONBLOCK | SFD_CLOEXEC;
 
 	sigemptyset(&mask);
