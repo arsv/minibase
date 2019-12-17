@@ -182,7 +182,7 @@ static int trywaitpid(int pid, int* status)
 
 static int child(char* exe, char** argv, char** envp)
 {
-	sigset_t mask;
+	struct sigset mask;
 
 	sigemptyset(&mask);
 	sys_sigprocmask(SIG_SETMASK, &mask, NULL);

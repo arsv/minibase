@@ -27,7 +27,7 @@ noreturn void quit(CTX, const char* msg, char* arg, int err)
 	fail(msg, arg, err);
 }
 
-static void sigprocmask(int how, sigset_t* mask)
+static void sigprocmask(int how, struct sigset* mask)
 {
 	int ret;
 
@@ -37,7 +37,7 @@ static void sigprocmask(int how, sigset_t* mask)
 
 static void setup_signals(CTX)
 {
-	sigset_t mask;
+	struct sigset mask;
 	int fd;
 
 	sigemptyset(&mask);
