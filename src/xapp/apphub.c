@@ -53,7 +53,7 @@ static void kill_all_conns(CTX)
 	ctx->pollset = 0;
 }
 
-static void sigprocmask(int how, sigset_t* mask)
+static void sigprocmask(int how, struct sigset* mask)
 {
 	int ret;
 
@@ -64,7 +64,7 @@ static void sigprocmask(int how, sigset_t* mask)
 static void open_signalfd(CTX)
 {
 	int fd;
-	sigset_t ss;
+	struct sigset ss;
 
 	sigemptyset(&ss);
 

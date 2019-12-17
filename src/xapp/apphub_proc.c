@@ -334,7 +334,7 @@ static int prep_path(char* path, int len, char* name)
 static int spawn_proc(struct proc* pc, char* path, char** argv, char** envp)
 {
 	int pid, ret, out[2];
-	sigset_t empty;
+	struct sigset empty;
 
 	sigemptyset(&empty);
 
