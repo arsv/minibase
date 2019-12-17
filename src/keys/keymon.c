@@ -15,7 +15,7 @@ ERRLIST(NEPERM NENOENT NENOTDIR NEACCES NENOTTY NEFAULT NEINVAL NEISDIR
 
 #define PFDS (1 + NDEVICES)
 
-static sigset_t defsigset;
+static struct sigset defsigset;
 struct pollfd pfds[PFDS];
 int npfds, pfdkeys[PFDS];
 
