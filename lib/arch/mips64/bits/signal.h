@@ -38,9 +38,9 @@
 
 #define NSIGWORDS 2
 
-typedef struct { unsigned long word[2]; } sigset_t;
-
-#define EMPTYSIGSET { { 0UL, 0UL } }
+struct sigset {
+	unsigned long word[2];
+};
 
 #define SIG_DFL ((void*) 0L)
 #define SIG_IGN ((void*) 1L)
@@ -64,14 +64,14 @@ struct sigaction {
 		void (*action)(int, void*, void*);
 		void (*handler)(int);
 	};
-	sigset_t mask;
+	struct sigset mask;
 };
 
 #define SIGHANDLER(sa, hh, fl) \
 	struct sigaction sa = { \
 		.handler = hh, \
 		.flags = fl, \
-		.mask = EMPTYSIGSET \
+		.mask = { { 0 } } \
 	}
 
 #endif

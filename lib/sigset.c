@@ -4,10 +4,10 @@
 
 /* These two are typically used together */
 
-int sigemptyset(sigset_t *set)
+int sigemptyset(struct sigset *set)
 {
 #if NSIGWORDS == 1
-	*set = 0;
+	set->word[0] = 0;
 #elif NSIGWORDS == 2
 	set->word[0] = 0;
 	set->word[1] = 0;
@@ -22,7 +22,7 @@ int sigemptyset(sigset_t *set)
 	return 0;
 }
 
-int sigaddset(sigset_t *set, int sig)
+int sigaddset(struct sigset *set, int sig)
 {
 	if(sig < 1 || sig > SIGRTMAX)
 		return -1;
@@ -30,7 +30,7 @@ int sigaddset(sigset_t *set, int sig)
 	sig = sig - 1;
 
 #if NSIGWORDS == 1
-	*set |= (1 << sig);
+	set->word[0] |= (1 << sig);
 #else
 	uint bpw = 8*sizeof(long);
 	set->word[sig/bpw] |= (1 << (sig % bpw));

@@ -27,19 +27,24 @@ struct siginfo {
 	byte pad[46];
 } __attribute__((packed));
 
-inline static long sys_signalfd(int fd, sigset_t* set, int flags)
+inline static long sys_signalfd(int fd, struct sigset* set, int flags)
 {
-	return syscall4(NR_signalfd4, fd, (long)set, sizeof(*set), flags);
+	const int ssz = sizeof(struct sigset);
+	return syscall4(NR_signalfd4, fd, (long)set, ssz, flags);
 }
 
-inline static long sys_sigaction(int signum, const struct sigaction* act, struct sigaction* oldact)
+inline static long sys_sigaction(int signum, const struct sigaction* act,
+                                                   struct sigaction* oldact)
 {
-	return syscall4(NR_rt_sigaction, signum, (long)act, (long)oldact, sizeof(sigset_t));
+	const int ssz = sizeof(struct sigset);
+	return syscall4(NR_rt_sigaction, signum, (long)act, (long)oldact, ssz);
 }
 
-inline static long sys_sigprocmask(int how, const sigset_t* set, sigset_t* oldset)
+inline static long sys_sigprocmask(int how, const struct sigset* set,
+                                                  struct sigset* oldset)
 {
-	return syscall4(NR_rt_sigprocmask, how, (long)set, (long)oldset, sizeof(*set));
+	const int ssz = sizeof(struct sigset);
+	return syscall4(NR_rt_sigprocmask, how, (long)set, (long)oldset, ssz);
 }
 
 inline static long sys_kill(int pid, int sig)

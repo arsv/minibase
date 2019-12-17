@@ -40,11 +40,9 @@
 
 #define NSIGWORDS 2
 
-typedef struct {
+struct sigset {
 	unsigned long word[2];
-} sigset_t;
-
-#define EMPTYSIGSET { { 0, 0 } }
+};
 
 #define SIG_BLOCK       0
 #define SIG_UNBLOCK     1
@@ -72,7 +70,7 @@ struct sigaction {
 	};
 	unsigned long flags;
 	void (*restorer)(void);
-	sigset_t mask;
+	struct sigset mask;
 };
 
 #define SIGHANDLER(sa, hh, fl) \
@@ -80,7 +78,7 @@ struct sigaction {
 		.handler = hh, \
 		.flags = fl | SA_RESTORER, \
 		.restorer = sigreturn, \
-		.mask = EMPTYSIGSET \
+		.mask = { { 0 } } \
 	}
 
 extern void sigreturn(void);
