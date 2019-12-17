@@ -14,7 +14,7 @@
    Tagging output helps a lot when several instances say something
    at the same time. */
 
-const char* tag = "trap";
+const char* tag = "z-trap";
 int interval = 1000;
 
 #define BUF 1024

@@ -1,5 +1,5 @@
-badsrv
 svchub
 svcctl
-trap
-tick
+z-badsrv
+z-trap
+z-tick

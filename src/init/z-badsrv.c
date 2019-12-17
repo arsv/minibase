@@ -3,6 +3,8 @@
 
 #include <string.h>
 
+/* Always-failing stub service for testing failure handling in svchub */
+
 static void say(char* msg)
 {
 	int len = strlen(msg);

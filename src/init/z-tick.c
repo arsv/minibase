@@ -6,16 +6,9 @@
 #include <printf.h>
 #include <util.h>
 
-/* Signal trap, to be used as a stub for service scripts in ./rc
-   Trapping signals (normally sent by init) makes it clear
-   what's going on, specifically when and why the process dies.
+/* Similar to z-trap.c, but also writes some stings to STDOUT */
 
-   Usage: trap [tag] [sleep-interval]
-
-   Tagging output helps a lot when several instances say something
-   at the same time. */
-
-const char* tag = "trap";
+const char* tag = "z-tick";
 int interval = 1000;
 int count = 10;
 
