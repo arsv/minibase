@@ -8,7 +8,7 @@
    Doesn't actually do anything with the interface, just prints some tracing
    info to stderr. */
 
-ERRTAG("stubhcp");
+ERRTAG("z-dhconf");
 
 static void sighandler(int sig)
 {
