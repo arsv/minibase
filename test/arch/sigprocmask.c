@@ -11,7 +11,7 @@ ERRTAG("sigprocmask");
 
 int main(noargs)
 {
-	sigset_t mask, old;
+	struct sigset mask, old;
 	struct timespec ts = { 0, 200*1000*1000 };
 	int pid = sys_getpid();
 	int ret;
@@ -28,7 +28,7 @@ int main(noargs)
 	if((ret = sys_sigprocmask(SIG_UNBLOCK, &old, &mask)))
 		fail("sigprocmask", "SIG_UNBLOCK", ret);
 
-	if(memcmp(&old, &mask, sizeof(sigset_t)))
+	if(memcmp(&old, &mask, sizeof(mask)))
 		fail("mask mismatch", NULL, 0);
 
 	/* Make sure SIG_BLOCK actually blocks signals */
