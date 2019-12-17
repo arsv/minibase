@@ -139,7 +139,7 @@ static void setup_args(CTX, int argc, char** argv)
 static void open_sigfd(CTX)
 {
 	int fd, ret;
-	sigset_t mask;
+	struct sigset mask;
 
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGWINCH);
