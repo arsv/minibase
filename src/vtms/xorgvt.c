@@ -46,8 +46,8 @@ struct top {
 	int ctlfd;
 	int sigfd;
 
-	sigset_t empty;
-	sigset_t block;
+	struct sigset empty;
+	struct sigset block;
 };
 
 #define CTX struct top* ctx
@@ -464,7 +464,7 @@ static void set_launcher_sock_fd(CTX)
 	ctx->ctlfd = fd;
 }
 
-static void sigprocmask(int how, sigset_t* mask)
+static void sigprocmask(int how, struct sigset* mask)
 {
 	int ret;
 
@@ -475,7 +475,7 @@ static void sigprocmask(int how, sigset_t* mask)
 static void open_signalfd(CTX)
 {
 	int fd;
-	sigset_t* ss = &ctx->block;
+	struct sigset* ss = &ctx->block;
 
 	sigaddset(ss, SIGINT);
 	sigaddset(ss, SIGTERM);

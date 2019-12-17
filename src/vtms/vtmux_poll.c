@@ -12,7 +12,7 @@
 
 #define PFDS (1 + NTERMS + NCONNS)
 
-static sigset_t defsigset;
+static struct sigset defsigset;
 struct pollfd pfds[PFDS];
 uint pfdkeys[PFDS];
 
