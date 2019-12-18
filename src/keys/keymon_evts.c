@@ -4,6 +4,7 @@
 
 #include <sys/file.h>
 #include <sys/signal.h>
+#include <sys/ppoll.h>
 #include <sys/proc.h>
 #include <sys/ioctl.h>
 #include <sys/dents.h>
@@ -20,130 +21,165 @@
    to simplify the code. Tracking arbitrary keys would require lots
    of code, and won't be used most of the time. */
 
-static int modifiers;
-
-static void spawn(struct action* ka)
+void check_children(CTX)
 {
-	int pid, ret, status;
-	char* cmd = ka->cmd;
-	char* arg = *(ka->arg) ? ka->arg : NULL;
+	struct act* ka;
+	int pid, status;
+
+	while((pid = sys_waitpid(-1, &status, WNOHANG)) > 0) {
+		for(ka = first(ctx); ka; ka = next(ctx, ka))
+			if(ka->pid == pid)
+				ka->pid = 0;
+	}
+}
+
+static void prep_argv(struct act* ka, char* argv[], int max)
+{
+	int i = 0, n = max - 1;
+
+	char* p = ka->cmd;
+	char* e = p + (ka->len - sizeof(*ka));
+
+	while(p < e) {
+		char* q = p;
+
+		while(q < e && *q) q++;
+
+		if(q >= e) break;
+
+		if(i >= n) break;
+
+		argv[i++] = p;
+
+		p = q + 1;
+	}
+
+	argv[i++] = NULL;
+}
+
+static void spawn_action(CTX, struct act* ka)
+{
+	int pid, ret;
+	char* argv[5];
+
+	if((pid = ka->pid) > 0) {
+		sys_kill(pid, SIGTERM);
+		return;
+	}
+
+	prep_argv(ka, argv, ARRAY_SIZE(argv));
+
+	FMTBUF(p, e, path, 200);
+	p = fmtstr(p, e, CONFDIR "/");
+	p = fmtstr(p, e, argv[0]);
+	FMTEND(p, e);
 
 	if((pid = sys_fork()) < 0) {
 		warn("fork", NULL, pid);
 		return;
 	} else if(pid == 0) {
-		char* argv[] = { cmd, arg, NULL };
-		ret = execvpe(*argv, argv, environ);
-		fail("exec", *argv, ret);
+		ret = execvpe(path, argv, ctx->environ);
+		fail("exec", path, ret);
 	}
 
-	ret = sys_waitpid(pid, &status, 0);
-
-	if(ret > 0)
-		return;
-	if(ret < 0)
-		sys_kill(pid, SIGTERM);
+	ka->pid = pid;
 }
 
-static void set_global_mods(void)
+void hold_timeout(CTX, struct act* ka)
 {
-	struct device* kb;
-	int mods = 0;
+	ctx->held = NULL;
 
-	for(kb = devices; kb < devices + ndevices; kb++) {
-		if(kb->mods & KEYM_LCTRL)
-			mods |= MODE_CTRL;
-		if(kb->mods & KEYM_LALT)
-			mods |= MODE_ALT;
-	}
-
-	modifiers = mods;
+	spawn_action(ctx, ka);
 }
 
-static void start_hold(struct action* ka, struct device* kb)
+static void start_hold(CTX, struct act* ka)
 {
+	int sec;
+
 	if(ka->mode & MODE_LONG)
-		ka->time = LONGTIME;
+		sec = LONGTIME;
 	else
-		ka->time = HOLDTIME;
+		sec = HOLDTIME;
 
-	ka->minor = kb->minor;
+	ctx->ts.sec = sec;
+	ctx->ts.nsec = 0;
+
+	ctx->held = ka;
 }
 
-static void reset_hold(struct action* ka)
+static void set_global_mods(CTX)
 {
-	ka->time = 0;
-	ka->minor = 0;
-}
+	byte* bits = ctx->bits;
+	int i, nbits = ctx->nbits;
+	int modstate = 0;
 
-void hold_done(struct action* ka)
-{
-	ka->time = 0;
-	ka->minor = 0;
+	for(i = 0; i < nbits; i++) {
+		byte devmods = bits[i];
 
-	spawn(ka);
-}
-
-static void key_release(struct device* kb, int code)
-{
-	struct action* ka;
-	int mods = kb->mods;
-
-	for(ka = actions; ka < actions + nactions; ka++) {
-		if(!ka->time)
-			continue;
-		else if(ka->code != code)
-			continue;
-		else if(ka->minor != kb->minor)
-			continue;
-		else reset_hold(ka);
+		if(devmods & KEYM_LCTRL)
+			modstate |= MODE_CTRL;
+		if(devmods & KEYM_LALT)
+			modstate |= MODE_ALT;
 	}
+
+	ctx->modstate = modstate;
+}
+
+static void key_release(CTX, int code, byte* mods)
+{
+	struct act* ka = ctx->held;
+
+	if(ka && ka->code == code)
+		ctx->held = 0;
+
+	int curr = *mods;
 
 	switch(code) {
-		case KEY_LEFTALT:  mods &= ~KEYM_LALT;  break;
-		case KEY_LEFTCTRL: mods &= ~KEYM_LCTRL; break;
-		case KEY_RIGHTALT: mods &= ~KEYM_RALT;  break;
-		case KEY_RIGHTCTRL:mods &= ~KEYM_RCTRL; break;
+		case KEY_LEFTALT:  curr &= ~KEYM_LALT;  break;
+		case KEY_LEFTCTRL: curr &= ~KEYM_LCTRL; break;
+		case KEY_RIGHTALT: curr &= ~KEYM_RALT;  break;
+		case KEY_RIGHTCTRL:curr &= ~KEYM_RCTRL; break;
 		default: return;
 	}
 
-	kb->mods = mods;
+	*mods = curr;
 
-	set_global_mods();
+	set_global_mods(ctx);
 }
 
-static void key_press(struct device* kb, int code)
+static void key_press(CTX, int code, byte* mods)
 {
 	int mask = MODE_CTRL | MODE_ALT;
-	struct action* ka;
+	struct act* ka;
 
-	for(ka = actions; ka < actions + nactions; ka++) {
+	for(ka = first(ctx); ka; ka = next(ctx, ka)) {
 		if(ka->code != code)
 			continue;
-		if((ka->mode & mask) != (modifiers & mask))
+		if((ka->mode & mask) != (ctx->modstate & mask))
 			continue;
+
 		if(ka->mode & MODE_HOLD)
-			start_hold(ka, kb);
+			start_hold(ctx, ka);
 		else
-			spawn(ka);
+			spawn_action(ctx, ka);
 	}
 
-	int mods = kb->mods;
+	int curr = *mods;
 
 	switch(code) {
-		case KEY_LEFTALT:  mods |= KEYM_LALT;  break;
-		case KEY_LEFTCTRL: mods |= KEYM_LCTRL; break;
-		case KEY_RIGHTALT: mods |= KEYM_RALT;  break;
-		case KEY_RIGHTCTRL:mods |= KEYM_RCTRL; break;
+		case KEY_LEFTALT:  curr |= KEYM_LALT;  break;
+		case KEY_LEFTCTRL: curr |= KEYM_LCTRL; break;
+		case KEY_RIGHTALT: curr |= KEYM_RALT;  break;
+		case KEY_RIGHTCTRL:curr |= KEYM_RCTRL; break;
 		default: return;
 	}
 
-	kb->mods = mods;
+	*mods = curr;
 
-	set_global_mods();
+	set_global_mods(ctx);
 }
 
-static void handle_event(struct device* kb, struct event* ev)
+static void handle_event(CTX, struct event* ev, byte* mods)
 {
 	int value = ev->value;
 	int type = ev->type;
@@ -151,25 +187,35 @@ static void handle_event(struct device* kb, struct event* ev)
 
 	if(type == EV_KEY) {
 		if(value == 1)
-			key_press(kb, code);
+			key_press(ctx, code, mods);
 		else if(!value)
-			key_release(kb, code);
-	} else if(type == EV_SW) {
+			key_release(ctx, code, mods);
+	}
+	if(type == EV_SW) {
+		code |= CODE_SWITCH;
+
 		if(value == 1)
-			key_press(kb, code | CODE_SWITCH);
+			key_press(ctx, code, mods);
 		else if(!value)
-			key_release(kb, code | CODE_SWITCH);
+			key_release(ctx, code, mods);
 	}
 }
 
-void handle_input(struct device* kb, int fd)
+void handle_input(CTX, int fd, byte* mods)
 {
 	char buf[256];
-	char* ptr;
-	int size = sizeof(struct event);
 	int rd;
 
-	while((rd = sys_read(fd, buf, sizeof(buf))) > 0)
-		for(ptr = buf; ptr < buf + rd; ptr += size)
-			handle_event(kb, (struct event*) ptr);
+	while((rd = sys_read(fd, buf, sizeof(buf))) > 0) {
+		void* ptr = buf;
+		void* end = buf + rd;
+
+		while(ptr < end) {
+			struct event* ev = ptr;
+
+			ptr += sizeof(ev);
+
+			handle_event(ctx, ev, mods);
+		}
+	}
 }

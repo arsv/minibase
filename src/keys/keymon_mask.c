@@ -14,18 +14,18 @@
 
 /* From all /dev/input/event* devices the directory-scanning code
    tries to open, we should only pick the keyboards that can generate
-   the configured event. Some devices there are not keyboards at all,
-   and some are but only generate one or two codes.
+   the configured events. Some devices there are not keyboards at all,
+   some are but only generate one or two codes.
 
    What's more important, we ask the input driver to only send
    the keycodes we are interested in. This should prevent excessive
    wakeups during regular typing.
 
-   The only documentation available for most of this stuff is in
-   the kernel sources apparently. Refer to
-   linux/include/uapi/input.h and linux/drivers/input/evdev.c. */
+   The only documentation available for most of this stuff is
+   in the kernel sources apparently. Refer to linux/include/uapi/input.h
+   and linux/drivers/input/evdev.c. */
 
-static int hascode(char* bits, int len, int code)
+static int hascode(byte* bits, int len, int code)
 {
 	if(code <= 0)
 		return 0;
@@ -35,7 +35,7 @@ static int hascode(char* bits, int len, int code)
 	return bits[code/8] & (1 << (code % 8));
 }
 
-static void setcode(char* bits, int len, int code)
+static void setcode(byte* bits, int len, int code)
 {
 	if(code <= 0)
 		return;
@@ -45,39 +45,52 @@ static void setcode(char* bits, int len, int code)
 	bits[code/8] |= (1 << (code % 8));
 }
 
-static void usecode(char* bits, char* need, int size, int code)
+static void usecode(byte* bits, byte* need, int size, int code)
 {
 	if(!hascode(bits, size, code))
 		return;
+
 	setcode(need, size, code);
 }
 
-static void check_all_keyacts(char* bits, char* need, int size)
+static void check_all_keyacts(CTX, byte* bits, byte* need, int size)
 {
-	struct action* ka;
+	struct act* ka;
 
-	for(ka = actions; ka < actions + nactions; ka++)
-		if(ka->code > 0)
-			usecode(bits, need, size, ka->code);
+	for(ka = first(ctx); ka; ka = next(ctx, ka)) {
+		int code = ka->code;
+
+		if(code & CODE_SWITCH) /* it's a switch action */
+			continue;
+
+		usecode(bits, need, size, code);
+	}
 
 	usecode(bits, need, size, KEY_LEFTCTRL);
 	usecode(bits, need, size, KEY_LEFTALT);
 }
 
-static void check_swact(struct action* sa, char* bits, char* need, int size)
+static void check_all_swacts(CTX, byte* bits, byte* need, int size)
 {
-	if(!hascode(bits, size, sa->code))
-		return;
+	struct act* ka;
 
-	setcode(need, size, sa->code);
+	for(ka = first(ctx); ka; ka = next(ctx, ka)) {
+		int raw = ka->code;
+		int code = raw & ~CODE_SWITCH;
+
+		if(raw == code) /* it's a key action */
+			continue;
+
+		setcode(need, size, code);
+	}
 }
 
-static int get_evt_mask(int fd, int type, char* bits, int size)
+static int get_evt_mask(int fd, int type, byte* bits, int size)
 {
 	return sys_ioctl(fd, EVIOCGBIT(type, size), bits);
 }
 
-static int set_evt_mask(int fd, int type, char* bits, int size)
+static int set_evt_mask(int fd, int type, byte* bits, int size)
 {
 	int ret;
 
@@ -91,6 +104,56 @@ static int set_evt_mask(int fd, int type, char* bits, int size)
 		warn("ioctl", "EVIOCSMASK", ret);
 
 	return ret;
+}
+
+static int check_key_bits(CTX, int fd)
+{
+	int type = EV_KEY;
+	byte bits[32];
+	byte need[32];
+	int size = sizeof(bits);
+	int ret;
+
+	memzero(bits, size);
+	memzero(need, size);
+
+	if((ret = get_evt_mask(fd, type, bits, size)) < 0)
+		return ret;
+
+	check_all_keyacts(ctx, bits, need, size);
+
+	if(!nonzero(need, size))
+		return 0;
+
+	if((ret = set_evt_mask(fd, type, need, size)) < 0)
+		return ret;
+
+	return 1;
+}
+
+static int check_sw_bits(CTX, int fd)
+{
+	int type = EV_SW;
+	byte bits[2];
+	byte need[2];
+	int size = sizeof(bits);
+	int ret;
+
+	memzero(bits, size);
+	memzero(need, size);
+
+	if((ret = get_evt_mask(fd, type, bits, size)) < 0)
+		return ret;
+
+	check_all_swacts(ctx, bits, need, size);
+
+	if(!nonzero(need, size))
+		return 0;
+
+	if((ret = set_evt_mask(fd, type, need, size)) < 0)
+		return ret;
+
+	return 1;
 }
 
 static void mask_msc_events(int fd)
@@ -110,59 +173,25 @@ static void mask_msc_events(int fd)
 		warn("ioctl", "EVIOCGBIT EV_MSC", ret);
 }
 
-static void check_all_swacts(char* bits, char* need, int size)
-{
-	struct action* sa;
-
-	for(sa = actions; sa < actions + nactions; sa++)
-		if(sa->code < 0)
-			check_swact(sa, bits, need, size);
-}
-
-static int check_evt_bits(int fd, int type, int size,
-                          void (*check)(char* bits, char* need, int size))
-{
-	char bits[size];
-	char need[size];
-	int ret;
-
-	memzero(bits, size);
-	memzero(need, size);
-
-	if((ret = get_evt_mask(fd, type, bits, size)) < 0)
-		return ret;
-
-	check(bits, need, size);
-
-	if(!nonzero(need, size))
-		return 0;
-
-	if((ret = set_evt_mask(fd, type, need, size)) < 0)
-		return ret;
-
-	return 1;
-}
-
 /* Directory-scanning code opens /dev/input/eventN and calls
    this to determine what to do with the fd. Zero means drop,
-   positive means poll this device. */
+   non-zero (positive) means poll this device. */
 
-int try_event_dev(int fd)
+int try_event_dev(CTX, int fd)
 {
 	int ret, got = 0;
 
-	if((ret = check_evt_bits(fd, EV_KEY, 32, check_all_keyacts)) < 0)
+	if((ret = check_key_bits(ctx, fd)) < 0)
 		return 0;
 	else
 		got += ret;
 
-	if((ret = check_evt_bits(fd, EV_SW,   2, check_all_swacts)) < 0)
+	if((ret = check_sw_bits(ctx, fd)) < 0)
 		return 0;
 	else
 		got += ret;
 
-	if(got)
-		mask_msc_events(fd);
+	if(got) mask_msc_events(fd);
 
 	return got;
 }

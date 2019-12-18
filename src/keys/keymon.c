@@ -1,6 +1,7 @@
 #include <sys/file.h>
 #include <sys/ppoll.h>
 #include <sys/signal.h>
+#include <sys/prctl.h>
 
 #include <string.h>
 #include <sigset.h>
@@ -10,186 +11,197 @@
 #include "keymon.h"
 
 ERRTAG("keymon");
-ERRLIST(NEPERM NENOENT NENOTDIR NEACCES NENOTTY NEFAULT NEINVAL NEISDIR
-	NELIBBAD NELOOP NEMFILE NENFILE NENOEXEC NENOMEM NETXTBSY);
 
-#define PFDS (1 + NDEVICES)
-
-static struct sigset defsigset;
-struct pollfd pfds[PFDS];
-int npfds, pfdkeys[PFDS];
-
-char** environ;
-int pollready;
-int sigterm;
-
-typedef struct timespec timespec;
-
-static void sighandler(int sig)
+int find_device_slot(CTX)
 {
-	switch(sig) {
-		case SIGINT:
-		case SIGTERM: sigterm = 1; break;
-	}
+	struct pollfd* pfds = ctx->pfds;
+	int i, npfds = ctx->npfds;
+
+	for(i = FDX; i < npfds; i++)
+		if(pfds[i].fd < 0)
+			goto got;
+	if(i >= NPFDS)
+		return -1;
+got:
+	return i - FDX;
 }
 
-void setup_signals(void)
+void set_static_fd(CTX, int i, int fd)
 {
-	SIGHANDLER(sa, sighandler, SA_RESTART);
-	int ret;
-
-	sigemptyset(&sa.mask);
-
-	if((ret = sys_sigprocmask(SIG_BLOCK, &sa.mask, &defsigset)) < 0)
-		fail("sigprocmask", "SIG_BLOCK", ret);
-
-	if((ret = sys_sigaction(SIGINT,  &sa, NULL)) < 0)
-		fail("sigaction", "SIGINT", ret);
-	if((ret = sys_sigaction(SIGTERM, &sa, NULL)) < 0)
-		fail("sigaction", "SIGTERM", ret);
-	if((ret = sys_sigaction(SIGALRM, &sa, NULL)) < 0)
-		fail("sigaction", "SIGALRM", ret);
-}
-
-static int add_poll_fd(int n, int fd, int key)
-{
-	if(fd <= 0)
-		return n;
-
-	struct pollfd* pf = &pfds[n];
+	struct pollfd* pfds = ctx->pfds;
+	struct pollfd* pf = &pfds[i];
 
 	pf->fd = fd;
 	pf->events = POLLIN;
-	pfdkeys[n] = key;
 
-	return n + 1;
-}
-
-void update_poll_fds(void)
-{
-	int i, n = 0;
-
-	n = add_poll_fd(n, inotifyfd, 0);
-
-	for(i = 0; i < ndevices; i++)
-		n = add_poll_fd(n, devices[i].fd, 1 + i);
-
-	npfds = n;
-	pollready = 1;
-}
-
-/* Failing fds are dealt with immediately, to avoid re-queueing
-   them from ppoll. For keyboards, this is also the only place
-   where the fds get closed. Control fds are closed either here
-   or in closevt(). */
-
-static void close_device(struct device* kb)
-{
-	sys_close(kb->fd);
-	memzero(kb, sizeof(kb));
-	pollready = 0;
-}
-
-static void recv_device(struct pollfd* pf, struct device* kb)
-{
-	if(pf->revents & POLLIN)
-		handle_input(kb, pf->fd);
-	if(pf->revents & ~POLLIN)
-		close_device(kb);
-}
-
-static void recv_inotify(struct pollfd* pf)
-{
-	if(pf->revents & POLLIN)
-		handle_inotify(pf->fd);
-	if(pf->revents & ~POLLIN)
-		fail("inotify fd gone", NULL, 0);
-}
-
-
-void check_polled_fds(void)
-{
-	int i, key;
-
-	for(i = 0; i < npfds; i++)
-		if((key = pfdkeys[i]) == 0)
-			recv_inotify(&pfds[i]);
-		else if(key > 0)
-			recv_device(&pfds[i], &devices[key-1]);
-}
-
-static timespec* prep_poll_time(timespec* ts0, timespec* ts1)
-{
-	struct action* ka;
-	int timetowait = 0;
-
-	for(ka = actions; ka < actions + nactions; ka++)
-		if(!ka->time)
-			continue;
-		else if(!timetowait || ka->time < timetowait)
-			timetowait = ka->time;
-
-	if(timetowait <= 0)
-		return NULL;
-
-	ts0->sec = timetowait / 1000;
-	ts0->nsec = (timetowait % 1000) * 1000000;
-
-	*ts1 = *ts0;
-
-	return ts1;
-}
-
-static void update_timers(timespec* ts0, timespec* ts1)
-{
-	long wait = ts0->sec*1000 + ts0->nsec/1000000;
-	long left = ts1->sec*1000 + ts1->nsec/1000000;
-	long diff = wait - left;
-
-	if(diff <= 0)
+	if(i < ctx->npfds)
 		return;
 
-	struct action* ka;
+	int npfds = i + 1;
 
-	for(ka = actions; ka < actions + nactions; ka++)
-		if(!ka->time)
-			continue;
-		else if(ka->time <= diff)
-			hold_done(ka);
-		else
-			ka->time -= diff;
+	ctx->npfds = i + 1;
+	ctx->nbits = npfds > 2 ? npfds - 2 : 0;
+}
+
+void set_device_fd(CTX, int i, int fd)
+{
+	set_static_fd(ctx, i + FDX, fd);
+}
+
+static void update_npfds(CTX)
+{
+	struct pollfd* pfds = ctx->pfds;
+	int n = ctx->npfds;
+
+	while(n > FDX) {
+		struct pollfd* pf = &pfds[n-1];
+
+		if(pf->fd >= 0) break;
+
+		n--;
+	}
+
+	ctx->npfds = n;
+}
+
+static void handle_signals(CTX, int fd)
+{
+	struct siginfo si;
+	int ret;
+
+	if((ret = sys_read(fd, &si, sizeof(si))) < 0)
+		fail("read", "sigfd", ret);
+	if(ret == 0)
+		fail("signalfd EOF", NULL, 0);
+
+	int sig = si.signo;
+
+	if(sig != SIGCHLD)
+		return;
+
+	check_children(ctx);
+}
+
+static void close_device(CTX, struct pollfd* pf, byte* mods)
+{
+	sys_close(pf->fd);
+
+	pf->fd = -1;
+	pf->events = 0;
+
+	*mods = 0;
+
+	update_npfds(ctx);
+}
+
+static void check_device(CTX, struct pollfd* pf, byte* mods)
+{
+	int revents = pf->revents;
+
+	if(revents & POLLIN)
+		handle_input(ctx, pf->fd, mods);
+	if(revents & ~POLLIN)
+		close_device(ctx, pf, mods);
+}
+
+static void check_signals(CTX, struct pollfd* pf)
+{
+	int revents = pf->revents;
+
+	if(revents & ~POLLIN)
+		fail("lost", "signalfd", 0);
+	if(revents & POLLIN)
+		handle_signals(ctx, pf->fd);
+}
+
+static void check_inotify(CTX, struct pollfd* pf)
+{
+	int revents = pf->revents;
+
+	if(revents & ~POLLIN)
+		fail("lost", "inotify", 0);
+	if(revents & POLLIN)
+		handle_inotify(ctx, pf->fd);
+}
+
+static void check_polled_fds(CTX)
+{
+	struct pollfd* pfds = ctx->pfds;
+	int i, npfds = ctx->npfds;
+	byte* bits = ctx->bits;
+
+	for(i = FDX; i < npfds; i++)
+		check_device(ctx, &pfds[i], &bits[i-FDX]);
+
+	check_inotify(ctx, &pfds[1]);
+	check_signals(ctx, &pfds[0]);
+}
+
+static void poll(CTX)
+{
+	struct pollfd* pfds = ctx->pfds;
+	int npfds = ctx->npfds;
+	struct act* held = ctx->held;
+	struct timespec* ts = held ? &ctx->ts : NULL;
+
+	int ret = sys_ppoll(pfds, npfds, ts, NULL);
+
+	if(ret == 0)
+		hold_timeout(ctx, held);
+	else if(ret > 0)
+		check_polled_fds(ctx);
+	else if(ret != -EINTR)
+		fail("ppoll", NULL, ret);
+}
+
+static void open_signals(CTX)
+{
+	int fd, ret;
+	struct sigset mask;
+	int flags = SFD_NONBLOCK | SFD_CLOEXEC;
+
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGCHLD);
+
+	if((fd = sys_signalfd(-1, &mask, flags)) < 0)
+		fail("signalfd", NULL, fd);
+	if((ret = sys_sigprocmask(SIG_SETMASK, &mask, NULL)) < 0)
+		fail("sigprocmask", NULL, ret);
+
+	set_static_fd(ctx, 0, fd);
+}
+
+static void set_subreaper(void)
+{
+	int ret;
+
+	if((ret = sys_prctl(PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0)) < 0)
+		fail("prctl", "PR_SET_CHILD_SUBREAPER", ret);
 }
 
 int main(int argc, char** argv)
 {
-	int ret;
-	timespec ts0, ts1, *pts;
+	struct top context, *ctx = &context;
+	struct pollfd pfds[NPFDS];
+	byte bits[NDEVS];
+	byte acts[ACLEN];
 
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);
 
-	environ = argv + argc + 1;
+	memzero(ctx, sizeof(*ctx));
 
-	load_config();
-	setup_signals();
-	setup_devices();
+	ctx->environ = argv + argc + 1;
+	ctx->bits = bits;
+	ctx->acts = acts;
+	ctx->pfds = pfds;
+	ctx->npfds = 2;
+	ctx->nbits = 0;
 
-	while(!sigterm) {
-		if(!pollready)
-			update_poll_fds();
+	load_config(ctx);
+	open_signals(ctx);
+	scan_devices(ctx);
+	set_subreaper();
 
-		pts = prep_poll_time(&ts0, &ts1);
-
-		ret = sys_ppoll(pfds, npfds, pts, &defsigset);
-
-		if(ret < 0 && ret != -EINTR)
-			fail("ppoll", NULL, ret);
-		else if(ret > 0)
-			check_polled_fds();
-		if(pts)
-			update_timers(&ts0, &ts1);
-
-	}
-
-	return 0;
+	while(1) poll(ctx);
 }

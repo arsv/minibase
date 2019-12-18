@@ -78,22 +78,26 @@ static const struct sw {
 	{ "Dock",        SW_DOCK             }
 };
 
-int find_key(char* name)
+int find_key(char* name, int nlen)
 {
 	const struct key* ky;
 	const struct sw* sw;
 	int code;
-	char* p;
+	char* q;
 
-	if((p = parseint(name, &code)) && !*p)
+	FMTBUF(p, e, nbuf, 50);
+	p = fmtstrn(p, e, name, nlen);
+	FMTEND(p, e);
+
+	if((q = parseint(nbuf, &code)) && !*q)
 		return code;
 
 	for(ky = keys; ky < ARRAY_END(keys); ky++)
-		if(!strncmp(ky->name, name, sizeof(ky->name)))
+		if(!strncmp(ky->name, nbuf, sizeof(ky->name)))
 			return ky->code;
 
 	for(sw = sws; sw < ARRAY_END(sws); sw++)
-		if(!strncmp(sw->name, name, sizeof(sw->name)))
+		if(!strncmp(sw->name, nbuf, sizeof(sw->name)))
 			return sw->code | CODE_SWITCH;
 
 	return 0;

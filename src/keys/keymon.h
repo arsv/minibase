@@ -14,11 +14,16 @@
    Making either constant configuration likely makes little sense, not
    nearly enough to justify the complexity. */
 
-#define HOLDTIME   1000 /* 1s in ms; for keys */
-#define LONGTIME  10000 /* 10s in ms; for switches */
+#include <bits/time.h>
 
-#define NDEVICES 40
-#define NACTIONS 40
+#define HOLDTIME   1 /* sec; for keys */
+#define LONGTIME  10 /* sec; for switches */
+
+#define FDX 2
+
+#define NDEVS 30
+#define NPFDS (FDX + NDEVS)
+#define ACLEN 1024
 
 #define CODE_SWITCH (1<<15)
 
@@ -32,38 +37,47 @@
 #define KEYM_LALT    (1<<6)
 #define KEYM_RALT    (1<<7)
 
-struct device {
-	int fd;
-	int minor;
-	int mods;
-};
-
-struct action {
+struct act {
+	short len;
 	short mode;
 	short code;
-	char cmd[20];
-	char arg[32];
-	int time;
-	int minor;
+	int pid;
+	char cmd[];
 };
 
-extern char** environ;
+struct top {
+	char** environ;
 
-extern struct device devices[];
-extern struct action actions[];
-extern int ndevices;
-extern int nactions;
+	int npfds;
+	int aclen;
+	int nbits;
+	byte* bits; /* byte[NPFDS] */
+	void* pfds; /* struct pollfd[NPFDS] */
+	void* acts; /* [ act, act, ... ] */
 
-extern int inotifyfd;
-extern int pollready;
+	struct act* held;
+	struct timespec ts;
 
-void load_config(void);
-void handle_inotify(int fd);
-void handle_input(struct device* kb, int fd);
-void poll_inputs(void);
-void setup_signals(void);
-void setup_devices(void);
-int try_event_dev(int fd);
+	int modstate;
 
-int find_key(char* name);
-void hold_done(struct action* ka);
+	int dfd;
+};
+
+#define CTX struct top* ctx
+
+void load_config(CTX);
+void handle_inotify(CTX, int fd);
+void handle_input(CTX, int fd, byte* mods);
+void scan_devices(CTX);
+int try_event_dev(CTX, int fd);
+void check_children(CTX);
+
+void set_static_fd(CTX, int i, int fd);
+void set_device_fd(CTX, int i, int fd);
+int find_device_slot(CTX);
+
+int find_key(char* name, int nlen);
+void hold_timeout(CTX, struct act* ka);
+
+struct act* first(CTX);
+struct act* next(CTX, struct act* at);
