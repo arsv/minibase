@@ -15,9 +15,9 @@
 #include <util.h>
 #include <main.h>
 
-ERRTAG("acpid");
+#include "common.h"
 
-static const char confdir[] = HERE "/etc/acpi";
+ERRTAG("acpid");
 
 struct acpievent {
         char cls[20];
@@ -33,23 +33,20 @@ static const struct action {
 	int data;
 	char script[20];
 } actions[] = {
-	{ "ac_adapter",   0, "battery" },
-	{ "ac_adapter",   1, "acpower" },
-	{ "button/sleep", 1, "sleep"   },
-	{ "button/power", 1, "power"   }
+	{ "ac_adapter",   0, "battery"  },
+	{ "ac_adapter",   1, "acpower"  },
+	{ "button/sleep", 1, "sleepbtn" },
+	{ "button/power", 1, "powerbtn" }
 };
 
 static void spawn_handler(const char* script, char** envp)
 {
-	char path[sizeof(confdir)+strlen(script)+5];
-	char* p = path;
-	char* e = path + sizeof(path) - 1;
 	int pid, status, ret;
 
-	p = fmtstr(p, e, confdir);
-	p = fmtstr(p, e, "/");
+	FMTBUF(p, e, path, 200);
+	p = fmtstr(p, e, CONFDIR "/");
 	p = fmtstr(p, e, script);
-	*p++ = '\0';
+	FMTEND(p, e);
 
 	if((pid = sys_fork()) < 0) {
 		warn("fork", NULL, pid);
