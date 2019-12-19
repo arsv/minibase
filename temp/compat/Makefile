@@ -1,5 +1,40 @@
-all = basename chvt dirname echo false head kill \
-	mkdir mknod pwd rm rmdir sleep tee touch true uname uptime \
-	wc xargs yes
+all = \
+      basename \
+      cat \
+      chmod \
+      chown \
+      chvt \
+      clear \
+      df \
+      dirname \
+      du \
+      echo \
+      false \
+      ff \
+      fn \
+      head \
+      kill \
+      lr \
+      ls \
+      mkdir \
+      mknod \
+      pwd \
+      ren \
+      rm \
+      rmdir \
+      sleep \
+      stat \
+      symlink \
+      sync \
+      tee \
+      time \
+      touch \
+      true \
+      uname \
+      uptime \
+      wc \
+      which \
+      xargs \
+      yes
 
 include ../rules.mk
