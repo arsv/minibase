@@ -19,16 +19,6 @@ int cmd_cd(CTX)
 	return fchk(sys_chdir(dir), ctx, dir);
 }
 
-int cmd_exec(CTX)
-{
-	if(noneleft(ctx))
-		return -1;
-
-	char** argv = argsleft(ctx);
-
-	return fchk(execvpe(*argv, argv, ctx->envp), ctx, *argv);
-}
-
 int cmd_exit(CTX)
 {
 	int code = 0;
@@ -39,26 +29,6 @@ int cmd_exit(CTX)
 		return -1;
 
 	exit(ctx, code);
-}
-
-int cmd_invoke(CTX)
-{
-	int nargs = numleft(ctx);
-	int norig = ctx->topargc - ctx->topargp;
-
-	if(!nargs)
-		return error(ctx, "too few arguments", NULL, 0);
-
-	char** args = ctx->argv + ctx->argp;
-	char** orig = ctx->topargv + ctx->topargp;
-
-	char* argv[nargs + norig + 1];
-
-	memcpy(argv, args, nargs*sizeof(char*));
-	memcpy(argv + nargs, orig, norig*sizeof(char*));
-	argv[nargs+norig] = NULL;
-
-	return fchk(execvpe(*argv, argv, ctx->envp), ctx, *argv);
 }
 
 static int print(CTX, int fd)

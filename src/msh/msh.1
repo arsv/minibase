@@ -1,7 +1,7 @@
 .TH msh 1
 '''
 .SH NAME
-\fBmsh\fR \- mini-shell, a non-interactive batch command runner
+\fBmsh\fR \- mini-shell, process setup tool and batch command runner
 '''
 .SH SYNOPSIS
 \fBmsh\fR \fIscript\fR \fIarguments\fR ...
@@ -9,11 +9,11 @@
 \fBmsh -c\fR \fIcommands\fR \fIarguments\fR ...
 '''
 .SH DESCRIPTION
-A non-interactive command interpreter capable of running simple command
-sequences and setting up process environment. It is indended to be used
-in place of (much larger) POSIX shell for system and service startup scripts
-that make no use of advanced scripting features but could benefit from
-smaller interpreter and specific builtins.
+\fBmsh\fR is a non-interactive command interpreter intended mostly for setting
+up process environment for other applications, and running simple non-branching
+command sequences. It is meant to be used in place of (much larger) POSIX shell
+for system and service startup scripts that make no use of advanced scripting
+features but could benefit from smaller interpreter and specific builtins.
 '''
 .SH EXAMPLE
 .nf
@@ -23,7 +23,7 @@ smaller interpreter and specific builtins.
 VAR="some value"
 
 # Running commands
-kmod e1000e
+run /sbin/kmod e1000e
 echo "Module loaded"
 
 # Variable substitution
@@ -48,10 +48,13 @@ See \fBnanosleep\fR(2). Fractional values are supported.
 Wait until \fIfile\fR appears.
 .IP "\fBexit\fR [\fIcode\fR]" 4
 Terminate current process.
-.IP "\fBexec\fR \fIcommand\fR \fIarg\fR \fIarg\fR ..." 4
+.IP "\fBexec\fR \fI/path/to/executable\fR \fIarg\fR \fIarg\fR ..." 4
 Replace current process with \fIcommand\fR. See \fBexecve\fR(2).
-.IP "\fBinvoke\fR \fIcommand\fR \fIarg\fR \fIarg\fR ..." 4
+.IP "\fBinvoke\fR \fI/path/to/executable\fR \fIarg\fR \fIarg\fR ..." 4
 Do like \fBexec\fR but also append arguments passed to \fBmsh\fR itself.
+.IP "\fBrun\fR \fI/path/to/executable\fR \fIarg\fR \fIarg\fR ..." 4
+Spawn \fIcommand\fR and wait for it to complete. See \fBfork\fR(2),
+\fBwaitpid\fR(2).
 .IP "\fBonexit\fR \fI/path/to/executable\fR" 4
 Instruct msh to exec into \fIexecutable\fR instead of exiting on error
 on at the end of script.
@@ -104,17 +107,17 @@ See \fBcapabilities\fR(7). \fIKey\fR for CAP_DAC_OVERRIDE is
 \fBdac-override\fR. Options: \fBp\fRermitted, \fBe\fRffective,
 \fBi\fRnheritable, \fBa\fRmbient, \fBb\fRounding. Default is \fB-peiab\fR.
 '''
-.SH ENVIRONMENT
-.IP "PATH" 8
-Colon-separated list of directories to look for commands, see \fBexecvp\fR(3).
-'''
 .SH NOTES
+\fBmsh\fR is not a POSIX shell, and does a lot of things differently.
+.P
 Common POSIX shell features not supported in msh: redirections (>file),
 pipes (|cmd), globbing (*), background execution (&), jobs, control flow
 (while, case), advanced variable substituion (${var...}), backticks.
 .P
-Like \fBmake\fR but unlike POSIX shell, msh aborts on the first failed
-command. Prefix the command with \fB-\fR to proceed over failure.
+\fBmsh\fR does not use PATH to locate executables.
+.P
+Like \fBmake\fR but unlike the POSIX shell, msh aborts on the first failed
+command by default.
 .P
 Variable references ($var) in msh are always treated as a single token
 regardless of the stored value, more like "$var" works in POSIX shell.
@@ -134,6 +137,3 @@ use the following sequence:
 .P
 Capability-aware commands may need \fB-i\fR or \fB-ib\fR, possibly with
 \fB-a\fR. Refer to \fBcapabilities\fR(7).
-'''
-.SH SEE ALSO
-\fBsh\fR(1), \fBexecvp\fR(3)

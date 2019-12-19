@@ -57,8 +57,6 @@ struct sh {
 	char* hend;
 	char* var;       /* heap ptr to $var being substituted */
 
-	int dash;        /* leading - to suppress abort-on-failure */
-
 	char pid[20];
 
 	char trap[50];   /* see cmd_onexit() */
