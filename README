@@ -46,7 +46,6 @@ Components currently included in the package:
   * time synchronization (SNTP) service (timed)
 
   * simple interactive shell (cmd).
-  * basic command line tools (cat, ls, du, df etc).
   * small linux-specific tools (systime, sync, dmesg etc).
 
   - no package manager yet.
