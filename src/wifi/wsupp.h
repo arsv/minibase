@@ -45,12 +45,6 @@ extern int operstate;
 extern int scanstate;
 extern int authstate;
 
-extern struct heap {
-	void* org;
-	void* ptr;
-	void* brk;
-} hp;
-
 /* The AP we're tuned on */
 
 extern struct ap {
@@ -169,3 +163,5 @@ int sigint_script(void);
 int sighup_script(void);
 void stop_wait_script(void);
 void force_script(void);
+
+void reset_heap(void);

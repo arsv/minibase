@@ -11,7 +11,11 @@ struct scan scans[NSCANS];
 int nconns;
 int nscans;
 
-struct heap hp;
+struct {
+	void* org;
+	void* ptr;
+	void* brk;
+} hp;
 
 static void* grab_slot(void* slots, int* count, int total, int size)
 {
@@ -174,4 +178,9 @@ void maybe_trim_heap(void)
 
 	sys_brk(brk);
 	hp.brk = brk;
+}
+
+void reset_heap(void)
+{
+	hp.ptr = hp.org;
 }

@@ -129,7 +129,7 @@ static void reset_ies_data(void)
 		sc->flags &= ~(SF_SEEN | SF_GOOD | SF_TKIP);
 	}
 
-	hp.ptr = hp.org; /* heap reset */
+	reset_heap();
 }
 
 /* Note we cannot replace IEs partially atm, only all at once.

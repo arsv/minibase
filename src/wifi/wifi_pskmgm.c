@@ -7,7 +7,6 @@
 #include <string.h>
 #include <output.h>
 #include <format.h>
-#include <heap.h>
 #include <util.h>
 
 #include "common.h"

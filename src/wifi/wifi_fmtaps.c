@@ -1,5 +1,4 @@
 #include <nlusctl.h>
-#include <heap.h>
 #include <util.h>
 #include <string.h>
 #include <format.h>
