@@ -73,6 +73,24 @@ int cmd_setprio(CTX)
 	return fchk(sys_setpriority(0, 0, prio), ctx, NULL);
 }
 
+int cmd_setcpus(CTX)
+{
+	int id;
+	struct cpuset mask;
+
+	memzero(&mask, sizeof(mask));
+next:
+	if(shift_int(ctx, &id) < 0)
+		return -1;
+
+	cpuset_set(&mask, id);
+
+	if(numleft(ctx))
+		goto next;
+
+	return fchk(sys_sched_setaffinity(0, &mask), ctx, NULL);
+}
+
 int cmd_umask(CTX)
 {
 	int mask;

@@ -84,6 +84,8 @@ Set real, effective and saved user ids to those of \fIuser\fR.
 Same with group ids.
 .IP "\fBgroups\fR \fIgroup\fR \fIgroup\fR ..." 4
 See \fBsetgroups\fR(2).
+.IP "\fBsetcpus\fR \fIn n n\fR ..." 4
+See \fBsched_setaffinity\fR(2). CPUs are numbered starting from 0.
 .IP "\fBsetprio\fR \fInumber\fR" 4
 See \fBsetpriority\fR(2). The argument is in Linux units, 1-40.
 .IP "\fBrlimit\fR \fIkey\fR \fIcur\fR [\fImax\fR]" 4
