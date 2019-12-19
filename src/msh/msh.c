@@ -7,10 +7,17 @@
 
 ERRTAG("msh");
 
-static void parsefd(CTX, int fd)
+static void parsefile(CTX, char* name)
 {
 	char inbuf[2048];
-	int rd;
+	int fd, rd;
+	int flags = O_RDONLY | O_CLOEXEC;
+
+	if((fd = sys_open(name, flags)) < 0)
+		quit(ctx, NULL, name, fd);
+
+	ctx->file = name;
+	ctx->line = 1;
 
 	while((rd = sys_read(fd, inbuf, sizeof(inbuf))) > 0) {
 		parse(ctx, inbuf, rd);
@@ -22,21 +29,6 @@ static void parsefd(CTX, int fd)
 static void parsestr(CTX, char* str)
 {
 	parse(ctx, str, strlen(str));
-}
-
-static int openfile(CTX, char* name)
-{
-	int fd;
-
-	if((fd = sys_open(name, O_RDONLY | O_CLOEXEC)) < 0)
-		quit(ctx, "open", name, fd);
-
-	if(!ctx->file) {
-		ctx->file = name;
-		ctx->line = 1;
-	}
-
-	return fd;
 }
 
 #define OPT_c (1<<0)
@@ -57,7 +49,6 @@ static int parseopts(CTX, char* str)
 int main(int argc, char** argv)
 {
 	struct sh ctx;
-	long fd = STDIN;
 	char* script = NULL;
 	int opts = 0;
 	int i = 1;
@@ -68,12 +59,10 @@ int main(int argc, char** argv)
 
 	if(i < argc && argv[i][0] == '-')
 		opts = parseopts(&ctx, argv[i++] + 1);
-	if(i < argc)
-		script = argv[i++];
-	if(!(opts & OPT_c) && script)
-		fd = openfile(&ctx, script);
-	if(!(opts & OPT_c))
-		ctx.line = 1;
+	if(i >= argc)
+		fatal(&ctx, "script name required", NULL);
+
+	script = argv[i++];
 
 	ctx.topargc = argc;
 	ctx.topargp = i;
@@ -82,7 +71,7 @@ int main(int argc, char** argv)
 	hinit(&ctx);
 
 	if(!(opts & OPT_c))
-		parsefd(&ctx, fd);
+		parsefile(&ctx, script);
 	else
 		parsestr(&ctx, script);
 
