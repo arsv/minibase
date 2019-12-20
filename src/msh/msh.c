@@ -48,34 +48,36 @@ static int parseopts(CTX, char* str)
 
 int main(int argc, char** argv)
 {
-	struct sh ctx;
+	struct sh context, *ctx = &context;
 	char* script = NULL;
 	int opts = 0;
 	int i = 1;
 
-	memset(&ctx, 0, sizeof(ctx));
-	ctx.envp = argv + argc + 1;
-	ctx.errfd = STDERR;
+	memzero(ctx, sizeof(*ctx));
+
+	ctx->envp = argv + argc + 1;
+	ctx->errfd = STDERR;
+	ctx->sigfd = -1;
 
 	if(i < argc && argv[i][0] == '-')
-		opts = parseopts(&ctx, argv[i++] + 1);
+		opts = parseopts(ctx, argv[i++] + 1);
 	if(i >= argc)
-		fatal(&ctx, "script name required", NULL);
+		fatal(ctx, "script name required", NULL);
 
 	script = argv[i++];
 
-	ctx.topargc = argc;
-	ctx.topargp = i;
-	ctx.topargv = argv;
+	ctx->topargc = argc;
+	ctx->topargp = i;
+	ctx->topargv = argv;
 
-	hinit(&ctx);
+	hinit(ctx);
 
 	if(!(opts & OPT_c))
-		parsefile(&ctx, script);
+		parsefile(ctx, script);
 	else
-		parsestr(&ctx, script);
+		parsestr(ctx, script);
 
-	pfini(&ctx);
+	pfini(ctx);
 
-	exit(&ctx, 0);
+	exit(ctx, 0);
 }

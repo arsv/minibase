@@ -57,9 +57,11 @@ struct sh {
 	char* hend;
 	char* var;       /* heap ptr to $var being substituted */
 
-	char pid[20];
+	char pid[20];    /* $$ value for substitution */
 
 	char trap[50];   /* see cmd_onexit() */
+
+	int sigfd;
 
 	struct mbuf passwd;
 	struct mbuf group;
