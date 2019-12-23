@@ -144,7 +144,7 @@ static int prep_pwfile(CTX, struct mbuf* mb, char* pwfile)
 	if(mb->buf)
 		return 0;
 	if((ret = mmapfile(mb, pwfile)) < 0)
-		return error(ctx, "cannot mmap", pwfile, ret);
+		error(ctx, "cannot mmap", pwfile, ret);
 
 	return 0;
 }
@@ -158,11 +158,10 @@ static int resolve_pwname(CTX, char* name, int* id,
 	if((p = parseint(name, id)) && !*p)
 		return 0;
 
-	if(prep_pwfile(ctx, mb, file))
-		return -1;
+	prep_pwfile(ctx, mb, file);
 
 	if((ret = mapid(mb, name)) < 0)
-		return error(ctx, notfound, name, 0);
+		fatal(ctx, notfound, name);
 
 	*id = ret;
 

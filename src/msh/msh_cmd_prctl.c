@@ -30,24 +30,23 @@ static int striplock(char* str)
 	return 1;
 }
 
-static int prctl_secbits(CTX)
+static void prctl_secbits(CTX)
 {
 	int lock, bits = 0;
 	int cmd = PR_SET_SECUREBITS;
 	const struct secbit* sb;
 	char* arg;
 
-	if(noneleft(ctx))
-		return -1;
+	need_some_arguments(ctx);
 
-	while((arg = shift(ctx))) {
+	while((arg = next(ctx))) {
 		lock = striplock(arg);
 
 		for(sb = secbits; sb < ARRAY_END(secbits); sb++)
 			if(!strncmp(sb->name, arg, sizeof(sb->name)))
 				break;
 		if(sb >= ARRAY_END(secbits))
-			return error(ctx, "unknown bit", arg, 0);
+			fatal(ctx, "unknown bit", arg);
 
 		bits |= (1 << sb->bit);
 
@@ -56,35 +55,37 @@ static int prctl_secbits(CTX)
 		bits |= (1 << (sb->bit + 1));
 	}
 
-	return fchk(sys_prctl(cmd, bits, 0, 0, 0), ctx, NULL);
+	int ret = sys_prctl(cmd, bits, 0, 0, 0);
+
+	check(ctx, "prctl", NULL, ret);
 }
 
-static int prctl_nonewprivs(CTX)
+static void prctl_nonewprivs(CTX)
 {
 	int cmd = PR_SET_NO_NEW_PRIVS;
 
-	if(moreleft(ctx))
-		return -1;
+	no_more_arguments(ctx);
 
-	return fchk(sys_prctl(cmd, 1, 0, 0, 0), ctx, NULL);
+	int ret = sys_prctl(cmd, 1, 0, 0, 0);
+
+	check(ctx, "prctl", NULL, ret);
 }
 
-static int prctl_seccomp(CTX)
+static void prctl_seccomp(CTX)
 {
+	char* file = shift(ctx);
+
+	no_more_arguments(ctx);
+
 	struct mbuf mb;
 	int ret;
-	char* file;
 
-	if(shift_str(ctx, &file))
-		return -1;
-	if(moreleft(ctx))
-		return -1;
-	if(fchk(mmapfile(&mb, file), ctx, file))
-		return -1;
-	if(!mb.len || mb.len % 8) {
-		ret = error(ctx, "odd size:", file, 0);
-		goto out;
-	}
+	ret = mmapfile(&mb, file);
+
+	check(ctx, NULL, file, ret);
+
+	if(!mb.len || mb.len % 8)
+		fatal(ctx, "odd size:", file);
 
 	struct seccomp sc = {
 		.len = mb.len / 8,
@@ -92,18 +93,17 @@ static int prctl_seccomp(CTX)
 	};
 
 	int mode = SECCOMP_SET_MODE_FILTER;
-	ret = fchk(sys_seccomp(mode, 0, &sc), ctx, file);
-out:
+
+	ret = sys_seccomp(mode, 0, &sc);
+
+	check(ctx, "seccomp", file, ret);
+
 	munmapfile(&mb);
-	return ret;
 }
 
-int cmd_prctl(CTX)
+void cmd_prctl(CTX)
 {
-	char* arg;
-
-	if(!(arg = shift(ctx)))
-		return noneleft(ctx);
+	char* arg = shift(ctx);
 
 	if(!strcmp(arg, "no-new-privs"))
 		return prctl_nonewprivs(ctx);
@@ -112,5 +112,5 @@ int cmd_prctl(CTX)
 	if(!strcmp(arg, "seccomp"))
 		return prctl_seccomp(ctx);
 
-	return error(ctx, "unknown prctl", arg, 0);
+	fatal(ctx, "unknown prctl", arg);
 }

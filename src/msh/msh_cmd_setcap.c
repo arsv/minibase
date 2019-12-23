@@ -58,34 +58,34 @@ static const struct cap {
 #define OPT_p (1<<3)
 #define OPT_e (1<<4)
 
-static int parsecaps(CTX, int* bits)
+static void parsecaps(CTX, int* bits)
 {
 	const struct cap* sc;
 	char* arg;
 
-	while((arg = shift(ctx))) {
+	need_some_arguments(ctx);
+
+	while((arg = next(ctx))) {
 		for(sc = caps; sc < ARRAY_END(caps); sc++)
 			if(!strncmp(sc->name, arg, sizeof(sc->name)))
 				break;
 		if(sc >= ARRAY_END(caps))
-			return error(ctx, "unknown cap", arg, 0);
+			fatal(ctx, "unknown cap", arg);
 
 		int idx = (sc->val / 32);
 		int bit = (sc->val & 31);
 
 		bits[idx] |= (1 << bit);
 	}
-
-	return 0;
 }
 
-static int setbcaps(CTX, int* bits, int opts)
+static void setbcaps(CTX, int* bits, int opts)
 {
 	const struct cap* sc;
 	int ret;
 
 	if(!(opts & OPT_b))
-		return 0;
+		return;
 
 	for(sc = caps; sc->name[0]; sc++) {
 		int cap = sc->val;
@@ -95,10 +95,8 @@ static int setbcaps(CTX, int* bits, int opts)
 		if(bits[idx] & (1 << bit))
 			continue;
 		if((ret = sys_prctl(PR_CAPBSET_DROP, cap, 0, 0, 0)) < 0)
-			return error(ctx, "prctl", "PR_CAPBSET_DROP", ret);
+			error(ctx, "prctl", "PR_CAPBSET_DROP", ret);
 	}
-
-	return 0;
 }
 
 static int pr_cap_ambient(CTX, int op, int cap)
@@ -106,19 +104,14 @@ static int pr_cap_ambient(CTX, int op, int cap)
 	int ret;
 
 	if((ret = sys_prctl(PR_CAP_AMBIENT, op, cap, 0, 0)) < 0)
-		return error(ctx, "prctl", "PR_CAP_AMBIENT", ret);
+		error(ctx, "prctl", "PR_CAP_AMBIENT", ret);
 
 	return ret;
 }
 
-static int pr_cap_ambient_clear_all(CTX)
+static void pr_cap_ambient_clear_all(CTX)
 {
-	int ret;
-
-	if((ret = pr_cap_ambient(ctx, PR_CAP_AMBIENT_CLEAR_ALL, 0)) < 0)
-		return ret;
-
-	return 0;
+	(void)pr_cap_ambient(ctx, PR_CAP_AMBIENT_CLEAR_ALL, 0);
 }
 
 static int pr_cap_ambient_is_set(CTX, int cap)
@@ -126,12 +119,12 @@ static int pr_cap_ambient_is_set(CTX, int cap)
 	return pr_cap_ambient(ctx, PR_CAP_AMBIENT_IS_SET, cap);
 }
 
-static int setacaps(CTX, int* bits, int opts)
+static void setacaps(CTX, int* bits, int opts)
 {
 	const struct cap* sc;
 
 	if(!(opts & OPT_a))
-		return 0;
+		return;
 	if(!bits[0] && !bits[1])
 		return pr_cap_ambient_clear_all(ctx);
 
@@ -140,23 +133,20 @@ static int setacaps(CTX, int* bits, int opts)
 		int idx = cap / 32;
 		int bit = cap % 32;
 
-		int ret, need = (bits[idx] & (1 << bit));
+		int need = (bits[idx] & (1 << bit));
 
-		if((ret = pr_cap_ambient_is_set(ctx, cap)) < 0)
-			return ret;
+		int ret = pr_cap_ambient_is_set(ctx, cap);
+
 		if((!ret && !need) || (ret && need))
 			continue;
 
 		int op = need ? PR_CAP_AMBIENT_RAISE : PR_CAP_AMBIENT_LOWER;
 
-		if((ret = pr_cap_ambient(ctx, op, cap)) < 0)
-			return ret;
+		(void)pr_cap_ambient(ctx, op, cap);
 	}
-
-	return 0;
 }
 
-static int setepicaps(CTX, int* bits, int opts, struct cap_data* cd)
+static void setepicaps(CTX, int* bits, int opts, struct cap_data* cd)
 {
 	struct cap_header ch = {
 		.version = LINUX_CAPABILITY_VERSION,
@@ -177,10 +167,12 @@ static int setepicaps(CTX, int* bits, int opts, struct cap_data* cd)
 		cd[1].effective &= cd[1].permitted;
 	}
 
-	return fchk(sys_capset(&ch, cd), ctx, "capset");
+	int ret = sys_capset(&ch, cd);
+
+	check(ctx, "capset", NULL, ret);
 }
 
-static int prepcaps(CTX, int* caps, int opts, struct cap_data* cd)
+static void prepcaps(CTX, int* caps, int opts, struct cap_data* cd)
 {
 	int ret;
 	struct cap_header ch = {
@@ -189,10 +181,10 @@ static int prepcaps(CTX, int* caps, int opts, struct cap_data* cd)
 	};
 
 	if((ret = sys_capget(&ch, cd)) < 0)
-		return error(ctx, "capget", NULL, ret);
+		error(ctx, "capget", NULL, ret);
 
 	if(cd[0].effective == cd[0].permitted)
-		return 0;
+		return;
 
 	cd[0].effective = cd[0].permitted;
 	cd[1].effective = cd[1].permitted;
@@ -202,7 +194,8 @@ static int prepcaps(CTX, int* caps, int opts, struct cap_data* cd)
 		cd[1].inheritable |= caps[1];
 	}
 
-	return fchk(sys_capset(&ch, cd), ctx, "capset");
+	if((ret = (sys_capset(&ch, cd))) < 0)
+		error(ctx, "capset", NULL, ret);
 }
 
 static int capopts(CTX, char* arg)
@@ -210,41 +203,39 @@ static int capopts(CTX, char* arg)
 	int opts = 0;
 	char* p;
 
-	for(p = arg; *p; p++)
-		switch(*p) {
-			case 'a': opts |= OPT_a; break;
-			case 'b': opts |= OPT_b; break;
-			case 'i': opts |= OPT_i; break;
-			case 'p': opts |= OPT_p; break;
-			case 'e': opts |= OPT_e; break;
-			default: return error(ctx, "bad mode", arg, 0);
-		}
+	for(p = arg; *p; p++) {
+		char c = *p;
+
+		if(c == 'a') opts |= OPT_a;
+		else if(c == 'b') opts |= OPT_b;
+		else if(c == 'i') opts |= OPT_i;
+		else if(c == 'p') opts |= OPT_p;
+		else if(c == 'e') opts |= OPT_e;
+		else fatal(ctx, "bad mode", arg);
+	}
 
 	return opts;
 }
 
-int cmd_setcaps(CTX)
+void cmd_setcaps(CTX)
 {
 	struct cap_data dh[2];
 	int caps[2] = { 0, 0 };
-	int ret, opts;
+	char* optstr;
+	int opts;
 
-	if(dasharg(ctx))
-		opts = capopts(ctx, shift(ctx) + 1);
+	if((optstr = dash_opts(ctx)))
+		opts = capopts(ctx, optstr);
 	else
 		opts = OPT_a | OPT_b | OPT_p | OPT_i;
 
-	if((ret = parsecaps(ctx, caps)))
-		return ret;
+	parsecaps(ctx, caps);
 
-	if((ret = prepcaps(ctx, caps, opts, dh)))
-		return ret;
-	if((ret = setbcaps(ctx, caps, opts)))
-		return ret;
-	if((ret = setacaps(ctx, caps, opts)))
-		return ret;
-	if((ret = setepicaps(ctx, caps, opts, dh)))
-		return ret;
+	prepcaps(ctx, caps, opts, dh);
 
-	return 0;
+	setbcaps(ctx, caps, opts);
+
+	setacaps(ctx, caps, opts);
+
+	setepicaps(ctx, caps, opts, dh);
 }

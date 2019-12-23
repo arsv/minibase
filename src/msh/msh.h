@@ -99,22 +99,21 @@ int export(CTX, char* var);
 void command(CTX);
 
 void exit(CTX, int code) noreturn;
-void quit(CTX, const char* err, char* arg, long ret) noreturn;
-int error(CTX, const char* err, char* arg, long ret);
+void quit(CTX, const char* err, char* arg, int ret) noreturn;
+void error(CTX, const char* err, char* arg, int ret) noreturn;
 void fatal(CTX, const char* err, char* arg) noreturn;
-int fchk(long ret, CTX, char* arg);
 
-int numleft(CTX);
-int dasharg(CTX);
-int moreleft(CTX);
-int noneleft(CTX);
-char** argsleft(CTX);
-char* peek(CTX);
 char* shift(CTX);
-int shift_str(CTX, char** dst);
-int shift_int(CTX, int* dst);
-int shift_u64(CTX, uint64_t* dst);
-int shift_oct(CTX, int* dst);
+char* next(CTX);
+void shift_int(CTX, int* dst);
+void shift_u64(CTX, uint64_t* dst);
+void shift_oct(CTX, int* dst);
+void no_more_arguments(CTX);
+int got_more_arguments(CTX);
+void need_some_arguments(CTX);
+void check(CTX, const char* msg, char* arg, int ret);
+char** argsleft(CTX);
+char* dash_opts(CTX);
 
 int mmapfile(struct mbuf* mb, char* name);
 int munmapfile(struct mbuf* mb);

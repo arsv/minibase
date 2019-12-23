@@ -5,8 +5,6 @@
 
 #include "msh.h"
 
-ERRTAG("msh");
-
 static void parsefile(CTX, char* name)
 {
 	char inbuf[2048];
@@ -35,15 +33,12 @@ static void parsestr(CTX, char* str)
 
 static int parseopts(CTX, char* str)
 {
-	char* p;
-	int opts = 0;
+	if(!*str)
+		return 0;
+	if(*str == 'c')
+		return OPT_c;
 
-	for(p = str; *p; p++) switch(*p) {
-		case 'c': opts |= OPT_c; break;
-		default: fatal(ctx, "unknown options", str);
-	}
-
-	return opts;
+	fatal(ctx, "unknown options", str);
 }
 
 int main(int argc, char** argv)

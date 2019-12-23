@@ -7,7 +7,7 @@
 
 #define NANOFRAC 1000000000 /* nanoseconds in a second */
 
-static int parsetime(CTX, struct timespec* sp, char* str)
+static void parsetime(CTX, struct timespec* sp, char* str)
 {
 	unsigned long sec = 0;
 	unsigned long nsec = 0;
@@ -31,24 +31,22 @@ out:
 	sp->sec = sec;
 	sp->nsec = nsec*nmul;
 
-	return 0;
+	return;
 err:
-	return error(ctx, "invalid time spec", str, 0);
+	fatal(ctx, "invalid time spec", str);
 }
 
-int cmd_sleep(CTX)
+void cmd_sleep(CTX)
 {
+	char* spec = shift(ctx);
+
+	no_more_arguments(ctx);
+
 	struct timespec sp;
-	int ret;
 
-	if(noneleft(ctx))
-		return -1;
-	if((ret = parsetime(ctx, &sp, shift(ctx))))
-		return ret;
-	if(moreleft(ctx))
-		return -1;
-	if((ret = sys_nanosleep(&sp, NULL)))
-		return error(ctx, "sleep", NULL, ret);
+	parsetime(ctx, &sp, spec);
 
-	return 0;
+	int ret = sys_nanosleep(&sp, NULL);
+
+	check(ctx, "sleep", NULL, ret);
 }

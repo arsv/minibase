@@ -1,18 +1,16 @@
 #ifndef CMD
-#define CMD(name) int cmd_##name(struct sh* ctx);
+#define CMD(name) void cmd_##name(struct sh* ctx);
 #endif
 
 CMD(cd)
 CMD(chroot)
 CMD(close)
 CMD(die)
-CMD(dupfd)
 CMD(echo)
 CMD(exec)
 CMD(exit)
 CMD(export)
 CMD(groups)
-CMD(invoke)
 CMD(mkdir)
 CMD(onexit)
 CMD(prctl)

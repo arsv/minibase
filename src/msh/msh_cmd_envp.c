@@ -1,43 +1,32 @@
 #include "msh.h"
 #include "msh_cmd.h"
 
-int cmd_setenv(CTX)
+void cmd_setenv(CTX)
 {
-	char *var, *val;
+	char* var = shift(ctx);
+	char* val = shift(ctx);
 
-	if(shift_str(ctx, &var))
-		return -1;
-	if(shift_str(ctx, &val))
-		return -1;
-	if(moreleft(ctx))
-		return -1;
+	no_more_arguments(ctx);
 
 	setenv(ctx, var, val);
-
-	return 0;
 }
 
-int cmd_unset(CTX)
+void cmd_unset(CTX)
 {
 	char* var;
 
-	if(noneleft(ctx))
-		return -1;
-	while((var = shift(ctx)))
+	need_some_arguments(ctx);
+
+	while((var = next(ctx)))
 		undef(ctx, var);
-
-	return 0;
 }
 
-int cmd_export(CTX)
+void cmd_export(CTX)
 {
 	char* var;
 
-	if(noneleft(ctx))
-		return -1;
-	while((var = shift(ctx)))
-		if(export(ctx, var))
-			return error(ctx, "undefined variable", var, 0);
+	need_some_arguments(ctx);
 
-	return 0;
+	while((var = next(ctx)))
+		export(ctx, var);
 }

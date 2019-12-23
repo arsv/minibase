@@ -21,10 +21,10 @@ static int child(CTX, char** argv)
 	sigemptyset(&empty);
 
 	if((ret = sys_sigprocmask(SIG_SETMASK, &empty, NULL)) < 0)
-		return error(ctx, "sigprocmask", NULL, ret);
+		error(ctx, "sigprocmask", NULL, ret);
 exec:
 	if((ret = execvpe(*argv, argv, ctx->envp)))
-		return error(ctx, "exec", *argv, ret);
+		error(ctx, "exec", *argv, ret);
 
 	return 0xFF; /* should never happen */
 }
@@ -45,7 +45,7 @@ static int describe(CTX, int status)
 
 	FMTEND(p, e);
 
-	return error(ctx, msg, buf, 0);
+	fatal(ctx, msg, buf);
 }
 
 static int prep_signalfd(CTX)
@@ -64,24 +64,24 @@ static int prep_signalfd(CTX)
 	sigaddset(&mask, SIGCHLD);
 
 	if((fd = sys_signalfd(-1, &mask, flags)) < 0)
-		return error(ctx, "signalfd", NULL, fd);
+		error(ctx, "signalfd", NULL, fd);
 
 	ctx->sigfd = fd;
 set:
 	if((ret = sys_sigprocmask(SIG_SETMASK, &mask, NULL)) < 0)
-		return error(ctx, "sigprocmask", NULL, ret);
+		error(ctx, "sigprocmask", NULL, ret);
 
 	return fd;
 }
 
-static int wait_child(CTX, int fd, int pid, int* status)
+static void wait_child(CTX, int fd, int pid, int* status)
 {
 	int ret;
 	struct siginfo si;
 	struct sigset empty;
 read:
 	if((ret = sys_read(fd, &si, sizeof(si))) < 0)
-		return error(ctx, "read", "signalfd", ret);
+		error(ctx, "read", "signalfd", ret);
 
 	int sig = si.signo;
 
@@ -98,61 +98,53 @@ wait:
 	} if(ret == -ECHILD) {
 		goto read;
 	} else {
-		return error(ctx, "waitpid", NULL, ret);
+		error(ctx, "waitpid", NULL, ret);
 	}
 done:
 	sigemptyset(&empty);
 
 	if((ret = sys_sigprocmask(SIG_SETMASK, &empty, NULL)) < 0)
-		return error(ctx, "sigprocmask", NULL, ret);
-
-	return 0;
+		error(ctx, "sigprocmask", NULL, ret);
 }
 
-int cmd_run(CTX)
+void cmd_run(CTX)
 {
-	int ret, fd, pid, status;
+	int pid, status;
 
-	if(noneleft(ctx))
-		fatal(ctx, "missing command", NULL);
+	need_some_arguments(ctx);
 
 	char** argv = argsleft(ctx);
 
-	if((fd = prep_signalfd(ctx)) < 0)
-		return fd;
+	int fd = prep_signalfd(ctx);
 
 	if((pid = sys_fork()) < 0)
-		return error(ctx, "fork", NULL, pid);
+		error(ctx, "fork", NULL, pid);
 
 	if(pid == 0)
 		_exit(child(ctx, argv));
 
-	if((ret = wait_child(ctx, fd, pid, &status)) < 0)
-		return ret;
+	wait_child(ctx, fd, pid, &status);
 
-	if(status)
-		return describe(ctx, status);
-
-	return 0;
+	if(status) describe(ctx, status);
 }
 
-int cmd_exec(CTX)
+void cmd_exec(CTX)
 {
-	if(noneleft(ctx))
-		fatal(ctx, "missing command", NULL);
+	need_some_arguments(ctx);
 
 	char** argv = argsleft(ctx);
 
-	return fchk(sys_execve(*argv, argv, ctx->envp), ctx, *argv);
+	int ret = sys_execve(*argv, argv, ctx->envp);
+
+	error(ctx, "exec", *argv, ret);
 }
 
 int cmd_invoke(CTX)
 {
-	int nargs = numleft(ctx);
+	int nargs = ctx->argc - ctx->argp;
 	int norig = ctx->topargc - ctx->topargp;
 
-	if(!nargs)
-		return error(ctx, "too few arguments", NULL, 0);
+	if(!nargs) error(ctx, "too few arguments", NULL, 0);
 
 	char** args = ctx->argv + ctx->argp;
 	char** orig = ctx->topargv + ctx->topargp;
@@ -163,5 +155,7 @@ int cmd_invoke(CTX)
 	memcpy(argv + nargs, orig, norig*sizeof(char*));
 	argv[nargs+norig] = NULL;
 
-	return fchk(sys_execve(*argv, argv, ctx->envp), ctx, *argv);
+	int ret = sys_execve(*argv, argv, ctx->envp);
+
+	error(ctx, "exec", *argv, ret);
 }

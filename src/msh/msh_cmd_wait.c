@@ -9,17 +9,17 @@
 #include "msh.h"
 #include "msh_cmd.h"
 
-static int check_file(CTX, char* path)
+static int nonexistant(CTX, char* path)
 {
 	struct stat st;
 	int ret;
 
 	if((ret = sys_stat(path, &st)) >= 0)
 		return 0;
-	if(ret == -ENOENT)
-		return 1;
+	if(ret != -ENOENT)
+		error(ctx, NULL, path, ret);
 
-	return error(ctx, NULL, path, ret);
+	return 1;
 }
 
 static int match_event(struct inotify_event* ino, char* name)
@@ -27,35 +27,35 @@ static int match_event(struct inotify_event* ino, char* name)
 	return !strcmp(name, ino->name);
 }
 
-static int watch_ino_for(CTX, int fd, char* name, struct timespec* ts)
+static void watch_ino_for(CTX, int fd, char* name, struct timespec* ts)
 {
 	struct pollfd pfd = { .fd = fd, .events = POLLIN };
 	int ret, rd;
+next:
+	if((ret = sys_ppoll(&pfd, 1, ts, NULL)) < 0)
+		error(ctx, "ppoll", NULL, ret);
+	if(ret == 0)
+		error(ctx, NULL, name, -ETIMEDOUT);
 
-	while(1) {
-		if((ret = sys_ppoll(&pfd, 1, ts, NULL)) < 0)
-			return error(ctx, "ppoll", NULL, ret);
-		if(ret == 0)
-			return -ETIMEDOUT;
+	char buf[512];
+	int len = sizeof(buf);
 
-		char buf[512];
-		int len = sizeof(buf);
+	if((rd = sys_read(fd, buf, len)) < 0)
+		error(ctx, "inotify", NULL, rd);
 
-		if((rd = sys_read(fd, buf, len)) < 0)
-			return error(ctx, "inotify", NULL, rd);
+	char* end = buf + rd;
+	char* ptr = buf;
 
-		char* end = buf + rd;
-		char* ptr = buf;
+	while(ptr < end) {
+		struct inotify_event* ino = (void*) ptr;
 
-		while(ptr < end) {
-			struct inotify_event* ino = (void*) ptr;
+		if(match_event(ino, name))
+			return;
 
-			if(match_event(ino, name))
-				return 0;
-
-			ptr += sizeof(*ino) + ino->len;
-		}
+		ptr += sizeof(*ino) + ino->len;
 	}
+
+	goto next;
 }
 
 static void prep_dirname(char* dir, int dlen, char* name, char* base)
@@ -91,42 +91,38 @@ static int waitfor(CTX, int fd, struct timespec* ts, char* name)
 
 	if((wd = sys_inotify_add_watch(fd, dir, IN_CREATE)) >= 0)
 		goto got;
-err:
-	return error(ctx, "inotify", name, wd);
 got:
-	if((ret = check_file(ctx, name)) <= 0)
-		; /* the file already exists */
-	else ret = watch_ino_for(ctx, fd, base, ts);
+	if(nonexistant(ctx, name))
+		watch_ino_for(ctx, fd, base, ts);
 
 	sys_inotify_rm_watch(fd, wd);
 out:
 	return ret;
+err:
+	error(ctx, "inotify", name, wd);
 }
 
-int cmd_waitfor(CTX)
+void cmd_waitfor(CTX)
 {
-	char* name;
+	char* name = shift(ctx);
 	int timeout;
 
-	if((shift_str(ctx, &name)))
-		return -1;
-	if(!numleft(ctx))
+	if(got_more_arguments(ctx))
+		shift_int(ctx, &timeout);
+	else
 		timeout = 2;
-	else if(shift_int(ctx, &timeout))
-		return -1;
+
+	no_more_arguments(ctx);
 
 	struct timespec ts = { timeout, 0 };
 	int fd, ret;
 
 	if((fd = sys_inotify_init1(IN_NONBLOCK)) < 0)
-		return error(ctx, "inotify", NULL, fd);
+		error(ctx, "inotify", NULL, fd);
 
 	ret = waitfor(ctx, fd, &ts, name);
 
 	sys_close(fd);
 
-	if(ret == -ETIMEDOUT)
-		return error(ctx, "timeout waiting for", name, 0);
-
-	return ret;
+	check(ctx, "wait", name, ret);
 }

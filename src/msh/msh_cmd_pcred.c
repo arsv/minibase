@@ -35,128 +35,130 @@ static const struct rlpair {
 	{ "stack",    RLIMIT_STACK      }
 };
 
-int cmd_rlimit(CTX)
+void cmd_rlimit(CTX)
 {
 	const struct rlpair* rp;
 	struct rlimit rl;
-	char* key;
 
-	if(shift_str(ctx, &key))
-		return -1;
-	if(shift_u64(ctx, &rl.cur))
-		return -1;
-	if(!numleft(ctx))
+	char* key = shift(ctx);
+
+	shift_u64(ctx, &rl.cur);
+
+	if(got_more_arguments(ctx))
+		shift_u64(ctx, &rl.max);
+	else
 		rl.max = rl.cur;
-	else if(shift_u64(ctx, &rl.max))
-		return -1;
-	if(moreleft(ctx))
-		return -1;
+
+	no_more_arguments(ctx);
 
 	for(rp = rlimits; rp < ARRAY_END(rlimits); rp++)
 		if(!strcmp(rp->name, key))
 			break;
 	if(rp >= ARRAY_END(rlimits))
-		return error(ctx, "unknown limit", key, 0);
+		fatal(ctx, "unknown limit", key);
 
-	return fchk(sys_prlimit(0, rp->res, &rl, NULL), ctx, key);
+	int ret = sys_prlimit(0, rp->res, &rl, NULL);
+
+	check(ctx, "rlimit", key, ret);
 }
 
-int cmd_setprio(CTX)
+void cmd_setprio(CTX)
 {
 	int prio;
 
-	if(shift_int(ctx, &prio))
-		return -1;
-	if(moreleft(ctx))
-		return -1;
+	shift_int(ctx, &prio);
+	no_more_arguments(ctx);
 
-	return fchk(sys_setpriority(0, 0, prio), ctx, NULL);
+	int ret = sys_setpriority(0, 0, prio);
+
+	check(ctx, "setpriority", NULL, ret);
 }
 
-int cmd_setcpus(CTX)
+void cmd_setcpus(CTX)
 {
 	int id;
 	struct cpuset mask;
 
 	memzero(&mask, sizeof(mask));
 next:
-	if(shift_int(ctx, &id) < 0)
-		return -1;
-
+	shift_int(ctx, &id);
 	cpuset_set(&mask, id);
 
-	if(numleft(ctx))
+	if(got_more_arguments(ctx))
 		goto next;
 
-	return fchk(sys_sched_setaffinity(0, &mask), ctx, NULL);
+	int ret = sys_sched_setaffinity(0, &mask);
+	
+	check(ctx, "sched_setaffinity", NULL, ret);
 }
 
-int cmd_umask(CTX)
+void cmd_umask(CTX)
 {
 	int mask;
 
-	if(shift_oct(ctx, &mask))
-		return -1;
-	if(moreleft(ctx))
-		return -1;
+	shift_oct(ctx, &mask);
+	no_more_arguments(ctx);
 
-	return fchk(sys_umask(mask), ctx, NULL);
+	int ret = sys_umask(mask);
+
+	check(ctx, "umask", NULL, ret);
 }
 
-int cmd_chroot(CTX)
+void cmd_chroot(CTX)
 {
-	char* dir;
+	char* dir = shift(ctx);
 
-	if(shift_str(ctx, &dir))
-		return -1;
-	if(moreleft(ctx))
-		return -1;
+	no_more_arguments(ctx);
 
-	return fchk(sys_chroot(dir), ctx, dir);
+	int ret = sys_chroot(dir);
+
+	check(ctx, "chroot", NULL, ret);
 }
 
-int cmd_setuid(CTX)
+void cmd_setuid(CTX)
 {
+	char* user = shift(ctx);
+
+	no_more_arguments(ctx);
+
 	int uid;
-	char* user;
 
-	if(shift_str(ctx, &user))
-		return -1;
-	if(moreleft(ctx))
-		return -1;
-	if(get_user_id(ctx, user, &uid))
-		return -1;
+	get_user_id(ctx, user, &uid);
 
-	return fchk(sys_setresuid(uid, uid, uid), ctx, user);
+	int ret = sys_setresuid(uid, uid, uid);
+
+	check(ctx, "setresuid", NULL, ret);
 }
 
-int cmd_setgid(CTX)
+void cmd_setgid(CTX)
 {
+	char* group = shift(ctx);
+	
+	no_more_arguments(ctx);
+
 	int gid;
+
+	get_group_id(ctx, group, &gid);
+
+	int ret = sys_setresgid(gid, gid, gid);
+
+	check(ctx, "setresgid", NULL, ret);
+}
+
+void cmd_groups(CTX)
+{
+	int gids[32];
+	int i, n = ARRAY_SIZE(gids);
 	char* group;
 
-	if(shift_str(ctx, &group))
-		return -1;
-	if(moreleft(ctx))
-		return -1;
-	if(get_group_id(ctx, group, &gid))
-		return -1;
+	need_some_arguments(ctx);
 
-	return fchk(sys_setresgid(gid, gid, gid), ctx, group);
-}
+	while((group = next(ctx))) {
+		if(i >= n) fatal(ctx, "too many groups", NULL);
+		get_group_id(ctx, group, &gids[i++]);
+	}
 
-int cmd_groups(CTX)
-{
-	int num = numleft(ctx);
-	char** groups = argsleft(ctx);
-	int gids[num];
+	int ret = sys_setgroups(i, gids);
 
-	if(noneleft(ctx))
-		return -1;
-
-	for(int i = 0; i < num; i++)
-		if(get_group_id(ctx, groups[i], &gids[i]))
-			return -1;
-
-	return fchk(sys_setgroups(num, gids), ctx, NULL);
+	check(ctx, "setgroups", NULL, ret);
 }
