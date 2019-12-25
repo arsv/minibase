@@ -5,7 +5,7 @@
 
 #include "msh.h"
 
-static void parsefile(CTX, char* name)
+static void parse_file(CTX, char* name)
 {
 	char inbuf[2048];
 	int fd, rd;
@@ -22,11 +22,15 @@ static void parsefile(CTX, char* name)
 	} if(rd < 0) {
 		quit(ctx, "read", NULL, rd);
 	};
+
+	parse_finish(ctx);
 }
 
-static void parsestr(CTX, char* str)
+static void parse_str(CTX, char* str)
 {
 	parse(ctx, str, strlen(str));
+
+	parse_finish(ctx);
 }
 
 #define OPT_c (1<<0)
@@ -50,7 +54,7 @@ int main(int argc, char** argv)
 
 	memzero(ctx, sizeof(*ctx));
 
-	ctx->envp = argv + argc + 1;
+	ctx->environ = argv + argc + 1;
 	ctx->errfd = STDERR;
 	ctx->sigfd = -1;
 
@@ -64,15 +68,14 @@ int main(int argc, char** argv)
 	ctx->topargc = argc;
 	ctx->topargp = i;
 	ctx->topargv = argv;
+	ctx->customenvp = -1;
 
-	hinit(ctx);
+	heap_init(ctx);
 
 	if(!(opts & OPT_c))
-		parsefile(ctx, script);
+		parse_file(ctx, script);
 	else
-		parsestr(ctx, script);
-
-	pfini(ctx);
+		parse_str(ctx, script);
 
 	exit(ctx, 0);
 }

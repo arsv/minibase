@@ -10,7 +10,32 @@
 #include "msh.h"
 #include "msh_cmd.h"
 
-static int child(CTX, char** argv)
+static char** prepenvp(CTX)
+{
+	if(ctx->customenvp < 0)
+		return ctx->environ;
+
+	struct env* ev;
+	int i = 0, count = 0;
+	char* var;
+
+	for(ev = env_first(ctx); ev; ev = env_next(ctx, ev))
+		if((var = env_value(ctx, ev, EV_ENVP)))
+			count++;
+
+	int size = (count+1)*sizeof(char*);
+	char** envp = heap_alloc(ctx, size);
+
+	for(ev = env_first(ctx); ev; ev = env_next(ctx, ev))
+		if((var = env_value(ctx, ev, EV_ENVP)))
+			if(i < count) envp[i++] = var;
+
+	envp[i] = NULL;
+
+	return envp;
+}
+
+static int child(CTX, char** argv, char** envp)
 {
 	struct sigset empty;
 	int ret;
@@ -23,7 +48,7 @@ static int child(CTX, char** argv)
 	if((ret = sys_sigprocmask(SIG_SETMASK, &empty, NULL)) < 0)
 		error(ctx, "sigprocmask", NULL, ret);
 exec:
-	if((ret = execvpe(*argv, argv, ctx->envp)))
+	if((ret = execvpe(*argv, argv, envp)))
 		error(ctx, "exec", *argv, ret);
 
 	return 0xFF; /* should never happen */
@@ -114,6 +139,7 @@ void cmd_run(CTX)
 	need_some_arguments(ctx);
 
 	char** argv = argsleft(ctx);
+	char** envp = prepenvp(ctx);
 
 	int fd = prep_signalfd(ctx);
 
@@ -121,7 +147,7 @@ void cmd_run(CTX)
 		error(ctx, "fork", NULL, pid);
 
 	if(pid == 0)
-		_exit(child(ctx, argv));
+		_exit(child(ctx, argv, envp));
 
 	wait_child(ctx, fd, pid, &status);
 
@@ -133,8 +159,9 @@ void cmd_exec(CTX)
 	need_some_arguments(ctx);
 
 	char** argv = argsleft(ctx);
+	char** envp = prepenvp(ctx);
 
-	int ret = sys_execve(*argv, argv, ctx->envp);
+	int ret = sys_execve(*argv, argv, envp);
 
 	error(ctx, "exec", *argv, ret);
 }
@@ -146,6 +173,7 @@ int cmd_invoke(CTX)
 
 	if(!nargs) error(ctx, "too few arguments", NULL, 0);
 
+	char** envp = prepenvp(ctx);
 	char** args = ctx->argv + ctx->argp;
 	char** orig = ctx->topargv + ctx->topargp;
 
@@ -155,7 +183,7 @@ int cmd_invoke(CTX)
 	memcpy(argv + nargs, orig, norig*sizeof(char*));
 	argv[nargs+norig] = NULL;
 
-	int ret = sys_execve(*argv, argv, ctx->envp);
+	int ret = sys_execve(*argv, argv, envp);
 
 	error(ctx, "exec", *argv, ret);
 }

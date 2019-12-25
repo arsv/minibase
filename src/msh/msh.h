@@ -1,16 +1,14 @@
 #include <cdefs.h>
 
-/* arguments for hset/hrev */
-#define HEAP 0
-#define ESEP 1
-#define CSEP 2
-#define VSEP 3
+#define EV_SIZE 0xFFFF
+
+#define EV_ENVP (1<<16)
+#define EV_SVAR (1<<17)
+#define EV_TRAP (1<<18)
+
+#define EV_REF  (1<<24)
 
 /* env entry types */
-#define ENVDEL 0
-#define ENVPTR 1
-#define ENVSTR 2
-#define ENVLOC 3
 
 struct mbuf {
 	char* buf;
@@ -19,17 +17,17 @@ struct mbuf {
 
 /* Heap layout, at the point when end_cmd() calls exec():
 
-   heap                csep                           hend
-   v                   v                              v
-   Ep Ep Ep Es Es ENVP Arg Arg Arg Arg ARGV ..........
+   heap                           argv                hend
+   v                              v                   v
+   Ep Ep Ep Es Es Arg Arg Arg Arg ARGV ENVP ..........
                   ^                         ^
-                  esep                      hptr
+                  asep                      hptr
 
    Ep = struct envptr
    Es = struct env with inline payload
-   ENVP = char** envp pointing back to Es-s and/or following Ep-s
    Arg = raw 0-terminated string
    ARGV = char** argv pointing back to Arg-s
+   ENVP = char** envp pointing back to Es-s and/or following Ep-s
 
    Until the first env change, esep=NULL, csep=heap and sh.envp
    points to the original main() argument. */
@@ -37,66 +35,48 @@ struct mbuf {
 struct sh {
 	char* file;      /* for error reporting */
 	int line;
+
 	int errfd;       /* stderr, dup'ed if necessary */
+	int sigfd;       /* see cmd_run() */
 
-	char** envp;
+	char** environ;  /* original, as passed to msh itself */
+	int customenvp;  /* whether we need to go through env's */
 
-	int topargc;     /* for the script itself */
+	int topargc;     /* originals */
 	int topargp;
 	char** topargv;
 
 	int state;       /* of the parser */
-	int argc;
-	char** argv;     /* the command being parsed */
-	int argp;
 
-	char* heap;      /* layout scheme above */
-	char* esep;
-	char* csep;
+	int argc;        /* the command being parsed */
+	int argp;
+	char** argv;
+
+	char* heap;      /* see layout scheme above */
+	char* asep;
 	char* hptr;
 	char* hend;
 	char* var;       /* heap ptr to $var being substituted */
 
-	char pid[20];    /* $$ value for substitution */
-
-	char trap[50];   /* see cmd_onexit() */
-
-	int sigfd;
-
 	struct mbuf passwd;
-	struct mbuf group;
+	struct mbuf groups;
 };
 
 struct env {
-	unsigned short len;
-	char type;
+	unsigned key;
 	char payload[];
-};
-
-struct envptr {
-	unsigned short len;
-	char type;
-	char* ref;
 };
 
 #define CTX struct sh* ctx __unused
 
-void hinit(CTX);
-void* halloc(CTX, int len);
+void heap_init(CTX);
+void* heap_alloc(CTX, int len);
+void heap_extend(CTX);
 void hrev(CTX, int type);
 void hset(CTX, int what);
 
 void parse(CTX, char* buf, int len);
-void pfini(CTX);
-
-void loadvar(CTX, char* var);
-char* valueof(CTX, char* var);
-void setenv(CTX, char* pkey, char* pval);
-void define(CTX, char* var, char* val);
-void undef(CTX, char* var);
-int export(CTX, char* var);
-
-void command(CTX);
+void parse_finish(CTX);
 
 void exit(CTX, int code) noreturn;
 void quit(CTX, const char* err, char* arg, int ret) noreturn;
@@ -118,6 +98,11 @@ char* dash_opts(CTX);
 int mmapfile(struct mbuf* mb, char* name);
 int munmapfile(struct mbuf* mb);
 
-int get_user_id(CTX, char* user, int* id);
-int get_group_id(CTX, char* group, int* id);
-int get_owner_ids(CTX, char* owner, int* uid, int* gid);
+void map_file(CTX, struct mbuf* mb, char* name);
+
+int get_user_id(CTX, char* user);
+int get_group_id(CTX, char* group);
+
+struct env* env_first(CTX);
+struct env* env_next(CTX, struct env* at);
+char* env_value(CTX, struct env* at, int type);

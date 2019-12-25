@@ -20,7 +20,7 @@ features but could benefit from smaller interpreter and specific builtins.
 #!/bin/msh
 
 # Variable assignment
-VAR="some value"
+set VAR "some value"
 
 # Running commands
 run /sbin/kmod e1000e
@@ -77,10 +77,6 @@ Change root.
 Create directory and chown it if necessary.
 .IP "\fBumask\fR \fIvalue\fR" 4
 Set umask for current process and all its children.
-.IP "\fBexport\fR \fIvariable\fR" 4
-Add \fIvariable\fR to \fBenvp\fR passed to newly spawned children.
-.IP "\fBsetenv\fR \fIvariable\fR \fIvalue\fR" 4
-Same as "\fIvariable\fR=\fIvalue\fR; \fBexport\fR \fIvariable\fR".
 .IP "\fBsetuid\fR \fIuser\fR" 4
 Set real, effective and saved user ids to those of \fIuser\fR.
 .IP "\fBsetgid\fR \fIgroup\fR" 4
@@ -106,6 +102,17 @@ See \fBprctl\fR(2), PR_SET_NO_NEW_PRIVS.
 See \fBcapabilities\fR(7). \fIKey\fR for CAP_DAC_OVERRIDE is
 \fBdac-override\fR. Options: \fBp\fRermitted, \fBe\fRffective,
 \fBi\fRnheritable, \fBa\fRmbient, \fBb\fRounding. Default is \fB-peiab\fR.
+.IP "\fBset\fR \fIvariable\fR \fIvalue\fR" 4
+Define script-local variable; subsequent \fI$variable\fR references would
+be substitued with \fIvalue\fR.
+.IP "\fBsetenv\fR \fIvariable\fR \fIvalue\fR" 4
+Set environment (envp) variable to a given value.
+.IP "\fBgetenv\fR \fIvariable\fR" 4
+Import named \fIvariable\fR from envp[] into script-local scope.
+.IP "\fBdelenv\fR \fIvariable\fR" 4
+Remove named variable from envp[].
+.IP "\fBclearenv\fR" 4
+Remove all variables from envp[].
 '''
 .SH NOTES
 \fBmsh\fR is not a POSIX shell, and does a lot of things differently.

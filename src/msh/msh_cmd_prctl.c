@@ -78,11 +78,8 @@ static void prctl_seccomp(CTX)
 	no_more_arguments(ctx);
 
 	struct mbuf mb;
-	int ret;
 
-	ret = mmapfile(&mb, file);
-
-	check(ctx, NULL, file, ret);
+	map_file(ctx, &mb, file);
 
 	if(!mb.len || mb.len % 8)
 		fatal(ctx, "odd size:", file);
@@ -94,11 +91,11 @@ static void prctl_seccomp(CTX)
 
 	int mode = SECCOMP_SET_MODE_FILTER;
 
-	ret = sys_seccomp(mode, 0, &sc);
+	int ret = sys_seccomp(mode, 0, &sc);
 
 	check(ctx, "seccomp", file, ret);
 
-	munmapfile(&mb);
+	//munmapfile(&mb);
 }
 
 void cmd_prctl(CTX)

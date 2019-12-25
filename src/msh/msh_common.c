@@ -1,5 +1,6 @@
 #include <sys/file.h>
 #include <sys/proc.h>
+#include <sys/mman.h>
 
 #include <string.h>
 #include <format.h>
@@ -27,7 +28,6 @@ static void report(CTX, const char* err, char* arg, long ret)
 	} else {
 		p = fmtstr(p, e, "msh:");
 	}
-
 	if(err) {
 		p = fmtstr(p, e, " ");
 		p = fmtstr(p, e, err);
@@ -45,21 +45,112 @@ static void report(CTX, const char* err, char* arg, long ret)
 	writeall(ctx->errfd, buf, p - buf);
 }
 
+/* Variable access routines */
+
+struct env* env_first(CTX)
+{
+	void* p = ctx->heap;
+	void* e = ctx->asep;
+
+	struct env* ev = p;
+
+	if(p + sizeof(*ev) > e)
+		return NULL;
+
+	int key = ev->key;
+	int size;
+
+	if(key & EV_REF)
+		size = sizeof(*ev);
+	else
+		size = key & EV_SIZE;
+
+	if(size < sizeof(*ev))
+		return NULL;
+	if(p + size > e)
+		return NULL;
+
+	return ev;
+}
+
+struct env* env_next(CTX, struct env* ev)
+{
+	void* s = ctx->heap;
+	void* p = ev;
+	void* e = ctx->asep;
+
+	if(p < s || p >= e)
+		return NULL;
+
+	int key = ev->key;
+
+	if(key & EV_REF)
+		p += sizeof(*ev);
+	else
+		p += (key & EV_SIZE);
+
+	ev = p;
+
+	if(p + sizeof(*ev) > e)
+		return NULL;
+
+	if(key & EV_REF)
+		p += sizeof(*ev);
+	else
+		p += (key & EV_SIZE);
+
+	if(p > e)
+		return NULL;
+
+	return ev;
+}
+
+char* env_value(CTX, struct env* ev, int type)
+{
+	int key = ev->key;
+
+	if(!(key & type))
+		return NULL;
+	if(!(key & EV_REF))
+		return ev->payload;
+
+	int idx = key & EV_SIZE;
+
+	return ctx->environ[idx];
+}
+
 /* In case `onexit` has been used, invoke it when exiting. */
+
+static void try_exec_trap(CTX)
+{
+	struct env* ev;
+	int i, count = 0;
+	char* argv[32];
+	char* arg;
+
+	for(ev = env_first(ctx); ev; ev = env_next(ctx, ev))
+		if((arg = env_value(ctx, ev, EV_TRAP)))
+			count++;
+
+	if(!count)
+		return;
+	if(count >= ARRAY_SIZE(argv))
+		count = ARRAY_SIZE(argv) - 1;
+
+	for(ev = env_first(ctx); ev; ev = env_next(ctx, ev))
+		if((arg = env_value(ctx, ev, EV_TRAP)))
+			if(i < count) argv[i++] = arg;
+
+	argv[i] = NULL;
+
+	int ret = sys_execve(*argv, argv, ctx->environ);
+
+	report(ctx, "exec", *argv, ret);
+}
 
 void exit(CTX, int code)
 {
-	int ret;
-
-	if(*ctx->trap) {
-		char* argv[] = { ctx->trap, NULL };
-
-		ret = sys_execve(*argv, argv, ctx->envp);
-
-		ctx->file = NULL;
-
-		report(ctx, "exec", *argv, ret);
-	}
+	try_exec_trap(ctx);
 
 	_exit(code);
 }
@@ -180,40 +271,81 @@ void shift_oct(CTX, int* dst)
 		fatal(ctx, "invalid octal:", str);
 }
 
-/* Command lookup code */
+/* Heap routines. See msh.h for heap layout. */
 
-static const struct cmd {
-	char name[12];
-	void (*func)(CTX);
-} builtins[] = {
-#define CMD(name) \
-	{ #name, cmd_##name },
-#include "msh_cmd.h"
-};
-
-static const struct cmd* builtin(const char* name)
+void heap_init(CTX)
 {
-	const struct cmd* cc;
-	int maxlen = sizeof(cc->name);
+	void* brk = sys_brk(0);
+	void* end = sys_brk(brk + 4096);
 
-	for(cc = builtins; cc < ARRAY_END(builtins); cc++)
-		if(!strncmp(cc->name, name, maxlen))
-			return cc;
+	if(brk_error(brk, end))
+		quit(ctx, "heap init failed", NULL, 0);
 
-	return NULL;
+	ctx->heap = brk;
+	ctx->asep = brk;
+	ctx->hptr = brk;
+	ctx->hend = end;
 }
 
-void command(CTX)
+void heap_extend(CTX)
 {
-	const struct cmd* cc;
+	void* end = ctx->hend;
+	void* new = sys_brk(end + PAGE);
 
-	if(!ctx->argc)
-		return;
+	if(brk_error(end, new))
+		fatal(ctx, "cannot allocate memory", NULL);
 
-	char* lead = ctx->argv[0];
+	ctx->hend = new;
+}
 
-	if(!(cc = builtin(lead)))
-		fatal(ctx, "unknown command", lead);
+void* heap_alloc(CTX, int len)
+{
+	void* ptr = ctx->hptr;
+	void* end = ctx->hend;
+	void* newptr = ptr + len;
 
-	return cc->func(ctx);
+	if(newptr <= end)
+		goto ptr;
+
+	int need = pagealign(newptr - end);
+	void* newend = sys_brk(end + need);
+
+	if(brk_error(end, newend))
+		fatal(ctx, "cannot allocate memory", NULL);
+
+	ctx->hend = newend;
+ptr:
+	ctx->hptr = newptr;
+
+	return ptr;
+}
+
+/* Loading /etc/passwd and seccomp files whole. We never unmmap them,
+   r/o private mappings should not cause issues and in most cases the
+   script in question should exec into something else anyway. */
+
+void map_file(CTX, struct mbuf* mb, char* name)
+{
+	int fd, ret;
+	struct stat st;
+
+	if((fd = sys_open(name, O_RDONLY | O_CLOEXEC)) < 0)
+		error(ctx, NULL, name, fd);
+	if((ret = sys_fstat(fd, &st)) < 0)
+		error(ctx, "stat", name, ret);
+	if(st.size > 0x7FFFFFFF) /* no larger-than-int files */
+		error(ctx, NULL, name, -E2BIG);
+
+	int proto = PROT_READ;
+	int flags = MAP_PRIVATE;
+
+	void* ptr = sys_mmap(NULL, st.size, proto, flags, fd, 0);
+
+	if((ret = mmap_error(ptr)))
+		error(ctx, "mmap", name, ret);
+
+	mb->len = st.size;
+	mb->buf = ptr;
+
+	sys_close(fd);
 }

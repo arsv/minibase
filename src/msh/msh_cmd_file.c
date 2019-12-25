@@ -146,25 +146,47 @@ void cmd_write(CTX)
 
 void cmd_unlink(CTX)
 {
-	char* name;
-	int ret;
+	char* name = shift(ctx);
 
-	need_some_arguments(ctx);
+	no_more_arguments(ctx);
 
-	while((name = next(ctx))) {
-		if((ret = sys_unlink(name)) >= 0)
-			continue;
-		else if(ret == -ENOENT)
-			continue;
-		else error(ctx, "unlink", name, ret);
-	}
+	int ret = sys_unlink(name);
+
+	if(ret >= 0)
+		return;
+	if(ret == -ENOENT)
+		return;
+
+	error(ctx, "unlink", name, ret);
+}
+
+static void chown(CTX, char* owner, char* name)
+{
+	int uid, gid;
+	char* sep = strcbrk(owner, ':');
+
+	if(!*sep || !*(sep+1)) /* "user" or "user:" */
+		gid = -1;
+	else 
+		gid = get_group_id(ctx, sep + 1);
+
+	*sep = '\0';
+
+	if(sep == owner) /* ":group" */
+		uid = -1;
+	else
+		uid = get_user_id(ctx, owner);
+
+	int ret = sys_chown(name, uid, gid);
+
+	check(ctx, "chown", name, ret);
 }
 
 void cmd_mkdir(CTX)
 {
 	int mode = 0755;
 	char *owner = NULL;
-	int ret, uid, gid;
+	int ret;
 
 	char* name = shift(ctx);
 
@@ -178,10 +200,5 @@ void cmd_mkdir(CTX)
 	else if(ret != -EEXIST)
 		error(ctx, "mkdir", name, ret);
 
-	if(!owner) return;
-
-	get_owner_ids(ctx, owner, &uid, &gid);
-
-	if((ret = sys_chown(name, uid, gid)) < 0)
-		error(ctx, "chown", name, ret);
+	if(owner) chown(ctx, owner, name);
 }
