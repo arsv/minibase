@@ -1,0 +1,64 @@
+.TH runcg 1
+'''
+.SH NAME
+\fBruncg\fR \- cgroup-based application container
+'''
+.SH SYNOPSIS
+\fBruncg\fR \fIgroup-name\fR \fI/path/to/executable\fR \fIarg arg arg ...\fR
+'''
+.SH DESCRIPTION
+This tools spawns \fIexecutable\fR and waits for it and all its descendants
+to exit, using specified cgroup for containment. The intended use for this
+is to let regular process-based supervisors run mis-behaving applications,
+in particular double-forking daemons.
+'''
+.SH USAGE
+Typical service startup script using \fBruncg\fR:
+.P
+.ni
+    #!/path/to/msh
+
+    set cg /sys/fs/cgroup/foo
+
+    # create cgroup and put current process there
+    mkdir $cg
+    write $$ $cg/cgroup.procs
+
+    # drop unneeded privileges
+    setgid bar
+    setuid foo
+
+    # start the application
+    invoke /path/to/runcg $cg /path/to/daemon
+.fi
+.P
+Note that \fBruncg\fR is meant to be run at the same level of privilege
+as the application being supervised.
+.P
+\fBruncg\fR will refuse to run if it is not the specified cgroup, or if it
+is not the only process there. This is mostly a sanity check meant to prevent
+simple mistakes like invocation with a wrong cgroup.
+'''
+.SH NOTES
+Do not use this tool. It is written solely for whiny systemd fans who would
+have kept asking about this mis-feature endlessly despite clearly lacking
+even basic understanding of the problem being solved.
+.P
+Pretty much the only real scenario where a tool like this can possibly be
+useful involves running double-forking daemons in a system designed with
+some other process management approach in mind. Invariably, a much better
+solution is to prevent forking in the first place. More often than not,
+doing so means just using the right options for the application in question.
+.P
+Upon receiving SIGINT or SIGTERM, this tool re-transmits them to \fIall
+processes in the group\fR, potentially messing up process management within
+the application.
+.P
+Process containment is not what this tool really does. To contain a process
+using cgroups, it is enough to put it into a cgroup. In the example above,
+that would mean `invoke /path/to/daemon`. The actual role of \fBruncg\fR is
+modifying the exit behavior of the application, in an attempt to externally
+compensate for the lack of \fBwaitpid\fR(2) calls in the right places.
+'''
+.SH SEE ALSO
+\fBmsh\fR(1)
