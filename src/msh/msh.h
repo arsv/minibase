@@ -1,5 +1,7 @@
 #include <cdefs.h>
 
+/* struct env.key */
+
 #define EV_SIZE 0xFFFF
 
 #define EV_ENVP (1<<16)
@@ -8,7 +10,10 @@
 
 #define EV_REF  (1<<24)
 
-/* env entry types */
+struct env {
+	unsigned key;
+	char payload[];
+};
 
 struct mbuf {
 	char* buf;
@@ -61,18 +66,11 @@ struct sh {
 	struct mbuf groups;
 };
 
-struct env {
-	unsigned key;
-	char payload[];
-};
-
 #define CTX struct sh* ctx __unused
 
 void heap_init(CTX);
 void* heap_alloc(CTX, int len);
 void heap_extend(CTX);
-void hrev(CTX, int type);
-void hset(CTX, int what);
 
 void parse(CTX, char* buf, int len);
 void parse_finish(CTX);
@@ -93,9 +91,6 @@ void need_some_arguments(CTX);
 void check(CTX, const char* msg, char* arg, int ret);
 char** argsleft(CTX);
 char* dash_opts(CTX);
-
-int mmapfile(struct mbuf* mb, char* name);
-int munmapfile(struct mbuf* mb);
 
 void map_file(CTX, struct mbuf* mb, char* name);
 
