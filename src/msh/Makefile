@@ -3,11 +3,12 @@ include ../rules.mk
 $(eval $(call command,msh))
 
 msh: msh.o msh_parser.o msh_common.o \
-	$(patsubst %.c,%.o,$(sort $(wildcard msh_cmd_*.c)))
-
-msh_cmd.h: msh_cmd_*.c
-	./msh_cmd.sh > $@
-
-msh_command.o: msh_cmd.h
-
-msh_*.o: msh.h
+	msh_cmd_base.o \
+	msh_cmd_envp.o \
+	msh_cmd_exec.o \
+	msh_cmd_file.o \
+	msh_cmd_pcaps.o \
+	msh_cmd_pcred.o \
+	msh_cmd_prctl.o \
+	msh_cmd_sleep.o \
+	msh_cmd_wait.o
