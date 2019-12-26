@@ -31,12 +31,12 @@ Typical contents of /etc/boot/startup:
     setenv PATH /bin:/sbin:/usr/bin
     
     # Mount remaining virtual filesystems
-    /sbin/kmount -vc /dev/pts
-    /sbin/kmount -vc /run
-    /sbin/kmount -vc /mnt
-    /sbin/kmount -vc /tmp
+    run /bin/kmount -vc /dev/pts
+    run /bin/kmount -vc /run
+    run /bin/kmount -vc /mnt
+    run /bin/kmount -vc /tmp
     # Remount root read-write if necessary
-    #/sbin/kmount -e /
+    #run /bin/kmount -e /
     
     umask 0002
     
@@ -193,7 +193,7 @@ exec into `reboot` with appropriate flags. Example /etc/boot/shutdown:
 
     #!/sbin/msh
 
-    exec reboot -h
+    exec /sbin/reboot -h
 
 `reboot` will attempt to un-mount all remaining filesystems and invoke
 sys_reboot with appropriate arguments.

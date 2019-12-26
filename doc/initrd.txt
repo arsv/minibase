@@ -40,16 +40,16 @@ execing /init or /linuxrc, as pid 1. Typical contents:
     #!/bin/msh
 
     # mount required virtual filesystems
-    mount -vc /dev /sys /proc
+    run /bin/mount -vc /dev /sys /proc
 
     # wait for devices, see below
-    devinit # creates /dev/mapper/root
+    run /bin/devinit # creates /dev/mapper/root
 
     # mount the real root filesystem
-    kmount /root /dev/mapper/root
+    run /bin/kmount /root /dev/mapper/root
 
     # transition to the real root
-    exec switchroot /root /etc/boot/start
+    exec /bin/switchroot /root /etc/boot/start
 
 The overall goal of this script is simply to get the real root mounted
 somewhere, and then call switchroot to that directory.
@@ -74,14 +74,14 @@ Typical contents of /etc/devinit:
 
     #!/bin/msh
 
-    findblk mbr:00112233 1:boot 2:root
+    run /bin/findblk mbr:00112233 1:boot 2:root
 
 See man pages for `devinit` and `findblk` for detailed description.
 To work properly, `devinit` needs one more script, /etc/modpipe:
 
     #!/bin/msh
 
-    exec modprobe -p
+    exec /bin/modprobe -p
 
 See modprobe man page on what it does.
 
@@ -94,15 +94,15 @@ be called directly from /init:
 
     #!/bin/msh
 
-    mount -vc /dev /sys /proc
+    run /bin/kmount -vc /dev /sys /proc
 
-    modprobe some-mmc-controller
+    run /bin/modprobe some-mmc-controller
 
-    findblk name:mmcblk0 p1:root
+    run /bin/findblk name:mmcblk0 p1:root
 
-    kmount /root /dev/mapper/root
+    run /bin/kmount /root /dev/mapper/root
 
-    exec switchroot /root /etc/boot/start
+    exec /bin/switchroot /root /etc/boot/start
 
 The reason to use `findblk` in the example above is to pause the script
 until /dev/mmcblk0 appears, since modprobe does not wait for the module
@@ -114,11 +114,11 @@ If the name of the device node is static, and it does not require waiting,
 
     #!/bin/msh
 
-    kmount -vc /dev /sys /proc
+    run /bin/kmount -vc /dev /sys /proc
 
-    kmount /root /dev/mmcblk0p1
+    run /bin/kmount /root /dev/mmcblk0p1
 
-    exec switchroot /root /etc/boot/start
+    exec /bin/switchroot /root /etc/boot/start
 
 At this point, the need to use initrd in the first place should be questioned.
 
@@ -130,9 +130,9 @@ Sample /etc/devinit using `passblk`:
 
     #!/bin/msh
 
-    findblk mbr:00112233 1:root
+    run /bin/findblk mbr:00112233 1:root
 
-    passblk /etc/keyfile root
+    run /bin/passblk /etc/keyfile root
 
 See `passblk` man page for a detailed description. The end result, again, will
 be a mountable partition pointed to by /dev/mapper/root.
@@ -143,23 +143,23 @@ statically in /init, and `findblk` can be called there as well:
 
     #!/bin/msh
 
-    mount -vc /dev /sys /proc
+    run /bin/kmount -vc /dev /sys /proc
 
-    modprobe crypto_engine
-    modprobe crypto_user
-    modprobe cryptd
-    modprobe cbc
-    modprobe ecb
-    modprobe xts
-    modprobe dm-crypt
+    run /bin/modprobe crypto_engine
+    run /bin/modprobe crypto_user
+    run /bin/modprobe cryptd
+    run /bin/modprobe cbc
+    run /bin/modprobe ecb
+    run /bin/modprobe xts
+    run /bin/modprobe dm-crypt
 
-    devinit
+    run /bin/devinit
 
-    passblk /etc/keyfile root
+    run /bin/passblk /etc/keyfile root
 
-    kmount /root /dev/mapper/root
+    run /bin/kmount /root /dev/mapper/root
 
-    exec switchroot /root /etc/boot/start
+    exec /bin/switchroot /root /etc/boot/start
 
 Depending on configuration, some modules may need to be loaded statically even
 if `passblk` gets called from /etc/devinit.
