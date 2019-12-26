@@ -110,11 +110,11 @@ It's rarely used and easy to do in C. No point in doing it in assembly.
 
 Handling signals
 ~~~~~~~~~~~~~~~~
-The way signal handlers work in Linux is weird. It seems to be designed around
-some compatibility issues (POSIX sigaction perhaps?) and makes little sense out
-of that context. Normally it is all heavily wrapped by a POSIX libc, and most
-users aren't even aware of the issue. In this project, wrappers are much
-thinner, so more of this stuff is visible.
+The way handlers work in Linux seems to be designed around some compatibility
+issues (POSIX sigaction perhaps?) and makes little sense out of that context.
+Normally it is all heavily wrapped by a POSIX libc, and most users aren't even
+aware of the issue. In this project, wrappers are much thinner, so more of this
+stuff is visible.
 
 Signal handlers are not really functions. They cannot return, instead they are
 supposed to call sys_sigreturn() to restore process context and continue
@@ -136,6 +136,11 @@ the .restorer field so that the .handler would work as expected.
 
 # Note this is another case of extended syscalls, the actual syscalls used
 # are NR_rt_sigaction and NR_rt_sigreturn respectively.
+
+There is no way to pass any additional data to the handlers, like for instance
+struct top* ctx pointer. Tools that use struct top generally cannot use signal
+handlers, and must rely on signalfd instead. That said, signalfd often results
+in better code and less syscalls anyway.
 
 
 Memory allocation
