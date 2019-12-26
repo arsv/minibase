@@ -15,22 +15,21 @@ struct mbuf {
 	int len;
 };
 
-/* Heap layout, at the point when end_cmd() calls exec():
+/* Heap layout, at the point when cmd_exec() calls execve():
 
-   heap                           argv                hend
-   v                              v                   v
-   Ep Ep Ep Es Es Arg Arg Arg Arg ARGV ENVP ..........
-                  ^                         ^
-                  asep                      hptr
+   heap                                argv                hend
+   v                                   v                   v
+   Env Env Env Env Env Arg Arg Arg Arg ARGV ENVP ..........
+                       ^                         ^
+                       asep                      hptr
 
-   Ep = struct envptr
-   Es = struct env with inline payload
+   Ep = struct env
    Arg = raw 0-terminated string
-   ARGV = char** argv pointing back to Arg-s
-   ENVP = char** envp pointing back to Es-s and/or following Ep-s
+   ARGV = char* argv[] pointing back to Arg-s
+   ENVP = char* envp[] pointing back to Env-s and/or following Env references.
 
-   Until the first env change, esep=NULL, csep=heap and sh.envp
-   points to the original main() argument. */
+   Until the first env change, ctx->customenvp is negative and ctx->environ
+   is passed directly to execve(). */
 
 struct sh {
 	char* file;      /* for error reporting */
