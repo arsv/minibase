@@ -478,8 +478,6 @@ static int parse_trail(CTX, char c)
 	fatal(ctx, "trailing characters after quote", NULL);
 }
 
-/* State-driven dispatch table */
-
 typedef int (*handler)(CTX, char c);
 
 static const handler table[] = {

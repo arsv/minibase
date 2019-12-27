@@ -28,7 +28,7 @@ struct mbuf {
                        ^                         ^
                        asep                      hptr
 
-   Ep = struct env
+   Env = struct env
    Arg = raw 0-terminated string
    ARGV = char* argv[] pointing back to Arg-s
    ENVP = char* envp[] pointing back to Env-s and/or following Env references.
