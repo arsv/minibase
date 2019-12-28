@@ -54,7 +54,7 @@ static void index_entries(CTX, int count, void* brk, void* end)
 	struct ucattr** idx = heap_alloc(ctx, count*sizeof(void*));
 	int i = 0;
 	void* ptr = brk;
-	
+
 	while(ptr < end) {
 		struct ucattr* msg = ptr;
 
@@ -101,7 +101,7 @@ again:
 		fail("unexpected notification", NULL, 0);
 	else if(rep < 0)
 		fail(NULL, NULL, rep);
-	
+
 	count++;
 	repend = repbuf + msg->len;
 	heap_trim(ctx, repend);

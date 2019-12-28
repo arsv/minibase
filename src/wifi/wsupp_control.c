@@ -30,7 +30,7 @@ static char txbuf[100];
 void close_conn(CN)
 {
 	int fd = cn->fd;
-	
+
 	if(fd < 0) return;
 
 	sys_close(fd);
@@ -218,7 +218,7 @@ static int cmd_getscan(CN, MSG)
 		return idx;
 
 	struct scan* sc = &scans[idx];
-	
+
 	uc_buf_set(&uc, buf, sizeof(buf));
 	uc_put_hdr(&uc, 0);
 
