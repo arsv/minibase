@@ -1,19 +1,28 @@
 #include <bits/ioctl/tty.h>
 #include <sys/ioctl.h>
 #include <sys/file.h>
+#include <sys/ppoll.h>
+#include <sys/signal.h>
 
 #include <main.h>
 #include <printf.h>
 #include <format.h>
 #include <string.h>
+#include <sigset.h>
 #include <util.h>
 
 ERRTAG("keys");
 
 #define CSI "\033["
 
-int rows;
-int cols;
+struct top {
+	int sigfd;
+	struct pollfd pfds[2];
+	struct winsize ws;
+	struct termios ts;
+};
+
+#define CTX struct top* ctx
 
 static const struct key {
 	short code;
@@ -69,9 +78,11 @@ static void makeline(char* l, char* m, char* r, int n)
 	outstr(r);
 }
 
-static void message(char* msg)
+static void message(CTX, char* msg)
 {
 	int len = strlen(msg);
+	int rows = ctx->ws.row;
+	int cols = ctx->ws.col;
 
 	int mw = (len < 20 ? 20 : len);
 	int ww = mw + 6;
@@ -95,21 +106,22 @@ static void message(char* msg)
 	outstr(msg);
 }
 
-static void clear(void)
+static void prep_cursor(CTX)
 {
-	moveto(1,1);
-	outstr(CSI "J");
-}
+	int rows = ctx->ws.row;
+	int cols = ctx->ws.col;
 
-static void prep_cursor(void)
-{
 	int wr = rows/2 + 5;
 	int wc = cols/2 - 10;
+
 	moveto(wr, wc);
 }
 
-static void show_input(void* buf, int len)
+static void show_input(CTX, void* buf, int len)
 {
+	int rows = ctx->ws.row;
+	int cols = ctx->ws.col;
+
 	unsigned char* v = buf;
 	char out[10];
 	int wr = rows/2 + 5;
@@ -139,57 +151,154 @@ static void show_input(void* buf, int len)
 	};
 }
 
-static int got_ctrl_d(char* buf, int len)
+static void init_terminal(CTX)
 {
-	char* p = buf;
-	char* e = buf + len;
+	int ret, fd = STDIN;
+	struct termios ts;
 
-	for(; p < e; p++)
-		if(*p == 4)
-			return 1;
-
-	return 0;
-}
-
-int main(noargs)
-{
-	struct winsize ws;
-	struct termios ts, tso;
-	int ret;
-	char buf[100];
-
-	if((ret = sys_ioctl(0, TIOCGWINSZ, &ws)) < 0)
-		fail("ioctl", "TIOCGWINSZ", ret);
-
-	rows = ws.row;
-	cols = ws.col;
-
-	if((ret = sys_ioctl(0, TCGETS, &ts)) < 0)
+	if((ret = sys_ioctl(fd, TCGETS, &ctx->ts)) < 0)
 		fail("ioctl", "TCGETS", ret);
 
-	memcpy(&tso, &ts, sizeof(ts));
+	memcpy(&ts, &ctx->ts, sizeof(ts));
+
 	ts.iflag &= ~(IGNPAR | ICRNL | IXON | IMAXBEL);
 	ts.oflag &= ~(OPOST | ONLCR);
 	ts.lflag &= ~(ICANON | ECHO);
 
 	if((ret = sys_ioctl(0, TCSETS, &ts)) < 0)
 		fail("ioctl", "TCSETS", ret);
+}
 
-	clear();
-	message("Tap keys to see their event codes. Press C-d when done.");
-	prep_cursor();
+static void fini_terminal(CTX)
+{
+	int ret, fd = STDIN;
+	int rows = ctx->ws.row;
 
-	while((ret = sys_read(STDIN, buf, sizeof(buf))) > 0) {
-		show_input(buf, ret);
+	moveto(rows, 1);
 
-		if(got_ctrl_d(buf, ret))
-			break;
-	}
-
-	moveto(ws.row, 1);
-
-	if((ret = sys_ioctl(0, TCSETS, &tso)) < 0)
+	if((ret = sys_ioctl(fd, TCSETS, &ctx->ts)) < 0)
 		fail("ioctl", "TCSETS", ret);
+}
 
-	return 0;
+static void quit(CTX, const char* msg, char* arg, int err)
+{
+	fini_terminal(ctx);
+	fail(msg, arg, err);
+}
+
+static void redraw(CTX)
+{
+	int ret, fd = STDIN;
+
+	if((ret = sys_ioctl(fd, TIOCGWINSZ, &ctx->ws)) < 0)
+		fail("ioctl", "TIOCGWINSZ", ret);
+
+	moveto(1,1);
+	outstr(CSI "J");
+
+	message(ctx, "Tap keys to see their event codes. Press C-d when done.");
+	prep_cursor(ctx);
+}
+
+static void check_ctrl_d(CTX, char* buf, int len)
+{
+	char* p = buf;
+	char* e = buf + len;
+
+	for(; p < e; p++)
+		if(*p == 4)
+			goto got;
+	return;
+got:
+	fini_terminal(ctx);
+	_exit(0x00);
+}
+
+static void check_terminp(CTX)
+{
+	int ret, fd = STDIN;
+	char buf[128];
+
+	if((ret = sys_read(fd, buf, sizeof(buf))) < 0)
+		fail("read", "stdin", ret);
+
+	show_input(ctx, buf, ret);
+
+	check_ctrl_d(ctx, buf, ret);
+}
+
+static void check_signals(CTX)
+{
+	int ret, fd = ctx->sigfd;
+	struct siginfo si;
+
+	if((ret = sys_read(fd, &si, sizeof(si))) < 0)
+		quit(ctx, "read", "signalfd", 0);
+
+	int sig = si.signo;
+
+	if(sig == SIGWINCH)
+		redraw(ctx);
+	else
+		quit(ctx, "signalled", NULL, 0);
+}
+
+static void poll(CTX)
+{
+	int ret;
+	struct pollfd* pfds = ctx->pfds;
+	int npfds = 2;
+
+	if((ret = sys_ppoll(pfds, npfds, NULL, NULL)) < 0)
+		quit(ctx, "poll", NULL, ret);
+	if(!ret) return;
+
+	if(pfds[0].revents & POLLIN)
+		check_terminp(ctx);
+	if(pfds[1].revents & POLLIN)
+		check_signals(ctx);
+
+	if(pfds[0].revents & ~POLLIN)
+		quit(ctx, "lost", "stdin", 0);
+	if(pfds[1].revents & ~POLLIN)
+		quit(ctx, "lost", "signalfd", 0);
+}
+
+static void init_pollfds(CTX)
+{
+	int fd, ret;
+	struct sigset mask;
+
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGWINCH);
+	sigaddset(&mask, SIGINT);
+	sigaddset(&mask, SIGTERM);
+
+	if((fd = sys_signalfd(-1, &mask, 0)) < 0)
+		quit(ctx, "signalfd", NULL, fd);
+	if((ret = sys_sigprocmask(SIG_SETMASK, &mask, NULL)) < 0)
+		quit(ctx, "sigprocmask", NULL, ret);
+
+	struct pollfd* pfds = ctx->pfds;
+
+	pfds[0].fd = STDIN;
+	pfds[0].events = POLLIN;
+	pfds[1].fd = fd;
+	pfds[1].events = POLLIN;
+
+	ctx->sigfd = fd;
+}
+
+int main(int argc, char** argv)
+{
+	struct top context, *ctx = &context;
+
+	memzero(ctx, sizeof(*ctx));
+
+	init_terminal(ctx);
+	init_pollfds(ctx);
+
+	redraw(ctx);
+
+	while(1) poll(ctx);
 }
