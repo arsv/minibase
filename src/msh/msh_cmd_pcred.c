@@ -90,7 +90,7 @@ next:
 		goto next;
 
 	int ret = sys_sched_setaffinity(0, &mask);
-	
+
 	check(ctx, "sched_setaffinity", NULL, ret);
 }
 
@@ -207,7 +207,7 @@ void cmd_setuid(CTX)
 void cmd_setgid(CTX)
 {
 	char* group = shift(ctx);
-	
+
 	no_more_arguments(ctx);
 
 	int gid = get_group_id(ctx, group);

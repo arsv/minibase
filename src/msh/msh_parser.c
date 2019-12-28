@@ -181,7 +181,7 @@ static void push_esc(CTX, char c)
 		c = '\t';
 	else if(c == 'n')
 		c = '\n';
-	
+
 	push_char(ctx, c);
 }
 

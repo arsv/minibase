@@ -149,7 +149,7 @@ static void append_variable(CTX, char* var, int type)
 		fatal(ctx, "variable overflow", NULL);
 
 	ev->key = type | size;
-	
+
 	memcpy(ev->payload, var, vlen + 1);
 }
 

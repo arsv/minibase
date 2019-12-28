@@ -167,7 +167,7 @@ static void chown(CTX, char* owner, char* name)
 
 	if(!*sep || !*(sep+1)) /* "user" or "user:" */
 		gid = -1;
-	else 
+	else
 		gid = get_group_id(ctx, sep + 1);
 
 	*sep = '\0';
