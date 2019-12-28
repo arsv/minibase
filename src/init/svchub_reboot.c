@@ -25,7 +25,7 @@ static void note(const char* msg, char* arg, int err)
 	}
 
 	FMTENL(p, e);
-	
+
 	writeall(STDERR, buf, p - buf);
 }
 
@@ -49,7 +49,7 @@ static noreturn void exec_into(CTX, const char* script)
 void terminate(CTX)
 {
 	char* script = ctx->rbscript;
-	
+
 	if(!script) script = "failure";
 
 	exec_into(ctx, script);
@@ -86,7 +86,7 @@ int stop_into(CTX, const char* script)
 	if((ret = sys_access(path, X_OK)) < 0)
 		return ret;
 
-	ctx->rbscript = (char*)script;	
+	ctx->rbscript = (char*)script;
 
 	stop_all_procs(ctx);
 

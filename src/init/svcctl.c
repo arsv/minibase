@@ -132,7 +132,7 @@ static void dump_proc(struct bufout* bo, struct ucattr* at)
 		p = fmtstr(p, e, ")");
 	} else if(exit) {
 		int status = *exit;
-		
+
 		if(WIFEXITED(status)) {
 			p = fmtstr(p, e, " (exit ");
 			p = fmtint(p, e, WEXITSTATUS(status));
@@ -364,7 +364,7 @@ static void cmd_restart(CTX)
 	int rep;
 
 	send_proc_cmd(ctx, CMD_RESET, name);
-	
+
 	msg = recv_reply(ctx);
 	rep = uc_repcode(msg);
 

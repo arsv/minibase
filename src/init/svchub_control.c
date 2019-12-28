@@ -213,7 +213,7 @@ static int cmd_getbuf(CTX, CN, MSG, RC)
 
 	if((ret = uc_iov_hdr(&iov[0], &uc)) < 0)
 		return ret;
-	
+
 	if(ptr <= RINGSIZE) {
 		iov[1].base = ring;
 		iov[1].len = ptr;
