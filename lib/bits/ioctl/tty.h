@@ -9,6 +9,7 @@
 #define TCFLSH          0x540B
 #define TIOCSCTTY       0x540E
 #define TIOCGWINSZ      0x5413
+#define TIOCSWINSZ      0x5414
 
 struct winsize {
 	unsigned short row;
