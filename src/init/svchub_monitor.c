@@ -1,5 +1,6 @@
 #include <sys/time.h>
 #include <sys/signal.h>
+#include <sys/creds.h>
 #include <sys/file.h>
 #include <sys/proc.h>
 
@@ -143,6 +144,8 @@ static int child(CTX, struct proc* rc, int pipe[2])
 	sys_dup2(fd, 2);
 
 	if(fd > 2) sys_close(fd);
+
+	sys_setsid();
 
 	sys_sigprocmask(SIG_SETMASK, &mask, NULL);
 
