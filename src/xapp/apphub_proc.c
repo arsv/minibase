@@ -1,5 +1,6 @@
 #include <sys/file.h>
 #include <sys/proc.h>
+#include <sys/creds.h>
 #include <sys/fprop.h>
 #include <sys/signal.h>
 #include <sys/mman.h>
@@ -331,36 +332,51 @@ static int prep_path(char* path, int len, char* name)
 	return 0;
 }
 
-static int spawn_proc(struct proc* pc, char* path, char** argv, char** envp)
+static int child(int pipe[2], char* path, char** argv, char** envp)
 {
-	int pid, ret, out[2];
 	struct sigset empty;
+	int ret;
 
 	sigemptyset(&empty);
 
-	if((ret = sys_pipe2(out, O_NONBLOCK)) < 0)
+	if((ret = sys_sigprocmask(SIG_SETMASK, &empty, NULL)) < 0)
+		fail("sigprocmask", NULL, ret);
+	if((ret = sys_close(pipe[0])) < 0)
+		fail("close", NULL, ret);
+
+	int fd = pipe[1];
+
+	if((ret = sys_dup2(fd, 0)) < 0)
+		fail("dup2", "stdin", ret);
+	if((ret = sys_dup2(fd, 1)) < 0)
+		fail("dup2", "stdout", ret);
+	if((ret = sys_dup2(fd, 2)) < 0)
+		fail("dup2", "stderr", ret);
+
+	if((ret = sys_setsid()) < 0)
+		fail("setsid", NULL, ret);
+
+	ret = sys_execve(path, argv, envp);
+
+	fail("execve", path, ret);
+}
+
+static int spawn_proc(struct proc* pc, char* path, char** argv, char** envp)
+{
+	int pid, ret, pipe[2];
+
+	if((ret = sys_pipe2(pipe, O_NONBLOCK)) < 0)
 		return ret;
 
 	if((pid = sys_fork()) < 0)
 		return ret;
 
-	if(pid == 0) {
-		sys_sigprocmask(SIG_SETMASK, &empty, NULL);
+	if(pid == 0)
+		_exit(child(pipe, path, argv, envp));
 
-		sys_close(out[0]);
+	sys_close(pipe[1]);
 
-		sys_dup2(out[1], 0);
-		sys_dup2(out[1], 1);
-		sys_dup2(out[1], 2);
-
-		ret = sys_execve(path, argv, envp);
-
-		_exit(ret ? 0xFF : 0x00);
-	}
-
-	sys_close(out[1]);
-
-	pc->fd = out[0];
+	pc->fd = pipe[0];
 	pc->pid = pid;
 
 	return 0;
