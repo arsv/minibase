@@ -47,18 +47,13 @@ File system permissions fully control the access to the sockets. In most
 cases, there are no further check on the service side; if the client can
 connect() to a socket, it can run any commands on that socket.
 
-Setting socket permissions is tricky since socket nodes are temporary and
-cannot be handled like regular files. There are two workaround for this:
-set permissions for the directory (/run/ctrl) instead; or use `sockmod`
-to set them dynamically when the socket appears.
+Setting socket permissions is tricky, so current approach is to set
+permissions on the directory (e.g. /run/ctrl) statically, and make sure
+file permissions on socket themselves do not interfere but chmod'ing
+them 0777.
 
-# Note this project is written with a particular setup in mind that
-# only requires a dedicated wheel group.
-
-Directory permissions fit well with setups that use some dedicated group
-id to grant control over the system (`wheel` group or similar), so that
-this group can access the sockets and everyone else should not be able to.
-For more intricate setups, use `sockmod` instead.
+Note this project is written with a particular setup in mind that
+only requires a dedicated wheel group.
 
 
 Functional (non-control) sockets
@@ -66,24 +61,19 @@ Functional (non-control) sockets
 Some services are expected to provide some IPC for other processes in
 the system, not just the privileged wheel group, as a part of their normal
 operations (think for instance host name resolution service). Sockets for
-this kind of IPC are created in /run directly, not in /run/ctrl:
+this kind of IPC are created in some other directory, not in /run/ctrl:
 
-	/run/resolved
-
-These functional sockets in general will follow different conventions,
-like for instance allowing large number of concurrent connections, and
-may use different protocols for communication. 
-
-The services that provide functional sockets may also provide control sockets
-if necessary:
-
-	/run/resolved        <-- functional
+	/run/comm/resolved   <-- functional
 	/run/ctrl/resolved   <-- control
 
 In this example, /run/resolved is available for all processes in the system,
 and allows the clients to perform name resolution only, while the control
 socket requires privileged access and allows to reconfigure the resolver
 (set DNS forwarders and so on).
+
+These functional sockets in general will follow different conventions,
+like for instance allowing large number of concurrent connections, and
+may use different protocols for communication. 
 
 
 Per-command permissions
