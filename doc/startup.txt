@@ -116,8 +116,8 @@ Typical contents of the script, say, /etc/init/foo:
 
     setenv FOO bar
 
-    setgid system
-    setuid blah
+    setgid 5
+    setuid 11
 
     exec /usr/bin/foo
 

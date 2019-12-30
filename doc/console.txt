@@ -68,20 +68,19 @@ Example, /etc/vtmux/tty5 (defining client for VT5):
 
     #!/sbin/msh
 
-    setenv HOME /home
-
     cd /home
 
-    groups control
-    setgid user
-    setuid user
+    mkdir /tmp/user 0700 1:5
 
-    setenv XDG_RUNTIME_DIR /tmp/user
-
-    mkdir /tmp/user 0700 user:user
+    groups 3 4 7
+    setgid 5
+    setuid 1
 
     setenv WESTON_TTY_FD 0
     setenv WESTON_LAUNCHER_SOCK 3
+    setenv XDG_RUNTIME_DIR /tmp/user
+
+    setenv HOME /home
 
     waitfor /dev/dri/card0
 
@@ -221,16 +220,16 @@ To get there, vtmux needs to be configured to spawn xorgvt.
     setenv SHELL /sbin/cmd
 
     umask 0000
-    setenv XDG_RUNTIME_DIR /tmp/$USER
-    mkdir $XDG_RUNTIME_DIR 0700 $USER:$USER
+    mkdir /tmp/user 0700 1:5
     mkdir /tmp/.X11-unix 01777
     umask 0022
+    setenv XDG_RUNTIME_DIR /tmp/user
 
     cd /home
 
-    groups control
-    setgid user
-    setuid user
+    groups 3 4 7
+    setgid 5
+    setuid 1
 
     setenv WESTON_TTY_FD 0
     setenv WESTON_LAUNCHER_SOCK 3
