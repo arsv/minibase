@@ -15,11 +15,6 @@ struct env {
 	char payload[];
 };
 
-struct mbuf {
-	char* buf;
-	int len;
-};
-
 /* Heap layout, at the point when cmd_exec() calls execve():
 
    heap                                argv                hend
@@ -61,9 +56,6 @@ struct sh {
 	char* hptr;
 	char* hend;
 	char* var;       /* heap ptr to $var being substituted */
-
-	struct mbuf passwd;
-	struct mbuf groups;
 };
 
 #define CTX struct sh* ctx __unused
@@ -91,8 +83,6 @@ void need_some_arguments(CTX);
 void check(CTX, const char* msg, char* arg, int ret);
 char** argsleft(CTX);
 char* dash_opts(CTX);
-
-void map_file(CTX, struct mbuf* mb, char* name);
 
 int get_user_id(CTX, char* user);
 int get_group_id(CTX, char* group);

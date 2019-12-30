@@ -1,6 +1,8 @@
 #include <bits/secure.h>
 #include <sys/prctl.h>
 #include <sys/seccomp.h>
+#include <sys/file.h>
+#include <sys/mman.h>
 
 #include <string.h>
 
@@ -77,25 +79,39 @@ static void prctl_seccomp(CTX)
 
 	no_more_arguments(ctx);
 
-	struct mbuf mb;
+	int fd, ret;
+	struct stat st;
 
-	map_file(ctx, &mb, file);
+	if((fd = sys_open(file, O_RDONLY | O_CLOEXEC)) < 0)
+		error(ctx, NULL, file, fd);
+	if((ret = sys_fstat(fd, &st)) < 0)
+		error(ctx, "stat", file, ret);
+	if(st.size > 0x7FFFFFFF) /* no larger-than-int files */
+		error(ctx, NULL, file, -E2BIG);
 
-	if(!mb.len || mb.len % 8)
+	int proto = PROT_READ;
+	int flags = MAP_PRIVATE;
+	int size = st.size;
+
+	if(!size || (size % 8))
 		fatal(ctx, "odd size:", file);
 
-	struct seccomp sc = {
-		.len = mb.len / 8,
-		.buf = mb.buf
-	};
+	void* ptr = sys_mmap(NULL, size, proto, flags, fd, 0);
+
+	if((ret = mmap_error(ptr)))
+		error(ctx, "mmap", file, ret);
 
 	int mode = SECCOMP_SET_MODE_FILTER;
+	struct seccomp sc = {
+		.len = size / 8,
+		.buf = ptr
+	};
 
-	int ret = sys_seccomp(mode, 0, &sc);
+	ret = sys_seccomp(mode, 0, &sc);
 
 	check(ctx, "seccomp", file, ret);
 
-	//munmapfile(&mb);
+	sys_munmap(ptr, size);
 }
 
 void cmd_prctl(CTX)

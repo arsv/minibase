@@ -319,33 +319,3 @@ ptr:
 
 	return ptr;
 }
-
-/* Loading /etc/passwd and seccomp files whole. We never unmmap them,
-   r/o private mappings should not cause issues and in most cases the
-   script in question should exec into something else anyway. */
-
-void map_file(CTX, struct mbuf* mb, char* name)
-{
-	int fd, ret;
-	struct stat st;
-
-	if((fd = sys_open(name, O_RDONLY | O_CLOEXEC)) < 0)
-		error(ctx, NULL, name, fd);
-	if((ret = sys_fstat(fd, &st)) < 0)
-		error(ctx, "stat", name, ret);
-	if(st.size > 0x7FFFFFFF) /* no larger-than-int files */
-		error(ctx, NULL, name, -E2BIG);
-
-	int proto = PROT_READ;
-	int flags = MAP_PRIVATE;
-
-	void* ptr = sys_mmap(NULL, st.size, proto, flags, fd, 0);
-
-	if((ret = mmap_error(ptr)))
-		error(ctx, "mmap", name, ret);
-
-	mb->len = st.size;
-	mb->buf = ptr;
-
-	sys_close(fd);
-}

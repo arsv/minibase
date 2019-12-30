@@ -3,6 +3,7 @@
 #include <sys/fprop.h>
 
 #include <string.h>
+#include <format.h>
 
 #include "msh.h"
 #include "msh_cmd.h"
@@ -164,18 +165,19 @@ static void chown(CTX, char* owner, char* name)
 {
 	int uid, gid;
 	char* sep = strcbrk(owner, ':');
+	char* p;
 
 	if(!*sep || !*(sep+1)) /* "user" or "user:" */
 		gid = -1;
-	else
-		gid = get_group_id(ctx, sep + 1);
+	else if(!(p = parseint(sep + 1, &gid)) || *p)
+		fatal(ctx, "invalid group id:", sep + 1);
 
 	*sep = '\0';
 
 	if(sep == owner) /* ":group" */
 		uid = -1;
-	else
-		uid = get_user_id(ctx, owner);
+	else if(!(p = parseint(owner, &uid)) || *p)
+		fatal(ctx, "invalid user id:", owner);
 
 	int ret = sys_chown(name, uid, gid);
 
