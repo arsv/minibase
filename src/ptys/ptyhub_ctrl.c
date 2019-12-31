@@ -1,5 +1,7 @@
 #include <bits/socket/unix.h>
+#include <bits/ioctl/tty.h>
 #include <sys/file.h>
+#include <sys/ioctl.h>
 #include <sys/signal.h>
 #include <sys/socket.h>
 #include <sys/mman.h>
@@ -345,6 +347,18 @@ static int cmd_start(CTX, CN, MSG)
 	return reply_start(cn, pc);
 }
 
+static void detach(struct proc* pc)
+{
+	struct winsize ws;
+	int fd = pc->mfd;
+
+	memzero(&ws, sizeof(ws));
+
+	(void)sys_ioctl(fd, TIOCGWINSZ, &ws);
+
+	pc->cfd = -1;
+}
+
 static int cmd_spawn(CTX, CN, MSG)
 {
 	int xid;
@@ -355,7 +369,7 @@ static int cmd_spawn(CTX, CN, MSG)
 	if(!(pc = find_proc(ctx, xid)))
 		return -EFAULT;
 
-	pc->cfd = -1;
+	detach(pc);
 
 	return reply_spawn(cn, pc);
 }
@@ -375,7 +389,8 @@ static int cmd_detach(CTX, CN, MSG)
 	if(pc->cfd != cn->fd)
 		return -EPERM;
 
-	pc->cfd = -1;
+	detach(pc);
+
 	ctx->pollset = 0;
 
 	return 0;
@@ -399,7 +414,7 @@ static int cmd_attach(CTX, CN, MSG)
 	pc->cfd = cn->fd;
 	ctx->pollset = 0;
 
-	return 0;
+	return reply_start(cn, pc);
 }
 
 static int signal_proc(CTX, MSG, int sig)
@@ -466,7 +481,7 @@ static void detach_client(CTX, int fd)
 
 	for(; pc < pe; pc++)
 		if(pc->cfd == fd)
-			pc->cfd = -1;
+			detach(pc);
 }
 
 static void update_nconns(CTX)

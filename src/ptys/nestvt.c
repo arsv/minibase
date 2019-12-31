@@ -132,7 +132,7 @@ static void parse_ancillary(CTX, struct ucaux* ux)
 	int fd;
 
 	if((fd = ux_getf1(ux)) < 0)
-		fail("ancillary", NULL, fd);
+		fail("no pty master fd in reply", NULL, 0);
 
 	ctx->mfd = fd;
 }
