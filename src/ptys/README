@@ -1,0 +1,187 @@
+Why dedicated PTY supervisor?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+There are at least three unrelated problems that could be nicely addressed
+by having a PTY managing service:
+
+    * distinct privilege levels for terminal emulators and
+        the applications the display
+    * detachable sessions (think screen, tmux, dtach)
+    * restricted access to /dev/ptmx (and /dev in general)
+
+In GNU(-like) system a terminal emulator can run a command line that's way
+higher in term of privilege level that the emulator itself by spawning a suid
+executable at some point. In this project, the goal is to allow running the
+system with all suid-like functionality disabled, so that's not an option.
+
+The opposite situation, that is running a less privileged application, might
+be desirable as well. Terminal emulators are graphical application that need
+access to the windowing system. The applications they display, not really.
+
+Detachable sessions is an obvious where a dedicated service makes things
+much easier. This is also one of the main reasons to have a PTY specific
+service, instead of just running such applications via apphub.
+
+Finally, limiting the need for non-privileged applications to access device
+node simplifies device management (no need to care about permissions).
+
+
+Application model
+~~~~~~~~~~~~~~~~~
+This part of ptyhub design requires some explanation.
+
+There are effectively two distinct kinds of applications, both confusingly
+called "terminal applications", based on two different ideas of a "terminal".
+We will call these two kinds of terminals "TTY" (for teletype) and VT (for
+visual terminal). Consequently terminal applications can be either of TTY
+or VT variety, depending on which kind of terminal they are written for.
+
+The two kinds are mostly incompatible, and the key insight in ptyhub is that
+focusing solely on the VT variety results in a very clean design, which makes
+writing both terminal emulators and VT applications easy and straightforward,
+and also allows running TTY applications with a help of a standalone shim
+(basically a TTY-over-VT emulator), without the need to hack the VT part.
+
+This however may be confusing at first because traditionally both the Linux
+console and the majority of Linux terminal emulators attempted to implement
+a hybrid TTY+VT model, which is pretty complex and has inherent UX flaws at
+least in the VT mode. To complicate things further, some applications have
+been written targeting the hybrid TTY+VT model, in that they are effectively
+TTY applications but at some points decide to control the terminal in ways
+that only make sense for VTs.
+
+At this point, the ptyhub side of the VT part is pretty much done, but the
+TTY shim is still missing. The VT part also needs a terminal emulator (at
+least one for every support windowing system, i.e. X, Wayland etc), but for
+now there's the nestvt tool which allows using any hybrid TTY+VT emulators
+with ptyhub. See below on this.
+
+
+TTY and VT application
+~~~~~~~~~~~~~~~~~~~~~~
+TTY is an idealized model of a teletype, a line printer using an infinite
+roll of paper and a keyboard. There's a simple line editing, keyboard input
+is buffered locally until Enter is pressed, and remains editable in that
+interval.  Once Enter is pressed, the command is sent over the wire, and
+the printer starts typing the output. The stuff typed once never gets
+over-typed, it remains readable on the paper (aka persistency). If the output
+is long, the user can pick the paper and start reading from the from any point
+(aka scrollback buffer). Powering the thing off does not erase the paper.
+
+TTY applications are "command-line" applications which allow the user to
+edit roughly one line at the bottom (the local input buffer) and the rest
+of the screen serves as the infinite roll of paper to print on.
+
+Examples: busybox sh, bash, fish, more, python (in interactive mode), any
+other CLI/REPL style languages. Anything using readline library is probably
+a TTY application at its core.
+
+VT is an idealized model of a visual terminal. Think DEC VT100, VT220 and
+the likes. It displays characters on a 2D grid, and allows placing the cursor
+anywhere on the grid at will. The characters are non-persistent, can be
+overwritten by printing over the same cell on the grind. Overwritten
+characters are not recoverable, once it's gone it's gone. VT has no notion
+of scrollback buffer, or scrolling for that matter. The cursor can move,
+but the grid doesn't. Powering VT off erases everything on the screen.
+
+VTs accept ANSI control sequences to set their internal state, like cursor
+position, current color and such. There's also a keyboard, which sends each
+key press directly to the application and for the most part doesn't really
+interact with the display at all.
+
+VTs can change the dimensions of the grid at will (originally by changing
+font size, modern emulators mostly by resizing the window).
+
+VT applications are full-screen, often use (n)curses library, sometimes
+draw boxes on the screen using box characters, redraw the screen on ^L,
+and realign themselves properly when terminal window gets resized.
+
+Examples: vi, vim, nano, emacs, mc, less, top, irssi, alsamixer, mocp.
+
+
+How detaching works
+~~~~~~~~~~~~~~~~~~~
+Imagine the terminal is not an emulator but a real VT220. Switch it off.
+The session is now detached. Switch it back on. The session is re-attached.
+VT220 does not keep its state across a power cycle, it powers up with an
+empty screen and re-initialized registers.
+
+Back to emulators. When a session gets re-attached, the terminal does sets
+the initial window size (TIOCSWINSZ), which triggers SIGWINCH for the app,
+which forces the app to re-draw the screen. This happens naturally, as the
+terminal has to set window size on startup anyway. The only thing is that
+Linux checks whether the size actually changes, and skips SIGWINCH if it
+hasn't. To mend this, detached sessions get their window size reset to (0,0)
+by ptyhub.
+
+While the session is detached, ptyhub reads all output from the master side
+of the PTY. In old tech terms, that would be keeping DTR artificially high
+while the cable is unplugged and/or the VT is off. Leaving the output unread
+would force the application to handle blocking on stdout, something it does
+not need to worry about during normal operation. Pretty much any application
+running under ptyhub should not cause much trouble with its output when left
+without user input, so this was deemed a viable solution. Most applications
+would be aware of their detached state anyway because of the nil window size.
+
+Terminating control connection to ptyhub auto-detaches the session associated
+with that control connection. There are good technical reasons to do so, this
+way a crash of the terminal emulator does not kill the possibly important
+stuff that was running in that terminal. But there is a potentially baffling
+consequence: closing the terminal by external means (Alt+F4, kill terminal)
+detaches the session but does not kill the application. To actually quit the
+application, the user has to command the application to quit (C-d for shell,
+something like q for non-shell applications). The application would quit,
+ptyhub would then send an exit notification to the terminal, prompting a
+properly written terminal to close.
+
+
+PTY technicalities
+~~~~~~~~~~~~~~~~~~
+When ptyhub spawns an application, it allocates a PTY pair. The slave side
+of the pair gets dup'ed onto stdin, stdout, stderr of the spawned process
+and stays there. The master fd is kept in ptyhub for the entire run time of
+the application.
+
+Terminal emulator attaching to a session opens a control connection to ptyhub,
+and sends attach command. In reply, it gets a dup'ed copy of the master side
+fd for the PTY. For the remainder of the session, the terminal uses the master
+fd to communicate with the application, but also keeps the control connection
+open. Since ptyhub has no obvious way of knowing what happens with the master
+side fd it sent to the terminal, it has to assume the master fd is in use as
+long as the terminal process is alive, and uses the control connection as a
+sort of dead man switch to get notified in case the terminal process dies.
+
+The control connection is also used for signalling the application and passing
+exit notifications but the primary reason for it to be open is to let ptyhub
+know the terminal is still alive.
+
+The description above is about attaching. The more common scenario of spawning
+an application works exactly like that, but there's no explicit attach request
+since ptyhub sends the master fd in reply to the spawn request.
+
+Giving the terminal a copy of the PTY master fd ensures detachable sessions
+incur no penalties in terms of input latency or the kernel resources, at
+least in the best case.
+
+
+Compatible terminal
+~~~~~~~~~~~~~~~~~~~
+While nestvt allows pretty much conventional terminal to be used with ptyhub,
+the whole thing is really designed to use a custom terminal emulator that
+would connect directly to ptyhub to request the PTY fd, instead of attempting
+to allocate a new pair.
+
+The terminal in question could be similar to st, the suckless terminal.
+
+
+Handling stderr
+~~~~~~~~~~~~~~~
+Current implementation redirects stderr of the spawned application to the PTY
+(the slave side of the PTY), the same way conventional termianls do.
+
+It would probably be much better to capture stderr into a ring buffer like
+apphub does it instead, so that accidental error messages would not mess up
+the output. However, for now, it remains as is for compatibility reasons.
+
+The blocker for this is the TTY-over-VT shim, which is what should handle the
+two TTY streams (stdout, stderr) and transform them into proper VT output
+(stdout only!).
