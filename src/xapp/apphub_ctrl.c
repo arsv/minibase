@@ -12,7 +12,7 @@
 #include "apphub.h"
 
 #define MSG struct ucattr* msg
-#define CN struct conn* cn
+#define CN struct conn* cn __unused
 
 #define MAX_COMMAND_BUF 8192
 #define IOBUF_TIMER 30

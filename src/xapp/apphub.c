@@ -163,7 +163,7 @@ static void reset_pollfds(CTX)
 	ctx->npfds = 0;
 	ctx->ptr = ctx->sep;
 
-	if(need < sizeof(ctx->pollbuf))
+	if(need < ssizeof(ctx->pollbuf))
 		goto pbuf;
 
 	if(!(buf = heap_alloc(ctx, need)))

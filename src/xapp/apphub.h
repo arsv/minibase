@@ -58,7 +58,7 @@ struct top {
 	struct timespec ts;
 };
 
-#define CTX struct top* ctx
+#define CTX struct top* ctx __unused
 
 void check_socket(CTX);
 
