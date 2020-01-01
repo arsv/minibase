@@ -7,12 +7,12 @@ int uc_iov_hdr(struct iovec* iov, struct ucbuf* uc)
 	int cap = uc->len;
 	struct ucattr* msg = buf;
 
-	if(cap < sizeof(*msg))
+	if(cap < ssizeof(*msg))
 		goto err;
 
 	int len = msg->len;
 
-	if(len < sizeof(*msg))
+	if(len < ssizeof(*msg))
 		goto err;
 
 	iov->base = buf + 2;

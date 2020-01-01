@@ -37,7 +37,7 @@ void uc_end_strs(struct ucbuf* uc, struct ucattr* at)
 	int ptr = msg->len;    /* current end of at, bytes into uc */
 	int len = ptr - ats;   /* current length of at */
 
-	if(len < sizeof(*at)) return; /* bogus pointers */
+	if(len < ssizeof(*at)) return; /* bogus pointers */
 
 	at->len = len;
 

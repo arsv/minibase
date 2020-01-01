@@ -6,7 +6,7 @@ struct ucattr* uc_msg(void* buf, int len)
 	struct ucattr* msg;
 	int full = 2 + len;
 
-	if(full < sizeof(*msg))
+	if(full < ssizeof(*msg))
 		return NULL;
 
 	msg = buf;

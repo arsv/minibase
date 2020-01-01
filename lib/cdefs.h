@@ -13,6 +13,8 @@
 #define alloca(n) __builtin_alloca(n)
 #define offsetof(t, f) __builtin_offsetof(t, f)
 
+#define ssizeof(x) ((int)sizeof(x))
+
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(*a))
 #define ARRAY_END(a) (a + ARRAY_SIZE(a))
 
