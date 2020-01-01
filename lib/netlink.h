@@ -100,6 +100,6 @@ struct nlgen {
 struct nlmsg* nl_msg(void* buf, int len);
 struct nlerr* nl_err(struct nlmsg* msg);
 struct nlgen* nl_gen(struct nlmsg* msg);
-void* nl_cast(struct nlmsg* msg, int size);
+void* nl_cast(struct nlmsg* msg, unsigned size);
 
 static inline int nl_len(struct nlmsg* msg) { return msg->len; }
