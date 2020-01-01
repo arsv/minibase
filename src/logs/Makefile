@@ -1,6 +1,6 @@
 include ../rules.mk
 
-$(eval $(call command,logcat,1))
-$(eval $(call command,logger,1))
-$(eval $(call command,dmesg,8))
-$(eval $(call service,sysklogd,8))
+$(eval $(call bin,logcat,1))
+$(eval $(call bin,logger,1))
+$(eval $(call bin,dmesg,8))
+$(eval $(call sys,sysklogd,8))

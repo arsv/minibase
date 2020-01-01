@@ -358,7 +358,7 @@ static void touch(char* path)
 
 void init_inputs(CTX)
 {
-	makedir(HERE "/run/udev");
+	makedir(HERE "/run/udev/");
 	makedir(HERE "/run/udev/data");
 
 	scan_devices(ctx);

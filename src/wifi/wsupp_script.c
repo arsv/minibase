@@ -87,7 +87,7 @@ void check_script(void)
 
 int spawn_script(void)
 {
-	char* script = HERE "/etc/net/wifi-link";
+	char* script = CONFDIR "/wifi-link";
 	int ret, pid;
 
 	if(running > 0)

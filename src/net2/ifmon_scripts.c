@@ -88,7 +88,7 @@ static void set_current_script(LS, int what)
 
 void spawn_identify(CTX, LS)
 {
-	char* script = HERE "/etc/net/identify";
+	char* script = CONFDIR "/identify";
 
 	set_current_script(ls, LS_IDEF);
 
@@ -100,7 +100,7 @@ void spawn_mode(CTX, LS)
 	int ret;
 
 	FMTBUF(p, e, script, 100);
-	p = fmtstr(p, e, HERE "/etc/net/mode-");
+	p = fmtstr(p, e, CONFDIR "/mode-");
 	p = fmtstrn(p, e, ls->mode, sizeof(ls->mode));
 	FMTEND(p, e);
 
@@ -121,7 +121,7 @@ void spawn_stop(CTX, LS)
 	int ret;
 
 	FMTBUF(p, e, script, 100);
-	p = fmtstr(p, e, HERE "/etc/net/stop-");
+	p = fmtstr(p, e, CONFDIR "/stop-");
 	p = fmtstrn(p, e, ls->mode, sizeof(ls->mode));
 	FMTEND(p, e);
 
@@ -137,7 +137,7 @@ void spawn_stop(CTX, LS)
 		return;
 	}
 
-	char* common = HERE "/etc/net/flush";
+	char* common = CONFDIR "/flush";
 
 	if((ret = spawn(ctx, ls, common)) > 0)
 		return;
@@ -155,7 +155,7 @@ void spawn_dhcp(CTX, LS)
 	int ret;
 
 	FMTBUF(p, e, script, 100);
-	p = fmtstr(p, e, HERE "/etc/net/conf-");
+	p = fmtstr(p, e, CONFDIR "/conf-");
 	p = fmtstrn(p, e, ls->mode, sizeof(ls->mode));
 	FMTEND(p, e);
 
@@ -166,7 +166,7 @@ void spawn_dhcp(CTX, LS)
 	if(ret != -ENOENT)
 		return;
 
-	char* common = HERE "/etc/net/config";
+	char* common = CONFDIR "/config";
 
 	(void)spawn(ctx, ls, common);
 }
@@ -174,7 +174,7 @@ void spawn_dhcp(CTX, LS)
 void spawn_poke(CTX, LS)
 {
 	FMTBUF(p, e, script, 100);
-	p = fmtstr(p, e, HERE "/etc/net/poke-");
+	p = fmtstr(p, e, CONFDIR "/poke-");
 	p = fmtstrn(p, e, ls->mode, sizeof(ls->mode));
 	FMTEND(p, e);
 

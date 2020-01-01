@@ -1,7 +1,7 @@
 #include <dirs.h>
 
-#define BOOTDIR HERE "/etc/boot"
-#define INITDIR HERE "/etc/init"
+#define BOOTDIR BASE_ETC "/boot"
+#define INITDIR BASE_ETC "/init"
 #define CONTROL RUN_CTRL "/svchub"
 
 #define CMD_LIST       1

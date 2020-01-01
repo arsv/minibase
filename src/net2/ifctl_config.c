@@ -26,7 +26,7 @@ struct config {
 
 #define CFG struct config* cfg
 
-static const char cfgname[] = HERE "/var/interfaces";
+static const char cfgname[] = BASE_VAR "/interfaces";
 static const int maxsize = MAX_CFG_ENTRIES*sizeof(struct cfgent);
 
 /* USB auxiliary routines */

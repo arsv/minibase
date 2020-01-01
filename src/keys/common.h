@@ -1,4 +1,4 @@
 #include <dirs.h>
 
-#define CONFDIR HERE "/etc/keys"
-#define KEYCONF HERE "/etc/keymon"
+#define CONFDIR BASE_ETC "/keys"
+#define KEYCONF BASE_ETC "/keymon"

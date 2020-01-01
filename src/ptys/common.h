@@ -1,6 +1,6 @@
 #include <dirs.h>
 
-#define CONFDIR HERE "/etc/ptyhub"
+#define CONFDIR BASE_ETC "/ptyhub"
 #define CONTROL RUN_CTRL "/ptyhub"
 
 #define CMD_STATUS     1

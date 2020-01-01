@@ -14,7 +14,7 @@
 
 #define MAX_PSK_ENTRIES 64
 
-static const char cfgname[] = HERE "/var/wifi-psk";
+static const char cfgname[] = BASE_VAR "/wifi-psk";
 
 struct saved {
 	byte ssid[32];

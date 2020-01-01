@@ -29,7 +29,7 @@ static int spawn(CTX, char* args[])
 	int pid, ret;
 
 	FMTBUF(p, e, path, 100);
-	p = fmtstr(p, e, HERE "/etc/net/");
+	p = fmtstr(p, e, BASE_ETC "/net/");
 	p = fmtstr(p, e, args[0]);
 	FMTEND(p, e);
 
@@ -72,7 +72,7 @@ static int spawn_ips(CTX, char* script, int key)
 	args[1] = ctx->ifname;
 
 	FMTBUF(p, e, buf, 100);
-	
+
 	for(i = 0; i < n; i += 4) {
 		char* q = p;
 		p = fmtip(p, e, &ips[i]);
@@ -83,7 +83,7 @@ static int spawn_ips(CTX, char* script, int key)
 
 		args[k++] = q;
 	}
-	
+
 	args[k] = NULL;
 
 	return spawn(ctx, args);
@@ -100,7 +100,7 @@ static int run_gw_script(CTX)
 	FMTBUF(p, e, buf, 30);
 	p = fmtip(p, e, ip);
 	FMTEND(p, e);
-	
+
 	args[0] = "dhcp-gw";
 	args[1] = ctx->ifname;
 	args[2] = buf;

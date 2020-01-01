@@ -8,6 +8,8 @@
 
 #include "udevmod.h"
 
+#define CONFDIR BASE_ETC "/udev"
+
 /* During the initial device scan, udevmod will try dozens of modaliases
    in quick succession, most of them invalid. There is no point in spawning
    that many modprobe processes. Instead, we spawn one and pipe it aliases
@@ -28,7 +30,7 @@ void open_modprobe(CTX)
 		fail("fork", NULL, pid);
 
 	if(pid == 0) {
-		char* argv[] = { HERE "/etc/udev/modpipe", NULL };
+		char* argv[] = { CONFDIR "/modpipe", NULL };
 		sys_dup2(fds[0], STDIN);
 		sys_close(fds[1]);
 		ret = sys_execve(*argv, argv, ctx->envp);
@@ -68,7 +70,7 @@ static void run_modprobe(CTX, char* name)
 	}
 
 	if(pid == 0) {
-		char* argv[] = { HERE "/etc/udev/modprobe", name, NULL };
+		char* argv[] = { CONFDIR "/modprobe", name, NULL };
 		ret = sys_execve(*argv, argv, ctx->envp);
 		fail("execve", *argv, ret);
 	} else {

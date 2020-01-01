@@ -130,7 +130,7 @@ static int prep_modules_builtin(CTX)
 static int prep_config(CTX)
 {
 	struct mbuf* mb = &ctx->config;
-	char* name = HERE "/etc/modules";
+	char* name = BASE_ETC "/modules";
 	int ret;
 
 	if((ret = ctx->tried_config))

@@ -1,12 +1,13 @@
 include ../rules.mk
 
-$(eval $(call service,vtmux,8))
-$(eval $(call command,vtctl,1))
-$(eval $(call system,ctrlvt))
-$(eval $(call system,stubvt))
-$(eval $(call system,xorgvt))
-$(eval $(call system,rootsh))
-$(eval $(call other,unlock))
+$(eval $(call sys,vtmux,8))
+$(eval $(call bin,vtctl,1))
+$(eval $(call sys,ctrlvt))
+$(eval $(call sys,stubvt))
+$(eval $(call sys,xorgvt))
+$(eval $(call sys,rootsh))
+
+$(eval $(call skip,unlock))
 
 vtmux: vtmux.o vtmux_pipe.o vtmux_exec.o vtmux_poll.o vtmux_slot.o \
 	vtmux_vtsw.o vtmux_wait.o vtmux_ctrl.o

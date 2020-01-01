@@ -1,3 +1,3 @@
 include ../rules.mk
 
-$(eval $(call command,runcg,1))
+$(eval $(call sys,runcg,1))

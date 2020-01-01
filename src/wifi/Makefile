@@ -1,7 +1,7 @@
 include ../rules.mk
 
-$(eval $(call service,wsupp))
-$(eval $(call command,wifi))
+$(eval $(call sys,wsupp))
+$(eval $(call bin,wifi))
 
 wsupp: wsupp.o wsupp_eapol.o wsupp_control.o wsupp_slots.o \
 	wsupp_apsel.o wsupp_bssid.o wsupp_script.o wsupp_netlink.o \

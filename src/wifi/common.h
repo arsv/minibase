@@ -1,6 +1,7 @@
 #include <dirs.h>
 
 #define CONTROL RUN_CTRL "/wsupp"
+#define CONFDIR BASE_ETC "/net"
 
 #define CMD_STATUS       0
 #define CMD_SETDEV       1

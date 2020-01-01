@@ -1,9 +1,9 @@
 include ../rules.mk
 
-$(eval $(call system,passblk,8))
-$(eval $(call command,dektool,8))
-$(eval $(call command,deitool,8))
-$(eval $(call command,dmcrypt,8))
+$(eval $(call sys,passblk,8))
+$(eval $(call bin,dektool,8))
+$(eval $(call bin,deitool,8))
+$(eval $(call bin,dmcrypt,8))
 
 dektool: dektool.o keytool.o
 deitool: deitool.o keytool.o

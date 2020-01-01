@@ -1,7 +1,7 @@
 #include <dirs.h>
 
 #define CONTROL RUN_CTRL "/ifmon"
-#define ETCNET HERE "/etc/net"
+#define CONFDIR BASE_ETC "/net"
 
 #define CMD_STATUS      0
 #define CMD_IDMODE      1
