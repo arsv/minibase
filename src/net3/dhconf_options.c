@@ -51,7 +51,7 @@ struct dhcpopt* get_ctx_option(CTX, int code)
 {
 	void* options = ctx->options;
 	int optlen = ctx->optlen;
-	
+
 	return get_opt(options, optlen, code);
 }
 

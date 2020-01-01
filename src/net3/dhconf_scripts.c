@@ -58,7 +58,7 @@ static int spawn(CTX, char* args[])
 static int spawn_ips(CTX, char* script, int key)
 {
 	struct dhcpopt* opt;
-	int i, n, k = 2;
+	uint i, n, k = 2;
 	char* args[10];
 
 	if(!(opt = get_ctx_option(ctx, key)))
@@ -129,7 +129,7 @@ static const fh scripts[] = {
 
 static void run_next_script(CTX)
 {
-	int i = ctx->script;
+	uint i = ctx->script;
 
 	while(i < ARRAY_SIZE(scripts))
 		if(scripts[i++](ctx) > 0)

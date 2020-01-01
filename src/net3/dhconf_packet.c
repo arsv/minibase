@@ -412,11 +412,11 @@ static void recv_packet(CTX)
 
 	struct dhcpmsg* msg = (void*)buf;
 
-	if(ret < sizeof(*msg))
+	if(ret < ssizeof(*msg))
 		return;
 
 	int optlen = ret - sizeof(*msg);
-	
+
 	handle_packet(ctx, msg, optlen, from.addr);
 }
 

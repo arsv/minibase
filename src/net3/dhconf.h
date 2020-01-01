@@ -142,7 +142,7 @@ struct top {
 	struct timespec ts;
 
 	uint xid;
-	int seq;
+	uint seq;
 
 	uint64_t origref;
 	uint64_t timeref;

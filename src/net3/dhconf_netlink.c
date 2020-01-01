@@ -47,7 +47,7 @@ static void fini_netlink(CTX)
 	ctx->nlfd = -1;
 }
 
-static int send_recv_ack(CTX, struct ncbuf* nc, int seq)
+static int send_recv_ack(CTX, struct ncbuf* nc, uint seq)
 {
 	int fd = ctx->nlfd;
 	struct nlmsg* msg;
@@ -62,6 +62,8 @@ static int send_recv_ack(CTX, struct ncbuf* nc, int seq)
 	if(!(msg = nl_msg(buf, ret)))
 		return -EBADMSG;
 	if(!(err = nl_err(msg)))
+		return -EBADMSG;
+	if(msg->seq != seq)
 		return -EBADMSG;
 
 	return err->errno;
