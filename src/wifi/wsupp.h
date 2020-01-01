@@ -158,7 +158,7 @@ int time_to_scan(void);
 
 int spawn_script(void);
 void check_script(void);
-void script_exit(int status);
+void script_exit(void);
 int sigint_script(void);
 int sighup_script(void);
 void stop_wait_script(void);

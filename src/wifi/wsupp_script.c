@@ -82,7 +82,7 @@ void check_script(void)
 
 	running = 0;
 
-	script_exit(status);
+	script_exit();
 }
 
 int spawn_script(void)

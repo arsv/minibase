@@ -318,7 +318,7 @@ static void abort_timeout(void)
 static void swait_timeout(void)
 {
 	force_script();
-	script_exit(-1);
+	script_exit();
 }
 
 /* This gets called from various places in case of unrecoverable
@@ -345,7 +345,7 @@ void abort_connection(int err)
 	connection_ended(ret);
 }
 
-void script_exit(int status)
+void script_exit(void)
 {
 	if(operstate == OP_WAIT_DISCONN)
 		operstate = OP_DISCONNECTING;
