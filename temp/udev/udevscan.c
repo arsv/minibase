@@ -195,6 +195,8 @@ int main(int argc, char** argv)
 	if(argc > 1)
 		fail("too many arguments", NULL, 0);
 
+	(void)argv;
+
 	memzero(ctx, sizeof(*ctx));
 
 	setup_signals(ctx);

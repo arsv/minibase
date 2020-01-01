@@ -293,6 +293,9 @@ int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
 
+	(void)argc;
+	(void)argv;
+
 	memzero(ctx, sizeof(*ctx));
 
 	init_terminal(ctx);

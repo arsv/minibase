@@ -21,16 +21,16 @@ struct top {
 
 	int in;
 	int mode;
-	off_t size;
-	off_t off;
+	uint64_t size;
+	uint64_t off;
 	char* name;
 
 	int out;
 
 	int dictsize;
 
-	off_t opos;
-	off_t ipos;
+	uint64_t opos;
+	uint64_t ipos;
 };
 
 #define CTX struct top* ctx
@@ -162,12 +162,12 @@ static long downtopage(long len)
 
 static void prep_initial_output(CTX)
 {
-	int dictsize = ctx->dictsize;
+	uint dictsize = ctx->dictsize;
 	int ret;
 
 	int prot = PROT_READ | PROT_WRITE;
 	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
-	int size = uptopage(dictsize + dictsize) + PAGE;
+	uint size = uptopage(dictsize + dictsize) + PAGE;
 
 	if(size >= MAX_MAP_SIZE)
 		;
