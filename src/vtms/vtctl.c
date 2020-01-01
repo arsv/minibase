@@ -25,7 +25,7 @@ struct top {
 	char buf[128];
 };
 
-#define CTX struct top* ctx
+#define CTX struct top* ctx __unused
 #define MSG struct ucattr* msg
 
 #define OPTS "sbku"
@@ -117,7 +117,7 @@ static int cmpvt(void* a, void* b)
 static int index_vts(MSG, struct ucattr** dst, int max)
 {
 	struct ucattr* at;
-	int i, nvts = 0;
+	int i = 0, nvts = 0;
 
 	for(at = uc_get_0(msg); at; at = uc_get_n(msg, at))
 		if(uc_is_keyed(at, ATTR_VT))
