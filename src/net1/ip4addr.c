@@ -56,7 +56,7 @@ static void check_parse_ipmask(uint8_t ip[5], char* arg)
 		fail("invalid address", arg, 0);
 }
 
-static int send_recv_ack(CTX, struct ncbuf* nc, int seq)
+static int send_recv_ack(CTX, struct ncbuf* nc, uint seq)
 {
 	int fd = ctx->nl;
 	byte buf[64];
