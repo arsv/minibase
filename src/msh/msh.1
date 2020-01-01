@@ -83,6 +83,9 @@ Set real, effective and saved user ids to those of \fIuser\fR.
 Same with group ids.
 .IP "\fBgroups\fR \fIid\fR \fIid\fR ..." 4
 See \fBsetgroups\fR(2).
+.IP "\fBscheduler\fR \fItype\fR [\fIpriority\fR]" 4
+See \fBsched_setscheduler\fR(2); \fItype\fR should be one of "normal",
+"fifo", "rr", "batch", "idle", \fIpriority\fR is 0 if omitted.
 .IP "\fBsetcpus\fR \fIn n n\fR ..." 4
 See \fBsched_setaffinity\fR(2). CPUs are numbered starting from 0.
 .IP "\fBsetprio\fR \fInumber\fR" 4

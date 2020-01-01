@@ -3,7 +3,6 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
 #include <sys/creds.h>
-#include <sys/sched.h>
 #include <sys/rlimit.h>
 #include <sys/seccomp.h>
 #include <sys/mman.h>
@@ -62,36 +61,6 @@ void cmd_rlimit(CTX)
 	int ret = sys_prlimit(0, rp->res, &rl, NULL);
 
 	check(ctx, "rlimit", key, ret);
-}
-
-void cmd_setprio(CTX)
-{
-	int prio;
-
-	shift_int(ctx, &prio);
-	no_more_arguments(ctx);
-
-	int ret = sys_setpriority(0, 0, prio);
-
-	check(ctx, "setpriority", NULL, ret);
-}
-
-void cmd_setcpus(CTX)
-{
-	int id;
-	struct cpuset mask;
-
-	memzero(&mask, sizeof(mask));
-next:
-	shift_int(ctx, &id);
-	cpuset_set(&mask, id);
-
-	if(got_more_arguments(ctx))
-		goto next;
-
-	int ret = sys_sched_setaffinity(0, &mask);
-
-	check(ctx, "sched_setaffinity", NULL, ret);
 }
 
 void cmd_umask(CTX)
