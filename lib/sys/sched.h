@@ -1,6 +1,17 @@
 #include <bits/time.h>
 #include <syscall.h>
 
+#define SCHED_NORMAL    0
+#define SCHED_FIFO      1
+#define SCHED_RR        2
+#define SCHED_BATCH     3
+#define SCHED_IDLE      5
+#define SCHED_DEADLINE  6
+
+struct sched_param {
+	int priority;
+};
+
 inline static long sys_pause(void)
 {
 	return syscall4(NR_ppoll, 0, 0, 0, 0);
@@ -9,6 +20,11 @@ inline static long sys_pause(void)
 inline static long sys_nanosleep(struct timespec* req, struct timespec* rem)
 {
 	return syscall2(NR_nanosleep, (long)req, (long)rem);
+}
+
+inline static long sys_setscheduler(int pid, int policy, struct sched_param* p)
+{
+	return syscall3(NR_sched_setscheduler, pid, policy, (long)p);
 }
 
 inline static long sys_getpriority(int which, int who, int nice)
