@@ -301,7 +301,7 @@ static int check(CTX, char* name)
 		if(!ctx->match(ctx, name))
 			return -EAGAIN;
 
-		int need = strlen(name) + 1;
+		uint need = strlen(name) + 1;
 
 		if(need > sizeof(ctx->device))
 			fail("device name too long:", name, 0);
