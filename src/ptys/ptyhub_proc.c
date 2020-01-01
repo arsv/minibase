@@ -311,7 +311,7 @@ int spawn_child(CTX, char** argv, char** envp)
 	int nlen = strlen(name);
 	int xid, ret;
 
-	if(nlen > sizeof(pc->name) - 1)
+	if(nlen > ssizeof(pc->name) - 1)
 		return -ENAMETOOLONG;
 	if(validate_name(name))
 		return -ENOENT;
