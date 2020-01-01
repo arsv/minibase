@@ -10,6 +10,7 @@
 
 #include <string.h>
 #include <sigset.h>
+#include <format.h>
 #include <dirs.h>
 #include <util.h>
 #include <main.h>
@@ -19,6 +20,7 @@
 ERRTAG("devinit");
 
 struct top {
+	char* root;
 	char** envp;
 
 	int devfd;  /* udev socket, in */
@@ -107,6 +109,21 @@ static void recv_event(CTX)
 	modprobe(ctx, alias);
 }
 
+static noreturn void exec_script(CTX, char* name)
+{
+	FMTBUF(p, e, path, 200);
+	p = fmtstr(p, e, ctx->root);
+	p = fmtstr(p, e, "/");
+	p = fmtstr(p, e, name);
+	FMTEND(p, e);
+
+	char* argv[] = { path, NULL };
+
+	int ret = sys_execve(path, argv, ctx->envp);
+
+	fail("execve", path, ret);
+}
+
 void open_modpipe(CTX)
 {
 	int fds[2];
@@ -118,11 +135,9 @@ void open_modpipe(CTX)
 		fail("fork", NULL, pid);
 
 	if(pid == 0) {
-		char* argv[] = { HERE "/etc/modpipe", NULL };
 		sys_dup2(fds[0], STDIN);
 		sys_close(fds[1]);
-		ret = sys_execve(*argv, argv, ctx->envp);
-		fail("execve", *argv, ret);
+		exec_script(ctx, "modpipe");
 	}
 
 	sys_close(fds[0]);
@@ -242,16 +257,13 @@ static void open_signals(CTX)
 
 static void start_script(CTX)
 {
-	int pid, ret;
+	int pid;
 
 	if((pid = sys_fork()) < 0)
 		fail("fork", NULL, pid);
 
-	if(pid == 0) {
-		char* argv[] = { HERE "/etc/devinit", NULL };
-		ret = sys_execve(*argv, argv, ctx->envp);
-		fail("execve", *argv, ret);
-	}
+	if(pid == 0)
+		exec_script(ctx, "devinit");
 
 	ctx->runpid = pid;
 }
@@ -332,10 +344,15 @@ int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
 
+	memzero(ctx, sizeof(*ctx));
+
 	if(argc > 1)
+		ctx->root = argv[1];
+	else
+		ctx->root = ""; /* use root directory */
+	if(argc > 2)
 		fail("too many arguments", NULL, 0);
 
-	memzero(ctx, sizeof(*ctx));
 	ctx->envp = argv + argc + 1;
 
 	open_udev(ctx);
