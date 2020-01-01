@@ -520,7 +520,7 @@ struct lzma* lzma_create(void* buf, int len)
 	struct private* pz = buf;
 	struct lzma* lz = public(pz);
 
-	if(len < sizeof(*pz))
+	if(len < ssizeof(*pz))
 		return NULL;
 
 	memzero(lz, sizeof(lz));
