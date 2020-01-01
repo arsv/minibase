@@ -144,7 +144,7 @@ static void subscribe_group(int fd, void* rxbuf, int rxlen)
 		fail("netlink", "GETFAMILY", -EBADMSG);
 
 	struct nlattr* groups;
-	
+
 	if(!(groups = nl_get_nest(gen, CTRL_ATTR_MCAST_GROUPS)))
 		fail("missing NL groups in", family, 0);
 	if((gid = fetch_group_id(groups, group)) < 0)
