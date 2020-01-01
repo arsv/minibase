@@ -2,14 +2,6 @@
 
 unset arch cross target cc ar strip tp lto cflags uselds
 
-commanddir=/sbin
-servicedir=/sbin/service
-systemdir=/sbin/system
-
-man1dir=/sman/man1
-man5dir=/sman/man5
-man8dir=/sman/man8
-
 uselds=yes
 
 die() { echo "$@" >&2; exit 1; }
@@ -26,9 +18,6 @@ while [ $# -gt 0 ]; do
 	test "$key" = "$1" && unset val
 
 	case "$key" in
-		commanddir) accept ;;
-		servicedir) accept ;;
-		systemdir)  accept ;;
 		cross)  accept; cross="${cross}-" ;;
 		target) accept; cross="${cross:-$target-}" ;;
 		arch)   accept ;;
@@ -44,7 +33,6 @@ while [ $# -gt 0 ]; do
 		werror) append cflags "-Werror" ;;
 		lto)    lto="-flto " ;;
 		qemu)   accept ;;
-		only) shift; only="$@"; break ;;
 		nolds) unset uselds ;;
 		*) die "Unexpected argument $key" ;;
 	esac; shift
@@ -109,16 +97,6 @@ LD = \$(CC)
 AS = \$(CC)
 STRIP = $strip
 QEMU = $qemu
-
-commanddir = $commanddir
-servicedir = $servicedir
-systemdir = $systemdir
-
-man1dir = $man1dir
-man5dir = $man5dir
-man8dir = $man8dir
-
-only = $only
 END
 
 cat > mini-cc <<END
@@ -182,13 +160,4 @@ echo "  STRIP = $strip"
 echo "  CFLAGS = $cflags"
 test -n "$qemu" && echo "  QEMU = $qemu"
 echo
-echo "  commanddir = $commanddir"
-echo "  servicedir = $servicedir"
-echo "  systemdir = $systemdir"
-echo
-echo "  man1dir = $man1dir"
-echo "  man5dir = $man5dir"
-echo "  man8dir = $man8dir"
-echo
-test -n "$only" && echo "Tools to build: $only"
 echo "Proceed to run 'make'"

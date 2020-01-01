@@ -3,8 +3,12 @@
 
 #ifdef DEVEL
 # define HERE "."
+# define BASE_ETC "./etc"
+# define BASE_VAR "./var"
 # define RUN_CTRL "./run"
 #else
 # define HERE ""
+# define BASE_ETC "/base/etc"
+# define BASE_VAR "/var/base"
 # define RUN_CTRL "/run/ctrl"
 #endif
