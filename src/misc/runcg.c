@@ -84,7 +84,7 @@ next:
 
 	long left = e - p;
 
-	if(off + rd < sizeof(buf)) /* last incomplete chunk */
+	if(off + rd < ssizeof(buf)) /* last incomplete chunk */
 		goto done;
 	if(left < 0 || left > BUF/2) /* something's really off */
 		goto done;
@@ -235,7 +235,7 @@ static void setup_signals(CTX)
 	ctx->sigfd = fd;
 }
 
-static void spawn_child(CTX, int argc, char** argv)
+static void spawn_child(int argc, char** argv)
 {
 	char** envp = argv + argc + 1;
 	struct sigset empty;
@@ -269,7 +269,7 @@ int main(int argc, char** argv)
 	setup_cgroup(ctx, argv[1]);
 	setup_signals(ctx);
 
-	spawn_child(ctx, argc - 2, argv + 2);
+	spawn_child(argc - 2, argv + 2);
 
 	while(1) monitor_signals(ctx);
 }
