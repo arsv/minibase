@@ -163,7 +163,7 @@ static void dm_resume(CTX, struct part* pt)
 		.data_size = sizeof(dmi)
 	};
 
-	if(nlen > sizeof(dmi.name) - 1)
+	if(nlen > ssizeof(dmi.name) - 1)
 		fail(NULL, name, -ENAMETOOLONG);
 
 	putstr(dmi.name, name, nlen);

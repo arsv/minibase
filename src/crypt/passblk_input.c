@@ -356,7 +356,7 @@ static void add_char(CTX, char c)
 {
 	int i = ctx->plen;
 
-	if(i >= sizeof(ctx->pass))
+	if(i >= ssizeof(ctx->pass))
 		return;
 
 	ctx->pass[i] = c;
