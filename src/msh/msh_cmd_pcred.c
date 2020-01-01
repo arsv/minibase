@@ -159,7 +159,8 @@ void cmd_setgid(CTX)
 void cmd_groups(CTX)
 {
 	int gids[32];
-	int i, n = ARRAY_SIZE(gids);
+	int i = 0;
+	int n = ARRAY_SIZE(gids);
 	char* group;
 
 	need_some_arguments(ctx);

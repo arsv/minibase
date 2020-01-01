@@ -75,13 +75,13 @@ static int waitfor(CTX, int fd, struct timespec* ts, char* name)
 {
 	char* base = basename(name);
 	char dir[base - name + 3];
-	long wd, ret;
+	long ret;
 
 	prep_dirname(dir, sizeof(dir), name, base);
 
-	if((wd = sys_inotify_add_watch(fd, dir, IN_CREATE)) >= 0)
+	if((ret = sys_inotify_add_watch(fd, dir, IN_CREATE)) >= 0)
 		goto got;
-	else if(wd != -ENOENT)
+	else if(ret != -ENOENT)
 		goto err; /* something's wrong with the parent dir */
 	else if(!strcmp(dir, "/"))
 		goto err; /* no point in waiting for / to appear */
@@ -89,17 +89,17 @@ static int waitfor(CTX, int fd, struct timespec* ts, char* name)
 	if((ret = waitfor(ctx, fd, ts, dir)) < 0)
 		goto out; /* bad parent dir, or timed out waiting */
 
-	if((wd = sys_inotify_add_watch(fd, dir, IN_CREATE)) >= 0)
+	if((ret = sys_inotify_add_watch(fd, dir, IN_CREATE)) >= 0)
 		goto got;
 got:
 	if(nonexistant(ctx, name))
 		watch_ino_for(ctx, fd, base, ts);
 
-	sys_inotify_rm_watch(fd, wd);
+	sys_inotify_rm_watch(fd, ret);
 out:
 	return ret;
 err:
-	error(ctx, "inotify", name, wd);
+	error(ctx, "inotify", name, ret);
 }
 
 void cmd_waitfor(CTX)

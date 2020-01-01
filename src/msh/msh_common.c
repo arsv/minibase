@@ -65,7 +65,7 @@ struct env* env_first(CTX)
 	else
 		size = key & EV_SIZE;
 
-	if(size < sizeof(*ev))
+	if(size < ssizeof(*ev))
 		return NULL;
 	if(p + size > e)
 		return NULL;
@@ -124,7 +124,8 @@ char* env_value(CTX, struct env* ev, int type)
 static void try_exec_trap(CTX)
 {
 	struct env* ev;
-	int i, count = 0;
+	int i = 0;
+	int count = 0;
 	char* argv[32];
 	char* arg;
 
@@ -132,9 +133,9 @@ static void try_exec_trap(CTX)
 		if((arg = env_value(ctx, ev, EV_TRAP)))
 			count++;
 
-	if(!count)
+	if(count <= 0)
 		return;
-	if(count >= ARRAY_SIZE(argv))
+	if((uint)count >= ARRAY_SIZE(argv))
 		count = ARRAY_SIZE(argv) - 1;
 
 	for(ev = env_first(ctx); ev; ev = env_next(ctx, ev))

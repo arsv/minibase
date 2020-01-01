@@ -506,9 +506,9 @@ static const handler table[] = {
 
 static void dispatch(CTX, char c)
 {
-	int state = ctx->state;
+	unsigned state = ctx->state;
 
-	if(state < 0 || state >= ARRAY_SIZE(table))
+	if(state >= ARRAY_SIZE(table))
 		fatal(ctx, "internal state error", NULL);
 
 	handler cc = table[state];
