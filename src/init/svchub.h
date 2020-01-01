@@ -51,7 +51,7 @@ struct top {
 	int npfds;
 };
 
-#define CTX struct top* ctx
+#define CTX struct top* ctx __unused
 
 extern struct proc procs[];
 extern struct conn conns[];

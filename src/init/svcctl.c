@@ -30,7 +30,7 @@ struct top {
 	void* end;
 };
 
-#define CTX struct top* ctx
+#define CTX struct top* ctx __unused
 
 void* heap_alloc(CTX, int size)
 {
