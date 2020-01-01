@@ -55,10 +55,6 @@ struct top {
 	int nprocs;
 	struct proc** procs;
 
-	char* passwd;
-	int pwlen;
-	int pwerr;
-
 	struct bufout bo;
 };
 
@@ -442,89 +438,6 @@ static void only_leave_named(CTX, int nargs, char** args)
 	trim_unmarked_branches(ctx);
 }
 
-/* User name resolution */
-
-static int read_passwd(CTX)
-{
-	int fd, ret;
-	struct stat st;
-	char* name = "/etc/passwd";
-
-	ctx->pwerr = -1;
-
-	if((fd = sys_open(name, O_RDONLY)) < 0)
-		return fd;
-	if((ret = sys_fstat(fd, &st)) < 0)
-		goto out;
-
-	const int prot = PROT_READ;
-	const int flags = MAP_PRIVATE;
-
-	void* buf = sys_mmap(NULL, st.size, prot, flags, fd, 0);
-
-	if((ret = mmap_error(buf)))
-		goto out;
-
-	ctx->passwd = buf;
-	ctx->pwlen = st.size;
-	ctx->pwerr = ret = 0;
-out:
-	sys_close(fd);
-
-	return ret;
-}
-
-static int make_uid_str(char* buf, int len, int uid)
-{
-	char* p = buf;
-	char* e = buf + len;
-
-	p = fmtint(p, e, uid);
-
-	return p - buf;
-}
-
-char* fmt_user(char* p, char* e, CTX, int uid)
-{
-	char uidstr[20];
-	int uidlen = make_uid_str(uidstr, sizeof(uidstr), uid);
-
-	if(ctx->passwd)
-		;
-	else if(ctx->pwerr)
-		goto asint;
-	else if(read_passwd(ctx) < 0)
-		goto asint;
-
-	char* buf = ctx->passwd;
-	char* end = buf + ctx->pwlen;
-
-	char* ls;
-	char* le;
-
-	for(ls = buf; ls < end; ls = le + 1) {
-		le = strecbrk(ls, end, '\n');
-
-		char* ns = ls;                     /* 1st field, name */
-		char* ne = strecbrk(ls, le, ':');
-		char* ps = ne + 1;                 /* 2nd field, password */
-		char* pe = strecbrk(ps, le, ':');
-		char* is = pe + 1;                 /* 3rd field, id */
-		char* ie = strecbrk(is, le, ':');
-
-		int ilen = ie - is;
-
-		if(ilen != uidlen)
-			continue;
-		if(strncmp(uidstr, is, ilen))
-			continue;
-
-		return fmtraw(p, e, ns, ne - ns);
-	}
-asint:
-	return fmtint(p, e, uid);
-}
-
 /* Output, depth-first tree traversal. Top-level entries are treated
    differently from the reset because they don't get any prefix. */
 
@@ -548,13 +461,13 @@ static void dump_proc(CTX, struct bufout* bo, struct trec* tr, struct proc* ps)
 	p = fmtstr(p, e, " ");
 	p = fmtstr(p, e, ps->name);
 
-	if(tr->uid != ps->uid || tr->euid != ps->euid) {
+	if(ps->uid != tr->uid || ps->euid != ps->uid) {
 		p = fmtstr(p, e, " [");
-		p = fmt_user(p, e, ctx, ps->uid);
 		if(ps->euid != ps->uid) {
+			p = fmtint(p, e, ps->euid);
 			p = fmtstr(p, e, "/");
-			p = fmt_user(p, e, ctx, ps->euid);
 		}
+		p = fmtint(p, e, ps->uid);
 		p = fmtstr(p, e, "]");
 	}
 
