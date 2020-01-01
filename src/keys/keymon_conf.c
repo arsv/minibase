@@ -17,8 +17,6 @@
 struct lbuf {
 	char* file;
 	int line;
-	char* ls;
-	char* le;
 };
 
 struct act* first(CTX)
@@ -47,7 +45,7 @@ struct act* next(CTX, struct act* ka)
 
 	int len = ka->len;
 
-	if(len < sizeof(*ka))
+	if(len < ssizeof(*ka))
 		return NULL;
 
 	ptr += (len + 3) & ~3;

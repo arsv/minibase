@@ -81,7 +81,7 @@ static void check_all_swacts(CTX, byte* bits, byte* need, int size)
 		if(raw == code) /* it's a key action */
 			continue;
 
-		setcode(need, size, code);
+		usecode(bits, need, size, code);
 	}
 }
 
