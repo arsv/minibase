@@ -146,7 +146,7 @@ static int inflate(CTX, struct mbuf* raw, struct mbuf* out, char* name)
 	return 0;
 }
 
-static int alloc_output(CTX, struct mbuf* mb, char* name, long size)
+static int alloc_output(CTX, struct mbuf* mb, ulong size)
 {
 	void* buf;
 	int ret;
@@ -166,9 +166,9 @@ static int alloc_output(CTX, struct mbuf* mb, char* name, long size)
 	return 0;
 }
 
-static int check_header(CTX, struct mbuf* raw, char* name, long* size)
+static int check_header(CTX, struct mbuf* raw, char* name, ulong* size)
 {
-	long len = raw->len;
+	ulong len = raw->len;
 	byte* buf = raw->buf;
 
 	if(len < 6 + 20)
@@ -203,14 +203,14 @@ static int check_header(CTX, struct mbuf* raw, char* name, long* size)
 int map_lunzip(CTX, struct mbuf* mb, char* name)
 {
 	struct mbuf raw;
-	long size = -1;
+	ulong size = 0;
 	int ret;
 
 	if((ret = mmap_whole(ctx, &raw, name)) < 0)
 		return ret;
 	if((ret = check_header(ctx, &raw, name, &size)) < 0)
 		goto out;
-	if((ret = alloc_output(ctx, mb, name, size)) < 0)
+	if((ret = alloc_output(ctx, mb, size)) < 0)
 		goto out;
 	if((ret = inflate(ctx, &raw, mb, name)) < 0)
 		munmap_buf(mb);
