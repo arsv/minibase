@@ -204,7 +204,7 @@ static void msg_del_link(CTX, struct ifinfomsg* msg)
 	free_link_slot(ctx, ls);
 }
 
-static void msg_rtnl_err(struct nlerr* msg)
+static void msg_rtnl_err(CTX, struct nlerr* msg)
 {
 	warn("rtnl", NULL, msg->errno);
 }

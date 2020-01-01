@@ -66,7 +66,7 @@ static int prepare_pollfds(CTX, struct pollfd* pfds, int maxpfds)
 	set_pollfd(&pfds[p++], ctx->signalfd);
 
 	for(i = 0; i < nconns; i++)
-		if((fd = conns[i].fd) >= 0)
+		if((fd = conns[i].fd) >= 0 && p < maxpfds)
 			set_pollfd(&pfds[p++], fd);
 
 	return p;
