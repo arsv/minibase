@@ -73,14 +73,22 @@ static int describe(CTX, int status)
 	fatal(ctx, msg, buf);
 }
 
+/* It's tempting to re-use signalfd across several `run` commands,
+   but for some reason it doesn't work. Messing with sigprocmask
+   while signalfd is open breaks it somehow.
+
+   Opening a new fd every time is a bit excessive, but it's simple
+   and reliable.
+
+   Note we cannot really open it here and only reset in cmd_exec()
+   and cmd_invoke. At least one other command, cmd_sleep, relies
+   on signals not being blocked. */
+
 static int prep_signalfd(CTX)
 {
 	int fd, ret;
 	int flags = SFD_CLOEXEC;
 	struct sigset mask;
-
-	if((fd = ctx->sigfd) >= 0)
-		goto set;
 
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGINT);
@@ -91,20 +99,31 @@ static int prep_signalfd(CTX)
 	if((fd = sys_signalfd(-1, &mask, flags)) < 0)
 		error(ctx, "signalfd", NULL, fd);
 
-	ctx->sigfd = fd;
-set:
 	if((ret = sys_sigprocmask(SIG_SETMASK, &mask, NULL)) < 0)
 		error(ctx, "sigprocmask", NULL, ret);
 
 	return fd;
 }
 
+static void close_signalfd(CTX, int fd)
+{
+	struct sigset empty;
+	int ret;
+
+	sigemptyset(&empty);
+
+	if((ret = sys_sigprocmask(SIG_SETMASK, &empty, NULL)) < 0)
+		error(ctx, "sigprocmask", NULL, ret);
+
+	if((ret = sys_close(fd)) < 0)
+		error(ctx, "close", "signalfd", ret);
+}
+
 static void wait_child(CTX, int fd, int pid, int* status)
 {
 	int ret;
 	struct siginfo si;
-	struct sigset empty;
-read:
+again:
 	if((ret = sys_read(fd, &si, sizeof(si))) < 0)
 		error(ctx, "read", "signalfd", ret);
 
@@ -112,24 +131,15 @@ read:
 
 	if(sig != SIGCHLD) {
 		sys_kill(pid, sig);
-		goto read;
+		goto again;
 	};
-wait:
-	if((ret = sys_waitpid(-1, status, WNOHANG)) > 0) {
-		if(ret == pid)
-			goto done;
-		else
-			goto wait;
-	} if(ret == -ECHILD) {
-		goto read;
-	} else {
-		error(ctx, "waitpid", NULL, ret);
-	}
-done:
-	sigemptyset(&empty);
 
-	if((ret = sys_sigprocmask(SIG_SETMASK, &empty, NULL)) < 0)
-		error(ctx, "sigprocmask", NULL, ret);
+	if((ret = sys_waitpid(pid, status, WNOHANG)) > 0)
+		return; /* got it */
+	if(!ret || ret == -ECHILD)
+		goto again;
+
+	error(ctx, "waitpid", NULL, ret);
 }
 
 void cmd_run(CTX)
@@ -150,6 +160,8 @@ void cmd_run(CTX)
 		_exit(child(ctx, argv, envp));
 
 	wait_child(ctx, fd, pid, &status);
+
+	close_signalfd(ctx, fd);
 
 	if(status) describe(ctx, status);
 }
