@@ -112,16 +112,11 @@ void clear_scan_table(void)
 
 /* Heap structure:
 
-       IE IE IE ... IE (status-message)
+       IE IE IE ... IE
 
    IEs are from scan results. Each struct scan may hold a pointer to
    one of them. On every scan dump, the heap gets reset and all pointers
-   re-written, see reset_ies_data(). IEs can easily take a page or two.
-
-   The reply to CMD_WI_STATUS includes IEs (along with other stuff) and
-   has to be assembled in the heap as well. It never remains there though.
-   cmd_status() extends the heap, replies to the client and immediately
-   shrinks the heap back. So it never really interferes with the IEs. */
+   re-written, see reset_ies_data(). IEs can easily take a page or two. */
 
 void init_heap_ptrs(void)
 {
