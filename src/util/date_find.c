@@ -3,12 +3,13 @@
 
 #include <string.h>
 #include <format.h>
+#include <dirs.h>
 #include <util.h>
 
 #include "date.h"
 
-static char zonebase[] = "/usr/share/zoneinfo";
-static char localtime[] = "/etc/localtime";
+static char zonebase[] = BASE_ETC "/zone";
+static char localtime[] = BASE_ETC "/localtime";
 
 /* Zone name abbreviation: 10:00 PDT when tzdata only has US/Pacific.
 

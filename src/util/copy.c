@@ -11,9 +11,9 @@
 #include <util.h>
 #include <main.h>
 
-#include "cpy.h"
+#include "copy.h"
 
-ERRTAG("cpy");
+ERRTAG("copy");
 
 /* Arguments parsing and tree walker invocation */
 

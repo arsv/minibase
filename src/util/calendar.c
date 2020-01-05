@@ -8,9 +8,10 @@
 #include <output.h>
 #include <time.h>
 #include <util.h>
+#include <dirs.h>
 #include <main.h>
 
-ERRTAG("cal");
+ERRTAG("calendar");
 
 #define OPTS "y"
 #define OPT_y   (1<<0)
@@ -198,7 +199,7 @@ static void translate_to_local(CTX, struct timeval* tv)
 
 	memzero(&zf, sizeof(zf));
 
-	if(mmap_zonefile(&zf, "/etc/localtime") < 0)
+	if(mmap_zonefile(&zf, BASE_ETC "/localtime") < 0)
 		return;
 	if(prep_zonefile(&zf) < 0)
 		return;

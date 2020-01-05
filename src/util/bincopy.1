@@ -1,23 +1,23 @@
-.TH bcp 1
+.TH bincopy 1
 '''
 .SH NAME
-\fBbcp\fR \- block copy tool
+\fBbincopy\fR \- block copy tool
 '''
 .SH SYNOPSIS
-.IP "\fBbcp\fR \fB-r\fR \fI/dev/block\fR \fIoutput.bin\fR [\fIrange\fR]" 4
+.IP "\fBbincopy\fR \fB-r\fR \fI/dev/block\fR \fIoutput.bin\fR [\fIrange\fR]" 4
 Read data from a block device into a file.
-.IP "\fBbcp\fR \fB-w\fR \fI/dev/block\fR \fIinput.bin\fR [\fIrange\fR]" 4
+.IP "\fBbincopy\fR \fB-w\fR \fI/dev/block\fR \fIinput.bin\fR [\fIrange\fR]" 4
 Write data from a file to a block device.
-.IP "\fBbcp\fR \fB-z\fR \fIoutput.bin\fR [\fIrange\fR]" 4
+.IP "\fBbincopy\fR \fB-z\fR \fIoutput.bin\fR [\fIrange\fR]" 4
 Create zero-filled file of given size.
-.IP "\fBbcp\fR \fB-zr\fR \fIoutput.bin\fR [\fIrange\fR]" 4
+.IP "\fBbincopy\fR \fB-zr\fR \fIoutput.bin\fR [\fIrange\fR]" 4
 Truncate file to given size and zero-fill it.
-.IP "\fBbcp\fR \fB-zw\fR \fIoutput.bin\fR [\fIrange\fR]" 4
+.IP "\fBbincopy\fR \fB-zw\fR \fIoutput.bin\fR [\fIrange\fR]" 4
 Zero-fill a block in a file without changing its size.
 
 '''
 .SH DESCRIPTION
-\fBbcp\fR copies a chunk of data to/from a block device, or to/from
+\fBbincopy\fR copies a chunk of data to/from a block device, or to/from
 and image of a block device.
 .P
 The \fIrange\fR to copy is specified in the following form:

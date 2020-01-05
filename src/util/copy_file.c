@@ -10,7 +10,7 @@
 #include <string.h>
 #include <util.h>
 
-#include "cpy.h"
+#include "copy.h"
 
 /* Contents trasfer for regular files. Surprisingly non-trivial task
    in Linux if we want to keep things fast and reliable. */

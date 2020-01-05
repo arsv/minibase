@@ -11,7 +11,7 @@
 #include <util.h>
 #include <main.h>
 
-ERRTAG("ls");
+ERRTAG("list");
 
 #define MAYBEDIR  0
 #define MUSTBEDIR 1

@@ -5,17 +5,13 @@ all = \
       chown \
       chvt \
       clear \
-      df \
       dirname \
       du \
       echo \
       false \
-      ff \
       fn \
       head \
-      kill \
       lr \
-      ls \
       mkdir \
       mknod \
       pwd \
@@ -25,7 +21,6 @@ all = \
       sleep \
       stat \
       symlink \
-      sync \
       tee \
       time \
       touch \

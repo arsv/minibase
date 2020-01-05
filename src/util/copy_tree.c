@@ -9,7 +9,7 @@
 #include <string.h>
 #include <util.h>
 
-#include "cpy.h"
+#include "copy.h"
 
 /* Tree-walking and direntry-level stuff. */
 

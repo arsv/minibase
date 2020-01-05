@@ -1,0 +1,25 @@
+.TH mntstat 1
+'''
+.SH NAME
+\fBmntstat\fR \- report disk free space
+'''
+.SH SYNOPSIS
+\fBmntstat\fR [\fB-am\fR] [\fIfile file\fR ...]
+'''
+.SH DESCRIPTION
+With no \fIfile\fR arguments, \fBmntstat\fR reports total and free space on
+all non-virtual filesystems it finds. Otherwise, total and free space is
+reported for the filesystems each \fIfile\fR resides on.
+'''
+.SH OPTIONS
+.IP "\fB-m\fR" 4
+Report virtual filesystems with non-zero total size (tmpfs typically).
+.IP "\fB-a\fR" 4
+Report all filesystems with non-zero total size.
+'''
+.SH FILES
+.IP "/proc/self/mountinfo" 4
+List of mounted filesystems.
+'''
+.SH SEE ALSO
+\fBstatfs\fR(2)

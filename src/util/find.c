@@ -20,7 +20,7 @@
    as we have to stat() all entries, but the only way around it
    is to drop sorting. */
 
-ERRTAG("ff");
+ERRTAG("find");
 
 /* Algo overview: make a mixed list of matching entries and all subdirs
    in a given directory
