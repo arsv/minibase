@@ -4,7 +4,6 @@
 /chown
 /chvt
 /clear
-/df
 /dirname
 /du
 /echo
@@ -31,6 +30,7 @@
 /true
 /uname
 /uptime
+/waitfor
 /wc
 /which
 /xargs
