@@ -1,0 +1,16 @@
+.TH pskill 1
+'''
+.SH NAME
+\fBpskill\fR \- terminate a process
+'''
+.SH SYNOPSIS
+\fBpskill\fR [\fB-\fIsignal\fR] \fIname\fR|\fIpid\fR ...
+'''
+.SH DESCRIPTION
+\fBpskill\fR sends SIGTERM (or \fIsignal\fR) to specified processes.
+.P
+Signal can be either a raw number, or a constant like TERM, KILL and so on.
+See \fBsignal\fR(7) for a full list of possible signals and their descriptions.
+'''
+.SH SEE ALSO
+\fBkill\fR(2)
