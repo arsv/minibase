@@ -198,7 +198,7 @@ static void shift_input_buf(CTX)
 
 	long gone = ptr - buf;
 	long free = downtopage(gone);
-	long len = end - ptr;
+	long len = end - buf;
 
 	if(free > 0) {
 		if((ret = sys_munmap(buf, free)) < 0)
@@ -206,6 +206,8 @@ static void shift_input_buf(CTX)
 
 		buf += free;
 		len -= free;
+
+		ctx->ipos += free;
 	}
 
 	off_t size = ctx->size;
@@ -230,7 +232,7 @@ static void shift_input_buf(CTX)
 
 	lz->srcbuf = buf;
 	lz->srcptr = buf + (ptr - old);
-	lz->srchwm = buf + len + add - hwm; 
+	lz->srchwm = buf + len + add - hwm;
 	lz->srcend = buf + len + add;
 
 	ctx->off += add;
@@ -261,7 +263,7 @@ static void shift_output_buf(CTX)
 
 		buf += flush;
 	}
-	
+
 	long len = end - buf;
 	long add = flush;
 	void* old = buf;
@@ -274,7 +276,7 @@ static void shift_output_buf(CTX)
 
 	lz->dstbuf = buf;
 	lz->dstptr = buf + (ptr - old);
-	lz->dsthwm = buf + len + add - hwm; 
+	lz->dsthwm = buf + len + add - hwm;
 	lz->dstend = buf + len + add;
 }
 
