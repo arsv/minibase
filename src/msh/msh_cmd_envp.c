@@ -4,17 +4,16 @@
 #include "msh_cmd.h"
 
 /* The problem with commands operating on the env-s is that they
-   have their argv[] in the area they need to write. Heap layout
-   at entry here looks like this:
+   have their argv[] in the area they need to write to.
+   Heap layout here looks like this:
 
        env env ... env arg arg ... arg argv
 
-   Commands like set or setenv have to copy one (or more) of their
-   args between the last env and the first arg, but there is no free
-   space there.
+   Commands like set or setenv have to copy some of their args between
+   the last env and the first arg, but there is no free space there.
 
-   So the trick used here is to make copies of the necessary args
-   above the original arg area like so:
+   So the trick used here is to make temporary copies of the necessary
+   args above the original arg area like so:
 
        env env ... env arg arg ... arg argv tmp tmp ... tmp
 
@@ -22,15 +21,18 @@
 
        env env ... env env ~~~ ... ~~~ ~~~~ tmp tmp ... tmp
 
-   The area freed by dropping *all* args is always large enough
-   because each argv[] pointer is at least as large as struct env
-   header.
+   During regular operation, the area freed by dropping *all* args
+   is always large enough because each argv[] pointer is at least
+   as large as struct env header. There's a major exception however,
+   the first envp operation needs to initialize the environment
+   (by ref-copying the original envp to the heap), which needs a lot
+   of space. This gets handled with reserve_orig_envp().
 
    Once cmd_ handler is done, execute() will reset hptr to asep:
 
       env env ... env env
 
-   so we don't have to worry about tmp-s much here. */
+   so we don't have to worry about freeing tmp-s here somehow. */
 
 static char* realloc_higher(CTX, char* str)
 {
@@ -243,10 +245,9 @@ void cmd_getenv(CTX)
 	int i = 0;
 	char* var;
 
-	for(; (var = envp[i]); i++) {
+	for(; (var = envp[i]); i++)
 		if(named(var, name))
 			goto got;
-	}
 
 	fatal(ctx, "undefined variable:", name);
 got:
