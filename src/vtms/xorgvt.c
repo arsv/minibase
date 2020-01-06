@@ -11,6 +11,7 @@
 #include <string.h>
 #include <printf.h>
 #include <sigset.h>
+#include <dirs.h>
 #include <util.h>
 #include <main.h>
 
@@ -392,7 +393,7 @@ static void set_command(char* buf, uint len, const char* pref, char* val)
 	char* p = buf;
 	char* e = p + len;
 
-	p = fmtstr(p, e, "/etc/X11/");
+	p = fmtstr(p, e, BASE_ETC "/xorg/");
 	p = fmtstr(p, e, pref);
 	if(val) p = fmtstr(p, e, val);
 
