@@ -102,6 +102,8 @@ static int prep_signalfd(CTX)
 	if((ret = sys_sigprocmask(SIG_SETMASK, &mask, NULL)) < 0)
 		error(ctx, "sigprocmask", NULL, ret);
 
+	ctx->sigfd = fd;
+
 	return fd;
 }
 
@@ -117,6 +119,8 @@ static void close_signalfd(CTX, int fd)
 
 	if((ret = sys_close(fd)) < 0)
 		error(ctx, "close", "signalfd", ret);
+
+	ctx->sigfd = -1;
 }
 
 static void wait_child(CTX, int fd, int pid, int* status)
