@@ -30,8 +30,9 @@ Components currently included in the package:
   * block device locating tools (devinit, findblk)
   * block device encryption tools (passblk, dektool, deitool)
   - no fsck for any file system yet
+  * system shutdown tool (reboot)
 
-  * process supervision suite (svchub, reboot)
+  * top-level process supervisor (svchub)
 
   * udev event monitor (udevmod)
   * syslog and related tools (sysklogd)
@@ -42,11 +43,13 @@ Components currently included in the package:
   * network interface monitor (ifmon)
   * Wi-Fi client and connection manager (wsupp) [WPA2-PSK only]
   * DHCP client (dhconf)
-  * manual/static interface setup tools (ip4cfg, ip4info) [incomplete]
   * time synchronization (SNTP) service (timed)
+  * manual/static interface setup tools (ip4cfg, ip4info) [incomplete]
 
   * simple interactive shell (cmd).
   * small linux-specific tools (systime, sync, dmesg etc).
+
+  * application supervisors (apphub, ptyhub)
 
   - no package manager yet.
   - no audio tools of any kind.
@@ -109,13 +112,13 @@ it also needs `dhconf` (12 KiB) to work, and the client tool `wifi` (16 KiB).
 `svchub` (pid 1 for the majority of system's uptime) is under 10 KiB.
 `vtmux` (logind equivalent) is about 12 KiB.
 
-Why bother making it small? Because it's a side effect of making it readable.
-The idea is that anyone could pick a tool from minibase, start reading it
-and gain complete understanding of how it works in a very reasonable amount
-of time, say hours. And if necessary, audit or debug it down to assembly level.
-A major point in achieving this is making sure there are no unnecessary
-wrappers, useless abstractions or dead code, which eventually translates
-into small executables.
+Why bother making it small? Because it's a side effect of making it readable
+and debuggable. The idea is that anyone could pick a tool from minibase,
+start reading it and gain complete understanding of how it works in a very
+reasonable amount of time, say hours. And if necessary, audit or debug it
+down to assembly level. A major point in achieving this is making sure
+there are no unnecessary wrappers, useless abstractions or dead code,
+which eventually translates into small executables.
 
 
 Contributing
@@ -151,7 +154,7 @@ Certain decision from skarnet/s6 project also played significant role.
 Syscall code (static inline functions with asm volatile blocks)
 follows musl, because musl folks got it right.
 
-The Rust coreutils project provided great deal of inspiration,
+The Rust coreutils project provided a great deal of inspiration,
 specifically by showing how not to write coreutils.
 
 
