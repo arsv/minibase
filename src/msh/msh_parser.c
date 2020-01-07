@@ -240,6 +240,16 @@ static void subst_var(CTX)
 	memcpy(spc, val, vlen);
 }
 
+static void undefined_special(CTX, char c)
+{
+	FMTBUF(p, e, buf, 8);
+	p = fmtchar(p, e, '$');
+	p = fmtchar(p, e, c);
+	FMTEND(p, e);
+
+	fatal(ctx, "undefined special variable", buf);
+}
+
 static void subst_special(CTX, char c)
 {
 	if(c == '$') {
@@ -251,13 +261,19 @@ static void subst_special(CTX, char c)
 		char* spc = heap_alloc(ctx, len);
 
 		memcpy(spc, buf, len);
-	} else {
-		FMTBUF(p, e, buf, 8);
-		p = fmtchar(p, e, '$');
-		p = fmtchar(p, e, c);
-		FMTEND(p, e);
+	} else if(c >= '0' && c <= '9') {
+		int idx = (c - '0') + 1;
 
-		fatal(ctx, "undefined special variable", buf);
+		if(idx >= ctx->topargc)
+			undefined_special(ctx, c);
+
+		char* arg = ctx->topargv[idx];
+		int len = strlen(arg);
+		char* spc = heap_alloc(ctx, len);
+
+		memcpy(spc, arg, len);
+	} else {
+		undefined_special(ctx, c);
 	}
 }
 
