@@ -202,7 +202,7 @@ static int find_by_cmd(CTX)
 static void read_proc(CTX, char* name)
 {
 	int at = ctx->fd;
-	int fd, ret;
+	int fd = -1, ret;
 	char* p;
 
 	if(!(p = parseint(name, &ctx->pid)) || *p)
@@ -225,7 +225,7 @@ got:
 	ctx->args[ret] = NULL;
 	kill_proc(ctx, name);
 out:
-	sys_close(fd);
+	if(fd >= 0) sys_close(fd);
 }
 
 static void report_remaining(CTX)
