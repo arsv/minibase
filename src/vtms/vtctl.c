@@ -203,6 +203,8 @@ static void send_request(CTX, struct ucbuf* uc)
 		fail("socket", NULL, fd);
 	if((ret = uc_connect(fd, path)) < 0)
 		fail(NULL, path, ret);
+
+	ctx->fd = fd;
 send:
 	if((ret = uc_send(fd, uc)) < 0)
 		fail("send", NULL, ret);
