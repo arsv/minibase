@@ -7,6 +7,7 @@
 
 #include <format.h>
 #include <string.h>
+#include <dirs.h>
 #include <util.h>
 #include <main.h>
 
@@ -286,9 +287,14 @@ static int ask_code(void)
 	return -1;
 }
 
-static int spawn(char* cmd, char* arg)
+static int spawn(char* cmd)
 {
 	int pid, status, ret;
+
+	FMTBUF(p, e, path, 200);
+	p = fmtstr(p, e, BASE_ETC "/keys/");
+	p = fmtstr(p, e, cmd);
+	FMTEND(p, e);
 
 	if((pid = sys_fork()) < 0) {
 		warn("fork", NULL, pid);
@@ -296,9 +302,9 @@ static int spawn(char* cmd, char* arg)
 	}
 
 	if(pid == 0) {
-		char* argv[] = { cmd, arg, NULL };
-		ret = execvpe(*argv, argv, environ);
-		warn("exec", *argv, ret);
+		char* argv[] = { cmd, NULL };
+		ret = execvpe(path, argv, environ);
+		warn("exec", path, ret);
 		_exit(ret ? -1 : 0);
 	}
 
@@ -314,26 +320,26 @@ static void switch_back_exit(void)
 {
 	int ret;
 
-	if(!(ret = spawn("vtctl", "back")))
+	if(!(ret = spawn("vtback")))
 		_exit(0);
 }
 
 static int enter_sleep_mode(void)
 {
-	return spawn("ksleep", NULL);
+	return spawn("sleep");
 }
 
 static void cmd_reboot(void)
 {
 	term_fini();
-	spawn("svctl", "reboot");
+	spawn("reboot");
 	term_back();
 }
 
 static void cmd_poweroff(void)
 {
 	term_fini();
-	spawn("svctl", "poweroff");
+	spawn("poweroff");
 	term_back();
 }
 
@@ -363,7 +369,7 @@ static void cmd_lock(void)
 		return;
 
 	term_fini();
-	spawn("vtctl", "lock");
+	spawn("vtlock");
 	ret = enter_sleep_mode();
 	term_back();
 
@@ -375,7 +381,7 @@ static void cmd_lock(void)
 			message("rebooting", 0);
 
 			term_fini();
-			spawn("svctl", "reboot");
+			spawn("reboot");
 			term_back();
 		}
 	} else {
@@ -383,7 +389,7 @@ static void cmd_lock(void)
 	}
 
 	term_fini();
-	spawn("vtctl", "unlock");
+	spawn("vtunlock");
 	switch_back_exit();
 	term_back();
 }
