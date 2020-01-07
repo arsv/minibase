@@ -182,7 +182,7 @@ void cmd_exec(CTX)
 	error(ctx, "exec", *argv, ret);
 }
 
-int cmd_invoke(CTX)
+void cmd_invoke(CTX)
 {
 	int nargs = ctx->argc - ctx->argp;
 	int norig = ctx->topargc - ctx->topargp;
