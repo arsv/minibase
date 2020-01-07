@@ -1,7 +1,7 @@
 #include <dirs.h>
 
 #define CONTROL RUN_CTRL "/vtmux"
-#define CONFDIR HERE "/etc/vtmux"
+#define CONFDIR BASE_ETC "/vtmux"
 
 #define CMD_STATUS   1
 #define CMD_SWITCH   2
