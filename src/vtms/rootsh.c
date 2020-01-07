@@ -28,7 +28,7 @@ static int open_dev(char* tty)
 	return fd;
 }
 
-static int child(int fd, char** envp)
+static int child(int fd, char** args, char** envp)
 {
 	int ret;
 
@@ -38,14 +38,12 @@ static int child(int fd, char** envp)
 
 	if((ret = sys_setsid()) < 0)
 		fail("setsid", NULL, ret);
-	if((ret = sys_ioctl(STDOUT, TIOCSCTTY, 0)) < 0)
+	if((ret = sys_ioctli(STDOUT, TIOCSCTTY, 1)) < 0)
 		fail("ioctl", "TIOCSCTTY", ret);
 
-	char* argv[] = { "cmd", NULL };
+	ret = execvpe(*args, args, envp);
 
-	ret = execvpe(*argv, argv, envp);
-
-	fail(NULL, *argv, ret);
+	fail(NULL, *args, ret);
 }
 
 static void sleep(int sec)
@@ -55,14 +53,14 @@ static void sleep(int sec)
 	sys_nanosleep(&ts, NULL);
 }
 
-static void spawn_shell(int fd, char** envp)
+static void spawn_shell(int fd, char** args, char** envp)
 {
 	int pid, ret, status;
 
 	if((pid = sys_fork()) < 0)
 		fail("fork", NULL, pid);
 	if(pid == 0)
-		_exit(child(fd, envp));
+		_exit(child(fd, args, envp));
 
 	if((ret = sys_waitpid(pid, &status, 0)) < 0)
 		fail("waitpid", NULL, ret);
@@ -74,10 +72,8 @@ int main(int argc, char** argv)
 {
 	char** envp = argv + argc + 1;
 
-	if(argc < 2)
+	if(argc < 3)
 		fail("too few arguments", NULL, 0);
-	if(argc > 3)
-		fail("too many arguments", NULL, 0);
 
 	char* tty = argv[1];
 
@@ -86,5 +82,7 @@ int main(int argc, char** argv)
 
 	int fd = open_dev(tty);
 
-	while(1) spawn_shell(fd, envp);
+	char** args = argv + 2;
+
+	while(1) spawn_shell(fd, args, envp);
 }
