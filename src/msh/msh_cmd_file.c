@@ -52,6 +52,8 @@ static void open_output(CTX, int tofd)
 
 	no_more_arguments(ctx);
 
+	flags |= O_NOCTTY;
+
 	open_onto_fd(ctx, tofd, name, flags, 0666);
 }
 
