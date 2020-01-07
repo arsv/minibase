@@ -36,14 +36,14 @@ int pinmask;
 
 int open_tty_device(int tty)
 {
-	int fd;
+	int fd, flags = O_RDWR | O_NOCTTY | O_CLOEXEC;
 
 	FMTBUF(p, e, path, 30);
 	p = fmtstr(p, e, "/dev/tty");
 	p = fmtint(p, e, tty);
 	FMTEND(p, e);
 
-	if((fd = sys_open(path, O_RDWR | O_CLOEXEC)) < 0)
+	if((fd = sys_open(path, flags)) < 0)
 		warn(NULL, path, fd);
 
 	return fd;

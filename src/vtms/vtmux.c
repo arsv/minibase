@@ -36,10 +36,10 @@ static int intarg(char* arg)
 
 static void setup_tty0(void)
 {
-	int fd;
+	int fd, flags = O_RDWR | O_NOCTTY | O_CLOEXEC;
 	char* name = "/dev/tty0";
 
-	if((fd = sys_open(name, O_RDWR)) < 0)
+	if((fd = sys_open(name, flags)) < 0)
 		fail("open", name, fd);
 
 	tty0fd = fd;
