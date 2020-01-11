@@ -1,6 +1,6 @@
 #!/bin/sh
 
-unset arch cross target cc ar strip tp lto cflags uselds
+unset arch cross target cc ar strip tp cflags uselds
 
 uselds=yes
 
@@ -31,7 +31,6 @@ while [ $# -gt 0 ]; do
 		debug)  append cflags "-Wall -g" ;;
 		wextra) append cflags "-Wextra" ;;
 		werror) append cflags "-Werror" ;;
-		lto)    lto="-flto " ;;
 		qemu)   accept ;;
 		nolds) unset uselds ;;
 		*) die "Unexpected argument $key" ;;
@@ -41,7 +40,6 @@ while [ $# -gt 0 ]; do
 done
 
 append cflags "$optim"
-append cflags "$lto"
 
 test -z "$ar" && ar="${cross}ar"
 test -z "$strip" && strip="${cross}strip"
@@ -117,7 +115,7 @@ done
 
 set $cc -ffreestanding -fomit-frame-pointer \\
 	-fno-asynchronous-unwind-tables -fno-stack-protector \\
-	-static -fno-pie -fno-PIE -fno-pic -fno-PIC $lto \\
+	-static -fno-pie -fno-PIE -fno-pic -fno-PIC \\
 	-nostdinc -I"\$base"/lib/arch/$arch -I"\$base"/lib -MD \\
 	$cflags "\$@"
 
