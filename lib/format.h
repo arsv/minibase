@@ -1,5 +1,7 @@
 #include <cdefs.h>
 
+extern const char errtag[];
+
 #define FMTUSE(p, e, buf, len) \
 	char* p = buf; \
 	char* e = buf + len - 1;

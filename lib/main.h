@@ -1,9 +1,6 @@
 #include <errnames.h>
 #include <cdefs.h>
 
-extern const char errtag[];
-extern const char errlist[];
-
 #define ERRTAG(s) \
 	const char errtag[] = s;
 #define ERRLIST(s) \
@@ -16,6 +13,6 @@ extern const char errlist[];
 
    Those few tools that ignore argc/argv should define int main(noargs). */
 
-extern int main(int argc, char** argv);
+int main(int argc, char** argv);
 
 #define noargs int argc __unused, char** argv __unused
