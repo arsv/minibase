@@ -3,14 +3,14 @@
 
 #include <bits/oflags.h>
 
-#define S_IFMT		0170000 /* Mask */
-#define	S_IFDIR		0040000	/* Directory.  */
-#define	S_IFCHR		0020000	/* Character device.  */
-#define	S_IFBLK		0060000	/* Block device.  */
-#define	S_IFREG		0100000	/* Regular file.  */
-#define	S_IFIFO		0010000	/* FIFO.  */
-#define	S_IFLNK		0120000	/* Symbolic link.  */
-#define	S_IFSOCK	0140000	/* Socket.  */
+#define S_IFMT          0170000
+#define S_IFDIR         0040000
+#define S_IFCHR         0020000
+#define S_IFBLK         0060000
+#define S_IFREG         0100000
+#define S_IFIFO         0010000
+#define S_IFLNK         0120000
+#define S_IFSOCK        0140000
 #define S_ISUID         0004000
 #define S_ISGID         0002000
 #define S_ISVTX         0001000
@@ -30,12 +30,20 @@
 #define S_IWOTH         0000002
 #define S_IXOTH         0000001
 
-#define AT_FDCWD		-100
-#define AT_REMOVEDIR		0x200
-#define AT_EACCESS		0x200
-#define AT_SYMLINK_NOFOLLOW	0x100
-#define AT_NO_AUTOMOUNT		0x800
-#define AT_EMPTY_PATH		0x1000
+#define AT_FDCWD               -100
+#define AT_REMOVEDIR          0x200
+#define AT_EACCESS            0x200
+#define AT_SYMLINK_NOFOLLOW   0x100
+#define AT_NO_AUTOMOUNT       0x800
+#define AT_EMPTY_PATH        0x1000
+
+#define LOCK_SH          (1<<0)
+#define LOCK_EX          (1<<1)
+#define LOCK_NB          (1<<2)
+#define LOCK_UN          (1<<3)
+#define LOCK_MAND        (1<<5)
+#define LOCK_READ        (1<<6)
+#define LOCK_WRITE       (1<<7)
 
 #define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
 #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
