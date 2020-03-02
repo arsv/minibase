@@ -1,0 +1,59 @@
+.TH mpkg 1
+'''
+.SH NAME
+\fBmpkg\fR \- system package manager for packages in PAC format
+'''
+.SH SYNOPSIS
+\fBmpkg\fR \fBdeploy\fR [\fI/root\fR] [\fIgroup\fB:\fR]\fIname\fR \
+\fIpackage.pac\fR
+.P
+\fBmpkg\fR \fBremove\fR [\fI/root\fR] [\fIgroup\fB:\fR]\fIname\fR
+.P
+\fBmpkg\fR \fBlist\fR [\fI/root\fR] [\fIgroup\fB:\fR]\fIname\fR
+'''
+.SH DESCRIPTION
+\fBmpkg\fR is a specialized tool for unpacking PAC archives onto the local
+filesystem in a way that can be undone, and removing unpacked files later.
+To achive that, \fBmpkg deploy\fR saves a list of files about to be unpacked
+in a pre-defined location, which both \fBmpkg remove\fR and \fBmpkg list\fR
+use later.
+'''
+.SH CONFIGURATION
+While deploying, \fBmpkg\fR checks that the package being deployed follows
+local policy, in that the files are only deploy to allowed locations.
+.P
+The configuration is specified in \fBmpkg.conf\fR:
+.P
+.ni
+    # Lines starting with / denote allowed directory
+    /bin
+    /lib/foo
+
+    # Lines starting with - instruct mpkg to skip specified directories
+    -lib/bar
+
+    # The stuff above applies to packages not in any group.
+    # The stuff after the following line applies to group "opt" only
+    @opt
+    /opt
+
+    # Groups may have a common prefix defined. For this group, package
+    # entry "bin/foo" will be deployed as "/base/bin/foo", and actual
+    # deployment will always be limited to /base/bin and /base/man.
+    @base
+    =base
+    /bin
+    /man
+.fi
+.P
+Paths that are neither allowed nor skipped are disallowed. \fBmpkg\fR will
+refuse to deploy a package containing disallowed paths.
+'''
+.SH FILES
+.IP "\fB/base/etc/mpkg.conf\fR" 4
+Configuration file.
+.IP "\fB/base/var/mpkg/\fR[\fIgroup\fB/\fR]\fIname\fB.pkg\fR" 4
+Saved file list for [\fIgroup\fB:\fR]\fIname\fR.
+'''
+.SH SEE ALSO
+\fBmpac\fR(1).
