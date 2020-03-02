@@ -1,0 +1,111 @@
+This directory contains a couple of tools that work with packages in a custom
+PAC format: mpac, which makes them, and mpkg, which deploys them into the
+target filesystem. These are mostly meant to be used for managing system
+packages for now, although there are plans to have more specialized PAC tools
+for other uses as well.
+
+Compared to Arch pacman or Void xbps, mpac is roughly equivalent to standalone
+tar while mpkg is more like tar when used by either pacman or xbps. By design,
+mpkg does not do some things often expected from a system package manager
+in Linux system, like searching package databases or downloading packages
+or handling inter-package dependencies. Instead, it is a plumbing component
+that could be used to build a tool similar to pacman, xbps or apt, written
+with a different idea of how package metadata should be handled atop of that.
+
+
+The PAC format
+~~~~~~~~~~~~~~
+The custom format was designed as a simple alternative to tar.
+
+PAC files have index at the start of the file, before any actual content
+(as opposed to tar or cpio, which have file headers intermixed with content).
+This allows listing files from a compressed package, and subsequently doing
+checks that work at directory tree level (file conflicts and such) by only
+decompressing a small chunk at the start of the file.
+
+PAC does not store any file metadata beyond file type and size, with
+only three supported file types: regular files, executables, and symlinks.
+Within the package, the order of the files is also fixed.
+
+Just like tar files, pacs are meant to be compressed whole. Also like tars,
+pacs do not really support partial extraction well. The default assumption
+is that if any of the files in a package are to be extracted, all of them
+(or at least most of them) will be extracted.
+
+
+Design and usage notes
+~~~~~~~~~~~~~~~~~~~~~~
+mpkg is designed with the assumption that the unit of consistency is a
+repository, not a package, and that package metadata (descriptions,
+dependency tree and so on) belongs to the repository as well. Consequently,
+there are no provisions for storing metadata within the packages themselves.
+
+The intended procedure is that the higher-level tool downloads and parses
+the repo index, figures out which packages it needs, downloads the packages,
+and then uses mpkg to deploy them. This way, mpkg always works with a single
+pac file and the higher-level handles inter-pac relations but never actually
+works with pacs.
+
+Another consequence of this assumption is very limited conflict checks that
+mpkg performs. Ideally, the repository should be consistent and no two
+packages from the same repo should be in conflict. If there are mutually
+exclusive alternatives, those too should be marked in the repo index and
+not handled by mpkg. Cross-repository conflicts should be excluded using
+package groups and different installation prefixes.
+
+Whenever a single project provides several components that may be installed
+independently, the project should be a repo and each component should be a
+package. In general, each package should be installed whole or not installed
+at all.
+
+mpkg provides a way to silently skip directories from (a group of) packages
+during installation. This feature was included primarily as a way of dealing
+with locales and language-specific man pages, when multiple languages are
+included with the package but the user may only want to install one or two
+of those. It should be a last resort measure however; whenever possible,
+optional language support should come in separate pacs, especially when
+natural language support is provided by different people, not the ones who
+do the project itself. Which is often the case.
+
+
+Package groups
+~~~~~~~~~~~~~~
+Groups are intended to be used mostly for packages sharing common path prefix
+of some sort. The idea is to keep namespaces separate when packages clearly
+cannot be in conflict, and also to get rid of the common prefix in every single
+package.
+
+Planned use cases:
+
+	* linux-firmware as a repository, with individual packages each blob
+	  or bunch of blobs that get installed together.
+	  Common prefix would be /lib/firmware, and the package would not need
+	  to carry it.
+
+	* modules for python and other languages with similar module structure.
+	  Common prefix would be /lib/python-3.8 or whatever, and it would be
+	  fine to use bare name of the module as the package name, without
+	  prefixing it with python- like say Arch does.
+
+	* shared libraries for a particular libc/ld combo.
+	  Common prefix /lib/musl-x64, /lib/musl-arm, /lib/glibc-x64 without
+	  name clashes between them, and without ugly Arch-style lib32-
+	  prefixes. With minor effort, should allow installing shared library
+	  packages for non-native architectures and using them with qemu.
+
+Package groups also provide a limited support for relocatable packages, but
+this idea was mostly scrapped since in general Linux packages must be assumed
+to be non-relocatable, and doing anything about that is way beyond the scope
+of this project.
+
+
+Package signing
+~~~~~~~~~~~~~~~
+Hashes and signatures are metadata and such should be distributed separately
+from the packages. In particular, With reproducible packages validated by
+independent builds, attaching signatures to the pac files would be a very
+questionable idea.
+
+# This should be obvious but I'm pretty sure there will be people asking
+# why, in the year 2020+n, there are attached signatures on packages, and
+# complaining how grossly insecure mpkg therefore is.
