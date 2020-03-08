@@ -28,6 +28,8 @@ Suppress some error messages and skip blacklisted modules.
 Pipe mode; read module names from stdin.
 .IP "\fB-v\fR" 4
 Show actions being performed and also perform them.
+.IP "\fB-i\fR" 4
+Assume initrd directory structure (see FILES below).
 '''
 .SH NOTES
 This version of \fBmodprobe\fR natively supports lzip-compressed modules
@@ -40,10 +42,16 @@ to work, modules.dep must list compressed file names.
 Base directory to look for modules.
 .IP "/lib/modules/$RELEASE/modules.dep" 4
 List of module paths and dependencies. 
-.IP "/etc/modules" 4
+.IP "/base/etc/modules" 4
 Configuration file.
 .P
 $RELEASE is the running kernel release as returned by \fBuname\fR(2).
+.P
+With \fB-i\fR specified, modprobe assumes a simpler set of paths:
+.IP "/lib/modules" 4
+Base modules directory within initrd (note the lack of \fI$RELEASE\fR part).
+.IP "/etc/modules" 4
+Configuration file.
 '''
 .SH SEE ALSO
 \fBinit_module\fR(2), \fBdelete_module\fR(2), \fBdepmod\fR(1).

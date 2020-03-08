@@ -11,7 +11,7 @@
 #include "common.h"
 #include "modprobe.h"
 
-#define OPTS "ranqbpv"
+#define OPTS "ranqbpvi"
 #define OPT_r (1<<0)
 #define OPT_a (1<<1)
 #define OPT_n (1<<2)
@@ -19,6 +19,7 @@
 #define OPT_b (1<<4)
 #define OPT_p (1<<5)
 #define OPT_v (1<<6)
+#define OPT_i (1<<7)
 
 ERRTAG("modprobe");
 ERRLIST(NEACCES NEAGAIN NEBADF NEINVAL NENFILE NENODEV NENOMEM NEPERM NENOENT
@@ -130,7 +131,8 @@ static int prep_modules_builtin(CTX)
 static int prep_config(CTX)
 {
 	struct mbuf* mb = &ctx->config;
-	char* name = BASE_ETC "/modules";
+	int initrd = ctx->opts & OPT_i;
+	char* name = initrd ? INIT_ETC "/modules" : BASE_ETC "/modules";
 	int ret;
 
 	if((ret = ctx->tried_config))
@@ -773,6 +775,8 @@ int main(int argc, char** argv)
 
 	if(opts & OPT_b) {
 		ctx->base = shift_arg(ctx);
+	} else if(opts & OPT_i) {
+		ctx->base = "/lib/modules";
 	} else {
 		char basebuf[100];
 		prep_base_path(basebuf, sizeof(basebuf));

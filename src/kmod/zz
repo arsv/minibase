@@ -1,0 +1,10 @@
+execve("./modprobe", ["./modprobe", "-i", "e1000e"], 0x7ffd519956c0 /* 40 vars */) = 0
+openat(AT_FDCWD, "./etc/modules", O_RDONLY) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=55, ...}) = 0
+mmap(NULL, 55, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f16df546000
+close(3)                                = 0
+openat(AT_FDCWD, "/lib/modules/modules.alias", O_RDONLY) = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/lib/modules/modules.dep", O_RDONLY) = -1 ENOENT (No such file or directory)
+write(2, "modprobe: /lib/modules/modules.d"..., 43) = 43
+exit(255)                               = ?
++++ exited with 255 +++
