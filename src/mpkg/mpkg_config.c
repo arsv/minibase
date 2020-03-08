@@ -17,8 +17,8 @@
    report offending paths and abort.
 
    While doing that, we also put marks on index nodes to indicate which
-   files we want to install (MARK_NEED) and which we want to skip (no
-   MARK_NEED). */
+   files we want to install (BIT_NEED) and which we want to skip (no
+   BIT_NEED). */
 
 #define MAXCONF (1<<20)
 
@@ -133,7 +133,10 @@ static void mark_leaf(CCT, struct node* nd)
 {
 	int bits = nd->bits;
 
-	if(!(bits | TAG_DIR)) return;
+	if(!(cct->mark & BIT_NEED))
+		; /* we can skip regular files */
+	else if(!(bits | TAG_DIR))
+		return; /* we cannot mark regular files */
 
 	nd->bits = bits | cct->mark;
 
