@@ -51,16 +51,33 @@ void heap_reset(CTX, void* ptr)
 	ctx->ptr = ptr;
 }
 
-void check_pac_ext(char* name)
+static void check_extension(char* name, char* suff)
 {
 	int nlen = strlen(name);
+	int slen = strlen(suff);
 
-	if(nlen <= 4)
+	if(nlen <= slen)
 		;
-	else if(!strncmp(name + nlen - 4, ".pac", 4))
+	else if(!strncmp(name + nlen - slen, suff, 4))
 		return;
 
-	fail("no .pac suffix", NULL, 0);
+	FMTBUF(p, e, msg, 100);
+	p = fmtstr(p, e, "not a ");
+	p = fmtstr(p, e, suff);
+	p = fmtstr(p, e, " file:");
+	FMTEND(p, e);
+
+	fail(msg, name, 0);
+}
+
+void check_pac_ext(char* name)
+{
+	check_extension(name, ".pac");
+}
+
+void check_list_ext(char* name)
+{
+	check_extension(name, ".list");
 }
 
 static uint parse_header_size(CTX, void* buf, int len)

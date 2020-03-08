@@ -71,6 +71,7 @@ char* shift(CTX);
 void no_more_arguments(CTX);
 
 void check_pac_ext(char* name);
+void check_list_ext(char* name);
 
 void heap_init(CTX, int size);
 void* heap_alloc(CTX, int size);

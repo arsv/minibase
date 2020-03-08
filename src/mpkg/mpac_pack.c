@@ -623,6 +623,7 @@ void cmd_pack(CTX)
 	no_more_arguments(ctx);
 
 	check_pac_ext(outfile);
+	check_list_ext(infile);
 
 	open_file_list(lct, infile);
 
