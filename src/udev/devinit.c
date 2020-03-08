@@ -19,8 +19,11 @@
 
 ERRTAG("devinit");
 
+#define OPTS "i"
+#define OPT_i (1<<0)
+
 struct top {
-	char* root;
+	char* base;
 	char** envp;
 
 	int devfd;  /* udev socket, in */
@@ -112,7 +115,7 @@ static void recv_event(CTX)
 static noreturn void exec_script(CTX, char* name)
 {
 	FMTBUF(p, e, path, 200);
-	p = fmtstr(p, e, ctx->root);
+	p = fmtstr(p, e, ctx->base);
 	p = fmtstr(p, e, "/");
 	p = fmtstr(p, e, name);
 	FMTEND(p, e);
@@ -343,15 +346,19 @@ static void poll(CTX)
 int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
+	int i = 1, opts = 0;
 
 	memzero(ctx, sizeof(*ctx));
 
-	if(argc > 1)
-		ctx->root = argv[1];
-	else
-		ctx->root = ""; /* use root directory */
-	if(argc > 2)
+	if(i < argc && argv[i][0] == '-')
+		opts = argbits(OPTS, argv[i++] + 1);
+	if(i < argc)
 		fail("too many arguments", NULL, 0);
+
+	if(opts & OPT_i)
+		ctx->base = INIT_ETC;
+	else
+		ctx->base = BASE_ETC "/udev";
 
 	ctx->envp = argv + argc + 1;
 
