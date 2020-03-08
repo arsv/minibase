@@ -490,7 +490,6 @@ static void build_index(LCT)
 
 static void write_index(LCT)
 {
-	static const char last[] = { 'A', 'B', 'C', 'D' };
 	int fd = lct->outfd;
 	uint len = lct->hlen;
 	int nszb = 0;
@@ -508,7 +507,7 @@ static void write_index(LCT)
 	*tag++ = 'P';
 	*tag++ = 'A';
 	*tag++ = 'C';
-	*tag++ = last[nszb];
+	*tag++ = '@' | nszb;
 
 	uint size = len;
 
