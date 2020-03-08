@@ -7,11 +7,11 @@ is very simple, unconditional and device-independent.
 
 With initrd, the task of locating and mounting the real root filesystem gets
 moved to the userspace, resulting in less awful kernel space code and much
-more flexibility in implementing those things.
+more flexibility in implementing device-locating logic.
 
 Indications for using initrd:
 
-	* modular kernel, with modules for either the device containing
+	* modular kernel, with modules either for the device containing
 	  the real root, or the filesystem used there
 
 	* device containing the real root is identified by something other
@@ -43,7 +43,7 @@ execing /init or /linuxrc, as pid 1. Typical contents:
     run /bin/mount -vc /dev /sys /proc
 
     # wait for devices, see below
-    run /bin/devinit # creates /dev/mapper/root
+    run /bin/devinit -i # creates /dev/mapper/root
 
     # mount the real root filesystem
     run /bin/kmount /root /dev/mapper/root
@@ -57,10 +57,11 @@ somewhere, and then call switchroot to that directory.
 
 Locating the root device
 ~~~~~~~~~~~~~~~~~~~~~~~~
-There are essentially three problems to solve at this stage: load driver
-modules for the storage device and the bus it's on; wait for the device to
-be initialized; and finally, since Linux gives uniform names to device nodes
-(like /dev/sdX), figure out which node corresponds to the right device.
+There are essentially three problems to solve at this stage:
+
+    * load driver modules for the storage device and the bus it's on;
+    * wait for the device to be initialized;
+    * figure out which /dev node corresponds to the right device.
 
 The tools that address them are `devinit` and `findblk`. The role of devinit
 is to handle kernel-initiated module loading requests, which is normally done
@@ -81,14 +82,14 @@ To work properly, `devinit` needs one more script, /etc/modpipe:
 
     #!/bin/msh
 
-    exec /bin/modprobe -p
+    exec /bin/modprobe -ip
 
 See modprobe man page on what it does.
 
 
 Statically-located root devices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-In case the kernel is module but the list of module to load is known ahead
+In case the kernel is modular but the list of modules to load is known ahead
 of time, `devinit` should be skipped, and both `modprobe` and `findblk` should
 be called directly from /init:
 
@@ -96,7 +97,7 @@ be called directly from /init:
 
     run /bin/kmount -vc /dev /sys /proc
 
-    run /bin/modprobe some-mmc-controller
+    run /bin/modprobe -i some-mmc-controller
 
     run /bin/findblk name:mmcblk0 p1:root
 
@@ -145,15 +146,15 @@ statically in /init, and `findblk` can be called there as well:
 
     run /bin/kmount -vc /dev /sys /proc
 
-    run /bin/modprobe crypto_engine
-    run /bin/modprobe crypto_user
-    run /bin/modprobe cryptd
-    run /bin/modprobe cbc
-    run /bin/modprobe ecb
-    run /bin/modprobe xts
-    run /bin/modprobe dm-crypt
+    run /bin/modprobe -i crypto_engine
+    run /bin/modprobe -i crypto_user
+    run /bin/modprobe -i cryptd
+    run /bin/modprobe -i cbc
+    run /bin/modprobe -i ecb
+    run /bin/modprobe -i xts
+    run /bin/modprobe -i dm-crypt
 
-    run /bin/devinit
+    run /bin/devinit -i
 
     run /bin/passblk /etc/keyfile root
 
@@ -170,14 +171,14 @@ Entering to the real root
 Once the root partition is mounted, /init should exec into `switchroot`,
 which will subsequently exec into the next stage, which in the examples above
 is `/etc/boot/start`. Not much else to discuss here, check the man page for
-`switchroot` for detailed description of what exactly it does.
+`switchroot` for a detailed description of what exactly it does.
 
-Note this is the one of the few points outside of the kernel where the
-distinction between initrd proper and initramfs matters. `switchroot` only
-works with initramfs. Switching from initrd proper requires a different tool
-that would perform a different syscall sequence. There is no such tool in this
-project at this moment. Initrd proper (as in, initial ramdisk) is generally
-considered deprecated in favor of initramfs.
+This is the one of the few points outside of the kernel where the distinction
+between initrd proper and initramfs matters. `switchroot` only works with
+initramfs. Switching from initrd proper requires a different tool that would
+perform a different syscall sequence. There is no such tool in this project
+at this moment. Initrd proper (as in, initial ramdisk) is generally considered
+deprecated in favor of initramfs.
 
 
 Virtual and non-root filesystems
@@ -195,7 +196,7 @@ from the real root.
 
 `switchroot` will attempt to preserve any mount points when switching from
 the virtual initramfs root to the real filesystem. Check the man page on how
-it works.
+it does so.
 
 
 Which modules to put into initrd
@@ -217,16 +218,42 @@ There are essentially two ways of compressing initrd:
 	* compress the whole image
 	* compress individual modules
 
-Compressing the whole image results in the best ration, but forces complete
+Compressing the whole image results in the best ratio, but forces complete
 decompression early during kernel startup. Compressing modules individually
 and leaving the image uncompressed results in subpar compression ratios, but
 allows only the modules in actual use to be decompressed.
 
-Whole-image compression is therefore preferable for cases where most of the
-initrd contents will be used, while individually compressed modules are better
-when initrd has to carry lots of modules, but only few of them are expected
-to be loaded. The latter is often the case for generic PC distributions.
+Whole-image compression should therefore be preferred for cases where most of
+the initrd contents will be used, whereas individually compressed modules are
+better when initrd has to carry lots of modules but only few are expected to
+get loaded. The latter is often the case for generic PC distributions.
 
 Avoid dual compression (compressed image with individually compressed modules),
 it serves no purpose and slows down module loading. If the whole image gets
 compressed, leave everything inside uncompressed.
+
+
+Initrd filesystem layout
+~~~~~~~~~~~~~~~~~~~~~~~~
+This projects supports two distinct layouts for initrd: full and simplified.
+
+The full layout means initrd paths as the same as they would be on the real
+rootfs. In particular, as far as this project is concerned,
+
+    * config files are in /base/etc, and
+    * kernel modules are in /lib/modules/$REVISION
+
+This kind of layout allows using abritrary tools from rootfs, unchanged, in
+initrd context. However, in many cases that's not important, and the extra
+directories serve no purpose in the restricted initrd environment.
+
+Simplified layout is meant to addrees this concern:
+
+    * all config files are in /etc
+    * kernel modules are in /lib/modules (no $REVISION!)
+
+A couple of tools from this project, modprobe and devinit, that would otherwise
+try to access /base/etc, accept command line option -i to use the simplified
+layout. Check respective manual pages for exact paths. Several other tools,
+like msh and findblk, do not use /base paths, or do not use abosolute paths
+at all, and can be used in initrd environment at is.
