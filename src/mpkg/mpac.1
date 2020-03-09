@@ -86,21 +86,21 @@ The \fBpack\fR command takes a text file in the following format:
 .fi
 .P
 Each non-prefix line is a path name to a file in the local filesystem.
-The file will be opened using it path name, but in the archive only its base
+The file will be opened using its path name, but in the archive only its base
 name will remain. The \fB>\fR lines describe the directory structure within
 the archive. Files following a directory line are packed inside that directory
-in the archive.
+within the archive.
 .P
 The example above describes an archive with two files, \fIfoo.bin\fR and
 \fIsome/dir/bar.bin\fR. The content for those files will be taken from
 \fIpath/to/foo.bin\fR and \fIpath/to/bar.bin\fR respectively.
 .P
 Directories must come in byte order of their components. Within each directory,
-files must come in byte order of their basenames. The order will be checked by
+files must come in byte order of their base names. The order will be checked by
 \fBmpac\fR.
 '''
 .SH DUMP OUTPUT FORMAT
-The \fBdump\fR format outputs raw index entries, formatted for readability,
+The \fBdump\fR command outputs raw index entries, formatted for readability,
 but otherwise left as is. It may be useful for examining how the archive
 structure looks internally.
 .P
