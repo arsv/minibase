@@ -7,7 +7,7 @@ for other uses as well.
 Compared to Arch pacman or Void xbps, mpac is roughly equivalent to standalone
 tar while mpkg is more like tar when used by either pacman or xbps. By design,
 mpkg does not do some things often expected from a system package manager
-in Linux system, like searching package databases or downloading packages
+in a Linux system, like searching package databases or downloading packages
 or handling inter-package dependencies. Instead, it is a plumbing component
 that could be used to build a tool similar to pacman, xbps or apt, written
 with a different idea of how package metadata should be handled atop of that.
@@ -37,35 +37,36 @@ Design and usage notes
 ~~~~~~~~~~~~~~~~~~~~~~
 mpkg is designed with the assumption that the unit of consistency is a
 repository, not a package, and that package metadata (descriptions,
-dependency tree and so on) belongs to the repository as well. Consequently,
-there are no provisions for storing metadata within the packages themselves.
+dependency tree and so on) belongs to the repository as a whole instead
+of being attached to individual packages. Consequently, PAC format has no
+provisions for storing metadata within the package files.
 
 The intended procedure is that the higher-level tool downloads and parses
-the repo index, figures out which packages it needs, downloads the packages,
+repository index, figures out which packages it needs, downloads the packages,
 and then uses mpkg to deploy them. This way, mpkg always works with a single
-pac file and the higher-level handles inter-pac relations but never actually
-works with pacs.
+pac file and the higher-level tool handles inter-pac relations.
 
 Another consequence of this assumption is very limited conflict checks that
-mpkg performs. Ideally, the repository should be consistent and no two
-packages from the same repo should be in conflict. If there are mutually
-exclusive alternatives, those too should be marked in the repo index and
+mpkg performs, reporting only the names of the conflicting files but not the
+packages they come from. The repository should be consistent and therefore no
+two packages from the repository should be in conflict. If there are mutually
+exclusive alternatives, those too should be marked in repository index and
 not handled by mpkg. Cross-repository conflicts should be excluded using
 package groups and different installation prefixes.
 
 Whenever a single project provides several components that may be installed
-independently, the project should be a repo and each component should be a
-package. In general, each package should be installed whole or not installed
-at all.
+independently, the project should be a repository and each component should
+be a package. In general, packages should be split so that each is either
+installed whole or not installed at all.
 
 mpkg provides a way to silently skip directories from (a group of) packages
 during installation. This feature was included primarily as a way of dealing
 with locales and language-specific man pages, when multiple languages are
 included with the package but the user may only want to install one or two
-of those. It should be a last resort measure however; whenever possible,
-optional language support should come in separate pacs, especially when
-natural language support is provided by different people, not the ones who
-do the project itself. Which is often the case.
+of those. It should be used as a last resort measure however; whenever
+possible, optional language support should come in separate pacs, especially
+when natural language support is provided externally to the project (i.e. not
+by the same people who write the code), which is often the case.
 
 
 Package groups
@@ -77,12 +78,14 @@ package.
 
 Planned use cases:
 
-	* linux-firmware as a repository, with individual packages each blob
-	  or bunch of blobs that get installed together.
+	* linux-firmware as a repository, with individual packages for each
+	  blob or bunches of blobs that get installed together.
 	  Common prefix would be /lib/firmware, and the package would not need
-	  to carry it.
+	  to carry it. As opposed to the Arch practice of installing 500MB
+	  of blobs together even though a typical user needs less than 1MB
+	  in most cases.
 
-	* modules for python and other languages with similar module structure.
+	* modules for python, and other languages with similar module structure.
 	  Common prefix would be /lib/python-3.8 or whatever, and it would be
 	  fine to use bare name of the module as the package name, without
 	  prefixing it with python- like say Arch does.
@@ -91,21 +94,21 @@ Planned use cases:
 	  Common prefix /lib/musl-x64, /lib/musl-arm, /lib/glibc-x64 without
 	  name clashes between them, and without ugly Arch-style lib32-
 	  prefixes. With minor effort, should allow installing shared library
-	  packages for non-native architectures and using them with qemu.
+	  packages for non-native architectures and using them with qemu, and
+	  possibly handling Wine DLLs the same way (treating wine as an ld).
 
 Package groups also provide a limited support for relocatable packages, but
-this idea was mostly scrapped since in general Linux packages must be assumed
-to be non-relocatable, and doing anything about that is way beyond the scope
-of this project.
+that is more of an afterthough, and not a primary goal. Linux packages in
+general must be assumed to be non-relocatable, and doing anything about that
+is way beyond the scope of this project.
 
 
 Package signing
 ~~~~~~~~~~~~~~~
 Hashes and signatures are metadata and such should be distributed separately
-from the packages. In particular, With reproducible packages validated by
-independent builds, attaching signatures to the pac files would be a very
-questionable idea.
+from the packages. In particular, with reproducible packages validated by
+independent builds, attaching signatures to the PAC files is not a good idea.
 
-# This should be obvious but I'm pretty sure there will be people asking
-# why, in the year 2020+n, there are attached signatures on packages, and
-# complaining how grossly insecure mpkg therefore is.
+# This should be obvious but I'm pretty sure there will be people asking why,
+# in the year 2020+n, there is no support for attached signatures in a new
+# package format, and complaining how grossly insecure mpkg therefore is.
