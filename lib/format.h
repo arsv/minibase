@@ -1,6 +1,7 @@
 #include <cdefs.h>
 
 extern const char errtag[];
+extern const char errlist[];
 
 #define FMTUSE(p, e, buf, len) \
 	char* p = buf; \
