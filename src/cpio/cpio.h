@@ -73,6 +73,7 @@ void cmd_list(CTX);
 
 char* shift(CTX);
 void no_more_arguments(CTX);
+int got_more_arguments(CTX);
 
 void heap_init(CTX, int size);
 void* heap_alloc(CTX, int size);

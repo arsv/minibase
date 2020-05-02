@@ -24,6 +24,11 @@ void no_more_arguments(CTX)
 		fail("too many arguments", NULL, 0);
 }
 
+int got_more_arguments(CTX)
+{
+	return (ctx->argi < ctx->argc);
+}
+
 static void dispatch_char(CTX, char* cmd)
 {
 	char key = *cmd;

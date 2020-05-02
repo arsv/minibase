@@ -239,6 +239,10 @@ void cmd_pack(CTX)
 
 	char* cpio = shift(ctx);
 	char* list = shift(ctx);
+	char* dir = NULL;
+
+	if(got_more_arguments(ctx))
+		dir = shift(ctx);
 
 	no_more_arguments(ctx);
 
@@ -249,6 +253,8 @@ void cmd_pack(CTX)
 
 	open_list_file(lct, list);
 	make_cpio_file(ctx, cpio);
+
+	if(dir) open_base_dir(ctx, dir);
 
 	heap_init(ctx, 4*PAGE);
 
