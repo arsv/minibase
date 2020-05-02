@@ -68,6 +68,10 @@ static void enter_directory(CTX, struct ent* en)
 {
 	int fd, at = ctx->at;
 	char* pref = ctx->pref;
+	int depth = ctx->depth;
+
+	if(depth >= MAXDEPTH)
+		failx(ctx, en->name, -ELOOP);
 
 	if((fd = sys_openat(at, en->name, O_DIRECTORY)) < 0)
 		failx(ctx, en->name, fd);
@@ -88,6 +92,7 @@ static void enter_directory(CTX, struct ent* en)
 	ctx->pref = path;
 	ctx->plen = strlen(path);
 	ctx->at = fd;
+	ctx->depth = depth + 1;
 
 	put_pref(ctx);
 
@@ -96,6 +101,7 @@ static void enter_directory(CTX, struct ent* en)
 	ctx->pref = pref;
 	ctx->plen = strlen(path);
 	ctx->at = at;
+	ctx->depth = depth;
 }
 
 static void process_entry(CTX, struct ent* en)

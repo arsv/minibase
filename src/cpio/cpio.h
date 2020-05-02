@@ -1,5 +1,7 @@
 #include <bits/types.h>
 
+#define MAXDEPTH 15
+
 struct bufout;
 
 struct header {
@@ -52,6 +54,8 @@ struct top {
 
 	void* dirbuf;
 	int dirlen;
+
+	int depth;
 };
 
 #define CTX struct top* ctx
