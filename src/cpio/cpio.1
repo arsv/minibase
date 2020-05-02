@@ -1,0 +1,67 @@
+.TH cpio 1
+'''
+.SH NAME
+\fBcpio\fR \- initramfs image manipulation tool
+'''
+.SH SYNOPSIS
+\fBcpio\fR [\fBc\fR|\fBcreate\fR] \fIfile.cpio\fR \fIdirectory\fR
+.br
+Pack the contents of \fIdirectory\fR into \fIfile.cpio\fR.
+.P
+\fBcpio\fR [\fBx\fR|\fBextract\fR] \fIfile.cpio\fR \fIdirectory\fR
+.br
+Unpack \fIfile.cpio\fR into \fIdirectory\fR.
+.P
+\fBcpio\fR [\fBp\fR|\fBpack\fR] \fIfile.cpio\fR \fIinput.list\fR
+.br
+Create archive containing files listed in \fIinput.list\fR.
+.P
+\fBcpio\fR [\fBt\fR|\fBlist\fR] \fIfile.cpio\fR
+.br
+List file names packed in \fIfile.cpio\fR.
+'''
+.SH NOTES
+This tool is only meant to be used to pack, unpack and examine initramfs
+images for Linux.
+'''
+.SH ARCHIVE DESCRIPTION FORMAT
+The \fBpack\fR command takes a text file in the following format:
+.P
+.ni
+    # comment
+    path/to/foo.bin
+
+    > some/dir
+    path/to/bar.bin
+    @link-name path/to/target
+
+    > some/other/dir
+    path/to/another/file.img
+.fi
+.P
+Each non-prefix line is a path name to a file in the local filesystem.
+The file will be opened using its path name, but in the archive only its base
+name will remain. The \fB>\fR lines describe the directory structure within
+the archive. Files following a directory line are packed inside that directory
+within the archive.
+.P
+The example above describes an archive with the following structure:
+.P
+.ni
+    foo.bin
+    some/dir/bar.bin
+    some/dir/link-name
+    some/other/dir/file.img
+.fi
+.P
+The description instructs \fBcpio\fR to read the contents for \fIfoo.bin\fR,
+\fIbar.bin\fR and \fIfile.img\fR from local files named respectively
+.P
+.ni
+    path/to/foo.bin
+    path/to/bar.bin
+    path/to/another/file.img
+.fi
+.P
+and create a symlink \fIsome/dir/link-name\fR within the archive poiting to
+\fIpath/to/target\fR.

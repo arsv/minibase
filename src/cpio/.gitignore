@@ -1,0 +1,6 @@
+/tmp
+/out
+
+/cpio
+*.cpio
+*.list

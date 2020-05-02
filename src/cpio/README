@@ -1,0 +1,7 @@
+A simple limited cpio implementation for packing and unpacking initramfs
+images. Unlike the original cpio, it is file-oriented, with mpac-like
+command syntax. And just like mpac, it's got the `pack` command for
+plucking individual files from the filesystem into the archive.
+
+The kernel only accepts the "ascii cpio", so that's the only format this
+tool supports. No support for "binary cpio", no support for tar.
