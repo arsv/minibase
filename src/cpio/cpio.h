@@ -1,9 +1,6 @@
 #include <bits/types.h>
 
-#define MAXDEPTH 15
-
 struct bufout;
-struct dirent;
 
 struct header {
 	char magic[6];

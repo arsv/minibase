@@ -224,9 +224,6 @@ static void header_magic(struct header* hdr)
 {
 	memset(hdr, '0', sizeof(*hdr));
 	memcpy(hdr->magic, "070701", 6);
-
-	memcpy(hdr->ino, "00000001", 8);
-	memcpy(hdr->min, "00000001", 8);
 }
 
 static void header_pref(struct header* hdr, int plen, char* pref)
