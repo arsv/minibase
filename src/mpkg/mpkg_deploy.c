@@ -5,9 +5,9 @@
 #include <sys/dents.h>
 #include <sys/splice.h>
 
+#include <config.h>
 #include <string.h>
 #include <format.h>
-#include <dirs.h>
 #include <main.h>
 #include <util.h>
 

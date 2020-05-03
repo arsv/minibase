@@ -2,8 +2,8 @@
 #include <sys/time.h>
 #include <sys/timex.h>
 
+#include <config.h>
 #include <string.h>
-#include <dirs.h>
 #include <util.h>
 
 #include "timed.h"

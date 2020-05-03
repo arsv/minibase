@@ -8,10 +8,10 @@
 #include <sys/signal.h>
 #include <sys/mman.h>
 
+#include <config.h>
 #include <string.h>
 #include <sigset.h>
 #include <format.h>
-#include <dirs.h>
 #include <util.h>
 #include <main.h>
 

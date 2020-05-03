@@ -1,9 +1,9 @@
 #include <sys/file.h>
 #include <sys/proc.h>
 
+#include <config.h>
 #include <string.h>
 #include <printf.h>
-#include <dirs.h>
 #include <util.h>
 
 #include "udevmod.h"

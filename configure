@@ -2,15 +2,38 @@
 
 unset arch cross target cc ar strip tp cflags uselds
 
-uselds=yes
+uselds=yes   # use custom ld script if available for the target
+
+# Configurable global paths for config.h
+
+BASE_ETC="/base/etc"     # config files
+BASE_VAR="/var/base"     # saved state
+INIT_ETC="/etc"          # config files in initrd mode
+RUN_CTRL="/run/ctrl"     # control sockets
+
+HERE=""  # gets prepended to misc global paths, HERE "/run" -> "./run"
+
+# In development mode, make configurable tools read configs from current
+# (source) directory, not the host files that might be present.
+
+devel_paths()
+{
+	HERE="."
+	BASE_ETC="./etc"
+	INIT_ETC="./etc"
+	BASE_VAR="./var"
+	RUN_CTRL="./run"
+}
+
+optim=-Os
+
+# Argument parsing
 
 die() { echo "$@" >&2; exit 1; }
 accept() { eval "$key=\$val"; unset val; }
 setkey() { eval "$1=\$val"; unset val; }
 append() { eval "$1=\"\${$1:+\$$1 }\$2\""; }
 appval() { append "$1" "$val"; unset val; }
-
-optim=-Os
 
 while [ $# -gt 0 ]; do
 	key=${1%%=*}
@@ -27,17 +50,23 @@ while [ $# -gt 0 ]; do
 		STRIP)  setkey strip ;;
 		cflags) appval cflags; unset optim ;;
 		CFLAGS) appval cflags; unset optim ;;
-		devel)  append cflags "-Wall -g -DDEVEL"; unset optim ;;
+		devel)  append cflags "-Wall -g"; unset optim; devel_paths ;;
 		debug)  append cflags "-Wall -g" ;;
 		wextra) append cflags "-Wextra" ;;
 		werror) append cflags "-Werror" ;;
 		qemu)   accept ;;
+		BASE_ETC) accept ;;
+		BASE_VAR) accept ;;
+		INIT_ETC) accept ;;
+		RUN_CTRL) accept ;;
 		nolds) unset uselds ;;
 		*) die "Unexpected argument $key" ;;
 	esac; shift
 
 	test -n "$val" && die "Unexpected argument for $key"
 done
+
+# Pick and configure toolchain based on the supplied arguments
 
 append cflags "$optim"
 
@@ -85,6 +114,8 @@ case "$qemu" in
 	*/*) ;;
 	*) qemu="qemu-$qemu" ;;
 esac
+
+# Write the resulting configuration (config.h and config.mk)
 
 cat > config.mk <<END
 ARCH = $arch
@@ -150,6 +181,17 @@ fi
 
 chmod a+x mini-cc
 
+cat > config.h <<END
+#define BASE_ETC "$BASE_ETC"
+#define BASE_VAR "$BASE_VAR"
+#define INIT_ETC "$INIT_ETC"
+#define RUN_CTRL "$RUN_CTRL"
+
+#define HERE "$HERE"
+END
+
+# And finally dump the values for the user to check
+
 echo "Configured for $arch"
 echo
 echo "  CC = $cc"
@@ -157,5 +199,10 @@ echo "  AR = $ar"
 echo "  STRIP = $strip"
 echo "  CFLAGS = $cflags"
 test -n "$qemu" && echo "  QEMU = $qemu"
+echo
+echo "  BASE_ETC = $BASE_ETC"
+echo "  BASE_VAR = $BASE_VAR"
+echo "  INIT_ETC = $INIT_ETC"
+echo "  RUN_CTRL = $RUN_CTRL"
 echo
 echo "Proceed to run 'make'"

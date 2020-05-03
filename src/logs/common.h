@@ -1,4 +1,4 @@
-#include <dirs.h>
+#include <config.h>
 
 #define DEVLOG HERE "/dev/log"
 

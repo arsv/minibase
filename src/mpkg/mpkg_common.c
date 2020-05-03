@@ -1,9 +1,9 @@
 #include <sys/mman.h>
 #include <sys/file.h>
 
+#include <config.h>
 #include <string.h>
 #include <format.h>
-#include <dirs.h>
 #include <util.h>
 
 #include "mpkg.h"
@@ -54,7 +54,7 @@ char* root_adjust(char* name)
 
 void setup_root(CTX, int fromarg)
 {
-	char* name = fromarg ? shift(ctx) : SYS_ROOT;
+	char* name = fromarg ? shift(ctx) : HERE "/";
 	int fd;
 
 	if((fd = sys_open(name, O_DIRECTORY | O_PATH)) < 0)

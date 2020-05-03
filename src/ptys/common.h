@@ -1,4 +1,4 @@
-#include <dirs.h>
+#include <config.h>
 
 #define CONFDIR BASE_ETC "/ptyhub"
 #define CONTROL RUN_CTRL "/ptyhub"

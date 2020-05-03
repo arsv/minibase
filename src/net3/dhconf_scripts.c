@@ -3,7 +3,7 @@
 #include <sys/fprop.h>
 #include <sys/timer.h>
 
-#include <dirs.h>
+#include <config.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>

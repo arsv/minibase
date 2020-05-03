@@ -1,4 +1,4 @@
-#include <dirs.h>
+#include <config.h>
 
 #define BOOTDIR BASE_ETC "/boot"
 #define INITDIR BASE_ETC "/init"

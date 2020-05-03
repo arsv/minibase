@@ -7,11 +7,11 @@
 #include <sys/fprop.h>
 #include <sys/signal.h>
 
+#include <config.h>
 #include <format.h>
 #include <string.h>
 #include <printf.h>
 #include <sigset.h>
-#include <dirs.h>
 #include <util.h>
 #include <main.h>
 

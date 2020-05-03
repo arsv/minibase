@@ -2,13 +2,13 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
+#include <config.h>
 #include <format.h>
 #include <printf.h>
 #include <string.h>
 #include <output.h>
 #include <time.h>
 #include <util.h>
-#include <dirs.h>
 #include <main.h>
 
 ERRTAG("calendar");

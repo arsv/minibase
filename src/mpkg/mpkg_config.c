@@ -1,10 +1,10 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 
+#include <config.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
-#include <dirs.h>
 #include <main.h>
 
 #include "mpkg.h"

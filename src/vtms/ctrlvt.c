@@ -5,9 +5,9 @@
 #include <sys/file.h>
 #include <sys/sched.h>
 
+#include <config.h>
 #include <format.h>
 #include <string.h>
-#include <dirs.h>
 #include <util.h>
 #include <main.h>
 

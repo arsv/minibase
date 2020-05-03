@@ -2,6 +2,7 @@ out/
 *.a
 *.o
 *.d
+config.h
 config.mk
 mini-cc
 tags

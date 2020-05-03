@@ -1,4 +1,4 @@
-#include <dirs.h>
+#include <config.h>
 
 #define CONTROL RUN_CTRL "/wsupp"
 #define CONFDIR BASE_ETC "/net"

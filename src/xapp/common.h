@@ -1,4 +1,4 @@
-#include <dirs.h>
+#include <config.h>
 
 #define CONFDIR HERE "/etc/apphub"
 #define CONTROL RUN_CTRL "/apphub"

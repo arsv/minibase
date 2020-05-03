@@ -2,10 +2,10 @@
 #include <sys/info.h>
 #include <sys/file.h>
 
+#include <config.h>
 #include <string.h>
 #include <format.h>
 #include <util.h>
-#include <dirs.h>
 #include <main.h>
 
 #include "common.h"

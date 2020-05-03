@@ -2,9 +2,9 @@
 #include <sys/fpath.h>
 #include <sys/mman.h>
 
+#include <config.h>
 #include <format.h>
 #include <string.h>
-#include <dirs.h>
 #include <util.h>
 
 #include "mpkg.h"

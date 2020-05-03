@@ -8,10 +8,10 @@
 #include <sys/dents.h>
 #include <sys/sync.h>
 
+#include <config.h>
 #include <format.h>
 #include <string.h>
 #include <util.h>
-#include <dirs.h>
 
 #include "udevmod.h"
 
