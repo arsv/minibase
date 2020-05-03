@@ -6,3 +6,5 @@ config.mk
 mini-cc
 tags
 cscope.out
+zz*
+xx*
