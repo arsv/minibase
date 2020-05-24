@@ -1,0 +1,78 @@
+Running user applications
+~~~~~~~~~~~~~~~~~~~~~~~~~
+In a conventional GNU/Linux system, applications generally run with the uid
+of the login session that spawned them. Which is most cases means the same
+uid for all applications. And the uid concept itself is tied to the idea of
+logins in a (presumably) multi-user system.
+
+With this project, the idea is to throw away the notion of login session, and
+instead use the kernel concept of uids to separate and restrict applications.
+Each application gets it own uid, essentially becoming a "user" in the GNU
+sense, and credentials-based access controls get re-purposed to enforce data
+access policies between applications, like preventing them from reading files
+they should not need to.
+
+Put another way, the (human) user should be able to run Chromium and be sure
+it cannot read private SSH client keys. Or alternatively, download some file
+from an arbitrary shady source and be able to run it without risking data
+leaks, as long as the kernel is doing its job.
+
+Here the focus is mostly on GUI applications, X or Wayland or whatever.
+TUI and CLI follow the same overall principle, but require additional work
+to set up their I/O channels.
+
+
+Indirect exec
+~~~~~~~~~~~~~
+The key trick that makes uid-based isolation possible is to run applications
+under a custom supervisor, starting then with an IPC call and not by forking
+the initiating process.
+
+        1 init                      1 init
+        |                           |
+        +- Xorg                     +- Xorg
+           |                        |  |
+           +- openbox (P)           |  +- openbox (P)
+              |                     |
+              +- kicad (C)          +- apphub (S)
+                                       |
+                                       +- kicad (C)
+
+        direct exec                 indirect exec
+
+
+In a conventional GNU/Linux system, the process that initiates application
+startup (P) forks and becomes the parent of the newly-spawned application
+process C. With a supervisor, the initiating process P makes an IPC call to
+a supervisor S, which spawns the application process on behalf of P.
+
+The supervisor runs highly privileged in order to be able to set arbitrary
+credentials for the spawned process. The initiating process only needs the
+permissions to perform the IPC call.
+
+The whole scheme is very straightforward and does not break privilege
+inheritance rules like the use of suid bits would. In fact, in this project,
+it is meant to run with suid bits disabled system-wide. It also allows moves
+all child supervision functionality into a dedicated process, and out of the
+initiating applications (like openbox in this example), allowing things like
+output capture to be implemented without overloading the launcher application
+with unrelated functionality.
+
+This idea is not new, this is the way container managers often work.
+However, in this case, the spawned application is not forced to run in
+a container, and in most cases does not need to. The custom credentials
+assigned by the supervisor provide enough isolation for the application
+in a lot of cases, without the inherent costs and downsides of a proper
+container environment.
+
+
+Security considerations
+~~~~~~~~~~~~~~~~~~~~~~~
+The ability to start applications (via IPC calls to the supervisor) should be
+restricted to "shell-like" processes. In most cases that would be the likes
+of window managers, or maybe some WM panel applications, and then maybe some
+actual command-line shells. The majority of applications started like that
+should not be able to launch other applications.
+
+This is quite easy to enforce by having the supervisor socket writable for a
+certain group, which goes into the auxiliary group set for the selected apps.
