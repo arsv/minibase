@@ -1,9 +1,9 @@
 Running user applications
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 In a conventional GNU/Linux system, applications generally run with the uid
-of the login session that spawned them. Which is most cases means the same
-uid for all applications. And the uid concept itself is tied to the idea of
-logins in a (presumably) multi-user system.
+of the login session that spawned them, which is most cases means the same
+uid for all applications, and the uid concept itself is tied to the concept
+of logins in a (presumably) multi-user system.
 
 With this project, the idea is to throw away the notion of login session, and
 instead use the kernel concept of uids to separate and restrict applications.
@@ -16,6 +16,9 @@ Put another way, the (human) user should be able to run Chromium and be sure
 it cannot read private SSH client keys. Or alternatively, download some file
 from an arbitrary shady source and be able to run it without risking data
 leaks, as long as the kernel is doing its job.
+
+Yet another way to put it, the point is to treat applications the same way
+system services are normally treated in Linux.
 
 Here the focus is mostly on GUI applications, X or Wayland or whatever.
 TUI and CLI follow the same overall principle, but require additional work
@@ -76,3 +79,74 @@ should not be able to launch other applications.
 
 This is quite easy to enforce by having the supervisor socket writable for a
 certain group, which goes into the auxiliary group set for the selected apps.
+
+
+Application data and configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+With custom uids for each application, there is no point in storing application
+data /home dot-subdirs, or storing it in dot-subdirs elsewhere for that matter.
+There might be reasons to keep /home as such, but letting applications access
+it is generally not a good idea.
+
+Instead, each application (or at least each distinct application uid) should
+get a dedicated directory for its data, like say /data/$appname or something
+like that, which would be owned by (and therefore writable for) that particular
+uid. 
+
+And by the same logic, user-provided application configs can be placed in a
+global /etc or some equivalent place, just like it's done with system services,
+instead of /home/$USER/.config like it would be done in a GNU/Linux system.
+
+
+Application arguments and environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In a conventional GNU/Linux system, applications spawned via direct exec
+inherit the environment from their parent, and generally take arbitrary
+arguments as well. With direct exec, that's just the way things work by
+default.
+
+With indirect exec, the most straightforward approach is not pass arguments
+to the spawned applications, and only allow setting the environment in the
+startup script. Doing that has obvious security benefits, with the initiator
+not passing any data to the application across uid barrier.
+
+However, for practical reasons, the decision was made to allow passing both
+argv and envp to the spawned application.
+
+For X/Wayland applications in a multi-VT setup, the environment of the
+initiating process is pretty much the only reasonable way to tell which
+VT they are starting on, and in which windowing environment. Passing the
+whole envp from the initiating process solves this problem instantly.
+Not passing the whole envp is tricky; at least one component of the whole
+setup would need to be aware of the windowing environment in use, like for
+instance, which variable holds the socket name. Nested environments (Xnest,
+Xwayland, wayland-in-X) would probably need special treatment as well.
+
+As for argv, there are multiple GUI applications that take arguments and
+cannot be easily modified to not do that. Consider something like an image
+viewer that takes a file name.
+
+Overall current model for applications is, in python terms,
+
+    application(*argv, **envp)
+
+with argv[] being positional arguments and envp[] being keyword arguments.
+It is up to the application to handle the keyword arguments properly.
+
+
+Environment issues with glibc-based applications
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+One particularly nasty case of envp[] handling issues is the GNU libc
+dynamic linker, and consequently anything linked against glibc. The linker
+checks several environment variables (LD_PRELOAD, LD_LIBRARY_PATH) and may
+load executable code based on the values there. This effectively provides
+a path for the initiating process to execute code in the context of the
+spawned application process.
+
+The risk posed is not that great however, since the access to the supervisor
+control socket (and therefore the ability to pass envp[]) should be limited
+to semi-privileged applications that do things on behalf of the human user
+and must be trusted to some degree anyway.
+
+In cases where it does matter, application startup scripts may need to reset
+or override sensitive variables.
