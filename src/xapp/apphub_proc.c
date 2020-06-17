@@ -145,7 +145,7 @@ static void update_proc_counts(CTX)
 	int i, nprocs = ctx->nprocs;
 	struct proc* procs = ctx->procs;
 	int limit = 0, nonempty = 0, running = 0;
-	
+
 	for(i = 0; i < nprocs; i++) {
 		struct proc* pc = &procs[i];
 
@@ -185,7 +185,7 @@ void maybe_trim_heap(CTX)
 	void* brk = ctx->brk;
 	void* ptr = ctx->ptr;
 	void* end = ctx->end;
-	
+
 	long size = ptr - brk;
 	long need = pagealign(size);
 
