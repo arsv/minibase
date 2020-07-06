@@ -96,9 +96,7 @@ Interactive shell should definitely spare the user from typing ls all the
 time, or using find for that matter. Between this and the scripting language,
 find and ls should probably disappear as standalone commands at some point.
 
-It is not yet clear who the final design will look like but preminary work
-seem to indicate this shell should be a client for a indirect exec service
-similar to suhub, probably with backing ptys.
+# Check ./vtvstty.txt here for more info on interactive shells.
 
 
 The recovery shell

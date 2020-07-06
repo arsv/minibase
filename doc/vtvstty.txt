@@ -1,0 +1,196 @@
+Separating VT and TTY applications
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Multiple issues with terminal applications in GNU/Linux are caused by poorly
+thought out notion of terminal application, and consequently very awkward
+programming model for terminal emulators.
+
+The proposed solution is to restrict the definition of terminal applications
+to full-screen (roughly vi-like) applications, design terminals to support
+this kind of applications only, and use a different approach for the remaining
+(ed-like, or command-like) applications.
+
+This project provides specific tools to support this split, however, the whole
+idea deviates a lot from the common GNU programming model, so it might not be
+immediately apparent what those tools are for. The point of this file is to
+give an overview of the problems being solved, and how the proposed design
+makes things better.
+
+
+Teletypes and visual terminals
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Modern terminal emulators are software stand-ins for actual hardware devices,
+and most of the terms around them in Linux are still references to the hardware.
+
+An (idealized) teletype (TTY) is line printer using an infinite roll of paper
+and a keyboard. The stuff typed once never gets over-typed, it remains readable
+on the paper. If the output is long, the user can pick the paper and start
+reading from the from any point (aka scrollback buffer). Powering the thing
+off does not erase the paper.
+
+A visual terminal (VT) is a text-mode monitor with a keyboard. Think DEC VT100,
+VT220 and the likes. It displays characters on a 2D grid, and allows placing
+the cursor anywhere on the grid at will. The characters are non-persistent,
+can be overwritten by printing over the same cell on the grind. Overwritten
+characters are not recoverable, once it's gone it's gone. VT has no notion
+of scrollback buffer, or scrolling for that matter. The cursor can move,
+but the grid doesn't. Powering the VT off erases everything on the screen.
+
+
+The problem with hybrid terminals
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Pretty much every terminal emulator in Linux, including the one built into
+the kernel, is written to be both a TTY and a VT at the same time. A lot of
+applications in Linux are written with this kind of hybrid terminals in mind.
+
+In a typical Linux interpretation, TTY displays an endless stream
+of arbitrary length strings. VT displays a fixed-size matrix with rows and
+columns. A hybrid terminal has to map TTY lines onto VT rows and columns,
+internally, and maintain some sort of sane relation between them.
+
+The two representations have to behave in different and incompatible
+ways with some operations like terminal window resizing and redrawing,
+scrollback and text selection, line wrapping. But there is no way to tell
+whether a particular part of the input stream was meant to be a line or a row.
+
+A lot of complexity in Linux terminals comes from having this dual
+representation, and also having to do things in a way that would work
+in with the duality.
+
+
+Re-drawable terminal applications
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+VT applications are essentially GUI applications, with the only difference
+being that instead of a pixel-grid window buffer they get a character-grid
+buffer. And the buffer is not memory-mapped, instead there's a particular
+wire protocol for modifying its contents (the ANSI escape codes).
+
+At any point in time, the application should be able to re-draw the buffer
+completely, triggered by SIGWINCH and/or C-l. This is a major reason for
+dropping TTY support. TTY apps are not re-drawable, while VT apps, even those
+written for GNU/Linux, almost always are (by necessity, either to handle
+SIGWINCH or to be able to clean up after stderr spills onto the terminal).
+
+The assumption of redraw-ability allows removing pretty much all persistency
+from the terminal emulator, leaving it only in the application which has to
+have some persistency anyway.
+
+Re-drawable applications make detach-ability in terminals almost trivial to
+implement. GNU screen is a pretty involved application in large part because
+it has to implement a hybrid terminal. For a pure VT emulators, re-attaching
+to a running applications means just attaching a fd and sending SIGWINCH.
+
+
+Getting rid of readline
+~~~~~~~~~~~~~~~~~~~~~~~
+In GNU/Linux, a shell is a terminal application (running on a hybrid terminal)
+that combines a specialized text editor and a command interpreter. The text
+editor, often by not always provided by the readline library, allows the user
+to compose commands which are then processed by the interpreter.
+
+One particularly nasty issue with this is that this approach requires a text
+editor to be embedded into anything that wants to be an interactive command
+interpreter.
+
+A part of the VT/TTY split idea is moving this text editor into a separate
+process. The editor becomes a proper fullscreen VT application that lets
+the user compose the command and send it to the interpreter over an IPC
+channel, and display whatever results it may return. This way, interpreters
+only even need to work in "non-interactive" mode, reading commands from
+a pipe and sending output into a pipe, and have no need to interact with
+the VT at all.
+
+This user-facing editor/viewer application (the shell) becomes the right
+place to implement advanced editor features like syntax highlight and auto-
+completion, and also the scrollback buffer for the interpreter output. Having
+scrollback tied with the editor, and not in the terminal, allows for instance
+scrolling the output but not the command being edited. It also removes the
+need to applications like `more` or `less`, and obsoletes isatty().
+
+
+A different look at the command interpreters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The relationship between the shell and the backing interpreters mirrors that
+of a browser and web backend. Or rather, a networking service client and
+the backing services; the connection is always keep-alive, and the running
+service instance is expected to maintain its own state (think IMAP).
+
+The "browser" (shell application) sends a stream of requests and renders
+the output the backend (interpreter instance) produces for those requests.
+
+Conventionally, the requests are newline-terminated, although that's not
+a strict requirement. Other options would work as well as long as the shell
+and the backend agree on how the requests should be formatted.
+
+
+The problem with command output formatting
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Hybrid terminal applications, like for instance GNU ls, use ANSI control
+sequence (VT protocol) to format their output, query terminal size using
+ioctls, and format their output to match terminal width if necessary.
+
+This approach does not work with TTY apps since they aren't running on a
+terminal, and besides, the whole idea is awful. Just like with the command
+editor, it forces a bunch of application to embed completely irrelevant
+text formatting code to produce somewhat decent output. Every application
+that does formatted output needs a copy of the same code.
+
+To clarify, GNU ls which is just a file lister needs to calculate visible
+width of the file names it is about to output, get terminal width via a VT
+ioctl, and format the names in columns to fit the width of the terminal.
+The latter part is basically the job of a roff-like text formatter.
+But GNU ls is just a file lister! it is not a roff-like text formatter.
+
+Then of course the user does `ls | less` and now `ls` needs to disable its
+own internal formatting while `less` is running pretty much the same code
+to figure out how to fit strings it got on the screen.
+
+And then the terminal gets resized, and the output `ls` produced does not
+fit anymore and `ls` cannot retroactive reformat it because it's not running
+anymore. And then the user runs `man` which does something like `nroff | less`
+with `nroff` formatting and `less`, well, not formatting. Hopefully.
+
+It's a horrible design that makes no sense and really needs to go.
+
+
+Better formatting for TTY apps
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+So with the VT/TTY split, the solution of the formatting problem is to move
+most of the formatting code into the shell application. The backend (both the
+interpreters and whatever commands then may run) produce some sort of device
+independent markup and the shell application renders that onto the VT it runs
+on.
+
+The exact specification of the markup language is not decided yet, but it is
+expected to be a lightweight text-coloring similar to inline font switching
+in nroff.
+
+One particular feature that it needs is column alignment, probably tab-based:
+
+    source                      rendered
+
+    a^b^c                       a    b    c
+    aaa^bbb^ccc                 aaa  bbb  ccc
+
+This is a very common output pattern for various tools, and rendering it
+properly requires too much effort to do within individual applications.
+Especially with arbitrary unicode characters involved.
+
+
+Implementation notes
+~~~~~~~~~~~~~~~~~~~~
+As envisioned currently, both VT and TTY apps will be run under dedicated
+supervisors, ptyhub and ttyhub respectively. See ./usrapps.txt for general
+overview of the supervised app idea.
+
+Both kind of applications require special handling for fds 0, 1 and cannot
+be run under generic apphub.
+
+It does look like VT emulators and shell applications need to be written
+specifically to work with ptyhub and ttyhub respectively. There are really
+no good way to avoid that. For command interpreters capable of running
+external tools, a set of tools that produce the formatted output will be
+needed eventually.
+
+The focus on VT applications may prompt some unconventional design decisions
+for VT emulators. Automatic line wrapping (moving the cursor to the next line
+if the text printed goes over the right boundary) makes no sense for VT apps.
