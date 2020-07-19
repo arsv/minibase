@@ -156,6 +156,7 @@ static void dump_proc(CTX, struct bufout* bo, struct ucattr* at)
 	int* xid = uc_get_int(at, ATTR_XID);
 	int* pid = uc_get_int(at, ATTR_PID);
 	int* exit = uc_get_int(at, ATTR_EXIT);
+	int* ring = uc_get_int(at, ATTR_RING);
 
 	FMTBUF(p, e, buf, 64);
 
@@ -179,6 +180,9 @@ static void dump_proc(CTX, struct bufout* bo, struct ucattr* at)
 	}
 
 	p = fmtstr(p, e, ")");
+
+	if(ring)
+		p = fmtstr(p, e, " *");
 
 	FMTENL(p, e);
 
@@ -312,6 +316,17 @@ static int shift_xid(CTX)
 	return xid;
 }
 
+static void send_simple_request(CTX, int cmd)
+{
+	char txbuf[128];
+	struct ucbuf uc;
+
+	uc_buf_set(&uc, txbuf, sizeof(txbuf));
+	uc_put_hdr(&uc, cmd);
+
+	send_request(ctx, &uc);
+}
+
 static void send_xid_request(CTX, int cmd, int xid)
 {
 	char txbuf[128];
@@ -346,13 +361,52 @@ static void req_sigkill(CTX)
 	recv_simple_reply(ctx);
 }
 
+static void req_fetch(CTX)
+{
+	int xid = shift_xid(ctx);
+
+	no_other_options(ctx);
+
+	int size = 2*PAGE;
+	void* buf = alloc_heap(size);
+
+	send_xid_request(ctx, CMD_FETCH, xid);
+
+	struct ucattr* msg = recv_large(ctx, buf, size);
+
+	writeall(STDOUT, uc_payload(msg), uc_paylen(msg));
+}
+
+static void req_flush(CTX)
+{
+	int xid = shift_xid(ctx);
+
+	no_other_options(ctx);
+
+	send_xid_request(ctx, CMD_FLUSH, xid);
+
+	recv_simple_reply(ctx);
+}
+
+static void req_clear(CTX)
+{
+	no_other_options(ctx);
+
+	send_simple_request(ctx, CMD_CLEAR);
+
+	recv_simple_reply(ctx);
+}
+
 static const struct cmd {
 	char name[16];
 	void (*call)(CTX);
 } cmds[] = {
 	{ "spawn",   req_spawn    },
 	{ "sigterm", req_sigterm  },
-	{ "sigkill", req_sigkill  }
+	{ "sigkill", req_sigkill  },
+	{ "show",    req_fetch    },
+	{ "flush",   req_flush    },
+	{ "clear",   req_clear    }
 };
 
 static void invoke(CTX)

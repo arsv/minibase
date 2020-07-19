@@ -1,0 +1,10 @@
+#!/bin/sh
+
+echo "some error text" >&2
+
+for i in 1 2 3 4; do
+	echo "Line $i"
+	sleep 1
+done
+
+echo "done with the output" >&2

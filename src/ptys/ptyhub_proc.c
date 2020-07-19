@@ -8,6 +8,7 @@
 #include <sys/signal.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include <sys/iovec.h>
 
 #include <string.h>
 #include <format.h>
@@ -19,7 +20,7 @@
 
 #define MAX_RUNNING_PROCS 4096
 
-void close_pipe(CTX, struct proc* pc)
+void close_stdout(CTX, struct proc* pc)
 {
 	int fd = pc->mfd;
 
@@ -38,12 +39,92 @@ void close_pipe(CTX, struct proc* pc)
 	(void)sys_kill(pid, SIGHUP);
 }
 
-void handle_pipe(CTX, struct proc* pc)
+void handle_stdout(CTX, struct proc* pc)
 {
 	if(sys_ioctli(pc->mfd, TCFLSH, 0) >= 0)
 		return;
 
-	close_pipe(ctx, pc);
+	close_stdout(ctx, pc);
+}
+
+static void* prep_error_buf(struct proc* pc)
+{
+	void* buf = pc->buf;
+
+	if(buf) return buf;
+
+	int size = RING_SIZE;
+	int proto = PROT_READ | PROT_WRITE;
+	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+
+	buf = sys_mmap(NULL, size, proto, flags, -1, 0);
+
+	if(mmap_error(buf))
+		return NULL;
+
+	pc->buf = buf;
+	pc->ptr = 0;
+
+	return buf;
+}
+
+void handle_stderr(CTX, struct proc* pc)
+{
+	void* buf;
+
+	if(!(buf = prep_error_buf(pc)))
+		return close_stderr(ctx, pc);
+
+	int size = RING_SIZE;
+	int ptr = pc->ptr;
+	int off = ptr % size;
+	int ret, fd = pc->efd;
+
+	struct iovec iov[2] = {
+		{ .base = buf + off, .len = size - off },
+		{ .base = buf, .len = off }
+	};
+	int iocnt = off ? 2 : 1;
+
+	if((ret = sys_readv(fd, iov, iocnt)) < 0)
+		return;
+
+	ptr += ret;
+
+	if(ptr > size)
+		ptr = size + (ptr % size);
+
+	pc->ptr = ptr;
+}
+
+void close_stderr(CTX, struct proc* pc)
+{
+	int fd = pc->efd;
+
+	if(fd <= 0) return;
+
+	(void)sys_close(fd);
+
+	pc->efd = -1;
+
+	ctx->pollset = 0;
+}
+
+static int unmap_errbuf(CTX, struct proc* pc)
+{
+	void* buf = pc->buf;
+	int size = RING_SIZE;
+	int ret;
+
+	if(!buf) return 0;
+
+	if((ret = sys_munmap(buf, size)) < 0)
+		return ret;
+
+	pc->buf = NULL;
+	pc->ptr = 0;
+
+	return 0;
 }
 
 static int xid_is_in_use(CTX, int val)
@@ -120,10 +201,42 @@ static void wipe_proc(struct proc* pc)
 	memzero(pc, sizeof(*pc));
 }
 
-static void drop_proc(CTX, struct proc* pc)
+int flush_proc(CTX, struct proc* pc)
 {
+	int ret;
+
+	if(pc->pid > 0)
+		return -EBUSY;
+	if((ret = unmap_errbuf(ctx, pc)) < 0)
+		return ret;
+
 	wipe_proc(pc);
+
 	update_proc_counts(ctx);
+
+	return 0;
+}
+
+int flush_dead_procs(CTX)
+{
+	struct proc* pc = ctx->procs;
+	struct proc* pe = pc + ctx->nprocs;
+	int ret = 0;
+
+	for(; pc < pe; pc++) {
+		if(!pc->xid)
+			continue;
+		if(pc->pid > 0)
+			continue;
+		if((ret = unmap_errbuf(ctx, pc)) < 0)
+			break;
+
+		wipe_proc(pc);
+	}
+
+	update_proc_counts(ctx);
+
+	return ret;
 }
 
 void maybe_trim_heap(CTX)
@@ -167,6 +280,30 @@ out:
 	return pc;
 }
 
+static void wipe_stale_entries(CTX, struct proc* px)
+{
+	struct proc* pc = ctx->procs;
+	struct proc* pe = pc + ctx->nprocs;
+
+	for(; pc < pe; pc++) {
+		if(pc == px)
+			continue;
+		if(!pc->xid)
+			continue;
+		if(pc->pid > 0)
+			continue;
+		if(memcmp(px->name, pc->name, sizeof(pc->name)))
+			continue;
+
+		wipe_proc(pc);
+	}
+}
+
+static void mark_dead(struct proc* pc, int status)
+{
+	pc->pid = (0xFFFF0000 | (status & 0xFFFF));
+}
+
 void check_children(CTX)
 {
 	int pid, status;
@@ -182,11 +319,17 @@ void check_children(CTX)
 			return;
 
 		notify_exit(ctx, pc, status);
-		drop_proc(ctx, pc);
+
+		if(!status && !pc->buf)
+			wipe_proc(pc);
+		else
+			mark_dead(pc, status);
 
 	} if(pid < 0 && pid != -ECHILD) {
 		fail("waitpid", NULL, pid);
 	}
+
+	update_proc_counts(ctx);
 }
 
 void* heap_alloc(CTX, int size)
@@ -236,7 +379,7 @@ static int prep_path(char* path, int len, char* name)
 	return 0;
 }
 
-static int child(int sfd, char* path, char** argv, char** envp)
+static int child(int sfd, int efd, char* path, char** argv, char** envp)
 {
 	int ret;
 	struct sigset empty;
@@ -250,7 +393,7 @@ static int child(int sfd, char* path, char** argv, char** envp)
 		fail("dup2", "stdin", ret);
 	if((ret = sys_dup2(sfd, 1)) < 0)
 		fail("dup2", "stdout", ret);
-	if((ret = sys_dup2(sfd, 2)) < 0)
+	if((ret = sys_dup2(efd, 2)) < 0)
 		fail("dup2", "stderr", ret);
 
 	if((ret = sys_setsid()) < 0)
@@ -267,28 +410,46 @@ static int spawn_proc(struct proc* pc, char* path, char** argv, char** envp)
 {
 	int pid, ret;
 	int mfd, sfd;
+	int pipe[2];
 	int flags = O_RDWR | O_NOCTTY | O_CLOEXEC;
 	int lock = 0;
 
-	if((mfd = sys_open("/dev/ptmx", flags)) < 0)
-		return mfd;
+	if((ret = sys_pipe2(pipe, O_NONBLOCK | O_CLOEXEC)) < 0)
+		return ret;
+	if((mfd = ret = sys_open("/dev/ptmx", flags)) < 0)
+		goto cpipe;
+
+	mfd = ret;
+
 	if((ret = sys_ioctl(mfd, TIOCSPTLCK, &lock)) < 0)
-		return ret;
-	if((sfd = sys_ioctli(mfd, TIOCGPTPEER, flags)) < 0)
-		return sfd;
+		goto cboth;
+	if((ret = sys_ioctli(mfd, TIOCGPTPEER, flags)) < 0)
+		goto cboth;
 
-	if((pid = sys_fork()) < 0)
-		return ret;
+	sfd = ret;
 
-	if(pid == 0)
-		_exit(child(sfd, path, argv, envp));
+	if((ret = sys_fork()) < 0)
+		goto call3;
+	if((pid = ret) == 0)
+		_exit(child(sfd, pipe[1], path, argv, envp));
 
 	sys_close(sfd);
+	sys_close(pipe[1]);
 
 	pc->mfd = mfd;
 	pc->pid = pid;
+	pc->efd = pipe[0];
 
 	return 0;
+call3:
+	sys_close(sfd);
+cboth:
+	sys_close(mfd);
+cpipe:
+	sys_close(pipe[0]);
+	sys_close(pipe[1]);
+
+	return ret;
 }
 
 static int validate_name(char* name)
@@ -337,6 +498,7 @@ int spawn_child(CTX, char** argv, char** envp)
 		wipe_proc(pc);
 		return ret;
 	} else {
+		wipe_stale_entries(ctx, pc);
 		update_proc_counts(ctx);
 		return xid;
 	}

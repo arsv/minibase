@@ -16,9 +16,12 @@ struct conn {
 
 struct proc {
 	int xid;
-	int pid;
-	int mfd;
-	int cfd;
+	int pid; /* child process */
+	int mfd; /* pty master side */
+	int cfd; /* client connection */
+	int efd; /* child stderr */
+	int ptr;
+	void* buf;
 	char name[20];
 };
 
@@ -64,10 +67,14 @@ void check_socket(CTX);
 void handle_conn(CTX, struct conn* cn);
 void close_conn(CTX, struct conn* cn);
 
-void handle_pipe(CTX, struct proc* pc);
-void close_pipe(CTX, struct proc* pc);
+void handle_stdout(CTX, struct proc* pc);
+void close_stdout(CTX, struct proc* pc);
+
+void handle_stderr(CTX, struct proc* pc);
+void close_stderr(CTX, struct proc* pc);
 
 int flush_proc(CTX, struct proc* pc);
+int flush_dead_procs(CTX);
 
 void maybe_trim_heap(CTX);
 void* heap_alloc(CTX, int size);

@@ -80,6 +80,18 @@ static int send_timed(struct conn* cn, struct ucbuf* uc)
 	return uc_send(fd, uc);
 }
 
+static int send_reply_iov(struct conn* cn, struct iovec* iov, int iovcnt)
+{
+	int ret, fd = cn->fd;
+
+	if((ret = uc_send_iov(fd, iov, iovcnt)) != -EAGAIN)
+		return ret;
+	if((ret = uc_wait_writable(fd)) < 0)
+		return ret;
+
+	return uc_send_iov(fd, iov, iovcnt);
+}
+
 static int reply(struct conn* cn, int err)
 {
 	char buf[16];
@@ -104,7 +116,40 @@ static int reply_spawn(struct conn* cn, struct proc* pc)
 	return send_timed(cn, &uc);
 }
 
-static struct conn* find_conn(CTX, int fd)
+static int reply_ring(CTX, CN, void* ring, int ptr)
+{
+	struct ucbuf uc;
+	char buf[128];
+	struct iovec iov[3];
+	int iovcnt, ret;
+
+	if(ptr <= RING_SIZE) {
+		iov[1].base = ring;
+		iov[1].len = ptr;
+
+		iovcnt = 2;
+	} else {
+		int size = RING_SIZE;
+		int off = ptr % size;
+
+		iov[1].base = ring + off;
+		iov[1].len = size - off;
+		iov[2].base = ring;
+		iov[2].len = off;
+
+		iovcnt = 3;
+	}
+
+	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, 0);
+
+	if((ret = uc_iov_hdr(&iov[0], &uc)) < 0)
+		return ret;
+
+	return send_reply_iov(cn, iov, iovcnt);
+}
+
+struct conn* find_conn(CTX, int fd)
 {
 	struct conn* cn = ctx->conns;
 	struct conn* ce = cn + ctx->nconns;
@@ -215,6 +260,7 @@ static int reply_status(CTX, CN, int start, int nprocs)
 		struct ucattr* at;
 		int xid = pc->xid;
 		int pid = pc->pid;
+		int ptr = pc->ptr;
 
 		if(uc_space_left(&uc) < maxrec)
 			break;
@@ -228,6 +274,11 @@ static int reply_status(CTX, CN, int start, int nprocs)
 			uc_put_int(&uc, ATTR_PID, pid);
 		else if(pid < 0)
 			uc_put_int(&uc, ATTR_EXIT, pid & 0xFFFF);
+
+		if(ptr > RING_SIZE)
+			uc_put_int(&uc, ATTR_RING, RING_SIZE);
+		else if(ptr > 0)
+			uc_put_int(&uc, ATTR_RING, ptr);
 
 		uc_put_str(&uc, ATTR_NAME, pc->name);
 		uc_end_nest(&uc, at);
@@ -444,6 +495,49 @@ static int cmd_sigkill(CTX, CN, MSG)
 	return signal_proc(ctx, msg, SIGKILL);
 }
 
+static int cmd_fetch(CTX, CN, MSG)
+{
+	struct proc* pc;
+	int *xid;
+	void* buf;
+
+	if(!(xid = uc_get_int(msg, ATTR_XID)))
+		return -EINVAL;
+	if(!(pc = find_proc(ctx, *xid)))
+		return -ESRCH;
+	if(!(buf = pc->buf))
+		return -ENOENT;
+
+	int ptr = pc->ptr;
+
+	return reply_ring(ctx, cn, buf, ptr);
+}
+
+static int cmd_flush(CTX, CN, MSG)
+{
+	struct proc* pc;
+	int ret, *xid;
+
+	if(!(xid = uc_get_int(msg, ATTR_XID)))
+		return -EINVAL;
+	if(!(pc = find_proc(ctx, *xid)))
+		return -ESRCH;
+	if((ret = flush_proc(ctx, pc)) < 0)
+		return ret;
+
+	return 0;
+}
+
+static int cmd_clear(CTX, CN, MSG)
+{
+	int ret;
+
+	if((ret = flush_dead_procs(ctx)) < 0)
+		return ret;
+
+	return 0;
+}
+
 static const struct cmd {
 	int cmd;
 	int (*call)(CTX, CN, MSG);
@@ -455,6 +549,9 @@ static const struct cmd {
 	{ CMD_ATTACH,    cmd_attach    },
 	{ CMD_SIGTERM,   cmd_sigterm   },
 	{ CMD_SIGKILL,   cmd_sigkill   },
+	{ CMD_FETCH,     cmd_fetch     },
+	{ CMD_FLUSH,     cmd_flush     },
+	{ CMD_CLEAR,     cmd_clear     },
 };
 
 static int dispatch(CTX, CN, MSG)

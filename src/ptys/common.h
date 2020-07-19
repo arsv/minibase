@@ -10,6 +10,9 @@
 #define CMD_ATTACH     5
 #define CMD_SIGTERM    6
 #define CMD_SIGKILL    7
+#define CMD_FETCH      8
+#define CMD_FLUSH      9
+#define CMD_CLEAR     10
 
 #define REP_EXIT       1
 

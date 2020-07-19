@@ -154,7 +154,7 @@ static void handle_timeout(CTX)
 
 static void reset_pollfds(CTX)
 {
-	int npfds = 2 + ctx->nconns_active + ctx->nprocs_nonempty;
+	int npfds = 2 + ctx->nconns_active + 2*ctx->nprocs_nonempty;
 	struct pollfd* pfds;
 	int need = npfds*sizeof(*pfds);
 	void* buf;
@@ -221,13 +221,12 @@ static void add_proc_fds(CTX)
 
 		int cfd = pc->cfd;
 		int mfd = pc->mfd;
+		int efd = pc->efd;
 
-		if(cfd > 0)
-			continue;
-		if(mfd < 0)
-			continue;
-
-		add_poll_fd(ctx, mfd);
+		if(mfd > 0 && cfd < 0)
+			add_poll_fd(ctx, mfd);
+		if(efd > 0)
+			add_poll_fd(ctx, efd);
 	}
 }
 
@@ -277,7 +276,40 @@ static void process_conns(CTX)
 	}
 }
 
-static void process_procs(CTX)
+static void process_proc_efds(CTX)
+{
+	struct pollfd* pfds = ctx->pfds;
+	int i = ctx->npsep, n = ctx->npfds;
+	struct proc* pc = ctx->procs;
+	struct proc* pe = pc + ctx->nprocs;
+
+	if(!pc) return;
+
+	for(; i < n; i++) {
+		struct pollfd* pf = &pfds[i];
+		int revents = pf->revents;
+		int polledfd = pf->fd;
+
+		if(!revents)
+			continue;
+
+		for(; pc < pe; pc++)
+			if(pc->efd == polledfd)
+				break;
+		if(pc >= pe)
+			break;
+
+		if(revents & POLLIN)
+			handle_stderr(ctx, pc);
+		if(revents & ~POLLIN)
+			close_stderr(ctx, pc);
+
+	} if(i < n) {
+		ctx->pollset = 0;
+	}
+}
+
+static void process_proc_mfds(CTX)
 {
 	struct pollfd* pfds = ctx->pfds;
 	int i = ctx->npsep, n = ctx->npfds;
@@ -301,9 +333,9 @@ static void process_procs(CTX)
 			break;
 
 		if(revents & POLLIN)
-			handle_pipe(ctx, pc);
+			handle_stdout(ctx, pc);
 		if(revents & ~POLLIN)
-			close_pipe(ctx, pc);
+			close_stdout(ctx, pc);
 
 	} if(i < n) {
 		ctx->pollset = 0;
@@ -322,7 +354,9 @@ static void process_events(CTX)
 	/* important! handle proc input *before* accepting commands,
 	   otherwise there may be a race between local flush and a client
 	   reading from the fds it got in response to CMD_ATTACH. */
-	process_procs(ctx);
+	process_proc_mfds(ctx);
+	process_proc_efds(ctx);
+
 	process_conns(ctx);
 }
 
