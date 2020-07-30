@@ -30,8 +30,6 @@ void close_stdout(CTX, struct proc* pc)
 
 	pc->mfd = -1;
 
-	ctx->pollset = 0;
-
 	int pid = pc->pid;
 
 	if(pid <= 0) return;
@@ -103,11 +101,11 @@ void close_stderr(CTX, struct proc* pc)
 
 	if(fd <= 0) return;
 
+	del_stderr_fd(ctx, pc);
+
 	(void)sys_close(fd);
 
 	pc->efd = -1;
-
-	ctx->pollset = 0;
 }
 
 static int unmap_errbuf(CTX, struct proc* pc)
@@ -188,12 +186,8 @@ static void update_proc_counts(CTX)
 	ctx->nprocs = limit;
 	ctx->nprocs_nonempty = nonempty;
 	ctx->nprocs_running = running;
-	ctx->pollset = 0;
 
-	void* end = procs + limit;
-
-	ctx->sep = end;
-	ctx->ptr = end;
+	maybe_trim_heap(ctx);
 }
 
 static void wipe_proc(struct proc* pc)
@@ -205,14 +199,13 @@ int flush_proc(CTX, struct proc* pc)
 {
 	int ret;
 
-	if(pc->pid > 0)
-		return -EBUSY;
 	if((ret = unmap_errbuf(ctx, pc)) < 0)
 		return ret;
 
-	wipe_proc(pc);
-
-	update_proc_counts(ctx);
+	if(pc->pid <= 0) {
+		wipe_proc(pc);
+		update_proc_counts(ctx);
+	}
 
 	return 0;
 }
@@ -239,42 +232,26 @@ int flush_dead_procs(CTX)
 	return ret;
 }
 
-void maybe_trim_heap(CTX)
-{
-	void* brk = ctx->brk;
-	void* ptr = ctx->ptr;
-	void* end = ctx->end;
-
-	long size = ptr - brk;
-	long need = pagealign(size);
-
-	void* cut = brk + need;
-
-	if(cut >= end) return;
-
-	ctx->end = sys_brk(cut);
-}
-
 static struct proc* grab_proc(CTX)
 {
-	struct proc* pc = ctx->procs;
-	struct proc* pe = pc + ctx->nprocs;
+	int nprocs = ctx->nprocs;
+	struct proc* procs = ctx->procs;
+	struct proc* pc = procs;
+	struct proc* pe = procs + nprocs;
 
 	for(; pc < pe; pc++)
 		if(!pc->xid)
 			goto out;
 
-	ctx->pollset = 0;
-	ctx->ptr = ctx->sep;
+	int next = nprocs + 1;
 
-	if(!(pc = heap_alloc(ctx, sizeof(*pc))))
-		return pc;
+	if(extend_heap(ctx, &procs[next]) < 0)
+		return NULL;
 
-	ctx->sep = ctx->ptr;
-	ctx->nprocs++;
+	pc = &procs[nprocs];
+
+	ctx->nprocs = next;
 out:
-	ctx->pollset = 0;
-
 	memzero(pc, sizeof(*pc));
 
 	return pc;
@@ -330,37 +307,6 @@ void check_children(CTX)
 	}
 
 	update_proc_counts(ctx);
-}
-
-void* heap_alloc(CTX, int size)
-{
-	void* brk = ctx->brk;
-	void* ptr = ctx->ptr;
-	void* end = ctx->end;
-	long left;
-
-	if(!brk) {
-		brk = sys_brk(NULL);
-		ptr = end = brk;
-		ctx->brk = brk;
-		ctx->end = end;
-		ctx->procs = brk;
-	}
-
-	if((left = end - ptr) >= size)
-		goto got;
-
-	long need = pagealign(size - left);
-	end = sys_brk(end + need);
-
-	ctx->end = end;
-
-	if((left = end - ptr) < size)
-		return NULL;
-got:
-	ctx->ptr = ptr + size;
-
-	return ptr;
 }
 
 static int prep_path(char* path, int len, char* name)
@@ -498,6 +444,7 @@ int spawn_child(CTX, char** argv, char** envp)
 		wipe_proc(pc);
 		return ret;
 	} else {
+		add_stderr_fd(ctx, pc);
 		wipe_stale_entries(ctx, pc);
 		update_proc_counts(ctx);
 		return xid;

@@ -17,7 +17,6 @@
 #define CN struct conn* cn __unused
 
 #define MAX_COMMAND_BUF 8192
-#define IOBUF_TIMER 30
 
 void maybe_drop_iobuf(CTX)
 {
@@ -42,14 +41,8 @@ static int prep_recv_buffer(CTX)
 	int proto = PROT_READ | PROT_WRITE;
 	int flags = MAP_ANONYMOUS | MAP_PRIVATE;
 
-	if(buf != NULL) {
-		/* already allocated; update timer, and keep using it */
-		if(ctx->timer == TM_MMAP) {
-			ctx->ts.sec = IOBUF_TIMER;
-			ctx->ts.nsec = 0;
-		}
-		return 0;
-	}
+	if(buf != NULL) /* already allocated */
+		goto timer; /* update timer, and keep using it */
 
 	buf = sys_mmap(NULL, len, proto, flags, -1, 0);
 
@@ -58,12 +51,8 @@ static int prep_recv_buffer(CTX)
 
 	ctx->iobuf = buf;
 	ctx->iolen = len;
-
-	if(ctx->timer == TM_NONE) {
-		ctx->timer = TM_MMAP;
-		ctx->ts.sec = IOBUF_TIMER;
-		ctx->ts.nsec = 0;
-	}
+timer:
+	set_iobuf_timer(ctx);
 
 	return 0;
 }
@@ -398,7 +387,7 @@ static int cmd_start(CTX, CN, MSG)
 	return reply_start(cn, pc);
 }
 
-static void detach(struct proc* pc)
+static void detach(CTX, struct proc* pc)
 {
 	struct winsize ws;
 	int fd = pc->mfd;
@@ -408,6 +397,8 @@ static void detach(struct proc* pc)
 	(void)sys_ioctl(fd, TIOCGWINSZ, &ws);
 
 	pc->cfd = -1;
+
+	add_stdout_fd(ctx, pc);
 }
 
 static int cmd_spawn(CTX, CN, MSG)
@@ -420,7 +411,7 @@ static int cmd_spawn(CTX, CN, MSG)
 	if(!(pc = find_proc(ctx, xid)))
 		return -EFAULT;
 
-	detach(pc);
+	detach(ctx, pc);
 
 	return reply_spawn(cn, pc);
 }
@@ -440,9 +431,7 @@ static int cmd_detach(CTX, CN, MSG)
 	if(pc->cfd != cn->fd)
 		return -EPERM;
 
-	detach(pc);
-
-	ctx->pollset = 0;
+	detach(ctx, pc);
 
 	return 0;
 }
@@ -463,7 +452,8 @@ static int cmd_attach(CTX, CN, MSG)
 		return -EBUSY;
 
 	pc->cfd = cn->fd;
-	ctx->pollset = 0;
+
+	del_stdout_fd(ctx, pc);
 
 	return reply_start(cn, pc);
 }
@@ -578,7 +568,7 @@ static void detach_client(CTX, int fd)
 
 	for(; pc < pe; pc++)
 		if(pc->cfd == fd)
-			detach(pc);
+			detach(ctx, pc);
 }
 
 static void update_nconns(CTX)
@@ -605,6 +595,8 @@ void close_conn(CTX, struct conn* cn)
 
 	if(fd < 0) return; /* should never happen */
 
+	del_conn_fd(ctx, cn);
+
 	sys_close(fd);
 
 	cn->fd = -1;
@@ -613,7 +605,6 @@ void close_conn(CTX, struct conn* cn)
 	update_nconns(ctx);
 
 	ctx->nconns_active--;
-	ctx->pollset = 0;
 }
 
 void handle_conn(CTX, CN)
@@ -654,7 +645,6 @@ static struct conn* grab_conn_slot(CTX)
 
 	cn = &conns[nconns];
 out:
-	ctx->pollset = 0;
 	ctx->nconns_active++;
 
 	return cn;
@@ -676,10 +666,12 @@ void check_socket(CTX)
 	else
 		fail("accept", NULL, cfd);
 
-	if(!(cn = grab_conn_slot(ctx)))
+	if(!(cn = grab_conn_slot(ctx))) {
 		sys_close(cfd);
-	else
+	} else {
 		cn->fd = cfd;
+		add_conn_fd(ctx, cn);
+	}
 }
 
 void setup_control(CTX)

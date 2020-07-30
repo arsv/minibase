@@ -8,6 +8,10 @@
 
 #define RING_SIZE 8192
 
+#define PKEY(g, k) (((g) << 16) | k)
+#define PKEY_GROUP(v) ((v) >> 16)
+#define PKEY_INDEX(v) ((v) & 0xFFFF)
+
 struct pollfd;
 
 struct conn {
@@ -28,36 +32,26 @@ struct proc {
 struct top {
 	int ctlfd;
 	int sigfd;
+	int epfd;
 
 	char** environ;
 
-	int pollset;
-	struct pollfd* pfds;
-	struct pollfd* pfde;
-	int npfds;
-	int npsep;
-
-	void* brk;
-	void* sep;
-	void* ptr;
-	void* end;
-
-	struct proc* procs;
 	int nprocs;
 	int nprocs_nonempty;
 	int nprocs_running;
 
-	byte pollbuf[8*8];
-	struct conn conns[NCONNS];
 	int nconns;
 	int nconns_active;
 
 	int timer;
-	struct timespec ts;
 	int lastxid;
 
 	void* iobuf;
 	int iolen;
+
+	void* lastbrk;
+	struct proc* procs;
+	struct conn conns[NCONNS];
 };
 
 #define CTX struct top* ctx __unused
@@ -77,7 +71,7 @@ int flush_proc(CTX, struct proc* pc);
 int flush_dead_procs(CTX);
 
 void maybe_trim_heap(CTX);
-void* heap_alloc(CTX, int size);
+struct proc* alloc_proc(CTX);
 void maybe_drop_iobuf(CTX);
 
 int spawn_child(CTX, char** argv, char** envp);
@@ -86,3 +80,15 @@ void check_children(CTX);
 
 void notify_exit(CTX, struct proc* pc, int status);
 void setup_control(CTX);
+
+void add_stdout_fd(CTX, struct proc* pc);
+void del_stdout_fd(CTX, struct proc* pc);
+void add_stderr_fd(CTX, struct proc* pc);
+void del_stderr_fd(CTX, struct proc* pc);
+
+void add_conn_fd(CTX, struct conn* cn);
+void del_conn_fd(CTX, struct conn* cn);
+
+int extend_heap(CTX, void* to);
+
+void set_iobuf_timer(CTX);
