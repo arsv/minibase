@@ -32,7 +32,7 @@ of the master side PTY fd and uses it to communicate with the application.
 Another copy is kept within ptyhub, idle. It's not getting polled or read from.
 
 To detach a session, the terminal closes its copy of the master side fd and
-notifies ptyhub that it has detached (either via a command, or closing the
+notifies ptyhub that it has detached (either via a command, or by closing the
 control fd). Once that happens, ptyhub stars polling the master side fd and
 sinking any readable data there, emulating an open port with no flow control.
 Whatever the application is sending to the port during this time gets lost.
@@ -59,7 +59,7 @@ when the newly-set size differs from current values. A naive implementation
 would skip re-draw if the attached terminal happens to be of the same size
 as the detached one. To mend this, detached sessions get their window size
 reset to (0,0) by ptyhub. The application may use the zero size as a hint
-that it's been detached, stopping unnecessary screen updates etc.
+that it's been detached, stopping unnecessary screen updates.
 
 
 The control connection
@@ -105,17 +105,17 @@ of the PTY master fd from ptyhub, which involves talking the ptyhub control
 protocol, and there is no way of doing it other than in the terminal itself.
 
 A deeper cause however is that the whole approach to handling terminal
-application (which ptyhub is just a part of) requires a very different
-kind of terminal emulators. There is no point in trying to solve the PTY
+application (which ptyhub is just a part of) requires a different kind
+of terminal emulators. There is no point in trying to solve the PTY
 handover issue to let GNU-style terminals work with ptyhub because they
 won't work right anyway.
 
 There is a shim called `nestvt` here which attempts to emulate a ptyhub
 compatible terminal on a GNU-style terminal, but it is mostly written for
 testing and development purposes and not meant for routine use. It is also
-inherently inefficient; using nestvt means allocating two PTYs instead for
-each application, and having an extra process around that basically just
-pipes data between the application and the terminal.
+inherently inefficient; using nestvt means allocating two PTYs for each
+application, and having an extra process around that basically just pipes
+data between the application and the terminal.
 
 
 PTY mastering issues
@@ -130,9 +130,8 @@ without any changes to the core terminal operation.
 The problem with this approach is that ptyhub cannot forcefully detach
 a terminal. It has to rely on the terminal to close its copy of the master
 fd when it's detaching. This approach also requires two channels for each
-terminal-application pair: one between the terminal and the application
-(that's the PTY) and the other between the terminal and the hub (the control
-channel).
+terminal-application pair: one between the terminal and the application (the
+PTY fd) and the other between the terminal and the hub (the control channel).
 
 The obvious alternative approach is to have the hub act as a proxy between
 terminals and applications, completely isolating the terminal from ever
@@ -147,7 +146,7 @@ unnecessary copying between the control channels and the PTY fds which has
 to happen in the hub. The whole idea goes against the notion of a PTY.
 This approach also loads the hub process proportionally in the amount of data
 passed between *all* active terminal applications, while with the implemented
-approach, the load on the hub does not depend on app activity at all.
+approach, the load on the hub does not depend on normal app activity at all.
 The downsides of having a extra (mostly idle) fd were deemed minor in
 comparison to having potentially heavily loaded latency-critical code path.
 
