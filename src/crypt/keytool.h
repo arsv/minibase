@@ -6,7 +6,9 @@ struct keyfile {
 	int len;
 	byte kek[16];
 	byte buf[1024];
-} keyfile;
+};
+
+extern struct keyfile keyfile;
 
 int ask(char* tag, char* buf, int len);
 void read_keyfile(struct keyfile* kf, char* name);
