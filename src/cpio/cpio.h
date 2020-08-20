@@ -20,7 +20,7 @@ struct header {
 	char namesize[8];
 	char checksum[8];
 	char name[];
-} packed;
+} __attribute__((packed));
 
 struct top {
 	int argc;
