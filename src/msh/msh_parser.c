@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include <format.h>
+#include <printf.h>
 
 #include "msh.h"
 #include "msh_cmd.h"
@@ -554,11 +555,21 @@ void parse(CTX, char* buf, int len)
 
 void parse_finish(CTX)
 {
-	if(ctx->asep != ctx->hptr)  /* incomplete args in heap */
-		;
-	else if(ctx->state != NIL)  /* unfinished $ref or quote */
-		;
-	else return; /* proper end of input */
+	int state = ctx->state;
 
-	fatal(ctx, "unexpected EOF", NULL);
+	if(ctx->asep == ctx->hptr) /* no arguments, we're done */
+		return;
+
+	if(state == NIL)
+		return;
+	else if(state == SEP)
+		;
+	else if(state == ARG)
+		push_end(ctx);
+	else if(state == TRAIL)
+		;
+	else
+		fatal(ctx, "unexpected EOF", NULL);
+
+	execute(ctx);
 }
