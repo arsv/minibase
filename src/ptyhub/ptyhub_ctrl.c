@@ -293,7 +293,7 @@ static int cmd_status(CTX, CN, MSG)
 	return reply_status(ctx, cn, start, nprocs);
 }
 
-/* See comments around ../xapp/apphub_ctrl.c index_strings() */
+/* See comments around apphub/apphub_ctrl.c index_strings() */
 
 static char** index_strings(char** ap, char** ae, struct ucattr* strs)
 {

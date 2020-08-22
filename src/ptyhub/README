@@ -10,13 +10,15 @@ by having a PTY supervisor:
     * detachable sessions (think screen, tmux, dtach)
     * restricted access to /dev/ptmx (and /dev in general)
 
-The service per-allocates PTY pairs for the children its spawns, and keeps
-the fds open when a session gets detached. This way, terminal emulators do
-not need to deal with PTY allocation. The spawned applications get an open
-slave side PTY on their fds 0 and 1. Terminal emulators request a copy of
-the master fd over the control channel.
+The service pre-allocates PTY pairs for the children its spawns, and keeps
+the fds open when a session gets detached. The actual terminal emulators,
+that is, the GUI apps that render the characters, do not need to deal with
+PTY allocation and/or process supervision. The spawned applications get
+an open slave side PTY on their fds 0 and 1. The emulators request a copy
+of the master fd over the control channel and use it to communicate with
+the VT application running under ptyhub.
 
-PTY fd handling is the part that sets ptyhub aside from apphub (../xapp).
+PTY fd handling is the part that sets ptyhub aside from apphub.
 Pretty much everything else is the same between the two services.
 
 
@@ -96,9 +98,9 @@ explicitly in the terminal emulator.
 
 Compatible terminal
 ~~~~~~~~~~~~~~~~~~~
-It is worth repeating that ptyhub is meant to be used with terminal emulators
-written specifically to work with ptyhub. GNU/Linux style terminal emulators
-like xterm, rxvt etc are not generally usable.
+This service is meant to be used with terminal emulators written specifically
+to work with it. GNU/Linux style terminal emulators like xterm, rxvt etc are
+not generally usable.
 
 The immediate reason for this is that the terminal needs to get its copy
 of the PTY master fd from ptyhub, which involves talking the ptyhub control
@@ -107,8 +109,8 @@ protocol, and there is no way of doing it other than in the terminal itself.
 A deeper cause however is that the whole approach to handling terminal
 application (which ptyhub is just a part of) requires a different kind
 of terminal emulators. There is no point in trying to solve the PTY
-handover issue to let GNU-style terminals work with ptyhub because they
-won't work right anyway.
+handover issue to let GNU-style hybrid terminals work with ptyhub because
+they won't make good VT emulators anyway.
 
 There is a shim called `nestvt` here which attempts to emulate a ptyhub
 compatible terminal on a GNU-style terminal, but it is mostly written for
@@ -129,7 +131,7 @@ without any changes to the core terminal operation.
 
 The problem with this approach is that ptyhub cannot forcefully detach
 a terminal. It has to rely on the terminal to close its copy of the master
-fd when it's detaching. This approach also requires two channels for each
+fd when detaching. This approach also requires two channels for each
 terminal-application pair: one between the terminal and the application (the
 PTY fd) and the other between the terminal and the hub (the control channel).
 
@@ -142,13 +144,14 @@ the terminals since the hub can easily close the control connection.
 
 The alternative approach has been rejected however. Having a proxy process
 increases latency for the terminal applications, and incurs a lot of
-unnecessary copying between the control channels and the PTY fds which has
-to happen in the hub. The whole idea goes against the notion of a PTY.
-This approach also loads the hub process proportionally in the amount of data
-passed between *all* active terminal applications, while with the implemented
-approach, the load on the hub does not depend on normal app activity at all.
-The downsides of having a extra (mostly idle) fd were deemed minor in
-comparison to having potentially heavily loaded latency-critical code path.
+unnecessary copying between the control channels and the PTY fds which
+has to happen in the hub. The whole idea goes against the way PTYs are
+implemented in Linux. This approach also loads the hub process proportionally
+to the amount of data passed between *all* active terminal applications,
+while with the implemented approach, the load on the hub does not depend
+on normal app activity at all.  The downsides of having a extra (mostly idle)
+fd were deemed minor in comparison to having potentially heavily loaded
+latency-critical code path.
 
 
 Handling stderr
