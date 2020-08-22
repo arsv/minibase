@@ -21,8 +21,8 @@ Yet another way to put it, the point is to treat applications the same way
 system services are normally treated in Linux.
 
 Here the focus is mostly on GUI applications, X or Wayland or whatever.
-TUI and CLI follow the same overall principle, but require additional work
-to set up their I/O channels.
+TUI and CLI follow the same overall principle, but require a bit of additional
+work to set up their I/O channels.
 
 
 Indirect exec
@@ -37,9 +37,9 @@ the initiating process.
            |                        |  |
            +- openbox (P)           |  +- openbox (P)
               |                     |
-              +- kicad (C)          +- apphub (S)
+              +- browser (C)        +- apphub (S)
                                        |
-                                       +- kicad (C)
+                                       +- browser (C)
 
         direct exec                 indirect exec
 
@@ -49,24 +49,22 @@ startup (P) forks and becomes the parent of the newly-spawned application
 process C. With a supervisor, the initiating process P makes an IPC call to
 a supervisor S, which spawns the application process on behalf of P.
 
-The supervisor runs highly privileged in order to be able to set arbitrary
+The supervisor runs as a highly privileged in order to be able to set arbitrary
 credentials for the spawned process. The initiating process only needs the
-permissions to perform the IPC call.
+permissions to perform the IPC call. In particular, the initiating process
+may actually have lower privileges than the one being spawned.
 
 The whole scheme is very straightforward and does not break privilege
-inheritance rules like the use of suid bits would. In fact, in this project,
-it is meant to run with suid bits disabled system-wide. It also allows moves
-all child supervision functionality into a dedicated process, and out of the
+inheritance rules like the use of suid bits would. In this project, it is
+meant to run with suid bits disabled system-wide. It also allows moves all
+child supervision functionality into a dedicated process, and out of the
 initiating applications (like openbox in this example), allowing things like
 output capture to be implemented without overloading the launcher application
 with unrelated functionality.
 
 This idea is not new, this is the way container managers often work.
 However, in this case, the spawned application is not forced to run in
-a container, and in most cases does not need to. The custom credentials
-assigned by the supervisor provide enough isolation for the application
-in a lot of cases, without the inherent costs and downsides of a proper
-container environment.
+a container, and in most cases does not need to.
 
 
 Security considerations

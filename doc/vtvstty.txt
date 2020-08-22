@@ -24,8 +24,8 @@ and most of the terms around them in Linux are still references to the hardware.
 An (idealized) teletype (TTY) is line printer using an infinite roll of paper
 and a keyboard. The stuff typed once never gets over-typed, it remains readable
 on the paper. If the output is long, the user can pick the paper and start
-reading from the from any point (aka scrollback buffer). Powering the thing
-off does not erase the paper.
+reading it from any point (aka scrollback buffer). Powering the thing off
+does not erase the paper.
 
 A visual terminal (VT) is a text-mode monitor with a keyboard. Think DEC VT100,
 VT220 and the likes. It displays characters on a 2D grid, and allows placing
@@ -178,19 +178,18 @@ Especially with arbitrary unicode characters involved.
 
 Implementation notes
 ~~~~~~~~~~~~~~~~~~~~
-As envisioned currently, both VT and TTY apps will be run under dedicated
-supervisors, ptyhub and ttyhub respectively. See ./usrapps.txt for general
-overview of the supervised app idea.
-
-Both kind of applications require special handling for fds 0, 1 and cannot
-be run under generic apphub.
+As envisioned currently, both VT apps will be run under dedicated supervisor,
+ptyhub. Everything else, that is, any non-VT applications, are expected to
+follow the TTY model. See ./usrapps.txt for general overview of the supervised
+app idea.
 
 It does look like VT emulators and shell applications need to be written
-specifically to work with ptyhub and ttyhub respectively. There are really
-no good way to avoid that. For command interpreters capable of running
-external tools, a set of tools that produce the formatted output will be
-needed eventually.
+specifically to work with ptyhub. There are really no good way to avoid that.
+For command interpreters capable of running external tools, a set of tools
+that produce the formatted output will be needed eventually.
 
 The focus on VT applications may prompt some unconventional design decisions
 for VT emulators. Automatic line wrapping (moving the cursor to the next line
-if the text printed goes over the right boundary) makes no sense for VT apps.
+if the text printed goes over the right boundary) makes no sense for VT apps,
+for instance, and actually makes programming them *more* difficult, so most
+likely it should be dropped.

@@ -120,4 +120,4 @@ least, upon getting cmd > 0 in reply to OPEN, it should repeat recv().
 
 Handling interrupted switch properly is tricky, and not necessary in most
 cases. VT switching is usually initiated by the user, who should be able
-to retry after a mis-switch. Check src/vtms/stubvt.c for example.
+to retry after a mis-switch. Check src/vtmux/stubvt.c for example.
