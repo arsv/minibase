@@ -90,15 +90,15 @@ static int shift_buffer(CTX)
 	return left;
 }
 
-static int grab_cached(CTX, int size)
+static uint grab_cached(CTX, uint size)
 {
-	int hptr = ctx->hptr;
-	int hend = ctx->hend;
+	uint hptr = ctx->hptr;
+	uint hend = ctx->hend;
 
 	if(hptr >= hend)
 		return 0;
 
-	int left = hend - hptr;
+	uint left = hend - hptr;
 
 	if(left > size)
 		left = size;
@@ -275,10 +275,10 @@ static void skip_file(CTX, uint filesize)
 {
 	uint aligned = align4(filesize);
 
-	int hlen = ctx->hlen;
-	int block = (aligned < (uint)hlen) ? aligned : hlen;
+	uint hlen = ctx->hlen;
+	uint block = (aligned < hlen) ? aligned : hlen;
 
-	int got = grab_cached(ctx, block);
+	uint got = grab_cached(ctx, block);
 
 	if(got >= aligned)
 		return;
@@ -346,13 +346,13 @@ static int open_output(CTX, char* name, int mode)
 	return fd;
 }
 
-static int write_cached(CTX, int fd, uint filesize)
+static uint write_cached(CTX, int fd, uint filesize)
 {
-	int hlen = ctx->hlen;
-	int block = (filesize < (uint)hlen) ? filesize : hlen;
+	uint hlen = ctx->hlen;
+	uint block = (filesize < hlen) ? filesize : hlen;
 
 	void* tail = ctx->head + ctx->hptr;
-	int got = grab_cached(ctx, block);
+	uint got = grab_cached(ctx, block);
 
 	if(!got) return got;
 
@@ -360,7 +360,7 @@ static int write_cached(CTX, int fd, uint filesize)
 
 	if((ret = sys_write(fd, tail, got)) < 0)
 		fail("write", NULL, ret);
-	if(ret != got)
+	if(ret != (int)got)
 		fail("incomplete write", NULL, 0);
 
 	return ret;
@@ -369,7 +369,7 @@ static int write_cached(CTX, int fd, uint filesize)
 static void extract_file(CTX, uint filesize, char* name, uint mode)
 {
 	int fd = open_output(ctx, name, mode);
-	int got = write_cached(ctx, fd, filesize);
+	uint got = write_cached(ctx, fd, filesize);
 
 	if(got >= filesize)
 		return;
@@ -396,7 +396,7 @@ static void read_content(CTX, void* buf, uint size)
 
 	if((ret = sys_read(fd, buf, size)) < 0)
 		fail("read", NULL, ret);
-	if(ret != size)
+	if(ret != (int)size)
 		fatal(ctx, "truncated symlink");
 }
 
@@ -406,7 +406,7 @@ static void extract_link(CTX, uint filesize, char* name)
 		fatal(ctx, "symlink too long");
 
 	char* buf = alloca(filesize + 1);
-	int got = copy_cached(ctx, buf, filesize);
+	uint got = copy_cached(ctx, buf, filesize);
 
 	if(got < filesize)
 		read_content(ctx, buf + got, filesize - got);

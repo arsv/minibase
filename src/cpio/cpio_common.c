@@ -360,7 +360,7 @@ void put_link(CTX, char* path, char* name, uint size)
 
 	if((ret = sys_readlinkat(at, path, content, size)) < 0)
 		fail(NULL, path, ret);
-	if(ret != size)
+	if(ret != (int)size)
 		fail("incomplete read:", path, 0);
 
 	write_header(ctx, buf, len);
