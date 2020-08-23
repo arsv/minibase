@@ -73,9 +73,9 @@ const char ies_ccmp_tkip[] = {
 	    0x00, 0x00,
 };
 
-/* Same values, as host-ended integers, must also be passed via NL
-   to the driver. Some drivers will rely on the IEs, some need the
-   NL values, and strange things may happen if they aren't in sync */
+/* Same of the values above must also be passed via NL to the driver
+   as host-ended integers. Some drivers will rely on the IEs, some need
+   the NL values, and strange things may happen if they aren't in sync */
 
 #define RSN_CIPHER_CCMP  0x000FAC04
 #define RSN_CIPHER_TKIP  0x000FAC02

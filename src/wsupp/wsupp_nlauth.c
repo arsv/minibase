@@ -17,7 +17,7 @@
    have been set in struct ap, this module performs a single connection
    attempt to a single BSS.
 
-   For most PC cards, the typical command sequence is
+   For SoftMAC devices (most PC cards) the typical command sequence is
 
 	<- NL80211_CMD_AUTHENTICATE      trigger_authentication
 	-> NL80211_CMD_AUTHENTICATE      nlm_authenticate
@@ -26,15 +26,15 @@
 	-> NL80211_CMD_CONNECT           nlm_connect
 
    followed by EAPOL exchange and then normal traffic.
-   Some drivers/devices merge AUTHENTICATE and ASSOCIATE into a single
-   CONNECT command:
+   However, FullMAC cards need a single CONNECT command in place
+   of AUTHENTICATE and ASSOCIATE:
 
 	<- NL80211_CMD_CONNECT           trigger_connect
 	-> NL80211_CMD_CONNECT           nlm_connect
 
-   There are also drivers/devices capable of doing EAPOL exchange, those
-   aren't supported here at all. Those use CONNECT to carry the PSK among
-   other parameters, and consequently do not need EAPOL to be triggered
+   There are also drivers/devices capable of doing full EAPOL exchange,
+   those aren't supported here at all. Those use CONNECT to carry the PSK
+   among other parameters, and consequently do not need EAPOL to be triggered
    after connection.
 
    Which sequence should be used gets detected in init_netlink().
@@ -58,8 +58,8 @@
 
 	-> NL80211_CMD_DISCONNECT        nlm_disconnect
 
-   Worse yet, drivers absolute love ignoring this command when there's
-   no active connection:
+   Worse yet, drivers love ignoring this command when there's no active
+   connection:
 
 	<- NL80211_CMD_DISCONNECT        trigger_disconnect
 	   ...
@@ -78,8 +78,8 @@
    we try to disconnect, and then repeat AUTHENTICATE command again.
 
    This AUTH-DISCONNECT-AUTH is handled by the state machine here,
-   but timed externally by the apsel code (which handles all timing
-   anyway). */
+   but the sequence is timed externally in the apsel code which handles
+   all the timing anyway. */
 
 /* Note there is one more AUTH-x-AUTH sequence that needs to be handled.
    AUTH may return -ENOENT in case BSS is not in the card's scan cache

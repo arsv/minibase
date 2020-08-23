@@ -11,7 +11,7 @@
 
    There are *NO COMPLETION NOTIFICATIONS* for these, it's fire-and-forget.
    That's really bad, because chances are we will trigger_dhpc() before the
-   keys reach the card. See CRACK papers for implications.
+   keys reach the card. See the CRACK papers for implications.
 
    And no, Netlink ACKs would not help. ACK means just that the kernel got
    the command. No point in requesting or waiting for them.

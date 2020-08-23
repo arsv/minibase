@@ -360,7 +360,7 @@ void script_exit(void)
 		connection_ended(-ESRCH);
 }
 
-/* EAPOL negotionations have completed, the connection is now fully usable */
+/* EAPOL negotiations have completed, the connection is now fully usable */
 
 void eapol_success(void)
 {
