@@ -441,7 +441,7 @@ static void only_leave_named(CTX, int nargs, char** args)
 /* Output, depth-first tree traversal. Top-level entries are treated
    differently from the reset because they don't get any prefix. */
 
-static void dump_proc(CTX, struct bufout* bo, struct trec* tr, struct proc* ps)
+static void dump_proc(struct bufout* bo, struct trec* tr, struct proc* ps)
 {
 	bufout(bo, tr->buf, tr->len);
 
@@ -536,7 +536,7 @@ static void dump_rec(CTX, struct trec* tp, int pi)
 		int ridx = ps->ridx;
 
 		prep_curr_pref(tr, didx, tp);
-		dump_proc(ctx, bo, tr, ps);
+		dump_proc(bo, tr, ps);
 
 		prep_next_pref(tr, didx, ps);
 		dump_rec(ctx, tr, ridx);
@@ -560,7 +560,7 @@ static void dump_top(CTX, int pi)
 
 	if(!ps->pid) return;
 
-	dump_proc(ctx, bo, &tr, ps);
+	dump_proc(bo, &tr, ps);
 	dump_rec(ctx, &tr, ps->ridx);
 }
 

@@ -133,7 +133,7 @@ static int read_status(CTX, int at)
 	if(p >= e)
 		return 0;
 
-	int len = p - s;
+	ulong len = p - s;
 
 	if(len > sizeof(ctx->name))
 		return 0;
