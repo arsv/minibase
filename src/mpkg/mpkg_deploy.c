@@ -187,7 +187,7 @@ static void transfer_data(CTX, struct node* nd, int fd)
 send:
 	if((ret = sys_sendfile(fd, ctx->pacfd, NULL, size)) < 0)
 		failx(ctx, NULL, name, ret);
-	if(ret != size)
+	if(ret != (int)size)
 		failx(ctx, NULL, name, -EINTR);
 }
 
@@ -218,7 +218,7 @@ static int read_data(CTX, void* buf, uint size)
 read:
 	if((ret = sys_read(fd, buf, size)) < 0)
 		return ret;
-	if(ret != size)
+	if(ret != (int)size)
 		return -EINTR;
 
 	return 0;

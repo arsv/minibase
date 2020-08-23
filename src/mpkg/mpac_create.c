@@ -82,7 +82,7 @@ static struct ent** index_dir(CTX, void* p0, void* p1)
 	return idx;
 }
 
-static void update_header_size(CTX, int mode, int nlen, uint size)
+static void update_header_size(CTX, int mode, int nlen)
 {
 	int hdrsize = ctx->hsize;
 
@@ -140,7 +140,7 @@ static void check_dent(CTX, int at, char* name)
 
 	memcpy(ep->name, name, nlen + 1);
 
-	update_header_size(ctx, mode, nlen, size);
+	update_header_size(ctx, mode, nlen);
 };
 
 static uint last_idx_offset(CTX)
@@ -374,7 +374,7 @@ static void dump_symlink(CTX, struct ent* p)
 	if((ret = sys_readlinkat(at, name, buf, len)) < 0)
 		fail(NULL, name, ret);
 
-	if(ret != size)
+	if(ret != (int)size)
 		fail("size mismatch in", name, 0);
 
 	if((ret = writeall(fd, buf, ret)) < 0)
@@ -394,7 +394,7 @@ static void dump_bindata(CTX, struct ent* p)
 
 	if((ret = sys_sendfile(out, fd, NULL, size)) < 0)
 		failx(ctx, "sendfile", name, ret);
-	if(ret != size)
+	if(ret != (int)size)
 		failx(ctx, NULL, name, -EINTR);
 
 	sys_close(fd);
@@ -450,7 +450,7 @@ static void dump_content(CTX, struct ent** idx)
 	}
 }
 
-static void* put_file_tag(CTX, void* ptr, int size)
+static void* put_file_tag(void* ptr, int size)
 {
 	byte tag[8];
 
@@ -526,7 +526,7 @@ static void dump_packed(CTX, char* out)
 	void* entend = ctx->ptr;
 	uint entsize = entend - entries;
 
-	ptr = put_file_tag(ctx, ptr, entsize);
+	ptr = put_file_tag(ptr, entsize);
 
 	flush_header(ctx, out, ptr, entend - ptr);
 

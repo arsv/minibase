@@ -174,7 +174,6 @@ void load_index(CTX)
 		fail("read", NULL, ret);
 
 	uint got = ret;
-
 	uint total = parse_header_size(ctx, buf, got);
 
 	if(total <= got) {
@@ -190,7 +189,7 @@ void load_index(CTX)
 
 	if((ret = sys_read(fd, rest, need)) < 0)
 		fail("read", NULL, ret);
-	if(ret < need)
+	if(ret < (int)need)
 		fail("incomplete read", NULL, 0);
 }
 

@@ -32,7 +32,7 @@ static void open_outdir(CTX, char* name)
 	ctx->root = name;
 }
 
-static char* prep_link(CTX, int size)
+static char* prep_link(CTX, uint size)
 {
 	char* link = heap_alloc(ctx, size + 1);
 	char* dptr = link;
@@ -57,7 +57,7 @@ static char* prep_link(CTX, int size)
 read:
 	if((ret = sys_read(ctx->fd, dptr, size)) < 0)
 		fail("read", NULL, ret);
-	if(ret != size)
+	if(ret != (int)size)
 		fail("incomplete read", NULL, ret);
 
 	dptr += size;
@@ -105,7 +105,7 @@ static void transfer_data(CTX, int fd)
 
 	if((ret = sys_write(fd, lptr, write)) < 0)
 		fail("write", NULL, ret);
-	if(ret != write)
+	if(ret != (int)write)
 		fail("incomplete write", NULL, 0);
 
 	ctx->left = left - write;
@@ -116,7 +116,7 @@ static void transfer_data(CTX, int fd)
 send:
 	if((ret = sys_sendfile(fd, ctx->fd, NULL, size)) < 0)
 		fail("sendfile", NULL, ret);
-	if(ret != size)
+	if(ret != (int)size)
 		fail("incomplete write", NULL, 0);
 }
 

@@ -262,7 +262,7 @@ static void write_entries(CTX, PCT)
 
 	if((ret = sys_write(fd, buf, len)) < 0)
 		failz(ctx, "write", ctx->pkg, ret);
-	if(ret != len)
+	if(ret != (int)len)
 		failz(ctx, "write", ctx->pkg, -EINTR);
 
 	sys_close(ctx->pkgfd);

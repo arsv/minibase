@@ -8,7 +8,7 @@
 
 #include "mpkg.h"
 
-static byte* skip_name(CTX, byte* p, byte* e)
+static byte* skip_name(byte* p, byte* e)
 {
 	byte* z = p + PAGE;
 
@@ -44,7 +44,7 @@ static void prep_filedb(CTX)
 	if(lead == 0xFF) {
 		byte* p = head + 5;
 		byte* e = head + hlen;
-		byte* z = skip_name(ctx, p, e);
+		byte* z = skip_name(p, e);
 
 		setup_prefix(ctx, (char*)p);
 
@@ -67,7 +67,7 @@ static void validate_names(CTX)
 	while(p < e) {
 		byte lead = *p++;
 
-		p = skip_name(ctx, p, e);
+		p = skip_name(p, e);
 
 		if(!(lead & TAG_DIR)) continue;
 
@@ -160,7 +160,7 @@ static void unlink_files(CTX)
 		byte lead = *p++;
 		char* name = (char*)p;
 
-		p = skip_name(ctx, p, e);
+		p = skip_name(p, e);
 
 		if(lead & TAG_DIR)
 			enter_dir(ctx, name, lead);
@@ -252,7 +252,7 @@ static void list_files(CTX, struct bufout* bo)
 		byte lead = *p++;
 		char* name = (char*)p;
 
-		p = skip_name(ctx, p, e);
+		p = skip_name(p, e);
 
 		if(lead & TAG_DIR)
 			push_dir(ctx, bo, name, lead);
