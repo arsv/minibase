@@ -40,14 +40,8 @@ static int prep_recv_buffer(CTX)
 	int proto = PROT_READ | PROT_WRITE;
 	int flags = MAP_ANONYMOUS | MAP_PRIVATE;
 
-	if(buf != NULL) {
-		/* already allocated; update timer, and keep using it */
-		if(ctx->timer == TM_MMAP) {
-			ctx->ts.sec = IOBUF_TIMER;
-			ctx->ts.nsec = 0;
-		}
-		return 0;
-	}
+	if(buf != NULL) /* already allocated */
+		goto timer; /* update timer, and keep using it */
 
 	buf = sys_mmap(NULL, len, proto, flags, -1, 0);
 
@@ -56,12 +50,8 @@ static int prep_recv_buffer(CTX)
 
 	ctx->iobuf = buf;
 	ctx->iolen = len;
-
-	if(ctx->timer == TM_NONE) {
-		ctx->timer = TM_MMAP;
-		ctx->ts.sec = IOBUF_TIMER;
-		ctx->ts.nsec = 0;
-	}
+timer:
+	set_iobuf_timer(ctx);
 
 	return 0;
 }
@@ -394,16 +384,18 @@ static int dispatch(CTX, CN, MSG)
 void close_conn(CTX, struct conn* cn)
 {
 	struct conn* conns = ctx->conns;
+	int fd = cn->fd;
 
-	if(cn->fd < 0)
+	if(fd < 0)
 		return; /* should never happen */
 
-	sys_close(cn->fd);
+	del_poll_fd(ctx, fd);
+
+	sys_close(fd);
 
 	cn->fd = -1;
 
 	ctx->nconns_active--;
-	ctx->pollset = 0;
 
 	int nconns = ctx->nconns;
 
@@ -458,7 +450,6 @@ static struct conn* grab_conn_slot(CTX)
 
 	cn = &conns[nconns];
 out:
-	ctx->pollset = 0;
 	ctx->nconns_active++;
 
 	return cn;
@@ -480,10 +471,14 @@ void check_socket(CTX)
 	else
 		fail("accept", NULL, cfd);
 
-	if(!(cn = grab_conn_slot(ctx)))
+	if(!(cn = grab_conn_slot(ctx))) {
 		sys_close(cfd);
-	else
-		cn->fd = cfd;
+		return;
+	}
+
+	cn->fd = cfd;
+
+	add_conn_fd(ctx, cfd, cn);
 }
 
 void setup_control(CTX)

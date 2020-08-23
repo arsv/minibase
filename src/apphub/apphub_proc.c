@@ -72,11 +72,11 @@ void close_pipe(CTX, struct proc* pc)
 
 	if(fd <= 0) return;
 
+	del_poll_fd(ctx, fd);
+
 	(void)sys_close(fd);
 
 	pc->fd = -1;
-
-	ctx->pollset = 0;
 }
 
 static int unmap_pipe(CTX, struct proc* pc)
@@ -164,9 +164,8 @@ static void update_proc_counts(CTX)
 	ctx->nprocs = limit;
 	ctx->nprocs_nonempty = nonempty;
 	ctx->nprocs_running = running;
-	ctx->pollset = 0;
 
-	ctx->sep = procs + nprocs;
+	maybe_trim_heap(ctx);
 }
 
 static void wipe_proc(struct proc* pc)
@@ -180,41 +179,22 @@ static void drop_proc(CTX, struct proc* pc)
 	update_proc_counts(ctx);
 }
 
-void maybe_trim_heap(CTX)
-{
-	void* brk = ctx->brk;
-	void* ptr = ctx->ptr;
-	void* end = ctx->end;
-
-	long size = ptr - brk;
-	long need = pagealign(size);
-
-	void* cut = brk + need;
-
-	if(cut >= end) return;
-
-	ctx->end = sys_brk(cut);
-}
-
 static struct proc* grab_proc(CTX)
 {
+	int nprocs = ctx->nprocs;
 	struct proc* pc = ctx->procs;
-	struct proc* pe = pc + ctx->nprocs;
+	struct proc* pe = pc + nprocs;
 
 	for(; pc < pe; pc++)
 		if(empty(pc))
 			goto out;
 
-	if(!(pc = heap_alloc(ctx, sizeof(*pc))))
-		return pc;
+	if(extend_heap(ctx, pc + 1) < 0)
+		return NULL;
 
-	ctx->nprocs++;
+	ctx->nprocs = nprocs + 1;
 out:
-	ctx->pollset = 0;
-
 	memzero(pc, sizeof(*pc));
-
-	ctx->sep = pc + 1;
 
 	return pc;
 }
@@ -243,8 +223,6 @@ static void wipe_stale_entries(CTX, struct proc* px)
 static void mark_dead(CTX, struct proc* pc, int status)
 {
 	pc->pid = (0xFFFF0000 | (status & 0xFFFF));
-
-	wipe_stale_entries(ctx, pc);
 }
 
 void check_children(CTX)
@@ -282,38 +260,6 @@ int flush_proc(CTX, struct proc* pc)
 		drop_proc(ctx, pc);
 
 	return 0;
-}
-
-void* heap_alloc(CTX, int size)
-{
-	void* brk = ctx->brk;
-	void* ptr = ctx->ptr;
-	void* end = ctx->end;
-	long left;
-
-	if(!brk) {
-		brk = sys_brk(NULL);
-		ptr = end = brk;
-		ctx->brk = brk;
-		ctx->sep = brk;
-		ctx->end = end;
-		ctx->procs = brk;
-	}
-
-	if((left = end - ptr) >= size)
-		goto got;
-
-	long need = pagealign(size - left);
-	end = sys_brk(end + need);
-
-	ctx->end = end;
-
-	if((left = end - ptr) < size)
-		return NULL;
-got:
-	ctx->ptr = ptr + size;
-
-	return ptr;
 }
 
 static int prep_path(char* path, int len, char* name)
@@ -424,10 +370,14 @@ int spawn_child(CTX, char** argv, char** envp)
 
 	pc->xid = xid;
 
-	if((ret = spawn_proc(pc, path, argv, envp)) < 0)
+	if((ret = spawn_proc(pc, path, argv, envp)) < 0) {
 		wipe_proc(pc);
+		return ret;
+	}
 
+	add_pipe_fd(ctx, pc->fd, pc);
+	wipe_stale_entries(ctx, pc);
 	update_proc_counts(ctx);
 
-	return ret;
+	return xid;
 }
