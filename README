@@ -1,23 +1,23 @@
 What is this project
 ~~~~~~~~~~~~~~~~~~~~
-This is an alternative base system / early userspace for Linux.
+This is a base system / early userspace for Linux.
 
 The role of this project in a system is similar to that of busybox
 in small custom distributions. Boot the system, load modules, mount
 partitions, establish networking, provide basic services. It is aimed
-primarily at personal devices running GUIs however, more like systemd.
+primarily at personal devices running GUIs however.
 
 The project builds into small statically-linked executables with no
 external dependencies. There are no build-time library dependencies
-either, not even libc. It can be built with any toolchain that can
-build the kernel.
+either, not even libc. The tools can be built with any toolchain that
+can build the kernel.
 
 Supported targets: x86_64 arm aarch64 rv64 mips mips64 i386.
 (anything else will not work even if toolchain is available)
 
 This project should be mostly useful for people building their own
-custom systems, distribution, or maybe even looking for tools to put
-into initrd.
+custom systems, distribution, or maybe even just looking for tools
+to put into initrd.
 
 
 Project status
@@ -37,8 +37,7 @@ Components currently included in the package:
   * udev event monitor (udevmod)
   * syslog and related tools (sysklogd)
 
-  * VT/DRI/input multiplexer (vtmux)
-  * simple non-graphical greeter (ctrlvt)
+  * VT/DRI/input multiplexer (vtmux) and related tools
 
   * network interface monitor (ifmon)
   * Wi-Fi client and connection manager (wsupp) [WPA2-PSK only]
