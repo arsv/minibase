@@ -13,7 +13,7 @@
 #include "common.h"
 #include "ptyhub.h"
 
-#define MSG struct ucattr* msg
+#define MSG struct ucattr* msg __unused
 #define CN struct conn* cn __unused
 
 #define MAX_COMMAND_BUF 8192
