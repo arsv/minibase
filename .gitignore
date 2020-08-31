@@ -1,10 +1,10 @@
-out/
+/config.h
+/config.mk
+/mini-cc
+/out/
 *.a
 *.o
 *.d
-config.h
-config.mk
-mini-cc
 tags
 cscope.out
 zz*
