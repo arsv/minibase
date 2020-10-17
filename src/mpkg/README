@@ -78,24 +78,24 @@ package.
 
 Planned use cases:
 
-	* linux-firmware as a repository, with individual packages for each
-	  blob or bunches of blobs that get installed together.
-	  Common prefix would be /lib/firmware, and the package would not need
-	  to carry it. As opposed to the Arch practice of installing 500MB
-	  of blobs together even though a typical user needs less than 1MB
-	  in most cases.
+  * linux-firmware as a repository, with individual packages for each
+    blob or bunches of blobs that get installed together.
+    Common prefix would be /lib/firmware, and the package would not need
+    to carry it. As opposed to the Arch practice of installing 500MB
+    of blobs together even though a typical user needs less than 1MB
+    in most cases.
 
-	* modules for python, and other languages with similar module structure.
-	  Common prefix would be /lib/python-3.8 or whatever, and it would be
-	  fine to use bare name of the module as the package name, without
-	  prefixing it with python- like say Arch does.
+  * modules for python, and other languages with similar module structure.
+    Common prefix would be /lib/python-3.8 or whatever, and it would be
+    fine to use bare name of the module as the package name, without
+    prefixing it with python- like say Arch does.
 
-	* shared libraries for a particular libc/ld combo.
-	  Common prefix /lib/musl-x64, /lib/musl-arm, /lib/glibc-x64 without
-	  name clashes between them, and without ugly Arch-style lib32-
-	  prefixes. With minor effort, should allow installing shared library
-	  packages for non-native architectures and using them with qemu, and
-	  possibly handling Wine DLLs the same way (treating wine as an ld).
+  * shared libraries for a particular libc/ld combo.
+    Common prefix /lib/musl-x64, /lib/musl-arm, /lib/glibc-x64 without
+    name clashes between them, and without ugly Arch-style lib32-
+    prefixes. With minor effort, should allow installing shared library
+    packages for non-native architectures and using them with qemu, and
+    possibly handling Wine DLLs the same way (treating wine as an ld).
 
 Package groups also provide a limited support for relocatable packages, but
 that is more of an afterthough, and not a primary goal. Linux packages in
