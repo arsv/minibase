@@ -349,7 +349,7 @@ static void rmode(struct bcp* ctx)
 	openstat(src, O_RDONLY);
 
 	if(!setsize && sizable(src))
-		ctx->size = src->size;
+		ctx->size = src->size - src->off;
 	else if(!setsize)
 		fail("transfer size must be specified for", src->name, 0);
 	if(!checksize(src, ctx->size))
