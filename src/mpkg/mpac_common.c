@@ -80,27 +80,19 @@ void check_list_ext(char* name)
 	check_extension(name, ".list");
 }
 
-static uint parse_header_size(CTX, void* buf, int len)
+static void parse_header_size(CTX, byte tag[8])
 {
-	char* hdr = buf;
-
-	if(len < 4)
-		fail("file too short", NULL, 0);
-	if(memcmp(hdr, "PAC", 3))
+	if(memcmp(tag, "PAC", 3))
 		fail("not a PAC file", NULL, 0);
 
-	byte c4 = *((byte*)&hdr[3]);
+	byte c4 = tag[3];
 
 	if((c4 & ~3) != '@')
 		fail("not a PAC file", NULL, 0);
 
 	uint size;
 	int n = c4 & 3;
-
-	if(len < 4 + 1 + n)
-		fail("file too short", NULL, 0);
-
-	byte* sz = buf + 4;
+	byte* sz = tag + 4;
 
 	size = sz[0];
 
@@ -108,15 +100,13 @@ static uint parse_header_size(CTX, void* buf, int len)
 		size |= (sz[1] << 8);
 	if(n > 1)
 		size |= (sz[2] << 16);
-	if(n > 2)
-		size |= (sz[3] << 24);
+	if(n > 2) /* header size over 16MB, yikes */
+		fail("4-byte index size", NULL, 0);
 
 	uint start = 4 + n + 1;
 
-	ctx->iptr = buf + start;
-	ctx->iend = buf + start + size;
-
-	return start + size;
+	ctx->hoff = start;
+	ctx->hlen = size;
 }
 
 static void parse_size(CTX, byte lead)
@@ -166,31 +156,39 @@ static void parse_name(CTX)
 
 void load_index(CTX)
 {
-	int len = PAGE;
-	void* buf = heap_alloc(ctx, len);
+	byte tag[8];
 	int ret, fd = ctx->fd;
 
-	if((ret = sys_read(fd, buf, len)) < 0)
+	if((ret = sys_read(fd, tag, sizeof(tag))) < 0)
 		fail("read", NULL, ret);
+	if(ret < sizeof(tag))
+		fail("package index too short", NULL, 0);
 
-	uint got = ret;
-	uint total = parse_header_size(ctx, buf, got);
+	parse_header_size(ctx, tag);
 
-	if(total <= got) {
-		ctx->left = got - total;
-		ctx->lptr = buf + total;
-		return;
-	}
+	uint hoff = ctx->hoff;
+	uint hlen = ctx->hlen;
 
-	void* rest = buf + got;
-	uint need = total - got;
+	if(hoff > 8 || hoff + hlen < 8)
+		fail("malformed package", NULL, 0);
 
-	(void)heap_alloc(ctx, need);
+	uint got = sizeof(tag) - ctx->hoff;
+	uint need = hlen - got;
+	uint full = hoff + hlen;
+
+	byte* head = heap_alloc(ctx, (full + 3) & ~3);
+	byte* rest = head + sizeof(tag);
+
+	memcpy(head, tag, sizeof(tag));
 
 	if((ret = sys_read(fd, rest, need)) < 0)
 		fail("read", NULL, ret);
 	if(ret < (int)need)
 		fail("incomplete read", NULL, 0);
+
+	ctx->head = head;
+	ctx->iptr = head + hoff;
+	ctx->iend = head + hoff + hlen;
 }
 
 void open_pacfile(CTX, char* name)

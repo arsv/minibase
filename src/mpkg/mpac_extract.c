@@ -38,30 +38,13 @@ static char* prep_link(CTX, uint size)
 	char* dptr = link;
 	int ret;
 
-	uint left = ctx->left;
-	void* lptr = ctx->lptr;
-
-	if(!left) goto read;
-
-	uint copy = (left < size ? left : size);
-
-	memcpy(dptr, lptr, copy);
-
-	ctx->lptr = lptr + copy;
-	ctx->left = left - copy;
-
-	dptr += copy;
-	size -= copy;
-
-	if(!size) goto done;
-read:
 	if((ret = sys_read(ctx->fd, dptr, size)) < 0)
 		fail("read", NULL, ret);
 	if(ret != (int)size)
 		fail("incomplete read", NULL, ret);
 
 	dptr += size;
-done:
+
 	*dptr = '\0';
 
 	return link;
@@ -91,29 +74,8 @@ out:
 static void transfer_data(CTX, int fd)
 {
 	uint size = ctx->size;
-	uint left = ctx->left;
-	void* lptr = ctx->lptr;
-	uint write;
 	int ret;
 
-	if(!left)
-		goto send;
-	if(size > left)
-		write = left;
-	else
-		write = size;
-
-	if((ret = sys_write(fd, lptr, write)) < 0)
-		fail("write", NULL, ret);
-	if(ret != (int)write)
-		fail("incomplete write", NULL, 0);
-
-	ctx->left = left - write;
-	ctx->lptr = lptr + write;
-	size -= write;
-
-	if(!size) return;
-send:
 	if((ret = sys_sendfile(fd, ctx->fd, NULL, size)) < 0)
 		fail("sendfile", NULL, ret);
 	if(ret != (int)size)

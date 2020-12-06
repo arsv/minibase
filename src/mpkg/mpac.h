@@ -29,12 +29,14 @@ struct top {
 	void* ptr;
 	void* end;
 
-	/* chunk of the content stream read with the index */
-	uint left;
-	void* lptr;
 	/* load-specific stuff (index parsing) */
+	void* head;
+	int hoff;
+	int hlen;
+
 	void* iptr;
 	void* iend;
+
 	char* name;
 	uint nlen;
 	uint size;
