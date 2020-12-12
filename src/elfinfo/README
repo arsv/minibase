@@ -1,0 +1,5 @@
+A tool for examining ELF files, similar to readelf but designed to have
+better (human-readable) output in several cases particularly relevant
+to the needs of this project. Things like ordering symbols by section etc.
+
+Probably somewhat incomplete at this point.
