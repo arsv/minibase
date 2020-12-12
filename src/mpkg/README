@@ -27,10 +27,14 @@ PAC does not store any file metadata beyond file type and size, with
 only three supported file types: regular files, executables, and symlinks.
 Within the package, the order of the files is also fixed.
 
-Just like tar files, pacs are meant to be compressed whole. Also like tars,
-pacs do not really support partial extraction well. The default assumption
-is that if any of the files in a package are to be extracted, all of them
-(or at least most of them) will be extracted.
+Like tars, pacs do not really support partial extraction well.
+The assumption is that if any of the files in a package are to be extracted,
+all of them (or at least most of them) will be extracted.
+
+# TBD: compression. Like tars, pacs are meant to be compressed whole,
+# although the exact way it will be done is yet to be decided.
+# Tar-style .pac.gz etc is an obvious option but there are indications
+# that keeping compressions inside .pac might be a better choice.
 
 
 Design and usage notes
