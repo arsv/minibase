@@ -292,13 +292,13 @@ static void mark_path(CCT, char* ls, char* le)
 	if(p >= e) /* "a/b/c/", with trailing slash */
 		mark_glob(cct, nd);
 	else if(!(nd = locate_node(cct, nd, p, e)))
-		return;
+		goto out;
 	else
 		mark_leaf(cct, nd);
 
 	if(cct->depth)
 		mark_back(cct);
-
+out:
 	cct->depth = 0;
 }
 

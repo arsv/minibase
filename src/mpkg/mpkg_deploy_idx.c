@@ -233,27 +233,19 @@ static void index_nodes(CTX)
 	fini_treeidx(ctx, tcx);
 }
 
-static uint parse_header_size(CTX, void* buf, int len)
+static void parse_header_size(CTX, byte tag[8])
 {
-	char* hdr = buf;
-
-	if(len < 4)
-		fail("file too short", NULL, 0);
-	if(memcmp(hdr, "PAC", 3))
+	if(memcmp(tag, "PAC", 3))
 		fail("not a PAC file", NULL, 0);
 
-	byte c4 = *((byte*)&hdr[3]);
+	byte c4 = tag[3];
 
 	if((c4 & ~3) != '@')
 		fail("not a PAC file", NULL, 0);
 
 	uint size;
 	int n = c4 & 3;
-
-	if(len < 4 + 1 + n)
-		fail("file too short", NULL, 0);
-
-	byte* sz = buf + 4;
+	byte* sz = tag + 4;
 
 	size = sz[0];
 
@@ -268,41 +260,41 @@ static uint parse_header_size(CTX, void* buf, int len)
 
 	ctx->hoff = start;
 	ctx->hlen = size;
-
-	return start + size;
 }
 
 static void load_index(CTX)
 {
-	int len = PAGE;
-	void* buf = heap_alloc(ctx, len);
+	byte tag[8];
 	int ret, fd = ctx->pacfd;
 
-	if((ret = sys_read(fd, buf, len)) < 0)
+	if((ret = sys_read(fd, tag, sizeof(tag))) < 0)
 		fail("read", NULL, ret);
+	if(ret < sizeof(tag))
+		fail("package index too short", NULL, 0);
 
-	ctx->head = buf;
+	parse_header_size(ctx, tag);
 
-	uint got = ret;
+	uint hoff = ctx->hoff;
+	uint hlen = ctx->hlen;
 
-	parse_header_size(ctx, buf, got);
+	if(hoff > 8 || hoff + hlen < 8)
+		fail("malformed package", NULL, 0);
 
-	uint full = ctx->hoff + ctx->hlen;
+	uint got = sizeof(tag) - ctx->hoff;
+	uint need = hlen - got;
+	uint full = hoff + hlen;
 
-	if(full < got) {
-		ctx->left = got - full;
-		ctx->lptr = buf + full;
-		return;
-	}
+	byte* head = heap_alloc(ctx, (full + 3) & ~3);
+	byte* rest = head + sizeof(tag);
 
-	uint need = full - got;
-	void* rest = heap_alloc(ctx, need);
-	/* has to be contiguous with buf */
+	memcpy(head, tag, sizeof(tag));
 
 	if((ret = sys_read(fd, rest, need)) < 0)
 		fail("read", NULL, ret);
 	if(ret < (int)need)
 		fail("incomplete read", NULL, 0);
+
+	ctx->head = head;
 }
 
 static void check_pac_ext(char* name)

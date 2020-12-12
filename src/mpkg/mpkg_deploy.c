@@ -163,28 +163,10 @@ static void transfer_data(CTX, struct node* nd, int fd)
 {
 	char* name = nd->name;
 	uint size = nd->size;
-	uint left = ctx->left;
-	void* lptr = ctx->lptr;
-	uint write;
 	int ret;
 
 	if(!size) return;
-	if(!left) goto send;
 
-	if(size > left)
-		write = left;
-	else
-		write = size;
-
-	if((ret = sys_write(fd, lptr, write)) < 0)
-		failx(ctx, NULL, name, ret);
-
-	ctx->left = left - write;
-	ctx->lptr = lptr + write;
-	size -= write;
-
-	if(!size) return;
-send:
 	if((ret = sys_sendfile(fd, ctx->pacfd, NULL, size)) < 0)
 		failx(ctx, NULL, name, ret);
 	if(ret != (int)size)
@@ -194,28 +176,10 @@ send:
 static int read_data(CTX, void* buf, uint size)
 {
 	int fd = ctx->pacfd;
-	uint left = ctx->left;
-	void* lptr = ctx->lptr;
-	uint copy;
 	int ret;
 
 	if(!size) return size;
-	if(!left) goto read;
 
-	if(size > left)
-		copy = left;
-	else
-		copy = size;
-
-	memcpy(buf, lptr, copy);
-
-	ctx->left = left - copy;
-	ctx->lptr = lptr + copy;
-	buf += copy;
-	size -= copy;
-
-	if(!size) return size;
-read:
 	if((ret = sys_read(fd, buf, size)) < 0)
 		return ret;
 	if(ret != (int)size)

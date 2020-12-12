@@ -64,13 +64,6 @@ struct top {
 	uint hlen;  /* length of the file index */
 	/* also used for the .pkg file during removal, same logic there */
 
-	/* In case the header is smaller than a page, some of the following
-	   file content will be read along with the index. This data is still
-	   a part of the content stream and must be accounted for when unpack
-	   the actual files. */
-	void* lptr; /* start of the file content */
-	uint left;  /* length of the above */
-
 	/* rebuilt tree */
 	struct node* index; /* contiguous array */
 	uint nodes; /* number of elements in index[] */
