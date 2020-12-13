@@ -97,7 +97,9 @@ void cmd_remove(CTX);
 void cmd_list(CTX);
 
 void heap_init(CTX, int size);
-void* heap_alloc(CTX, int size);
+void* alloc_tight(CTX, int size);
+void* alloc_exact(CTX, int size);
+void* alloc_align(CTX, int size);
 
 void load_pacfile(CTX);
 void load_config(CTX);

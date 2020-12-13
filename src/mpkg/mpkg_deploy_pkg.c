@@ -89,7 +89,7 @@ static void prep_pkg_name(CTX)
 
 	if(repo) len += strlen(repo) + 2;
 
-	char* buf = heap_alloc(ctx, len);
+	char* buf = alloc_tight(ctx, len);
 
 	char* p = buf;
 	char* e = buf + len - 1;
@@ -278,7 +278,7 @@ static void init_pkg_context(CTX, PCT)
 
 	if(pref) size += plen + 2;
 
-	void* buf = heap_alloc(ctx, size);
+	void* buf = alloc_tight(ctx, size);
 
 	memzero(pct, sizeof(*pct));
 

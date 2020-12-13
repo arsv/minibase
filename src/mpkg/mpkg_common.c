@@ -8,7 +8,7 @@
 
 #include "mpkg.h"
 
-void* heap_alloc(CTX, int size)
+static void* heap_alloc(CTX, int size)
 {
 	void* brk = ctx->brk;
 	void* ptr = ctx->ptr;
@@ -38,6 +38,26 @@ void* heap_alloc(CTX, int size)
 	ctx->ptr = new;
 
 	return ptr;
+}
+
+void* alloc_tight(CTX, int size)
+{
+	return heap_alloc(ctx, size);
+}
+
+void* alloc_exact(CTX, int size)
+{
+	if(size % 4)
+		fail("non-aligned exact alloc", NULL, 0);
+
+	return heap_alloc(ctx, size);
+}
+
+void* alloc_align(CTX, int size)
+{
+	size = (size + 3) & ~3;
+
+	return heap_alloc(ctx, size);
 }
 
 char* root_adjust(char* name)

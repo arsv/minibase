@@ -150,7 +150,7 @@ static void rewind_path(TCX, int todepth)
 
 static struct node* new_node(TCX, int lead)
 {
-	struct node* nd = heap_alloc(tcx->ctx, sizeof(*nd));
+	struct node* nd = alloc_exact(tcx->ctx, sizeof(*nd));
 
 	memzero(nd, sizeof(*nd));
 
@@ -284,7 +284,7 @@ static void load_index(CTX)
 	uint need = hlen - got;
 	uint full = hoff + hlen;
 
-	byte* head = heap_alloc(ctx, (full + 3) & ~3);
+	byte* head = alloc_align(ctx, full);
 	byte* rest = head + sizeof(tag);
 
 	memcpy(head, tag, sizeof(tag));

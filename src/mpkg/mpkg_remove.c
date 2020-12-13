@@ -267,7 +267,7 @@ static void list_files(CTX, struct bufout* bo)
 static void prep_output(CTX, struct bufout* bo)
 {
 	int len = PAGE;
-	char* buf = heap_alloc(ctx, len);
+	char* buf = alloc_align(ctx, len);
 
 	bufoutset(bo, STDOUT, buf, len);
 }

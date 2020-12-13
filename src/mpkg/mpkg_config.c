@@ -327,7 +327,7 @@ static void group_prefix(CCT, char* ls, char* le)
 		report_syntax(cct, "misplaced prefix directive");
 
 	int len = le - ls;
-	char* buf = heap_alloc(ctx, len + 1);
+	char* buf = alloc_align(ctx, len + 1);
 
 	memcpy(buf, ls, len);
 	buf[len] = '\0';
