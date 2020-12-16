@@ -111,7 +111,7 @@ static void resolve_device(CTX, char* device)
 	struct ifreq ifreq;
 	int fd, ret;
 	int nlen = strlen(device);
-	
+
 	ctx->ifname = device;
 
 	memzero(&ifreq, sizeof(ifreq));
@@ -170,7 +170,7 @@ static void check_signals(CTX, int revents)
 		quit(ctx, "lost signal fd", 0);
 	if(!(revents & POLLIN))
 		return;
-	
+
 	if((rd = sys_read(fd, &si, sizeof(si))) < 0) {
 		if(rd == -EAGAIN)
 			return;
@@ -188,7 +188,7 @@ static void check_incoming(CTX, int revents)
 		quit(ctx, "raw socket lost", 0);
 	if(!(revents & POLLIN))
 		return;
-	
+
 	recv_incoming(ctx);
 }
 
