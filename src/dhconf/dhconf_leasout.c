@@ -174,6 +174,13 @@ void output_lease_info(CTX)
 	while(ptr < end) {
 		struct dhcpopt* opt = ptr;
 
+		byte code = opt->code;
+
+		if(code == 0xFF || code == 0x00) {
+			ptr++;
+			break;
+		}
+
 		ptr += sizeof(*opt);
 
 		if(ptr > end) break;
@@ -183,6 +190,15 @@ void output_lease_info(CTX)
 		if(ptr > end) break;
 
 		p = fmt_option(p, e, opt);
+	}
+
+	while(ptr < end) {
+		byte code = *(byte*)(ptr++);
+
+		if(!code) continue;
+
+		p = fmtstr(p, e, "trailing garbage\n");
+		break;
 	}
 
 	writeall(STDOUT, buf, p - buf);

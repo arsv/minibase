@@ -119,6 +119,12 @@ static void add_ip(DH, int code, byte ip[4])
 	memcpy(opt->payload, ip, 4);
 }
 
+static void add_raw(DH, int code, void* data, int len)
+{
+	struct dhcpopt* opt = add_option(dh, code, len);
+	memcpy(opt->payload, data, len);
+}
+
 static void put_header(struct dhcpmsg* msg, CTX)
 {
 	struct dhcphdr* dhcp = &msg->dhcp;
@@ -201,6 +207,7 @@ static void send_request(CTX)
 	byte buf[CMDSIZE];
 	struct dhcmd dh = { buf, 0, sizeof(buf) };
 	struct dhcpmsg* msg = alloc(&dh, sizeof(*msg));
+	byte params[] = { 1, 3, 6, 42 };
 
 	memzero(msg, sizeof(*msg));
 	put_header(msg, ctx);
@@ -208,6 +215,7 @@ static void send_request(CTX)
 	add_ip(&dh, DHCP_REQUESTED_IP, ctx->ourip);
 	add_ip(&dh, DHCP_SERVER_ID, ctx->srvip);
 	add_mac(&dh, DHCP_CLIENT_ID, ctx->ourmac);
+	add_raw(&dh, DHCP_PARAM_REQ, params, sizeof(params));
 	add_optend(&dh);
 	put_ip_udp(msg, ctx, &dh);
 

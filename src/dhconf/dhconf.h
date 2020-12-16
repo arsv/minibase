@@ -44,6 +44,7 @@
 #define DHCP_MESSAGE_TYPE  53
 #define DHCP_SERVER_ID     54
 #define DHCP_CLIENT_ID     61
+#define DHCP_PARAM_REQ     55
 
 /* IP headers */
 
