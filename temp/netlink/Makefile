@@ -1,4 +1,4 @@
-all = nldump rtdump rtevt genlfams
+all = nldump rtdump rtevt genlfams rtipv6ra
 
 include ../rules.mk
 
