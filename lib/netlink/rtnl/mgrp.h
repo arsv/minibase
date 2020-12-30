@@ -16,3 +16,5 @@
 #define RTMGRP_IPV6_MROUTE      (1<<9)
 #define RTMGRP_IPV6_ROUTE       (1<<10)
 #define RTMGRP_IPV6_IFINFO      (1<<11)
+
+#define RTMGRP_ND_USEROPT       (1<<19)
