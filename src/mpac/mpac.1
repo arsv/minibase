@@ -1,0 +1,76 @@
+.TH mpac 1
+'''
+.SH NAME
+\fBmpac\fR \- PAC archive format tool
+'''
+.SH SYNOPSIS
+\fBmpac\fR [\fBc\fR|\fBcreate\fR] \fIfile.pac\fR \fIdirectory\fR
+.br
+Pack the contents of \fIdirectory\fR into \fIfile.pac\fR.
+.P
+\fBmpac\fR [\fBx\fR|\fBextract\fR] \fIfile.pac\fR \fIdirectory\fR
+.br
+Unpack \fIfile.pac\fR into \fIdirectory\fR.
+.P
+\fBmpac\fR [\fBp\fR|\fBpack\fR] \fIfile.pac\fR \fIinput.list\fR
+.br
+Create archive containing files listed in \fIinput.list\fR.
+.P
+\fBmpac\fR [\fBt\fR|\fBlist\fR] \fIfile.pac\fR
+.br
+List file names packed in \fIfile.pac\fR.
+.P
+\fBmpac\fR [\fBd\fR|\fBdump\fR] \fIfile.pac\fR
+.br
+Output raw index entries in \fIfile.pac\fR.
+'''
+.SH PACK DESCRIPTION FORMAT
+The \fBpack\fR command takes a text file in the following format:
+.P
+.ni
+    # comment
+    path/to/foo.bin
+
+    > some/dir
+    path/to/bar.bin
+.fi
+.P
+Each non-prefix line is a path name to a file in the local filesystem.
+The file will be opened using its path name, but in the archive only its base
+name will remain. The \fB>\fR lines describe the directory structure within
+the archive. Files following a directory line are packed inside that directory
+within the archive.
+.P
+The example above describes an archive with two files, \fIfoo.bin\fR and
+\fIsome/dir/bar.bin\fR. The content for those files will be taken from
+\fIpath/to/foo.bin\fR and \fIpath/to/bar.bin\fR respectively.
+.P
+Directories must come in byte order of their components. Within each directory,
+files must come in byte order of their base names. The order will be checked by
+\fBmpac\fR.
+'''
+.SH DUMP OUTPUT FORMAT
+The \fBdump\fR command outputs raw index entries, formatted for readability,
+but otherwise left as is. It may be useful for examining how the archive
+structure looks internally.
+.P
+Each line is an entry, with prefix denoting its type: \fB-\fR is a regular
+files, \fB+\fR executable, \fB~\fR symlink. Numeric prefix means directory,
+and the number is its depth. For leaf entries, file size is given after the
+name in parenthesis.
+.P
+The entries are show in the order they appear in the index.
+'''
+.SH USAGE NOTES
+PAC format is meant to be used for distributing pre-built software packages,
+and for used as the packing format for the system package manager. In this
+application, \fBmpac\fR should be used to create and examine packages, but
+not to install them. Another tool is needed to handle installation, removal
+and package management overall. See \fBmpkg\fR(1) for instance.
+.P
+\fBmpac\fR treats symlinks as plain text files containing link target filenames.
+Symlinks are never dereferenced, and no processing is ever done on their
+contents.
+'''
+.SH SEE ALSO
+\fBmpkg\fR(1).

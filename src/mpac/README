@@ -1,0 +1,90 @@
+This directory contains a tool for creating and manipulating packages
+in a custom PAC format, designed as a replacement GNU TAR specifically
+in package management applications. Within this project, the PAC format
+is used for system packages (see mpkg) and also for toolchain libraries.
+It can also be used for package source code, replacing TAR in that role.
+
+PAC files can only store four node types: directories (forming a tree
+structure of limited depth), non-executable files, executables files,
+and symlinks. All nodes are named, and non-directory nodes have size.
+There is no metadata beside that; PAC format by design does not include
+metadata that would make packages non-reproducible, like ownership and
+creation/modification timestamps. There is no support for special files
+either beside symlinks. The decision how to map PAC file types onto the
+target filesystem is deliberately left to the package deploying tools;
+things like which owner/group to assign, which mode to use for executable
+and non-executable files etc.
+
+
+The PAC format
+~~~~~~~~~~~~~~
+PAC files use index-before-contents layout, unlike TAR which mixes index
+and layout, and ZIP where the index follows content. Overall structure:
+
+    HEADER ENTRY ENTRY ... ENTRY content content ... content
+
+The header encodes the size of the index, each ENTRY describes a directory
+or a leaf node (file). Concatenated content of the individual leaf nodes
+follows the index.
+
+HEADER has the following format:
+
+    "PAC" c s [ s s s ]
+
+The first three bytes identify the format for basic input validation purposes.
+The following byte, c, encodes how many s bytes follow (@ = 1, A = 2, B = 3,
+C = 4), and one to four s bytes encode the total size of the ENTRYs
+in little-endian order.
+
+Each ENTRY has the following format:
+
+    T [ s s s s ] n n ... n \0
+
+The leading byte T encodes entry type. If bit 7 is set (T & 0x80), then
+the entry is a directory, (T & 0x7F) is its depth in the three, and there
+are no s bytes. Otherwise, it's a leaf node, (T & 0x03) encodes the number
+of s bytes to follow (1, 2, 3 or 4, similar to index size in the HEADER),
+and (T & 0x0C) encodes the type of the entry: 1 = regular file, 2 = executable,
+3 = symlink. The n bytes are the base name of the entry. Each entry is
+terminated with a NUL byte at the end of the name.
+
+Leaf entries belong to the last preceding directory; leaf entries that appear
+before any directory entries are top-level (depth 0) entries. Within their
+respective subtrees, all leaf entries and all subdirectories must come in byte
+order of their names. The ordering is mostly irrelevant for mpac but other
+tools may check it and refuse to process mis-ordered archives.
+
+The content is appended in the same order the entries appear in the index.
+
+
+Packing-list mode
+~~~~~~~~~~~~~~~~~
+Creating packages from a build directory in a GNU-style system typically
+involves `make DESTDIR=path/to/staging/directory install` and then using
+the packaging tool to pack the whole staging directory as is.
+
+This whole approach depends on (or rather abuses) `make install` which itself
+is not compatible with the idea of package management. A package-managed system
+does not need `make install` because it is never supposed to install anything
+with `make`.
+
+The point of the packing-list mode (`mpac p`) is to get rid of `make install`
+and the staging directory. Instead, the files to be packaged are picked right
+from the build directory. The packing list instructs mpac to pick say ./src/foo
+and put it into the package as /usr/bin/foo, ignoring whatever else might be
+in ./src.
+
+
+Compression
+~~~~~~~~~~~
+Just like TAR, PAC files are meant to be compressed whole (as in, .pac.gz etc).
+
+Having the whole index at the start of the file allows for efficient listing
+and other operations that work with the index. Unlike with TAR, it is enough
+to decompress only the head of the package containing the index, which tends
+to be rather small.
+
+The format does not provide any means for partial extraction from compressed
+packages. Non-compressed PACs allow loading the index at the start and then
+seek()ing to the right entry in the file. For compressed packages, the only
+practical approach is to read (decompress) the package up to the right entry.

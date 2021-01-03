@@ -1,40 +1,15 @@
-This directory contains a couple of tools that work with packages in a custom
-PAC format: mpac, which makes them, and mpkg, which deploys them into the
-target filesystem. These are mostly meant to be used for managing system
-packages for now, although there are plans to have more specialized PAC tools
-for other uses as well.
+This tool in this directory, mpkg, is a system-level package manager.
+It is meant to deploy and remove pre-built packages in PAC format.
+See ../mpac for general information on the format itself.
 
-Compared to Arch pacman or Void xbps, mpac is roughly equivalent to standalone
-tar while mpkg is more like tar when used by either pacman or xbps. By design,
-mpkg does not do some things often expected from a system package manager
-in a Linux system, like searching package databases or downloading packages
-or handling inter-package dependencies. Instead, it is a plumbing component
-that could be used to build a tool similar to pacman, xbps or apt, written
-with a different idea of how package metadata should be handled atop of that.
+Note that due to some design decisions behind this tool, its scope is
+quite different from what is generally associated with a system package
+manager. Compared to Arch pacman or Void xbps, mpkg fills the role of tar
+when tar used by either pacman or xbps. In particular, it does not handle
+package metadata, and does not fetch packages.
 
-
-The PAC format
-~~~~~~~~~~~~~~
-The custom format was designed as a simple alternative to tar.
-
-PAC files have index at the start of the file, before any actual content
-(as opposed to tar or cpio, which have file headers intermixed with content).
-This allows listing files from a compressed package, and subsequently doing
-checks that work at directory tree level (file conflicts and such) by only
-decompressing a small chunk at the start of the file.
-
-PAC does not store any file metadata beyond file type and size, with
-only three supported file types: regular files, executables, and symlinks.
-Within the package, the order of the files is also fixed.
-
-Like tars, pacs do not really support partial extraction well.
-The assumption is that if any of the files in a package are to be extracted,
-all of them (or at least most of them) will be extracted.
-
-# TBD: compression. Like tars, pacs are meant to be compressed whole,
-# although the exact way it will be done is yet to be decided.
-# Tar-style .pac.gz etc is an obvious option but there are indications
-# that keeping compressions inside .pac might be a better choice.
+mpkg basically implements undoable `tar -x` with some extra quirks
+to simplify common usage cases (search paths for package files etc).
 
 
 Design and usage notes
@@ -109,9 +84,8 @@ is way beyond the scope of this project.
 
 Package signing
 ~~~~~~~~~~~~~~~
-Hashes and signatures are metadata and such should be distributed separately
-from the packages. In particular, with reproducible packages validated by
-independent builds, attaching signatures to the PAC files is not a good idea.
+Hashes and signatures are metadata and as such should be distributed
+separately from the packages themselves.
 
 # This should be obvious but I'm pretty sure there will be people asking why,
 # in the year 2020+n, there is no support for attached signatures in a new
