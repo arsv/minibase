@@ -69,7 +69,7 @@ static void enter_dir(CTX, byte lead)
 	if(depth >= MAXDEPTH)
 		quit(ctx, "tree depth exceeded", NULL, 0);
 
-	ctx->path[depth] = name;
+	ctx->path[lvl] = name;
 	ctx->depth = lvl + 1;
 }
 
