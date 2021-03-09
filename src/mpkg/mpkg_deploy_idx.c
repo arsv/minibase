@@ -238,13 +238,12 @@ static void parse_header_size(CTX, byte tag[8])
 	if(memcmp(tag, "PAC", 3))
 		fail("not a PAC file", NULL, 0);
 
-	byte c4 = tag[3];
+	int n = tag[3];
 
-	if((c4 & ~3) != '@')
+	if((n & ~3))
 		fail("not a PAC file", NULL, 0);
 
 	uint size;
-	int n = c4 & 3;
 	byte* sz = tag + 4;
 
 	size = sz[0];
