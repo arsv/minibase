@@ -32,8 +32,8 @@ HEADER has the following format:
     "PAC" c s [ s s s ]
 
 The first three bytes identify the format for basic input validation purposes.
-The following byte, c, encodes how many s bytes follow (@ = 1, A = 2, B = 3,
-C = 4), and one to four s bytes encode the total size of the ENTRYs
+The following byte, c, encodes how many s bytes follow (0x00 = 1, 0x01 = 2,
+0x02 = 3, 0x03 = 4), and one to four s bytes encode the total size of the ENTRYs
 in little-endian order.
 
 Each ENTRY has the following format:

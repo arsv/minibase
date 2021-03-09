@@ -459,19 +459,19 @@ static void* put_file_tag(void* ptr, int size)
 	byte* p = tag + 3;
 
 	if(size <= 0xFF) {
-		*p++ = '@';
+		*p++ = 0x00;
 		*p++ = (size >> 0);
 	} else if(size <= 0xFFFF) {
-		*p++ = 'A';
+		*p++ = 0x01;
 		*p++ = (size >> 0);
 		*p++ = (size >> 8);
 	} else if(size <= 0xFFFFFF) {
-		*p++ = 'B';
+		*p++ = 0x02;
 		*p++ = (size >> 0);
 		*p++ = (size >> 8);
 		*p++ = (size >> 16);
 	} else if(size <= 0x7FFFFFFF) {
-		*p++ = 'C';
+		*p++ = 0x03;
 		*p++ = (size >> 0);
 		*p++ = (size >> 8);
 		*p++ = (size >> 16);

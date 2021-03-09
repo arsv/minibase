@@ -492,7 +492,7 @@ static void write_index(LCT)
 {
 	int fd = lct->outfd;
 	uint len = lct->hlen;
-	int nszb = 0;
+	int nszb = 0x00;
 
 	if(len > 0xFF)
 		nszb++;
@@ -507,7 +507,7 @@ static void write_index(LCT)
 	*tag++ = 'P';
 	*tag++ = 'A';
 	*tag++ = 'C';
-	*tag++ = '@' | nszb;
+	*tag++ = nszb;
 
 	uint size = len;
 
