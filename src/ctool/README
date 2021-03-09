@@ -1,0 +1,62 @@
+The C toolchain manager
+~~~~~~~~~~~~~~~~~~~~~~~
+The point of the tool in this directory is setting up custom per-project
+toolchains. A toolchain here means a compiler/linker with a particular
+set of libraries.
+
+The general workflow with these tools is make a custom toolchain for each
+project being worked on. You start a project, you pick which compiler to
+use, add some libraries, and end up with a set of scripts under a custom
+prefix like so:
+
+    mkdir /var/tool/project1
+    cd /var/tool/project1
+
+    ctool init
+    ctool use arm-gcc-9.3
+    ctool use arm-binutils-2.34
+    ctool repo /path/to/arm-musl/library/repo
+    ctool add musl
+    ctool add libcurl
+
+and then use the customized tools:
+
+    /var/tool/project1/bin/cc
+    /var/tool/project1/bin/ld
+    ...
+
+which are in fact scripts that invoke the chosen compiler (probably found
+under some other prefix, like /opt/arm-gcc-9.3/bin/gcc or whatever) and pass
+it the right options to use the headers and libraries unpacked under
+
+    /var/tool/project1/inc
+    /var/tool/project1/lib
+
+never ever touching the rest of the system.
+
+Once the project is done, the toolchain gets removed.
+
+
+No system compiler
+~~~~~~~~~~~~~~~~~~
+The approach taken here is quite different from what is commonly expected
+in a GNU system. In effect, the idea here is to remove the concept of a
+"system compiler" and effectively build everything with cross-compilers,
+including the code built to run locally.
+
+These tools are meant to allow arbitrary pairings between a compiler
+(as in, a bunch of host executables) and a set of target libraries.
+
+
+Library packs
+~~~~~~~~~~~~~
+Pre-built libraries are packed into mpac archives with two top-level
+directories, "inc" and "lib", containing headers and libraries respectively.
+
+    inc/foo.h
+    inc/foo/some.h
+    inc/foo/other.h
+    lib/libfoo.a
+
+These files get unpacked right into the toolchain directory, with only some
+basic checks to avoid overwriting existing files.

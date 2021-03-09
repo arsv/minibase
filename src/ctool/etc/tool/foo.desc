@@ -1,0 +1,28 @@
+# some comment here
+
+prefix /opt/binutils-2.24:bin/arm-elf-
+
+link as gas
+link ld
+link nm
+link objdump
+
+prefix /opt/binutils-2.24
+
+link readelf
+
+prefix /opt/gcc-10.1
+
+script gcc
+
+> #!/bin/sh
+>
+> TOOL=%TOOL
+> exec %PREFIX/bin/gcc -B $TOOL/bin -I $TOOL/inc -L $TOOL/lib "$@"
+
+script g++
+
+> #!/bin/sh
+>
+> TOOL=%TOOL
+> exec %PREFIX/bin/g++ -B $TOOL/bin -I $TOOL/inc -L $TOOL/lib "$@"
