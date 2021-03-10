@@ -190,19 +190,19 @@ static int split(char* str, char* end, struct strptr* parts, int n)
 	return i;
 }
 
-static int strplen(struct strptr* str)
+static int stplen(struct strptr* str)
 {
 	return str->end - str->ptr;
 }
 
-static int strpeq(struct strptr* str, char* a)
+static int stpeq(struct strptr* str, char* a)
 {
-	return !strncmp(str->ptr, a, strplen(str));
+	return !strncmp(str->ptr, a, stplen(str));
 }
 
 static void outstr(struct bufout* bo, struct strptr* str)
 {
-	bufout(bo, str->ptr, strplen(str));
+	bufout(bo, str->ptr, stplen(str));
 }
 
 static void list_mods(struct bufout* bo, struct lineidx* lx, struct query* mq)
@@ -224,11 +224,11 @@ static void list_mods(struct bufout* bo, struct lineidx* lx, struct query* mq)
 
 		outstr(bo, &parts[0]);
 
-		if(strpeq(&parts[2], "0"))
+		if(stpeq(&parts[2], "0"))
 			goto nl;
-		if(strpeq(&parts[4], "-"))
+		if(stpeq(&parts[4], "-"))
 			goto nl;
-		if(strplen(&parts[3]) <= 1)
+		if(stplen(&parts[3]) <= 1)
 			goto nl;
 
 		bufout(bo, " (", 2);
