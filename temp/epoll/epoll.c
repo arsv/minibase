@@ -13,17 +13,17 @@ int main(int argc, char** argv)
 	struct epoll_event ev;
 	char buf[128];
 
-	if((epfd = epoll_create()) < 0)
+	if((epfd = sys_epoll_create()) < 0)
 		fail("epoll", NULL, epfd);
 
 	ev.events = EPOLLIN;
 	ev.data.fd = 3;
 
-	if((ret = epoll_ctl(epfd, EPOLL_CTL_ADD, 0, &ev)) < 0)
+	if((ret = sys_epoll_ctl(epfd, EPOLL_CTL_ADD, 0, &ev)) < 0)
 		fail("epoll_ctl", NULL, ret);
 
 	while(1) {
-		if((ret = epoll_wait(epfd, &ev, 1, 10000)) < 0)
+		if((ret = sys_epoll_wait(epfd, &ev, 1, 10000)) < 0)
 			fail("epoll_wait", NULL, ret);
 		if(ret == 0) {
 			warn("timeout", NULL, 0);
