@@ -72,9 +72,4 @@ char* parsemac(char* p, byte* mac);
 char* parseip(char* p, byte* ip);
 char* parseipmask(char* p, byte* ip, byte* mask);
 
-static inline char* fmtchar(char* p, char* e, char c)
-{
-	if(p < e)
-		*p++ = c;
-	return p;
-};
+char* fmtchar(char* p, char* e, char c);
