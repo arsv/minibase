@@ -59,7 +59,7 @@ void nc_put_byte(struct ncbuf* nc, uint key, byte val)
 
 void nc_put_str(struct ncbuf* nc, uint key, char* str)
 {
-	int len = strlen(str) + 1;
+	int len = strnlen(str, 1024) + 1;
 	char* dst = nc_put_(nc, key, len);
 
 	if(dst) memcpy(dst, str, len);

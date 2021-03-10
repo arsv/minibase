@@ -1,40 +1,56 @@
 #include <sys/file.h>
 #include <format.h>
+#include <string.h>
 #include <main.h>
 #include <util.h>
 
-#define ERRBUF 512
-
-void warn(const char* msg, const char* obj, int ret)
+void warn(const char* cmsg, const char* cobj, int ret)
 {
-	char buf[ERRBUF];
-	char* end = buf + sizeof(buf) - 1;
-	char* b = buf;
-	char* p = buf;
+	char* err = (char*)errtag;
+	char* msg = (char*)cmsg;
+	char* obj = (char*)cobj;
 
-	if(errtag[0]) {
-		p = fmtstr(p, end, errtag);
-		p = fmtstr(p, end, ":");
+	char* eend = strpend(err);
+	char* mend = strpend(msg);
+	char* oend = strpend(obj);
+
+	int elen = strelen(err, eend);
+	int mlen = strelen(msg, mend);
+	int olen = strelen(obj, oend);
+	int size = elen + mlen + olen + 32;
+
+	char* buf = alloca(size);
+	char* p = buf;
+	char* e = buf + size - 1;
+
+	if(eend) {
+		p = fmtstre(p, e, err, eend);
+		p = fmtchar(p, e, ':');
 	}
-	if(msg) {
-		p = fmtstr(p, end, " ");
-		p = fmtstr(p, end, msg);
-	} if(obj) {
-		p = fmtstr(p, end, " ");
-		p = fmtstr(p, end, obj);
-	} if(ret && (msg || obj)) {
-		p = fmtstr(p, end, ":");
-	} if(ret) {
-		p = fmtstr(p, end, " ");
-		p = fmterr(p, end, ret);
+	if(mend) {
+		p = fmtchar(p, e, ' ');
+		p = fmtstre(p, e, msg, mend);
+	}
+	if(oend) {
+		p = fmtchar(p, e, ' ');
+		p = fmtstre(p, e, obj, mend);
+	}
+	if(ret && (mlen || olen)) {
+		p = fmtchar(p, e, ':');
+	}
+	if(ret) {
+		p = fmtchar(p, e, ' ');
+		p = fmterr(p, e, ret);
 	}
 
 	*p++ = '\n';
-	sys_write(2, b, p - b);
+
+	sys_write(STDERR, buf, p - buf);
 }
 
 void fail(const char* msg, const char* obj, int ret)
 {
 	warn(msg, obj, ret);
-	_exit(-1);
+
+	_exit(0xFF);
 }

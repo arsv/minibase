@@ -4,11 +4,23 @@
 
 char* fmterr(char* p, char* e, int err)
 {
-	const char* q;
+	void* ptr = (char*)errlist;
 
-	for(q = errlist; *q; q += strlen(q) + 1)
-		if(*((unsigned char*) q) == -err)
-			return fmtstr(p, e, q + 1);
+	while(1) {
+		byte* lead = ptr;;
+		byte code = *lead;
+		char* msg = ptr + 1;
+		char* end = strpend(msg);
+
+		ptr = end + 1;
+
+		if(!code || !end)
+			break;
+		if(code != -err)
+			continue;
+
+		return fmtstre(p, e, msg, end);
+	}
 
 	return fmtint(p, e, err);
 };

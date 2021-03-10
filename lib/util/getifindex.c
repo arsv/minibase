@@ -8,7 +8,7 @@
 int getifindex(int fd, char* ifname)
 {
 	struct ifreq ifreq;
-	size_t len = strlen(ifname);
+	uint len = strnlen(ifname, sizeof(ifreq.name));
 	int ifi;
 	char* p;
 
@@ -21,7 +21,7 @@ int getifindex(int fd, char* ifname)
 	memset(&ifreq, 0, sizeof(ifreq));
 	memcpy(ifreq.name, ifname, len);
 
-	long ret = sys_ioctl(fd, SIOCGIFINDEX, &ifreq);
+	int ret = sys_ioctl(fd, SIOCGIFINDEX, &ifreq);
 
 	if(ret < 0)
 		return ret;

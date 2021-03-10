@@ -13,7 +13,7 @@ static void dump_attr(char* pref, struct nlattr* at);
 static void dump_rec(char* pref, struct nlattr* base)
 {
 	int plen = strlen(pref);
-	char newpref[plen + 3];
+	char* newpref = alloca(plen + 3);
 
 	newpref[0] = ' ';
 	newpref[1] = '|';
@@ -61,11 +61,18 @@ static void at_nest(char* pref, struct nlattr* at)
 
 static void at_string(char* pref, struct nlattr* at, char* str)
 {
-	FMTBUF(p, e, buf, 30 + strlen(str));
+	uint len = strlen(str);
+	uint size = 30 + len;
+	char* buf = alloca(size);
+
+	char* p = buf;
+	char* e = buf + size - 1;
+
 	p = tag(p, e, pref, at, " str ");
 	p = fmtstr(p, e, "\"");
 	p = fmtstr(p, e, str);
 	p = fmtstr(p, e, "\"");
+
 	output(p, e, buf);
 }
 

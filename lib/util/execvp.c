@@ -1,56 +1,58 @@
 #include <sys/proc.h>
 #include <string.h>
+#include <format.h>
 #include <util.h>
 
-static long execvpe_at(char* file, char** argv, char** envp,
-		int flen, char* dir, int dlen)
+static long execvpe_at(char** argv, char** envp, char* file, char* fend,
+		char* dir, char* dend)
 {
-	int len = flen + dlen + 1;
-	char path[len+1];
-	char* p = path;
+	int len = strelen(file, fend) + strelen(dir, dend) + 2;
+	char* path = alloca(len);
 
-	memcpy(p, dir, dlen); p += dlen;
-	*p++ = '/';
-	memcpy(p, file, flen); p += flen;
+	char* p = path;
+	char* e = path + len - 1;
+
+	p = fmtstre(p, e, dir, dend);
+	p = fmtchar(p, e, '/');
+	p = fmtstre(p, e, file, fend);
+
 	*p++ = '\0';
 
 	return sys_execve(path, argv, envp);
 }
 
-static int lookslikepath(const char* file)
-{
-	const char* p;
-
-	for(p = file; *p; p++)
-		if(*p == '/')
-			return 1;
-
-	return 0;
-}
-
 long execvpe(char* file, char** argv, char** envp)
 {
-	/* short-circuit to execve when something resembling path is supplied */
-	if(lookslikepath(file))
+	char* fend = strpend(file);
+
+	if(!file)
+		return -EFAULT;
+	if(!fend)
+		return -ENAMETOOLONG;
+	if(fend == file)
+		return -ENOENT;
+
+	/* short-circuit to execve when something resembling a path is supplied */
+	if(strecbrk(file, fend, '/') < fend)
 		return sys_execve(file, argv, envp);
 
 	char* p = getenv(envp, "PATH");
-	char* e;
-	int flen = strlen(file);
+	char* e = strpend(p);
 
 	/* it's a command and there's no $PATH defined */
 	if(!p) return -ENOENT;
+	if(!e) return -ENAMETOOLONG;
 
-	while(*p) {
-		for(e = p; *e && *e != ':'; e++);
+	while(p < e) {
+		char* q = strecbrk(p, e, ':');
 
-		long ret = execvpe_at(file, argv, envp, flen, p, e - p);
+		int ret = execvpe_at(argv, envp, file, fend, p, q);
 
 		/* we're still here, so execve failed */
 		if((ret != -EACCES) && (ret != -ENOENT) && (ret != -ENOTDIR))
 			return ret;
 
-		p = *e ? e + 1 : e;
+		p = q + 1;
 	}
 
 	return -ENOENT;

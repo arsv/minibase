@@ -170,7 +170,7 @@ void uc_dump(struct ucattr* msg)
 
 	if(paylen > 0) {
 		p = fmtstr(p, e, " +");
-		p = fmtint(p, e, paylen);
+		p = fmtuint(p, e, paylen);
 	};
 
 	FMTENL(p, e);

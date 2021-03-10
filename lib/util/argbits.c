@@ -19,11 +19,11 @@
    The "key" here is a string like "abc". Given -ac for arg, the function
    returns an int with bits 0 (index of a in key) and 2 (index of c) set. */
 
-int argbits(const char* key, const char* arg)
+int argbits(char* key, char* arg)
 {
 	char opt[] = "-?";
-	const char* a;
-	const char* k;
+	char* a;
+	char* k;
 	int ret = 0;
 
 	for(a = arg; *a; a++) {

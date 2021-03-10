@@ -13,7 +13,7 @@ void uc_add_str(struct ucbuf* uc, const char* str)
 	struct ucattr* msg = buf;
 	int ptr = msg->len;
 
-	int len = strlen(str) + 1;
+	int len = strnlen(str, 1024) + 1;
 
 	if(ptr + len > cap) { /* overflow */
 		msg->len = 0;

@@ -24,5 +24,5 @@ void uc_put_bin(struct ucbuf* uc, int key, void* src, int len)
 
 void uc_put_str(struct ucbuf* uc, int key, char* str)
 {
-	uc_put_bin(uc, key, str, strlen(str) + 1);
+	uc_put_bin(uc, key, str, strnlen(str, 1024) + 1);
 }

@@ -3,10 +3,10 @@
 
 #include <cdefs.h>
 
-int argbits(const char* key, const char* arg);
+int argbits(char* key, char* arg);
 
 char* basename(char* path);
-char* getenv(char** envp, const char* key);
+char* getenv(char** envp, char* key);
 
 typedef int (*qcmp2)(void* a, void* b);
 typedef int (*qcmp3)(void* a, void* b, long opts);

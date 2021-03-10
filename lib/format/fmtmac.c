@@ -7,7 +7,7 @@ char* fmtmac(char* p, char* e, uint8_t mac[6])
 	p = fmtbyte(p, e, mac[0]);
 
 	for(i = 1; i < 6; i++) {
-		p = fmtstr(p, e, ":");
+		p = fmtchar(p, e, ':');
 		p = fmtbyte(p, e, mac[i]);
 	};
 

@@ -1,12 +1,12 @@
+#include <string.h>
 #include <format.h>
 
-char* fmtstr(char* dst, char* end, const char* src)
+char* fmtstr(char* p, char* e, const char* str)
 {
-	char* p = dst;
-	const char* q = src;
+	if(p >= e) return p;
 
-	while(p < end && *q)
-		*p++ = *q++;
+	size_t n = e - p;
+	size_t len = strnlen(str, n);
 
-	return p;
+	return fmtraw(p, e, str, len);
 }

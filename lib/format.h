@@ -50,7 +50,7 @@ char* fmtpadr(char* p, char* e, int width, char* q);
 char* fmtsize(char* p, char* e, uint64_t n);
 char* fmtstr(char* p, char* e, const char* src);
 char* fmtstrn(char* p, char* e, const char* src, int len);
-char* fmtstrl(char* p, char* e, const char* src, int len);
+char* fmtstre(char* p, char* e, char* src, char* end);
 
 char* fmttm(char* p, char* e, const struct tm* tm);
 char* fmtulp(char* p, char* e, ulong num, int pad);
