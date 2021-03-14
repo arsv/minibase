@@ -18,11 +18,11 @@ HERE=""  # gets prepended to misc global paths, HERE "/run" -> "./run"
 
 devel_paths()
 {
-	HERE="."
-	BASE_ETC="./etc"
-	INIT_ETC="./etc"
-	BASE_VAR="./var"
-	RUN_CTRL="./run"
+	HERE=`pwd`
+	BASE_ETC="$HERE/etc"
+	INIT_ETC="$HERE/etc"
+	BASE_VAR="$HERE/var"
+	RUN_CTRL="$HERE/run"
 }
 
 optim=-Os
