@@ -14,6 +14,22 @@
 
 #include "ctool.h"
 
+static int allowed_directory(char* name)
+{
+	int ret = 0;
+
+	if(!strcmp(name, "lib"))
+		goto out;
+	if(!strcmp(name, "inc"))
+		goto out;
+	if(!strcmp(name, "obj"))
+		goto out;
+
+	ret = 0;
+out:
+	return ret;
+}
+
 static void check_node(CTX, struct node* nd)
 {
 	int bits = nd->bits;
@@ -22,22 +38,21 @@ static void check_node(CTX, struct node* nd)
 
 	if(!name[0] || (name[0] == '.'))
 		fail("package contains hidden files", NULL, 0);
-	if(!ctx->depth &&
-	   (!strcmp(name, "bin")
-	 || !strcmp(name, "pkg")
-	 || !strcmp(name, "rep")))
-		fail("package contains protected node", name, 0);
 
 	if(bits & TAG_DIR) {
 		int lvl = bits & TAG_DEPTH;
 
 		if(lvl > depth)
 			fail("malformed tree", NULL, 0);
+		if(!ctx->depth && !allowed_directory(name))
+			fail("protected node", name, 0);
 
 		ctx->depth = lvl + 1;
 	} else {
 		int type = bits & TAG_TYPE;
 
+		if(!ctx->depth)
+			fail("package contains top-level files", NULL, 0);
 		if(type == TAG_LINK)
 			fail("package contains symlinks", NULL, 0);
 		if(type == TAG_EXEC)
