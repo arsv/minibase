@@ -1,4 +1,10 @@
 memmove
+memcmp
 natcmp
 dotddot
 strnstr
+strncmp
+strcmp
+strlen
+strnlen
+strpend
