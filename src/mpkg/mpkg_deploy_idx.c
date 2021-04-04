@@ -268,7 +268,7 @@ static void load_index(CTX)
 
 	if((ret = sys_read(fd, tag, sizeof(tag))) < 0)
 		fail("read", NULL, ret);
-	if(ret < sizeof(tag))
+	if(ret < (int)sizeof(tag))
 		fail("package index too short", NULL, 0);
 
 	parse_header_size(ctx, tag);
