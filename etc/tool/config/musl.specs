@@ -1,0 +1,32 @@
+%rename cpp_options old_cpp_options
+
+*cpp_options:
+-nostdinc -isystem $TOOLDIR/inc -isystem include%s %(old_cpp_options)
+
+*cc1:
+%(cc1_cpu) -nostdinc -isystem $TOOLDIR/inc -isystem include%s
+
+*link_libgcc:
+-L$TOOLDIR/lib -L .%s
+
+*libgcc:
+libgcc.a%s %:if-exists(libgcc_eh.a%s)
+
+*startfile:
+%{!shared: $TOOLDIR/obj/Scrt1.o} $TOOLDIR/obj/crti.o crtbeginS.o%s
+
+*endfile:
+crtendS.o%s $libdir/crtn.o
+
+*link:
+-dynamic-linker $INTERP -nostdlib %{shared:-shared} %{static:-static} %{rdynamic:-export-dynamic}
+
+*esp_link:
+
+
+*esp_options:
+
+
+*esp_cpp_options:
+
+

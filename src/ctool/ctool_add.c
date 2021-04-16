@@ -16,7 +16,7 @@
 
 static int allowed_directory(char* name)
 {
-	int ret = 0;
+	int ret = 1;
 
 	if(!strcmp(name, "lib"))
 		goto out;

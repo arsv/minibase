@@ -1,0 +1,20 @@
+# some comment here
+
+prefix /opt/binutils-2.24:bin
+
+link as
+link ld
+link nm
+link objdump
+
+prefix /opt/binutils-2.24:bin
+
+link readelf
+
+prefix /opt/gcc-10.1:bin
+
+config musl.specs
+interp /lib/ld-musl.so
+
+script gcc run-gcc.sh
+script g++ run-gcc.sh

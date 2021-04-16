@@ -68,7 +68,7 @@ struct top {
 	int fail; /* delayed-failure flag, see warnx() */
 };
 
-#define CTX struct top* ctx
+#define CTX struct top* ctx __unused
 
 char* shift(CTX);
 void no_more_arguments(CTX);
@@ -78,8 +78,8 @@ void warnx(CTX, const char* msg, char* name, int err);
 void failx(CTX, const char* msg, char* name, int err) noreturn;
 void failz(CTX, const char* msg, char* name, int err) noreturn;
 
-void cmd_try(CTX);
 void cmd_use(CTX);
+void cmd_try(CTX);
 void cmd_unuse(CTX);
 void cmd_force(CTX);
 void cmd_check(CTX);
