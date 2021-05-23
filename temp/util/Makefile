@@ -1,3 +1,3 @@
-all = execvp
+all = execvp warn
 
 include ../rules.mk
