@@ -24,16 +24,16 @@ void warn(const char* cmsg, const char* cobj, int ret)
 	char* e = buf + size - 1;
 
 	if(eend) {
-		p = fmtstre(p, e, err, eend);
+		p = fmtraw(p, e, err, elen);
 		p = fmtchar(p, e, ':');
 	}
 	if(mend) {
 		p = fmtchar(p, e, ' ');
-		p = fmtstre(p, e, msg, mend);
+		p = fmtraw(p, e, msg, mlen);
 	}
 	if(oend) {
 		p = fmtchar(p, e, ' ');
-		p = fmtstre(p, e, obj, mend);
+		p = fmtraw(p, e, obj, olen);
 	}
 	if(ret && (mlen || olen)) {
 		p = fmtchar(p, e, ':');

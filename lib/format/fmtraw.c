@@ -12,6 +12,3 @@ char* fmtraw(char* p, char* e, const void* data, int len)
 
 	return p + len;
 }
-
-char* fmtstrl(char* p, char* e, const char* str, int len)
-	__attribute__((alias("fmtraw")));
