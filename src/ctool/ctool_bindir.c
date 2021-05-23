@@ -194,6 +194,34 @@ static void link_tool(CCT, char* link, char* target)
 		fail(NULL, link, ret);
 }
 
+static void link_repo(CCT, char* path)
+{
+	int mode = cct->mode;
+	char* name = "rep";
+	int ret;
+	struct stat st;
+
+	if(mode == MD_DRY)
+		return do_stat(name);
+	if(mode == MD_DELE)
+		return do_unlink(name);
+
+	if((ret = sys_stat(path, &st)) < 0)
+		fail(NULL, path, ret);
+	if((st.mode & S_IFMT) != S_IFDIR)
+		fail(NULL, path, -ENOTDIR);
+
+	if((ret = sys_unlink(name)) >= 0)
+		;
+	else if(ret == -ENOENT)
+		;
+	else
+		fail(NULL, name, ret);
+
+	if((ret = sys_symlink(path, name)) < 0)
+		fail(NULL, name, ret);
+}
+
 static void append_raw(CCT, char* p, char* e)
 {
 	void* buf = cct->wrbuf;
@@ -566,6 +594,20 @@ static void key_link(CCT, char* lp, char* le)
 	heap_reset(cct->top, ptr);
 }
 
+static void key_repo(CCT, char* lp, char* le)
+{
+	void* ptr = cct->top->ptr;
+
+	char* path = lp;
+	char* pend = skip_nonspace(path, le);
+
+	char* pstr = copy_string(cct, path, pend);
+
+	link_repo(cct, pstr);
+
+	heap_reset(cct->top, ptr);
+}
+
 static void key_prefix(CCT, char* lp, char* le)
 {
 	char* str = copy_string(cct, lp, le);
@@ -594,6 +636,7 @@ static const struct keyword {
 	{ "config",     key_config },
 	{ "interp",     key_interp },
 	{ "link",       key_link },
+	{ "repo",       key_repo },
 	{ "script",     key_script }
 };
 
