@@ -2,9 +2,8 @@
 
 int strncmp(const char* a, const char* b, size_t n)
 {
-	size_t bn = strnlen(b, n + 1);
-	size_t an = strnlen(a, n);
-	int dn = an - bn;
+	if(!n) return 0;
+	while(*a && --n > 0 && *a == *b) { a++; b++; }
+	return (*a - *b);
 
-	return dn ? dn : memcmp(a, b, an);
 }
