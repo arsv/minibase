@@ -1,0 +1,13 @@
+prefix /usr/bin
+
+link as gas
+link ld
+link nm
+link objdump
+link readelf
+
+config musl.specs
+interp /usr/lib/ld-musl-x86_64.so.1
+
+script gcc run-gcc.sh
+script g++ run-gcc.sh

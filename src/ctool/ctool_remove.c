@@ -23,6 +23,8 @@
 
    but it's a bit more involved than that. */
 
+#define AT_SKIP 0
+
 static void load_filedb(CTX)
 {
 	struct stat st;
@@ -45,13 +47,12 @@ static void load_filedb(CTX)
 
 	if(!size) goto empty;
 
-	int proto = PROT_READ;
-	int flags = MAP_PRIVATE;
+	void* buf = alloc_align(ctx, size);
 
-	void* buf = sys_mmap(NULL, size, proto, flags, fd, 0);
-
-	if((ret = mmap_error(buf)))
-		fail("mmap", NULL, ret);
+	if((ret = sys_read(fd, buf, size)) < 0)
+		fail("read", NULL, 0);
+	else if(ret < (int)size)
+		fail("incomplete read", NULL, 0);
 
 	ctx->head = buf;
 empty:
@@ -76,13 +77,15 @@ static void backtrack_path(CTX, int lvl)
 	for(int i = depth - 1; i >= lvl; i--) {
 		int fd = ctx->at;
 
-		if((fd > 0) && ((ret = sys_close(fd)) < 0))
+		if(fd == AT_SKIP)
+			;
+		else if((ret = sys_close(fd)) < 0)
 			warn("close", NULL, ret);
 
 		int at = ctx->pfds[i];
 		char* name = ctx->path[i];
 
-		if((at == 0) || (i == 0))
+		if((i == 0) || (at == AT_SKIP))
 			;
 		else if((ret = sys_unlinkat(at, name, AT_REMOVEDIR)) >= 0)
 			;
@@ -90,55 +93,88 @@ static void backtrack_path(CTX, int lvl)
 			warn("unlink", name, ret);
 
 		ctx->at = at;
-		ctx->ptr = name;
 	}
 
 	ctx->depth = lvl;
 }
 
-static char* enter_skip_dir(CTX, char* p, char* e)
+/* Given path = [ "inc", "foo" ] and p = "inc/bar/b.h",
+   close "foo" to leave [ "inc" ] in path and return "bar/b.h" */
+
+static char* skip_open_dirs(CTX, char* p, char* e)
 {
+	int depth = ctx->depth;
 	int lvl = 0;
+
+	while((p < e) && (lvl < depth)) {
+		char* ds = p;
+		char* de = strecbrk(p, e, '/');
+
+		if(de >= e)
+			break;
+
+		int dl = de - ds;
+		char* pi = ctx->path[lvl];
+		int pl = strnlen(pi, dl + 1);
+
+		if(pl != dl || memcmp(pi, ds, dl))
+			break;
+
+		*de = '\0';
+		p = de + 1;
+		lvl++;
+	}
+
+	backtrack_path(ctx, lvl);
+
+	return p;
+}
+
+/* Given path = [ "inc" ] and p = "bar/b.h", open "bar", push it into
+   path yielding [ "inc", "bar" ] and return the bare basename, "b.h" */
+
+static char* enter_new_dirs(CTX, char* p, char* e)
+{
 	int ret;
 
 	while(p < e) {
-		char* ds = p;
-		char* de = strecbrk(p, e, '/');
-		int dl = de - ds;
+		char* name = p;
+		char* nend = strecbrk(p, e, '/');
 
-		if(de >= e) break;
+		if(nend >= e)
+			break;
 
-		p = de + 1;
-
-		if(lvl >= ctx->depth) {
-			;
-		} else if(!strncmp(ctx->path[lvl], ds, dl)) {
-			lvl++;
-			continue;
-		} else {
-			backtrack_path(ctx, lvl);
-		}
+		p = nend + 1;
+		*nend = '\0';
 
 		int at = ctx->at;
+		int lvl = ctx->depth;
 
-		char* tmp = alloc_align(ctx, dl + 1);
-		memcpy(tmp, ds, dl);
-		tmp[dl] = '\0';
+		if(lvl >= MAXDEPTH)
+			fail("max depth exceeded", NULL, 0);
 
-		if(at == 0)
+		if(at == AT_SKIP) {
 			ret = at;
-		else if((ret = sys_openat(at, tmp, O_DIRECTORY)) >= 0)
-			;
-		else if(ret == -ENOENT)
-			ret = 0;
-		else
-			fail("open", tmp, ret);
+		} else if((ret = sys_openat(at, name, O_DIRECTORY)) < 0) {
+			if(ret != -ENOENT)
+				fail("open", name, ret);
+			ret = AT_SKIP;
+		}
 
 		ctx->pfds[lvl] = at;
 		ctx->at = ret;
-		ctx->path[lvl] = tmp;
+		ctx->path[lvl] = name;
 		ctx->depth = lvl + 1;
 	}
+
+	return p;
+}
+
+static char* enter_skip_dir(CTX, char* p, char* e)
+{
+	p = skip_open_dirs(ctx, p, e);
+
+	p = enter_new_dirs(ctx, p, e);
 
 	return p;
 }
@@ -149,7 +185,8 @@ static void unlink_tail(CTX, char* p, char* e)
 	void* old = ctx->ptr;
 	int len = e - p;
 
-	if(!at) return;
+	if(at == AT_SKIP)
+		return;
 
 	char* tmp = alloc_align(ctx, len + 1);
 	memcpy(tmp, p, len);
@@ -208,7 +245,18 @@ void prep_filedb_str(CTX, char* name)
 	ctx->fdbpath = path;
 }
 
-static void remove_package(CTX, char* name)
+void remove_package(CTX, char* name)
+{
+	prep_filedb_str(ctx, name);
+
+	load_filedb(ctx);
+
+	unlink_files(ctx);
+
+	unlink_filedb(ctx);
+}
+
+static void remove_entry(CTX, char* name)
 {
 	char* suff = ".list";
 	int slen = strlen(suff);
@@ -224,16 +272,19 @@ static void remove_package(CTX, char* name)
 
 	name[blen] = '\0';
 
-	prep_filedb_str(ctx, name);
+	remove_package(ctx, name);
+}
+
+void remove_bindir_files(CTX)
+{
+	ctx->fdbpath = ".ctool";
 
 	load_filedb(ctx);
 
 	unlink_files(ctx);
-
-	unlink_filedb(ctx);
 }
 
-static void remove_all_packages(CTX)
+void remove_all_packages(CTX)
 {
 	uint size = 4096;
 	void* buf = alloc_align(ctx, size);
@@ -261,7 +312,7 @@ static void remove_all_packages(CTX)
 			if(dotddot(name))
 				continue;
 
-			remove_package(ctx, name);
+			remove_entry(ctx, name);
 
 			heap_reset(ctx, ref);
 		}
@@ -273,21 +324,31 @@ static void remove_all_packages(CTX)
 		fail("close", NULL, ret);
 }
 
-void cmd_remove(CTX)
+static void remove_subdir(char* name)
 {
-	char* name = shift(ctx);
+	int ret;
 
-	no_more_arguments(ctx);
+	if((ret = sys_unlinkat(AT_FDCWD, name, AT_REMOVEDIR)) >= 0)
+		return;
+	if(ret == -ENOTEMPTY)
+		return;
+	if(ret == -ENOENT)
+		return;
 
-	check_workdir(ctx);
+	warn(NULL, name, ret);
+}
 
-	prep_filedb_str(ctx, name);
+static void remove_repo_link(void)
+{
+	int ret;
+	char* name = "rep";
 
-	load_filedb(ctx);
+	if((ret = sys_unlinkat(AT_FDCWD, name, 0)) >= 0)
+		return;
+	if(ret == -ENOENT)
+		return;
 
-	unlink_files(ctx);
-
-	unlink_filedb(ctx);
+	warn(NULL, name, ret);
 }
 
 void cmd_reset(CTX)
@@ -297,4 +358,15 @@ void cmd_reset(CTX)
 	check_workdir(ctx);
 
 	remove_all_packages(ctx);
+
+	remove_bindir_files(ctx);
+
+	remove_subdir("bin");
+	remove_subdir("lib");
+	remove_subdir("inc");
+	remove_subdir("obj");
+	remove_subdir("pkg");
+	remove_repo_link();
+
+	unlink_filedb(ctx);
 }

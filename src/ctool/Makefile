@@ -2,6 +2,9 @@ include ../rules.mk
 
 $(eval $(call bin,ctool,1))
 
-ctool: ctool.o ctool_bindir.o ctool_remove.o ctool_topdir.o \
-	ctool_add.o ctool_add_flist.o ctool_add_index.o ctool_add_match.o \
-	
+ctool: ctool.o \
+	ctool_bin.o \
+	ctool_bin_parse.o \
+	ctool_bin_write.o \
+	ctool_lib.o ctool_lib_flist.o ctool_lib_index.o ctool_lib_match.o \
+	ctool_remove.o

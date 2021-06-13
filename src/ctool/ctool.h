@@ -78,17 +78,16 @@ void warnx(CTX, const char* msg, char* name, int err);
 void failx(CTX, const char* msg, char* name, int err) noreturn;
 void failz(CTX, const char* msg, char* name, int err) noreturn;
 
-void cmd_use(CTX);
-void cmd_try(CTX);
-void cmd_unuse(CTX);
-void cmd_force(CTX);
-void cmd_check(CTX);
 void cmd_init(CTX);
-void cmd_add(CTX);
-void cmd_remove(CTX);
+void cmd_use(CTX);
 void cmd_repo(CTX);
 void cmd_reset(CTX);
 void cmd_rebin(CTX);
+
+void cmd_add(CTX);
+void cmd_del(CTX);
+
+void cmd_reset(CTX);
 void cmd_clear(CTX);
 
 void heap_init(CTX, int size);
@@ -113,3 +112,5 @@ int looks_like_path(char* name);
 void load_index(CTX);
 
 void heap_reset(CTX, void* ptr);
+
+void remove_package(CTX, char* name);

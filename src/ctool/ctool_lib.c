@@ -358,3 +358,14 @@ void cmd_add(CTX)
 
 	unpack_content(ctx);
 }
+
+void cmd_del(CTX)
+{
+	char* name = shift(ctx);
+
+	no_more_arguments(ctx);
+
+	check_workdir(ctx);
+
+	remove_package(ctx, name);
+}

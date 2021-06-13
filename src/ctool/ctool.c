@@ -177,26 +177,16 @@ static void dispatch_word(CTX, char* cmd)
 		return cmd_init(ctx);
 	if(!strcmp(cmd, "use"))
 		return cmd_use(ctx);
-	if(!strcmp(cmd, "try"))
-		return cmd_try(ctx);
-	if(!strcmp(cmd, "unuse"))
-		return cmd_unuse(ctx);
-	if(!strcmp(cmd, "force"))
-		return cmd_force(ctx);
 	if(!strcmp(cmd, "repo"))
 		return cmd_repo(ctx);
 	if(!strcmp(cmd, "add"))
 		return cmd_add(ctx);
-	if(!strcmp(cmd, "rem"))
-		return cmd_remove(ctx);
-	if(!strcmp(cmd, "remove"))
-		return cmd_remove(ctx);
-	if(!strcmp(cmd, "reset"))
-		return cmd_reset(ctx);
+	if(!strcmp(cmd, "del"))
+		return cmd_del(ctx);
 	if(!strcmp(cmd, "rebin"))
 		return cmd_rebin(ctx);
-	if(!strcmp(cmd, "clear"))
-		return cmd_clear(ctx);
+	if(!strcmp(cmd, "reset"))
+		return cmd_reset(ctx);
 
 	fail("unknown command", cmd, 0);
 }
