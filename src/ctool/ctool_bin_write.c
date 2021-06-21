@@ -330,7 +330,6 @@ static char* make_link_target(CCT, char* name)
 		p = fmtstr(p, e, "/");
 	} if(common) {
 		p = fmtstr(p, e, common);
-		p = fmtstr(p, e, "/");
 	}
 
 	p = fmtraw(p, e, name, nlen);
@@ -398,12 +397,14 @@ void do_config(CCT, char* dst, char* src)
 
 }
 
-void do_script(CCT, char* dst, char* src)
+void do_script(CCT, char* dst, char* src, char* tool)
 {
 	int mode = cct->mode;
 
 	char* dstpath = make_dst_path(cct, "bin", dst);
 	char* srcpath = make_src_path(cct, "script", src);
+
+	cct->tool = make_link_target(cct, tool);
 
 	if(mode == MD_DRY)
 		check_nexist(dstpath);
@@ -415,6 +416,8 @@ void do_script(CCT, char* dst, char* src)
 		add_path(cct, dstpath);
 	else
 		bad_mode_trap(cct);
+
+	cct->tool = NULL;
 }
 
 void do_repo(CCT, char* path)
@@ -431,5 +434,4 @@ void do_repo(CCT, char* path)
 		;
 	else
 		bad_mode_trap(cct);
-
 }

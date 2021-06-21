@@ -162,10 +162,9 @@ static void run_script(CCT, ST)
 {
 	char* dst = st_arg_str(st, 0);
 	char* src = st_arg_str(st, 1);
+	char* tool = st_arg_str(st, 2);
 
-	cct->tool = st_arg_str(st, 2);
-
-	do_script(cct, dst, src);
+	do_script(cct, dst, src, tool);
 }
 
 static void run_repo(CCT, ST)
@@ -273,7 +272,7 @@ static void key_prefix(CCT, ST)
 	char* end = strpend(arg);
 	char* sep = strecbrk(arg, end, ':');
 
-	if(!sep) return;
+	if(sep >= end) return;
 
 	*sep = '\0';
 

@@ -45,7 +45,7 @@ struct subcontext {
 void fail_syntax(CCT, const char* msg, char* arg) noreturn;
 
 void do_repo(CCT, char* path);
-void do_script(CCT, char* dst, char* src);
+void do_script(CCT, char* dst, char* src, char* tool);
 void do_config(CCT, char* dst, char* src);
 void do_link(CCT, char* dst, char* target);
 
