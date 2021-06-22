@@ -16,7 +16,7 @@ libgcc.a%s %:if-exists(libgcc_eh.a%s)
 %{!shared: $TOOLDIR/obj/Scrt1.o} $TOOLDIR/obj/crti.o crtbeginS.o%s
 
 *endfile:
-crtendS.o%s $libdir/crtn.o
+crtendS.o%s $TOOLDIR/obj/crtn.o
 
 *link:
 -dynamic-linker $INTERP -nostdlib %{shared:-shared} %{static:-static} %{rdynamic:-export-dynamic}

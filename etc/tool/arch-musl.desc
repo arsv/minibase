@@ -1,6 +1,6 @@
 prefix /usr/bin
 
-link as gas
+link as
 link ld
 link nm
 link objdump
