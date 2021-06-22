@@ -2,6 +2,7 @@
 /config.mk
 /mini-cc
 /out/
+/var/
 *.a
 *.o
 *.d
