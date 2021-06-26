@@ -19,16 +19,26 @@ static void make_subdir(CTX, const char* name)
 	fail(NULL, name, ret);
 }
 
-static void check_no_stamp(CTX)
+static void make_top_dirs(CTX)
+{
+	make_subdir(ctx, "bin");
+	make_subdir(ctx, "lib");
+	make_subdir(ctx, "inc");
+	make_subdir(ctx, "pkg");
+}
+
+static int check_stamp(CTX)
 {
 	char* name = ".ctool";
 	struct stat st;
 	int ret;
 
 	if((ret = sys_lstat(name, &st)) >= 0)
-		fail("already initialized", NULL, 0);
+		return 1;
 	if(ret != -ENOENT)
 		fail(NULL, name, ret);
+
+	return 0;
 }
 
 void check_workdir(CTX)
@@ -115,45 +125,27 @@ static void write_stamp_file(CCT)
 	cct->wrptr = 0;
 }
 
-void cmd_init(CTX)
-{
-	struct subcontext context, *cct = &context;
-
-	check_no_stamp(ctx);
-
-	common_bin_init(ctx, cct);
-
-	run_statements(cct, MD_DRY);
-
-	create_stamp_file(cct);
-
-	run_statements(cct, MD_LIST);
-
-	write_stamp_file(cct);
-
-	make_subdir(ctx, "bin");
-	make_subdir(ctx, "lib");
-	make_subdir(ctx, "inc");
-	make_subdir(ctx, "pkg");
-
-	run_statements(cct, MD_REAL);
-}
-
 void cmd_use(CTX)
 {
 	struct subcontext context, *cct = &context;
 
-	check_workdir(ctx);
+	int stamped = check_stamp(ctx);
 
 	common_bin_init(ctx, cct);
 
 	run_statements(cct, MD_DRY);
 
-	append_stamp_file(cct);
+	if(!stamped)
+		create_stamp_file(cct);
+	else
+		append_stamp_file(cct);
 
 	run_statements(cct, MD_LIST);
 
 	write_stamp_file(cct);
+
+	if(!stamped)
+		make_top_dirs(ctx);
 
 	run_statements(cct, MD_REAL);
 }

@@ -173,8 +173,6 @@ void no_more_arguments(CTX)
 
 static void dispatch_word(CTX, char* cmd)
 {
-	if(!strcmp(cmd, "init"))
-		return cmd_init(ctx);
 	if(!strcmp(cmd, "use"))
 		return cmd_use(ctx);
 	if(!strcmp(cmd, "repo"))

@@ -78,7 +78,6 @@ void warnx(CTX, const char* msg, char* name, int err);
 void failx(CTX, const char* msg, char* name, int err) noreturn;
 void failz(CTX, const char* msg, char* name, int err) noreturn;
 
-void cmd_init(CTX);
 void cmd_use(CTX);
 void cmd_repo(CTX);
 void cmd_reset(CTX);
