@@ -69,7 +69,7 @@ char* parsehex(char* p, int* np);
 char* parsexlong(char* p, ulong* np);
 
 char* parsemac(char* p, byte* mac);
-char* parseip(char* p, byte* ip);
+char* parseip(char* p, byte ip[4]);
 char* parseipmask(char* p, byte* ip, byte* mask);
 
 char* fmtchar(char* p, char* e, char c);
