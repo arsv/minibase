@@ -6,10 +6,6 @@
 .SH SYNOPSIS
 .IP "\fBcd \fI/path/to/tooldir\fR" 4
 Change to the toolchain directory before running following commands.
-.IP "\fBctool\fR \fBinit\fR" 4
-Initialize directory. Run once in order to mark directory as being managed
-by ctool. Subsequent commands will refuse to work unless current directory
-has been properly initialized.
 .IP "\fBctool\fR \fBuse\fR \fItool\fR" 4
 Parse tool description to put some symlinks and/or scripts in ./bin
 .IP "\fBctool\fR \fBuse\fR \fIpath/to/tool.desc\fR" 4
@@ -20,18 +16,10 @@ Use given path as the repository to look up library packages in.
 Deploy specified library package from the repository.
 .IP "\fBctool\fR \fBadd\fR \fIpath/to/libs/libfoo.pac\fR" 4
 Same, with explicit path to the package.
-.IP "\fBctool\fR \fBremove\fR \fIlibfoo\fR" 4
+.IP "\fBctool\fR \fBdel\fR \fIlibfoo\fR" 4
 Remove previously installed package.
-.IP "\fBctool\fR \fBunuse\fR \fItool\fR" 4
-Parse tool description, delete links and scripts from /bin
-.IP "\fBctool\fR \fBunuse\fR \fIpath/to/tool.desc\fR" 4
-Same, with explicit tool description path.
-.IP "\fBctool\fR \fBreset\fR" 4
-Remove all installed libraries, undoing \fBadd\fR commands.
-.IP "\fBctool\fR \fBrebin\fR" 4
-Remove everything from ./bin, undoing all \fBuse\fR commands.
-.IP "\fBctool\fR \fBclear\fR" 4
-Remove all libraries and everything from ./bin
+.IP "\fBctool\fR \fBrebin\fR \fItool\fR" 4
+Remove everything from ./bin, the run \fBuse\fR \fItool\fR.
 '''
 .SH DESCRIPTION
 '''
@@ -62,27 +50,9 @@ instructed to look for headers in inc/ and for libraries in lib/.
 .SS Tool description files
 '''
 These are plain text files describing symlinks and scripts in toolchain's
-bin directory. General format:
+bin directory.
 .P
-.nf
-    # comments
-    
-    prefix /opt/arm-gcc-10.3:bin
-    
-    link gcov
-    
-    script gcc
-    
-    > #!/base/bin/msh
-    > 
-    > exec %PREFIX/bin/gcc -B %TOOL/bin -I %TOOL/inc -L %TOOL/lib "$@"
-.fi
-.P
-This example would produce two files in ./bin, a symlink named gcov
-pointing to /opt/arm-gcc-10.3/bin/gcov, and an executable script named
-gcc with the specified content. \fB%TOOL\fR gets replaced with the full path
-to the toolchain directory, and \fB%PREFIX\fR with the leading part of the
-most recent \fBprefix\fR line.
+TODO: format description.
 '''
 .SS Toolchain directory
 '''
