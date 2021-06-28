@@ -1,6 +1,6 @@
 include ../rules.mk
 
-$(eval $(call bin,ctool,1))
+$(eval $(call bin,ctool))
 
 ctool: ctool.o \
 	ctool_bin.o \

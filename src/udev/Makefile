@@ -1,7 +1,7 @@
 include ../rules.mk
 
-$(eval $(call sys,devinit,8))
-$(eval $(call sys,udevmod,8))
+$(eval $(call sys,devinit))
+$(eval $(call sys,udevmod))
 
 devinit: devinit.o
 

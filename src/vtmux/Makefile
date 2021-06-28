@@ -1,7 +1,7 @@
 include ../rules.mk
 
-$(eval $(call sys,vtmux,8))
-$(eval $(call bin,vtctl,1))
+$(eval $(call sys,vtmux))
+$(eval $(call bin,vtctl))
 $(eval $(call sys,ctrlvt))
 $(eval $(call sys,stubvt))
 $(eval $(call sys,xorgvt))

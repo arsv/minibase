@@ -1,7 +1,7 @@
 include ../rules.mk
 
-$(eval $(call sys,svchub,8))
-$(eval $(call bin,svcctl,1))
+$(eval $(call sys,svchub))
+$(eval $(call bin,svcctl))
 
 $(eval $(call skip,z-badsrv))
 $(eval $(call skip,z-trap))

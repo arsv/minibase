@@ -1,9 +1,9 @@
 include ../rules.mk
 
-$(eval $(call bin,depmod,1))
-$(eval $(call bin,modinfo,1))
-$(eval $(call bin,modprobe,1))
-$(eval $(call bin,lsmod,1))
+$(eval $(call bin,depmod))
+$(eval $(call bin,modinfo))
+$(eval $(call bin,modprobe))
+$(eval $(call bin,lsmod))
 
 modinfo: modinfo.o common_map.o common_zip.o common_elf.o
 

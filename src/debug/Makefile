@@ -1,5 +1,5 @@
 include ../rules.mk
 
-$(eval $(call bin,errno,1))
-$(eval $(call bin,hexdump,1))
-$(eval $(call bin,strings,1))
+$(eval $(call bin,errno))
+$(eval $(call bin,hexdump))
+$(eval $(call bin,strings))
