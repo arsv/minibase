@@ -6,23 +6,25 @@ DESTDIR ?= ./out
 
 .SUFFIXES:
 
-all: libs build
+all: lib.a build strip
 
-libs: lib/all.a
+libs: lib.a
+bins: strip
 
-lib/all.a:
+lib.a:
 	$(MAKE) -C lib
 
-build: lib/all.a
+build: lib.a
 	$(MAKE) -C src
 
-install: libs
-	$(MAKE) -C src DESTDIR=$(abspath $(DESTDIR)) install
+strip:
+	$(MAKE) -C src strip
 
-clean: clean-lib clean-src clean-test clean-temp clean-test clean-out
+clean: clean-lib clean-src clean-test clean-temp
 
-clean-out:
-	rm -fr out/ src/out src/*/out
+clean-lib:
+	rm -f lib.a
+	$(MAKE) -C lib clean
 
 clean-%:
 	$(MAKE) -C $* clean
@@ -30,8 +32,8 @@ clean-%:
 test:
 	$(MAKE) -C test run
 
-.PHONY: test
-.SILENT: build lib/all.a clean-lib clean-src clean-test
+.PHONY: test strip
+.SILENT: build lib.a clean-lib clean-src clean-test
 
 # Allow building files from the top dir
 # Usefule for :make in vim

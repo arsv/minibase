@@ -1,7 +1,5 @@
-include ../rules.mk
+all = ptyhub ptyctl nestvt
 
-$(eval $(call sys,ptyhub))
-$(eval $(call bin,ptyctl))
-$(eval $(call bin,nestvt))
+include ../rules.mk
 
 ptyhub: ptyhub.o ptyhub_ctrl.o ptyhub_proc.o

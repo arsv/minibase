@@ -1,5 +1,5 @@
-include ../rules.mk
+all = cpio
 
-$(eval $(call bin,cpio))
+include ../rules.mk
 
 cpio: cpio.o cpio_common.o cpio_extract.o cpio_create.o cpio_pack.o

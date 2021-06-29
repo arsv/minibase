@@ -1,5 +1,3 @@
-include ../rules.mk
+all = ifcfg ip4addr ip4info
 
-$(eval $(call bin,ifcfg))
-$(eval $(call bin,ip4addr))
-$(eval $(call bin,ip4info))
+include ../rules.mk

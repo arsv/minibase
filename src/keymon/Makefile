@@ -1,7 +1,6 @@
-include ../rules.mk
+all = keymon acpid
 
-$(eval $(call sys,keymon))
-$(eval $(call sys,acpid))
+include ../rules.mk
 
 keymon: keymon.o keymon_conf.o keymon_devs.o keymon_evts.o \
 	keymon_keys.o keymon_mask.o

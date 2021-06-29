@@ -1,6 +1,5 @@
-include ../rules.mk
+all = apphub appctl
 
-$(eval $(call sys,apphub))
-$(eval $(call bin,appctl))
+include ../rules.mk
 
 apphub: apphub.o apphub_ctrl.o apphub_proc.o

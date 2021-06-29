@@ -1,9 +1,6 @@
-include ../rules.mk
+all = depmod modinfo modprobe lsmod
 
-$(eval $(call bin,depmod))
-$(eval $(call bin,modinfo))
-$(eval $(call bin,modprobe))
-$(eval $(call bin,lsmod))
+include ../rules.mk
 
 modinfo: modinfo.o common_map.o common_zip.o common_elf.o
 

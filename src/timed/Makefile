@@ -1,7 +1,6 @@
-include ../rules.mk
+all = timed tictl
 
-$(eval $(call sys,timed))
-$(eval $(call bin,tictl))
+include ../rules.mk
 
 timed: timed.o timed_ctrl.o timed_poll.o timed_sync.o
 

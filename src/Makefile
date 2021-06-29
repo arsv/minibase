@@ -10,11 +10,11 @@ subdirs := $(dir $(sort $(wildcard */Makefile)))
 
 build := $(patsubst %,build-%,$(subdirs)) 
 clean := $(patsubst %,clean-%,$(subdirs))
-install := $(patsubst %,install-%,$(subdirs))
+strip := $(patsubst %,strip-%,$(subdirs))
 
 all: $(build)
 clean: $(clean)
-install: $(install)
+strip: $(strip)
 
 build-%:
 	$(MAKE) -C $*
@@ -22,17 +22,10 @@ build-%:
 clean-%:
 	$(MAKE) -C $* clean
 
-install-%:
-	$(MAKE) -C $* install
+strip-%:
+	$(MAKE) -C $* strip
 
-.SILENT: $(build) $(clean) $(install)
-
-define subtargets
-$1%.o:
-	$$(MAKE) -C $$(dir $$@) $$(notdir $$@)
-endef
-
-$(foreach d,$(subdirs),$(eval $(call subtargets,$d)))
+.SILENT: $(build) $(clean) $(strip)
 
 test:
 	@echo $(subdirs)

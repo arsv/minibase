@@ -1,5 +1,3 @@
-include ../rules.mk
+all = errno hexdump strings
 
-$(eval $(call bin,errno))
-$(eval $(call bin,hexdump))
-$(eval $(call bin,strings))
+include ../rules.mk

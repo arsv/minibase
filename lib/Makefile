@@ -1,24 +1,18 @@
-# This is slightly incorrect, but works well enough. If we let all.a
+# This is slightly incorrect, but works well enough. If we let lib.a
 # alone be the default target, make may scan the objects and decide
-# all.a is up to date *before* entering subdirectories are re-building
+# lib.a is up to date *before* entering subdirectories are re-building
 # those very objects. So just make sure to enter subdirectories first.
 
-default: build all.a
+default: build ../lib.a
 
 include rules.mk
 
 # The atrocity below makes sure directories are entered to build files
 # inside and each directory is only entered once.
-#
-# Listing */*.c from the top directory while also allowing to build them
-# from within each directory makes the build ambiguous, as the rules
-# aren't guaranteed to match, and requires special compiler commands since
-# gcc -c dir/file.c creates file.o instead of dir/file.o.
 
 # Startup code in assembly.
 # The C section below expands into a similar block with .c in place of .s
 # for each of the source subdirectories.
-
 srcs-arch := $(sort $(wildcard arch/$(ARCH)/*.s))
 objs-arch := $(patsubst %.s,%.o,$(srcs-arch))
 
@@ -70,7 +64,5 @@ $(foreach d,$(subdirs),$(eval $(call subdir,$d,c)))
 
 # Common targets
 
-all.a: $(objs)
+../lib.a: $(objs)
 	$(AR) cr $@ $^
-
-clean += */stamp all.a

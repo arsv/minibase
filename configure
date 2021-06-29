@@ -164,7 +164,7 @@ if [ -n "$uselds" -a -f "$ldscript" ]; then
 cat >> mini-cc <<END
 test -n "\$needslib" && \
 	set "\$@" -nostdlib \\
-		-Wl,-\\( "\$base"/lib/all.a -lgcc -Wl,-\\) \\
+		-Wl,-\\( "\$base"/lib.a -lgcc -Wl,-\\) \\
 		-T "\$base"/$ldscript
 
 exec "\$@"
@@ -173,7 +173,7 @@ else
 cat >> mini-cc <<END
 test -n "\$needslib" && \
 	set "\$@" -nostdlib \\
-		-Wl,-\\( "\$base"/lib/all.a -lgcc -Wl,-\\)
+		-Wl,-\\( "\$base"/lib.a -lgcc -Wl,-\\)
 
 exec "\$@"
 END

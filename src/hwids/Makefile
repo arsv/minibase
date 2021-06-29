@@ -1,8 +1,5 @@
-include ../rules.mk
+all = lsusb lspci lsdri inputs
 
-$(eval $(call bin,lsusb))
-$(eval $(call bin,lspci))
-$(eval $(call bin,lsdri))
-$(eval $(call bin,inputs))
+include ../rules.mk
 
 inputs: inputs.o inputs_keys.o inputs_misc.o

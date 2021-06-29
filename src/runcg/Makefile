@@ -1,3 +1,3 @@
-include ../rules.mk
+all = runcg
 
-$(eval $(call sys,runcg))
+include ../rules.mk

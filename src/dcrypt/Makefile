@@ -1,9 +1,6 @@
-include ../rules.mk
+all = passblk dektool deitool dmcrypt
 
-$(eval $(call sys,passblk))
-$(eval $(call bin,dektool))
-$(eval $(call bin,deitool))
-$(eval $(call bin,dmcrypt))
+include ../rules.mk
 
 dektool: dektool.o keytool.o
 deitool: deitool.o keytool.o

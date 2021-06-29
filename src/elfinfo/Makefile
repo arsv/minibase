@@ -1,6 +1,6 @@
-include ../rules.mk
+all = elfinfo
 
-$(eval $(call bin,elfinfo))
+include ../rules.mk
 
 elfinfo: elfinfo.o elfinfo_strings.o \
 	elfinfo_general.o elfinfo_sections.o elfinfo_symbols.o \

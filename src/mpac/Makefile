@@ -1,5 +1,5 @@
-include ../rules.mk
+all = mpac
 
-$(eval $(call bin,mpac))
+include ../rules.mk
 
 mpac: mpac.o mpac_common.o mpac_create.o mpac_extract.o mpac_list.o mpac_pack.o

@@ -1,90 +1,31 @@
 .SUFFIXES:
 .SECONDARY:
+.PHONY: all strip clean
 
 / := ../../
 
 include $/config.mk
 
-DESTDIR ?= $/out
-clean = *.o *.d
-
-bindir = /bin
-sysdir = /sys
-mandir = /man
-
-destbin = $(DESTDIR)$(bindir)
-destsys = $(DESTDIR)$(sysdir)
-destman = $(DESTDIR)$(mandir)
-
-all:
+all: $(all) $(aux)
 
 %.o: %.c
 	$(CC)$(if $(CFLAGS), $(CFLAGS)) -c $<
 
-%: %.o $/lib/all.a
+%: %.o $/lib.a
 	$(LD) -o $@ $(filter %.o,$^)
 
-clean:
-	rm -f $(clean)
+$/lib.a:
+	$(MAKE) -C $/lib
 
-install: install-bin install-man
+$/bin/%: % | $/bin
+	$(STRIP) -o $@ $<
 
-install-bin:
-install-man:
-
-$/lib/all.a:
-	$(MAKE) -C $(dir $@)
-
-$(destbin) $(destsys) $(destman):
+$/bin:
 	mkdir -p $@
 
-# --- --- --- ---
+strip: $(patsubst %,$/bin/%,$(all))
 
-define bin
-all: $1
-
-install-bin: install-$1
-
-install-$1: $1 | $$(destbin)
-	$$(STRIP) -o $$(destbin)/$1 $1
-
-clean += $1
-
-$$(if $2,$$(eval $$(call manpage,$1,$2)))
-endef
-
-# --- --- --- ---
-
-define sys
-all: $1
-
-install-bin: install-$1
-
-install-$1: $1 | $$(destsys)
-	$$(STRIP) -o $$(destsys)/$1 $1
-
-clean += $1
-
-$$(if $2,$$(eval $$(call manpage,$1,$2)))
-endef
-
-# --- --- --- ---
-
-define skip
-all: $1
-
-clean += $1
-endef
-
-# --- --- --- ---
-
-define manpage
-install-man: install-$1.$2
-
-install-$1.$2: $1.$2 | $$(destman)
-	cp -t $$(destman) $1.$2
-endef
-
-# --- --- --- ---
+clean:
+	rm -f *.d *.o $(all) $(aux)
 
 -include *.d

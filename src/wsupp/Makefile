@@ -1,7 +1,6 @@
-include ../rules.mk
+all = wsupp wifi
 
-$(eval $(call sys,wsupp))
-$(eval $(call bin,wifi))
+include ../rules.mk
 
 wsupp: wsupp.o wsupp_eapol.o wsupp_control.o wsupp_slots.o \
 	wsupp_apsel.o wsupp_bssid.o wsupp_script.o wsupp_netlink.o \

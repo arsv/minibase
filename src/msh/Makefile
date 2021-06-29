@@ -1,6 +1,6 @@
-include ../rules.mk
+all = msh
 
-$(eval $(call bin,msh))
+include ../rules.mk
 
 msh: msh.o msh_parser.o msh_common.o \
 	msh_cmd_base.o \
