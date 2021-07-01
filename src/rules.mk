@@ -1,21 +1,12 @@
-.SUFFIXES:
 .SECONDARY:
 .PHONY: all strip clean
 
-/ := ../../
-
-include $/config.mk
-
 all: $(all) $(aux)
 
-%.o: %.c
-	$(CC)$(if $(CFLAGS), $(CFLAGS)) -c $<
+build: all strip
 
 %: %.o $/lib.a
 	$(LD) -o $@ $(filter %.o,$^)
-
-$/lib.a:
-	$(MAKE) -C $/lib
 
 $/bin/%: % | $/bin
 	$(STRIP) -o $@ $<
@@ -27,5 +18,3 @@ strip: $(patsubst %,$/bin/%,$(all))
 
 clean:
 	rm -f *.d *.o $(all) $(aux)
-
--include *.d

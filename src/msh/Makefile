@@ -1,6 +1,9 @@
+/=../../
+
 all = msh
 
 include ../rules.mk
+include $/config.mk
 
 msh: msh.o msh_parser.o msh_common.o \
 	msh_cmd_base.o \
@@ -13,3 +16,5 @@ msh: msh.o msh_parser.o msh_common.o \
 	msh_cmd_sched.o \
 	msh_cmd_sleep.o \
 	msh_cmd_wait.o
+
+-include *.d

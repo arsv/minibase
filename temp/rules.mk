@@ -1,22 +1,10 @@
-.SUFFIXES:
 .SECONDARY:
-
-/ := ../../
-
-include $/config.mk
-
-%.o: %.c
-	$(CC)$(if $(CFLAGS), $(CFLAGS)) -c $<
-
-%: %.o $/lib/all.a
-	$(LD) -o $@ $(filter %.o,$^)
+.PHONY: all clean
 
 all: $(all)
 
+%: %.o $/lib.a
+	$(LD) -o $@ $(filter %.o,$^)
+
 clean:
 	rm -f *.o *.d $(all)
-
-$/lib/all.a:
-	$(MAKE) -C $(dir $@)
-
--include *.d

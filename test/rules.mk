@@ -1,13 +1,6 @@
 .SUFFIXES:
 .SECONDARY:
 
-/ := ../../
-
-include $/config.mk
-
-%.o: %.c
-	$(CC)$(if $(CFLAGS), $(CFLAGS)) -c $<
-
 %: %.o $/lib/all.a
 	$(LD) -o $@ $(filter %.o,$^)
 
@@ -23,5 +16,3 @@ $/lib/all.a:
 
 clean:
 	rm -f *.o *.d $(test)
-
--include *.d

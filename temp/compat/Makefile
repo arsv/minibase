@@ -1,3 +1,5 @@
+/ = ../../
+
 all = \
       basename \
       cat \
@@ -33,3 +35,6 @@ all = \
       yes
 
 include ../rules.mk
+include $/config.mk
+
+-include *.d

@@ -1,15 +1,12 @@
 .SUFFIXES:
 
-/ := $(dir $(wildcard ../configure ../../configure ../../../configure))
-objs = $(patsubst %.c,%.o,$(sort $(wildcard *.c)))
+all: $(patsubst %.c,%.o,$(wildcard *.c))
 
 include $/config.mk
 
 clean = *.o *.d
 
-objs: $(objs)
-
-$(objs): %.o: %.c
+%.o: %.c
 	$(CC)$(if $(cflags), $(cflags)) -c $<
 
 clean:

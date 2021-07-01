@@ -126,6 +126,16 @@ LD = \$(CC)
 AS = \$(CC)
 STRIP = $strip
 QEMU = $qemu
+
+.SUFFIXES:
+
+%.o: %.c
+	\$(CC) -c $<
+
+%.o: %.s
+	\$(CC) -c $<
+
+MAKEFLAGS = -R
 END
 
 cat > mini-cc <<END

@@ -1,6 +1,9 @@
+/ = ../../
+
 all = wsupp wifi
 
 include ../rules.mk
+include $/config.mk
 
 wsupp: wsupp.o wsupp_eapol.o wsupp_control.o wsupp_slots.o \
 	wsupp_apsel.o wsupp_bssid.o wsupp_script.o wsupp_netlink.o \
@@ -8,3 +11,5 @@ wsupp: wsupp.o wsupp_eapol.o wsupp_control.o wsupp_slots.o \
 
 wifi: wifi.o wifi_aplist.o wifi_pskmgm.o wifi_device.o \
 	wifi_fmtaps.o wifi_fmties.o
+
+-include *.d

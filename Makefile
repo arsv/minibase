@@ -2,41 +2,57 @@
 
 include config.mk
 
-DESTDIR ?= ./out
+libdirs = crypto format netlink nlusctl string time util
+libpatt = lib/arch/$(ARCH)/*.o lib/*.o $(patsubst %,lib/%/*.o,$(libdirs))
 
-.SUFFIXES:
+all: libs
+	$(MAKE) bins
 
-all: lib.a build strip
+libs: build-lib-arch build-lib $(patsubst %,build-lib-%,$(libdirs))
+	$(MAKE) lib.a
 
-libs: lib.a
-bins: strip
-
-lib.a:
+build-lib:
 	$(MAKE) -C lib
 
-build: lib.a
+build-lib-arch:
+	$(MAKE) -C lib/arch/$(ARCH)
+
+build-lib-%:
+	$(MAKE) -C lib/$*
+
+lib.a: $(wildcard $(libpatt))
+	ar crDT $@ $^
+
+build:
 	$(MAKE) -C src
 
-strip:
-	$(MAKE) -C src strip
+bins:
+	$(MAKE) -C src build
 
 clean: clean-lib clean-src clean-test clean-temp
 
 clean-lib:
 	rm -f lib.a
-	$(MAKE) -C lib clean
+	rm -f lib/*.o lib/*/*.o lib/arch/*/*.o
+	rm -f lib/*.d lib/*/*.d lib/arch/*/*.d
 
-clean-%:
-	$(MAKE) -C $* clean
+clean-src:
+	$(MAKE) -C src clean
+
+clean-test:
+	$(MAKE) -C test clean
+
+clean-temp:
+	$(MAKE) -C temp clean
 
 test:
 	$(MAKE) -C test run
 
-.PHONY: test strip
-.SILENT: build lib.a clean-lib clean-src clean-test
-
 # Allow building files from the top dir
-# Usefule for :make in vim
+# Useful for :make in vim
 
 src/%.o lib/%.o temp/%.o test/%.o:
 	$(MAKE) -C $(dir $@) $(notdir $@)
+
+.PHONY: all build strip libs test
+.PHONY: clean clean-lib clean-src clean-temp clean-test

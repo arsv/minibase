@@ -6,18 +6,44 @@
 
 include $/config.mk
 
-subdirs := $(dir $(sort $(wildcard */Makefile)))
+subdirs := \
+	apphub \
+	cmd \
+	cpio \
+	ctool \
+	dcrypt \
+	debug \
+	dhconf \
+	elfinfo \
+	hwids \
+	ifmon \
+	keymon \
+	kmod \
+	mpac \
+	mpkg \
+	msh \
+	netcfg \
+	ptyhub \
+	rootfs \
+	runcg \
+	svchub \
+	syslog \
+	timed \
+	udev \
+	utils \
+	vtmux \
+	wsupp
 
 build := $(patsubst %,build-%,$(subdirs)) 
 clean := $(patsubst %,clean-%,$(subdirs))
 strip := $(patsubst %,strip-%,$(subdirs))
 
-all: $(build)
+build: $(build)
 clean: $(clean)
 strip: $(strip)
 
 build-%:
-	$(MAKE) -C $*
+	$(MAKE) -C $* build
 
 clean-%:
 	$(MAKE) -C $* clean
@@ -26,6 +52,7 @@ strip-%:
 	$(MAKE) -C $* strip
 
 .SILENT: $(build) $(clean) $(strip)
+.PHONY: build clean strip
 
 test:
 	@echo $(subdirs)
