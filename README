@@ -80,7 +80,8 @@ For a proper build, run
 
     ./configure
     make
-    make install     # default DESTDIR is ./out
+
+The final target executables will be located in ./bin.
 
 To try the tools without setting up a VM, configure and build
 the project in development mode:
@@ -95,8 +96,8 @@ to force the objects to be rebuilt with the new compiler flags.
 
 To build only the tools from a particular directory:
 
+    make libs
     make -C src/wifi
-    make -C src/wifi install
 
 This should be run after configure.
 
