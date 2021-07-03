@@ -22,7 +22,7 @@ devel_paths()
 	BASE_ETC="$HERE/etc"
 	INIT_ETC="$HERE/etc"
 	BASE_VAR="$HERE/var"
-	RUN_CTRL="$HERE/run"
+	RUN_CTRL="$HERE/var/run"
 }
 
 optim=-Os
