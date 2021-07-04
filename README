@@ -50,7 +50,8 @@ Components currently included in the package:
 
   * application supervisors (apphub, ptyhub)
 
-  - no package manager yet.
+  * package management tools (mpac, mpkg, ctool) [incomplete]
+
   - no audio tools of any kind.
 
 With everything in place, the system should boot on kernel and minibase alone
@@ -97,7 +98,7 @@ to force the objects to be rebuilt with the new compiler flags.
 To build only the tools from a particular directory:
 
     make libs
-    make -C src/wifi
+    make -C src/wsupp
 
 This should be run after configure.
 
