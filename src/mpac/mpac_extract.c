@@ -71,7 +71,31 @@ out:
 	ctx->ptr = ptr;
 }
 
-static void transfer_data(CTX, int fd)
+static void transfer_read(CTX, int fd)
+{
+	uint size = ctx->size;
+
+	void* buf = ctx->databuf;
+	uint max = ctx->datasize;
+
+	while(size > 0) {
+		int chunk, ret;
+
+		if(size > max)
+			chunk = max;
+		else
+			chunk = size;
+
+		if((ret = sys_read(ctx->fd, buf, chunk)) < 0)
+			failx(ctx, "read", NULL, ret);
+		if((ret = writeall(fd, buf, ret)) < 0)
+			failx(ctx, "write", NULL, ret);
+
+		size -= ret;
+	};
+}
+
+static void transfer_send(CTX, int fd)
 {
 	uint size = ctx->size;
 	int ret;
@@ -80,6 +104,14 @@ static void transfer_data(CTX, int fd)
 		fail("sendfile", NULL, ret);
 	if(ret != (int)size)
 		fail("incomplete write", NULL, 0);
+}
+
+static void transfer_data(CTX, int fd)
+{
+	if(ctx->databuf)
+		transfer_read(ctx, fd);
+	else
+		transfer_send(ctx, fd);
 }
 
 static void unpack_file(CTX, int mode)

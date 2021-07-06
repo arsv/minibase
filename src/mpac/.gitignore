@@ -1,4 +1,6 @@
 /mpac
 /tmp
+/out
 /zzz
 *.pac
+*.pac.*

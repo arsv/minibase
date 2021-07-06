@@ -1,11 +1,16 @@
 #include <sys/file.h>
 #include <sys/fpath.h>
+#include <sys/fprop.h>
 #include <sys/dents.h>
+#include <sys/prctl.h>
+#include <sys/proc.h>
 #include <sys/mman.h>
 #include <sys/splice.h>
 
 #include <string.h>
 #include <format.h>
+#include <printf.h>
+#include <config.h>
 #include <main.h>
 #include <util.h>
 
@@ -190,16 +195,136 @@ void load_index(CTX)
 	ctx->iend = head + hoff + hlen;
 }
 
-void open_pacfile(CTX, char* name)
+static void alloc_transfer_buf(CTX)
+{
+	uint size = 1<<20;
+	uint prot = PROT_READ | PROT_WRITE;
+	uint flags = MAP_PRIVATE | MAP_ANONYMOUS;
+
+	void* buf = sys_mmap(NULL, size, prot, flags, -1, 0);
+	int ret;
+
+	if(ctx->databuf && ctx->datasize != size)
+		fail(NULL, NULL, -EFAULT);
+
+	if((ret = mmap_error(buf)))
+		fail("mmap", NULL, ret);
+
+	ctx->databuf = buf;
+	ctx->datasize = size;
+}
+
+static void spawn_pipe(CTX, char* dec, char* path)
+{
+	int ret, pid, fds[2];
+
+	alloc_transfer_buf(ctx);
+
+	if((ret = sys_pipe(fds)) < 0)
+		fail("pipe", NULL, ret);
+
+	if((pid = sys_fork()) < 0)
+		fail("fork", NULL, 0);
+
+	if(pid == 0) {
+		char* args[] = { dec, path, NULL };
+
+		if((ret = sys_prctl(PR_SET_PDEATHSIG, SIGKILL, 0, 0, 0)) < 0)
+			fail("prctl", NULL, ret);
+		if((ret = sys_dup2(fds[1], 1)) < 0)
+			fail("dup2", NULL, ret);
+		if((ret = sys_close(fds[0])) < 0)
+			fail("close", NULL, ret);
+		if((ret = sys_close(fds[1])) < 0)
+			fail("close", NULL, ret);
+
+		ret = sys_execve(*args, args, ctx->envp);
+
+		fail("execve", *args, ret);
+	}
+
+	if((ret = sys_close(fds[1])) < 0)
+		fail("close", NULL, ret);
+
+	ctx->fd = fds[0];
+}
+
+static void open_compressed(CTX, char* name, char* suff)
+{
+	int ret;
+
+	if(*suff != '.')
+		fail("invalid compression suffix", suff, 0);
+
+	char* rest = suff + 1; /* skip the dot */
+
+	if(!*rest)
+		fail("invalid compression suffix", NULL, 0);
+
+	char* pref = BASE_ETC "/mpac/";
+	int plen = strlen(pref);
+	int slen = strlen(suff);
+
+	int len = plen + slen + 2;
+	char* buf = alloca(len);
+	char* p = buf;
+	char* e = p + len - 1;
+
+	p = fmtstr(p, e, pref);
+	p = fmtstr(p, e, rest);
+
+	*p++ = '\0';
+
+	if((ret = sys_access(buf, X_OK)) < 0)
+		fail(NULL, buf, ret);
+
+	spawn_pipe(ctx, buf, name);
+}
+
+static void open_uncompressed(CTX, char* name)
 {
 	int fd;
-
-	check_pac_ext(name);
 
 	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail(NULL, name, fd);
 
 	ctx->fd = fd;
+}
+
+static char* skip_extension(char* p, char* e)
+{
+	while(p < e)
+		if(*(--e) == '.')
+			break;
+
+	return e;
+}
+
+static int equals(char* p, char* e, char* str)
+{
+	int slen = strlen(str);
+	int plen = e - p;
+
+	if(slen != plen)
+		return 0;
+
+	return !memcmp(p, str, plen);
+}
+
+void open_pacfile(CTX, char* name)
+{
+	char* nend = strpend(name);
+	char* suff = skip_extension(name, nend);
+
+	if(equals(suff, nend, ".pac"))
+		return open_uncompressed(ctx, name);
+
+	char* prev = skip_extension(name, suff);
+
+	if(equals(prev, suff, ".pac"))
+		return open_compressed(ctx, name, suff);
+
+	fail("no .pac suffix in", name, 0);
 }
 
 int next_entry(CTX)

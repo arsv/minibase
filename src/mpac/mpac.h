@@ -17,6 +17,7 @@ struct top {
 	int argc;
 	int argi;
 	char** argv;
+	char** envp;
 
 	/* the .pac file being worked on */
 	int fd;
@@ -57,6 +58,9 @@ struct top {
 
 	char* path[MAXDEPTH];
 	int pfds[MAXDEPTH];
+
+	void* databuf;
+	uint datasize;
 };
 
 #define CTX struct top* ctx

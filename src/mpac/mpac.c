@@ -67,6 +67,7 @@ int main(int argc, char** argv)
 	ctx->argc = argc;
 	ctx->argv = argv;
 	ctx->argi = 1;
+	ctx->envp = argv + argc + 1;
 
 	if(argc < 2)
 		fail("too few arguments", NULL, 0);
