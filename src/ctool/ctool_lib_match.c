@@ -125,7 +125,7 @@ static void load_uncompressed(CTX, char* path)
 static void load_compressed(CTX, char* path, char* suff)
 {
 	FMTBUF(q, a, dec, 100);
-	q = fmtstr(q, a, HERE "/etc/mpac/");
+	q = fmtstr(q, a, BASE_ETC "/mpac/");
 	q = fmtstr(q, a, suff);
 	FMTEND(q, a);
 
