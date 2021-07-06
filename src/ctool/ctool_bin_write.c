@@ -10,6 +10,12 @@
 #include "ctool.h"
 #include "ctool_bin.h"
 
+/* The code here enacts individual keywords from the toolchain description.
+
+   Note the heap gets reset between between each call, so these functions
+   call allocate whichever temp values they need but the results are not
+   persistent and cannot be stored. */
+
 static void bad_mode_trap(CCT)
 {
 	fail_syntax(cct, "requested mode missing", NULL);

@@ -7,6 +7,26 @@
 #include "ctool.h"
 #include "ctool_bin.h"
 
+/* Short summary of the code below: take toolchain descriptions,
+   parse it into an internal format statement by statement, then
+   do several passes over the statements.
+
+   The point is to avoid (as much as possible) mid-way errors.
+   Either all statements should go through, or none of them.
+
+       symlink ./bin/as
+       symlink ./bin/ld
+       ...
+
+   The first pass woucd check that ./bin/as, ./bin/ld do not exist,
+   the second pass would write the names down, and finally the third
+   pass would actually create the links.
+
+   For removals, all files created are listed in `.ctool`, in the same
+   exact format as `pkg/(libname).list` use, so just a list of file names.
+   Running subsequent .desc-s appends to the file, assuming there are
+   no conflicts. It is only possible to remove *all* bin files altogether. */
+
 static void make_subdir(CTX, const char* name)
 {
 	int ret, mode = 0755;

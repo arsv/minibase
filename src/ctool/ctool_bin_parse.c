@@ -10,6 +10,13 @@
 #include "ctool.h"
 #include "ctool_bin.h"
 
+/* The code here takes the name of the tool description file
+   and parses into a sequence of struct stmt-s. This is mostly
+   done to have all the strings at hand, and allows for instance
+   keeping a pointer to whatever followed `prefix` 5 lines ago.
+
+   Very little processing actually happens at this stage. */
+
 struct stmt {
 	short len;
 	short line;
