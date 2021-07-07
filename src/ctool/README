@@ -1,10 +1,7 @@
 The C toolchain manager
 ~~~~~~~~~~~~~~~~~~~~~~~
-The point of the tool in this directory is setting up custom per-project
-toolchains, that is, a compiler/linker with a particular set of libraries.
-
-The general workflow with these tools is tomake a custom toolchain for each
-project being worked on by picking tools to use and adding some libraries.
+This tool is meant for setting up per-project toolchains, comprising
+of compiler, linker etc, some headers and linkable libraries.
 
     mkdir /var/tool/project1
     cd /var/tool/project1
@@ -19,12 +16,17 @@ The project can then be configured to use
     LD=/var/tool/project1/bin/ld
     ...
 
-The scripts would invoke the chosen compiler (installed under some other prefix,
-like /opt/arm-gcc-9.3 or whatever) and pass it the right options to use
-the headers and libraries unpacked under
+Both cc and ld above are scripts calling the real cc and ld, wherever those
+are installed, and passing them options to use the libraries from
+/var/tool/project1:
 
-    /var/tool/project1/inc
-    /var/tool/project1/lib
+    #!/bin/sh
+
+    exec /opt/arm-gcc-10.1/gcc \
+            -B /var/tool/project1/bin \
+	    -I /var/tool/project1/inc \
+	    -L /var/tool/project1/lib \
+	    "$@"
 
 Once the project is done, the toolchain directory gets removed whole since
 it only contains the "working copy" of the toolchain.
@@ -37,19 +39,40 @@ in a GNU system. The idea here is to remove the concept of a "system compiler"
 and effectively build everything with cross-compilers, including the code built
 to run locally.
 
-These tools are meant to allow arbitrary pairings between a compiler
-(as in, a bunch of host executables) and a set of target libraries.
+
+Host/target separation
+~~~~~~~~~~~~~~~~~~~~~~
+By design, ctool the host and the target parts of the toolchain differently.
+
+The host parts are the tools that run on the host: compiler, linker, assembler
+and whatever else the project might need. The tools are managed by the system
+package manager, just like any other executables on the host.
+ctool itself doesn't do anything about the host tools, only references them.
+
+The target parts of the toolchain are the headers and the linkable libraries
+which describe the target system for the compiler. These are the parts that
+ctool manages, in the sense of package management.
+
+The intended workflow for a project targeting an ARM Linux system is to
+
+    * install an ARM compiler on the host using the system package manager
+    * use ctool to pair that compiler with libraries for the target system
+
+This approach is a bit at odds with the GNU wordview, and might require some
+extra care when dealing with e.g. GCC private libraries.
 
 
 Library packs
 ~~~~~~~~~~~~~
-Pre-built libraries are packed into mpac archives with two top-level
-directories, "inc" and "lib", containing headers and libraries respectively.
+Pre-built libraries are packed into PAC archives (see ../mpac) with two
+top-level directories, "inc" and "lib", containing headers and linkable
+libraries respectively.
 
     inc/foo.h
     inc/foo/some.h
     inc/foo/other.h
     lib/libfoo.a
+    (or lib/libfoo.so)
 
 These files get unpacked right into the toolchain directory, with only some
 basic checks to avoid overwriting existing files.
@@ -71,7 +94,7 @@ Unlike with library packs, the scripts in bin/ are host-dependent more than
 they are target-dependent, and in most cases must reference the toolchain
 directory itself (to let the compiler know where to look for headers etc).
 
-Simple text substition is used to handle toolchain directory references in
+Simple text substitution is used to handle toolchain directory references in
 in scripts and specs.
 
 See ../../etc/tool/ for some examples.
