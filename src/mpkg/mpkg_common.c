@@ -8,6 +8,8 @@
 
 #include "mpkg.h"
 
+#define DATADIR BASE_VAR "/mpkg"
+
 static void* heap_alloc(CTX, int size)
 {
 	void* brk = ctx->brk;
@@ -60,45 +62,6 @@ void* alloc_align(CTX, int size)
 	return heap_alloc(ctx, size);
 }
 
-char* root_adjust(char* name)
-{
-	if(!name[0])
-		fail("root-adjust empty name", NULL, 0);
-	if(name[0] == '/')
-		return name + 1;
-	if(name[0] == '.' && name[1] == '/')
-		return name + 2;
-
-	return name;
-}
-
-void setup_root(CTX, int fromarg)
-{
-	char* name = fromarg ? shift(ctx) : HERE "/";
-	int fd;
-
-	if((fd = sys_open(name, O_DIRECTORY | O_PATH)) < 0)
-		fail(NULL, name, fd);
-
-	ctx->at = fd;
-	ctx->root = name;
-	ctx->rootfd = fd;
-}
-
-void setup_prefix(CTX, char* path)
-{
-	int fd, at = ctx->rootfd;
-	int flags = O_DIRECTORY | O_PATH;
-
-	path = root_adjust(path);
-
-	if((fd = sys_openat(at, path, flags)) < 0)
-		failz(ctx, NULL, path, fd);
-
-	ctx->at = fd;
-	ctx->pref = path;
-}
-
 static int isalphanum(int c)
 {
 	if(c >= '0' && c <= '9')
@@ -140,14 +103,21 @@ static int check_repo_name(char* name)
 	return 0;
 }
 
-static void set_repo_name(CTX, char* name)
+static void set_repo_name(CTX, char* name, char* nend)
 {
-	if(!name[0])
+	if(name >= nend)
 		fail("empty repo name", NULL, 0);
-	if(check_repo_name(name))
-		fail("invalid repo name", NULL, 0);
 
-	ctx->repo = name;
+	int len = nend - name;
+	char* str = alloc_align(ctx, len + 1);
+
+	memcpy(str, name, len);
+	str[len] = '\0';
+
+	if(check_repo_name(str))
+		fail("invalid repo name", str, 0);
+
+	ctx->group = str;
 }
 
 static void set_package_name(CTX, char* name)
@@ -163,14 +133,17 @@ static void set_package_name(CTX, char* name)
 void take_package_arg(CTX)
 {
 	char* name = shift(ctx);
-	char* sep = strcbrk(name, ':');
+	char* nend = strpend(name);
 
-	if(*sep) {
-		*sep = '\0';
-		set_repo_name(ctx, name);
-		name = sep + 1;
-	}
+	if(!nend) goto name;
 
+	char* sep = strecbrk(name, nend, ':');
+
+	if(sep >= nend) goto name;
+
+	set_repo_name(ctx, name, sep);
+	name = sep + 1;
+name:
 	set_package_name(ctx, name);
 }
 
@@ -178,87 +151,15 @@ void take_pacfile_arg(CTX)
 {
 	char* pac = shift(ctx);
 
-	ctx->pac = pac;
-}
-
-char* pac_name(CTX)
-{
-	char* str = ctx->pac;
-
-	if(!str) fail("unset .pac name", NULL, 0);
-
-	return str;
-}
-
-char* pkg_name(CTX)
-{
-	char* str = ctx->pkg;
-
-	if(!str) fail("unset .pkg name", NULL, 0);
-
-	return str;
-}
-
-char* reg_repo(CTX)
-{
-	return ctx->repo;
-}
-
-char* reg_name(CTX)
-{
-	char* str = ctx->name;
-
-	if(!str) fail("unset package name", NULL, 0);
-
-	return str;
-}
-
-/* Note distrinction: failz is used to report internal stuff like mpkg.conf
-   or the .pkg files while failx/warnx gets called for the files being
-   deployed or removed. Internal files are always root-relative, while
-   package files may be relative to a prefix under the root. */
-
-void failz(CTX, const char* msg, char* name, int err)
-{
-	char* root = ctx->root;
-	int i, n = ctx->depth;
-	int len = 16;
-
-	if(root) len += strlen(root);
-
-	for(i = 0; i < n; i++)
-		len += strlen(ctx->path[i]) + 1;
-
-	if(name) len += strlen(name);
-
-	char* buf = alloca(len);
-	char* p = buf;
-	char* e = buf + len - 1;
-
-	if(root) p = fmtstr(p, e, root);
-
-	p = fmtstr(p, e, "/");
-
-	for(i = 0; i < n; i++) {
-		p = fmtstr(p, e, ctx->path[i]);
-		p = fmtstr(p, e, "/");
-	}
-
-	if(name) p = fmtstr(p, e, name);
-
-	*p++ = '\0';
-
-	fail(msg, buf, err);
+	ctx->pacname = pac;
 }
 
 static void warn_pref_relative(CTX, const char* msg, char* name, int err)
 {
-	char* root = ctx->root;
-	char* pref = ctx->pref;
+	char* pref = ctx->prefix;
 	int i, n = ctx->depth;
 	int len = 16;
 
-	if(root) len += strlen(root) + 1;
 	if(pref) len += strlen(pref) + 1;
 
 	for(i = 0; i < n; i++)
@@ -270,10 +171,7 @@ static void warn_pref_relative(CTX, const char* msg, char* name, int err)
 	char* p = buf;
 	char* e = buf + len - 1;
 
-	if(root) {
-		p = fmtstr(p, e, root);
-		p = fmtstr(p, e, "/");
-	} if(pref) {
+	if(pref) {
 		p = fmtstr(p, e, pref);
 		p = fmtstr(p, e, "/");
 	}
@@ -304,9 +202,92 @@ void failx(CTX, const char* msg, char* name, int err)
 	_exit(0xFF);
 }
 
-
 void need_zero_depth(CTX)
 {
 	if(ctx->depth)
 		fail("non-zero inital depth", NULL, 0);
+}
+
+/* Given the package name, and the settings read from the config,
+   assemble the full path to the .pac file to be installed.
+
+   For instance opt:foo -> /var/repo/opt/foo.gz.pac */
+
+void prep_pacname(CTX)
+{
+	char* name = ctx->name;
+	char* repodir = ctx->repodir;
+	char* suffix = ctx->suffix;
+
+	if(!name)
+		fail("empty package name", NULL, 0);
+	if(!repodir)
+		fail("empty repo dir", NULL, 0);
+
+	int nlen = strlen(name);
+	int rlen = strlen(repodir);
+	int slen = suffix ? strlen(suffix) : 0;
+	int len = nlen + rlen + slen + 10;
+
+	char* path = alloc_align(ctx, len);
+	char* p = path;
+	char* e = path + len - 1;
+
+	p = fmtstr(p, e, repodir);
+	p = fmtchar(p, e, '/');
+	p = fmtstr(p, e, name);
+	p = fmtstr(p, e, ".pac");
+
+	if(suffix) {
+		p = fmtchar(p, e, '.');
+		p = fmtstr(p, e, suffix);
+	}
+
+	*p++ = '\0';
+
+	ctx->pacname = path;
+}
+
+void prep_lstname(CTX)
+{
+	char* group = ctx->group;
+	char* name = ctx->name;
+
+	int len = strlen(DATADIR) + 2;
+
+	len += strlen(name) + 10;
+
+	if(group) len += strlen(group) + 2;
+
+	char* buf = alloc_align(ctx, len);
+
+	char* p = buf;
+	char* e = buf + len - 1;
+
+	p = fmtstr(p, e, DATADIR);
+	p = fmtstr(p, e, "/");
+
+	if(group) {
+		p = fmtstr(p, e, group);
+		p = fmtstr(p, e, "/");
+	}
+
+	p = fmtstr(p, e, name);
+	p = fmtstr(p, e, ".list");
+
+	*p++ = '\0';
+
+	ctx->lstname = buf;
+}
+
+char* copy_string(CTX, char* p, char* e)
+{
+	int len = e - p;
+	char* buf = alloc_align(ctx, len + 1);
+
+	memcpy(buf, p, len);
+
+	buf[len] = '\0';
+
+	return buf;
 }

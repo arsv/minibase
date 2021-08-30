@@ -22,7 +22,8 @@
 /* Additional bits we may set in struct node, along the TAG_ bits above. */
 #define BIT_MARK (1<<10)
 #define BIT_NEED (1<<11)
-#define BIT_EXST (1<<12)
+#define BIT_DENY (1<<12)
+#define BIT_EXST (1<<13)
 
 struct node {
 	char* name;
@@ -30,10 +31,25 @@ struct node {
 	uint bits;   /* TAG and BIT constants above */
 };
 
+#define HLEN_MASK (0x3 << 14)
+#define HLEN_PASS (0x1 << 14)
+#define HLEN_SKIP (0x2 << 14)
+#define HLEN_DENY (0x3 << 14)
+
+struct path {
+	short hlen;
+	char str[];
+};
+
+#define POL_PASS_ALL  0
+#define POL_DENY_REST 1
+#define POL_PASS_REST 2
+
 struct top {
 	int argc;
 	int argi;
 	char** argv;
+	char** envp;
 
 	/* heap pointers */
 	void* brk;
@@ -41,36 +57,44 @@ struct top {
 	void* end;
 
 	/* package description */
-	char* root; /* "/" but could be "/mnt/newroot" or something */
-	char* repo; /* NULL or something glike "musl-arm" */
+	char* group; /* NULL or something glike "musl-arm" */
 	char* name; /* "binutils" */
 
-	char* pref; /* NULL or something like "/opt" */
+	char* prefix;   /* NULL or "/opt" */
+	char* suffix;   /* NULL or "gz" */
+	char* repodir;  /* "/var/packages" */
+	uint prelen;
 
-	int rootfd; /* fd for the root dir above */
+	char* config;   /* "/etc/mpkg.conf" or "/path/to/etc/mpkg.conf" */
+
 	int nullfd; /* fd for /dev/null */
 
 	/* the .pac file being worked on */
-	char* pac;  /* "path/to/binutils-1.11.pac" */
+	char* pacname;  /* "path/to/binutils-1.11.pac" */
 	int pacfd;  /* fd of the above */
 
 	/* corresponding .pkg file */
-	char* pkg;  /* "/var/mpkg/binutils.pac" */
-	int pkgfd;  /* fd of the above */
+	char* lstname;  /* "/var/mpkg/binutils.list" */
+	int lstfd;  /* fd of the above */
 
 	/* pac index and whatever data might have been read with it */
 	void* head; /* a page or more read from the start of the .pac file */
 	uint hoff;  /* offset of the file index (5..7, skipping "PAC?sss") */
 	uint hlen;  /* length of the file index */
-	/* also used for the .pkg file during removal, same logic there */
 
 	/* rebuilt tree */
 	struct node* index; /* contiguous array */
 	uint nodes; /* number of elements in index[] */
 
-	/* mmaped config file */
-	void* cbrk;
-	uint clen;
+	int line;
+	int state;
+	int policy;
+
+	void* paths;
+	void* paend;
+
+	void* databuf;
+	uint datasize;
 
 	/* In several places this tool has to walk directory tree. */
 	int at;    /* fd of the current directory */
@@ -96,33 +120,23 @@ void cmd_deploy(CTX);
 void cmd_remove(CTX);
 void cmd_list(CTX);
 
-void heap_init(CTX, int size);
 void* alloc_tight(CTX, int size);
 void* alloc_exact(CTX, int size);
 void* alloc_align(CTX, int size);
 
 void load_pacfile(CTX);
 void load_config(CTX);
-void check_config(CTX);
+void check_index(CTX);
 
-void parse_pkgname(CTX, char* name);
-void setup_root(CTX, int fromarg);
 void take_package_arg(CTX);
 void take_pacfile_arg(CTX);
 
 void check_filedb(CTX);
 void write_filedb(CTX);
-void load_filedb(CTX);
-void unlink_filedb(CTX);
-
-void setup_prefix(CTX, char* path);
-
-char* root_adjust(char* name);
-
-char* pkg_name(CTX);
-char* pac_name(CTX);
-
-char* reg_name(CTX);
-char* reg_repo(CTX);
 
 void need_zero_depth(CTX);
+
+void prep_pacname(CTX);
+void prep_lstname(CTX);
+
+char* copy_string(CTX, char* p, char* e);

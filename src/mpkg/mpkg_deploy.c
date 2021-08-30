@@ -15,9 +15,8 @@
 
 /* Deploy procedure overview:
 
-    * parse arguments, locate target root etc
-    * read the index index from the .pac file
-    * check it against the rule in config file
+    * locate and open the .pac file, load its index
+    * check the index against the rules in config file
     * check the index for filesystem conflicts
     * save the list of stuff to be deployed
     * unpack everything
@@ -159,7 +158,32 @@ static void unpack_back(CTX, int lvl)
 	ctx->depth = depth;
 }
 
-static void transfer_data(CTX, struct node* nd, int fd)
+static void transfer_read(CTX, struct node* nd, int fd)
+{
+	char* name = nd->name;
+	uint size = nd->size;
+
+	void* buf = ctx->databuf;
+	uint max = ctx->datasize;
+
+	while(size > 0) {
+		int chunk, ret;
+
+		if(size > max)
+			chunk = max;
+		else
+			chunk = size;
+
+		if((ret = sys_read(ctx->pacfd, buf, chunk)) < 0)
+			failx(ctx, "read", NULL, ret);
+		if((ret = writeall(fd, buf, ret)) < 0)
+			failx(ctx, "write", name, ret);
+
+		size -= ret;
+	};
+}
+
+static void transfer_send(CTX, struct node* nd, int fd)
 {
 	char* name = nd->name;
 	uint size = nd->size;
@@ -168,9 +192,17 @@ static void transfer_data(CTX, struct node* nd, int fd)
 	if(!size) return;
 
 	if((ret = sys_sendfile(fd, ctx->pacfd, NULL, size)) < 0)
-		failx(ctx, NULL, name, ret);
+		failx(ctx, "sendfile", name, ret);
 	if(ret != (int)size)
-		failx(ctx, NULL, name, -EINTR);
+		failx(ctx, "sendfile", name, -EINTR);
+}
+
+static void transfer_data(CTX, struct node* nd, int fd)
+{
+	if(ctx->databuf)
+		transfer_read(ctx, nd, fd);
+	else
+		transfer_send(ctx, nd, fd);
 }
 
 static int read_data(CTX, void* buf, uint size)
@@ -328,6 +360,20 @@ static void maybe_open_null(CTX)
 	ctx->nullfd = fd;
 }
 
+static void setup_prefix(CTX)
+{
+	int fd, flags = O_DIRECTORY | O_PATH;
+	char* path = ctx->prefix;
+
+	if(!path)
+		ctx->prefix = path = "/";
+
+	if((fd = sys_open(path, flags)) < 0)
+		fail(NULL, path, fd);
+
+	ctx->at = fd;
+}
+
 /* Possible invocations:
 
     deploy [repo:]name archive.pac
@@ -337,18 +383,17 @@ static void maybe_open_null(CTX)
 
 void cmd_deploy(CTX)
 {
-	int n = args_left(ctx);
-
-	setup_root(ctx, n > 2);
 	take_package_arg(ctx);
-	take_pacfile_arg(ctx);
 	no_more_arguments(ctx);
 
 	load_config(ctx);
+	prep_pacname(ctx);
+	prep_lstname(ctx);
 	load_pacfile(ctx);
 
+	setup_prefix(ctx);
 	check_filedb(ctx);
-	check_config(ctx);
+	check_index(ctx);
 	check_conflict(ctx);
 	write_filedb(ctx);
 

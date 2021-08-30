@@ -1,7 +1,12 @@
 #include <sys/mman.h>
 #include <sys/file.h>
+#include <sys/proc.h>
+#include <sys/prctl.h>
+#include <sys/fprop.h>
 
+#include <config.h>
 #include <string.h>
+#include <format.h>
 #include <util.h>
 
 #include "mpkg.h"
@@ -66,47 +71,6 @@ static void parse_name(TCX, struct node* nd)
 
 	nd->name = name;
 	tcx->p = p + 1;
-}
-
-static int check_chars(char* name)
-{
-	byte* p = (byte*)name;
-	byte c;
-
-	while((c = *p++))
-		if(c < 0x20)
-			break;
-		else if(c == '/')
-			break;
-
-	return c;
-}
-
-/* Make sure we aren't unpacking ".." and other weird things.
-
-   Also, enforce strict entry order so that config-driven tree tagging
-   would not need to worry about duplicate dir entries later. Currently
-   it does simple pick-first-matching traversal, with duplicate entries
-   it would need to do much more elaborate search. */
-
-static void validate_name(TCX, struct node* nd)
-{
-	char* name = nd->name;
-
-	if(!name[0])
-		fail("empty node name", NULL, 0);
-	if(name[0] == '.')
-		fail("invalid node name:", name, 0);
-
-	if(check_chars(name))
-		fail("invalid node name:", name, 0);
-
-	char* last = tcx->last;
-
-	if(last && strcmp(last, name) >= 0)
-		fail("name out of order:", name, 0);
-
-	tcx->last = name;
 }
 
 /* We store path for error messages and such, we also store the last
@@ -180,8 +144,6 @@ static int take_node(TCX)
 		parse_size(tcx, nd);
 
 	parse_name(tcx, nd);
-
-	validate_name(tcx, nd);
 
 	if(lead & TAG_DIR)
 		enter_dir(tcx, nd);
@@ -296,24 +258,89 @@ static void load_index(CTX)
 	ctx->head = head;
 }
 
-static void check_pac_ext(char* name)
+static void alloc_transfer_buf(CTX)
 {
-	int nlen = strlen(name);
+	uint size = 1<<20;
+	uint prot = PROT_READ | PROT_WRITE;
+	uint flags = MAP_PRIVATE | MAP_ANONYMOUS;
 
-	if(nlen <= 4)
-		;
-	else if(!strncmp(name + nlen - 4, ".pac", 4))
-		return;
+	void* buf = sys_mmap(NULL, size, prot, flags, -1, 0);
+	int ret;
 
-	fail("no .pac suffix", NULL, 0);
+	if(ctx->databuf && ctx->datasize != size)
+		fail(NULL, NULL, -EFAULT);
+
+	if((ret = mmap_error(buf)))
+		fail("mmap", NULL, ret);
+
+	ctx->databuf = buf;
+	ctx->datasize = size;
 }
 
-static void open_pacfile(CTX)
+static void spawn_pipe(CTX, char* dec, char* path)
+{
+	int ret, pid, fds[2];
+
+	alloc_transfer_buf(ctx);
+
+	if((ret = sys_pipe(fds)) < 0)
+		fail("pipe", NULL, ret);
+
+	if((pid = sys_fork()) < 0)
+		fail("fork", NULL, 0);
+
+	if(pid == 0) {
+		char* args[] = { dec, path, NULL };
+
+		if((ret = sys_prctl(PR_SET_PDEATHSIG, SIGKILL, 0, 0, 0)) < 0)
+			fail("prctl", NULL, ret);
+		if((ret = sys_dup2(fds[1], 1)) < 0)
+			fail("dup2", NULL, ret);
+		if((ret = sys_close(fds[0])) < 0)
+			fail("close", NULL, ret);
+		if((ret = sys_close(fds[1])) < 0)
+			fail("close", NULL, ret);
+
+		ret = sys_execve(*args, args, ctx->envp);
+
+		fail("execve", *args, ret);
+	}
+
+	if((ret = sys_close(fds[1])) < 0)
+		fail("close", NULL, ret);
+
+	ctx->pacfd = fds[0];
+}
+
+static void open_compressed(CTX)
+{
+	int ret;
+
+	char* pacpath = ctx->pacname;
+	char* suffix = ctx->suffix;
+
+	char* dir = BASE_ETC "/mpac/";
+	int len = strlen(dir) + strlen(suffix) + 2;
+	char* decpath = alloca(len);
+
+	char* p = decpath;
+	char* e = decpath + len - 1;
+
+	p = fmtstr(p, e, dir);
+	p = fmtstr(p, e, suffix);
+
+	*p++ = '\0';
+
+	if((ret = sys_access(decpath, X_OK)) < 0)
+		fail(NULL, decpath, ret);
+
+	spawn_pipe(ctx, decpath, pacpath);
+}
+
+static void open_uncompressed(CTX)
 {
 	int fd;
-	char* name = pac_name(ctx);
-
-	check_pac_ext(name);
+	char* name = ctx->pacname;
 
 	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail(NULL, name, fd);
@@ -323,7 +350,10 @@ static void open_pacfile(CTX)
 
 void load_pacfile(CTX)
 {
-	open_pacfile(ctx);
+	if(ctx->suffix)
+		open_compressed(ctx);
+	else
+		open_uncompressed(ctx);
 
 	load_index(ctx);
 

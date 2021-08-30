@@ -1,5 +1,6 @@
 #include <sys/file.h>
 #include <sys/mman.h>
+#include <sys/fprop.h>
 
 #include <config.h>
 #include <format.h>
@@ -9,424 +10,393 @@
 
 #include "mpkg.h"
 
-#define CONFIG BASE_ETC "/mpkg.conf"
+/* The config is parsed before loading the package index, in part to allow
+   repo paths to be specified there. All the stringy values (from, into etc)
+   get moved onto the stack, then the config gets unmmaped.
 
-/* With the index loaded and the tree re-built, we need to verify that
-   the package is compliant with the local policy, that is, it does not
-   install stuff outside of allowed directories. If that's the case, we
-   report offending paths and abort.
+   The parsed path statements (pass/skip/deny) are assembled in ctx->paths.
+   Later, after the package gets loaded, the deploy code will go over the
+   paths and make sure the package complies.
 
-   While doing that, we also put marks on index nodes to indicate which
-   files we want to install (BIT_NEED) and which we want to skip (no
-   BIT_NEED). */
+   To make things a bit simpler, all non-path statements must preceede the
+   paths ones. This way, paths are guaranteed to end up in a contiguous chunk
+   on the heap so ctx->paths/paend are enough. */
 
-#define MAXCONF (1<<20)
+#define CONFIG BASE_ETC "/packages"
 
-struct configctx {
-	struct top* ctx;
-	char* repo;
-	char* prefix;
-	int line;
-	int active;
-	int gotact;
-	int marked;
-	int nopref;
+#define MAXCONF (1<<16) /* bytes */
 
-	struct node* ns;
-	struct node* ne;
+/* parser states (ctx->state) */
 
-	int mark;
-	uint depth;
-	struct node* stack[MAXDEPTH];
-};
+#define ST_OUT  0
+#define ST_IN   1
+#define ST_RULE 2
+#define ST_POST 3
 
-#define CCT struct configctx* cct
-
-static void report_syntax(CCT, char* msg)
+static int isspace(char c)
 {
-	FMTBUF(p, e, buf, 200);
-	p = fmtstr(p, e, CONFIG);
+	return (c == ' ' || c == '\t');
+}
+
+static char* skip_nonspace(char* p, char* e)
+{
+	for(; p < e; p++)
+		if(isspace(*p))
+			break;
+
+	return p;
+}
+
+static char* skip_space(char* p, char* e)
+{
+	for(; p < e; p++)
+		if(!isspace(*p))
+			break;
+
+	return p;
+}
+
+static char* trim_right(char* p, char* e)
+{
+	while(p < e) {
+		char* q = e - 1;
+
+		if(!isspace(*q))
+			break;
+
+		e = q;
+	}
+
+	return e;
+}
+
+void fail_syntax(CTX, const char* msg, char* arg)
+{
+	int clen = strlen(ctx->config);
+	int mlen = strlen(msg);
+	int need = clen + mlen + 20;
+
+	char* buf = alloca(need);
+
+	char* p = buf;
+	char* e = buf + need - 1;
+
+	p = fmtstr(p, e, ctx->config);
 	p = fmtstr(p, e, ":");
-	p = fmtint(p, e, cct->line);
+	p = fmtint(p, e, ctx->line);
 	p = fmtstr(p, e, ": ");
 	p = fmtstr(p, e, msg);
-	FMTENL(p, e);
 
-	(void)sys_write(STDERR, buf, p - buf);
+	if(arg) {
+		p = fmtstr(p, e, " ");
+		p = fmtstr(p, e, arg);
+	}
+
+	*p++ = '\n';
+
+	writeall(STDERR, buf, p - buf);
 
 	_exit(0xFF);
 }
 
-static void check_marks(CCT)
+static void key_group(CTX, char* p, char* e)
 {
-	struct top* ctx = cct->ctx;
-	struct node* nd = ctx->index;
-	struct node* ne = nd + ctx->nodes;
+	char* group = ctx->group;
 
-	for(; nd < ne; nd++) {
-		int bits = nd->bits;
-		char* name = nd->name;
-
-		if(!(bits & BIT_MARK))
-			warnx(ctx, NULL, name, -EPERM);
-
-		if(!(bits & TAG_DIR))
-			continue;
-
-		int depth = ctx->depth;
-		int lvl = bits & TAG_DEPTH;
-
-		if(depth < lvl)
-			continue;
-		if(depth > lvl)
-			depth = lvl;
-		if(depth >= MAXDEPTH)
-			warnx(ctx, NULL, name, -ELOOP);
-
-		ctx->path[depth] = name;
-		ctx->depth = depth + 1;
+	if(!group) {
+		ctx->state = ST_POST;
+		return;
 	}
 
-	ctx->depth = 0;
+	int gl = strlen(group);
+	int al = e - p;
 
-	if(ctx->fail) fail("unable to continue", NULL, 0);
-}
-
-static void mark_all_nodes(CCT)
-{
-	struct top* ctx = cct->ctx;
-	struct node* nd = ctx->index;
-	struct node* ne = nd + ctx->nodes;
-
-	for(; nd < ne; nd++) {
-		int bits = nd->bits;
-
-		if(bits & BIT_MARK) continue;
-
-		nd->bits = bits | BIT_MARK | BIT_NEED;
+	if((gl == al) && !memcmp(p, group, gl)) {
+		if(ctx->state == ST_OUT)
+			ctx->state = ST_IN;
+		else
+			fail_syntax(ctx, "duplicate group", NULL);
+	} else {
+		if(ctx->state != ST_OUT)
+			ctx->state = ST_POST;
 	}
 }
 
-static void mark_down(CCT, struct node* nd, int depth)
+static char* copy_rel_path(CTX, char* arg, char* end)
 {
-	struct node* ne = cct->ne;
-	int mark = cct->mark;
+	char* here = HERE;
+	int alen = end - arg;
+	int hlen = strlen(here);
+	int need = hlen + alen + 2;
 
-	for(; nd < ne; nd++) {
-		int bits = nd->bits;
+	char* buf = alloc_align(ctx, need);
 
-		if(bits & TAG_DIR) {
-			int lvl = bits & TAG_DEPTH;
-			if(lvl < depth) return;
-		}
+	char* p = buf;
+	char* e = buf + need - 1;
 
-		nd->bits = bits | mark;
-	}
+	p = fmtraw(p, e, here, hlen);
+	p = fmtchar(p, e, '/');
+	p = fmtraw(p, e, arg, alen);
+
+	*p++ = '\0';
+
+	return buf;
 }
 
-static void mark_glob(CCT, struct node* nd)
+static char* copy_abs_path(CTX, char* arg, char* end)
 {
-	mark_down(cct, nd, cct->depth);
-}
+	int len = end - arg;
+	int need = len + 1;
 
-static void mark_leaf(CCT, struct node* nd)
-{
-	int bits = nd->bits;
+	char* buf = alloc_align(ctx, need);
 
-	if(!(cct->mark & BIT_NEED))
-		; /* we can skip regular files */
-	else if(!(bits | TAG_DIR))
-		return; /* we cannot mark regular files */
+	memcpy(buf, arg, len);
 
-	nd->bits = bits | cct->mark;
-
-	int depth = bits & TAG_DEPTH;
-
-	mark_down(cct, nd + 1, depth + 1);
-}
-
-static void mark_back(CCT)
-{
-	int i, n = cct->depth;
-	int mark = cct->mark;
-
-	for(i = 0; i < n; i++) {
-		struct node* nd = cct->stack[i];
-		nd->bits |= mark;
-	}
-}
-
-/* Config line:
-
-        +-- parent node
-        v
-   /foo/bar/baz/blah
-            ^  ^
-	    p  e
-
-   Corresponding index structure:
-
-       0 foo
-       1 bar
-       - somefile        <-- nd = first child of the parent node
-       - someotherfile
-       2 boo
-       - yetanotherfile
-       ....
-       3 subdir
-       ....
-       2 baz             <-- the node we need to locate and return
-       - onemorefile
-       0 nei             <-- end of search, above our target level
-       ....
-
-   Note we may need to skip over nodes below our search level.
-   We are only interested in nodes that are exactly at cct->depth */
-
-
-static struct node* locate_node(CCT, struct node* nd, char* p, char* q)
-{
-	struct node* ne = cct->ne;
-	int depth = cct->depth;
-	int level = depth;
-
-	char* req_name = p;
-	int req_nlen = q - p;
-
-	for(; nd < ne; nd++) {
-		int bits = nd->bits;
-
-		if(bits & TAG_DIR) {
-			int bits = nd->bits;
-			int lvl = bits & TAG_DEPTH;
-
-			if(lvl < depth)
-				return NULL;
-
-			level = lvl;
-		}
-
-		if(level > depth)
-			continue;
-
-		char* name = nd->name;
-		int nlen = strlen(name);
-
-		if(nlen != req_nlen)
-			continue;
-		if(memcmp(name, req_name, nlen))
-			continue;
-
-		if(bits & TAG_DIR)
-			level++;
-
-		return nd;
-	}
-
-	return NULL;
-}
-
-/* Locate specified, node, make sure it's a directory, and return
-   its first child. Note directories may be empty, in which case
-   we'd return the next siblilng or even something more remote.
-   That's fine, we'll detect it later by looking at its level. */
-
-static struct node* locate_dir(CCT, struct node* nd, char* p, char* q)
-{
-	if(!(nd = locate_node(cct, nd, p, q)))
-		return nd;
-	if(!(nd->bits & TAG_DIR))
-		nd = NULL;
-
-	if(nd + 1 >= cct->ne) /* make sure (nd+1) is still valid */
-		return NULL;
-
-	int depth = cct->depth;
-
-	if(depth >= MAXDEPTH)
-		return NULL;
-
-	cct->stack[depth] = nd;
-	cct->depth = depth + 1;
-
-	return nd + 1;
-}
-
-/* Given a path from the config,
-
-      /lib/musl-x86
-       ^           ^
-       ls          le
-
-   place marks to ensure this path, if present in the package,
-   gets installed.
-
-   To do that, we locate the terminal node (musl-x86 in this case),
-   mark it, mark everything under it if it's a directory, and mark
-   the path components leading to the node (lib in this case). */
-
-static void mark_path(CCT, char* ls, char* le)
-{
-	struct node* nd = cct->ns;
-
-	if(cct->depth)
-		fail("non-zero initial depth", NULL, 0);
-
-	cct->nopref = 1;
-
-	char* p = ls;
-	char* e = le;
-
-	while(p < e) {
-		char* q = strecbrk(p, e, '/');
-
-		if(q >= e) /* last path component */
-			break;
-
-		if(!(nd = locate_dir(cct, nd, p, q)))
-			return;
-
-		p = q + 1;
-	}
-
-	if(p >= e) /* "a/b/c/", with trailing slash */
-		mark_glob(cct, nd);
-	else if(!(nd = locate_node(cct, nd, p, e)))
-		goto out;
-	else
-		mark_leaf(cct, nd);
-
-	if(cct->depth)
-		mark_back(cct);
-out:
-	cct->depth = 0;
-}
-
-static void tree_mark(CCT, char* ls, char* le)
-{
-	cct->marked = 1;
-	cct->mark = BIT_MARK | BIT_NEED;
-
-	mark_path(cct, ls, le);
-}
-
-static void tree_skip(CCT, char* ls, char* le)
-{
-	cct->mark = BIT_MARK;
-
-	mark_path(cct, ls, le);
-}
-
-static void group_prefix(CCT, char* ls, char* le)
-{
-	struct top* ctx = cct->ctx;
-
-	if(cct->prefix)
-		report_syntax(cct, "duplicate prefix directive");
-	if(cct->nopref)
-		report_syntax(cct, "misplaced prefix directive");
-
-	int len = le - ls;
-	char* buf = alloc_align(ctx, len + 1);
-
-	memcpy(buf, ls, len);
 	buf[len] = '\0';
 
-	cct->prefix = buf;
+	return buf;
 }
 
-static void enter_section(CCT, char* ls, char* le)
+static void set_absrel(CTX, char* arg, char* end, char** dst)
 {
-	char* repo = cct->repo;
-	int active = 0;
+	int state = ctx->state;
 
-	if(!repo)
-		goto out;
-
-	int rlen = strlen(repo);
-	int slen = le - ls;
-
-	if(rlen != slen)
-		goto out;
-	if(memcmp(repo, ls, slen))
-		goto out;
-
-	active = 1;
-	cct->gotact = active;
-	cct->nopref = 0;
-out:
-	cct->active = active;
-}
-
-static void parse_line(CCT, char* ls, char* le)
-{
-	if(ls >= le) return; /* empty line */
-
-	char lead = *ls++;
-
-	if(lead == '#')
+	if(state == ST_OUT)
 		return;
-	if(lead == '@')
-		return enter_section(cct, ls, le);
-	if(!cct->active)
+	if(state == ST_POST)
 		return;
-	if(lead == '=')
-		return group_prefix(cct, ls, le);
-	if(lead == '/')
-		return tree_mark(cct, ls, le);
-	if(lead == '-')
-		return tree_skip(cct, ls, le);
 
-	report_syntax(cct, "invalid syntax");
-}
+	if(state == ST_RULE)
+		fail_syntax(ctx, "misplaced keyword", NULL);
+	if(*dst)
+		fail_syntax(ctx, "duplicate statement", NULL);
+	if(arg >= end)
+		fail_syntax(ctx, "empty argument", NULL);
 
-static void report_repo(CCT)
-{
-	struct top* ctx = cct->ctx;
+	char* str;
 
-	if(ctx->repo)
-		fail("no rules defined for this repo", NULL, 0);
+	if(*arg == '/')
+		str = copy_abs_path(ctx, arg, end);
 	else
-		fail("no default deploy rules defined", NULL, 0);
+		str = copy_rel_path(ctx, arg, end);
+
+	*dst = str;
 }
 
-static int grpdone(CCT)
+static void key_from(CTX, char* p, char* e)
 {
-	return (cct->gotact && !cct->active);
+	set_absrel(ctx, p, e, &(ctx->repodir));
 }
 
-static void mark_valid(CCT)
+static void key_into(CTX, char* p, char* e)
 {
-	struct top* ctx = cct->ctx;
-	char* ptr = ctx->cbrk;
-	char* end = ptr + ctx->clen;
+	set_absrel(ctx, p, e, &(ctx->prefix));
+}
 
-	while(ptr < end) {
-		char* ls = ptr;
-		char* le = strecbrk(ptr, end, '\n');
+static inline uint align4(uint x)
+{
+	return (x + 3) & ~3;
+}
 
-		if(le >= end) break;
+static void append_rule(CTX, char* p, char* e, int flag)
+{
+	struct path* pp;
 
-		cct->line++;
+	int len = e - p;
+	int need = align4(sizeof(*pp) + len + 1);
 
-		parse_line(cct, ls, le);
+	if(p >= e)
+		fail_syntax(ctx, "empty path", NULL);
+	if(len >= 4096)
+		fail_syntax(ctx, "path too long", NULL);
 
-		if(grpdone(cct)) break;
+	pp = alloc_exact(ctx, need);
 
-		ptr = le + 1;
+	pp->hlen = need | flag;
+	memcpy(pp->str, p, len);
+	pp->str[len] = '\0';
+}
+
+/* There are two ways of describing the allowed package tree:
+
+       pass, pass, pass (and deny the rest), or
+       deny, deny, deny (and pass the rest)
+
+   Having both pass and deny statements in the same group makes no sense.
+
+   The original approach was to only have deny-rest option, but there may
+   be cases where pass-rest would be a more natural approach for the user,
+   so it was added. Having this second option also allows makes handling
+   the no-rules case (pass-all) more straightforward. */
+
+static void update_policy(CTX, int flag)
+{
+	int pol = ctx->policy;
+
+	if(flag & HLEN_PASS) {
+		if(pol == POL_PASS_REST)
+			fail_syntax(ctx, "pass after deny", NULL);
+
+		pol = POL_DENY_REST;
+	} else if(flag & HLEN_DENY) {
+		if(pol == POL_DENY_REST)
+			fail_syntax(ctx, "deny after pass", NULL);
+
+		pol = POL_PASS_REST;
 	}
+
+	ctx->policy = pol;
+}
+
+static void common_path(CTX, char* p, char* e, int flag)
+{
+	int state = ctx->state;
+
+	if(state == ST_OUT)
+		return;
+	if(state == ST_POST)
+		return;
+
+	if(state == ST_IN) {
+		ctx->paths = ctx->ptr;
+		ctx->state = ST_RULE;
+	}
+
+	if(p >= e)
+		fail_syntax(ctx, "empty path", NULL);
+	if(*p == '/')
+		fail_syntax(ctx, "absolute path", NULL);
+
+	append_rule(ctx, p, e, flag);
+	update_policy(ctx, flag);
+}
+
+static void key_pass(CTX, char* p, char* e)
+{
+	common_path(ctx, p, e, HLEN_PASS);
+}
+
+static void key_skip(CTX, char* p, char* e)
+{
+	common_path(ctx, p, e, HLEN_SKIP);
+}
+
+static void key_deny(CTX, char* p, char* e)
+{
+	common_path(ctx, p, e, HLEN_DENY);
+}
+
+static void key_suffix(CTX, char* p, char* e)
+{
+	int state = ctx->state;
+
+	if(state == ST_OUT)
+		return;
+	if(state == ST_POST)
+		return;
+
+	if(state == ST_RULE)
+		fail_syntax(ctx, "misplaced keyword", NULL);
+	if(ctx->suffix)
+		fail_syntax(ctx, "duplicate statement", NULL);
+
+	ctx->suffix = copy_string(ctx, p, e);
+}
+
+static const struct key {
+	char tag[8];
+	void (*call)(CTX, char* p, char* e);
+} keys[] = {
+	{ "group",  key_group  },
+	{ "suffix", key_suffix },
+	{ "into",   key_into   },
+	{ "from",   key_from   },
+	{ "pass",   key_pass   },
+	{ "skip",   key_skip   },
+	{ "deny",   key_deny   },
+};
+
+static void dispatch_keyword(CTX, char* kp, char* ke, char* ap, char* ae)
+{
+	const struct key* ky;
+
+	for(ky = keys; ky < ARRAY_END(keys); ky++) {
+		int tl = strnlen(ky->tag, sizeof(ky->tag));
+		int kl = ke - kp;
+
+		if(kl != tl)
+			continue;
+		if(memcmp(kp, ky->tag, kl))
+			continue;
+
+		return ky->call(ctx, ap, ae);
+	}
+
+	fail_syntax(ctx, "unknown keyword", NULL);
+}
+
+static void parse_line(CTX, char* p, char* e)
+{
+	char* q;
+
+	p = skip_space(p, e);
+
+	if(p >= e) /* empty line */
+		return;
+	if(*p == '#')
+		return;
+
+	q = skip_nonspace(p, e);
+
+	char* kp = p;
+	char* ke = q;
+
+	p = skip_space(q, e);
+	e = trim_right(p, e);
+
+	dispatch_keyword(ctx, kp, ke, p, e);
+}
+
+static void parse_config(CTX, char* buf, uint size)
+{
+	char* p = buf;
+	char* e = buf + size;
+
+	if(ctx->group)
+		ctx->state = ST_OUT;
+	else
+		ctx->state = ST_IN;
+
+	ctx->paths = NULL;
+
+	while(p < e) {
+		char* q = strecbrk(p, e, '\n');
+
+		ctx->line++;
+
+		parse_line(ctx, p, q);
+
+		p = q + 1;
+	};
+
+	if(ctx->group && ctx->state == ST_OUT)
+		fail("unknown group", ctx->group, 0);
+
+	if(!ctx->paths)
+		ctx->paths = ctx->ptr;
+
+	ctx->paend = ctx->ptr;
 }
 
 void load_config(CTX)
 {
 	int fd, ret;
-	int at = ctx->rootfd;
 	struct stat st;
 	char* name = CONFIG;
 
-	name = root_adjust(name);
+	ctx->config = name;
 
-	if((fd = sys_openat(at, name, O_RDONLY)) < 0)
+	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail(NULL, name, fd);
 	if((ret = sys_fstat(fd, &st)) < 0)
 		fail("stat", name, ret);
@@ -442,50 +412,10 @@ void load_config(CTX)
 	if((ret = mmap_error(buf)))
 		fail("mmap", name, ret);
 
-	ctx->cbrk = buf;
-	ctx->clen = size;
-}
+	parse_config(ctx, buf, size);
 
-static void check_group(CCT)
-{
-	if(cct->marked)
-		;
-	else if(cct->prefix)
-		mark_all_nodes(cct);
-	else
-		report_repo(cct);
-
-	char* prefix = cct->prefix;
-
-	if(!prefix) return;
-
-	setup_prefix(cct->ctx, prefix);
-}
-
-static void init_context(CTX, CCT)
-{
-	char* repo = ctx->repo;
-
-	memzero(cct, sizeof(*cct));
-
-	cct->ctx = ctx;
-	cct->repo = repo;
-	cct->active = repo ? 0 : 1;
-	cct->gotact = cct->active;
-
-	cct->ns = ctx->index;
-	cct->ne = ctx->index + ctx->nodes;
-}
-
-void check_config(CTX)
-{
-	struct configctx context, *cct = &context;
-
-	init_context(ctx, cct);
-
-	mark_valid(cct);
-
-	check_group(cct);
-
-	check_marks(cct);
+	if((ret = sys_close(fd)) < 0)
+		fail("close", NULL, ret);
+	if((ret = sys_munmap(buf, size)) < 0)
+		fail("munmap", NULL, ret);
 }

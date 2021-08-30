@@ -1,0 +1,8 @@
+pass bin
+pass lib/musl-x86
+pass man
+
+group opt
+from var/repo/opt
+into opt
+suffix gz

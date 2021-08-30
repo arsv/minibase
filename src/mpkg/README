@@ -20,6 +20,10 @@ dependency tree and so on) belongs to the repository as a whole instead
 of being attached to individual packages. Consequently, PAC format has no
 provisions for storing metadata within the package files.
 
+The idea is to have another, distro-specific tool that would fetch packages,
+including dependencies if appropriate, and then either run mpkg, or let the
+user run mpkg.
+
 The intended procedure is that the higher-level tool downloads and parses
 repository index, figures out which packages it needs, downloads the packages,
 and then uses mpkg to deploy them. This way, mpkg always works with a single
@@ -52,8 +56,8 @@ Package groups
 ~~~~~~~~~~~~~~
 Groups are intended to be used mostly for packages sharing common path prefix
 of some sort. The idea is to keep namespaces separate when packages clearly
-cannot be in conflict, and also to get rid of the common prefix in every single
-package.
+cannot be in conflict, and also to get rid of the common prefix in every
+single .pac file.
 
 Planned use cases:
 
@@ -90,3 +94,21 @@ separately from the packages themselves.
 # This should be obvious but I'm pretty sure there will be people asking why,
 # in the year 2020+n, there is no support for attached signatures in a new
 # package format, and complaining how grossly insecure mpkg therefore is.
+
+While this is completely out of scope for mpkg, the idea is to employ multiple
+independent signatures for reproducible packages, in which case attaching any
+of those signatures to the package file itself doesn't even make sense.
+
+
+Off-root deployment
+~~~~~~~~~~~~~~~~~~~
+That is, deploying packages under say /mnt instead of / without chroot.
+In Arch, this is called `pacstrap`.
+
+There was an idea to let mpkg do that, essentially by implementing a soft
+chroot internally. However, it got scrapped. The only cases where it makes
+sense, it can be done by chroot'ing to the target.
+
+If a well-defined use case will pop up, there probably will be a dedicated
+tool for doing that. At present however, the only viable initial installation
+procedure with mpkg is to boot the target system and start deploying packages.

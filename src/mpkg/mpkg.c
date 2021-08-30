@@ -29,21 +29,7 @@ void no_more_arguments(CTX)
 		fail("too many arguments", NULL, 0);
 }
 
-static void dispatch_char(CTX, char* cmd)
-{
-	char key = *cmd;
-
-	if(key == 'i')
-		return cmd_deploy(ctx);
-	if(key == 'u')
-		return cmd_remove(ctx);
-	if(key == 't')
-		return cmd_list(ctx);
-
-	fail("unknown command", cmd, 0);
-}
-
-static void dispatch_word(CTX, char* cmd)
+static void dispatch_command(CTX, char* cmd)
 {
 	if(!strcmp(cmd, "deploy"))
 		return cmd_deploy(ctx);
@@ -64,21 +50,19 @@ int main(int argc, char** argv)
 	ctx->argc = argc;
 	ctx->argv = argv;
 	ctx->argi = 1;
+	ctx->envp = argv + argc + 1;
 
 	ctx->at = -1;
 	ctx->nullfd = -1;
 	ctx->pacfd = -1;
-	ctx->pkgfd = -1;
+	ctx->lstfd = -1;
 
 	if(argc < 2)
 		fail("too few arguments", NULL, 0);
 
 	char* cmd = shift(ctx);
 
-	if(cmd[0] && !cmd[1])
-		dispatch_char(ctx, cmd);
-	else
-		dispatch_word(ctx, cmd);
+	dispatch_command(ctx, cmd);
 
 	return 0;
 }
