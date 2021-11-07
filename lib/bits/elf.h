@@ -39,7 +39,7 @@ struct elfhdr {
 	byte osabi;
 	byte abiversion;
 	byte _pad[7];
-} __attribute__((packed));
+};
 
 /* elf*hdr.phnum */
 #define PN_XNUM 0xffff
@@ -59,7 +59,7 @@ struct elf32hdr {
 	uint16_t shentsize;
 	uint16_t shnum;
 	uint16_t shstrndx;
-} __attribute__((packed));
+};
 
 struct elf64hdr {
 	struct elfhdr ident;
@@ -76,7 +76,7 @@ struct elf64hdr {
 	uint16_t shentsize;
 	uint16_t shnum;
 	uint16_t shstrndx;
-} __attribute__((packed));
+};
 
 /* elf?shdr.name */
 #define SHN_UNDEF       0x0000
@@ -134,7 +134,7 @@ struct elf32shdr {
 	uint32_t info;
 	uint32_t align;
 	uint32_t entsize;
-} __attribute__((packed));
+};
 
 struct elf64shdr {
 	uint32_t name;
@@ -147,7 +147,7 @@ struct elf64shdr {
 	uint32_t info;
 	uint64_t align;
 	uint64_t entsize;
-} __attribute__((packed));
+};
 
 /* elf?phdr.type */
 #define PT_NULL         0
@@ -177,7 +177,7 @@ struct elf32phdr {
 	uint32_t memsz;
 	uint32_t flags;
 	uint32_t align;
-} __attribute__((packed));
+};
 
 struct elf64phdr {
 	uint32_t type;
@@ -188,7 +188,7 @@ struct elf64phdr {
 	uint64_t filesz;
 	uint64_t memsz;
 	uint64_t align;
-} __attribute__((packed));
+};
 
 /* elf*dyn.tag */
 #define DT_NULL         0
@@ -227,12 +227,12 @@ struct elf64phdr {
 struct elf32dyn {
 	uint32_t tag;
 	uint32_t val;
-} __attribute__((packed));
+};
 
 struct elf64dyn {
 	uint64_t tag;
 	uint64_t val;
-} __attribute__((packed));
+};
 
 #define ELF_SYM_BIND(val) ((val >> 4) & 0x0F)
 #define ELF_SYM_TYPE(val) ((val >> 0) & 0x0F)
@@ -265,7 +265,7 @@ struct elf32sym {
 	byte info;
 	byte other;
 	uint16_t shndx;
-} __attribute__((packed));
+};
 
 struct elf64sym {
 	uint32_t name;
@@ -274,4 +274,19 @@ struct elf64sym {
 	uint16_t shndx;
 	uint64_t value;
 	uint64_t size;
-} __attribute__((packed));
+};
+
+struct elf_verdef {
+	uint16_t version;
+	uint16_t flags;
+	uint16_t ndx;
+	uint16_t cnt;
+	uint32_t hash;
+	uint32_t aux;
+	uint32_t next;
+};
+
+struct elf_veraux {
+	uint32_t name;
+	uint32_t next;
+};
