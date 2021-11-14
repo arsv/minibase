@@ -1,0 +1,119 @@
+Sheaders (shared library headers) are ELF .so libraries which export symbols
+but do not contain any actual code for those symbols. These small stub ELFs
+are meant to be used at link time as stand-ins for the complete loadable ELF
+shared libraries, providing a description of library's interface to the static
+linker without the bulk of the code which the static linker does not need.
+
+Executables linked against sheaders should contain the right references and
+be perfectly usable (loadable) with any ABI-compatible implementation of the
+library.
+
+In practical terms, the point of sheaders is to break dependency between
+libfoo and libfoo-dev packages for a typical library. Building software
+should be possible with only libfoo-dev around; libfoo itself should only
+be needed to run it.
+
+
+Sample workflow
+~~~~~~~~~~~~~~~
+Package libfoo:
+
+    /usr/lib/libfoo-1.13.so
+
+Package libfoo-dev:
+
+    ./inc/foo.h       <-- header
+    ./lib/libfoo.so   <-- sheader
+
+On the build host, only libfoo-dev is unpacked into a temporary location:
+
+    stat /path/to/projtools/lib/libfoo.so
+
+    > File: /path/to/projtools/lib/libfoo.so
+    > Size: 3582 ....
+
+    target-gcc -o app ... -L /path/to/projtools/lib -lfoo
+
+gcc calls ld, telling it to use the sheader:
+
+    target-ld -o appexe ... /path/to/projtools/lib/libfoo.so ...
+
+The sheader provides SONAME "libfoo-1.13.so" and the list of symbols
+exported by libfoo-1.13.so, which ld uses to successfully link appexe:
+
+    target-readelf -d appexe
+
+    > ...
+    > 0x00000001 (NEEDED) Shared library: [libfoo-1.13.so]
+    > ...
+
+The linked executable, `appexe`, can now be moved to the target host,
+which only needs the `libfoo` package installed:
+
+    stat /usr/lib/libfoo-1.13.so
+
+    > File: /usr/lib/libfoo-1.13.so
+    > Size: 5812496 ...
+
+    ldd ./appexe
+
+    >    ...
+    >    libfoo-1.13.so => /usr/lib/libfoo-1.13.so
+    >    ...
+
+    ./appexe
+
+    > Hello, world!
+
+
+This is the wrong way
+~~~~~~~~~~~~~~~~~~~~~
+Implementing sheaders as ELF shared objects is a deep compromise.
+
+A much better approach would be declaring functions as being provided by
+a particular shared library in regular headers, along with their prototypes.
+The compiler would generate proper references to a particular library, and
+the linker would not need to "resolve" them at all.
+
+However, doing that would require deep changes to gcc/binutils, and more
+importantly, re-thinking how shared libraries are treated within the GNU
+system. Which is just not feasible.
+
+ELF sheaders can be used with unmodified GNU tools, essentially adapting
+them to a different workflow.
+
+Consequently, sheaders are only meant to be as good as needed in order
+to trick GNU tools into doing the right thing.
+
+
+How exactly does it work
+~~~~~~~~~~~~~~~~~~~~~~~~
+A sheader contains modified copies of DYNSYM and DYNSTR sections from the
+parent library, with the bare minimum added on top to make the it usable.
+Whenever possible, implementation details which do not affect linking are
+removed.
+
+  * Only symbols exported by the library are copied.
+    (DYNSYM normally containts both imported and exported symbols)
+
+  * Symbol values (addresses) are all set to 0.
+
+  * Symbol sizes are all reset to either 0 or a certain default value.
+    (GNU ld makes distinction between zero-sized and non-zero-sized symbols,
+     but the exact size of the non-zero-sized symbols seems irrelevant)
+
+  * Unnamed empty sections are used to transfer symbol-section flags
+    (GNU ld does care what kind of section the symbol is in, also it makes
+     nm and readelf output much better at basically no cost)
+
+  * DYNAMIC section is added with a single entry, SONAME
+
+Besides sections, a single segment is defined for the DYNAMIC section.
+For some reason, GNU ld can only locate SONAME via program headers.
+
+There are no other reasons to have any segments defined in sheaders.
+
+
+See also
+~~~~~~~~
+Win32 DLL DEF files.

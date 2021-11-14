@@ -1,0 +1,15 @@
+.TH shead 1
+'''
+.SH NAME
+\fBshead\fR \- make a sheader from a shared library
+'''
+.SH SYNOPSYS
+\fBshead\fR \fIoutput.so\fR \fIlibrary.so\fR [\fIsoname\fR]
+'''
+.SH DESCRIPTION
+This tool take a shared library and produces another shared library
+(a sheader) which exports the same symbols as the original one but
+does not contain any code for those symbols.
+.P
+The resulting sheader will have SONAME set to \fIlibrary.so\fR, unless
+overridden by supplying \fIsoname\fR explicitly.
