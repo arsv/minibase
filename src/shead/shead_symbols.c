@@ -170,7 +170,7 @@ static void copy_symbols_64(void)
 	for(; i < n; i++) {
 		struct elf64sym* sym = &ss[i];
 
-		uint shndx = sym->shndx;
+		uint shndx = F.lds(&sym->shndx);
 
 		if(!shndx) continue;
 
@@ -193,7 +193,7 @@ static void copy_symbols_32(void)
 
 	for(; i < n; i++) {
 		struct elf32sym* sym = &ss[i];
-		uint shndx = sym->shndx;
+		uint shndx = F.lds(&sym->shndx);
 
 		if(!shndx) continue;
 

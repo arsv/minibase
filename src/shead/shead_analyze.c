@@ -245,7 +245,7 @@ static void scan_sections_64(void)
 
 static void check_dynsym_32(struct elf32shdr* sh)
 {
-	uint entsize = sh->entsize;
+	uint entsize = F.ldw(&sh->entsize);
 
 	if(entsize != sizeof(struct elf32sym))
 		fail("invalid dynstr entsize", NULL, 0);

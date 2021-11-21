@@ -32,7 +32,7 @@ On the build host, only libfoo-dev is unpacked into a temporary location:
     > File: /path/to/projtools/lib/libfoo.so
     > Size: 3582 ....
 
-    target-gcc -o app ... -L /path/to/projtools/lib -lfoo
+    target-gcc -o appexe ... -L /path/to/projtools/lib -lfoo
 
 gcc calls ld, telling it to use the sheader:
 
