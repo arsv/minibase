@@ -290,3 +290,19 @@ struct elf_veraux {
 	uint32_t name;
 	uint32_t next;
 };
+
+struct elf_verneed {
+	uint16_t version;
+	uint16_t cnt;
+	uint32_t file;
+	uint32_t aux;
+	uint32_t next;
+};
+
+struct elf_vernaux {
+	uint32_t hash;
+	uint16_t flags;
+	uint16_t other;
+	uint32_t name;
+	uint32_t next;
+};
