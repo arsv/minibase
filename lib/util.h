@@ -14,7 +14,7 @@ typedef int (*qcmp3)(void* a, void* b, long opts);
 void qsortp(void* ptrs, size_t n, qcmp2 cmp);
 void qsortx(void* ptrs, size_t n, qcmp3 cmp, long opts);
 
-long writeall(int fd, void* buf, long len);
+long writeall(int fd, const void* buf, long len);
 
 long execvpe(char* file, char** argv, char** envp);
 

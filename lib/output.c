@@ -13,7 +13,7 @@ void bufoutset(struct bufout* bo, int fd, void* buf, uint len)
 	bo->len = len;
 }
 
-int bufout(struct bufout* bo, char* data, int len)
+int bufout(struct bufout* bo, const char* data, int len)
 {
 	int rem = bo->len - bo->ptr;
 	int ret = 0;
