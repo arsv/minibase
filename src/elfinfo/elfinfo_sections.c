@@ -1,202 +1,284 @@
 #include <bits/elf.h>
-#include <format.h>
+#include <string.h>
 #include <util.h>
+
 #include "elfinfo.h"
 
-static const char types[][4] = {
+static const char* types[] = {
 	 [0] = "NULL",
-	 [1] = "BITS",
-	 [2] = "SYMT",
-	 [3] = "STRT",
+	 [1] = "PROGBITS",
+	 [2] = "SYMTAB",
+	 [3] = "STRTAB",
 	 [4] = "RELA",
 	 [5] = "HASH",
-	 [6] = "DYN ",
+	 [6] = "DYNAMIC",
 	 [7] = "NOTE",
-	 [8] = "NONE",
-	 [9] = "REL ",
-	[10] = "SHL ",
-	[11] = "DSYM",
-	[12] = "INIT",
-	[13] = "FINI",
-	[14] = "PREI",
-	[15] = "GRP ",
-	[16] = "SIDX"
+	 [8] = "NOBITS",
+	 [9] = "REL",
+	[10] = "SHLIB",
+	[11] = "DYNSYM",
+	[14] = "INIT_ARRAY",
+	[15] = "FINI_ARRAY",
+	[16] = "PREINIT_ARRAY",
+	[17] = "GROUP",
+	[18] = "SYMTAB_SHNDX",
+	[19] = "NUM"
 };
 
-struct spad {
-	int idx;
-	int size;
-	int addr;
+static const char* gnu_types[] = {
+	[0x5] = "GNU_ATTRIBUTES",
+	[0x6] = "GNU_HASH",
+	[0x7] = "GNU_LIBLIST",
+	[0x8] = "CHECKSUM",
+	[0xD] = "GNU_VERDEF",
+	[0xE] = "GNU_VERNEED",
+	[0xF] = "GNU_VERSYM"
 };
 
-void locate_strings_section(CTX)
+static const char* shf_names[] = {
+	 [0] = "WRITE",
+	 [1] = "ALLOC",
+	 [2] = "EXECINSTR",
+	 [4] = "MERGE",
+	 [5] = "STRINGS",
+	 [6] = "INFO_LINK",
+	 [7] = "LINK_ORDER",
+	 [8] = "OS_NONSTD",
+	 [9] = "GROUP",
+	[10] = "TLS",
+	[11] = "COMPRESSED"
+};
+
+static const char* type_name(uint type)
 {
-	uint64_t shoff = ctx->shoff;
-	int shstrndx = ctx->shstrndx;
-	int shentsize = ctx->shentsize;
+	const char* name;
 
-	if(!shstrndx)
-		return; /* no .strings */
+	if(type < ARRAY_SIZE(types))
+		if((name = types[type]))
+			return name;
 
-	void* sh = ctx->buf + shoff + shstrndx*shentsize;
-	int elf64 = ctx->elf64;
-	int elfxe = ctx->elfxe;
+	if((type >= 0x6ffffff0) && (type <= 0x6fffffff)) {
+		uint idx = type - 0x6ffffff0;
 
-	uint32_t type;
-	uint64_t offset, size;
+		if((name = gnu_types[idx]))
+			return name;
+	}
 
-	take_u32(elfshdr, sh, type);
-	take_x64(elfshdr, sh, offset);
-	take_x64(elfshdr, sh, size);
+	return NULL;
+}
 
-	if(type != SHT_STRTAB)
+static void print_type(uint type)
+{
+	const char* name;
+
+	if((name = type_name(type)))
+		print(name);
+	else
+		print_hex(type);
+}
+
+static void print_link(uint link)
+{
+	if(!link) return;
+
+	print(" link=");
+	print_int(link);
+}
+
+static const char flag_table[] = "WAX?MSIDNGTC";
+
+static void print_sflags(uint flags)
+{
+	uint i, n = 32;
+
+	if(!flags)
 		return;
 
-	use_strings_at_offset(ctx, offset, size);
+	print(" ");
+
+	for(i = 0; i < n; i++) {
+		if(!(flags & (1<<i)))
+			continue;
+
+		if(i < sizeof(flag_table))
+			print_char(flag_table[i]);
+		else
+			print_char('?');
+	}
 }
 
-static char* fmt_type(char* p, char* e, uint type)
+static void print_flags(uint v)
 {
-	if(type < ARRAY_SIZE(types)) {
-		p = fmtraw(p, e, types[type], sizeof(*types));
-	} else {
-		p = fmtstr(p, e, "0x");
-		p = fmtbyte(p, e, type);
+	uint i;
+	uint shfn = ARRAY_SIZE(shf_names);
+	const char* fn;
+
+	print_hex(v);
+
+	for(i = 0; i < 32; i++) {
+		if(!(v & (1<<i)))
+			continue;
+		if(i >= shfn)
+			break;
+		if(!(fn = shf_names[i]))
+			continue;
+
+		print(" ");
+		print(fn);
+
+		v &= ~(1<<i);
+	} if(v) {
+		print(" ");
+		print_hex(v);
+	}
+}
+
+static void dump_section_64(uint i)
+{
+	struct elf64shdr* sh = get_shent_64(i);
+
+	uint noff = F.ldw(&sh->name);
+	uint type = F.ldw(&sh->type);
+	uint link = F.ldw(&sh->link);
+	uint flags = F.ldx(&sh->flags);
+
+	if(i == 0 && !noff)
+		return;
+
+	print_idx(i, E.shnum);
+	print(" ");
+	print_type(type);
+	print(" ");
+	print_strn(noff);
+	print_sflags(flags);
+	print_link(link);
+
+	print_end();
+}
+
+static void dump_section_32(uint i)
+{
+	struct elf32shdr* sh = get_shent_32(i);
+
+	uint noff = F.ldw(&sh->name);
+	uint type = F.ldw(&sh->type);
+	uint link = F.ldw(&sh->link);
+	uint flags = F.ldw(&sh->flags);
+
+	if(i == 0 && !noff)
+		return;
+
+	print_idx(i, E.shnum);
+	print(" ");
+	print_type(type);
+	print(" ");
+	print_strn(noff);
+	print_sflags(flags);
+	print_link(link);
+
+	print_end();
+}
+
+void dump_sections_table(void)
+{
+	int i, n = E.shnum;
+
+	no_more_arguments();
+
+	if(!n) fail("empty program table", NULL, 0);
+
+	use_strings_from(E.shstrndx);
+
+	for(i = 0; i < n; i++) {
+		if(elf64)
+			dump_section_64(i);
+		else
+			dump_section_32(i);
+	}
+}
+
+void print_shdr_name(uint* v)
+{
+	print_tag("name");
+	print_strx(F.ldw(v));
+	print_end();
+}
+
+static void print_shdr_type(uint32_t* v)
+{
+	uint type = F.ldw(v);
+	const char* name;
+
+	print_tag("type");
+	print_hex(type);
+
+	if((name = type_name(type))) {
+		print(" ");
+		print(name);
 	}
 
-	return p;
+	print_end();
 }
 
-static char* fmt_flags(char* p, char* e, ulong flags)
+static void print_shdr_flags(uint64_t flags)
 {
-	p = fmtchar(p, e, flags & SHF_WRITE ? 'w' : '-');
-	p = fmtchar(p, e, flags & SHF_ALLOC ? 'a' : '-');
-	p = fmtchar(p, e, flags & SHF_EXECINSTR ? 'x' : '-');
-	p = fmtchar(p, e, flags & SHF_MERGE ? 'm' : '-');
+	print_tag("flags");
 
-	return p;
+	if(flags >> 32)
+		print_x64(flags);
+	else
+		print_flags(flags);
+
+	print_end();
 }
 
-static char* fmt_space(char* p, char* e, int n)
+static void dump_single_shdr_64(uint shndx)
 {
-	while(n-- > 0 && p < e)
-		*p++ = ' ';
+	struct elf64shdr* sh = get_shent_64(shndx);
+	uint64_t flags = F.ldx(&sh->flags);
 
-	return p;
+	print_shdr_name(&sh->name);
+	print_shdr_type(&sh->type);
+	print_shdr_flags(flags);
+
+	print_tag_hex64("addr", &sh->addr);
+	print_tag_dec64("offset", &sh->offset);
+	print_tag_dec64("size", &sh->size);
+	print_tag_dec32("link", &sh->link);
+	print_tag_dec32("info", &sh->info);
+	print_tag_dec64("align", &sh->align);
+	print_tag_dec64("entsize", &sh->entsize);
 }
 
-static void dump_section(CTX, int i, struct spad* sp)
+static void dump_single_shdr_32(uint shndx)
 {
-	uint64_t shoff = ctx->shoff;
-	uint16_t shentsize = ctx->shentsize;
+	struct elf32shdr* sh = get_shent_32(shndx);
+	uint flags = F.ldw(&sh->flags);
 
-	void* ptr = ctx->buf + shoff + i*shentsize;
-	int elf64 = ctx->elf64;
-	int elfxe = ctx->elfxe;
+	print_shdr_name(&sh->name);
+	print_shdr_type(&sh->type);
+	print_shdr_flags(flags);
 
-	uint32_t name, type;
-	uint64_t addr, size, flags;
-	const char* namestr;
-
-	take_u32(elfshdr, ptr, name);
-	take_u32(elfshdr, ptr, type);
-	take_x64(elfshdr, ptr, addr);
-	take_x64(elfshdr, ptr, size);
-	take_x64(elfshdr, ptr, flags);
-
-	if(!type) return;
-
-	FMTBUF(p, e, buf, 100);
-
-	p = fmtpad0(p, e, sp->idx, fmtint(p, e, i));
-	p = fmtstr(p, e, "  ");
-	p = fmt_type(p, e, type);
-	p = fmtstr(p, e, " ");
-	p = fmt_flags(p, e, flags);
-
-	p = fmtstr(p, e, "  ");
-	p = fmtpad(p, e, sp->size, fmtu64(p, e, size));
-
-	if(addr) {
-		p = fmtstr(p, e, " ");
-		p = fmtstr(p, e, "0x");
-		p = fmtpad0(p, e, sp->addr, fmtx64(p, e, addr));
-	} else if(sp->addr) {
-		p = fmt_space(p, e, 3 + sp->addr);
-	}
-
-	if((namestr = lookup_string(ctx, name))) {
-		p = fmtstr(p, e, " ");
-		p = fmtstr(p, e, namestr);
-	}
-
-	FMTENL(p, e);
-
-	output(ctx, buf, p - buf);
+	print_tag_hex32("addr", &sh->addr);
+	print_tag_dec32("offset", &sh->offset);
+	print_tag_dec32("size", &sh->size);
+	print_tag_dec32("link", &sh->link);
+	print_tag_dec32("info", &sh->info);
+	print_tag_dec32("align", &sh->align);
+	print_tag_dec32("entsize", &sh->entsize);
 }
 
-static int dec_digits_in(uint x)
+void dump_single_shdr(void)
 {
-	int n = 1;
+	uint shndx = shift_int();
 
-	while(x >= 10) { x /= 10; n++; }
+	no_more_arguments();
 
-	return n;
+	use_strings_from_shstrtab();
+
+	if(elf64)
+		dump_single_shdr_64(shndx);
+	else
+		dump_single_shdr_32(shndx);
 }
 
-static int hex_digits_in(uint64_t x)
-{
-	int n = 1;
-
-	if(!x) return 0;
-
-	while(x >= 16) { x >>= 4; n++; }
-
-	return n;
-}
-
-static void prep_section_padding(CTX, struct spad* sp)
-{
-	uint64_t shoff = ctx->shoff;
-	uint16_t shentsize = ctx->shentsize;
-	int elf64 = ctx->elf64;
-	int elfxe = ctx->elfxe;
-
-	int i, shnum = ctx->shnum;
-	uint64_t addr, maxaddr = 0;
-	uint64_t size, maxsize = 0;
-
-	for(i = 0; i < shnum; i++) {
-		void* sh = ctx->buf + shoff + i*shentsize;
-
-		take_x64(elfshdr, sh, addr);
-		take_x64(elfshdr, sh, size);
-
-		if(addr > maxaddr)
-			maxaddr = addr;
-		if(size > maxsize)
-			maxsize = size;
-	}
-
-	sp->idx = dec_digits_in(shnum - 1);
-	sp->size = dec_digits_in(maxsize);
-	sp->addr = hex_digits_in(maxaddr);
-}
-
-void dump_sections_table(CTX)
-{
-	uint64_t shoff = ctx->shoff;
-	int i, shnum = ctx->shnum;
-	struct spad pad;
-
-	if(!shoff)
-		return warn("no sections in this file", NULL, 0);
-	if(!shnum)
-		return warn("empty sections table", NULL, 0);
-
-	locate_strings_section(ctx);
-	prep_section_padding(ctx, &pad);
-
-	for(i = 0; i < shnum; i++)
-		dump_section(ctx, i, &pad);
-}

@@ -1,5 +1,7 @@
-A tool for examining ELF files, similar to readelf but designed to have
-better (human-readable) output in several cases particularly relevant
-to the needs of this project. Things like ordering symbols by section etc.
+A tool for examining ELF files, similar to readelf.
 
-Probably somewhat incomplete at this point.
+This is mostly an internal use tool, written to provide whichever data
+was needed during development, especially if said data was not readily
+provided by GNU readelf. It is not meant to be complete, i.e. it does
+not decode all possible data found in arbitrary ELF files, just the stuff
+relevant to this project.

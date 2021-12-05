@@ -1,345 +1,295 @@
 #include <bits/elf.h>
-#include <format.h>
 #include <string.h>
-#include <printf.h>
 #include <util.h>
+
 #include "elfinfo.h"
 
-struct dpad {
-	int idx;
-};
-
-struct phdr {
-	uint64_t offset;
-	uint64_t filesz;
-};
-
-struct dhdr {
-	uint64_t tag;
-	uint64_t val;
-};
-
 #define HEX 0
-#define DEC 1
-#define NOT 2
-#define STR 3
+#define STR 1
+#define DEC 2
 
-static const struct tag {
-	uint fmt;
-	uint tag;
-	const char* name;
-} tags[] = {
-	{ HEX, DT_NULL,         "NULL"         },
-	{ STR, DT_NEEDED,       "NEEDED"       },
-	{ HEX, DT_PLTRELSZ,     "PLTRELSZ"     },
-	{ HEX, DT_PLTGOT,       "PLTGOT"       },
-	{ HEX, DT_HASH,         "HASH"         },
-	{ HEX, DT_STRTAB,       "STRTAB"       },
-	{ HEX, DT_SYMTAB,       "SYMTAB"       },
-	{ HEX, DT_RELA,         "RELA"         },
-	{ DEC, DT_RELASZ,       "RELASZ"       },
-	{ DEC, DT_RELAENT,      "RELAENT"      },
-	{ DEC, DT_STRSZ,        "STRSZ"        },
-	{ DEC, DT_SYMENT,       "SYMENT"       },
-	{ HEX, DT_INIT,         "INIT"         },
-	{ HEX, DT_FINI,         "FINI"         },
-	{ STR, DT_SONAME,       "SONAME"       },
-	{ STR, DT_RPATH,        "RPATH"        },
-	{ HEX, DT_SYMBOLIC,     "SYMBOLIC"     },
-	{ HEX, DT_REL,          "REL"          },
-	{ DEC, DT_RELSZ,        "RELSZ"        },
-	{ DEC, DT_RELENT,       "RELENT"       },
-	{ HEX, DT_PLTREL,       "PLTREL"       },
-	{ HEX, DT_DEBUG,        "DEBUG"        },
-	{ HEX, DT_TEXTREL,      "TEXTREL"      },
-	{ HEX, DT_JMPREL,       "JMPREL"       },
-	{ NOT, DT_BIND_NOW,     "BIND_NOW"     },
-	{ HEX, DT_INIT_ARRAY,   "INIT_ARRAY"   },
-	{ HEX, DT_FINI_ARRAY,   "FINI_ARRAY"   },
-	{ DEC, DT_INIT_ARRAYSZ, "INIT_ARRAYSZ" },
-	{ DEC, DT_FINI_ARRAYSZ, "FINI_ARRAYSZ" },
-	{ HEX, DT_RUNPATH,      "RUNPATH"      },
-	{ HEX, DT_FLAGS,        "FLAGS"        },
-	{ HEX, DT_ENCODING,     "ENCODING"     },
-	{ HEX, 0x6ffffef5,      "GNU_HASH"     },
-	{ HEX, 0x6ffffffc,      "VERDEF"       },
-	{ HEX, 0x6ffffffb,      "FLAGS1"       },
-	{ DEC, 0x6ffffffd,      "VERDEFNUM"    },
-	{ HEX, 0x6ffffffe,      "VERNEED"      },
-	{ DEC, 0x6fffffff,      "VERNEEDNUM"   },
-	{ HEX, 0x6ffffff0,      "VERSYM"       },
-	{ DEC, 0x6ffffff9,      "RELACOUNT"    },
+static const char* tag_names[] = {
+	[0] = "NULL",
+	[1] = "NEEDED",
+	[2] = "PLTRELSZ",
+	[3] = "PLTGOT",
+	[4] = "HASH",
+	[5] = "STRTAB",
+	[6] = "SYMTAB",
+	[7] = "RELA",
+	[8] = "RELASZ",
+	[9] = "RELAENT",
+	[10] = "STRSZ",
+	[11] = "SYMENT",
+	[12] = "INIT",
+	[13] = "FINI",
+	[14] = "SONAME",
+	[15] = "RPATH",
+	[16] = "SYMBOLIC",
+	[17] = "REL",
+	[18] = "RELSZ",
+	[19] = "RELENT",
+	[20] = "PLTREL",
+	[21] = "DEBUG",
+	[22] = "TEXTREL",
+	[23] = "JMPREL",
+	[24] = "BIND_NOW",
+	[25] = "INIT_ARRAY",
+	[26] = "FINI_ARRAY",
+	[27] = "INIT_ARRAYSZ",
+	[28] = "FINI_ARRAYSZ",
+	[29] = "RUNPATH",
+	[30] = "FLAGS",
+	[31] = NULL,
+	[32] = "DT_PREINIT_ARRAY",
+	[33] = "DT_PREINIT_ARRAYSZ",
+	[34] = "SYMTAB_SHNDX"
 };
 
-static char* fmt_0x64(char* p, char* e, uint64_t val)
-{
-	p = fmtstr(p, e, "0x");
-	p = fmtu64(p, e, val);
+static const struct gnu_tag {
+	uint tag;
+	char* name;
+	uint fmt;
+} gnu_tags[] = {
+	{ 0x6ffffef5,      "GNU_HASH",      HEX },
+	{ 0x6ffffffc,      "VERDEF",        HEX },
+	{ 0x6ffffffb,      "FLAGS1",        HEX },
+	{ 0x6ffffffd,      "VERDEFNUM",     DEC },
+	{ 0x6ffffffe,      "VERNEED",       HEX },
+	{ 0x6fffffff,      "VERNEEDNUM",    DEC },
+	{ 0x6ffffff0,      "VERSYM",        HEX },
+	{ 0x6ffffff9,      "RELACOUNT",     DEC },
+};
 
-	return p;
+static char* gnu_name(uint tag)
+{
+	const struct gnu_tag* tt;
+
+	for(tt = gnu_tags; tt < ARRAY_END(gnu_tags); tt++)
+		if(tag == tt->tag)
+			return tt->name;
+
+	return NULL;
 }
 
-static char* fmt_string(char* p, char* e, uint64_t val, CTX)
+static int decide_format_gnu(uint tag)
 {
-	const char* str;
+	const struct gnu_tag* tt;
 
-	if((str = lookup_string(ctx, val))) {
-		p = fmtstr(p, e, "\"");
-		p = fmtstr(p, e, str);
-		p = fmtstr(p, e, "\"");
+	if((tag >> 24) != 0x6F)
+		return HEX;
+
+	for(tt = gnu_tags; tt < ARRAY_END(gnu_tags); tt++)
+		if(tag == tt->tag)
+			return tt->fmt;
+
+	return HEX;
+}
+
+static void print_dynkey(uint tag)
+{
+	const char* name;
+
+	if(tag < ARRAY_SIZE(tag_names) && (name = tag_names[tag]))
+		return print(name);
+	if((name = gnu_name(tag)))
+		return print(name);
+
+	print_hex(tag);
+}
+
+static int decide_tag_format(uint tag)
+{
+	if(tag > 32)
+		return decide_format_gnu(tag);
+
+	switch(tag) {
+		case DT_NEEDED: return STR;
+		case DT_PLTRELSZ: return DEC;
+		case DT_RELASZ: return DEC;
+		case DT_RELAENT: return DEC;
+		case DT_STRSZ: return DEC;
+		case DT_SYMENT: return DEC;
+		case DT_SONAME: return STR;
+		case DT_RPATH: return STR;
+		case DT_RELSZ: return DEC;
+		case DT_RELENT: return DEC;
+		case DT_INIT_ARRAYSZ: return DEC;
+		case DT_FINI_ARRAYSZ: return DEC;
+		case DT_RUNPATH: return STR;
+		default: return HEX;
+	}
+}
+
+static void dump_dynamic_entry(uint64_t tag, uint64_t val)
+{
+	if((tag >> 32) || (val >> 32)) {
+		print_x64(tag);
+		print(" ");
+		print_x64(val);
 	} else {
-		p = fmt_0x64(p, e, val);
+		uint tt = (uint)tag;
+		uint vv = (uint)val;
+		uint ff = decide_tag_format(tt);
+
+		print_dynkey(tt);
+		print(" ");
+
+		if(ff == STR)
+			print_strq(vv);
+		if(ff == DEC)
+			print_u64(vv);
+		if(ff == HEX)
+			print_x64(vv);
 	}
 
-	return p;
+	print_end();
 }
 
-static void dump_dynamic_entry(CTX, struct dhdr* ph, struct dpad* pad, int i)
+static void walk_dynamic_64(void)
 {
-	const struct tag* tt;
-	uint64_t tag = ph->tag;
-	uint64_t val = ph->val;
+	struct elf64dyn* dd = range(E.dynoff, E.dynlen);
+	uint i, n = E.dynlen / sizeof(*dd);
 
-	FMTBUF(p, e, buf, 100);
+	for(i = 0; i < n; i++) {
+		struct elf64dyn* dyn = &dd[i];
 
-	p = fmtpad0(p, e, pad->idx, fmtint(p, e, i));
-	p = fmtstr(p, e, "  ");
+		uint tag = F.ldx(&dyn->tag);
+		uint val = F.ldx(&dyn->val);
 
-	for(tt = tags; tt < ARRAY_END(tags); tt++)
-		if(tt->tag == tag)
-			break;
-	if(tt >= ARRAY_END(tags))
-		tt = NULL;
+		dump_dynamic_entry(tag, val);
+	}
+}
 
-	if(tt)
-		p = fmtstr(p, e, tt->name);
+static void walk_dynamic_32(void)
+{
+	struct elf32dyn* dd = range(E.dynoff, E.dynlen);
+	uint i, n = E.dynlen / sizeof(*dd);
+
+	for(i = 0; i < n; i++) {
+		struct elf32dyn* dyn = &dd[i];
+
+		uint tag = F.ldw(&dyn->tag);
+		uint val = F.ldw(&dyn->val);
+
+		dump_dynamic_entry(tag, val);
+	}
+}
+
+static void print_dynval(uint off)
+{
+	char* str = string(off);
+
+	if(!str) return;
+
+	print(str);
+
+	print_end();
+}
+
+static uint scan_dump_64(uint type)
+{
+	struct elf64dyn* dd = range(E.dynoff, E.dynlen);
+	uint i, n = E.dynlen / sizeof(*dd);
+	uint found = 0;
+
+	for(i = 0; i < n; i++) {
+		struct elf64dyn* dyn = &dd[i];
+
+		uint tag = F.ldx(&dyn->tag);
+		uint val = F.ldx(&dyn->val);
+
+		if(tag != type)
+			continue;
+
+		print_dynval(val);
+
+		found++;
+	}
+
+	return found;
+}
+
+static uint scan_dump_32(uint type)
+{
+	struct elf32dyn* dd = range(E.dynoff, E.dynlen);
+	uint i, n = E.dynlen / sizeof(*dd);
+	uint found = 0;
+
+	for(i = 0; i < n; i++) {
+		struct elf32dyn* dyn = &dd[i];
+
+		uint tag = F.ldw(&dyn->tag);
+		uint val = F.ldw(&dyn->val);
+
+		if(tag != type)
+			continue;
+
+		print_dynval(val);
+
+		found++;
+	}
+
+	return found;
+}
+
+static void locate_dynamic_section(void)
+{
+	uint link;
+
+	if(elf64) {
+		struct elf64shdr* sh = find_section_64(SHT_DYNAMIC);
+
+		if(!sh) fail("no DYNAMIC section", NULL, 0);
+
+		E.dynoff = F.ldx(&sh->offset);
+		E.dynlen = F.ldx(&sh->size);
+
+		link = F.ldw(&sh->link);
+	} else {
+		struct elf32shdr* sh = find_section_32(SHT_DYNAMIC);
+
+		if(!sh) fail("no DYNAMIC section", NULL, 0);
+
+		E.dynoff = F.ldw(&sh->offset);
+		E.dynlen = F.ldw(&sh->size);
+
+		link = F.ldw(&sh->link);
+	};
+
+	use_strings_from(link);
+}
+
+void dump_dynamic_table(void)
+{
+	locate_dynamic_section();
+
+	if(elf64)
+		walk_dynamic_64();
 	else
-		p = fmt_0x64(p, e, tag);
-
-	if(!tt || tt->fmt != NOT)
-		p = fmtstr(p, e, " ");
-
-	if(!tt || tt->fmt == HEX)
-		p = fmt_0x64(p, e, val);
-	else if(tt->fmt == DEC)
-		p = fmtu64(p, e, val);
-	else if(tt->fmt == STR)
-		p = fmt_string(p, e, val, ctx);
-
-	FMTENL(p, e);
-
-	output(ctx, buf, p - buf);
+		walk_dynamic_32();
 }
 
-static int dec_digits_in(uint x)
+static void scan_dump_strings(uint type)
 {
-	int n = 1;
+	uint ret;
 
-	while(x >= 10) { x /= 10; n++; }
+	locate_dynamic_section();
 
-	return n;
-}
-
-static int next_dyn_entry(CTX, struct phdr* ph, struct dhdr* dyn, int i)
-{
-	uint64_t offset = ph->offset;
-	uint64_t filesz = ph->filesz;
-	int elf64 = ctx->elf64;
-	int elfxe = ctx->elfxe;
-
-	int stride = elf64 ? sizeof(struct elf64dyn) : sizeof(struct elf32dyn);
-	void* ptr = ctx->buf + offset + i*stride;
-	void* end = ptr + filesz;
-
-	if(ptr >= end)
-		return -1;
-
-	load_x64(dyn->tag, elfdyn, ptr, tag);
-	load_x64(dyn->val, elfdyn, ptr, val);
-
-	if(!dyn->tag)
-		return -1;
-
-	return i + 1;
-}
-
-static void scan_dyn_dump_entries(CTX, struct phdr* ph, struct dpad* pad)
-{
-	struct dhdr dyn, *dh = &dyn;
-	int i = 0;
-
-	while((i = next_dyn_entry(ctx, ph, dh, i)) >= 0)
-		dump_dynamic_entry(ctx, dh, pad, i-1);
-}
-
-static void scan_dyn_locate_strings(CTX, struct phdr* ph)
-{
-	struct dhdr dyn, *dh = &dyn;
-	uint64_t off = 0, len = 0;
-	int i = 0;
-
-	while((i = next_dyn_entry(ctx, ph, dh, i)) >= 0)
-		if(dyn.tag == DT_STRTAB)
-			off = dyn.val;
-		else if(dyn.tag == DT_STRSZ)
-			len = dyn.val;
-
-	if(!off || !len)
-		reset_strings_location(ctx);
+	if(elf64)
+		ret = scan_dump_64(type);
 	else
-		use_strings_at_address(ctx, off, len);
+		ret = scan_dump_32(type);
+
+	if(!ret) fail("no entries found", NULL, 0);
 }
 
-static void prep_dyn_padding(CTX, struct phdr* ph, struct dpad* pad)
+void dump_dynamic_soname(void)
 {
-	int elf64 = ctx->elf64;
-	uint64_t filesz = ph->filesz;
-	int stride = elf64 ? sizeof(struct elf64dyn) : sizeof(struct elf32dyn);
-
-	pad->idx = dec_digits_in(filesz / stride);
+	scan_dump_strings(DT_SONAME);
 }
 
-static void dump_dynamic_section(CTX, struct phdr* ph)
+void dump_dynamic_libs(void)
 {
-	uint64_t offset = ph->offset;
-	uint64_t filesz = ph->filesz;
-	uint64_t total = ctx->len;
-	struct dpad pad;
-
-	if(offset > total)
-		return warn("invalid DYNAMIC entry", NULL, 0);
-	if(offset + filesz > total)
-		return warn("truncated DYNAMIC entry", NULL, 0);
-
-	prep_dyn_padding(ctx, ph, &pad);
-
-	scan_dyn_locate_strings(ctx, ph);
-	scan_dyn_dump_entries(ctx, ph, &pad);
-}
-
-static int load_dyn_section(CTX, struct phdr* ph, int i)
-{
-	uint64_t phoff = ctx->phoff;
-	uint16_t phentsize = ctx->phentsize;
-
-	void* loc = ctx->buf + phoff + i*phentsize;
-	int elf64 = ctx->elf64;
-	int elfxe = ctx->elfxe;
-
-	uint32_t type;
-
-	take_u32(elfphdr, loc, type);
-
-	if(type != PT_DYNAMIC) return -1;
-
-	load_x64(ph->offset, elfphdr, loc, offset);
-	load_x64(ph->filesz, elfphdr, loc, filesz);
-
-	return 0;
-}
-
-void dump_dynamic_info(CTX)
-{
-	uint64_t phoff = ctx->phoff;
-	int i, phnum = ctx->phnum;
-	int seen_dynamic = 0;
-	struct phdr hdr, *ph = &hdr;
-
-	if(!phoff)
-		return warn("no program table", NULL, 0);
-
-	for(i = 0; i < phnum; i++) {
-		if(load_dyn_section(ctx, ph, i))
-			continue;
-
-		if(seen_dynamic)
-			warn("multiple dynamic sections", NULL, 0);
-		else
-			seen_dynamic = 1;
-
-		dump_dynamic_section(ctx, ph);
-	}
-
-	if(!seen_dynamic)
-		fail("not a dynamic executable", NULL, 0);
-}
-
-static void find_first_dynamic_entry(CTX, struct phdr* ph)
-{
-	uint64_t phoff = ctx->phoff;
-	int i, phnum = ctx->phnum;
-
-	if(!phoff) fail("no program header in this file", NULL, 0);
-
-	for(i = 0; i < phnum; i++)
-		if(load_dyn_section(ctx, ph, i) >= 0)
-			return;
-
-	fail("not a dynamic executable", NULL, 0);
-}
-
-void dump_dynamic_soname(CTX)
-{
-	struct phdr hdr, *ph = &hdr;
-	struct dhdr dyn, *dh = &dyn;
-	const char* str;
-	int i = 0;
-
-	find_first_dynamic_entry(ctx, ph);
-	scan_dyn_locate_strings(ctx, ph);
-
-	while((i = next_dyn_entry(ctx, ph, dh, i)) >= 0)
-		if(dh->tag == DT_SONAME)
-			break;
-	if(i < 0)
-		fail("no soname in this file", NULL, 0);
-
-	if(!(str = lookup_string(ctx, dh->val)))
-		fail("invalid soname value", NULL, 0);
-
-	output(ctx, str, strlen(str));
-	output(ctx, "\n", 1);
-}
-
-void dump_dynamic_libs(CTX)
-{
-	struct phdr hdr, *ph = &hdr;
-	struct dhdr dyn, *dh = &dyn;
-	const char* str;
-	int i = 0, seen = 0;
-
-	find_first_dynamic_entry(ctx, ph);
-	scan_dyn_locate_strings(ctx, ph);
-
-	while((i = next_dyn_entry(ctx, ph, dh, i)) >= 0) {
-		if(dh->tag != DT_NEEDED)
-			continue;
-
-		seen = 1;
-
-		if(!(str = lookup_string(ctx, dh->val))) {
-			warn("invalid library entry", NULL, i - 1);
-			continue;
-		}
-
-		output(ctx, str, strlen(str));
-		output(ctx, "\n", 1);
-	}
-
-	if(!seen) fail("no library references in this file", NULL, 0);
-}
-
-int got_any_dynamic_entries(CTX)
-{
-	uint64_t phoff = ctx->phoff;
-	int i, phnum = ctx->phnum;
-	struct phdr hdr;
-
-	if(!phoff) return 0;
-
-	for(i = 0; i < phnum; i++)
-		if(load_dyn_section(ctx, &hdr, i) >= 0)
-			return 1;
-
-	return 0;
+	scan_dump_strings(DT_NEEDED);
 }

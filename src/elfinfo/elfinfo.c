@@ -6,43 +6,195 @@
 #include <string.h>
 #include <format.h>
 #include <memoff.h>
+#include <output.h>
+#include <endian.h>
 #include <util.h>
 #include <main.h>
 
 #include "elfinfo.h"
 
+#ifdef BIGENDIAN
+#define NATIVE ELF_MSB
+#else
+#define NATIVE ELF_LSB
+#endif
+
 ERRTAG("elfinfo");
 
 static char outbuf[2048];
+static struct bufout bo;
 
-static void init_output(CTX)
+uint elf64;
+struct pfuncs F;
+struct elfinf E;
+
+struct args {
+	int argc;
+	int argi;
+	char** argv;
+} A;
+
+char* shift(void)
 {
-	ctx->bo.fd = STDOUT;
-	ctx->bo.buf = outbuf;
-	ctx->bo.ptr = 0;
-	ctx->bo.len = sizeof(outbuf);
+	if(A.argi >= A.argc)
+		fail("too few arguments", NULL, 0);
+
+	return A.argv[A.argi++];
 }
 
-void output(CTX, const char* buf, ulong len)
+uint shift_int(void)
 {
-	bufout(&ctx->bo, (char*)buf, len);
+	char* p = shift();
+	uint ret;
+
+	if(!(p = parseuint(p, &ret)) || *p)
+		fail("integer argument required", NULL, 0);
+
+	return ret;
 }
 
-void outstr(CTX, const char* str)
+int got_more_arguments(void)
 {
-	output(ctx, str, strlen(str));
+	return (A.argi < A.argc);
 }
 
-static void fini_output(CTX)
+void no_more_arguments(void)
 {
-	bufoutflush(&ctx->bo);
+	if(got_more_arguments())
+		fail("too many arguments", NULL, 0);
 }
 
-static void mmap_whole(CTX, char* name)
+
+void output(const char* buf, ulong len)
+{
+	bufout(&bo, buf, len);
+}
+
+void outfmt(const char* s, const char* p)
+{
+	bufout(&bo, s, p - s);
+}
+
+void outstr(const char* str)
+{
+	output(str, strlen(str));
+}
+
+static uint lds_ne(uint16_t* addr) { return *addr; }
+static uint ldw_ne(uint32_t* addr) { return *addr; }
+static uint ldx_ne(uint64_t* addr) { return *addr; }
+
+static uint lds_xe(uint16_t* addr) { return swabs(*addr); }
+static uint ldw_xe(uint32_t* addr) { return swabl(*addr); }
+static uint ldx_xe(uint64_t* addr) { return swabx(*addr); }
+
+static void sts_ne(uint16_t* addr, uint val) { *addr = val; }
+static void stw_ne(uint32_t* addr, uint val) { *addr = val; }
+static void stx_ne(uint64_t* addr, uint val) { *addr = val; }
+
+static void sts_xe(uint16_t* addr, uint val) { *addr = swabs(val); }
+static void stw_xe(uint32_t* addr, uint val) { *addr = swabl(val); }
+static void stx_xe(uint64_t* addr, uint val) { *addr = swabx(val); }
+
+static void setup_native_endian(void)
+{
+	F.lds = lds_ne;
+	F.ldw = ldw_ne;
+	F.ldx = ldx_ne;
+
+	F.sts = sts_ne;
+	F.stw = stw_ne;
+	F.stx = stx_ne;
+}
+
+static void setup_cross_endian(void)
+{
+	F.lds = lds_xe;
+	F.ldw = ldw_xe;
+	F.ldx = ldx_xe;
+
+	F.sts = sts_xe;
+	F.stw = stw_xe;
+	F.stx = stx_xe;
+}
+
+static void check_header(void)
+{
+	void* buf = E.buf;
+	ulong size = E.size;
+	struct elfhdr* hdr = buf;
+
+	if(size < sizeof(*hdr))
+		fail("not an ELF file", NULL, 0);
+	if(memcmp(hdr->tag, ELFTAG, 4))
+		fail("not an ELF file", NULL, 0);
+	if(hdr->version != 1)
+		fail("unsupported ELF version", NULL, 0);
+
+	byte bit = hdr->class;
+	byte end = hdr->data;
+
+	if(bit == ELF_64)
+		elf64 = 1;
+	else if(bit != ELF_32)
+		fail("unexpected ELF hdr class", NULL, bit);
+
+	if((end != ELF_LSB) && (end != ELF_MSB))
+		fail("unexpected ELF hdr data", NULL, end);
+
+	if(end == NATIVE)
+		setup_native_endian();
+	else
+		setup_cross_endian();
+}
+
+static void read_header_64(void)
+{
+	struct elf64hdr* hdr = range(0, sizeof(*hdr));
+
+	E.shnum = F.lds(&hdr->shnum);
+	E.phnum = F.lds(&hdr->phnum);
+
+	E.shoff = F.ldx(&hdr->shoff);
+	E.phoff = F.ldx(&hdr->phoff);
+
+	E.shstrndx = F.lds(&hdr->shstrndx);
+
+	uint phent = F.lds(&hdr->phentsize);
+	uint shent = F.lds(&hdr->shentsize);
+
+	if((phent != sizeof(struct elf64phdr)) && E.phnum)
+		fail("invalid phentsize", NULL, 0);
+	if((shent != sizeof(struct elf64shdr)) && E.shnum)
+		fail("invalid shentsize", NULL, 0);
+}
+
+static void read_header_32(void)
+{
+	struct elf32hdr* hdr = range(0, sizeof(*hdr));
+
+	E.shnum = F.lds(&hdr->shnum);
+	E.phnum = F.lds(&hdr->phnum);
+
+	E.shoff = F.ldw(&hdr->shoff);
+	E.phoff = F.ldw(&hdr->phoff);
+
+	E.shstrndx = F.lds(&hdr->shstrndx);
+
+	uint phent = F.lds(&hdr->phentsize);
+	uint shent = F.lds(&hdr->shentsize);
+
+	if((phent != sizeof(struct elf32phdr)) && E.phnum)
+		fail("invalid phentsize", NULL, 0);
+	if((shent != sizeof(struct elf32shdr)) && E.shnum)
+		fail("invalid shentsize", NULL, 0);
+}
+
+static void mmap_whole(char* name)
 {
 	int fd, ret;
 	struct stat st;
-	ulong max = ~0UL;
+	ulong max = 0xFFFFFFFF;
 
 	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail(NULL, name, fd);
@@ -61,142 +213,55 @@ static void mmap_whole(CTX, char* name)
 	if((ret = mmap_error(buf)))
 		fail("mmap", name, ret);
 
-	ctx->fd = fd;
-	ctx->buf = buf;
-	ctx->len = size;
+	(void)fd;
+
+	E.buf = buf;
+	E.size = size;
 }
 
-static void check_header(CTX)
+static void prep_file(char* name)
 {
-	void* buf = ctx->buf;
-	ulong len = ctx->len;
-	struct elfhdr* hdr = buf;
-	int elf64, size, bigendian;
+	mmap_whole(name);
+	check_header();
 
-	if(len < sizeof(*hdr) || memcmp(hdr->tag, "\x7F" "ELF", 4))
-		fail("not an ELF file", NULL, 0);
-
-	if(hdr->class == ELF_32) {
-		elf64 = 0;
-		size = sizeof(struct elf32hdr);
-	} else if(hdr->class == ELF_64) {
-		elf64 = 1;
-		size = sizeof(struct elf64hdr);
-	} else {
-		fail("unknown ELF class", NULL, hdr->class);
-	}
-
-	if(mem_off_cmp(len, size) < 0)
-		fail("file truncated", NULL, 0);
-
-	if(hdr->version != 1)
-		fail("invalid ELF version", NULL, hdr->version);
-
-	if(hdr->data == ELF_LSB)
-		bigendian = 0;
-	else if(hdr->data == ELF_MSB)
-		bigendian = 1;
+	if(elf64)
+		read_header_64();
 	else
-		fail("unknown ELF endianess", NULL, hdr->data);
-
-	ctx->elf64 = elf64;
-	ctx->bigendian = bigendian;
-#ifdef BIGENDIAN
-	ctx->elfxe = !bigendian;
-#else
-	ctx->elfxe = bigendian;
-#endif
-}
-
-static void copy_header_data(CTX)
-{
-	void* eh = ctx->buf; /* ELF header */
-	int elf64 = ctx->elf64;
-	int elfxe = ctx->elfxe;
-
-	load_u16(ctx->elftype, elfhdr, eh, type);
-	load_u16(ctx->machine, elfhdr, eh, machine);
-}
-
-static void init_sections_table(CTX)
-{
-	void* eh = ctx->buf; /* ELF header */
-	int elf64 = ctx->elf64;
-	int elfxe = ctx->elfxe;
-
-	load_x64(ctx->shoff, elfhdr, eh, shoff);
-	load_u16(ctx->shnum, elfhdr, eh, shnum);
-	load_u16(ctx->shentsize, elfhdr, eh, shentsize);
-	load_u16(ctx->shstrndx,  elfhdr, eh, shstrndx);
-
-	if(!ctx->shoff)
-		return;
-	if(ctx->shoff + ctx->shnum*ctx->shentsize <= ctx->len)
-		return;
-
-	ctx->shoff = 0;
-	ctx->shnum = 0;
-
-	warn("truncated sections table", NULL, 0);
-}
-
-static void init_program_table(CTX)
-{
-	void* eh = ctx->buf; /* ELF header */
-	int elf64 = ctx->elf64;
-	int elfxe = ctx->elfxe;
-
-	load_x64(ctx->phoff,     elfhdr, eh, phoff);
-	load_u16(ctx->phnum,     elfhdr, eh, phnum);
-	load_u16(ctx->phentsize, elfhdr, eh, phentsize);
-	load_x64(ctx->entry,     elfhdr, eh, entry);
-
-	if(!ctx->phoff)
-		return;
-	if(ctx->phoff + ctx->phnum*ctx->phentsize <= ctx->len)
-		return;
-
-	ctx->phoff = 0;
-	ctx->phnum = 0;
-
-	warn("truncated program table", NULL, 0);
-}
-
-static void prep_file(CTX, char* name)
-{
-	mmap_whole(ctx, name);
-	check_header(ctx);
-
-	copy_header_data(ctx);
-	init_sections_table(ctx);
-	init_program_table(ctx);
+		read_header_32();
 }
 
 static const struct cmd {
 	char name[16];
-	void (*call)(CTX);
+	void (*call)(void);
 } commands[] = {
-	{ "sec",       dump_sections_table },
-	{ "sections" , dump_sections_table },
-	{ "sym",       dump_symbols        },
-	{ "symbols",   dump_symbols        },
-	{ "src",       dump_sources        },
-	{ "sources",   dump_sources        },
-	{ "seg",       dump_program_header },
-	{ "program",   dump_program_header },
-	{ "ld",        dump_program_interp },
+	{ "ptable",     dump_program_table  },
+	{ "phdr",       dump_single_phdr    },
+
+	{ "stable",     dump_sections_table },
+	{ "shdr",       dump_single_shdr    },
+
+	{ "dynamic",   dump_dynamic_table  },
 	{ "interp",    dump_program_interp },
-	{ "dyn",       dump_dynamic_info   },
-	{ "dynamic",   dump_dynamic_info   },
-	{ "so",        dump_dynamic_soname },
 	{ "soname",    dump_dynamic_soname },
-	{ "libs",      dump_dynamic_libs   },
 	{ "needed",    dump_dynamic_libs   },
-	{ "ss",        dump_sect_syms      },
-	{ "sect-syms", dump_sect_syms      },
+
+	{ "symtab",    dump_symbol_table   },
+	{ "dynsym",    dump_dynsym_table   },
+	{ "sym",       dump_single_sym     },
+	{ "dsym",      dump_single_dsym    },
+
+	{ "symsec",    dump_section_symbols },
+	{ "secseg",    dump_segment_sections },
+	{ "segsec",    dump_segment_sections },
+
+	{ "strings",   dump_all_strings    },
+	{ "strtab",    dump_strtab_section },
+
+	{ "versym",    dump_versym_table   },
+	{ "verdef",    dump_verdef_table   },
 };
 
-static void dispatch(CTX, char* cmd, char* name)
+static void dispatch(char* cmd)
 {
 	const struct cmd* cc;
 
@@ -206,36 +271,28 @@ static void dispatch(CTX, char* cmd, char* name)
 	if(cc >= ARRAY_END(commands))
 		fail("unknown command", cmd, 0);
 
-	prep_file(ctx, name);
-
-	cc->call(ctx);
-}
-
-static void show_general_info(CTX, char* name)
-{
-	prep_file(ctx, name);
-
-	dump_general_info(ctx);
+	cc->call();
 }
 
 int main(int argc, char** argv)
 {
-	struct top context, *ctx = &context;
+	A.argc = argc;
+	A.argv = argv;
+	A.argi = 1;
 
-	memzero(ctx, sizeof(*ctx));
-	init_output(ctx);
+	bo.fd = STDOUT;
+	bo.buf = outbuf;
+	bo.ptr = 0;
+	bo.len = sizeof(outbuf);
 
-	if(argc < 2)
-		fail("too few arguments", NULL, 0);
-	if(argc > 3)
-		fail("too many arguments", NULL, 0);
+	prep_file(shift());
 
-	if(argc == 3)
-		dispatch(ctx, argv[1], argv[2]);
+	if(got_more_arguments())
+		dispatch(shift());
 	else
-		show_general_info(ctx, argv[1]);
+		dump_general_info();
 
-	fini_output(ctx);
+	bufoutflush(&bo);
 
 	return 0;
 }

@@ -4,35 +4,50 @@
 \fBelfinfo\fR \- dump some ELF file information
 '''
 .SH SYNOPSIS
-\fBelfinfo\fR \fIcommand\fR \fIfile\fR
+\fBelfinfo\fR \fIfile\fR \fIcommand ...\fR
 .P
 Available commands:
 .P
-.IP "\fBinterp\fR (also \fBld\fR)" 4
-Show program interpreter aka dynamic linker.
-.IP "\fBsoname\fR (also \fBso\fR)" 4
-Show soname of a dynamic library.
-.IP "\fBneeded\fR (also \fBlibs\fR)" 4
-List dynamic libraries needed to run this file.
-.IP "\fBsections\fR (also \fBsec\fR)" 4
+.IP "\fBstable\fR" 4
 Dump sections table.
-.IP "\fBprogram\fR (also \fBseg\fR)" 4
+.IP "\fBptable\fR" 4
 Dump program table.
-.IP "\fBdynamic\fR (also \fBdyn\fR" 4
+.IP "\fBshdr\fR \fIn\fR" 4
+Show single section table entry.
+.IP "\fBphdr\fR \fIn\fR" 4
+Show single program table entry.
+.IP "\fBdynamic\fR" 4
 Dump dynamic table.
-.IP "\fBsymbols\fR (also \fBsym\fR)" 4
-List symbols in the file. This command skips file and sections symbols.
-.IP "\fBsect-syms\fR (also \fBss\fR)" 4
+.IP "\fBinterp\fR" 4
+Show program interpreter aka dynamic linker.
+.IP "\fBsoname\fR" 4
+Show soname of a dynamic library.
+.IP "\fBneeded\fR" 4
+List dynamic libraries needed to run this file.
+.IP "\fBsymtab\fR" 4
+List symbols in the file.
+.IP "\fBdynsym\fR" 4
+List dynamic symbols.
+.IP "\fBsym\fR \fIn\fR" 4
+Show single symbol table entry.
+.IP "\fBdsym\fR \fIn\fR" 4
+Show single dynamic symbol table entry.
+.IP "\fBstrings\fR" 4
+Dump all string sections in the file.
+.IP "\fBstrtab\fR \fIn\fR" 4
+Dump strings section \fIn\fR.
+.IP "\fBsymsec\fR" 4
 List symbols in the file, grouped by sections.
-.IP "\fBsources\fR (also \fBsrc\fR)" 4
-List source file names.
+.IP "\fBsegsec\fR" 4
+Show which sections are loaded in each segment.
+.IP "\fBversym\fR" 4
+List versions associated with dynamic symbols (VERSYM section).
+.IP "\fBverdef\fR" 4
+List symbol version definitions (VERDEF, VERNEED sections).
 '''
 .SH DESCRIPTION
 This tool does little more than decoding and formatting the structures
 of an ELF file. Refer to the ELF specification for meaning of that data.
-.P
-PIEs (position-independent executables) are dynamic libraries in ELF terms,
-not executables.
 '''
 .SH SEE ALSO
 \fBreadelf\fR(1) from GNU binutils.

@@ -1,81 +1,125 @@
 #include <bits/elf.h>
-#include <format.h>
 #include <string.h>
-#include <printf.h>
 #include <util.h>
+
 #include "elfinfo.h"
 
-const char* lookup_string(CTX, uint off)
+static void section_line(uint shndx)
 {
-	uint64_t strings_off = ctx->strings_off;
-	uint64_t strings_len = ctx->strings_len;
+	uint noff;
 
-	if(!strings_off)
-		return NULL;
-	if(off > strings_len)
-		return NULL;
+	if(elf64) {
+		struct elf64shdr* sh = get_shent_64(shndx);
 
-	char* strings = ctx->buf + strings_off;
-	char* s = strings + off;
-	char* p = s;
-	char* e = strings + strings_len;
+		noff = F.ldw(&sh->name);
+	} else {
+		struct elf32shdr* sh = get_shent_32(shndx);
 
-	while(p < e && *p)
-		p++;
-	if(p >= e)
-		return NULL;
-
-	return s;
-}
-
-void use_strings_at_address(CTX, uint64_t off, uint64_t len)
-{
-	int elf64 = ctx->elf64;
-	int elfxe = ctx->elfxe;
-
-	uint64_t phoff = ctx->phoff;
-	uint16_t phentsize = ctx->phentsize;
-	int i, phnum = ctx->phnum;
-
-	if(!phoff)
-		return;
-
-	for(i = 0; i < phnum; i++) {
-		void* loc = ctx->buf + phoff + i*phentsize;
-
-		uint32_t type;
-		uint64_t vaddr, offset, filesz;
-
-		take_u32(elfphdr, loc, type);
-		take_x64(elfphdr, loc, vaddr);
-		take_x64(elfphdr, loc, offset);
-		take_x64(elfphdr, loc, filesz);
-
-		if(type != PT_LOAD)
-			continue;
-		if(vaddr > off)
-			break;
-		if(vaddr + filesz < off + len)
-			continue;
-
-		ctx->strings_off = offset + (off - vaddr);
-		ctx->strings_len = len;
-
-		return;
+		noff = F.ldw(&sh->name);
 	}
 
-	ctx->strings_off = 0;
-	ctx->strings_len = 0;
+	print("# section ");
+	print_int(shndx);
+	print(" ");
+	print_strn(noff);
+	print_end();
 }
 
-void use_strings_at_offset(CTX, uint64_t off, uint64_t len)
+static void note_offset(uint off, uint size)
 {
-	ctx->strings_off = off;
-	ctx->strings_len = len;
+	print_idx(off, size);
+	print(" ");
 }
 
-void reset_strings_location(CTX)
+static void dump_strings(uint type, uint off, uint size)
 {
-	ctx->strings_off = 0;
-	ctx->strings_len = 0;
+	if(type != SHT_STRTAB)
+		fail("non-STRTAB section", NULL, 0);
+
+	char* p = range(off, size);
+	char* e = p + size;
+	char* s = p;
+	uint len = 0;
+
+	for(; p < e; p++) {
+		if(!len) note_offset(p - s, size);
+
+		char c = *p;
+
+		if(!c) {
+			print("\n");
+			len = 0;
+		} else {
+			print_raw(p, 1);
+			len++;
+		}
+	}
+}
+
+static void dump_single_section(uint shndx)
+{
+	uint type, off, size;
+
+	if(elf64) {
+		struct elf64shdr* sh = get_shent_64(shndx);
+
+		type = F.ldw(&sh->type);
+		off = F.ldx(&sh->offset);
+		size = F.ldx(&sh->size);
+	} else {
+		struct elf64shdr* sh = get_shent_64(shndx);
+
+		type = F.ldw(&sh->type);
+		off = F.ldx(&sh->offset);
+		size = F.ldx(&sh->size);
+	}
+
+	dump_strings(type, off, size);
+}
+
+static int is_string_section(uint shndx)
+{
+	if(elf64) {
+		struct elf64shdr* sh = get_shent_64(shndx);
+
+		return (F.ldw(&sh->type) == SHT_STRTAB);
+	} else {
+		struct elf32shdr* sh = get_shent_32(shndx);
+
+		return (F.ldw(&sh->type) == SHT_STRTAB);
+	}
+}
+
+static void scan_all_string_sections(void)
+{
+	uint i, n = E.shnum;
+
+	for(i = 0; i < n; i++) {
+		if(!is_string_section(i))
+			continue;
+
+		section_line(i);
+
+		dump_single_section(i);
+
+		print_end();
+	}
+}
+
+void dump_strtab_section(void)
+{
+	uint shndx = shift_int();
+
+	no_more_arguments();
+
+	dump_single_section(shndx);
+}
+
+void dump_all_strings(void)
+{
+	no_more_arguments();
+
+	use_strings_from_shstrtab();
+
+	scan_all_string_sections();
 }
