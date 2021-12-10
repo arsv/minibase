@@ -375,6 +375,51 @@
 #define NL80211_BSS_LAST_SEEN_BOOTTIME  15  /* u64, ns */
 #define NL80211_BSS_PAD                 16  /* pad to 64 align (?) */
 
+/* Nested entries under NL80211_ATTR_STA_INFO (21) */
+#define NL80211_STA_INFO_INACTIVE_TIME            1
+#define NL80211_STA_INFO_RX_BYTES                 2
+#define NL80211_STA_INFO_TX_BYTES                 3
+#define NL80211_STA_INFO_LLID                     4
+#define NL80211_STA_INFO_PLID                     5
+#define NL80211_STA_INFO_PLINK_STATE              6
+#define NL80211_STA_INFO_SIGNAL                   7
+#define NL80211_STA_INFO_TX_BITRATE               8
+#define NL80211_STA_INFO_RX_PACKETS               9
+#define NL80211_STA_INFO_TX_PACKETS              10
+#define NL80211_STA_INFO_TX_RETRIES              11
+#define NL80211_STA_INFO_TX_FAILED               12
+#define NL80211_STA_INFO_SIGNAL_AVG              13
+#define NL80211_STA_INFO_RX_BITRATE              14
+#define NL80211_STA_INFO_BSS_PARAM               15
+#define NL80211_STA_INFO_CONNECTED_TIME          16
+#define NL80211_STA_INFO_STA_FLAGS               17
+#define NL80211_STA_INFO_BEACON_LOSS             18
+#define NL80211_STA_INFO_T_OFFSET                19
+#define NL80211_STA_INFO_LOCAL_PM                20
+#define NL80211_STA_INFO_PEER_PM                 21
+#define NL80211_STA_INFO_NONPEER_PM              22
+#define NL80211_STA_INFO_RX_BYTES64              23
+#define NL80211_STA_INFO_TX_BYTES64              24
+#define NL80211_STA_INFO_CHAIN_SIGNAL            25
+#define NL80211_STA_INFO_CHAIN_SIGNAL_AVG        26
+#define NL80211_STA_INFO_EXPECTED_THROUGHPUT     27
+#define NL80211_STA_INFO_RX_DROP_MISC            28
+#define NL80211_STA_INFO_BEACON_RX               29
+#define NL80211_STA_INFO_BEACON_SIGNAL_AVG       30
+#define NL80211_STA_INFO_TID_STATS               31
+#define NL80211_STA_INFO_RX_DURATION             32
+#define NL80211_STA_INFO_PAD                     33
+#define NL80211_STA_INFO_ACK_SIGNAL              34
+#define NL80211_STA_INFO_ACK_SIGNAL_AVG          35
+#define NL80211_STA_INFO_RX_MPDUS                36
+#define NL80211_STA_INFO_FCS_ERROR_COUNT         37
+#define NL80211_STA_INFO_CONNECTED_TO_GATE       38
+#define NL80211_STA_INFO_TX_DURATION             39
+#define NL80211_STA_INFO_AIRTIME_WEIGHT          40
+#define NL80211_STA_INFO_AIRTIME_LINK_METRIC     41
+#define NL80211_STA_INFO_ASSOC_AT_BOOTTIME       42
+#define NL80211_STA_INFO_CONNECTED_TO_AS         43
+
 /* sub-attributes for NL80211_ATTR_KEY_DEFAULT_TYPES */
 #define NL80211_KEY_DEFAULT_TYPE_UNICAST    1
 #define NL80211_KEY_DEFAULT_TYPE_MULTICAST  2
