@@ -47,7 +47,7 @@ exported by libfoo-1.13.so, which ld uses to successfully link appexe:
     > 0x00000001 (NEEDED) Shared library: [libfoo-1.13.so]
     > ...
 
-The linked executable, `appexe`, can now be moved to the target host,
+The resulting executable, `appexe`, can now be moved to the target host,
 which only needs the `libfoo` package installed:
 
     stat /usr/lib/libfoo-1.13.so
@@ -75,9 +75,9 @@ a particular shared library in regular headers, along with their prototypes.
 The compiler would generate proper references to a particular library, and
 the linker would not need to "resolve" them at all.
 
-However, doing that would require deep changes to gcc/binutils, and more
+However, doing that would require major changes to gcc/binutils, and more
 importantly, re-thinking how shared libraries are treated within the GNU
-system. Which is just not feasible.
+system. Which is not feasible.
 
 ELF sheaders can be used with unmodified GNU tools, essentially adapting
 them to a different workflow.
@@ -94,7 +94,7 @@ Whenever possible, implementation details which do not affect linking are
 removed.
 
   * Only symbols exported by the library are copied.
-    (DYNSYM normally containts both imported and exported symbols)
+    (DYNSYM normally contains both imported and exported symbols)
 
   * Symbol values (addresses) are all set to 0.
 
@@ -110,8 +110,6 @@ removed.
 
 Besides sections, a single segment is defined for the DYNAMIC section.
 For some reason, GNU ld can only locate SONAME via program headers.
-
-There are no other reasons to have any segments defined in sheaders.
 
 
 See also
