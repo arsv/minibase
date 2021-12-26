@@ -176,7 +176,6 @@ static void wipe_proc(struct proc* pc)
 static void drop_proc(CTX, struct proc* pc)
 {
 	wipe_proc(pc);
-	update_proc_counts(ctx);
 }
 
 static struct proc* grab_proc(CTX)
@@ -247,6 +246,8 @@ void check_children(CTX)
 	} if(pid < 0 && pid != -ECHILD) {
 		fail("waitpid", NULL, pid);
 	}
+
+	update_proc_counts(ctx);
 }
 
 int flush_proc(CTX, struct proc* pc)
@@ -256,8 +257,10 @@ int flush_proc(CTX, struct proc* pc)
 	if((ret = unmap_pipe(ctx, pc)) < 0)
 		return ret;
 
-	if(pc->pid <= 0)
+	if(pc->pid <= 0) {
 		drop_proc(ctx, pc);
+		update_proc_counts(ctx);
+	}
 
 	return 0;
 }
@@ -377,7 +380,6 @@ int spawn_child(CTX, char** argv, char** envp)
 
 	add_pipe_fd(ctx, pc->fd, pc);
 	wipe_stale_entries(ctx, pc);
-	update_proc_counts(ctx);
 
 	return xid;
 }
