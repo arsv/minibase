@@ -374,12 +374,7 @@ static void setup_prefix(CTX)
 	ctx->at = fd;
 }
 
-/* Possible invocations:
-
-    deploy [repo:]name archive.pac
-    deploy root [repo:]name archive.pac
-
-    So either 2 or 3 arguments. */
+/* Command: deploy [repo:]name archive.pac */
 
 void cmd_deploy(CTX)
 {
