@@ -1,19 +1,17 @@
 This directory contains a tool for creating and manipulating packages
-in a custom PAC format, designed as a replacement GNU TAR specifically
-in package management applications. Within this project, the PAC format
-is used for system packages (see mpkg) and also for toolchain libraries.
+in a custom PAC format, designed mostly as a replacement for GNU TAR
+specifically in package management applications.
+
+Within this project, the PAC format is used for system packages (mpkg)
+and also for toolchain libraries (ctool).
+
 It can also be used for package source code, replacing TAR in that role.
 
+By design, PAC format does not include metadata that would make packages
+non-reproducible, like ownership and creation/modification timestamps.
 PAC files can only store four node types: directories (forming a tree
 structure of limited depth), non-executable files, executables files,
-and symlinks. All nodes are named, and non-directory nodes have size.
-There is no metadata beside that; PAC format by design does not include
-metadata that would make packages non-reproducible, like ownership and
-creation/modification timestamps. There is no support for special files
-either beside symlinks. The decision how to map PAC file types onto the
-target filesystem is deliberately left to the package deploying tools;
-things like which owner/group to assign, which mode to use for executable
-and non-executable files etc.
+and symlinks.
 
 
 The PAC format
@@ -24,10 +22,10 @@ and layout, and ZIP where the index follows content. Overall structure:
     HEADER ENTRY ENTRY ... ENTRY content content ... content
 
 The header encodes the size of the index, each ENTRY describes a directory
-or a leaf node (file). Concatenated content of the individual leaf nodes
+or a leaf node (file or symlink). Concatenated content of the leaf nodes
 follows the index.
 
-HEADER has the following format:
+HEADER format:
 
     "PAC" c s [ s s s ]
 
@@ -36,7 +34,7 @@ The following byte, c, encodes how many s bytes follow (0x00 = 1, 0x01 = 2,
 0x02 = 3, 0x03 = 4), and one to four s bytes encode the total size of the ENTRYs
 in little-endian order.
 
-Each ENTRY has the following format:
+ENTRY format:
 
     T [ s s s s ] n n ... n \0
 
