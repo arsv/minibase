@@ -28,6 +28,24 @@ void quit(CTX, char* msg, int err)
 	fail(ctx->ifname, msg, err);
 }
 
+void set_state(CTX, int state)
+{
+	ctx->state = state;
+	ctx->count = 0;
+
+	ctx->ts.sec = -1;
+}
+
+void set_timer(CTX, int sec)
+{
+	ctx->ts.sec = sec;
+	ctx->ts.nsec = 0;
+
+	if(sec < 10) return;
+
+	close_raw_socket(ctx);
+}
+
 /* Try to come up with a somewhat random xid by pulling auxvec random
    bytes. Failure is not a big issue here, in the sense that DHCP is
    quite insecure by design and a truly random xid hardly improves that. */
@@ -89,11 +107,11 @@ static void setup_signals(CTX)
 	ctx->sigfd = fd;
 }
 
-static void bind_raw_socket(CTX, int fd, int ifindex)
+static void bind_raw_socket(CTX, int fd)
 {
 	struct sockaddr_ll addr = {
 		.family = AF_PACKET,
-		.ifindex = ifindex,
+		.ifindex = ctx->ifindex,
 		.hatype = ARPHRD_NETROM,
 		.pkttype = PACKET_HOST,
 		.protocol = htons(ETH_P_IP),
@@ -104,6 +122,36 @@ static void bind_raw_socket(CTX, int fd, int ifindex)
 
 	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
 		quit(ctx, "bind", fd);
+
+	ctx->rawfd = fd;
+}
+
+void close_raw_socket(CTX)
+{
+	int ret, fd = ctx->rawfd;
+
+	if(fd < 0)
+		return;
+
+	if((ret = sys_close(fd)) < 0)
+		quit(ctx, "close", ret);
+
+	ctx->rawfd = -1;
+}
+
+int reopen_raw_socket(CTX)
+{
+	int fd = ctx->rawfd;
+
+	if(fd >= 0)
+		return fd;
+
+	if((fd = sys_socket(PF_PACKET, SOCK_DGRAM, 8)) < 0)
+		quit(ctx, "raw socket", fd);
+
+	bind_raw_socket(ctx, fd);
+
+	return fd;
 }
 
 static void resolve_device(CTX, char* device)
@@ -138,9 +186,7 @@ static void resolve_device(CTX, char* device)
 
 	memcpy(ctx->ourmac, ifreq.addr.data, 6);
 
-	bind_raw_socket(ctx, fd, ctx->ifindex);
-
-	ctx->rawfd = fd;
+	bind_raw_socket(ctx, fd);
 }
 
 static void handle_signal(CTX, int sig)

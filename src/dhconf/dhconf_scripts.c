@@ -15,13 +15,13 @@ void kill_wait_pid(CTX)
 	int pid = ctx->pid;
 	int ret, status;
 
-	sys_alarm(2);
+	if(pid <= 0)
+		return;
 
-	if(pid > 0) {
-		if((ret = sys_kill(pid, SIGTERM)) < 0)
-			;
-		else sys_waitpid(pid, &status, 0);
-	}
+	if((ret = sys_kill(pid, SIGTERM)) < 0)
+		return;
+
+	sys_waitpid(pid, &status, 0);
 }
 
 static int spawn(CTX, char* args[])

@@ -151,7 +151,8 @@ static void add_optend(DH)
 
 static void send_raw_packet(CTX, DH, const byte dst[6])
 {
-	int ret, fd = ctx->rawfd;
+	int fd = reopen_raw_socket(ctx);
+	int ret;
 	struct sockaddr_ll addr = {
 		.family = AF_PACKET,
 		.ifindex = ctx->ifindex,
@@ -169,20 +170,6 @@ static void send_raw_packet(CTX, DH, const byte dst[6])
 
 	if((ret = sys_sendto(fd, buf, len, 0, &addr, alen)) < 0)
 		quit(ctx, "send", ret);
-}
-
-static void set_state(CTX, int state)
-{
-	ctx->state = state;
-	ctx->count = 0;
-
-	ctx->ts.sec = -1;
-}
-
-static void set_timer(CTX, int sec)
-{
-	ctx->ts.sec = sec;
-	ctx->ts.nsec = 0;
 }
 
 static void send_discover(CTX)
@@ -433,6 +420,7 @@ static void retry_discover(CTX)
 	deconf_iface(ctx);
 
 	set_state(ctx, ST_DISCOVER);
+
 	send_discover(ctx);
 }
 
@@ -467,9 +455,7 @@ static void time_to_renew(CTX)
 
 	if(now >= ref + lease_time) {
 		retry_discover(ctx);
-		return;
-	}
-	if(now >= ref + renew_time) {
+	} else if(now >= ref + renew_time) {
 		set_state(ctx, ST_RENEWING);
 		send_renew(ctx);
 	} else {

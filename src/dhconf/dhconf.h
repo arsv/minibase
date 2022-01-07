@@ -181,3 +181,9 @@ int get_ctx_net_prefix_bits(CTX);
 void proceed_with_scripts(CTX);
 struct dhcpopt* get_ctx_option(CTX, int code);
 void output_lease_info(CTX);
+
+void close_raw_socket(CTX);
+int reopen_raw_socket(CTX);
+
+void set_state(CTX, int state);
+void set_timer(CTX, int sec);
