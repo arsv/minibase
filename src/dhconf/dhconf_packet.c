@@ -426,7 +426,7 @@ static void retry_discover(CTX)
 
 static void lease_obtained(CTX)
 {
-	set_timer(ctx, ctx->renew_time);
+	set_timer(ctx, 60);
 
 	config_iface(ctx);
 
@@ -436,7 +436,7 @@ static void lease_obtained(CTX)
 
 static void lease_renewed(CTX)
 {
-	set_timer(ctx, ctx->renew_time);
+	set_timer(ctx, 60);
 
 	update_iface(ctx);
 }
@@ -459,8 +459,7 @@ static void time_to_renew(CTX)
 		set_state(ctx, ST_RENEWING);
 		send_renew(ctx);
 	} else {
-		int left = ref + renew_time - now;
-		set_timer(ctx, left);
+		set_timer(ctx, 60);
 	}
 }
 
@@ -474,10 +473,8 @@ static void renew_timeout(CTX)
 	if(now > end) /* less than 10 minutes left */
 		return retry_discover(ctx);
 
-	uint wait = (end - now)/2;
-
 	ctx->state = ST_LEASED;
-	set_timer(ctx, wait);
+	set_timer(ctx, 60);
 }
 
 void timeout_waiting(CTX)
