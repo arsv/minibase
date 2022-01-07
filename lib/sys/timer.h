@@ -54,3 +54,20 @@ inline static int sys_timer_gettime(int timerid, struct itimerspec* curtime)
 {
 	return syscall2(NR_timer_gettime, timerid, (long)curtime);
 }
+
+inline static int sys_timerfd_create(int clockid, int flags)
+{
+	return syscall2(NR_timerfd, clockid, flags);
+}
+
+inline static int sys_timerfd_settime(int fd, int flags,
+		const struct itimerspec* newtime, struct itimerspec* oldtime)
+{
+	return syscall4(NR_timerfd_settime, fd, flags,
+			(long)newtime, (long)oldtime);
+}
+
+inline static int sys_timerfd_gettime(int fd, struct itimerspec* curtime)
+{
+	return syscall2(NR_timerfd_gettime, fd, (long)curtime);
+}
