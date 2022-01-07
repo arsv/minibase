@@ -9,6 +9,7 @@
 #include <sys/signal.h>
 #include <sys/socket.h>
 #include <sys/random.h>
+#include <sys/timer.h>
 
 #include <string.h>
 #include <endian.h>
@@ -28,22 +29,53 @@ void quit(CTX, char* msg, int err)
 	fail(ctx->ifname, msg, err);
 }
 
+static void set_timer_sec(CTX, int sec)
+{
+	int ret, tid = ctx->timerid;
+	struct itimerspec its = {
+		.interval = { 0, 0 },
+		.value = { sec, 0 }
+	};
+
+	if((ret = sys_timer_settime(tid, 0, &its, NULL)) < 0)
+		quit(ctx, "timer_settimee", ret);
+}
+
 void set_state(CTX, int state)
 {
 	ctx->state = state;
 	ctx->count = 0;
 
-	ctx->ts.sec = -1;
+	if(!ctx->timeact) return;
+
+	set_timer_sec(ctx, 0);
+
+	ctx->timeact = 0;
 }
 
 void set_timer(CTX, int sec)
 {
-	ctx->ts.sec = sec;
-	ctx->ts.nsec = 0;
+	set_timer_sec(ctx, sec);
+
+	ctx->timeact = 1;
 
 	if(sec < 10) return;
 
 	close_raw_socket(ctx);
+}
+
+static void create_timer(CTX)
+{
+	int ret, tid;
+	struct sigevent sev = {
+		.notify = SIGEV_SIGNAL,
+		.signo = SIGALRM
+	};
+
+	if((ret = sys_timer_create(CLOCK_BOOTTIME, &sev, &tid)) < 0)
+		fail("timer_create", NULL, 0);
+
+	ctx->timerid = tid;
 }
 
 /* Try to come up with a somewhat random xid by pulling auxvec random
@@ -91,6 +123,7 @@ static void setup_signals(CTX)
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGTERM);
 	sigaddset(&mask, SIGCHLD);
+	sigaddset(&mask, SIGALRM);
 	sigaddset(&mask, SIGINT);
 	sigaddset(&mask, SIGHUP);
 
@@ -192,6 +225,10 @@ static void resolve_device(CTX, char* device)
 static void handle_signal(CTX, int sig)
 {
 	switch(sig) {
+		case SIGALRM:
+			ctx->timeact = 0;
+			timeout_waiting(ctx);
+			return;
 		case SIGCHLD:
 			check_child(ctx);
 			return;
@@ -246,12 +283,9 @@ static void poll(CTX)
 		{ .fd = ctx->rawfd, .events = POLLIN }
 	};
 	int npfds = ARRAY_SIZE(pfds);
-	struct timespec* ts = &ctx->ts;
 
-	if((ret = sys_ppoll(pfds, npfds, ts, NULL)) < 0)
+	if((ret = sys_ppoll(pfds, npfds, NULL, NULL)) < 0)
 		quit(ctx, "ppoll", ret);
-	if(ret == 0)
-		return timeout_waiting(ctx);
 
 	check_signals(ctx, pfds[0].revents);
 	check_incoming(ctx, pfds[1].revents);
@@ -283,6 +317,7 @@ int main(int argc, char** argv)
 	setup_args(ctx, argc, argv);
 	pick_random_xid(ctx);
 	setup_signals(ctx);
+	create_timer(ctx);
 
 	start_discover(ctx);
 

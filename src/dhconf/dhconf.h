@@ -140,7 +140,9 @@ struct top {
 	int state;
 	int count;
 	int next;
-	struct timespec ts;
+
+	int timerid;
+	int timeact;
 
 	uint xid;
 	uint seq;
