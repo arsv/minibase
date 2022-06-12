@@ -70,20 +70,18 @@ This is the wrong way
 ~~~~~~~~~~~~~~~~~~~~~
 Implementing sheaders as ELF shared objects is a deep compromise.
 
-A much better approach would be declaring functions as being provided by
-a particular shared library in regular headers, along with their prototypes.
-The compiler would generate proper references to a particular library, and
-the linker would not need to "resolve" them at all.
+A much better approach would be to use regular headers for this purpose,
+declaring functions as being provided by a particular shared library next
+to their prototypes. The compiler would generate proper dynamic references,
+and the static linker would not need to "resolve" dynamically-linked symbols
+at all.
 
 However, doing that would require major changes to gcc/binutils, and more
 importantly, re-thinking how shared libraries are treated within the GNU
-system. Which is not feasible.
+system. That would be a lot of work and way out of my scope.
 
 ELF sheaders can be used with unmodified GNU tools, essentially adapting
-them to a different workflow.
-
-Consequently, sheaders are only meant to be as good as needed in order
-to trick GNU tools into doing the right thing.
+those tools to a different workflow.
 
 
 How exactly does it work
@@ -108,8 +106,10 @@ removed.
 
   * DYNAMIC section is added with a single entry, SONAME
 
-Besides sections, a single segment is defined for the DYNAMIC section.
-For some reason, GNU ld can only locate SONAME via program headers.
+A single segment is defined for the DYNAMIC section. This is a work-around
+for GNU ld; for some reason, ld is only capable of locating SONAME entry
+from the DYNAMIC section via program headers, even though the section is
+also listed in the sections table.
 
 
 See also
