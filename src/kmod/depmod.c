@@ -743,12 +743,15 @@ int main(int argc, char** argv)
 		if((ret = sys_uname(&ut)) < 0)
 			fail("uname", NULL, ret);
 
-		FMTBUF(p, e, basebuf, 20 + sizeof(ut.release));
+		uint max = 20 + sizeof(ut.release);
+		char* buf = alloca(max);
+		char* p = buf;
+		char* e = buf + max - 1;
+
 		p = fmtstr(p, e, "/lib/modules/");
 		p = fmtstr(p, e, ut.release);
-		FMTEND(p, e);
 
-		base = basebuf;
+		base = buf;
 	}
 	if(i < argc)
 		fail("too many arguments", NULL, 0);

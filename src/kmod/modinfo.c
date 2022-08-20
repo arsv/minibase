@@ -355,10 +355,13 @@ static void locate_by_name(CTX, char* name)
 		if((ret = sys_uname(&ut)) < 0)
 			fail("uname", NULL, ret);
 
-		FMTBUF(p, e, buf, 100);
+		uint size = 100;
+		char* buf = alloca(size);
+		char* p = buf;
+		char* e = buf + size - 1;
+
 		p = fmtstr(p, e, "/lib/modules/");
 		p = fmtstr(p, e, ut.release);
-		FMTEND(p, e);
 
 		base = buf;
 	}
