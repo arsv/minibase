@@ -179,6 +179,12 @@ static int map_xzcat(CTX, struct mbuf* mb, char* path)
 	return decompress(ctx, mb, path, args);
 }
 
+static int map_zstd(CTX, struct mbuf* mb, char* path)
+{
+	char* args[] = { "zstd", "-dcf", path, NULL };
+	return decompress(ctx, mb, path, args);
+}
+
 int load_module(CTX, struct mbuf* mb, char* path)
 {
 	char* base = basename(path);
@@ -192,6 +198,8 @@ int load_module(CTX, struct mbuf* mb, char* path)
 		return map_zcat(ctx, mb, path);
 	if(check_suffix(base, blen, ".ko.xz"))
 		return map_xzcat(ctx, mb, path);
+	if(check_suffix(base, blen, ".ko.zst"))
+		return map_zstd(ctx, mb, path);
 
 	error(ctx, "unexpected module extension:", base, 0);
 	return -EINVAL;
