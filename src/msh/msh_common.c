@@ -119,41 +119,9 @@ char* env_value(CTX, struct env* ev, int type)
 	return ctx->environ[idx];
 }
 
-/* In case `onexit` has been used, invoke it when exiting. */
-
-static void try_exec_trap(CTX)
+void exit_fail(void)
 {
-	struct env* ev;
-	int i = 0;
-	int count = 0;
-	char* argv[32];
-	char* arg;
-
-	for(ev = env_first(ctx); ev; ev = env_next(ctx, ev))
-		if((arg = env_value(ctx, ev, EV_TRAP)))
-			count++;
-
-	if(count <= 0)
-		return;
-	if((uint)count >= ARRAY_SIZE(argv))
-		count = ARRAY_SIZE(argv) - 1;
-
-	for(ev = env_first(ctx); ev; ev = env_next(ctx, ev))
-		if((arg = env_value(ctx, ev, EV_TRAP)))
-			if(i < count) argv[i++] = arg;
-
-	argv[i] = NULL;
-
-	int ret = sys_execve(*argv, argv, ctx->environ);
-
-	report(ctx, "exec", *argv, ret);
-}
-
-void exit(CTX, int code)
-{
-	try_exec_trap(ctx);
-
-	_exit(code);
+	_exit(0xFF);
 }
 
 /* For a few cases where error is related to msh dealing with the script
@@ -163,7 +131,7 @@ void quit(CTX, const char* err, char* arg, int ret)
 {
 	ctx->file = NULL; /* force msh: tag */
 	report(ctx, err, arg, ret);
-	exit(ctx, 0xFF);
+	exit_fail();
 }
 
 /* These two do the same exact thing, error() takes errno and fatal() does not.
@@ -174,13 +142,13 @@ void quit(CTX, const char* err, char* arg, int ret)
 void error(CTX, const char* err, char* arg, int ret)
 {
 	report(ctx, err, arg, ret);
-	exit(ctx, 0xFF);
+	exit_fail();
 }
 
 void fatal(CTX, const char* err, char* arg)
 {
 	report(ctx, err, arg, 0);
-	exit(ctx, 0xFF);
+	exit_fail();
 }
 
 /* Arguments handling for builtins */

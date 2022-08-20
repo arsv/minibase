@@ -77,5 +77,5 @@ int main(int argc, char** argv)
 	else
 		parse_str(ctx, script);
 
-	exit(ctx, 0);
+	return 0;
 }

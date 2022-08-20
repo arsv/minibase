@@ -280,21 +280,3 @@ void cmd_clearenv(CTX)
 	else
 		clear_all_entries(ctx, EV_ENVP);
 }
-
-void cmd_onexit(CTX)
-{
-	need_some_arguments(ctx);
-
-	int i, narg = ctx->argc - ctx->argp;
-	char** args = ctx->argv + ctx->argp;
-	int size = (narg+1)*sizeof(char*);
-
-	char** temp = heap_alloc(ctx, size);
-
-	clear_all_entries(ctx, EV_TRAP);
-
-	for(i = 0; i < narg; i++)
-		temp[i] = realloc_higher(ctx, args[i]);
-	for(i = 0; i < narg; i++)
-		append_variable(ctx, temp[i], EV_TRAP);
-}

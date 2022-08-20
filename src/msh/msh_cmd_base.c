@@ -29,7 +29,7 @@ void cmd_exit(CTX)
 
 	no_more_arguments(ctx);
 
-	exit(ctx, code);
+	_exit(code);
 }
 
 static void print(CTX, int fd)
@@ -60,5 +60,5 @@ void cmd_warn(CTX)
 void cmd_die(CTX)
 {
 	cmd_warn(ctx);
-	exit(ctx, 0xFF);
+	exit_fail();
 }

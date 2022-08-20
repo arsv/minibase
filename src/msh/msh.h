@@ -6,7 +6,6 @@
 
 #define EV_ENVP (1<<16)
 #define EV_SVAR (1<<17)
-#define EV_TRAP (1<<18)
 
 #define EV_REF  (1<<24)
 
@@ -67,7 +66,7 @@ void heap_extend(CTX);
 void parse(CTX, char* buf, int len);
 void parse_finish(CTX);
 
-void exit(CTX, int code) noreturn;
+void exit_fail(void) noreturn;
 void quit(CTX, const char* err, char* arg, int ret) noreturn;
 void error(CTX, const char* err, char* arg, int ret) noreturn;
 void fatal(CTX, const char* err, char* arg) noreturn;
