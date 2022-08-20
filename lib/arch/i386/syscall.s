@@ -27,3 +27,5 @@ syscall:
 
 .type syscall,function
 .size syscall,.-syscall
+
+.section .note.GNU-stack,"",%progbits

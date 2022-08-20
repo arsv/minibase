@@ -18,3 +18,5 @@ _exit:
 
 .type _start,function
 .type _exit,function
+
+.section .note.GNU-stack,"",%progbits

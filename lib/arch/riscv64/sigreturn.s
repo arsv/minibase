@@ -8,3 +8,5 @@ sigreturn:
 
 .size sigreturn,.-sigreturn
 .type sigreturn,function
+
+.section .note.GNU-stack,"",%progbits

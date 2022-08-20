@@ -27,3 +27,5 @@ _exit:
 
 .type _start,@function
 .size _start,_exit-_start
+
+.section .note.GNU-stack,"",%progbits
