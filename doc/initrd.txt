@@ -34,8 +34,10 @@ This project provides several tools designed specifically for use in initrd.
 
 Startup script
 ~~~~~~~~~~~~~~
+# NOTE: somewhat outdated after devinit changes, to be re-written.
+
 The kernel "mounts" initrd as filesystem root and spawns a single process,
-execing /init or /linuxrc, as pid 1. Typical contents:
+execing /linuxrc as pid 1. Typical contents:
 
     #!/bin/msh
 
