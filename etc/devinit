@@ -1,5 +1,5 @@
 #!/bin/sh
 
-echo "+++ devinit start"
+echo "Looking for devices"
 sleep 3
-echo "+++ devinit exit"
+echo "Located root device"

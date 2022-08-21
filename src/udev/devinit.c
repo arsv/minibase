@@ -1,3 +1,5 @@
+/* Simplified udev event monitor for initrd use */
+
 #include <bits/socket/netlink.h>
 #include <sys/file.h>
 #include <sys/proc.h>
@@ -6,6 +8,7 @@
 #include <sys/dents.h>
 #include <sys/socket.h>
 #include <sys/signal.h>
+#include <sys/timer.h>
 #include <sys/mman.h>
 
 #include <config.h>
@@ -15,16 +18,16 @@
 #include <util.h>
 #include <main.h>
 
-/* Simplified udev event monitor for initrd use */
-
 ERRTAG("devinit");
 
-#define OPTS "i"
-#define OPT_i (1<<0)
+#define OPTS "r"
+#define OPT_r (1<<0)
 
 struct top {
 	char* base;
+	char** argv;
 	char** envp;
+	int failure;
 
 	int devfd;  /* udev socket, in */
 	int sigfd;  /* signalfd, in */
@@ -47,7 +50,7 @@ static void modprobe(CTX, char* name)
 	int nlen = strlen(name);
 	int ret;
 
-	if(fd < 0) /* writes disables, modpipe is dead */
+	if(fd < 0) /* modpipe is dead */
 		return;
 
 	name[nlen] = '\n';
@@ -112,14 +115,17 @@ static void recv_event(CTX)
 	modprobe(ctx, alias);
 }
 
-static noreturn void exec_script(CTX, char* name)
+static noreturn void exec_with_args(CTX, char* path)
 {
-	FMTBUF(p, e, path, 200);
-	p = fmtstr(p, e, ctx->base);
-	p = fmtstr(p, e, "/");
-	p = fmtstr(p, e, name);
-	FMTEND(p, e);
+	ctx->argv[0] = path;
 
+	int ret = sys_execve(path, ctx->argv, ctx->envp);
+
+	fail(NULL, path, ret);
+}
+
+static noreturn void exec_no_args(CTX, char* path)
+{
 	char* argv[] = { path, NULL };
 
 	int ret = sys_execve(path, argv, ctx->envp);
@@ -140,7 +146,7 @@ void open_modpipe(CTX)
 	if(pid == 0) {
 		sys_dup2(fds[0], STDIN);
 		sys_close(fds[1]);
-		exec_script(ctx, "modpipe");
+		exec_no_args(ctx, INIT_ETC "/modpipe");
 	}
 
 	sys_close(fds[0]);
@@ -266,19 +272,65 @@ static void start_script(CTX)
 		fail("fork", NULL, pid);
 
 	if(pid == 0)
-		exec_script(ctx, "devinit");
+		exec_with_args(ctx, INIT_ETC "/setup");
 
 	ctx->runpid = pid;
 }
 
-static void kill_and_wait(CTX, int pid, char* tag)
+static void terminate(CTX)
 {
-	int ret, status;
+	if(ctx->failure)
+		exec_no_args(ctx, INIT_ETC "/failure");
+	else
+		exec_with_args(ctx, INIT_ETC "/success");
+}
 
-	if((ret = sys_kill(pid, SIGTERM)) < 0)
-		fail("kill", tag, pid);
-	if((ret = sys_waitpid(pid, &status, 0)) < 0)
-		fail("waitpid", tag, pid);
+static void kill_check(CTX, int pid, char* tag)
+{
+	int ret;
+
+	if((ret = sys_kill(pid, SIGTERM)) < 0) {
+		warn("kill", tag, ret);
+		return terminate(ctx);
+	}
+
+	if((sys_alarm(5)) < 0)
+		warn("alarm", NULL, ret);
+}
+
+static void trigger_failure(CTX)
+{
+	ctx->failure = -1;
+}
+
+static void handle_script_exit(CTX, int status)
+{
+	int modpid = ctx->modpid;
+
+	ctx->runpid = -1;
+
+	if(status)
+		trigger_failure(ctx);
+
+	if(modpid <= 0)
+		return terminate(ctx);
+
+	kill_check(ctx, modpid, "modpipe");
+}
+
+static void handle_modpipe_exit(CTX)
+{
+	int runpid = ctx->runpid;
+
+	ctx->modpid = -1;
+
+	if(runpid <= 0)
+		return terminate(ctx);
+
+	warn("modpipe died", NULL, 0);
+	trigger_failure(ctx);
+
+	kill_check(ctx, runpid, "script");
 }
 
 static void check_children(CTX)
@@ -288,15 +340,10 @@ static void check_children(CTX)
 	if((pid = sys_waitpid(-1, &status, WNOHANG)) <= 0)
 		return;
 
-	if(pid == ctx->runpid) {
-		kill_and_wait(ctx, ctx->modpid, "modpipe");
-		_exit(0x00);
-	}
-	if(pid == ctx->modpid) {
-		warn("modpipe died", NULL, 0);
-		kill_and_wait(ctx, ctx->runpid, "script");
-		_exit(0xFF);
-	}
+	if(pid == ctx->runpid)
+		return handle_script_exit(ctx, status);
+	if(pid == ctx->modpid)
+		return handle_modpipe_exit(ctx);
 }
 
 static void recv_signal(CTX)
@@ -346,20 +393,10 @@ static void poll(CTX)
 int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
-	int i = 1, opts = 0;
 
 	memzero(ctx, sizeof(*ctx));
 
-	if(i < argc && argv[i][0] == '-')
-		opts = argbits(OPTS, argv[i++] + 1);
-	if(i < argc)
-		fail("too many arguments", NULL, 0);
-
-	if(opts & OPT_i)
-		ctx->base = INIT_ETC;
-	else
-		ctx->base = BASE_ETC "/udev";
-
+	ctx->argv = argv;
 	ctx->envp = argv + argc + 1;
 
 	open_udev(ctx);

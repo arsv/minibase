@@ -1,25 +1,27 @@
-This directory contains two versions of essentially the same tool.
-The larger one, udevmod, is a regular long-running never-exiting service
-for general use. The second, smaller one (devinit) is meant for initrd
-use only and does normally exit.
+The primary tool here, udevmod, is a small process that monitors udev events
+(uevents) from the kernel and takes some actions based on those:
 
-Both tools run modprobe whenever kernel reports a new modaliased device.
-udevmod also implements some libudev compatibility behavior (to allow
-running unmodified X and Weston atop of it) and minimalistic device node
-chmod/chown which has no use atm and should be removed at some point.
+  * loads modules on request (modalias mechanism)
+  * possibly runs scripts whenever certain devices get added
+  * re-transmits the events for libudevd clients
+
+In the this project, the role of the udev service (udevmod) is much more
+limited than the original udevd, since most device-related services are
+expected to get new-device notifications by other means, like an expicit
+command to pick up a device, vs picking it up whenever it appears.
 
 
 Initrd specifics
 ~~~~~~~~~~~~~~~~
-udevmod is a service, that is, it does not exit. This mode of operation
-does not fit well within initrd, which is a transitional startup stage,
-so whatever's running there has to exit at some point.
+The second tool here is devinit, an init (as in, pid 1) for use in initrd.
+It may look strange at first, but devinit is mostly just a udev event handler.
 
-Atop of that, large part of the code in udevmod makes no sense in initrd.
-There should be no libudev clients there, no need to chmod devices and so on.
+Turns out it is much easier to have a dedicated tool for use within initrd
+environment, vs trying to make udevmod usable there and building some sort
+of supervision atop.
 
-So instead, the second tool (devinit) was introduced to do exactly what's
-needed for initrd and nothing more.
+Unlinke udevmod, on the udev side devinit pretty much only handles modaliases
+because that's the only part of udev that's relevant for initrd.
 
 
 Device renaming
@@ -57,13 +59,12 @@ ALSA (raw or via libasound) requires non-privileged device access, but direct
 access to ALSA is a bad idea anyway and with a sound server running only the
 server itself needs the devices.
 
-Inputs and block devices must be requested via privileged services (vtmux and
-mountd respectively). This seems to be the best way to handle this problem
-in general within minibase. A device manager that grands access to certain
-devices on request, possibly also locking or ensuring non-interference between
-the clients.
+Inputs and block devices must be requested via privileged services.
+This seems to be the best way to handle this problem in general within minibase.
+A device manager that grands access to certain devices on request, possibly
+also locking or ensuring non-interference between the clients.
 
-Sometimes it makes sense to let users access serial ports. However, serial
+Sometimes it makes sense to let the users access serial ports. However, serial
 ports are TTYs, figuring out which TTYs are serial ports is tricky, some may
 need privileged locking anyway (e.g. to avoid users sniffing on pppd), so it
 really calls for another privileged device manager.

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo "+++ devinit modpipe"
+echo "Starting modpipe"
 
 while read i; do
 	echo modprobe "$i"
