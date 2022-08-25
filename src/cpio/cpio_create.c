@@ -17,19 +17,12 @@
 #define EN_EXEC 2
 #define EN_LINK 3
 
-struct dir {
-	struct ent** idx;
-	int count;
-};
-
 struct ent {
 	short len;
 	short type;
 	uint size;
 	char name[];
 };
-
-#define DCT struct dir* dct
 
 static int cmp_ent(void* pa, void* pb)
 {
@@ -94,6 +87,8 @@ static void enter_directory(CTX, struct ent* en)
 	ctx->at = fd;
 	ctx->depth = depth + 1;
 
+	reset_entry(ctx);
+
 	put_pref(ctx);
 
 	scan_directory(ctx);
@@ -107,17 +102,28 @@ static void enter_directory(CTX, struct ent* en)
 static void process_entry(CTX, struct ent* en)
 {
 	int type = en->type;
+
 	char* name = en->name;
-	uint size = en->size;
+	uint nlen = strlen(name);
+
+	ctx->entry.name = name;
+	ctx->entry.nlen = nlen;
+
+	ctx->entry.path = name;
+	ctx->entry.plen = nlen;
+
+	ctx->entry.size = en->size;
 
 	if(type == EN_DIR)
 		enter_directory(ctx, en);
 	else if(type == EN_LINK)
-		put_link(ctx, name, name, size);
+		put_symlink(ctx);
 	else if(type == EN_EXEC)
-		put_file(ctx, name, name, size, 0755 | S_IFREG);
+		put_file(ctx, 0755 | S_IFREG);
 	else
-		put_file(ctx, name, name, size, 0644 | S_IFREG);
+		put_file(ctx, 0644 | S_IFREG);
+
+	reset_entry(ctx);
 }
 
 static int index_entries(void* p0, void* p1, int count, struct ent** idx)
@@ -196,10 +202,10 @@ static void check_dent(CTX, int at, char* name)
 static void scan_directory(CTX)
 {
 	int ret, fd = ctx->at;
-	void* buf = ctx->dirbuf;
-	int len = ctx->dirlen;
+	void* buf = ctx->dent.buf;
+	int len = ctx->dent.len;
 
-	void* p0 = ctx->ptr;
+	void* p0 = heap_point(ctx);
 
 	while((ret = sys_getdents(fd, buf, len)) > 0) {
 		void* ptr = buf;
@@ -225,7 +231,7 @@ static void scan_directory(CTX)
 		failx(ctx, "", ret);
 	}
 
-	void* p1 = ctx->ptr;
+	void* p1 = heap_point(ctx);
 
 	process_dir(ctx, p0, p1);
 
@@ -241,8 +247,8 @@ void cmd_create(CTX)
 
 	heap_init(ctx, 4*PAGE);
 
-	ctx->dirlen = 2*PAGE;
-	ctx->dirbuf = heap_alloc(ctx, ctx->dirlen);
+	ctx->dent.len = 2*PAGE;
+	ctx->dent.buf = heap_alloc(ctx, ctx->dent.len);
 	ctx->pref = "";
 	ctx->plen = 0;
 

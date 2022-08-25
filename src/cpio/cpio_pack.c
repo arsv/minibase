@@ -13,25 +13,10 @@
 
 #define MAX_LIST_SIZE (1<<24)
 
-struct listctx {
-	struct top* ctx;
-
-	int fd;
-	char* name;
-
-	void* buf;
-	int len;
-
-	int line;
-};
-
-#define LCT struct listctx* lct
-
-static void open_list_file(LCT, char* name)
+static void open_list_file(CTX, char* name)
 {
 	int fd, ret;
 	struct stat st;
-	void* buf;
 
 	if((fd = sys_open(name, O_RDONLY)) < 0)
 		fail(NULL, name, fd);
@@ -42,29 +27,28 @@ static void open_list_file(LCT, char* name)
 		fail(NULL, name, -E2BIG);
 
 	int size = st.size;
-	int proto = PROT_READ;
-	int flags = MAP_PRIVATE;
+	void* buf = heap_alloc(ctx, align4(size + 1));
 
-	buf = sys_mmap(NULL, size, proto, flags, fd, 0);
+	if((ret = sys_read(fd, buf, size)) < 0)
+		fail("read", name, ret);
+	if(ret != size)
+		fail("incomplete read", NULL, 0);
 
-	if((ret = mmap_error(buf)))
-		fail("mmap", name, ret);
-
-	lct->fd = fd;
-	lct->name = name;
-	lct->buf = buf;
-	lct->len = size;
+	ctx->list.fd = fd;
+	ctx->list.name = name;
+	ctx->list.buf = buf;
+	ctx->list.len = size;
 }
 
-static void syntax(LCT, char* msg)
+static void syntax(CTX, char* msg)
 {
 	FMTBUF(p, e, buf, 200);
 	p = fmtstr(p, e, errtag);
 	p = fmtstr(p, e, ":");
 	p = fmtstr(p, e, " ");
-	p = fmtstr(p, e, lct->name);
+	p = fmtstr(p, e, ctx->list.name);
 	p = fmtstr(p, e, ":");
-	p = fmtint(p, e, lct->line);
+	p = fmtint(p, e, ctx->list.line);
 	p = fmtstr(p, e, ":");
 	p = fmtstr(p, e, " ");
 	p = fmtstr(p, e, msg);
@@ -74,62 +58,15 @@ static void syntax(LCT, char* msg)
 	_exit(0xFF);
 }
 
-static void pack_link(LCT, struct stat* st, char* path)
+static int is_space(char c)
 {
-	struct top* ctx = lct->ctx;
-
-	if(st->size > PAGE)
-		failz(ctx, path, -E2BIG);
-
-	char* name = basename(path);
-	uint size = st->size;
-
-	put_link(ctx, path, name, size);
-}
-
-static void pack_file(LCT, struct stat* st, char* path)
-{
-	struct top* ctx = lct->ctx;
-
-	if(st->size > 0xFFFFFFFF)
-		failz(ctx, path, -E2BIG);
-
-	char* name = basename(path);
-	uint size = st->size;
-	int mode = (st->mode & 0111) ? 0755 : 0644;
-
-	put_file(ctx, path, name, size, mode);
-}
-
-static void parse_file(LCT, char* p, char* e)
-{
-	struct top* ctx = lct->ctx;
-	int nlen = e - p;
-	char* real = alloca(nlen + 1);
-
-	memcpy(real, p, nlen);
-	real[nlen] = '\0';
-
-	int ret, at = ctx->at;
-	struct stat st;
-
-	if((ret = sys_fstatat(at, real, &st, AT_SYMLINK_NOFOLLOW)) < 0)
-		failz(ctx, real, ret);
-
-	int type = st.mode & S_IFMT;
-
-	if(type == S_IFLNK)
-		return pack_link(lct, &st, real);
-	if(type == S_IFREG)
-		return pack_file(lct, &st, real);
-
-	failz(ctx, real, -EINVAL);
+	return ((c == ' ') || (c == '\t'));
 }
 
 static char* skip_nonspace(char* p, char* e)
 {
 	for(; p < e; p++)
-		if(*p == ' ')
+		if(is_space(*p))
 			break;
 
 	return p;
@@ -138,46 +75,124 @@ static char* skip_nonspace(char* p, char* e)
 static char* skip_space(char* p, char* e)
 {
 	for(; p < e; p++)
-		if(*p != ' ')
+		if(!is_space(*p))
 			break;
 
 	return p;
 }
 
-static void parse_link(LCT, char* p, char* e)
+static char* back_space(char* p, char* e)
 {
-	struct top* ctx = lct->ctx;
+	while(p < e) {
+		char* q = e - 1;
 
-	char* name = p;
-	p = skip_nonspace(p, e);
-	int nlen = p - name;
-	p = skip_space(p, e);
+		if(!is_space(*q))
+			break;
 
-	char* target = p;
-	int tlen = e - p;
+		e = q;
+	}
 
-	if(nlen <= 0)
-		syntax(lct, "empty link name");
-	if(tlen <= 0)
-		syntax(lct, "empty link target");
-	if(nlen > PAGE)
-		syntax(lct, "name too long");
-	if(tlen > PAGE)
-		syntax(lct, "link too long");
-
-	put_immlink(ctx, name, nlen, target, tlen);
+	return e;
 }
 
-static void parse_path(LCT, char* p, char* e)
+static void take_whole_line(CTX)
 {
-	struct top* ctx = lct->ctx;
+	char* ls = ctx->list.ls;
+	uint len = ctx->list.le - ls;
+
+	ctx->entry.path = ls;
+	ctx->entry.plen = len;
+
+	char* bn = basename(ls);
+
+	ctx->entry.name = bn;
+	ctx->entry.nlen = strlen(bn);
+}
+
+static void take_name_path(CTX)
+{
+	char* p = ctx->list.ls + 1;
+	char* e = ctx->list.le;
+
+	char* q = skip_nonspace(p, e);
+
+	*q = '\0';
+
+	ctx->entry.name = p;
+	ctx->entry.nlen = strlen(p);
+
+	p = skip_space(q + 1, e);
+
+	ctx->entry.path = p;
+	ctx->entry.plen = strlen(p);
+
+	//if(nlen <= 0)
+	//	syntax(lct, "empty link name");
+	//if(tlen <= 0)
+	//	syntax(lct, "empty link target");
+	//if(nlen > PAGE)
+	//	syntax(lct, "name too long");
+	//if(tlen > PAGE)
+	//	syntax(lct, "link too long");
+}
+
+static void common_put_file(CTX)
+{
+	int ret, at = ctx->at;
+	char* path = ctx->entry.path;
+	struct stat st;
+
+	if((ret = sys_fstatat(at, path, &st, AT_SYMLINK_NOFOLLOW)) < 0)
+		failz(ctx, path, ret);
+	if(st.size > 0xFFFFFFFF)
+		failz(ctx, path, -E2BIG);
+
+	int type = st.mode & S_IFMT;
+
+	ctx->entry.size = st.size;
+
+	if(type == S_IFLNK)
+		return put_symlink(ctx);
+	if(type != S_IFREG)
+		failz(ctx, path, -EINVAL);
+
+	uint mode = (st.mode & 0111) ? 0755 : 0644;
+
+	put_file(ctx, mode);
+}
+
+static void parse_file(CTX)
+{
+	take_whole_line(ctx);
+
+	common_put_file(ctx);
+}
+
+static void parse_link(CTX)
+{
+	take_name_path(ctx);
+
+	put_immlink(ctx);
+}
+
+static void parse_copy(CTX)
+{
+	take_name_path(ctx);
+
+	common_put_file(ctx);
+}
+
+static void parse_path(CTX)
+{
+	char* p = ctx->list.ls + 1;
+	char* e = ctx->list.le;
 
 	p = skip_space(p, e);
 
 	if(p >= e)
-		syntax(lct, "empty path");
+		syntax(ctx, "empty path");
 	if(*p == '/')
-		syntax(lct, "leading slash");
+		syntax(ctx, "leading slash");
 
 	heap_reset(ctx, ctx->pref);
 
@@ -188,39 +203,66 @@ static void parse_path(LCT, char* p, char* e)
 	buf[len++] = '/';
 	buf[len] = '\0';
 
+	ctx->pref = buf;
 	ctx->plen = len;
 
 	put_pref(ctx);
 }
 
-static void parse_input(LCT)
+static char* grab_line(CTX)
 {
-	char* p = lct->buf;
-	char* e = p + lct->len;
+	char* buf = ctx->list.buf;
+	char* end = buf + ctx->list.len;
 
-	while(p < e) {
-		char* s = p;
-		char* q = strecbrk(p, e, '\n');
+	char* s = ctx->list.lp;
 
-		p = q + 1;
+	if(s >= end)
+		return NULL;
 
-		lct->line++;
+	char* q = strecbrk(s, end, '\n');
 
-		if(s >= q)
+	if(q >= end)
+		syntax(ctx, "truncated file");
+	if(s + PAGE <= q)
+		syntax(ctx, "line too long");
+
+	*q = '\0';
+
+	s = skip_space(s, q);
+	q = back_space(s, q);
+
+	ctx->list.lp = q + 1;
+	ctx->list.ls = s;
+	ctx->list.le = q;
+
+	ctx->list.line++;
+
+	return s;
+}
+
+static void parse_input(CTX)
+{
+	char* ln;
+
+	ctx->list.lp = ctx->list.buf;
+
+	while((ln = grab_line(ctx))) {
+		char lead = *ln;
+
+		if(!lead) /* empty line */
 			continue;
-		if(s + PAGE < p)
-			syntax(lct, "line too long");
-
-		char lead = *s;
-
-		if(lead == '#')
+		else if(lead == '#')
 			continue;
 		else if(lead == '>')
-			parse_path(lct, s + 1, q);
+			parse_path(ctx);
 		else if(lead == '@')
-			parse_link(lct, s + 1, q);
+			parse_link(ctx);
+		else if(lead == '=')
+			parse_copy(ctx);
 		else
-			parse_file(lct, s, q);
+			parse_file(ctx);
+
+		reset_entry(ctx);
 	}
 }
 
@@ -235,8 +277,6 @@ static void prep_initial_path(CTX)
 
 void cmd_pack(CTX)
 {
-	struct listctx context, *lct = &context;
-
 	char* cpio = shift(ctx);
 	char* list = shift(ctx);
 	char* dir = NULL;
@@ -246,21 +286,17 @@ void cmd_pack(CTX)
 
 	no_more_arguments(ctx);
 
-	memzero(lct, sizeof(*lct));
-
-	lct->ctx = ctx;
 	ctx->at = AT_FDCWD;
 
-	open_list_file(lct, list);
+	heap_init(ctx, 4*PAGE);
+	open_list_file(ctx, list);
 	make_cpio_file(ctx, cpio);
 
 	if(dir) open_base_dir(ctx, dir);
 
-	heap_init(ctx, 4*PAGE);
-
 	prep_initial_path(ctx);
 
-	parse_input(lct);
+	parse_input(ctx);
 
 	put_trailer(ctx);
 }

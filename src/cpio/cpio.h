@@ -22,40 +22,89 @@ struct header {
 	char name[];
 } __attribute__((packed));
 
+struct cpio {
+	int fd;
+	char* name;
+
+	off_t off;
+	off_t rec;
+};
+
+struct heap {
+	void* brk;
+	void* ptr;
+	void* end;
+};
+
+struct dent {
+	void* buf;
+	int len;
+};
+
+/* archive entry being packed */
+struct entry {
+	char* name;
+	uint nlen;
+
+	char* path;
+	uint plen;
+
+	uint size;
+};
+
+struct hwin {
+	void* head;
+
+	int hptr;
+	int hend;
+	int hlen;
+};
+
+struct htmp {
+	void* buf;
+	void* ptr;
+	void* end;
+	uint size;
+};
+
+struct list {
+	int fd;
+	char* name;
+
+	void* buf;
+	int len;
+
+	int line;
+
+	char* lp;
+	char* ls;
+	char* le;
+};
+
 struct top {
 	int argc;
 	int argi;
 	char** argv;
 
-	int fd;      /* the .cpio file being worked on */
-
-	void* brk;   /* heap pointers */
-	void* ptr;
-	void* end;
-
 	struct bufout* bo;
+	struct cpio cpio;
+	struct heap heap;
+	struct hwin hwin;
+	struct dent dent;
+	struct entry entry;
+	struct list list;
+	struct htmp htmp;
 
-	int at;      /* fd of the host directory */
+	int at;
 	char* dir;
+	int depth;
 
 	char* pref;
+	char* rest;
 	int plen;
 
-	void* head;
-	int hptr;
-	int hend;
-	int hlen;
-	int skip;
-
 	int null;
-
-	off_t off;
-	off_t rec;
-
-	void* dirbuf;
-	int dirlen;
-
-	int depth;
+	int skip;
 };
 
 #define CTX struct top* ctx
@@ -77,6 +126,7 @@ int got_more_arguments(CTX);
 
 void heap_init(CTX, int size);
 void* heap_alloc(CTX, int size);
+void* heap_point(CTX);
 void heap_reset(CTX, void* ptr);
 void heap_extend(CTX, int size);
 
@@ -86,7 +136,9 @@ void open_base_dir(CTX, char* name);
 void make_base_dir(CTX, char* name);
 
 void put_pref(CTX);
-void put_file(CTX, char* path, char* name, uint size, int mode);
-void put_link(CTX, char* path, char* name, uint size);
+void put_file(CTX, uint mode);
+void put_symlink(CTX);
 void put_trailer(CTX);
-void put_immlink(CTX, char* name, int nlen, char* target, int size);
+void put_immlink(CTX);
+
+void reset_entry(CTX);

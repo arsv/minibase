@@ -64,18 +64,18 @@ static int parse_size(CTX, char str[8], uint* out)
      "header contents header contents header conte..."
 
    within the two page span, especially with symlinks and such.
-   In such a case, we want to avoid and extra read and just use
+   In such a case, we want to avoid an extra read and just use
    the data that's in the buffer already. */
 
 static int shift_buffer(CTX)
 {
-	void* head = ctx->head;
-	int hptr = ctx->hptr;
-	int hend = ctx->hend;
+	void* head = ctx->hwin.head;
+	int hptr = ctx->hwin.hptr;
+	int hend = ctx->hwin.hend;
 
 	if(hptr >= hend) {
-		ctx->hptr = 0;
-		ctx->hend = 0;
+		ctx->hwin.hptr = 0;
+		ctx->hwin.hend = 0;
 		return 0;
 	}
 
@@ -84,16 +84,16 @@ static int shift_buffer(CTX)
 
 	memmove(head, tail, left);
 
-	ctx->hptr = 0;
-	ctx->hend = left;
+	ctx->hwin.hptr = 0;
+	ctx->hwin.hend = left;
 
 	return left;
 }
 
 static uint grab_cached(CTX, uint size)
 {
-	uint hptr = ctx->hptr;
-	uint hend = ctx->hend;
+	uint hptr = ctx->hwin.hptr;
+	uint hend = ctx->hwin.hend;
 
 	if(hptr >= hend)
 		return 0;
@@ -103,29 +103,29 @@ static uint grab_cached(CTX, uint size)
 	if(left > size)
 		left = size;
 
-	ctx->hptr += left;
+	ctx->hwin.hptr += left;
 
 	return left;
 }
 
 static int fill_buffer(CTX)
 {
-	int fd = ctx->fd;
+	int fd = ctx->cpio.fd;
 	int ret;
 
-	int hlen = ctx->hlen;
-	int hend = ctx->hend;
+	int hlen = ctx->hwin.hlen;
+	int hend = ctx->hwin.hend;
 
 	if(hend >= hlen)
 		fail("out of buffer space", NULL, 0);
 
 	int left = hlen - hend;
-	void* buf = ctx->head + hend;
+	void* buf = ctx->hwin.head + hend;
 
 	if((ret = sys_read(fd, buf, left)) < 0)
 		fail("read", NULL, ret);
 
-	ctx->hend = hend + ret;
+	ctx->hwin.hend = hend + ret;
 
 	return ret;
 }
@@ -143,8 +143,8 @@ static struct header* read_head(CTX)
 
 	ctx->skip = 0;
 
-	ctx->off += ctx->rec;
-	ctx->rec = 0;
+	ctx->cpio.off += ctx->cpio.rec;
+	ctx->cpio.rec = 0;
 
 	if(got < need)
 		(void)fill_buffer(ctx);
@@ -156,9 +156,9 @@ static struct header* read_head(CTX)
 	if(got < need)
 		fail("truncated header", NULL, 0);
 
-	ctx->rec = size;
+	ctx->cpio.rec = size;
 
-	return ctx->head + skip;
+	return ctx->hwin.head + skip;
 }
 
 static void read_name(CTX, uint namesize)
@@ -168,8 +168,8 @@ static void read_name(CTX, uint namesize)
 
 	int aligned = align4(2 + namesize) - 2;
 
-	int hptr = ctx->hptr;
-	int hend = ctx->hend;
+	int hptr = ctx->hwin.hptr;
+	int hend = ctx->hwin.hend;
 	int left = (hptr >= hend) ? 0 : (hend - hptr);
 
 	if(left < aligned)
@@ -180,7 +180,7 @@ static void read_name(CTX, uint namesize)
 	if(got < aligned)
 		fatal(ctx, "truncated entry name");
 
-	ctx->rec += aligned;
+	ctx->cpio.rec += aligned;
 }
 
 /* Make sure the namesize bytes following the header do contain
@@ -255,7 +255,7 @@ static int dev_null_fd(CTX)
 
 static void stream_rest(CTX, int fd, uint left)
 {
-	int ifd = ctx->fd;
+	int ifd = ctx->cpio.fd;
 	int ofd = fd;
 	int ret;
 
@@ -275,7 +275,7 @@ static void skip_file(CTX, uint filesize)
 {
 	uint aligned = align4(filesize);
 
-	uint hlen = ctx->hlen;
+	uint hlen = ctx->hwin.hlen;
 	uint block = (aligned < hlen) ? aligned : hlen;
 
 	uint got = grab_cached(ctx, block);
@@ -297,7 +297,7 @@ static int list_single_entry(CTX, struct header* hdr, struct bufout* bo)
 
 	read_name(ctx, namesize);
 
-	ctx->rec += align4(filesize);
+	ctx->cpio.rec += align4(filesize);
 
 	char* name = hdr->name;
 
@@ -348,10 +348,10 @@ static int open_output(CTX, char* name, int mode)
 
 static uint write_cached(CTX, int fd, uint filesize)
 {
-	uint hlen = ctx->hlen;
+	uint hlen = ctx->hwin.hlen;
 	uint block = (filesize < hlen) ? filesize : hlen;
 
-	void* tail = ctx->head + ctx->hptr;
+	void* tail = ctx->hwin.head + ctx->hwin.hptr;
 	uint got = grab_cached(ctx, block);
 
 	if(!got) return got;
@@ -379,7 +379,7 @@ static void extract_file(CTX, uint filesize, char* name, uint mode)
 
 static int copy_cached(CTX, void* buf, int len)
 {
-	void* tail = ctx->head + ctx->hptr;
+	void* tail = ctx->hwin.head + ctx->hwin.hptr;
 	int got = grab_cached(ctx, len);
 
 	if(!got) return got;
@@ -391,7 +391,7 @@ static int copy_cached(CTX, void* buf, int len)
 
 static void read_content(CTX, void* buf, uint size)
 {
-	int fd = ctx->fd;
+	int fd = ctx->cpio.fd;
 	int ret;
 
 	if((ret = sys_read(fd, buf, size)) < 0)
@@ -448,7 +448,7 @@ static int extract_single_entry(CTX, struct header* hdr)
 	read_name(ctx, namesize);
 
 	ctx->skip = align4(filesize) - filesize;
-	ctx->rec += align4(filesize);
+	ctx->cpio.rec += align4(filesize);
 
 	char* name = hdr->name;
 
@@ -496,8 +496,8 @@ static void setup_list_bufs(CTX, struct bufout* bo)
 
 	bufoutset(bo, STDOUT, outbuf, outlen);
 
-	ctx->head = hdrbuf;
-	ctx->hlen = hdrlen;
+	ctx->hwin.head = hdrbuf;
+	ctx->hwin.hlen = hdrlen;
 }
 
 void cmd_list(CTX)
@@ -530,8 +530,8 @@ void cmd_extract(CTX)
 	int hdrlen = 2*PAGE;
 	void* hdrbuf = heap_alloc(ctx, hdrlen);
 
-	ctx->head = hdrbuf;
-	ctx->hlen = hdrlen;
+	ctx->hwin.head = hdrbuf;
+	ctx->hwin.hlen = hdrlen;
 
 	extract_entries(ctx);
 }

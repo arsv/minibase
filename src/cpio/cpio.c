@@ -71,6 +71,8 @@ int main(int argc, char** argv)
 
 	ctx->at = -1;
 	ctx->null = -1;
+	ctx->cpio.fd = -1;
+	ctx->list.fd = -1;
 
 	if(argc < 2)
 		fail("too few arguments", NULL, 0);
