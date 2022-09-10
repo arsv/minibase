@@ -1,5 +1,4 @@
-findblk
-blkhwid
-switchroot
-kmount
-reboot
+/findblk
+/blkhwid
+/kmount
+/reboot
