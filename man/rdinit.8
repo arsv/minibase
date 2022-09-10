@@ -1,0 +1,31 @@
+.TH rdinit 8
+'''
+.SH NAME
+\fBrdinit\fR \- initramfs pid 1 / module auto-loader
+'''
+.SH DESCRIPTION
+\fBrdinit\fR starts the setup script and keeps handling modalias events
+from the kernel while the script is running. Once the setup script exits,
+\fBrdinit\fR cleans up initramfs, switches the system to the real root
+and invokes the real init.
+.P
+This tool only makes sense in initramfs environment and should not be used
+otherwise. See initrd/initramfs documentation for more details.
+'''
+.SH FILES
+.IP "\fB/etc/modpipe\fR" 4
+This script should start \fBmodprobe\fR(8) in pipe mode.
+.IP "\fB/etc/setup\fR" 4
+This script should locate and mount the real root device.
+.IP "\fB/etc/abort\fR" 4
+(optional) shutdown script in case something fails.
+.IP "\fB/mnt\fR" 4
+Mount point for the new root; the \fBsetup\fR script should mount
+the new root at this exact location.
+.IP "\fB/dev\fR" 4
+devtmpfs mount point
+.IP "\fB/sys\fR" 4
+sysfs mount point
+'''
+.SH SEE ALSO
+\fBfindblk\fR(1)

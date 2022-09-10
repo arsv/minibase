@@ -1,9 +1,11 @@
-The primary tool here, udevmod, is a small process that monitors udev events
-(uevents) from the kernel and takes some actions based on those:
+The role of the udev daemon
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Pretty much Linux system nowadays needs a small userspace service to handle
+udev events. This services has to:
 
-  * loads modules on request (modalias mechanism)
+  * load modules on request (modalias mechanism)
+  * re-transmit the events for libudevd clients
   * possibly runs scripts whenever certain devices get added
-  * re-transmits the events for libudevd clients
 
 In the this project, the role of the udev service (udevmod) is much more
 limited than the original udevd, since most device-related services are
@@ -13,64 +15,23 @@ command to pick up a device, vs picking it up whenever it appears.
 
 Initrd specifics
 ~~~~~~~~~~~~~~~~
-The second tool here is devinit, an init (as in, pid 1) for use in initrd.
-It may look strange at first, but devinit is mostly just a udev event handler.
-
-Turns out it is much easier to have a dedicated tool for use within initrd
-environment, vs trying to make udevmod usable there and building some sort
-of supervision atop.
-
-Unlinke udevmod, on the udev side devinit pretty much only handles modaliases
-because that's the only part of udev that's relevant for initrd.
+The requirements for the udev handler within initrd (initramfs) are so different
+from the main system one that at some point it was decided to make it a separate
+tool. The initrd version only needs to handle modaliases, and it is also not
+really a service as it has to exit once the rootfs has been mounted.
 
 
 Device renaming
 ~~~~~~~~~~~~~~~
-In current Linux device names are unreliable and often meaningless.
-One has to sift through /sys or even probe the device to figure out what
-exactly say /dev/input/event19 refers to. It would be better to name devices
-in meaningful name, say /dev/input/ptr-stick instead of nondescript
-/dev/input/event19, and /dev/input/keyboard instead of /dev/input/event0.
+One of the ill-conceived ideas from the mainline udevd is to give devices
+some sort of descriptive names, i.e. /dev/input/ptr-stick instead of
+/dev/input/event19 or something like that.
 
-Implementing this idea well seems to be impossible.
+It cannot be implemented well in Linux.
 
-Lots of device-specific information is typically available through /sys.
-Renaming a node in /dev does not change any nodes in /sys.
-Finding and renaming all nodes in /sys is not easy, and probably not feasible.
-Handling /dev nodes named differently than /sys names may be possible but not
-always, and it is tricky/confusing.
-
-Persistent device names would make sense if they could be used as regular
-file names, for instance for scripting or in config files. This isn't the case.
-Pretty any way of using device names in scripts or configs would result in
-racy application that won't handle hot-plugging well. Those that will handle
-hot-plugging, would not need persistent device names most likely.
-
-
-Non-privileged access to devices
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The reason for udevd to chmod or chown device nodes is to allow non-privileged
-users to use certain devices. So far, it looks like it is possible to get away
-without relying on this at all in minibase.
-
-There are very few subsystems that the users may need to access at all.
-
-ALSA (raw or via libasound) requires non-privileged device access, but direct
-access to ALSA is a bad idea anyway and with a sound server running only the
-server itself needs the devices.
-
-Inputs and block devices must be requested via privileged services.
-This seems to be the best way to handle this problem in general within minibase.
-A device manager that grands access to certain devices on request, possibly
-also locking or ensuring non-interference between the clients.
-
-Sometimes it makes sense to let the users access serial ports. However, serial
-ports are TTYs, figuring out which TTYs are serial ports is tricky, some may
-need privileged locking anyway (e.g. to avoid users sniffing on pppd), so it
-really calls for another privileged device manager.
-
-DRIs (non-mastering) remain perhaps the only kind of devices for which group
-based restrictions maybe make sense.
+The approach taken in this project is to always keep the kernel names for
+the devices, and write device-acessing services is a way that works well
+with the kernel naming scheme.
 
 
 Device tagging and libinput

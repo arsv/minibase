@@ -1,9 +1,8 @@
-/* Simplified udev event monitor for initrd use */
-
+#include <sys/ppoll.h>
 #include <bits/socket/netlink.h>
 #include <sys/file.h>
+#include <sys/fprop.h>
 #include <sys/proc.h>
-#include <sys/ppoll.h>
 #include <sys/creds.h>
 #include <sys/dents.h>
 #include <sys/socket.h>
@@ -18,29 +17,7 @@
 #include <util.h>
 #include <main.h>
 
-ERRTAG("devinit");
-
-#define OPTS "r"
-#define OPT_r (1<<0)
-
-struct top {
-	char* base;
-	char** argv;
-	char** envp;
-	int failure;
-
-	int devfd;  /* udev socket, in */
-	int sigfd;  /* signalfd, in */
-	int modfd;  /* modpipe, out */
-	int runpid; /* primary child script */
-	int modpid; /* modpipe */
-
-	struct pollfd pfds[2];
-
-	char uevent[1024+2];
-};
-
-#define CTX struct top* ctx __unused
+#include "rdinit.h"
 
 #define UDEV_MGRP_KERNEL   (1<<0)
 
@@ -115,28 +92,30 @@ static void recv_event(CTX)
 	modprobe(ctx, alias);
 }
 
-static noreturn void exec_with_args(CTX, char* path)
-{
-	ctx->argv[0] = path;
-
-	int ret = sys_execve(path, ctx->argv, ctx->envp);
-
-	fail(NULL, path, ret);
-}
-
-static noreturn void exec_no_args(CTX, char* path)
+static noreturn void exec_script(CTX, char* path)
 {
 	char* argv[] = { path, NULL };
 
 	int ret = sys_execve(path, argv, ctx->envp);
 
-	fail("execve", path, ret);
+	fail("exec", path, ret);
 }
 
-void open_modpipe(CTX)
+static void open_modpipe(CTX)
 {
 	int fds[2];
 	int ret, pid;
+	char* path = INIT_ETC "/modpipe";
+
+	if((ret = sys_access(path, X_OK)) < 0) {
+		if(ret != -ENOENT)
+			warn(NULL, path, ret);
+
+		ctx->modpid = -1;
+		ctx->modfd = -1;
+
+		return;
+	}
 
 	if((ret = sys_pipe2(fds, O_CLOEXEC)) < 0)
 		fail("pipe", NULL, ret);
@@ -146,7 +125,7 @@ void open_modpipe(CTX)
 	if(pid == 0) {
 		sys_dup2(fds[0], STDIN);
 		sys_close(fds[1]);
-		exec_no_args(ctx, INIT_ETC "/modpipe");
+		exec_script(ctx, INIT_ETC "/modpipe");
 	}
 
 	sys_close(fds[0]);
@@ -155,7 +134,7 @@ void open_modpipe(CTX)
 	ctx->modfd = fds[1];
 }
 
-static void open_udev(CTX)
+static int open_udev(CTX)
 {
 	int fd, ret;
 	int pid = sys_getpid();
@@ -164,8 +143,10 @@ static void open_udev(CTX)
 	int type = SOCK_DGRAM;
 	int proto = NETLINK_KOBJECT_UEVENT;
 
-	if((fd = sys_socket(domain, type, proto)) < 0)
-		fail("socket", "udev", fd);
+	if((fd = sys_socket(domain, type, proto)) < 0) {
+		warn("socket", "udev", fd);
+		return fd;
+	}
 
 	struct sockaddr_nl addr = {
 		.family = AF_NETLINK,
@@ -173,10 +154,14 @@ static void open_udev(CTX)
 		.groups = UDEV_MGRP_KERNEL
 	};
 
-	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0)
-		fail("bind", "udev", ret);
+	if((ret = sys_bind(fd, &addr, sizeof(addr))) < 0) {
+		warn("bind", "udev", ret);
+		return ret;
+	}
 
 	ctx->devfd = fd;
+
+	return fd;
 }
 
 static void pick_modalias(CTX, int at)
@@ -266,23 +251,19 @@ static void open_signals(CTX)
 
 static void start_script(CTX)
 {
-	int pid;
+	int pid, ret;
+	char* path = INIT_ETC "/setup";
+
+	if((ret = sys_access(path, X_OK)) < 0)
+		fail(NULL, path, ret);
 
 	if((pid = sys_fork()) < 0)
 		fail("fork", NULL, pid);
 
 	if(pid == 0)
-		exec_with_args(ctx, INIT_ETC "/setup");
+		exec_script(ctx, path);
 
 	ctx->runpid = pid;
-}
-
-static void terminate(CTX)
-{
-	if(ctx->failure)
-		exec_no_args(ctx, INIT_ETC "/failure");
-	else
-		exec_with_args(ctx, INIT_ETC "/success");
 }
 
 static void kill_check(CTX, int pid, char* tag)
@@ -291,16 +272,10 @@ static void kill_check(CTX, int pid, char* tag)
 
 	if((ret = sys_kill(pid, SIGTERM)) < 0) {
 		warn("kill", tag, ret);
-		return terminate(ctx);
-	}
-
-	if((sys_alarm(5)) < 0)
+		ctx->flags |= FL_DONE;
+	} else if((sys_alarm(5)) < 0) {
 		warn("alarm", NULL, ret);
-}
-
-static void trigger_failure(CTX)
-{
-	ctx->failure = -1;
+	}
 }
 
 static void handle_script_exit(CTX, int status)
@@ -310,12 +285,13 @@ static void handle_script_exit(CTX, int status)
 	ctx->runpid = -1;
 
 	if(status)
-		trigger_failure(ctx);
+		ctx->flags |= FL_FAILURE;
 
-	if(modpid <= 0)
-		return terminate(ctx);
+	if(modpid > 0)
+		kill_check(ctx, modpid, "modpipe");
+	else
+		ctx->flags |= FL_DONE;
 
-	kill_check(ctx, modpid, "modpipe");
 }
 
 static void handle_modpipe_exit(CTX)
@@ -324,13 +300,13 @@ static void handle_modpipe_exit(CTX)
 
 	ctx->modpid = -1;
 
-	if(runpid <= 0)
-		return terminate(ctx);
-
-	warn("modpipe died", NULL, 0);
-	trigger_failure(ctx);
-
-	kill_check(ctx, runpid, "script");
+	if(runpid > 0) {
+		warn("modpipe died", NULL, 0);
+		ctx->flags |= FL_FAILURE;
+		kill_check(ctx, runpid, "script");
+	} else {
+		ctx->flags |= FL_DONE;
+	}
 }
 
 static void check_children(CTX)
@@ -371,6 +347,25 @@ static void prep_pollfds(CTX)
 	ctx->pfds[1].events = POLLIN;
 }
 
+static int script_exists(char* name)
+{
+	return (sys_access(name, X_OK) >= 0);
+}
+
+static void start_modpipe(CTX)
+{
+	ctx->devfd = -1;
+	ctx->modpid = -1;
+
+	if(!script_exists(INIT_ETC "/modpipe"))
+		return;
+	if(open_udev(ctx) < 0)
+		return;
+
+	open_modpipe(ctx);
+	scan_devices(ctx);
+}
+
 static void poll(CTX)
 {
 	int ret;
@@ -390,21 +385,16 @@ static void poll(CTX)
 		pfds[1].fd = -1;
 }
 
-int main(int argc, char** argv)
+void locate_devices(CTX)
 {
-	struct top context, *ctx = &context;
-
-	memzero(ctx, sizeof(*ctx));
-
-	ctx->argv = argv;
-	ctx->envp = argv + argc + 1;
-
-	open_udev(ctx);
 	open_signals(ctx);
-	open_modpipe(ctx);
-	scan_devices(ctx);
+	start_modpipe(ctx);
 	prep_pollfds(ctx);
 	start_script(ctx);
 
-	while(1) poll(ctx);
+	while(!(ctx->flags & FL_DONE))
+		poll(ctx);
+
+	if(ctx->flags & FL_FAILURE)
+		abort(ctx, "setup script failed", NULL);
 }

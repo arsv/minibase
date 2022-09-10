@@ -1,11 +1,11 @@
 / = ../../
 
-all = devinit udevmod
+all = rdinit udevmod
 
 include ../rules.mk
 include $/config.mk
 
-devinit: devinit.o
+rdinit: rdinit.o rdinit_root.o rdinit_udev.o
 
 udevmod: udevmod.o udevmod_alias.o udevmod_input.o
 
