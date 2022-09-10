@@ -187,11 +187,11 @@ static void umount(int argc, char** argv, int i, int opts)
    The tool accounts for this by not expecting respective arguments
    in the command line, so that it's
 
-   	mount -r /mnt/blah /dev/foo ext4 discard
+	mount -r /mnt/blah /dev/foo ext4 discard
 
    in the full case but not when remounting:
 
-   	mount -m /target options
+	mount -m /target options
 
    Otherwise, we follow the syscall pretty closely.
    No writes to mtab of course, there's /proc/mounts for that. */
