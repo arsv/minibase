@@ -206,7 +206,7 @@ int map_lunzip(CTX, struct mbuf* mb, char* name)
 	ulong size = 0;
 	int ret;
 
-	if((ret = mmap_whole(ctx, &raw, name)) < 0)
+	if((ret = mmap_whole(ctx, &raw, name, REQ)) < 0)
 		return ret;
 	if((ret = check_header(ctx, &raw, name, &size)) < 0)
 		goto out;

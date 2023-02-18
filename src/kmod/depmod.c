@@ -492,7 +492,7 @@ static void process_module(CTX, struct mod* md)
 	if((ret = load_module(ctx, buf, path)) < 0)
 		return;
 	if((ret = find_modinfo(ctx, mod, buf, basename(path))) < 0)
-		return;
+		goto out;
 
 	if((deps = get_info_entry(ctx, mod, "depends")))
 		md->deps = hstrdup(ctx, deps);
@@ -513,6 +513,8 @@ static void process_module(CTX, struct mod* md)
 		else
 			dump_module_aliases(ctx, mod, base);
 	}
+out:
+	munmap_buf(buf);
 }
 
 static struct mod* find_indexed_module(CTX, char* name, uint nlen)
@@ -647,11 +649,7 @@ static void process_index(CTX)
 
 static void load_builtin(CTX)
 {
-	ctx->nofail = 1;
-
-	mmap_whole(ctx, &ctx->builtin, "modules.builtin");
-
-	ctx->nofail = 0;
+	mmap_whole(ctx, &ctx->builtin, "modules.builtin", OPT);
 }
 
 static void open_out_file(CTX, struct bufout* bo, char* name)

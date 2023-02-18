@@ -2,3 +2,4 @@ depmod
 modinfo
 modprobe
 lsmod
+z-modconf

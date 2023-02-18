@@ -31,6 +31,7 @@ struct top {
 	char* base;
 
 	struct bufout bo;
+	struct mbuf modules_dep;
 
 	int showpath;
 };
@@ -338,13 +339,13 @@ static void load_modules_dep(CTX, struct mbuf* mb, char* base)
 	p = fmtstr(p, e, "/modules.dep");
 	FMTEND(p, e);
 
-	mmap_whole(ctx, mb, path);
+	mmap_whole(ctx, mb, path, REQ);
 }
 
 static void locate_by_name(CTX, char* name)
 {
 	char* base = ctx->base;
-	struct mbuf mb;
+	struct mbuf* mb = &ctx->modules_dep;
 
 	ctx->showpath = 1;
 
@@ -366,8 +367,8 @@ static void locate_by_name(CTX, char* name)
 		base = buf;
 	}
 
-	load_modules_dep(ctx, &mb, base);
-	scan_modules_dep(ctx, &mb, base, name);
+	load_modules_dep(ctx, mb, base);
+	scan_modules_dep(ctx, mb, base, name);
 }
 
 static int looks_like_file(char* name)

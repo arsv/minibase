@@ -9,51 +9,97 @@
 /* The idea here is to take a file name and return a mmap'ed buffer
    with the content of the file. For uncompressed modules, that means
    just mmaping the file. Compressed .gz and .xz modules get unpacked
-   into a mmaped memory area. */ 
+   into a mmaped memory area.
+
+   There's also some support for on-demand mapping as some of the code
+   needs it for things like modules.dep and modules.alias.
+   If mbuf has been mmaped already, we just return the results of the
+   first attempt (either success or the error code). It is up to the
+   calling code to make sure the same exact file is being mmaped. */
 
 #define MAX_MAP_SIZE 0x7FFFFFFF
 
-int mmap_whole(CTX, struct mbuf* mb, char* name)
+static const char empty_area[4];
+
+static int open_for_reading(char* name, int optional)
 {
-	int fd, ret;
-	struct stat st;
+	int fd;
 
 	if((fd = sys_open(name, O_RDONLY)) < 0) {
-		error(ctx, NULL, name, fd);
-		return fd;
+		if(!optional)
+			fail(NULL, name, fd);
+		else if(fd != -ENOENT)
+			warn(NULL, name, fd);
 	}
+
+	return fd;
+}
+
+static int stat_for_size(int fd, char* name)
+{
+	struct stat st;
+	int ret;
 
 	if((ret = sys_fstat(fd, &st)) < 0) {
-		error(ctx, "stat", name, ret);
-		goto out;
+		fail("stat", name, ret);
+		return ret;
 	}
 	if(st.size > MAX_MAP_SIZE) {
-		ret = -E2BIG;
-		error(ctx, NULL, name, ret);
-		goto out;
+		fail(NULL, name, -E2BIG);
+		return ret;
 	}
 
+	return st.size;
+}
+
+int mmap_whole(CTX, struct mbuf* mb, char* name, int optional)
+{
+	int ret;
+
+	if(mb->buf) /* already mapped */
+		return 0;
+	if((ret = mb->full) < 0)
+		return ret; /* prev error */
+	else if(ret)
+		fail("positive error code while mmaping", NULL, 0);
+
+	if((ret = open_for_reading(name, optional)) < 0)
+		goto outr;
+
+	int fd = ret;
+
+	if((ret = stat_for_size(fd, name)) < 0)
+		goto outc;
+
+	int size = ret;
 	int prot = PROT_READ;
 	int flags = MAP_PRIVATE;
 	void* buf;
 
-	buf = sys_mmap(NULL, st.size, prot, flags, fd, 0);
+	if(size == 0)
+		buf = (void*)empty_area;
+	else
+		buf = sys_mmap(NULL, size, prot, flags, fd, 0);
 
-	if((ret = mmap_error(buf)) < 0)
-		goto out;
+	if((ret = mmap_error(buf)))
+		goto outc;
 
 	mb->buf = buf;
-	mb->len = st.size;
-	mb->full = pagealign(st.size);
-out:
+	mb->len = size;
+	mb->full = size;
+outc:
 	sys_close(fd);
+outr:
+	if(ret) mb->full = ret;
 
 	return ret;
 }
 
 void munmap_buf(struct mbuf* mb)
 {
-	sys_munmap(mb->buf, mb->full);
+	if(mb->full)
+		sys_munmap(mb->buf, mb->full);
+
 	memzero(mb, sizeof(*mb));
 }
 
@@ -191,7 +237,7 @@ int load_module(CTX, struct mbuf* mb, char* path)
 	int blen = strlen(base);
 
 	if(check_suffix(base, blen, ".ko"))
-		return mmap_whole(ctx, mb, path);
+		return mmap_whole(ctx, mb, path, REQ);
 	if(check_suffix(base, blen, ".ko.lz"))
 		return map_lunzip(ctx, mb, path);
 	if(check_suffix(base, blen, ".ko.gz"))
@@ -201,6 +247,6 @@ int load_module(CTX, struct mbuf* mb, char* path)
 	if(check_suffix(base, blen, ".ko.zst"))
 		return map_zstd(ctx, mb, path);
 
-	error(ctx, "unexpected module extension:", base, 0);
+	warn("unexpected module extension:", base, 0);
 	return -EINVAL;
 }

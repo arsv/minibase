@@ -60,12 +60,7 @@ static char* shift_arg(CTX)
 	return ctx->argv[ctx->argi++];
 }
 
-static int isspace(int c)
-{
-	return (c == ' ' || c == '\t');
-}
-
-static int mmap_modules_file(CTX, struct mbuf* mb, char* name)
+static int mmap_modules_file(CTX, struct mbuf* mb, char* name, int optional)
 {
 	char* base = ctx->base;
 
@@ -75,245 +70,44 @@ static int mmap_modules_file(CTX, struct mbuf* mb, char* name)
 	p = fmtstr(p, e, name);
 	FMTEND(p, e);
 
-	return mmap_whole(ctx, mb, path);
-}
-
-static void prep_modules_dep(CTX)
-{
-	struct mbuf* mb = &ctx->modules_dep;
-	char* name = "modules.dep";
-	int ret;
-
-	if((ret = mmap_modules_file(ctx, mb, name)) < 0)
-		fail(NULL, name, ret);
+	return mmap_whole(ctx, mb, path, optional);
 }
 
 static int prep_modules_alias(CTX)
 {
 	struct mbuf* mb = &ctx->modules_alias;
 	char* name = "modules.alias";
-	int ret;
 
-	if((ret = ctx->tried_modules_alias))
-		return ret;
-
-	ctx->nofail = 1;
-
-	ret = mmap_modules_file(ctx, mb, name);
-	if(!ret) ret = 1;
-
-	ctx->tried_modules_alias = ret;
-	ctx->nofail = 0;
-
-	return ret;
+	return mmap_modules_file(ctx, mb, name, OPT);
 }
 
 static int prep_modules_builtin(CTX)
 {
 	struct mbuf* mb = &ctx->modules_builtin;
 	char* name = "modules.builtin";
-	int ret;
 
-	if((ret = ctx->tried_modules_builtin))
-		return ret;
+	warn("prep-modules-builtin", NULL, 0);
 
-	ctx->nofail = 1;
-
-	ret = mmap_modules_file(ctx, mb, name);
-	if(!ret) ret = 1;
-
-	ctx->tried_modules_builtin = ret;
-	ctx->nofail = 0;
-
-	return ret;
+	return mmap_modules_file(ctx, mb, name, OPT);
 }
 
 static int prep_config(CTX)
 {
 	struct mbuf* mb = &ctx->config;
-	int initrd = ctx->opts & OPT_i;
-	char* name = initrd ? INIT_ETC "/modules" : BASE_ETC "/modules";
-	int ret;
+	char* name = BASE_ETC "/modules";
 
-	if((ret = ctx->tried_config))
-		return ret;
-
-	ctx->nofail = 1;
-
-	ret = mmap_whole(ctx, mb, name);
-	if(!ret) ret = 1;
-
-	ctx->tried_config = ret;
-	ctx->nofail = 0;
-
-	return ret;
+	return mmap_whole(ctx, mb, name, OPT);
 }
 
-/* File parsing section */
-
-typedef char* (*lnmatch)(char* ls, char* le, char* name);
-
-static int locate_line(struct mbuf* mb, struct line* ln, lnmatch lnm, char* name)
-{
-	char* bs = mb->buf;
-	char* be = bs + mb->len;
-	char *ls, *le, *p;
-
-	for(ls = bs; ls < be; ls = le + 1) {
-		le = strecbrk(ls, be, '\n');
-
-		if(!(p = lnm(ls, le, name)))
-			continue;
-
-		ln->ptr = ls;
-		ln->end = le;
-		ln->sep = p;
-
-		if(p < le && !isspace(*p))
-			p++;
-		while(p < le && isspace(*p))
-			p++;
-
-		ln->val = p;
-
-		return 0;
-	}
-
-	return -ENOENT;
-}
-
-/* Sometimes a module named foo-bar resides in a file named foo_bar.ko
-   and vice versa. There are no apparent rules for this, so we just
-   collate - with _ and match the names that way. */
-
-static char eq(char c)
-{
-	return (c == '_' ? '-' : c);
-}
-
-static int xstrncmp(char* a, char* b, int len)
-{
-	char* e = b + len;
-
-	while(*a && b < e && *b)
-		if(eq(*a++) != eq(*b++))
-			return -1;
-
-	if(b >= e)
-		return 0;
-	if(*a == *b)
-		return 0;
-
-	return -1;
-}
-
-static char* match_dep(char* ls, char* le, char* name)
-{
-	int nlen = strlen(name);
-	char* p = strecbrk(ls, le, ':');
-
-	if(p >= le)
-		return NULL;
-
-	char* q = p - 1;
-
-	while(q > ls && *q != '/') q--;
-
-	if(*q == '/') q++;
-
-	if(le - q < nlen)
-		return NULL;
-
-	if(xstrncmp(q, name, nlen))
-		return NULL;
-	if(q[nlen] != '.')
-		return NULL;
-
-	return p;
-}
-
-static char* match_builtin(char* ls, char* le, char* name)
-{
-	int nlen = strlen(name);
-	char* q = le - 1;
-
-	while(q > ls && *q != '/') q--;
-
-	if(*q == '/') q++;
-
-	if(le - q < nlen)
-		return NULL;
-	if(xstrncmp(q, name, nlen))
-		return NULL;
-	if(q[nlen] != '.')
-		return NULL;
-
-	return q;
-}
-
-static int query_deps(CTX, struct line* ln, char* name)
+static int query_deps(CTX, struct line* ln, char* mod)
 {
 	struct mbuf* mb = &ctx->modules_dep;
+	char* name = "modules.dep";
 
-	prep_modules_dep(ctx);
+	if(mmap_modules_file(ctx, mb, name, REQ) < 0)
+		return -1;
 
-	return locate_line(mb, ln, match_dep, name);
-}
-
-static char* word(char* p, char* e, char* w)
-{
-	int len = strlen(w);
-
-	if(e - p < len)
-		return NULL;
-	if(strncmp(p, w, len))
-		return NULL;
-	if(p + len >= e)
-		return e;
-
-	p += len;
-
-	if(!isspace(*p))
-		return NULL;
-
-	return p;
-}
-
-static char* skip(char* p, char* e, char* w)
-{
-	if((p = word(p, e, w)))
-		while(p < e && isspace(*p))
-			p++;
-
-	return p;
-}
-
-static char* match_opt(char* ls, char* le, char* name)
-{
-	char* p = ls;
-	char* e = le;
-
-	if(!(p = skip(p, e, "options")))
-		return NULL;
-	if(!(p = word(p, e, name)))
-		return NULL;
-
-	if(p > ls && isspace(*(p-1))) p--;
-
-	return p;
-}
-
-static char* match_blacklist(char* ls, char* le, char* name)
-{
-	char* p = ls;
-	char* e = le;
-
-	if(!(p = skip(p, e, "blacklist")))
-		return NULL;
-	if(!(p = word(p, e, name)))
-		return NULL;
-
-	return p;
+	return locate_dep_line(mb, ln, mod);
 }
 
 static int query_pars(CTX, struct line* ln, char* name)
@@ -324,52 +118,10 @@ static int query_pars(CTX, struct line* ln, char* name)
 	if((ret = prep_config(ctx)) < 0)
 		return ret;
 
-	return locate_line(mb, ln, match_opt, name);
+	return locate_opt_line(mb, ln, name);
 }
 
-/* Note wildcard handling here is wrong, but it's enough to get kernel
-   aliases working.
-
-   pci:v000010ECd0000525Asv00001028sd000006DEbcFFsc00i00
-   pci:v000010ECd0000525Asv*       sd*       bc* sc* i*
-
-   The values being matched with * are uppercase hex while the terminals
-   are lowercase letters, so we can just skip until the next non-* character
-   from the pattern. */
-
-static char* match_alias(char* ls, char* le, char* name)
-{
-	char* p = ls;
-	char* e = le;
-	char* n = name;
-
-	if(!(p = skip(p, e, "alias")))
-		return NULL;
-
-	while(*n && p < e) {
-		if(isspace(*p)) {
-			break;
-		} else if(*p == '*') {
-			p++;
-			while(*n && *n != *p)
-				n++;
-		} else if(*p != *n) {
-			return NULL;
-		} else {
-			p++;
-			n++;
-		};
-	}
-
-	if(p < e && *p == '*')
-		p++; /* skip trailing * matching nothing */
-	if(*n || p >= e || !isspace(*p))
-		return NULL;
-
-	return p;
-}
-
-static int query_alias(CTX, struct line* ln, char* name)
+static int query_alias(CTX, struct line* ln, char* mod)
 {
 	struct mbuf* ma = &ctx->modules_alias;
 	struct mbuf* cf = &ctx->config;
@@ -377,13 +129,13 @@ static int query_alias(CTX, struct line* ln, char* name)
 
 	prep_config(ctx);
 
-	if((ret = locate_line(cf, ln, match_alias, name)) >= 0)
+	if((ret = locate_alias_line(cf, ln, mod)) >= 0)
 		return ret;
 
 	if((ret = prep_modules_alias(ctx)) < 0)
 		return ret;
 
-	return locate_line(ma, ln, match_alias, name);
+	return locate_alias_line(ma, ln, mod);
 }
 
 static int blacklisted(CTX, char* name)
@@ -396,7 +148,7 @@ static int blacklisted(CTX, char* name)
 
 	prep_config(ctx);
 
-	if(locate_line(mb, &ln, match_blacklist, name) < 0)
+	if(locate_blist_line(mb, &ln, name) < 0)
 		return 0;
 
 	error(ctx, "blacklisted module", name, 0);
@@ -411,7 +163,7 @@ static int builtin(CTX, char* name)
 
 	prep_modules_builtin(ctx);
 
-	if(locate_line(mb, &ln, match_builtin, name) < 0)
+	if(locate_built_line(mb, &ln, name) < 0)
 		return 0;
 
 	return 1;
@@ -571,7 +323,7 @@ static int insert_relative(CTX, char* name, char* rptr, char* rend, char* pars)
 
 	if(pars != NULL) /* use them as is */
 		return insert_w_pars(ctx, name, rptr, rend, pars);
-	if(query_pars(ctx, &ln, name) < 0)
+	if(query_pars(ctx, &ln, name) < 0) /* no parameters */
 		return insert_w_pars(ctx, name, rptr, rend, "");
 
 	long len = ln.end - ln.val;
@@ -663,7 +415,7 @@ static void insert(CTX, char* name, char* pars)
 {
 	struct line ln;
 
-	if(query_alias(ctx, &ln, name) < 0)
+	if(query_alias(ctx, &ln, name) < 0) /* not an alias */
 		return insert_named(ctx, name, pars);
 
 	FMTBUF(p, e, real, 256);
