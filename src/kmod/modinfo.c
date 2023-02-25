@@ -249,7 +249,7 @@ static void use_module_file(CTX, char* path)
 
 	if((ret = load_module(ctx, buf, path)) < 0)
 		return;
-	if((ret = find_modinfo(ctx, mod, buf, base)) < 0)
+	if((ret = find_modinfo(mod, buf, base)) < 0)
 		return;
 
 	if(!(opts & mask)) {
@@ -339,7 +339,7 @@ static void load_modules_dep(CTX, struct mbuf* mb, char* base)
 	p = fmtstr(p, e, "/modules.dep");
 	FMTEND(p, e);
 
-	mmap_whole(ctx, mb, path, REQ);
+	mmap_whole(mb, path, REQ);
 }
 
 static void locate_by_name(CTX, char* name)

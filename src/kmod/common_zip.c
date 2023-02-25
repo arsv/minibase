@@ -102,25 +102,34 @@ static void set_lzma_buffers(struct lzma* lz, struct mbuf* raw, struct mbuf* out
 	lz->dstend = dstend;
 }
 
-static int report_lzma_error(CTX, char* name, int ret)
+static int lzerr(char* msg, char* name)
 {
-	if(ret == LZMA_OUTPUT_OVER)
-		return error(ctx, "LZMA output overflow in", name, 0);
-	if(ret == LZMA_INPUT_OVER)
-		return error(ctx, "LZMA input underrun in", name, 0);
-	if(ret == LZMA_INVALID_REF)
-		return error(ctx, "LZMA invalid reference in", name, 0);
-	if(ret == LZMA_RANGE_CHECK)
-		return error(ctx, "LZMA range check failure in", name, 0);
-	if(ret == LZMA_NEED_INPUT)
-		return error(ctx, "LZMA stream truncated in", name, 0);
-	if(ret == LZMA_NEED_OUTPUT)
-		return error(ctx, "LZMA stream overflow in", name, 0);
+	warn(msg, name, 0);
 
-	return error(ctx, "LZMA failure in", name, ret);
+	return -1;
 }
 
-static int inflate(CTX, struct mbuf* raw, struct mbuf* out, char* name)
+static int report_lzma_error(char* name, int ret)
+{
+	if(ret == LZMA_OUTPUT_OVER)
+		return lzerr("LZMA output overflow in", name);
+	if(ret == LZMA_INPUT_OVER)
+		return lzerr("LZMA input underrun in", name);
+	if(ret == LZMA_INVALID_REF)
+		return lzerr("LZMA invalid reference in", name);
+	if(ret == LZMA_RANGE_CHECK)
+		return lzerr("LZMA range check failure in", name);
+	if(ret == LZMA_NEED_INPUT)
+		return lzerr("LZMA stream truncated in", name);
+	if(ret == LZMA_NEED_OUTPUT)
+		return lzerr("LZMA stream overflow in", name);
+
+	warn("LZMA unexpected failure in", name, ret);
+
+	return -1;
+}
+
+static int inflate(struct mbuf* raw, struct mbuf* out, char* name)
 {
 	struct lzma* lz;
 	byte lzbuf[LZMA_SIZE];
@@ -133,20 +142,20 @@ static int inflate(CTX, struct mbuf* raw, struct mbuf* out, char* name)
 	int ret = lzma_inflate(lz);
 
 	if(ret != LZMA_STREAM_END)
-		return report_lzma_error(ctx, name, ret);
+		return report_lzma_error(name, ret);
 
 	if(lz->srcptr != lz->srcend)
-		return error(ctx, "LZMA trailing garbage in", name, 0);
+		return lzerr("LZMA trailing garbage in", name);
 	if(lz->dstptr != lz->dstend)
-		return error(ctx, "LZMA invalid output length in", name, 0);
+		return lzerr("LZMA invalid output length in", name);
 
 	if(lzip_crc(raw) != calc_crc(out))
-		return error(ctx, "CRC mismatch in", name, 0);
+		return lzerr("CRC mismatch in", name);
 
 	return 0;
 }
 
-static int alloc_output(CTX, struct mbuf* mb, ulong size)
+static int alloc_output(struct mbuf* mb, ulong size)
 {
 	void* buf;
 	int ret;
@@ -154,10 +163,15 @@ static int alloc_output(CTX, struct mbuf* mb, ulong size)
 	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
 	int pages = pagealign(size);
 
+	if(mb->buf || mb->full)
+		fail("LZMA re-allocating mbuf", NULL, 0);
+
 	buf = sys_mmap(NULL, pages, prot, flags, -1, 0);
 
-	if((ret = mmap_error(buf)))
-		return error(ctx, "mmap", NULL, ret);
+	if((ret = mmap_error(buf))) {
+		warn("mmap", NULL, ret);
+		return ret;
+	}
 
 	mb->buf = buf;
 	mb->len = size;
@@ -166,53 +180,55 @@ static int alloc_output(CTX, struct mbuf* mb, ulong size)
 	return 0;
 }
 
-static int check_header(CTX, struct mbuf* raw, char* name, ulong* size)
+static int check_header(struct mbuf* raw, char* name, ulong* size)
 {
 	ulong len = raw->len;
 	byte* buf = raw->buf;
 
 	if(len < 6 + 20)
-		return error(ctx, "archive too short:", name, 0);
+		return lzerr("archive too short:", name);
 	if(memcmp(buf, "LZIP\x01", 5))
-		return error(ctx, "invalid LZIP header in", name, 0);
+		return lzerr("invalid LZIP header in", name);
 
 	byte dscode = buf[5];
 	uint dictsize = 1 << (dscode & 0x1F);
 	dictsize -= (dictsize/16) * ((dscode >> 5) & 7);
 
 	if(dictsize < (1<<12) || dictsize > (1<<29))
-		return error(ctx, "invalid LZIP dictsize in", name, 0);
+		return lzerr("invalid LZIP dictsize in", name);
 
 	byte* end = buf + len;
 
 	uint64_t isize = get_long_at(end - 8);
 
 	if(isize != len)
-		return error(ctx, "invalid LZIP input size", name, 0);
+		return lzerr("invalid LZIP input size", name);
 
 	uint64_t osize = get_long_at(end - 16);
 
 	*size = osize;
 
 	if(*size != osize)
-		return error(ctx, "LZIP archive too long:", name, 0);
+		return lzerr("LZIP archive too long:", name);
 
 	return 0;
 }
 
-int map_lunzip(CTX, struct mbuf* mb, char* name)
+int map_lunzip(struct mbuf* mb, char* name)
 {
 	struct mbuf raw;
 	ulong size = 0;
 	int ret;
 
-	if((ret = mmap_whole(ctx, &raw, name, REQ)) < 0)
+	memzero(&raw, sizeof(raw));
+
+	if((ret = mmap_whole(&raw, name, REQ)) < 0)
 		return ret;
-	if((ret = check_header(ctx, &raw, name, &size)) < 0)
+	if((ret = check_header(&raw, name, &size)) < 0)
 		goto out;
-	if((ret = alloc_output(ctx, mb, size)) < 0)
+	if((ret = alloc_output(mb, size)) < 0)
 		goto out;
-	if((ret = inflate(ctx, &raw, mb, name)) < 0)
+	if((ret = inflate(&raw, mb, name)) < 0)
 		munmap_buf(mb);
 out:
 	munmap_buf(&raw);

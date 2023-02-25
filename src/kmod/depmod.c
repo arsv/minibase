@@ -36,8 +36,6 @@ struct top {
 	int opts;
 	char* base;
 
-	int nofail;
-
 	char* brk;
 	char* ptr;
 	char* end;
@@ -68,10 +66,10 @@ char** environ(CTX)
 
 int error(CTX, const char* msg, char* arg, int err)
 {
-	if(!ctx->nofail) {
-		warn(msg, arg, err);
-		ctx->failed = 1;
-	}
+	warn(msg, arg, err);
+
+	ctx->failed = 1;
+
 	return err ? err : -1;
 }
 
@@ -491,7 +489,7 @@ static void process_module(CTX, struct mod* md)
 
 	if((ret = load_module(ctx, buf, path)) < 0)
 		return;
-	if((ret = find_modinfo(ctx, mod, buf, basename(path))) < 0)
+	if((ret = find_modinfo(mod, buf, basename(path))) < 0)
 		goto out;
 
 	if((deps = get_info_entry(ctx, mod, "depends")))
@@ -649,7 +647,7 @@ static void process_index(CTX)
 
 static void load_builtin(CTX)
 {
-	mmap_whole(ctx, &ctx->builtin, "modules.builtin", OPT);
+	mmap_whole(&ctx->builtin, "modules.builtin", OPT);
 }
 
 static void open_out_file(CTX, struct bufout* bo, char* name)

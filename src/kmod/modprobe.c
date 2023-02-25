@@ -30,13 +30,9 @@ int error(CTX, const char* msg, char* arg, int err)
 {
 	int ret = err ? err : -1;
 
-	if(ctx->nofail)
-		return ret;
-	if(!(ctx->opts & (OPT_q | OPT_p)))
-		warn(msg, arg, err);
-	else if(ctx->opts & OPT_v)
-		warn(msg, arg, err);
-	if(!(ctx->opts & OPT_a))
+	warn(msg, arg, err);
+
+	if(!(ctx->opts & (OPT_a | OPT_p)))
 		_exit(0xFF);
 
 	return ret;
@@ -70,7 +66,7 @@ static int mmap_modules_file(CTX, struct mbuf* mb, char* name, int optional)
 	p = fmtstr(p, e, name);
 	FMTEND(p, e);
 
-	return mmap_whole(ctx, mb, path, optional);
+	return mmap_whole(mb, path, optional);
 }
 
 static int prep_modules_alias(CTX)
@@ -96,7 +92,7 @@ static int prep_config(CTX)
 	struct mbuf* mb = &ctx->config;
 	char* name = BASE_ETC "/modules";
 
-	return mmap_whole(ctx, mb, name, OPT);
+	return mmap_whole(mb, name, OPT);
 }
 
 static int query_deps(CTX, struct line* ln, char* mod)
@@ -284,8 +280,6 @@ static int insert_absolute(CTX, char* name, char* path, char* pars)
 		report_insmod(ctx, path, pars);
 	if(ctx->opts & OPT_n)
 		return 0;
-
-	memzero(&mb, sizeof(mb));
 
 	if((ret = load_module(ctx, &mb, path)) < 0)
 		return ret;

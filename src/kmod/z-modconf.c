@@ -73,7 +73,7 @@ static int prep_config(CTX)
 	struct mbuf* mb = &ctx->config;
 	char* name = BASE_ETC "/modules";
 
-	return mmap_whole(ctx, mb, name, REQ);
+	return mmap_whole(mb, name, REQ);
 }
 
 static void try_mod_params(CTX)

@@ -6,7 +6,8 @@
    checking separately from the module-handing stuff.
 
    In all relevant cases (modules.dep, modules.alias, modules.conf etc),
-   the goal is to locate a line starting with a particular prefix. */
+   the goal is to locate a line starting with a particular prefix
+   and then use whatever follows that prefix. */
 
 typedef char* (*lnmatch)(char* ls, char* le, char* name);
 

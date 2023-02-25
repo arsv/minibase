@@ -1,6 +1,7 @@
 #include <endian.h>
 #include <memoff.h>
 #include <string.h>
+#include <util.h>
 
 #include "common.h"
 
@@ -97,12 +98,14 @@ static inline void copy_ext_long(int xe, uint32_t* src, uint64_t* dst)
 	*dst = (uint64_t)(xe ? swabl(*src) : *src);
 }
 
-static int moderr(CTX, const char* msg, MOD)
+static int moderr(const char* msg, MOD)
 {
-	return error(ctx, msg, mod->name, 0);
+	warn(msg, mod->name, 0);
+
+	return -EINVAL;
 }
 
-static int read_elf_header(CTX, MOD)
+static int read_elf_header(MOD)
 {
 	void* buf = mod->buf;
 	ulong len = mod->len;
@@ -110,7 +113,7 @@ static int read_elf_header(CTX, MOD)
 	int elf64, size, bigendian;
 
 	if(len < sizeof(*hdr) || memcmp(hdr->tag, "\x7F" "ELF", 4))
-		return moderr(ctx, "not an ELF file:", mod);
+		return moderr("not an ELF file:", mod);
 
 	if(hdr->class == ELF_32) {
 		elf64 = 0;
@@ -119,21 +122,21 @@ static int read_elf_header(CTX, MOD)
 		elf64 = 1;
 		size = sizeof(struct elf64hdr);
 	} else {
-		return moderr(ctx, "unknown ELF class:", mod);
+		return moderr("unknown ELF class:", mod);
 	}
 
 	if(mem_off_cmp(len, size) < 0)
-		return moderr(ctx, "file truncated:", mod);
+		return moderr("file truncated:", mod);
 
 	if(hdr->version != 1)
-		return moderr(ctx, "invalid ELF version:", mod);
+		return moderr("invalid ELF version:", mod);
 
 	if(hdr->data == ELF_LSB)
 		bigendian = 0;
 	else if(hdr->data == ELF_MSB)
 		bigendian = 1;
 	else
-		return moderr(ctx, "unknown ELF endianess:", mod);
+		return moderr("unknown ELF endianess:", mod);
 
 	mod->elf64 = elf64;
 #ifdef BIGENDIAN
@@ -144,7 +147,7 @@ static int read_elf_header(CTX, MOD)
 	return 0;
 }
 
-const char* lookup_string(CTX, MOD, uint off)
+const char* lookup_string(MOD, uint off)
 {
 	uint64_t strings_off = mod->strings_off;
 	uint64_t strings_len = mod->strings_len;
@@ -167,14 +170,14 @@ const char* lookup_string(CTX, MOD, uint off)
 	return s;
 }
 
-static int locate_strings_section(CTX, MOD)
+static int locate_strings_section(MOD)
 {
 	uint64_t shoff = mod->shoff;
 	int shstrndx = mod->shstrndx;
 	int shentsize = mod->shentsize;
 
 	if(!shstrndx)
-		return moderr(ctx, "no .strings in", mod);
+		return moderr("no .strings in", mod);
 
 	void* sh = mod->buf + shoff + shstrndx*shentsize;
 	int elf64 = mod->elf64;
@@ -188,7 +191,7 @@ static int locate_strings_section(CTX, MOD)
 	take_x64(elfshdr, sh, size);
 
 	if(type != SHT_STRTAB)
-		return moderr(ctx, "invalid .strings section in", mod);
+		return moderr("invalid .strings section in", mod);
 
 	mod->strings_off = offset;
 	mod->strings_len = size;
@@ -196,7 +199,7 @@ static int locate_strings_section(CTX, MOD)
 	return 0;
 }
 
-static int locate_modinfo_section(CTX, MOD)
+static int locate_modinfo_section(MOD)
 {
 	uint64_t shnum = mod->shnum;
 	uint64_t shoff = mod->shoff;
@@ -217,7 +220,7 @@ static int locate_modinfo_section(CTX, MOD)
 
 		if(!type)
 			continue;
-		if(!(namestr = lookup_string(ctx, mod, name)))
+		if(!(namestr = lookup_string(mod, name)))
 			continue;
 		if(strcmp(namestr, ".modinfo"))
 			continue;
@@ -228,10 +231,10 @@ static int locate_modinfo_section(CTX, MOD)
 		return 0;
 	}
 
-	return moderr(ctx, "no .modinfo in", mod);
+	return moderr("no .modinfo in", mod);
 }
 
-static int init_sections_table(CTX, MOD)
+static int init_sections_table(MOD)
 {
 	uint len = mod->len;
 	void* eh = mod->buf; /* ELF header */
@@ -249,9 +252,9 @@ static int init_sections_table(CTX, MOD)
 	take_u16(elfhdr, eh, shstrndx);
 
 	if(!shoff)
-		return moderr(ctx, "no sections in", mod);
+		return moderr("no sections in", mod);
 	if(shoff + shnum*shentsize > len)
-		return moderr(ctx, "corrupt sections header in", mod);
+		return moderr("corrupt sections header in", mod);
 
 	mod->shoff = shoff;
 	mod->shnum = shnum;
@@ -261,7 +264,7 @@ static int init_sections_table(CTX, MOD)
 	return 0;
 }
 
-int find_modinfo(CTX, MOD, struct mbuf* mb, char* name)
+int find_modinfo(MOD, struct mbuf* mb, char* name)
 {
 	int ret;
 
@@ -271,13 +274,13 @@ int find_modinfo(CTX, MOD, struct mbuf* mb, char* name)
 	mod->buf = mb->buf;
 	mod->len = mb->len;
 
-	if((ret = read_elf_header(ctx, mod)) < 0)
+	if((ret = read_elf_header(mod)) < 0)
 		return ret;
-	if((ret = init_sections_table(ctx, mod)) < 0)
+	if((ret = init_sections_table(mod)) < 0)
 		return ret;
-	if((ret = locate_strings_section(ctx, mod)) < 0)
+	if((ret = locate_strings_section(mod)) < 0)
 		return ret;
-	if((ret = locate_modinfo_section(ctx, mod)) < 0)
+	if((ret = locate_modinfo_section(mod)) < 0)
 		return ret;
 
 	return 0;

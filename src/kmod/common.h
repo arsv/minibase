@@ -47,13 +47,12 @@ struct kmod {
 
 int load_module(CTX, struct mbuf* mb, char* path);
 
-int mbuf_dirty(struct mbuf* mb);
-int mmap_whole(CTX, struct mbuf* mb, char* name, int optional);
-int map_lunzip(CTX, struct mbuf* mb, char* name);
+int mmap_whole(struct mbuf* mb, char* name, int optional);
+int map_lunzip(struct mbuf* mb, char* name);
 int decompress(CTX, struct mbuf* mb, char* name, char** cmd);
 void munmap_buf(struct mbuf* mb);
 
-int find_modinfo(CTX, struct kmod* mod, struct mbuf* mb, char* name);
+int find_modinfo(struct kmod* mod, struct mbuf* mb, char* name);
 
 extern int error(CTX, const char* msg, char* arg, int err);
 extern char** environ(CTX);
