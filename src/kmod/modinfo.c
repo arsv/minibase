@@ -2,6 +2,7 @@
 #include <sys/info.h>
 #include <sys/mman.h>
 
+#include <config.h>
 #include <format.h>
 #include <printf.h>
 #include <string.h>
@@ -25,39 +26,16 @@ ERRTAG("modinfo");
 struct top {
 	int opts;
 
-	char** envp;
 	char* module;
 	char* path;
 	char* base;
 
 	struct bufout bo;
+	struct upac pc;
 	struct mbuf modules_dep;
 
 	int showpath;
 };
-
-char outbuf[4096];
-
-/* Hooks for common_*.c routines */
-
-char** environ(CTX)
-{
-	return ctx->envp;
-}
-
-int error(CTX, const char* msg, char* arg, int err)
-{
-	fail(msg, arg, err);
-}
-
-/* --- */
-
-static void output(CTX, char* buf, int len)
-{
-	bufout(&ctx->bo, buf, len);
-}
-
-/* --- */
 
 struct entry {
 	char* key; /* NOT zero-terminated */
@@ -65,6 +43,13 @@ struct entry {
 	char* value; /* zero-terminated */
 	uint llen;
 };
+
+char outbuf[4096];
+
+static void output(CTX, char* buf, int len)
+{
+	bufout(&ctx->bo, buf, len);
+}
 
 static char* next_entry(char* ptr, char* end, struct entry* ent)
 {
@@ -247,7 +232,7 @@ static void use_module_file(CTX, char* path)
 		return;
 	}
 
-	if((ret = load_module(ctx, buf, path)) < 0)
+	if((ret = load_module(&ctx->pc, buf, path)) < 0)
 		return;
 	if((ret = find_modinfo(mod, buf, base)) < 0)
 		return;
@@ -390,7 +375,9 @@ int main(int argc, char** argv)
 
 	memzero(ctx, sizeof(*ctx));
 
-	ctx->envp = argv + argc + 1;
+	ctx->pc.envp = argv + argc + 1;
+	ctx->pc.sdir = BASE_ETC "/pac";
+
 	ctx->bo.fd = STDOUT;
 	ctx->bo.buf = outbuf;
 	ctx->bo.len = sizeof(outbuf);

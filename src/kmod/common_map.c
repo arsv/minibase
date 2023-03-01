@@ -1,7 +1,9 @@
 #include <sys/file.h>
+#include <sys/fprop.h>
 #include <sys/mman.h>
 #include <sys/proc.h>
 #include <string.h>
+#include <format.h>
 #include <util.h>
 
 #include "common.h"
@@ -15,7 +17,12 @@
    needs it for things like modules.dep and modules.alias.
    If mbuf has been mmaped already, we just return the results of the
    first attempt (either success or the error code). It is up to the
-   calling code to make sure the same exact file is being mmaped. */
+   calling code to make sure the same exact file is being mmaped.
+
+   Support for external decompressors should probably be removed at
+   some point, leaving .ko and .ko.lz the only options, but for now
+   it makes testing this easier as host system modules can be used
+   right away. */
 
 #define MAX_MAP_SIZE 0x7FFFFFFF
 
@@ -131,7 +138,37 @@ static void munmap_temp(void* buf, uint len)
 		warn("munmap", NULL, ret);
 }
 
-static int readall(CTX, struct mbuf* mb, int fd, int compsize, char* cmd)
+/* Trim extra space in case the decompressed content ended up
+   a lot shorter than the allocted buffer */
+
+static int trim_extra(struct mbuf* mb)
+{
+	int ret;
+
+	long ptr = mb->len;
+	long len = mb->full;
+	long newlen = pagealign(ptr);
+
+	if(!newlen)
+		newlen = PAGE;
+	if(newlen >= len)
+		return 0;
+
+	void* oldbuf = mb->buf;
+	char* newbuf = sys_mremap(oldbuf, len, newlen, MREMAP_MAYMOVE);
+
+	if((ret = mmap_error(newbuf))) {
+		warn("mremap", NULL, ret);
+		return ret;
+	}
+
+	mb->len = newlen;
+	mb->buf = newbuf;
+
+	return 0;
+}
+
+static int readall(struct mbuf* mb, int fd, int compsize, char* cmd)
 {
 	const int unit = 4*PAGE;
 	long ptr = 0, len = pagealign(8*compsize + 1);
@@ -175,24 +212,12 @@ static int readall(CTX, struct mbuf* mb, int fd, int compsize, char* cmd)
 		goto err;
 	}
 
-	/* Trim extra space in case the decompressed content ended up
-	   a lot shorter than the allocted buffer */
-	if(pagealign(ptr) < len) {
-		long newlen = pagealign(ptr);
-		char* newbuf = sys_mremap(buf, len, newlen, MREMAP_MAYMOVE);
-
-		if((ret = mmap_error(newbuf))) {
-			warn("mremap", NULL, ret);
-			goto err;
-		}
-
-		len = newlen;
-		buf = newbuf;
-	}
-
 	mb->buf = buf;
 	mb->len = ptr;
 	mb->full = len;
+
+	if((ret = trim_extra(mb)) < 0)
+		goto err;
 
 	return 0;
 err:
@@ -201,7 +226,64 @@ err:
 	return ret;
 }
 
-static int check_file_usable(CTX, char* path)
+/* We have module.ko.gz and we need to know if we can unpack it, that is,
+   whether we have an unpacker script in place.
+
+     script = "/etc/pac/gz"
+     path = "/lib/modules/kernel/something/module.ko.gz"
+     ext = "gz"
+
+   Pretty much any invocation with multiple modules (which is most of them,
+   even a simple modprobe with dependencies) will use the same compression
+   for all modules in the batch. It is extremely unusual to have some .ko.gz
+   and some .ko.bz2 or something in the same tree.
+
+   So with that in mind, we cache the last result and skip the probe next
+   time the same extension is used. */
+
+static int check_decomp_available(struct upac* pc, char* script, char* path, char* ext)
+{
+	int ret;
+	int extlen = strlen(ext);
+	int maxlen = sizeof(pc->last) - 2;
+
+	if(extlen > maxlen) {
+		warn("suffix ignored:", ext, 0);
+		return -ENAMETOOLONG;
+	}
+
+	char* last = pc->last + 1;
+	char* lret = pc->last;
+
+	if(!memcmp(last, ext, extlen) && !last[extlen]) {
+		int failed = *lret;
+
+		if(!failed)
+			return 0;
+
+		warn("skipping", path, 0);
+		return -ENOENT;
+	}
+
+	memcpy(last, ext, extlen);
+	last[extlen] = '\0';
+
+	if((ret = sys_access(script, X_OK)) < 0) {
+		*lret = 0xFF;
+		warn("compression not supported:", ext, 0);
+		warn("skipping", path, 0);
+		return ret;
+	}
+
+	*lret = 0x00;
+
+	return 0;
+}
+
+/* Make sure module.ko.gz exists first.
+   It if doesn't, there's no point in spawning the unpacker script. */
+
+static int check_file_usable(char* path)
 {
 	int ret;
 	struct stat st;
@@ -220,12 +302,13 @@ static int check_file_usable(CTX, char* path)
 	return st.size;
 }
 
-int decompress(CTX, struct mbuf* mb, char* path, char** args)
+static int decompress(struct mbuf* mb, char** args, char** envp)
 {
 	int ret, size, fds[2], pid, status;
-	char* cmd = *args;
+	char* cmd = args[0];
+	char* path = args[1];
 
-	if((size = check_file_usable(ctx, path)) < 0)
+	if((size = check_file_usable(path)) < 0)
 		return size;
 
 	if((ret = sys_pipe2(fds, 0)) < 0)
@@ -234,18 +317,18 @@ int decompress(CTX, struct mbuf* mb, char* path, char** args)
 		fail("fork", NULL, ret);
 
 	if(pid == 0)
-		child(fds, args, environ(ctx));
+		child(fds, args, envp);
 
 	if((ret = sys_close(fds[1])) < 0)
 		fail("close", "pipe", ret);
 
-	int res = readall(ctx, mb, fds[0], size, cmd);
+	int res = readall(mb, fds[0], size, cmd);
 
 	if((ret = sys_close(fds[0])) < 0)
 		fail("close", "pipe", ret);
 
 	if((ret = sys_waitpid(pid, &status, 0)) < 0)
-		fail("wait", cmd, pid);
+		fail("wait", NULL, pid);
 
 	if(status && (res >= 0)) { /* pipe command failed */
 		warn("non-zero exit in", cmd, 0);
@@ -256,54 +339,89 @@ int decompress(CTX, struct mbuf* mb, char* path, char** args)
 	return res;
 }
 
-static int check_suffix(char* name, int nlen, char* suffix)
+static int mmap_compressed(struct upac* pc, struct mbuf* mb, char* path, char* ext)
 {
-	int slen = strlen(suffix);
+	char* dir = pc->sdir;
 
-	if(nlen < slen)
-		return 0;
-	if(strncmp(name + nlen - slen, suffix, slen))
-		return 0;
+	if(!dir) { /* no support for compressed modules */
+		warn("compressed module:", path, 0);
+		return -EINVAL;
+	}
 
-	return 1;
+	int dlen = strlen(dir);
+	int xlen = strlen(ext);
+
+	int len = dlen + xlen + 3;
+	char* script = alloca(len);
+	char* p = script;
+	char* e = script + len - 1;
+
+	p = fmtstr(p, e, dir);
+	p = fmtchar(p, e, '/');
+	p = fmtstr(p, e, ext);
+
+	*p++ = '\0';
+
+	char* argv[] = { script, path, NULL };
+	char** envp = pc->envp;
+
+	if(check_decomp_available(pc, script, path, ext))
+		return -ENOENT;
+
+	return decompress(mb, argv, envp);
 }
 
-static int map_zcat(CTX, struct mbuf* mb, char* path)
+static char* locate_backwards(char* p, char* e, char c)
 {
-	char* args[] = { "gzip", "-dc", path, NULL };
-	return decompress(ctx, mb, path, args);
+	while(e > p) {
+		e--;
+		if(*e == c)
+			return e;
+	}
+	return NULL;
 }
 
-static int map_xzcat(CTX, struct mbuf* mb, char* path)
-{
-	char* args[] = { "xz", "-dc", path, NULL };
-	return decompress(ctx, mb, path, args);
-}
-
-static int map_zstd(CTX, struct mbuf* mb, char* path)
-{
-	char* args[] = { "zstd", "-dcf", path, NULL };
-	return decompress(ctx, mb, path, args);
-}
-
-int load_module(CTX, struct mbuf* mb, char* path)
+static char* suffix_after_ko(char* path)
 {
 	char* base = basename(path);
 	int blen = strlen(base);
+	char* end = base + blen;
+
+	char* p1 = locate_backwards(base, end, '.');
+
+	if(!p1) /* "file-with-no-dots" */
+		return NULL;
+	if(!strcmp(p1 + 1, "ko")) /* file-name.ko */
+		return end;
+	if(end - p1 > 5)
+		return NULL; /* very long extension */
+
+	char* p2 = locate_backwards(base, p1, '.');
+
+	if(!p2) /* file-name.gz */
+		return NULL;
+	if(p1 - p2 != 3 || memcmp(p2, ".ko", 3)) /* file-name.so.gz */
+		return NULL;
+
+	/* file-name.ko.gz or something like that */
+
+	return p1 + 1;
+}
+
+int load_module(struct upac* pc, struct mbuf* mb, char* path)
+{
+	char* ext;
 
 	memzero(mb, sizeof(*mb));
 
-	if(check_suffix(base, blen, ".ko"))
+	if(!(ext = suffix_after_ko(path))) {
+		warn("unexpected module extension:", path, 0);
+		return -EINVAL;
+	} else if(!*ext) { /* plain foo.ko */
 		return mmap_whole(mb, path, REQ);
-	if(check_suffix(base, blen, ".ko.lz"))
+	} else if(!strcmp(ext, "lz")) {
 		return map_lunzip(mb, path);
-	if(check_suffix(base, blen, ".ko.gz"))
-		return map_zcat(ctx, mb, path);
-	if(check_suffix(base, blen, ".ko.xz"))
-		return map_xzcat(ctx, mb, path);
-	if(check_suffix(base, blen, ".ko.zst"))
-		return map_zstd(ctx, mb, path);
+	}
 
-	warn("unexpected module extension:", base, 0);
-	return -EINVAL;
+	return mmap_compressed(pc, mb, path, ext);
 }

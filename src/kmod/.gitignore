@@ -4,3 +4,4 @@ modinfo
 modprobe
 lsmod
 z-modconf
+z-loadmod

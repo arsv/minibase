@@ -4,6 +4,7 @@
 #include <sys/dents.h>
 #include <sys/fpath.h>
 
+#include <config.h>
 #include <format.h>
 #include <string.h>
 #include <output.h>
@@ -31,7 +32,7 @@ struct dep {
 };
 
 struct top {
-	char** envp;
+	struct upac pc;
 
 	int opts;
 	char* base;
@@ -58,11 +59,6 @@ struct top {
 
 char depbuf[2048];
 char alibuf[2048];
-
-char** environ(CTX)
-{
-	return ctx->envp;
-}
 
 int error(CTX, const char* msg, char* arg, int err)
 {
@@ -487,7 +483,7 @@ static void process_module(CTX, struct mod* md)
 	int ret;
 	char *name, *deps;
 
-	if((ret = load_module(ctx, buf, path)) < 0)
+	if((ret = load_module(&ctx->pc, buf, path)) < 0)
 		return;
 	if((ret = find_modinfo(mod, buf, basename(path))) < 0)
 		goto out;
@@ -728,7 +724,8 @@ int main(int argc, char** argv)
 		opts = argbits(OPTS, argv[i++] + 1);
 
 	ctx->opts = opts;
-	ctx->envp = argv + argc + 1;
+	ctx->pc.envp = argv + argc + 1;
+	ctx->pc.sdir = BASE_ETC "/pac";
 
 	if(i < argc) {
 		base = argv[i++];

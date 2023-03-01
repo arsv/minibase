@@ -45,17 +45,19 @@ struct kmod {
 	uint modinfo_len;
 };
 
-int load_module(CTX, struct mbuf* mb, char* path);
+struct upac {
+	char** envp;
+	char* sdir;
+	char last[8];
+};
+
+int load_module(struct upac* pc, struct mbuf* mb, char* path);
 
 int mmap_whole(struct mbuf* mb, char* name, int optional);
 int map_lunzip(struct mbuf* mb, char* name);
-int decompress(CTX, struct mbuf* mb, char* name, char** cmd);
 void munmap_buf(struct mbuf* mb);
 
 int find_modinfo(struct kmod* mod, struct mbuf* mb, char* name);
-
-extern int error(CTX, const char* msg, char* arg, int err);
-extern char** environ(CTX);
 
 static inline int isspace(int c)
 {

@@ -14,18 +14,6 @@
 
 ERRTAG("modprobe");
 
-int error(CTX, const char* msg, char* arg, int err)
-{
-	warn(msg, arg, err);
-
-	return err ? err : -1;
-}
-
-char** environ(CTX)
-{
-	return ctx->envp;
-}
-
 static void dump_line(struct line* ln)
 {
 	int len = ln->end - ln->ptr;

@@ -12,14 +12,14 @@ struct top {
 	int nofail;
 
 	char** argv;
-	char** envp;
-
 	char* base;
 
 	void* brk;
 	void* lwm;
 	void* ptr;
 	void* end;
+
+	struct upac pac;
 
 	struct mbuf modules_dep;
 	struct mbuf modules_alias;
@@ -33,5 +33,7 @@ struct top {
 	int nmatching;
 	int ninserted;
 };
+
+extern int error(CTX, const char* msg, char* arg, int err);
 
 #define CTX struct top* ctx __unused

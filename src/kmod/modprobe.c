@@ -38,11 +38,6 @@ int error(CTX, const char* msg, char* arg, int err)
 	return ret;
 }
 
-char** environ(CTX)
-{
-	return ctx->envp;
-}
-
 static int got_args(CTX)
 {
 	return ctx->argi < ctx->argc;
@@ -281,7 +276,7 @@ static int insert_absolute(CTX, char* name, char* path, char* pars)
 	if(ctx->opts & OPT_n)
 		return 0;
 
-	if((ret = load_module(ctx, &mb, path)) < 0)
+	if((ret = load_module(&ctx->pac, &mb, path)) < 0)
 		return ret;
 
 	if((ret = sys_init_module(mb.buf, mb.len, pars)) >= 0)
@@ -511,7 +506,9 @@ int main(int argc, char** argv)
 
 	ctx->argc = argc;
 	ctx->argv = argv;
-	ctx->envp = argv + argc + 1;
+
+	ctx->pac.envp = argv + argc + 1;
+	ctx->pac.sdir = BASE_ETC "/pac";
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
@@ -523,9 +520,11 @@ int main(int argc, char** argv)
 		ctx->base = shift_arg(ctx);
 	} else if(opts & OPT_i) {
 		ctx->base = "/lib/modules";
+		ctx->pac.sdir = INIT_ETC "/pac";
 	} else {
-		char basebuf[100];
-		prep_base_path(basebuf, sizeof(basebuf));
+		int basemax = 100;
+		char* basebuf = alloca(basemax);
+		prep_base_path(basebuf, basemax);
 		ctx->base = basebuf;
 	}
 
