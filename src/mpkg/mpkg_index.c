@@ -319,7 +319,7 @@ static void open_compressed(CTX)
 	char* pacpath = ctx->pacname;
 	char* suffix = ctx->suffix;
 
-	char* dir = BASE_ETC "/mpac/";
+	char* dir = BASE_ETC "/pac/";
 	int len = strlen(dir) + strlen(suffix) + 2;
 	char* decpath = alloca(len);
 
