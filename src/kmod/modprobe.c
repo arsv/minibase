@@ -29,10 +29,12 @@ ERRLIST(NEACCES NEAGAIN NEBADF NEINVAL NENFILE NENODEV NENOMEM NEPERM NENOENT
 int error(CTX, const char* msg, char* arg, int err)
 {
 	int ret = err ? err : -1;
+	int opts = ctx->opts;
 
-	warn(msg, arg, err);
+	if(!(opts & OPT_p) || (opts & OPT_v))
+		warn(msg, arg, err);
 
-	if(!(ctx->opts & (OPT_a | OPT_p)))
+	if(!(opts & (OPT_a | OPT_p)))
 		_exit(0xFF);
 
 	return ret;
@@ -76,8 +78,6 @@ static int prep_modules_builtin(CTX)
 {
 	struct mbuf* mb = &ctx->modules_builtin;
 	char* name = "modules.builtin";
-
-	warn("prep-modules-builtin", NULL, 0);
 
 	return mmap_modules_file(ctx, mb, name, OPT);
 }
