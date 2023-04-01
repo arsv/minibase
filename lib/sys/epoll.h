@@ -19,6 +19,8 @@
 #define EPOLLONESHOT   (1<<30)
 #define EPOLLET        (1<<31)
 
+/* EPOLL_CLOEXEC = O_CLOEXEC */
+
 #define EPOLL_CTL_ADD 1
 #define EPOLL_CTL_DEL 2
 #define EPOLL_CTL_MOD 3
