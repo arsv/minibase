@@ -53,6 +53,7 @@ void uc_put_str(struct ucbuf* uc, int key, char* str);
 void uc_put_flag(struct ucbuf* uc, int key);
 void uc_put_i64(struct ucbuf* uc, int key, int64_t v);
 void uc_put_tail(struct ucbuf* uc, int key, int len);
+void uc_put_strn(struct ucbuf* uc, int key, char* src, int max);
 
 struct ucattr* uc_put_nest(struct ucbuf* uc, int key);
 void uc_end_nest(struct ucbuf* uc, struct ucattr* nest);
