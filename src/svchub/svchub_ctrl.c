@@ -42,7 +42,7 @@ static int send_multi(CTX, CN, struct iovec* iov, int iovcnt)
 	if((ret = uc_send_iov(fd, iov, iovcnt)) > 0)
 		return ret;
 
-	close_conn(ctx, cn);
+	//close_conn(ctx, cn);
 
 	return REPLIED;
 }
@@ -131,10 +131,10 @@ static int cmd_list(CTX, CN, MSG)
 
 		uc_put_str(&uc, ATTR_NAME, rc->name);
 
-		if(rc->pid > 0)
-			uc_put_int(&uc, ATTR_PID, rc->pid);
-		else if(rc->flags & P_STATUS)
+		if(rc->flags & P_STATUS)
 			uc_put_int(&uc, ATTR_EXIT, rc->pid & 0xFFFF);
+		else if(rc->pid)
+			uc_put_int(&uc, ATTR_PID, rc->pid);
 
 		if(rc->ptr)
 			uc_put_flag(&uc, ATTR_RING);
@@ -155,61 +155,72 @@ static inline int check(int ret)
 
 static int cmd_reboot(CTX, CN, MSG)
 {
-	return check(stop_into(ctx, "reboot"));
+	return check(command_stop(ctx, "reboot"));
 }
 
 static int cmd_shutdown(CTX, CN, MSG)
 {
-	return check(stop_into(ctx, "shutdown"));
+	return check(command_stop(ctx, "shutdown"));
 }
 
 static int cmd_poweroff(CTX, CN, MSG)
 {
-	return check(stop_into(ctx, "poweroff"));
-}
-
-static int cmd_reload(CTX, CN, MSG)
-{
-	return check(reload_procs(ctx));
+	return check(command_stop(ctx, "poweroff"));
 }
 
 /* Commands working on a single proc entry */
 
-static int cmd_status(CTX, CN, MSG, RC)
+static int cmd_status(CTX, CN, MSG)
 {
 	char buf[128];
 	struct ucbuf uc;
-	int pid = rc->pid;
+	struct proc* pc;
+	char* name;
+
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
+	if(!(pc = find_by_name(ctx, name)))
+		return -ENOENT;
+
+	int pid = pc->pid;
 
 	uc_buf_set(&uc, buf, sizeof(buf));
+	uc_put_hdr(&uc, 0);
 
-	uc_put_str(&uc, ATTR_NAME, rc->name);
+	uc_put_strn(&uc, ATTR_NAME, pc->name, sizeof(pc->name));
 
 	if(pid > 0)
 		uc_put_int(&uc, ATTR_PID, pid);
 	else if(pid < 0)
 		uc_put_int(&uc, ATTR_EXIT, pid & 0xFFFF);
-	if(rc->ptr)
+	if(pc->ptr)
 		uc_put_flag(&uc, ATTR_RING);
 
 	return send_reply(cn, &uc);
 }
 
-static int cmd_getbuf(CTX, CN, MSG, RC)
+static int cmd_getbuf(CTX, CN, MSG)
 {
 	struct ucbuf uc;
 	char buf[50];
 	struct iovec iov[3];
 	int ret, iovcnt;
+	struct proc* pc;
+	char* name;
 
-	int ptr = rc->ptr;
-	char* ring = rc->buf;
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
+	if(!(pc = find_by_name(ctx, name)))
+		return -ENOENT;
+
+	int ptr = pc->ptr;
+	char* ring = pc->buf;
 
 	uc_buf_set(&uc, buf, sizeof(buf));
 	uc_put_hdr(&uc, 0);
 
-	if(!ring)
-		return -ENOENT;
+	if(!ring) /* emtpy buf - reply with no payload */
+		return 0;
 
 	if((ret = uc_iov_hdr(&iov[0], &uc)) < 0)
 		return ret;
@@ -230,115 +241,86 @@ static int cmd_getbuf(CTX, CN, MSG, RC)
 	return send_multi(ctx, cn, iov, iovcnt);
 }
 
-static int kill_proc(CTX, RC, int sig)
+static int cmd_start(CTX, CN, MSG)
 {
-	int ret, pid = rc->pid;
+	char* name;
 
-	if(pid <= 0)
-		return -ESRCH;
-	if((ret = sys_kill(pid, sig)))
-		return ret;
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
 
-	return 0;
+	return start_proc(ctx, name);
 }
 
-static int cmd_start(CTX, CN, MSG, RC)
+static int cmd_stop(CTX, CN, MSG)
 {
+	char* name;
 	int ret;
 
-	if((ret = start_proc(ctx, rc)) < 0)
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
+
+	if((ret = stop_proc(ctx, name)) < 0)
 		return ret;
 
-	flush_ring_buf(rc);
+	cn->pid = ret;
 
 	return 0;
 }
 
-static int cmd_reset(CTX, CN, MSG, RC)
+static int cmd_flush(CTX, CN, MSG)
 {
+	char* name;
 	int ret;
 
-	if((ret = kill_proc(ctx, rc, SIGTERM)) < 0)
-		return ret;
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
 
-	rc->flags |= P_RESTART;
-	cn->pid = rc->pid;
+	if((ret = flush_proc(ctx, name)) < 0)
+		return ret;
 
 	return 0;
 }
 
-static int cmd_stop(CTX, CN, MSG, RC)
+static int cmd_hup(CTX, CN, MSG)
 {
+	char* name;
 	int ret;
 
-	if((ret = stop_proc(ctx, rc)) < 0)
-		return ret;
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
 
-	cn->pid = rc->pid;
+	if((ret = kill_proc(ctx, name, SIGHUP)) < 0)
+		return ret;
 
 	return 0;
 }
 
-static int cmd_flush(CTX, CN, MSG, RC)
-{
-	return check(flush_ring_buf(rc));
-}
-
-static int cmd_hup(CTX, CN, MSG, RC)
-{
-	return kill_proc(ctx, rc, SIGHUP);
-}
-
-static const struct pcmd {
-       int cmd;
-       int (*call)(CTX, CN, MSG, RC);
-} pcommands[] = {
-       { CMD_STATUS,   cmd_status   },
-       { CMD_GETBUF,   cmd_getbuf   },
-       { CMD_START,    cmd_start    },
-       { CMD_STOP,     cmd_stop     },
-       { CMD_RESET,    cmd_reset    },
-       { CMD_FLUSH,    cmd_flush    },
-       { CMD_HUP,      cmd_hup      },
-};
-
-static const struct gcmd {
+static const struct command {
        int cmd;
        int (*call)(CTX, CN, MSG);
-} gcommands[] = {
+} commands[] = {
        { CMD_LIST,     cmd_list     },
-       { CMD_RELOAD,   cmd_reload   },
        { CMD_REBOOT,   cmd_reboot   },
        { CMD_SHUTDOWN, cmd_shutdown },
        { CMD_POWEROFF, cmd_poweroff },
+
+       { CMD_START,    cmd_start    },
+       { CMD_STOP,     cmd_stop     },
+       { CMD_FLUSH,    cmd_flush    },
+       { CMD_HUP,      cmd_hup      },
+
+       { CMD_STATUS,   cmd_status   },
+       { CMD_GETBUF,   cmd_getbuf   }
 };
-
-static int proc_cmd(CTX, CN, MSG, const struct pcmd* pc)
-{
-       char* name;
-       struct proc* rc;
-
-       if(!(name = uc_get_str(msg, ATTR_NAME)))
-               return -EINVAL;
-       if(!(rc = find_by_name(ctx, name)))
-               return -ENOENT;
-
-       return pc->call(ctx, cn, msg, rc);
-}
 
 static int dispatch(CTX, CN, MSG)
 {
-       const struct pcmd* pc;
-       const struct gcmd* gc;
+       const struct command* cc;
        int cmd = uc_repcode(msg);
 
-       for(pc = pcommands; pc < ARRAY_END(pcommands); pc++)
-               if(pc->cmd == cmd)
-                       return proc_cmd(ctx, cn, msg, pc);
-
-       for(gc = gcommands; gc < ARRAY_END(gcommands); gc++)
-               if(gc->cmd == cmd)
-                       return gc->call(ctx, cn, msg);
+       for(cc = commands; cc < ARRAY_END(commands); cc++)
+               if(cc->cmd == cmd)
+                       return cc->call(ctx, cn, msg);
 
        return -ENOSYS;
 }
@@ -362,35 +344,18 @@ err:
 	close_conn(ctx, cn);
 }
 
-static void update_nconns(CTX)
-{
-	int n = ctx->nconns;
-
-	while(n > 0) {
-		struct conn* cn = &conns[n-1];
-
-		if(cn->fd > 0) break;
-
-		n--;
-	}
-
-	ctx->nconns = n;
-}
-
 void close_conn(CTX, struct conn* cn)
 {
 	int fd = cn->fd;
 
 	if(fd < 0) return;
 
+	del_epoll_fd(ctx, fd);
+
 	sys_close(fd);
 
 	cn->fd = -1;
 	cn->pid = 0;
-
-	ctx->pollset = 0;
-
-	update_nconns(ctx);
 }
 
 static struct conn* grab_conn_slot(CTX)
@@ -410,7 +375,7 @@ static struct conn* grab_conn_slot(CTX)
 	return cn;
 }
 
-void check_control(CTX)
+void check_socket(CTX)
 {
 	int sfd = ctx->ctlfd;
 	struct sockaddr addr;
@@ -418,27 +383,42 @@ void check_control(CTX)
 	int cfd, flags = SOCK_NONBLOCK;
 	struct conn *cn;
 
-	while((cfd = sys_accept4(sfd, &addr, &addr_len, flags)) > 0) {
-		if((cn = grab_conn_slot(ctx))) {
-			cn->fd = cfd;
-			ctx->pollset = 0;
-		} else {
-			sys_close(cfd);
-		}
+	if((cfd = sys_accept4(sfd, &addr, &addr_len, flags)) >= 0)
+		;
+	else if(cfd == -EAGAIN)
+		return;
+	else
+		fail("accept", NULL, cfd);
+
+	if(!(cn = grab_conn_slot(ctx))) {
+		sys_close(cfd);
+	} else {
+		cn->fd = cfd;
+		add_conn_fd(ctx, cfd, cn);
 	}
 }
 
-void setup_control(CTX)
+void open_socket(CTX)
 {
 	int ret, fd;
 	char* path = CONTROL;
 	const int flags = SOCK_SEQPACKET | SOCK_NONBLOCK | SOCK_CLOEXEC;
 
 	if((fd = sys_socket(AF_UNIX, flags, 0)) < 0)
-		return quit(ctx, "socket", "AF_UNIX", fd);
+		return fail("socket", "AF_UNIX", fd);
 
 	if((ret = uc_listen(fd, path, 5)) < 0)
-		return quit(ctx, "ucbind", path, ret);
+		return fail("ucbind", path, ret);
 
 	ctx->ctlfd = fd;
+
+	add_sock_fd(ctx, fd);
+}
+
+void close_socket(CTX)
+{
+	int ret, fd = ctx->ctlfd;
+
+	if((ret = sys_close(fd)) < 0)
+		warn("close", "socket", ret);
 }

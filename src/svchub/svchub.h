@@ -1,28 +1,34 @@
 #include <bits/types.h>
 #include <bits/time.h>
 
-#define NAMELEN 15
+#define NAMELEN 16
 #define NPROCS 70
 #define NCONNS 10
-#define NPFDS (2+NCONNS+NPROCS)
-
-#define STABLE_TRESHOLD 30
 
 #define RINGSIZE 4096
 
-#define P_DISABLE       (1<<0)
-#define P_RESTART       (1<<1)
-#define P_STALE         (1<<2)
-#define P_STATUS        (1<<3)
+#define S_UNKNOWN       0
+#define S_SYSINIT       1
+#define S_STARTUP       2
+#define S_RUNNING       3
+#define S_STOPPING      4
+#define S_SHUTDOWN      5
+
+#define P_IN_USE       (1<<0)
+#define P_KILLED       (1<<1)
+#define P_STATUS       (1<<2)
+
+#define PKEY(g, k) (((g) << 16) | k)
+#define PKEY_GROUP(v) ((v) >> 16)
+#define PKEY_INDEX(v) ((v) & 0xFFFF)
 
 struct proc {
 	char name[NAMELEN];
-	byte flags;
-	time_t tm;
 	int pid;
 	int fd;
+	ushort flags;
+	ushort ptr;
 	void* buf;
-	int ptr;
 };
 
 struct conn {
@@ -31,24 +37,21 @@ struct conn {
 };
 
 struct top {
-	char** environ;
-	time_t passtime;
-	char* reboot;
-	char* rbscript;
+	char** argv;
+	char** envp;
 
+	int state;
+	char* script;
+	int scrpid;
+	int sigcnt;
+
+	int epfd;
 	int ctlfd;
 	int sigfd;
 
-	int pollset;
-	int timeset;
-	int active;
-	int sigcnt;
-
-	time_t tm;
-
-	int nprocs;
 	int nconns;
-	int npfds;
+	int nprocs;
+	int nalive;
 };
 
 #define CTX struct top* ctx __unused
@@ -56,31 +59,35 @@ struct top {
 extern struct proc procs[];
 extern struct conn conns[];
 
-void noreturn quit(CTX, const char* msg, char* arg, int err);
-int stop_into(CTX, const char* script);
-void signal_stop(CTX, const char* script);
-
-struct proc* find_by_name(CTX, char* name);
-void free_proc_slot(CTX, struct proc* rc);
-
-int reload_procs(CTX);
-void reassess_procs(CTX);
+void start_scripts(CTX);
 void check_children(CTX);
 
-int start_proc(CTX, struct proc* rc);
-int stop_proc(CTX, struct proc* rc);
+void add_sock_fd(CTX, int fd);
+void add_conn_fd(CTX, int fd, struct conn* cn);
+void add_proc_fd(CTX, int fd, struct proc* pc);
+void del_epoll_fd(CTX, int fd);
 
-void setup_control(CTX);
-void check_control(CTX);
+int command_stop(CTX, char* script);
+void signal_stop(CTX, char* script);
+void handle_alarm(CTX);
+
+struct proc* find_by_name(CTX, char* name);
+//void free_proc_slot(CTX, struct proc* rc);
+
+int start_proc(CTX, char* name);
+void proc_died(CTX, struct proc* pc, int status);
+int stop_proc(CTX, char* name);
+int flush_proc(CTX, char* name);
+int kill_proc(CTX, char* name, int sig);
+
+void open_socket(CTX);
+void check_socket(CTX);
 void check_conn(CTX, struct conn* cn);
 void close_conn(CTX, struct conn* cn);
+void close_socket(CTX);
 
 void check_proc(CTX, struct proc* rc);
 void close_proc(CTX, struct proc* rc);
 int flush_ring_buf(struct proc* rc);
 
 void notify_dead(CTX, int pid);
-
-void terminate(CTX);
-
-static inline int empty(struct proc* pc) { return !pc->name[0]; }

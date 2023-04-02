@@ -6,7 +6,6 @@
 
 #define CMD_LIST       1
 
-#define CMD_RELOAD     2
 #define CMD_REBOOT     3
 #define CMD_SHUTDOWN   4
 #define CMD_POWEROFF   5
@@ -27,5 +26,4 @@
 #define ATTR_PID       4
 #define ATTR_RING      5
 #define ATTR_EXIT      6
-#define ATTR_TIME      7
-#define ATTR_NEXT      8
+#define ATTR_NEXT      7

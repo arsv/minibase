@@ -13,7 +13,7 @@
 
 #include "common.h"
 
-ERRTAG("svcctl");
+ERRTAG("svc");
 
 struct top {
 	int opts;
@@ -179,6 +179,10 @@ static void dump_list(CTX, void* ptr, void* end)
 static void dump_pid(CTX, struct ucattr* msg)
 {
 	int* pid;
+	int rep;
+
+	if((rep = uc_repcode(msg)) < 0)
+		fail(NULL, NULL, rep);
 
 	if(!(pid = uc_get_int(msg, ATTR_PID)))
 		fail("no PID in reply", NULL, 0);
@@ -403,7 +407,7 @@ static void cmd_pidof(CTX)
 	dump_pid(ctx, msg);
 }
 
-static void cmd_dump(CTX)
+static void cmd_show(CTX)
 {
 	char* name = shift_arg(ctx);
 
@@ -442,11 +446,6 @@ done:
 	dump_list(ctx, ctx->brk, ctx->ptr);
 }
 
-static void cmd_reload(CTX)
-{
-	simple_void_cmd(ctx, CMD_RELOAD);
-}
-
 static void cmd_reboot(CTX)
 {
 	simple_void_cmd(ctx, CMD_REBOOT);
@@ -462,11 +461,6 @@ static void cmd_poweroff(CTX)
 	simple_void_cmd(ctx, CMD_POWEROFF);
 }
 
-static void cmd_flushall(CTX)
-{
-	simple_void_cmd(ctx, CMD_FLUSH);
-}
-
 static const struct cmdrec {
 	char name[12];
 	void (*cmd)(CTX);
@@ -478,12 +472,10 @@ static const struct cmdrec {
 	{ "start",     cmd_start    },
 	{ "stop",      cmd_stop     },
 	{ "flush",     cmd_flush    },
-	{ "flush-all", cmd_flushall },
-	{ "reload",    cmd_reload   },
 	{ "reboot",    cmd_reboot   },
 	{ "shutdown",  cmd_shutdown },
 	{ "poweroff",  cmd_poweroff },
-	{ "dump",      cmd_dump     }
+	{ "show",      cmd_show     }
 };
 
 typedef void (*cmdptr)(CTX);

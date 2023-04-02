@@ -1,3 +1,0 @@
-#!/bin/sh
-
-exec ./z-trap srv2 30

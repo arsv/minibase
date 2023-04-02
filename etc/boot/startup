@@ -1,0 +1,8 @@
+#!/bin/sh
+
+echo "+++ startup"
+
+./svc start server
+./svc start badsrv
+./svc start slowy
+./svc start noisy

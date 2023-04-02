@@ -1,18 +1,18 @@
 /=../../
 
-all = svchub svcctl
-aux = z-badsrv z-trap z-tick
+all = svchub svc
+aux = z-server z-badsrv z-noisy z-slowy
 
 include ../rules.mk
 include $/config.mk
 
-svchub: svchub.o svchub_control.o svchub_reload.o svchub_output.o \
-	svchub_monitor.o svchub_reboot.o
+svchub: svchub.o svchub_boot.o svchub_ctrl.o svchub_proc.o
 
-svcctl: svcctl.o
+svc: svc.o
 
+z-server: z-server.o
 z-badsrv: z-badsrv.o
-z-trap: z-trap.o
-z-tick: z-tick.o
+z-noisy: z-noisy.o
+z-slowy: z-slowy.o
 
 -include *.d

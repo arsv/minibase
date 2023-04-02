@@ -1,5 +1,6 @@
 svchub
-svcctl
+svc
+z-server
 z-badsrv
-z-trap
-z-tick
+z-noisy
+z-slowy
