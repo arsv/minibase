@@ -1,65 +1,67 @@
-Root filesystem startup sequence
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This project is designed around the idea of a staged init sequence, which
-involves several distinct executables (stages) exec'ing into each other in
-context of the pid 1. Typical sequence looks like this:
+(the commented-out parts below are outdated and need to be re-written)
 
-	(initrd) -> startup -> supervisor -> shutdown
-
-Here the focus is on the stages running from the real root filesystem, that
-is, everything past initrd. We assume that the root filesystem has been
-mounted, possibly along with some of the virtual filesystems, and the initrd
-stage has exec'ed into the startup script, /etc/boot/startup.
-
-The supervisor stage is strictly parallel, while startup and shutdown should
-be mostly sequential. The sequential stages are supposed to be (msh) scripts.
-
-The location of the shutdown scripts is fixed (/etc/boot) because of the way
-they are invoked by svchub. Startup script can be placed anywhere, but for
-consistency we put into /etc/boot as well.
-
-
-Startup script
-~~~~~~~~~~~~~~
-The goal of the startup stage is to complete global kernel state setup started
-by initrd, and get the system to the point where it can start the services.
-Typical contents of /etc/boot/startup:
-
-    #!/sbin/msh
-
-    # Default environment
-    setenv PATH /bin:/sbin:/usr/bin
-    
-    # Mount remaining virtual filesystems
-    run /bin/kmount -vc /dev/pts
-    run /bin/kmount -vc /run
-    run /bin/kmount -vc /mnt
-    run /bin/kmount -vc /tmp
-    # Remount root read-write if necessary
-    #run /bin/kmount -e /
-    
-    umask 0002
-    
-    # Socket location for the services, see control.txt
-    mkdir /run/ctrl
-    
-    prctl no-new-privs
-    
-    exec /sbin/svchub
-
-This part is very system-dependent, other than maybe the final exec.
-
-
-Non-initrd boot
-~~~~~~~~~~~~~~~
-When booting directly into rootfs, the kernel will attempt to spawn /sbin/init
-by default. This can be changed with init= parameter, or /sbin/init can be
-a symlink to the startup script, or it can be the location for the startup
-script.
-
-There are essentially no other issues. The kernel should mount rootfs just like
-an initrd would. It won't mount /dev and /sys, so appropriate lines should be
-added to the startup script.
+# Root filesystem startup sequence
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# This project is designed around the idea of a staged init sequence, which
+# involves several distinct executables (stages) exec'ing into each other in
+# context of the pid 1. Typical sequence looks like this:
+# 
+# 	(initrd) -> startup -> supervisor -> shutdown
+# 
+# Here the focus is on the stages running from the real root filesystem, that
+# is, everything past initrd. We assume that the root filesystem has been
+# mounted, possibly along with some of the virtual filesystems, and the initrd
+# stage has exec'ed into the startup script, /etc/boot/startup.
+# 
+# The supervisor stage is strictly parallel, while startup and shutdown should
+# be mostly sequential. The sequential stages are supposed to be (msh) scripts.
+# 
+# The location of the shutdown scripts is fixed (/etc/boot) because of the way
+# they are invoked by svchub. Startup script can be placed anywhere, but for
+# consistency we put into /etc/boot as well.
+# 
+# 
+# Startup script
+# ~~~~~~~~~~~~~~
+# The goal of the startup stage is to complete global kernel state setup started
+# by initrd, and get the system to the point where it can start the services.
+# Typical contents of /etc/boot/startup:
+# 
+#     #!/sbin/msh
+# 
+#     # Default environment
+#     setenv PATH /bin:/sbin:/usr/bin
+#     
+#     # Mount remaining virtual filesystems
+#     run /bin/kmount -vc /dev/pts
+#     run /bin/kmount -vc /run
+#     run /bin/kmount -vc /mnt
+#     run /bin/kmount -vc /tmp
+#     # Remount root read-write if necessary
+#     #run /bin/kmount -e /
+#     
+#     umask 0002
+#     
+#     # Socket location for the services, see control.txt
+#     mkdir /run/ctrl
+#     
+#     prctl no-new-privs
+#     
+#     exec /sbin/svchub
+# 
+# This part is very system-dependent, other than maybe the final exec.
+#
+#
+# Non-initrd boot
+# ~~~~~~~~~~~~~~~
+# When booting directly into rootfs, the kernel will attempt to spawn /sbin/init
+# by default. This can be changed with init= parameter, or /sbin/init can be
+# a symlink to the startup script, or it can be the location for the startup
+# script.
+# 
+# There are essentially no other issues. The kernel should mount rootfs just like
+# an initrd would. It won't mount /dev and /sys, so appropriate lines should be
+# added to the startup script.
 
 
 System services

@@ -5,34 +5,32 @@
 '''
 .SH DESCRIPTION
 \fBsvchub\fR runs as PID 1 for most of the system's uptime, spawning
-and monitoring a set of child processes. Whenever a spawned process
-dies, \fBsvchub\fR attempts to re-spawn it.
-.P
-The list of services to run is just a list of files in a pre-defined
-directory /etc/init; \fBsvchub\fR tries to \fBexecve\fR(2) each file in
-a spawned child process.
+and monitoring a set system services.
 '''
 .SH USAGE
-During system startup, the initial PID 1 (typically \fBinit\fR(8))
-should exec into \fBsvchub\fR, which then will run until commanded to
-shutdown. Once commanded, \fBsvchub\fR stops all services and execs into
-\fB/sbin/reboot\fR(8) which should be available.
+\fBsvchub\fR should be run as pid 1 on the real rootfs.
 .P
-User interaction with \fBsvchub\fR happens via its control socket.
-See \fBsvctl\fR(8).
+Upon startup, \fBsvchub\fR spawns \fB/etc/boot/startup\fR and waits
+for it to start start some services (by invoking \fBsvcctl start\fR)
+and everything that needs to be running in the system. After \fBstartup\fR
+finishes, \fBsvchub\fR keeps monitoring the spawned services.
 .P
-The files in /etc/init should be executable scripts setting up process
-environment and exec-ing their respective commands. \fBsvchub\fR passes
-its credentials and environment to child processes unchanged.
-In most cases child processes should drop extra privileges immediately.
+If commanded or signalled to stop, \fBsvchub\fR stops all the services
+it supervises and attempts to halt the system by running one of the
+shutdown scripts.
 '''
 .SH FILES
-.IP "/etc/init/\fI...\fR" 4
-Services to spawn.
+.IP "/etc/boot/sysinit" 4
+The pre-startup script (optional).
+.IP "/etc/boot/startup" 4
+The main startup script.
 .IP "/run/ctrl/svchub" 4
 Control socket.
+.IP "/etc/init/\fIname\fR" 4
+Service startup scripts (\fBsvcctl start \fIname\fR).
 .P
-When commanded to shut down, svchub exec-s into one of the scripts:
+While stopping the system, \fBsvchub\fR will atttemp to run one of the
+following scripts depending on how the shutdown was initiated:
 .IP "/etc/boot/reboot" 4
 On SIGINT, SIGTERM or \fBsvctl reboot\fR.
 .IP "/etc/boot/shutdown" 4
@@ -41,6 +39,9 @@ On \fBsvctl shutdown\fR.
 On SIGPWR or \fBsvctl poweroff\fR.
 .IP "/etc/boot/failure" 4
 On any non-recoverable error, or with no services left running.
+.P
+The shutdown scripts should in most cases just run \fBreboot\fR(1)
+with appropriate arguments.
 '''
 .SH SEE ALSO
 \fBsvcctl\fR(1), \fBreboot\fR(1), \fBmsh\fR(1).
