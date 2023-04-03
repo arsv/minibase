@@ -13,7 +13,7 @@
 
 #include "common.h"
 
-ERRTAG("svc");
+ERRTAG("svcctl");
 
 struct top {
 	int opts;
@@ -282,13 +282,13 @@ static struct ucattr* recv_large(CTX)
 	return msg;
 }
 
-static void recv_empty_reply(CTX)
+static void recv_empty_reply(CTX, char* name)
 {
 	struct ucattr* msg = recv_reply(ctx);
 	int rep = uc_repcode(msg);
 
 	if(rep < 0)
-		fail(NULL, NULL, rep);
+		fail(NULL, name, rep);
 	if(rep > 0)
 		fail("unexpected notification", NULL, 0);
 }
@@ -305,7 +305,7 @@ static void simple_void_cmd(CTX, int cmd)
 
 	send_request(ctx, &uc);
 
-	recv_empty_reply(ctx);
+	recv_empty_reply(ctx, NULL);
 }
 
 static void send_proc_cmd(CTX, int cmd, char* name)
@@ -328,7 +328,7 @@ static void simple_proc_cmd(CTX, int cmd)
 
 	send_proc_cmd(ctx, cmd, name);
 
-	recv_empty_reply(ctx);
+	recv_empty_reply(ctx, name);
 }
 
 static void wait_notification(CTX)
@@ -353,34 +353,27 @@ static void cmd_stop(CTX)
 	wait_notification(ctx);
 }
 
-static void cmd_reset(CTX)
-{
-	char* name = shift_arg(ctx);
-
-	send_proc_cmd(ctx, CMD_RESET, name);
-	recv_empty_reply(ctx);
-}
-
 static void cmd_restart(CTX)
 {
 	char* name = shift_arg(ctx);
 	struct ucattr* msg;
 	int rep;
 
-	send_proc_cmd(ctx, CMD_RESET, name);
+	send_proc_cmd(ctx, CMD_STOP, name);
 
 	msg = recv_reply(ctx);
 	rep = uc_repcode(msg);
 
-	if(rep == -ESRCH || rep == -ECHILD) {
+	if(rep == -EAGAIN) {
 		/* not running, start it */
 		send_proc_cmd(ctx, CMD_START, name);
 	} else if(rep < 0) {
 		/* does not exist, or cannot restart */
-		fail(NULL, NULL, rep);
+		fail(NULL, name, rep);
 	} else if(rep == 0) {
 		/* success, wait for it to die */
 		wait_notification(ctx);
+		send_proc_cmd(ctx, CMD_START, name);
 	} else {
 		fail("unexpected notification", NULL, 0);
 	}
@@ -465,17 +458,19 @@ static const struct cmdrec {
 	char name[12];
 	void (*cmd)(CTX);
 } commands[] = {
-	{ "hup",       cmd_hup      },
-	{ "pidof",     cmd_pidof    },
-	{ "reset",     cmd_reset    },
-	{ "restart",   cmd_restart  },
 	{ "start",     cmd_start    },
 	{ "stop",      cmd_stop     },
+	{ "restart",   cmd_restart  },
+
 	{ "flush",     cmd_flush    },
+	{ "hup",       cmd_hup      },
+
+	{ "pidof",     cmd_pidof    },
+	{ "show",      cmd_show     },
+
 	{ "reboot",    cmd_reboot   },
 	{ "shutdown",  cmd_shutdown },
 	{ "poweroff",  cmd_poweroff },
-	{ "show",      cmd_show     }
 };
 
 typedef void (*cmdptr)(CTX);

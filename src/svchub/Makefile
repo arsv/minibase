@@ -1,6 +1,6 @@
 /=../../
 
-all = svchub svc
+all = svchub svcctl
 aux = z-server z-badsrv z-noisy z-slowy
 
 include ../rules.mk
@@ -8,7 +8,7 @@ include $/config.mk
 
 svchub: svchub.o svchub_boot.o svchub_ctrl.o svchub_proc.o
 
-svc: svc.o
+svcctl: svcctl.o
 
 z-server: z-server.o
 z-badsrv: z-badsrv.o

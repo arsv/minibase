@@ -23,7 +23,6 @@ static int spawn_script(CTX, char* name, int dryrun)
 	char* e = path + len - 1;
 
 	p = fmtstr(p, e, dir);
-	p = fmtstr(p, e, "/");
 	p = fmtstr(p, e, name);
 
 	*p++ = '\0';

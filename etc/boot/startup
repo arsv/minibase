@@ -2,7 +2,8 @@
 
 echo "+++ startup"
 
-./svc start server
-./svc start badsrv
-./svc start slowy
-./svc start noisy
+./svcctl start server
+./svcctl start badsrv
+./svcctl start slowy
+./svcctl start blah
+./svcctl start noisy

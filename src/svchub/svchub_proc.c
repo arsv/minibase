@@ -237,7 +237,7 @@ int kill_proc(CTX, char* name, int sig)
 		return -ENOENT;
 
 	if(!pc->pid || (pc->flags & P_STATUS))
-		return -ESRCH;
+		return -EAGAIN;
 
 	return sys_kill(pc->pid, sig);
 }

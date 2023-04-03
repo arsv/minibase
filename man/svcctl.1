@@ -4,7 +4,7 @@
 \fBsvcctl\fR \- system service control tool.
 '''
 .SH DESCRIPTION
-This tool sends commands to \fBsvchub\fR(8) and pretty-prints the responses.
+This tool sends commands to \fBsvchub\fR(8) and prints the responses.
 '''
 .SH USAGE
 .IP "\fBsvcctl\fR" 4
@@ -17,8 +17,6 @@ Empty the ring buffer of a named service.
 Spawn of kill named service.
 .IP "\fBsvcctl\fR \fBhup\fR \fIname\fR" 4
 Send SIGHUP to the service.
-.IP "\fBsvcctl\fR \fBreload\fR" 4
-Re-scan config directory and update the list of services.
 .IP "\fBsvcctl\fR {\fBreboot\fR|\fBhalt\fR|\fBpoweroff\fR}" 4
 Stop all services and then the system itself.
 '''
