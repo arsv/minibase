@@ -1,6 +1,6 @@
 /=../../
 
-all = svchub svcctl
+all = svchub svcctl init
 aux = z-server z-badsrv z-noisy z-slowy
 
 include ../rules.mk

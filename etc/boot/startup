@@ -5,5 +5,4 @@ echo "+++ startup"
 ./svcctl start server
 ./svcctl start badsrv
 ./svcctl start slowy
-./svcctl start blah
 ./svcctl start noisy

@@ -1,5 +1,4 @@
 #include <sys/file.h>
-#include <sys/fprop.h>
 #include <sys/signal.h>
 #include <sys/epoll.h>
 
@@ -233,28 +232,6 @@ static void prepare_epoll(CTX)
 	ctx->epfd = fd;
 }
 
-static void setup_std_fds(CTX)
-{
-	int fd;
-
-	if(sys_fcntl(STDERR, F_GETFD) >= 0)
-		return; /* if 2 is ok, then 0 and 1 must be valid as well */
-
-	if((fd = sys_open("/dev/null", O_RDWR)) >= 0)
-		goto gotfd;
-	if((fd = sys_open("/", O_PATH)) >= 0)
-		goto gotfd;
-gotfd:
-	if((fd < 1) && (sys_dup2(fd, STDOUT) < 0))
-		goto panic; /* cannot set stdout */
-	if((fd < 2) && (sys_dup2(fd, STDERR) < 0))
-		goto panic; /* cannot set stderr */
-	if(fd <= 2 || (sys_close(fd) >= 0))
-		return;
-panic:
-	_exit(0xFF);
-}
-
 int main(int argc, char** argv)
 {
 	struct top context, *ctx = &context;
@@ -264,12 +241,11 @@ int main(int argc, char** argv)
 	ctx->argv = argv;
 	ctx->envp = argv + argc + 1;
 
-	setup_std_fds(ctx);
-
 	prepare_epoll(ctx);
 	setup_signals(ctx);
+	open_socket(ctx);
 
-	start_scripts(ctx);
+	start_script(ctx);
 
 	while(1) wait_poll(ctx);
 }

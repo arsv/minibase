@@ -31,7 +31,7 @@ static int spawn_script(CTX, char* name, int dryrun)
 	int ret, pid;
 
 	if(ctx->scrpid > 0)
-		fail("spawning one script over another", NULL, 0);
+		return -EBUSY;
 
 	if((ret = sys_access(path, X_OK)) < 0)
 		return ret;
@@ -49,24 +49,6 @@ static int spawn_script(CTX, char* name, int dryrun)
 	ctx->scrpid = pid;
 
 	return 0;
-}
-
-static void spawn_sysinit(CTX)
-{
-	if(spawn_script(ctx, "sysinit", 0) < 0)
-		return;
-
-	ctx->state = S_SYSINIT;
-}
-
-static void spawn_startup(CTX)
-{
-	open_socket(ctx);
-
-	if((spawn_script(ctx, "startup", 0)) < 0)
-		return;
-
-	ctx->state = S_STARTUP;
 }
 
 static void spawn_shutdown(CTX)
@@ -90,22 +72,14 @@ static void shutdown_exit(CTX, int status)
 	fail("shutdown script", status ? "failed" : "exited", 0);
 }
 
-void start_scripts(CTX)
+void start_script(CTX)
 {
-	spawn_sysinit(ctx);
+	int ret;
 
-	if(ctx->state) return;
+	if((ret = spawn_script(ctx, "startup", 0)) < 0)
+		fail("startup", NULL, ret);
 
-	spawn_startup(ctx);
-}
-
-static void sysinit_done(CTX, int status)
-{
-	if(status) {
-		fail("sysinit failed", NULL, 0);
-	} else {
-		spawn_startup(ctx);
-	}
+	ctx->state = S_STARTUP;
 }
 
 static void startup_done(CTX, int status)
@@ -121,11 +95,9 @@ static void script_exit(CTX, int status)
 {
 	int state = ctx->state;
 
-	ctx->scrpid = -1;
+	ctx->scrpid = 0;
 	ctx->state = 0;
 
-	if(state == S_SYSINIT)
-		return sysinit_done(ctx, status);
 	if(state == S_STARTUP)
 		return startup_done(ctx, status);
 	if(state == S_SHUTDOWN)
@@ -236,6 +208,9 @@ void handle_alarm(CTX)
 int command_stop(CTX, char* script)
 {
 	int ret;
+
+	if(ctx->script)
+		return -EALREADY;
 
 	if((ret = spawn_script(ctx, script, 1)) < 0)
 		return ret;

@@ -8,11 +8,10 @@
 #define RINGSIZE 4096
 
 #define S_UNKNOWN       0
-#define S_SYSINIT       1
-#define S_STARTUP       2
-#define S_RUNNING       3
-#define S_STOPPING      4
-#define S_SHUTDOWN      5
+#define S_STARTUP       1
+#define S_RUNNING       2
+#define S_STOPPING      3
+#define S_SHUTDOWN      4
 
 #define P_IN_USE       (1<<0)
 #define P_KILLED       (1<<1)
@@ -59,7 +58,7 @@ struct top {
 extern struct proc procs[];
 extern struct conn conns[];
 
-void start_scripts(CTX);
+void start_script(CTX);
 void check_children(CTX);
 
 void add_sock_fd(CTX, int fd);
