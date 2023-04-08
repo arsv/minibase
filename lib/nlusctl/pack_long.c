@@ -24,5 +24,15 @@ void uc_put_bin(struct ucbuf* uc, int key, void* src, int len)
 
 void uc_put_str(struct ucbuf* uc, int key, char* str)
 {
-	uc_put_bin(uc, key, str, strnlen(str, 1024) + 1);
+	int max = 1024;
+	int len = strnlen(str, max);
+
+	if(len < max) /* did not hit the limit */
+		len += 1; /* include the terminator */
+
+	/* otherwise, don't; the string will remain non-terminated,
+	   indicating to the client code that the string has been
+	   truncated */
+
+	uc_put_bin(uc, key, str, len);
 }
