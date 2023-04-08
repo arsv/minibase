@@ -480,7 +480,7 @@ static cmdptr resolve(char* name)
 	const struct cmdrec* p;
 
 	for(p = commands; p < commands + ARRAY_SIZE(commands); p++)
-		if(!strncmp(p->name, name, sizeof(p->name)))
+		if(!strcmpn(p->name, name, sizeof(p->name)))
 			return p->cmd;
 
 	fail("unknown command", name, 0);

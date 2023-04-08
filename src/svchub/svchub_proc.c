@@ -25,7 +25,7 @@ struct proc* find_by_name(CTX, char* name)
 		return NULL;
 
 	for(; pc < pe; pc++)
-		if(!strncmp(pc->name, name, sizeof(pc->name)))
+		if(!strcmpn(pc->name, name, sizeof(pc->name)))
 			return pc;
 
 	return NULL;
