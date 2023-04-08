@@ -16,6 +16,7 @@ char* strpend(char* str);
 size_t strlen(const char* a);
 size_t strnlen(const char* a, size_t max);
 size_t strelen(char* str, char* end);
+int strcmpn(const char* a, const char* b, size_t n);
 int strncmp(const char* a, const char* b, size_t n);
 char* strstr(const char* str, const char* sub);
 char* strnstr(const char* str, const char* sub, size_t len);
