@@ -8,3 +8,4 @@ strcmp
 strlen
 strnlen
 strpend
+strcmpn

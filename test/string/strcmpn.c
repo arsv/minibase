@@ -17,7 +17,7 @@ static char* opname(int op)
 
 static int test(char* file, int line, int op, char* a, char* b, int n)
 {
-	int res = strncmp(a, b, n);
+	int res = strcmpn(a, b, n);
 
 	FMTBUF(p, e, buf, 200);
 
@@ -50,30 +50,25 @@ int main(void)
 {
 	int ret = 0;
 
-	TEST(EQ, "abc",  "abc",  3);
-	TEST(LT, "abc",  "def",  3);
-	TEST(EQ, "abce", "abc",  3);
-	//TEST(LT, "abce", "abcd", 3);
-	TEST(GT, "abce", "abcd", 4);
+	/* make sure we are not overrunning the LHS */
+	TEST(LT, "x",   "x",   0);    /* "" < "x" */
+	TEST(LT, "abx", "abx", 2);    /* "ab" < "abx" */
 
-	TEST(GT, "abc",  "a",    4);
-	TEST(GT, "abce", "a",    4);
+	/* full-length LHS */
+	TEST(EQ, "abc",  "abc",  3);  /* "abc" = "abc" */
+	TEST(LT, "abc",  "def",  3);  /* "abc" < "def" */
+	TEST(LT, "abc",  "abcd", 3);
+	TEST(GT, "abd",  "abcd", 3);
 
+	/* short (padded) LHS */
+	TEST(LT, "a",    "abc",  3);
+	TEST(GT, "ab",   "a",    3);
+	TEST(EQ, "ab",   "ab",   3);
+	TEST(GT, "c",    "b",    3);
+
+	/* edge cases */
 	TEST(EQ, "",  "",  0);
 	TEST(EQ, "",  "",  1);
-	//TEST(LT, "a", "b", 0);
-	TEST(GT, "c", "b", 1);
-	TEST(EQ, "a", "a", 1);
-
-	/* The stuff that differs from strcmpn */
-	TEST(EQ, "abc",  "abce",  3); /* effectively "abc" == "abc" */
-	TEST(EQ, "abcf", "abce",  3); /* effectively "abc" == "abc" */
-
-	//TEST(LT, NULL, "a", 1);
-	//TEST(GT, "a", NULL, 1);
-	//TEST(EQ, NULL, NULL, 1);
-	//TEST(LT, NULL, "\xEE", 1);
-	//TEST(GT, "\xEE", NULL, 1);
 
 	return ret;
 }
