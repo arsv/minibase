@@ -582,7 +582,7 @@ static const struct cmd* find_command(CTX)
 	char* name = ctx->argv[ctx->argi++];
 
 	for(cc = commands; cc < ARRAY_END(commands); cc++)
-		if(!strncmp(cc->name, name, sizeof(cc->name)))
+		if(!strcmpn(cc->name, name, sizeof(cc->name)))
 			return cc;
 
 	fail("unknown command", name, 0);

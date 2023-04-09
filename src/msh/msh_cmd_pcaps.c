@@ -67,7 +67,7 @@ static void parsecaps(CTX, int* bits)
 
 	while((arg = next(ctx))) {
 		for(sc = caps; sc < ARRAY_END(caps); sc++)
-			if(!strncmp(sc->name, arg, sizeof(sc->name)))
+			if(!strcmpn(sc->name, arg, sizeof(sc->name)))
 				break;
 		if(sc >= ARRAY_END(caps))
 			fatal(ctx, "unknown cap", arg);

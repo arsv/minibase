@@ -45,7 +45,7 @@ static void prctl_secbits(CTX)
 		lock = striplock(arg);
 
 		for(sb = secbits; sb < ARRAY_END(secbits); sb++)
-			if(!strncmp(sb->name, arg, sizeof(sb->name)))
+			if(!strcmpn(sb->name, arg, sizeof(sb->name)))
 				break;
 		if(sb >= ARRAY_END(secbits))
 			fatal(ctx, "unknown bit", arg);

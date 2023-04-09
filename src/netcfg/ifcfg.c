@@ -143,7 +143,7 @@ static const struct cmd* find_command(char* name)
 	const struct cmd* cc;
 
 	for(cc = commands; cc < ARRAY_END(commands); cc++)
-		if(!strncmp(cc->name, name, sizeof(cc->name)))
+		if(!strcmpn(cc->name, name, sizeof(cc->name)))
 			return cc;
 
 	fail("unknown command", name, 0);

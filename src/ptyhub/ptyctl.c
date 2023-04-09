@@ -419,7 +419,7 @@ static void invoke(CTX)
 	char* cmd = shift_arg(ctx);
 
 	for(cc = cmds; cc < ARRAY_END(cmds); cc++)
-		if(!strncmp(cmd, cc->name, sizeof(cc->name)))
+		if(!strcmpn(cmd, cc->name, sizeof(cc->name)))
 			return cc->call(ctx);
 
 	fail("unknown command", cmd, 0);

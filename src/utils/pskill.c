@@ -62,7 +62,7 @@ static int sigbyname(char* name)
 		return sig;
 
 	for(sn = signames; sn->sig; sn++)
-		if(!strncmp(sn->name, name, 4))
+		if(!strcmpn(sn->name, name, sizeof(sn->name)))
 			return sn->sig;
 
 	fail("unknown signal", name, 0);

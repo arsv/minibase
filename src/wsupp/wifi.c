@@ -512,7 +512,7 @@ static void dispatch(CTX, char* name)
 	const struct cmdrec* r;
 
 	for(r = commands; r < commands + ARRAY_SIZE(commands); r++)
-		if(!strncmp(r->name, name, sizeof(r->name)))
+		if(!strcmpn(r->name, name, sizeof(r->name)))
 			return r->call(ctx);
 
 	fail("unknown command", name, 0);
