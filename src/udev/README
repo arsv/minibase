@@ -15,10 +15,8 @@ command to pick up a device, vs picking it up whenever it appears.
 
 Initrd specifics
 ~~~~~~~~~~~~~~~~
-The requirements for the udev handler within initrd (initramfs) are so different
-from the main system one that at some point it was decided to make it a separate
-tool. The initrd version only needs to handle modaliases, and it is also not
-really a service as it has to exit once the rootfs has been mounted.
+This service is not meant to be used in initrd (initramfs) environment.
+See ../init for a tool designed specifically for initrd use.
 
 
 Device renaming

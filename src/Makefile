@@ -17,6 +17,7 @@ subdirs := \
 	elfinfo \
 	hwids \
 	ifmon \
+	init \
 	keymon \
 	kmod \
 	mpac \
