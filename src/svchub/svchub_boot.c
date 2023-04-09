@@ -30,18 +30,22 @@ static int spawn_script(CTX, char* name, int dryrun)
 	char* argv[] = { name, NULL };
 	int ret, pid;
 
-	if(ctx->scrpid > 0)
-		return -EBUSY;
-
 	if((ret = sys_access(path, X_OK)) < 0)
 		return ret;
 	else if(dryrun)
 		return 0;
 
+	if(ctx->scrpid > 0)
+		return -EBUSY;
+
+	struct sigset mask;
+	sigemptyset(&mask);
+
 	if((pid = sys_fork()) < 0)
 		fail("fork", NULL, pid);
 
 	if(pid == 0) {
+		(void)sys_sigprocmask(SIG_SETMASK, &mask, NULL);
 		ret = sys_execve(path, argv, ctx->envp);
 		fail(NULL, name, ret);
 	}
@@ -64,12 +68,26 @@ static void spawn_shutdown(CTX)
 	if(spawn_script(ctx, script, 0) >= 0)
 		return;
 
-	fail("no shutdown script", NULL, 0);
+	fail("no shutdown script:", script, 0);
 }
 
 static void shutdown_exit(CTX, int status)
 {
 	fail("shutdown script", status ? "failed" : "exited", 0);
+}
+
+static void shell_exit(CTX, int status)
+{
+	warn("console shell", status ? "failed" : "exited", 0);
+
+	if(command_stop(ctx, "poweroff") >= 0)
+		return;
+	if(command_stop(ctx, "halt") >= 0)
+		return;
+	if(command_stop(ctx, "reboot") >= 0)
+		return;
+
+	fail("cannot reboot", NULL, 0);
 }
 
 void start_script(CTX)
@@ -86,9 +104,12 @@ static void startup_done(CTX, int status)
 {
 	if(status) {
 		fail("startup failed", NULL, 0);
-	} else {
-		ctx->state = S_RUNNING;
+		return;
 	}
+
+	ctx->state = S_RUNNING;
+
+	(void)spawn_script(ctx, "shell", 0);
 }
 
 static void script_exit(CTX, int status)
@@ -102,11 +123,28 @@ static void script_exit(CTX, int status)
 		return startup_done(ctx, status);
 	if(state == S_SHUTDOWN)
 		return shutdown_exit(ctx, status);
+	if(state == S_RUNNING)
+		return shell_exit(ctx, status);
+}
+
+static void stop_con_shell(CTX)
+{
+	int ret, pid = ctx->scrpid;
+
+	if(pid <= 0)
+		return;
+
+	if((ret = sys_kill(pid, SIGTERM)) >= 0)
+		return;
+
+	ctx->scrpid = 0;
 }
 
 static void stop_all_procs(CTX)
 {
 	int i, nprocs = ctx->nprocs;
+
+	warn("stopping all procs", NULL, 0);
 
 	for(i = 0; i < nprocs; i++) {
 		struct proc* pc = &procs[i];
@@ -124,6 +162,8 @@ static void stop_all_procs(CTX)
 
 		pc->flags |= P_KILLED;
 	}
+
+	stop_con_shell(ctx);
 }
 
 static void arm_shutdown_timer(void)
@@ -162,6 +202,9 @@ static void report_hung_procs(CTX)
 
 		report_stuck(ctx, pc);
 	}
+
+	if(ctx->scrpid > 0)
+		warn("script is still running", NULL, 0);
 }
 
 static void force_shutdown(CTX)
@@ -184,6 +227,11 @@ static void force_shutdown(CTX)
 		(void)sys_kill(pid, SIGKILL);
 
 		pc->pid = 0;
+	}
+
+	if(ctx->scrpid > 0) {
+		(void)sys_kill(ctx->scrpid, SIGKILL);
+		ctx->scrpid = -1;
 	}
 
 	spawn_shutdown(ctx);

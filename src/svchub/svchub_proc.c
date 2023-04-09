@@ -49,7 +49,7 @@ static struct proc* grab_proc_slot(CTX)
 	return pc;
 }
 
-static void set_child_output(struct proc* pc, int pipe[2])
+static void set_child_output(int pipe[2])
 {
 	sys_close(pipe[0]);
 
@@ -66,7 +66,7 @@ static void set_child_output(struct proc* pc, int pipe[2])
 	sys_close(fd);
 }
 
-static void set_child_session(struct proc* pc)
+static void set_child_session(void)
 {
 	struct sigset mask;
 
@@ -80,8 +80,8 @@ static int child(CTX, struct proc* pc, char* path, int pipe[2])
 {
 	int ret;
 
-	set_child_output(pc, pipe);
-	set_child_session(pc);
+	set_child_output(pipe);
+	set_child_session();
 
 	char* argv[] = { path, NULL };
 	char** envp = ctx->envp;
