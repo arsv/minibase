@@ -25,6 +25,7 @@ struct proc {
 	char name[NAMELEN];
 	int pid;
 	int fd;
+	uint time;
 	ushort flags;
 	ushort ptr;
 	void* buf;

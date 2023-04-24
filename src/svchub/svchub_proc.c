@@ -5,6 +5,7 @@
 #include <sys/creds.h>
 #include <sys/fprop.h>
 #include <sys/proc.h>
+#include <sys/time.h>
 
 #include <config.h>
 #include <util.h>
@@ -140,6 +141,28 @@ static int spawn_proc(CTX, struct proc* pc)
 	return spawn_path(ctx, pc, path);
 }
 
+static void update_proc_time(struct proc* pc)
+{
+	struct timespec ts;
+	int ret;
+
+	if((ret = sys_clock_gettime(CLOCK_MONOTONIC, &ts)) < 0)
+		fail("clock_gettime", NULL, ret);
+
+	pc->time = ts.sec;
+}
+
+static int ran_long_enough(CTX, struct proc* pc)
+{
+	uint t0 = pc->time;
+
+	update_proc_time(pc);
+
+	uint t1 = pc->time;
+
+	return (t1 - t0) > 10;
+}
+
 static int restart_proc(CTX, struct proc* pc)
 {
 	int ret;
@@ -156,12 +179,18 @@ static int restart_proc(CTX, struct proc* pc)
 	else if((ret = flush_ring_buf(pc)) < 0)
 		return ret;
 
-	return spawn_proc(ctx, pc);
+	if((ret = spawn_proc(ctx, pc)) < 0)
+		return ret;
+
+	update_proc_time(pc);
+
+	return ret;
 }
 
 static int prep_and_start(CTX, struct proc* pc, char* name)
 {
 	int len = strlen(name);
+	int ret;
 
 	memzero(pc, sizeof(*pc));
 
@@ -173,7 +202,12 @@ static int prep_and_start(CTX, struct proc* pc, char* name)
 
 	memcpy(pc->name, name, len);
 
-	return spawn_proc(ctx, pc);
+	if((ret = spawn_proc(ctx, pc)) < 0)
+		return ret;
+
+	update_proc_time(pc);
+
+	return ret;
 }
 
 /* Proc-related commands */
@@ -363,23 +397,42 @@ void close_proc(CTX, struct proc* pc)
 	pc->fd = -1;
 }
 
-void proc_died(CTX, struct proc* rc, int status)
+static void mark_stopped(CTX, struct proc* pc)
 {
-	int pid = rc->pid;
+	pc->flags &= ~P_KILLED;
+	pc->pid = 0;
+	pc->time = 0;
+}
+
+static void mark_died(CTX, struct proc* pc, int status)
+{
+	pc->pid = status;
+	pc->flags |= P_STATUS;
+}
+
+void proc_died(CTX, struct proc* pc, int status)
+{
+	int pid = pc->pid;
+	int ret;
 
 	ctx->nalive--;
 
-	rc->pid = status;
+	close_proc(ctx, pc);
 
-	if(rc->flags & P_KILLED) {
-		rc->flags &= ~P_KILLED;
-		rc->pid = 0;
-	} else {
-		rc->flags |= P_STATUS;
-		report_dead(ctx, rc, status);
+	if(pc->flags & P_KILLED) {
+		mark_stopped(ctx, pc);
+		notify_dead(ctx, pid);
+		return;
 	}
 
-	close_proc(ctx, rc);
+	report_dead(ctx, pc, status);
 
-	notify_dead(ctx, pid);
+	if(ran_long_enough(ctx, pc))
+		warn("not respawning", NULL, 0);
+	else if((ret = spawn_proc(ctx, pc)) < 0)
+		warn("cannot respawn", NULL, ret);
+	else
+		return;
+
+	mark_died(ctx, pc, status);
 }
