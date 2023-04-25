@@ -17,6 +17,11 @@
 #define P_KILLED       (1<<1)
 #define P_STATUS       (1<<2)
 
+#define P_ONCE         (1<<3)
+#define P_PASS         (1<<4)
+
+#define PMASK (P_ONCE | P_PASS)
+
 #define PKEY(g, k) (((g) << 16) | k)
 #define PKEY_GROUP(v) ((v) >> 16)
 #define PKEY_INDEX(v) ((v) & 0xFFFF)
@@ -74,10 +79,11 @@ void handle_alarm(CTX);
 struct proc* find_by_name(CTX, char* name);
 //void free_proc_slot(CTX, struct proc* rc);
 
-int start_proc(CTX, char* name);
+int start_proc(CTX, char* name, int flags);
 void proc_died(CTX, struct proc* pc, int status);
 int stop_proc(CTX, char* name);
 int flush_proc(CTX, char* name);
+int remove_proc(CTX, char* name);
 int kill_proc(CTX, char* name, int sig);
 
 void open_socket(CTX);

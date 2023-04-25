@@ -347,6 +347,16 @@ static void cmd_start(CTX)
 	simple_proc_cmd(ctx, CMD_START);
 }
 
+static void cmd_spawn(CTX)
+{
+	simple_proc_cmd(ctx, CMD_SPAWN);
+}
+
+static void cmd_stout(CTX)
+{
+	simple_proc_cmd(ctx, CMD_STOUT);
+}
+
 static void cmd_stop(CTX)
 {
 	simple_proc_cmd(ctx, CMD_STOP);
@@ -374,6 +384,32 @@ static void cmd_restart(CTX)
 		/* success, wait for it to die */
 		wait_notification(ctx);
 		send_proc_cmd(ctx, CMD_START, name);
+	} else {
+		fail("unexpected notification", NULL, 0);
+	}
+}
+
+static void cmd_remove(CTX)
+{
+	char* name = shift_arg(ctx);
+	struct ucattr* msg;
+	int rep;
+
+	send_proc_cmd(ctx, CMD_STOP, name);
+
+	msg = recv_reply(ctx);
+	rep = uc_repcode(msg);
+
+	if(rep == -EAGAIN) {
+		/* not running, can remove instantly */
+		send_proc_cmd(ctx, CMD_REMOVE, name);
+	} else if(rep < 0) {
+		/* does not exist, or cannot restart */
+		fail(NULL, name, rep);
+	} else if(rep == 0) {
+		/* success, wait for it to die */
+		wait_notification(ctx);
+		send_proc_cmd(ctx, CMD_REMOVE, name);
 	} else {
 		fail("unexpected notification", NULL, 0);
 	}
@@ -459,9 +495,11 @@ static const struct cmdrec {
 	void (*cmd)(CTX);
 } commands[] = {
 	{ "start",     cmd_start    },
+	{ "spawn",     cmd_spawn    },
+	{ "stout",     cmd_stout    },
 	{ "stop",      cmd_stop     },
 	{ "restart",   cmd_restart  },
-
+	{ "remove",    cmd_remove   },
 	{ "flush",     cmd_flush    },
 	{ "hup",       cmd_hup      },
 

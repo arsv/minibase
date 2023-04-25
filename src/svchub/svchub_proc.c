@@ -50,8 +50,15 @@ static struct proc* grab_proc_slot(CTX)
 	return pc;
 }
 
-static void set_child_output(int pipe[2])
+static void wipe_proc_slot(struct proc* pc)
 {
+	memzero(pc, sizeof(*pc));
+}
+
+static void set_child_output(int* pipe)
+{
+	if(!pipe) return;
+
 	sys_close(pipe[0]);
 
 	int fd = pipe[1];
@@ -77,7 +84,7 @@ static void set_child_session(void)
 	(void)sys_sigprocmask(SIG_SETMASK, &mask, NULL);
 }
 
-static int child(CTX, struct proc* pc, char* path, int pipe[2])
+static int child(CTX, struct proc* pc, char* path, int* pipe)
 {
 	int ret;
 
@@ -92,14 +99,34 @@ static int child(CTX, struct proc* pc, char* path, int pipe[2])
 	fail(path, NULL, ret);
 }
 
+static void save_child_pipe(CTX, struct proc* pc, int* pipe)
+{
+	int ret;
+
+	if(!pipe)
+		return;
+
+	if((ret = sys_close(pipe[1])) < 0)
+		fail("close", NULL, ret);
+
+	int fd = pipe[0];
+
+	pc->fd = fd;
+
+	add_proc_fd(ctx, fd, pc);
+}
+
 static int spawn_path(CTX, struct proc* pc, char* path)
 {
-	int ret, pid, pipe[2];
+	int ret, pid, pfds[2];
+	int* pipe = pfds;
 
 	if((ret = sys_access(path, X_OK)) < 0)
 		return ret;
 
-	if((ret = sys_pipe2(pipe, O_NONBLOCK)))
+	if(pc->flags & P_PASS)
+		pipe = NULL;
+	else if((ret = sys_pipe2(pipe, O_NONBLOCK)))
 		return ret;
 
 	if((pid = sys_fork()) < 0)
@@ -110,14 +137,7 @@ static int spawn_path(CTX, struct proc* pc, char* path)
 	pc->pid = pid;
 	ctx->nalive++;
 
-	if((ret = sys_close(pipe[1])) < 0)
-		fail("close", NULL, ret);
-
-	int fd = pipe[0];
-
-	pc->fd = fd;
-
-	add_proc_fd(ctx, fd, pc);
+	save_child_pipe(ctx, pc, pipe);
 
 	return 0;
 }
@@ -163,9 +183,12 @@ static int ran_long_enough(CTX, struct proc* pc)
 	return (t1 - t0) > 10;
 }
 
-static int restart_proc(CTX, struct proc* pc)
+static int restart_proc(CTX, struct proc* pc, int flags)
 {
 	int ret;
+
+	if(flags) /* attempt to restart-and-change-flags */
+		return -EINVAL;
 
 	if(pc->flags & P_STATUS) {
 		pc->flags &= ~(P_STATUS | P_KILLED);
@@ -187,7 +210,7 @@ static int restart_proc(CTX, struct proc* pc)
 	return ret;
 }
 
-static int prep_and_start(CTX, struct proc* pc, char* name)
+static int prep_and_start(CTX, struct proc* pc, char* name, int flags)
 {
 	int len = strlen(name);
 	int ret;
@@ -197,7 +220,7 @@ static int prep_and_start(CTX, struct proc* pc, char* name)
 	if(len > sizeof(pc->name))
 		return -ENAMETOOLONG;
 
-	pc->flags = P_IN_USE;
+	pc->flags = P_IN_USE | flags;
 	pc->fd = -1;
 
 	memcpy(pc->name, name, len);
@@ -212,18 +235,18 @@ static int prep_and_start(CTX, struct proc* pc, char* name)
 
 /* Proc-related commands */
 
-int start_proc(CTX, char* name)
+int start_proc(CTX, char* name, int flags)
 {
 	struct proc* pc;
 	int ret;
 
 	if((pc = find_by_name(ctx, name)))
-		return restart_proc(ctx, pc);
+		return restart_proc(ctx, pc, flags);
 
 	if(!(pc = grab_proc_slot(ctx)))
 		return -ENOMEM;
 
-	if((ret = prep_and_start(ctx, pc, name)) < 0)
+	if((ret = prep_and_start(ctx, pc, name, flags)) < 0)
 		memzero(pc, sizeof(*pc));
 
 	return ret;
@@ -261,6 +284,25 @@ int flush_proc(CTX, char* name)
 		return -ENOENT;
 
 	return flush_ring_buf(pc);
+}
+
+int remove_proc(CTX, char* name)
+{
+	struct proc* pc;
+	int ret;
+
+	if(!(pc = find_by_name(ctx, name)))
+		return -ENOENT;
+
+	if(pc->pid && !(pc->flags & P_STATUS))
+		return -EBUSY;
+
+	if((ret = flush_ring_buf(pc)) < 0)
+		return ret;
+
+	wipe_proc_slot(pc);
+
+	return 0;
 }
 
 int kill_proc(CTX, char* name, int sig)
@@ -425,9 +467,17 @@ void proc_died(CTX, struct proc* pc, int status)
 		return;
 	}
 
+	if((pc->flags & P_ONCE) && !status) {
+		flush_ring_buf(pc);
+		wipe_proc_slot(pc);
+		return;
+	}
+
 	report_dead(ctx, pc, status);
 
-	if(ran_long_enough(ctx, pc))
+	if(pc->flags & P_ONCE)
+		;
+	else if(!ran_long_enough(ctx, pc))
 		warn("not respawning", NULL, 0);
 	else if((ret = spawn_proc(ctx, pc)) < 0)
 		warn("cannot respawn", NULL, ret);

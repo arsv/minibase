@@ -241,14 +241,29 @@ static int cmd_getbuf(CTX, CN, MSG)
 	return send_multi(ctx, cn, iov, iovcnt);
 }
 
-static int cmd_start(CTX, CN, MSG)
+static int common_start(CTX, CN, MSG, int flags)
 {
 	char* name;
 
 	if(!(name = uc_get_str(msg, ATTR_NAME)))
 		return -EINVAL;
 
-	return start_proc(ctx, name);
+	return start_proc(ctx, name, flags);
+}
+
+static int cmd_start(CTX, CN, MSG)
+{
+	return common_start(ctx, cn, msg, 0);
+}
+
+static int cmd_stout(CTX, CN, MSG)
+{
+	return common_start(ctx, cn, msg, P_PASS);
+}
+
+static int cmd_spawn(CTX, CN, MSG)
+{
+	return common_start(ctx, cn, msg, P_ONCE);
 }
 
 static int cmd_stop(CTX, CN, MSG)
@@ -281,6 +296,16 @@ static int cmd_flush(CTX, CN, MSG)
 	return 0;
 }
 
+static int cmd_remove(CTX, CN, MSG)
+{
+	char* name;
+
+	if(!(name = uc_get_str(msg, ATTR_NAME)))
+		return -EINVAL;
+
+	return remove_proc(ctx, name);
+}
+
 static int cmd_hup(CTX, CN, MSG)
 {
 	char* name;
@@ -304,13 +329,16 @@ static const struct command {
        { CMD_SHUTDOWN, cmd_shutdown },
        { CMD_POWEROFF, cmd_poweroff },
 
-       { CMD_START,    cmd_start    },
-       { CMD_STOP,     cmd_stop     },
+       { CMD_STATUS,   cmd_status   },
+       { CMD_GETBUF,   cmd_getbuf   },
        { CMD_FLUSH,    cmd_flush    },
+       { CMD_REMOVE,   cmd_remove   },
+       { CMD_STOP,     cmd_stop     },
        { CMD_HUP,      cmd_hup      },
 
-       { CMD_STATUS,   cmd_status   },
-       { CMD_GETBUF,   cmd_getbuf   }
+       { CMD_START,    cmd_start    },
+       { CMD_SPAWN,    cmd_spawn    },
+       { CMD_STOUT,    cmd_stout    },
 };
 
 static int dispatch(CTX, CN, MSG)
