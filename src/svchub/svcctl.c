@@ -415,9 +415,9 @@ static void cmd_remove(CTX)
 	}
 }
 
-static void cmd_hup(CTX)
+static void cmd_sighup(CTX)
 {
-	simple_proc_cmd(ctx, CMD_HUP);
+	simple_proc_cmd(ctx, CMD_SIGHUP);
 }
 
 static void cmd_flush(CTX)
@@ -501,7 +501,7 @@ static const struct cmdrec {
 	{ "restart",   cmd_restart  },
 	{ "remove",    cmd_remove   },
 	{ "flush",     cmd_flush    },
-	{ "hup",       cmd_hup      },
+	{ "sighup",    cmd_sighup   },
 
 	{ "pidof",     cmd_pidof    },
 	{ "show",      cmd_show     },

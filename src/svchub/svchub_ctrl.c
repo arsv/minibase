@@ -306,7 +306,7 @@ static int cmd_remove(CTX, CN, MSG)
 	return remove_proc(ctx, name);
 }
 
-static int cmd_hup(CTX, CN, MSG)
+static int cmd_sighup(CTX, CN, MSG)
 {
 	char* name;
 	int ret;
@@ -334,7 +334,7 @@ static const struct command {
        { CMD_FLUSH,    cmd_flush    },
        { CMD_REMOVE,   cmd_remove   },
        { CMD_STOP,     cmd_stop     },
-       { CMD_HUP,      cmd_hup      },
+       { CMD_SIGHUP,   cmd_sighup      },
 
        { CMD_START,    cmd_start    },
        { CMD_SPAWN,    cmd_spawn    },

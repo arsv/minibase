@@ -8,19 +8,19 @@
 #define CMD_STATUS     2
 #define CMD_GETBUF     3
 
-#define CMD_START      4
-#define CMD_SPAWN      5
-#define CMD_STOUT      6
+#define CMD_FLUSH      4
+#define CMD_REMOVE     5
 
-#define CMD_FLUSH      8
-#define CMD_REMOVE     9
-
-#define CMD_STOP      10
-#define CMD_HUP       11
+#define CMD_STOP       8
+#define CMD_SIGHUP     9
 
 #define CMD_REBOOT    12
 #define CMD_SHUTDOWN  13
 #define CMD_POWEROFF  14
+
+#define CMD_START     16
+#define CMD_SPAWN     17
+#define CMD_STOUT     18
 
 #define REP_DIED       1
 
