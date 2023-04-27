@@ -46,7 +46,7 @@ struct top {
 	char** envp;
 
 	int state;
-	char* script;
+	char* rbmode;
 	int scrpid;
 	int sigcnt;
 
@@ -77,7 +77,6 @@ void signal_stop(CTX, char* script);
 void handle_alarm(CTX);
 
 struct proc* find_by_name(CTX, char* name);
-//void free_proc_slot(CTX, struct proc* rc);
 
 int start_proc(CTX, char* name, int flags);
 void proc_died(CTX, struct proc* pc, int status);

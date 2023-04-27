@@ -11,7 +11,7 @@
 #include "common.h"
 #include "svchub.h"
 
-static int spawn_script(CTX, char* name, int dryrun)
+static int spawn_script(CTX, char* name, char* arg)
 {
 	char* dir = BOOTDIR "/";
 	int dlen = strlen(dir);
@@ -27,13 +27,11 @@ static int spawn_script(CTX, char* name, int dryrun)
 
 	*p++ = '\0';
 
-	char* argv[] = { name, NULL };
+	char* argv[] = { name, arg, NULL };
 	int ret, pid;
 
 	if((ret = sys_access(path, X_OK)) < 0)
 		return ret;
-	else if(dryrun)
-		return 0;
 
 	if(ctx->scrpid > 0)
 		return -EBUSY;
@@ -57,18 +55,19 @@ static int spawn_script(CTX, char* name, int dryrun)
 
 static void spawn_shutdown(CTX)
 {
-	char* script = ctx->script;
+	char* mode = ctx->rbmode;
 
 	ctx->state = S_SHUTDOWN;
 
 	close_socket(ctx);
 
-	if(!script)
-		script = "failure";
-	if(spawn_script(ctx, script, 0) >= 0)
+	if(!mode) /* all children unexpectedly */
+		mode = "halt";
+
+	if(spawn_script(ctx, "shutdown", mode) >= 0)
 		return;
 
-	fail("no shutdown script:", script, 0);
+	fail("no shutdown script", NULL, 0);
 }
 
 static void shutdown_exit(CTX, int status)
@@ -80,10 +79,6 @@ static void shell_exit(CTX, int status)
 {
 	warn("console shell", status ? "failed" : "exited", 0);
 
-	if(command_stop(ctx, "poweroff") >= 0)
-		return;
-	if(command_stop(ctx, "halt") >= 0)
-		return;
 	if(command_stop(ctx, "reboot") >= 0)
 		return;
 
@@ -94,7 +89,7 @@ void start_script(CTX)
 {
 	int ret;
 
-	if((ret = spawn_script(ctx, "startup", 0)) < 0)
+	if((ret = spawn_script(ctx, "startup", NULL)) < 0)
 		fail("startup", NULL, ret);
 
 	ctx->state = S_STARTUP;
@@ -109,7 +104,7 @@ static void startup_done(CTX, int status)
 
 	ctx->state = S_RUNNING;
 
-	(void)spawn_script(ctx, "shell", 0);
+	(void)spawn_script(ctx, "shell", NULL);
 }
 
 static void script_exit(CTX, int status)
@@ -253,20 +248,15 @@ void handle_alarm(CTX)
 	}
 }
 
-int command_stop(CTX, char* script)
+int command_stop(CTX, char* mode)
 {
-	int ret;
-
-	if(ctx->script)
+	if(ctx->rbmode)
 		return -EALREADY;
 
-	if((ret = spawn_script(ctx, script, 1)) < 0)
-		return ret;
-
-	warn("initiating", script, 0);
+	warn("initiating", mode, 0);
 
 	ctx->state = S_STOPPING;
-	ctx->script = script;
+	ctx->rbmode = mode;
 	ctx->sigcnt = 0;
 
 	stop_all_procs(ctx);
