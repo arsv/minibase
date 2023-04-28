@@ -11,7 +11,7 @@
 #include "common.h"
 #include "svchub.h"
 
-static int spawn_script(CTX, char* name, char* arg)
+static int spawn_script(CTX, char* name, char** argv)
 {
 	char* dir = BOOTDIR "/";
 	int dlen = strlen(dir);
@@ -27,7 +27,6 @@ static int spawn_script(CTX, char* name, char* arg)
 
 	*p++ = '\0';
 
-	char* argv[] = { name, arg, NULL };
 	int ret, pid;
 
 	if((ret = sys_access(path, X_OK)) < 0)
@@ -43,6 +42,7 @@ static int spawn_script(CTX, char* name, char* arg)
 		fail("fork", NULL, pid);
 
 	if(pid == 0) {
+		argv[0] = name;
 		(void)sys_sigprocmask(SIG_SETMASK, &mask, NULL);
 		ret = sys_execve(path, argv, ctx->envp);
 		fail(NULL, name, ret);
@@ -64,7 +64,9 @@ static void spawn_shutdown(CTX)
 	if(!mode) /* all children unexpectedly */
 		mode = "halt";
 
-	if(spawn_script(ctx, "shutdown", mode) >= 0)
+	char* argv[] = { NULL, mode, NULL };
+
+	if(spawn_script(ctx, "shutdown", argv) >= 0)
 		return;
 
 	fail("no shutdown script", NULL, 0);
@@ -89,7 +91,7 @@ void start_script(CTX)
 {
 	int ret;
 
-	if((ret = spawn_script(ctx, "startup", NULL)) < 0)
+	if((ret = spawn_script(ctx, "startup", ctx->argv)) < 0)
 		fail("startup", NULL, ret);
 
 	ctx->state = S_STARTUP;
@@ -97,6 +99,8 @@ void start_script(CTX)
 
 static void startup_done(CTX, int status)
 {
+	char* argv[] = { NULL, NULL };
+
 	if(status) {
 		fail("startup failed", NULL, 0);
 		return;
@@ -104,7 +108,7 @@ static void startup_done(CTX, int status)
 
 	ctx->state = S_RUNNING;
 
-	(void)spawn_script(ctx, "shell", NULL);
+	(void)spawn_script(ctx, "shell", argv);
 }
 
 static void script_exit(CTX, int status)
