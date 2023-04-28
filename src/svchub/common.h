@@ -31,3 +31,4 @@
 #define ATTR_RING      5
 #define ATTR_EXIT      6
 #define ATTR_NEXT      7
+#define ATTR_TIME      8

@@ -189,12 +189,14 @@ static int cmd_status(CTX, CN, MSG)
 
 	uc_put_strn(&uc, ATTR_NAME, pc->name, sizeof(pc->name));
 
-	if(pid > 0)
+	if(pc->flags & P_STATUS)
+		uc_put_int(&uc, ATTR_EXIT, pid);
+	else if(pid)
 		uc_put_int(&uc, ATTR_PID, pid);
-	else if(pid < 0)
-		uc_put_int(&uc, ATTR_EXIT, pid & 0xFFFF);
 	if(pc->ptr)
 		uc_put_flag(&uc, ATTR_RING);
+	if(pc->time)
+		uc_put_int(&uc, ATTR_TIME, pc->time);
 
 	return send_reply(cn, &uc);
 }
