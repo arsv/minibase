@@ -176,22 +176,73 @@ static void dump_list(CTX, void* ptr, void* end)
 	bufoutflush(&bo);
 }
 
-static void dump_pid(CTX, struct ucattr* msg)
+static void dump_proc_status(CTX, struct ucattr* msg)
 {
-	int* pid;
-	int rep;
+	int *pid, *ex;
 
-	if((rep = uc_repcode(msg)) < 0)
-		fail(NULL, NULL, rep);
+	FMTBUF(p, e, buf, 100);
 
-	if(!(pid = uc_get_int(msg, ATTR_PID)))
-		fail("no PID in reply", NULL, 0);
+	if((pid = uc_get_int(msg, ATTR_PID))) {
+		p = fmtstr(p, e, "Running, pid ");
+		p = fmtint(p, e, *pid);
+	} else if((ex = uc_get_int(msg, ATTR_EXIT))) {
+		int status = *ex;
+		p = fmtstr(p, e, "Dead");
+		if(WIFEXITED(status)) {
+			p = fmtstr(p, e, ", exit ");
+			p = fmtint(p, e, WEXITSTATUS(status));
+		} else if(WIFSIGNALED(status)) {
+			p = fmtstr(p, e, ", signal ");
+			p = fmtint(p, e, WTERMSIG(status));
+		}
+	} else {
+		p = fmtstr(p, e, "Status unknown");
+	}
 
-	FMTBUF(p, e, buf, 50);
-	p = fmtint(p, e, *pid);
 	FMTENL(p, e);
-
 	writeall(STDOUT, buf, p - buf);
+}
+
+/* In the status output, we want nice complete lines.
+   The full buf is also too large for a short status
+   report, so we truncate it to a reasonable size. */
+
+static char* skip_to_start(char* buf, int len)
+{
+	int qlen = 512;
+
+	if(len <= qlen)
+		return buf;
+
+	char* p = buf + len - qlen;
+
+	while(p > buf) {
+		if(*p == '\n')
+			break;
+		p--;
+	}
+
+	return p;
+}
+
+static void dump_proc_output(CTX, struct ucattr* msg)
+{
+	char* buf = uc_payload(msg);
+	int len = uc_paylen(msg);
+	char* end = buf + len;
+
+	if(!len) return;
+
+	char* from = skip_to_start(buf, len);
+	char* last = end - 1;
+
+	if(from == buf)
+		writeall(STDOUT, "\n", 1);
+
+	writeall(STDOUT, from, end - from);
+
+	if(*last != '\n')
+		writeall(STDOUT, "\n", 1);
 }
 
 /* arguments */
@@ -425,18 +476,32 @@ static void cmd_flush(CTX)
 	simple_proc_cmd(ctx, CMD_FLUSH);
 }
 
-static void cmd_pidof(CTX)
+static void cmd_status(CTX)
 {
+	struct ucattr* msg;
 	char* name = shift_arg(ctx);
+	int rep;
 
 	send_proc_cmd(ctx, CMD_STATUS, name);
 
-	struct ucattr* msg = recv_reply(ctx);
+	msg = recv_reply(ctx);
 
-	dump_pid(ctx, msg);
+	if((rep = uc_repcode(msg)) < 0)
+		fail(NULL, NULL, rep);
+
+	dump_proc_status(ctx, msg);
+
+	if(!uc_get(msg, ATTR_RING))
+		return;
+
+	send_proc_cmd(ctx, CMD_GETBUF, name);
+
+	msg = recv_large(ctx);
+
+	dump_proc_output(ctx, msg);
 }
 
-static void cmd_show(CTX)
+static void cmd_output(CTX)
 {
 	char* name = shift_arg(ctx);
 
@@ -503,8 +568,8 @@ static const struct cmdrec {
 	{ "flush",     cmd_flush    },
 	{ "sighup",    cmd_sighup   },
 
-	{ "pidof",     cmd_pidof    },
-	{ "show",      cmd_show     },
+	{ "status",    cmd_status   },
+	{ "output",    cmd_output   },
 
 	{ "reboot",    cmd_reboot   },
 	{ "shutdown",  cmd_shutdown },
