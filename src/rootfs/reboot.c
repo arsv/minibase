@@ -25,9 +25,8 @@
    when umount -a makes sense, and handling -a requires lots of code
    not used in any other umount modes (reading mountinfo etc.) */
 
-#define OPTS "ph"
-#define OPT_p (1<<0)	/* poweroff */
-#define OPT_h (1<<1)	/* halt */
+#define OPTS "q"
+#define OPT_q (1<<0)
 
 ERRTAG("reboot");
 ERRLIST(NEPERM NENOENT NEBADF NEFAULT NELOOP NENOMEM NENOTDIR NEOVERFLOW
@@ -218,26 +217,37 @@ static noreturn void wait_child(int pid)
 		fail("child process exited successfully", NULL, 0);
 }
 
+static int name_to_mode(char* name)
+{
+	if(!strcmp(name, "poweroff"))
+		return RB_POWER_OFF;
+	if(!strcmp(name, "halt"))
+		return RB_HALT_SYSTEM;
+	if(!strcmp(name, "reboot"))
+		return RB_AUTOBOOT;
+
+	fail("unknown mode", name, 0);
+}
+
 int main(int argc, char** argv)
 {
-	int mode = RB_AUTOBOOT;
-	int i = 1, opts = 0, ret, pid;
+	int i = 1, opts = 0;
+	int ret, pid;
+	int mode;
 
 	if(i < argc && argv[i][0] == '-')
 		opts = argbits(OPTS, argv[i++] + 1);
 
-	if(opts == OPT_p)
-		mode = RB_POWER_OFF;
-	else if(opts == OPT_h)
-		mode = RB_HALT_SYSTEM;
-	else if(opts)
-		fail("cannot use -ph together", NULL, 0);
-	else mode = RB_AUTOBOOT;
+	if(i < argc)
+		mode = name_to_mode(argv[i++]);
+	else
+		mode = RB_AUTOBOOT; /* reboot */
 
 	if((ret = sys_sync()) < 0)
 		warn("sync", NULL, ret);
 
-	umountall();
+	if(!(opts & OPT_q))
+		umountall();
 
 	if(sys_getpid() != 1)
 		;
