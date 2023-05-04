@@ -10,6 +10,7 @@ msh: msh.o msh_parser.o msh_common.o \
 	msh_cmd_envp.o \
 	msh_cmd_exec.o \
 	msh_cmd_file.o \
+	msh_cmd_mount.o \
 	msh_cmd_pcaps.o \
 	msh_cmd_pcred.o \
 	msh_cmd_prctl.o \
