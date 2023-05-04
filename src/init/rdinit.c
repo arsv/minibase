@@ -148,33 +148,12 @@ static void mount(char* dir, char* fstype, int flags)
 	warn(NULL, dir, ret);
 }
 
-static void mount_dev_sys(CTX)
+static void mount_dev_sys(void)
 {
-	mount("/dev", "devtmpfs", MS_NOSUID);
-	mount("/sys", "sysfs", MS_NOSUID | MS_NODEV);
+	mount("/dev", "devtmpfs", MS_NOSUID | MS_NOEXEC);
+	mount("/sys", "sysfs",    MS_NOSUID | MS_NOEXEC | MS_NODEV);
 
 	mkdir("/mnt");
-}
-
-/* Check for obvious issues with the next stage before deleting the files
-   from initramfs. We cannot just call abort() from exec_real_init() because
-   by that time the abort script won't be around anymore. */
-
-static void check_next_stage(CTX)
-{
-	char* orig = *ctx->next;
-	char* name = orig;
-	int flags = AT_SYMLINK_NOFOLLOW;
-	struct stat st;
-	int ret;
-
-	if(*name == '/') /* absolute path */
-		name++;
-
-	if((ret = sys_fstatat(AT_FDCWD, name, &st, flags)) >= 0)
-		return;
-
-	abort(ctx, "cannot stat", orig);
 }
 
 /* Once the new root has been mounted under /mnt,
@@ -204,8 +183,6 @@ static void switch_root(CTX)
 	if((ret = sys_chdir(dir)) < 0)
 		fail("chdir", dir, ret);
 
-	check_next_stage(ctx);
-
 	move_mount("/dev");
 	move_mount("/sys");
 
@@ -219,28 +196,22 @@ static void switch_root(CTX)
 		fail("chdir", "/", ret);
 }
 
-static void exec_real_init(CTX)
+static noreturn void invoke_next_stage(CTX)
 {
-	char** argv = ctx->next;
+	char* path = BASE_ETC "/boot/sysinit";
+	char* base = basename(path);
 	char** envp = ctx->envp;
-	char* cmd = *argv;
+	char** argv = ctx->argv;
 
-	int ret = sys_execve(cmd, argv, envp);
+	argv[0] = base;
 
-	warn(NULL, cmd, ret);
+	int ret = sys_execve(path, argv, envp);
+
+	fail(NULL, path, ret);
 }
 
-/* How to pass arguments to rdinit: kernel args "blah blah -- init args here" */
-
-static void setup_args(CTX, int argc, char** argv)
+static void check_pid_one(void)
 {
-	ctx->envp = argv + argc + 1;
-
-	if(argc > 1)
-		ctx->next = argv + 1;
-	else
-		ctx->next = (char**)default_init;
-
 	if(sys_getpid() != 1)
 		fail("not running as pid 1", NULL, 0);
 }
@@ -251,11 +222,16 @@ int main(int argc, char** argv)
 
 	memzero(ctx, sizeof(*ctx));
 
-	setup_args(ctx, argc, argv);
+	ctx->argv = argv;
+	ctx->envp = argv + argc + 1;
+
+	ctx->next = (char**)default_init;
+
+	check_pid_one();
 
 	check_std_fds(ctx);
 
-	mount_dev_sys(ctx);
+	mount_dev_sys();
 
 	setup_fds_one(ctx);
 
@@ -265,7 +241,5 @@ int main(int argc, char** argv)
 
 	switch_root(ctx);
 
-	exec_real_init(ctx);
-
-	return 0xFF;
+	invoke_next_stage(ctx);
 }

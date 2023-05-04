@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo "+++ udevmod modpipe"
+echo "-- udevmod modpipe"
 
 while read i; do
 	echo modprobe "$i"

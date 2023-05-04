@@ -81,10 +81,10 @@ static void shell_exit(CTX, int status)
 {
 	warn("console shell", status ? "failed" : "exited", 0);
 
-	if(command_stop(ctx, "reboot") >= 0)
+	if(command_stop(ctx, "poweroff") >= 0)
 		return;
 
-	fail("cannot reboot", NULL, 0);
+	fail("cannot shutdown", NULL, 0);
 }
 
 void start_script(CTX)

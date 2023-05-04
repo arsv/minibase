@@ -2,7 +2,6 @@
 #include <sys/fpath.h>
 #include <sys/creds.h>
 #include <sys/proc.h>
-#include <sys/prctl.h>
 #include <sys/mount.h>
 
 #include <config.h>
@@ -10,6 +9,12 @@
 #include <main.h>
 
 ERRTAG("init");
+
+static void check_pid_one(void)
+{
+	if(sys_getpid() != 1)
+		fail("not running as pid 1", NULL, 0);
+}
 
 static int open_something(void)
 {
@@ -48,14 +53,6 @@ static void setup_std_fds(void)
 		_exit(0xFD);
 }
 
-static void set_no_new_privs(void)
-{
-	int ret, cmd = PR_SET_NO_NEW_PRIVS;
-
-	if((ret = sys_prctl(cmd, 1, 0, 0, 0)) < 0)
-		fail("prctl", "PR_SET_NO_NEW_PRIVS", ret);
-}
-
 static int mkdir(char* name, int mode)
 {
 	int ret;
@@ -85,23 +82,18 @@ static void mount(char* dir, char* fstype, int flags)
 	fail("mount", dir, ret);
 }
 
-static void mount_basic_vfss(void)
+static void mount_basic_filesystems(void)
 {
-	int flags = MS_NOSUID | MS_NODEV | MS_NOEXEC;
+	mount("/sys", "sysfs", MS_NOSUID | MS_NOEXEC | MS_NODEV);
+	mount("/run", "tmpfs", MS_NOSUID | MS_NOEXEC | MS_NODEV);
+	mount("/proc", "proc", MS_NOSUID | MS_NOEXEC | MS_NODEV);
 
-	mount("/sys", "sysfs", flags);
-	mount("/run", "tmpfs", flags);
-	mount("/proc", "proc", flags);
-
-	mount("/dev", "devtmpfs", flags & ~MS_NODEV);
-
-	if(mkdir("/run/ctrl", 0700) < 0)
-		_exit(0xFA);
+	mount("/dev", "devtmpfs", MS_NOSUID | MS_NOEXEC);
 }
 
-static void invoke_next_stage(int argc, char** argv)
+static noreturn void invoke_next_stage(int argc, char** argv)
 {
-	char* path = BASE_BIN "/svchub";
+	char* path = BASE_ETC "/boot/sysinit";
 	char* base = basename(path);
 	char** envp = argv + argc + 1;
 
@@ -114,16 +106,11 @@ static void invoke_next_stage(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
-	if(sys_getpid() != 1)
-		fail("not running as pid 1", NULL, 0);
+	check_pid_one();
 
 	setup_std_fds();
 
-	set_no_new_privs();
-
-	mount_basic_vfss();
+	mount_basic_filesystems();
 
 	invoke_next_stage(argc, argv);
-
-	return 0xFF;
 }

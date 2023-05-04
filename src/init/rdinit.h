@@ -10,7 +10,7 @@ struct top {
 	//char** argv;
 	char** envp;
 	char** next;
-	int argc;
+	char** argv;
 	int flags;
 	int failure;
 

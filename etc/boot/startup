@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo "+++ startup"
+echo "-- startup"
 
 ./svcctl start server
 ./svcctl start badsrv
