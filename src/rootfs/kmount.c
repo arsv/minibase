@@ -198,7 +198,7 @@ static void umount(int argc, char** argv, int i, int opts)
 
 static void mount(int argc, char** argv, int i, int opts)
 {
-	int flags = opts2flags(mountflags, opts & ~OPT_m);
+	int flags = opts2flags(mountflags, opts & ~(OPT_m | OPT_n));
 	char *source, *target, *fstype, *data;
 	int ret;
 
