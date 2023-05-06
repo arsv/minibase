@@ -22,17 +22,13 @@ ERRTAG("rdinit");
    background. The idea here is quite simple, but there are a few non-obvious
    caveats. */
 
-static const char *const default_init[] = { "/sbin/init", NULL };
-
-/* Soft abort: try to run a script before exiting.
-
-   This might be useful for debugging (run rdcmd or list /dev before panicing)
-   and maybe for some sort of user-visible indication of a failure, like
-   blinking a LED or something like that. */
+/* Soft abort: run a script before exiting. This is pretty much only for
+   debugging; the script should spawn a shell to let the user poke around
+   while still in initrd environment. */
 
 void abort(CTX, char* msg, char* arg)
 {
-	char* script = INIT_ETC "/abort";
+	char* script = INIT_ETC "/shell";
 	char* argv[] = { script, NULL };
 	warn(msg, arg, 0);
 
@@ -224,8 +220,6 @@ int main(int argc, char** argv)
 
 	ctx->argv = argv;
 	ctx->envp = argv + argc + 1;
-
-	ctx->next = (char**)default_init;
 
 	check_pid_one();
 

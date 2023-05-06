@@ -7,9 +7,7 @@
 struct pollfd;
 
 struct top {
-	//char** argv;
 	char** envp;
-	char** next;
 	char** argv;
 	int flags;
 	int failure;
