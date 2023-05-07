@@ -100,20 +100,3 @@ void cmd_mount(CTX)
 
 	mount_rest(ctx, target, source, flags);
 }
-
-void cmd_vmount(CTX)
-{
-	char* target;
-
-	int flags = mount_flags(ctx);
-
-	if(got_more_arguments(ctx))
-		target = shift(ctx);
-	else
-		fatal(ctx, "mountpoint required", NULL);
-
-	if(flags & (MS_BIND | MS_MOVE | MS_REMOUNT))
-		fatal(ctx, "invalid arguments", NULL);
-
-	mount_rest(ctx, target, NULL, flags);
-}

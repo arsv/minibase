@@ -23,7 +23,7 @@ script that should set up the location for the control socket and exec svchub:
     setenv PATH /bin:/sbin:/usr/bin
 
     # prepare the location for the control socket
-    vmount /base/run tmpfs
+    mount /base/run - tmpfs
 
     invoke /base/bin/svchub
 
@@ -42,8 +42,8 @@ svchub to start whichever services the system needs to run.
     #!/base/bin/msh
 
     # mount virtual filesystems
-    vmount /dev/pts devpts
-    vmount /run tmpfs
+    mount /dev/pts - devpts
+    mount /run - tmpfs
 
     # remount root read-write
     mount -e /
