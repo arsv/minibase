@@ -78,7 +78,7 @@ Extended syscalls
 There are several groups of "syscall extensions" in Linux when a newly
 introduced syscall supersedes an older one, like so:
 
-	sys_open(fd, name, mode) = sys_openat(AT_FDCWD, fd, name, mode)
+	sys_open(fd, name, mode) <- sys_openat(AT_FDCWD, fd, name, mode)
 
 Pretty much al at-file syscalls operate like that.
 
@@ -105,7 +105,7 @@ There is no envp there. If needed, it can be derived like this:
 
 	char** envp = argv + argc + 1;
 
-It's rarely used and easy to do in C. No point in doing it in assembly.
+It's rarely used and is easy to do in C. No point in doing it in assembly.
 
 
 Handling signals
@@ -140,7 +140,7 @@ the .restorer field so that the .handler would work as expected.
 There is no way to pass any additional data to the handlers, like for instance
 struct top* ctx pointer. Tools that use struct top generally cannot use signal
 handlers, and must rely on signalfd instead. That said, signalfd often results
-in better code and less syscalls anyway.
+in better code and fewer syscalls anyway.
 
 
 Memory allocation
@@ -227,7 +227,7 @@ Error codes are reported as literally "ENOENT", "EINVAL" in cases where
 convential libc would use "No such file or directory", "Invalid argument"
 respectively. Any error code that has no corresponding string in the list
 gets reported as a raw integer (e.g. -111), the user may look it up later
-using `errno` tool.
+using the `errno` tool.
 
 This setup allows executables to link only the strings for the set of codes
 that syscalls the application uses can actually return. Linux defines a lot

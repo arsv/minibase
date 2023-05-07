@@ -1,120 +1,99 @@
-(the commented-out parts below are outdated and need to be re-written)
+The system startup with this project is expected to go roughly like this:
 
-# Root filesystem startup sequence
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# This project is designed around the idea of a staged init sequence, which
-# involves several distinct executables (stages) exec'ing into each other in
-# context of the pid 1. Typical sequence looks like this:
-# 
-# 	(initrd) -> startup -> supervisor -> shutdown
-# 
-# Here the focus is on the stages running from the real root filesystem, that
-# is, everything past initrd. We assume that the root filesystem has been
-# mounted, possibly along with some of the virtual filesystems, and the initrd
-# stage has exec'ed into the startup script, /etc/boot/startup.
-# 
-# The supervisor stage is strictly parallel, while startup and shutdown should
-# be mostly sequential. The sequential stages are supposed to be (msh) scripts.
-# 
-# The location of the shutdown scripts is fixed (/etc/boot) because of the way
-# they are invoked by svchub. Startup script can be placed anywhere, but for
-# consistency we put into /etc/boot as well.
-# 
-# 
-# Startup script
-# ~~~~~~~~~~~~~~
-# The goal of the startup stage is to complete global kernel state setup started
-# by initrd, and get the system to the point where it can start the services.
-# Typical contents of /etc/boot/startup:
-# 
-#     #!/sbin/msh
-# 
-#     # Default environment
-#     setenv PATH /bin:/sbin:/usr/bin
-#     
-#     # Mount remaining virtual filesystems
-#     run /bin/kmount -vc /dev/pts
-#     run /bin/kmount -vc /run
-#     run /bin/kmount -vc /mnt
-#     run /bin/kmount -vc /tmp
-#     # Remount root read-write if necessary
-#     #run /bin/kmount -e /
-#     
-#     umask 0002
-#     
-#     # Socket location for the services, see control.txt
-#     mkdir /run/ctrl
-#     
-#     prctl no-new-privs
-#     
-#     exec /sbin/svchub
-# 
-# This part is very system-dependent, other than maybe the final exec.
-#
-#
-# Non-initrd boot
-# ~~~~~~~~~~~~~~~
-# When booting directly into rootfs, the kernel will attempt to spawn /sbin/init
-# by default. This can be changed with init= parameter, or /sbin/init can be
-# a symlink to the startup script, or it can be the location for the startup
-# script.
-# 
-# There are essentially no other issues. The kernel should mount rootfs just like
-# an initrd would. It won't mount /dev and /sys, so appropriate lines should be
-# added to the startup script.
+   (early init) -> svchub -> startup script
+
+The point is to get svchub running, spawn system services under svchub,
+and then maybe spawn whatever else is needed.
+
+If commanded to shut down, svchub will stop all its services and spawn
+the shutdown script.
+
+The early init in most cases should look like this:
+
+         /sbin/init -> /base/etc/boot/sysinit -> svchub
+    (initrd) rdinit -> /base/etc/boot/sysinit -> svchub
+
+See ../init for init and rdinit. Both invoke /base/etc/boot/sysinit, an msh
+script that should set up the location for the control socket and exec svchub:
+
+    #!/base/bin/msh
+
+    # global process environment setup
+    prctl no-new-privs
+    setenv PATH /bin:/sbin:/usr/bin
+
+    # prepare the location for the control socket
+    vmount /base/run tmpfs
+
+    invoke /base/bin/svchub
+
+This script is also the place to define global environment, the stuff that
+svchub will inherit and pass to all its children by default. It can also be
+used to do things than can be done prior to starting any services, but note
+that it will run as pid 1 and if it fails, it's a kernel panic no attempt
+to sync or unmount the rootfs.
+
+Once svchub is running, it will spawn /base/etc/boot/startup which is the
+main system startup script. This script will run under svchub, and in case
+it dies svchub will attempt to shut the system down cleanly. The rest of
+the system initialization should happen in this script, and it should tell
+svchub to start whichever services the system needs to run.
+
+    #!/base/bin/msh
+
+    # mount virtual filesystems
+    vmount /dev/pts devpts
+    vmount /run tmpfs
+
+    # remount root read-write
+    mount -e /
+
+    # start system services
+    run /base/bin/svcctl start udevmod
+    run /base/bin/svcctl start apphub
+    run /base/bin/svcctl start ptyhub
+
+    # optionally, waitfor apphub socket and start applications
+
+Note that any process environment changes in the startup script will not
+affect the spawned processes, so it is not the right place for setenv.
+
+
+Initrd specifics
+~~~~~~~~~~~~~~~~
+See ./initrd.txt on how to set up the image and run rdinit.
+
+As far as the main rootfs is concerned, initrd as a whole completely replaces
+the `init` tool. A system that uses initrd (with rdinit from this project) does
+not need to have /sbin/init in its main rootfs. Once `rdinit` is done doing its
+things, it will invoke /base/etc/boot/sysinit just like `init` would in case
+of a straight-to-rootfs startup described above.
 
 
 System services
 ~~~~~~~~~~~~~~~
-A "service" is a process that does not normally exit.
+The services are top-level long-running applications managed by svchub.
 
-Traditionally, these are known as "daemons". However, while in practice
-the same entities become either "services" or "daemons" depending on how
-their startup is set up (i.e. on the init system), the strict definition
-of "daemon" implies double-forking which services are expected not to do.
+# Traditional name for these is daemons but a "deamon" implies double-forking
+# which these things are explicitly not supposed to do.
 
-A service can be thought of as a daemon that did not fork during startup.
-Which means its pid remains valid, and the parent can wait for it.
+These applications do not take user input from stdin and are not expected
+to exit normally. Otherwise, it's just another kind of user applications.
+See ./userapps.txt for the general idea.
 
-Here the focus is mostly on the system services, that is, services started
-during system startup and expected to stay alive for the whole time until
-system shutdown. During this period, the process tree looks like this:
-
-   1 svchub
-    \
-     +- service1
-     +- service2
-      \
-       +- subprocess
-       +- subprocess
-       ...
-     +- service3
-      \
-       +- subprocess
-     +- service4
-      \
-       +- subprocess
-       +- subprocess
-
-Pretty much anything useful that happens in the system, happens either in
-the services or in their descendent processes. The root of the tree (pid 1,
-svchub) does very little, essentially just providing some information on
-the running services.
-
-The important point here is that the system must be designed to match the
-structure above, with system services in the top layer of the process tree.
-Most of the time, this is not a non-issue, but there are few exceptions
-that may cause a bit of confusion. For instance, conventional getty is not
-a service, and needs to be either spawned by, or replaced with, a service
-per the definition above.
+Note that second-level supervisors (apphub, ptyhub, clihub etc -- anything
+that is not svchub) are themselves regular system services.
 
 
 Service startup scripts
 ~~~~~~~~~~~~~~~~~~~~~~~
-To define a system service, place an executable script into /etc/init.
-Typical contents of the script, say, /etc/init/foo:
+Just like all other user applications, all system services have start scripts
+associated with them. These scripts define an instance of a service.
 
-    #!/sbin/msh
+To define a system service, place an executable script into /base/etc/init.
+Typical contents of the script, say, /base/etc/init/foo:
+
+    #!/base/bin/msh
 
     setenv FOO bar
 
@@ -122,9 +101,6 @@ Typical contents of the script, say, /etc/init/foo:
     setuid 11
 
     exec /usr/bin/foo
-
-Upon startup, svchub picks up all files in /etc/init. If a service gets
-added later, `svctl reload` should be used to force directory re-scan.
 
 Services are spawned by exec()ing the script in a new-forked process.
 Any process setup including setuid, prctl etc must be done in either
@@ -150,52 +126,20 @@ There is no explicit support for redirecting stdout/stderr into syslog in
 this project, and doing so is discouraged.
 
 
-Dependencies
-~~~~~~~~~~~~
-System services are expected to have no explicit dependencies, other than
-the system being out of the sequential initialization stage (rootfs mounted,
-kernel state set up and so on).
-
-Explicit dependencies on devices or IPC points being available indicate
-incorrectly written code, often a race condition or invalid assumptions.
-Alternatively, the service in question is just not fit to be a system
-service, and should be started on demand in response to some events.
-
-# TODO: on-demand service supervisor, not in the project right now
-
-There are some borderline cases where dependencies exists but can be worked
-around by introducing timing constraints:
-
-    #!/sbin/msh
-
-    ...
-
-    waitfor /dev/something
-
-    exec /path/to/binary
-
-In this example, svchub will spawn the script as usual, but waitfor will pause
-the process for several seconds while it is still a script.
-
-
-Shutdown sequence
-~~~~~~~~~~~~~~~~~
+System shutdown
+~~~~~~~~~~~~~~~
 When commanded to shut down, svchub kills all the services, waits for them
-to dies, and execs into one of the shutdown scripts depending on how exactly
-the system is shutting down:
+to die, and spawns /base/etc/boot/shutdown, passing it shutdown mode as
+the argument:
 
-    /etc/boot/reboot
-    /etc/boot/shutdown
-    /etc/boot/powerdown
+    /base/etc/boot/shutdown poweroff
 
-    /etc/boot/failure
+There may be system-dependent things there but eventually this script should
+run `reboot`, passing it the argument:
 
-There may be system-dependent things there but eventually all these should
-exec into `reboot` with appropriate flags. Example /etc/boot/shutdown:
+    #!/base/bin/msh
 
-    #!/sbin/msh
-
-    exec /sbin/reboot -h
+    exec /base/bin/reboot $1
 
 `reboot` will attempt to un-mount all remaining filesystems and invoke
 sys_reboot with appropriate arguments.
