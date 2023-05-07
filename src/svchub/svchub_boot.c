@@ -61,12 +61,11 @@ static void spawn_shutdown(CTX)
 
 	close_socket(ctx);
 
-	if(!mode) /* all children unexpectedly */
-		mode = "halt";
+	char* script = mode ? "shutdown" : "failure";
 
 	char* argv[] = { NULL, mode, NULL };
 
-	if(spawn_script(ctx, "shutdown", argv) >= 0)
+	if(spawn_script(ctx, script, argv) >= 0)
 		return;
 
 	fail("no shutdown script", NULL, 0);
@@ -81,7 +80,7 @@ static void shell_exit(CTX, int status)
 {
 	warn("console shell", status ? "failed" : "exited", 0);
 
-	if(command_stop(ctx, "poweroff") >= 0)
+	if(command_stop(ctx, NULL) >= 0)
 		return;
 
 	fail("cannot shutdown", NULL, 0);
@@ -254,10 +253,15 @@ void handle_alarm(CTX)
 
 int command_stop(CTX, char* mode)
 {
-	if(ctx->rbmode)
+	int state = ctx->state;
+
+	if((state == S_STOPPING) || (state == S_SHUTDOWN))
 		return -EALREADY;
 
-	warn("initiating", mode, 0);
+	if(mode)
+		warn("initiating", mode, 0);
+	else
+		warn("aborting on a failure", NULL, 0);
 
 	ctx->state = S_STOPPING;
 	ctx->rbmode = mode;
