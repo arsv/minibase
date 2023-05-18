@@ -135,21 +135,44 @@ static void mount(char* dir, char* fstype, int flags)
 {
 	int ret;
 
-	if(mkdir(dir) < 0)
-		return;
-
 	if((ret = sys_mount("none", dir, fstype, flags, NULL)) >= 0)
 		return;
 
 	warn(NULL, dir, ret);
 }
 
+static void mount_ifext(char* dir, char* fstype, int flags)
+{
+	struct stat st;
+	int ret;
+
+	if((ret = sys_stat(dir, &st)) < 0)
+		return;
+	if((st.mode & S_IFMT) != S_IFDIR)
+		return;
+
+	mount(dir, fstype, flags);
+}
+
+static void mount_mkdir(char* dir, char* fstype, int flags)
+{
+	if(mkdir(dir) < 0)
+		return;
+
+	mount(dir, fstype, flags);
+}
+
 static void mount_dev_sys(void)
 {
-	mount("/dev", "devtmpfs", MS_NOSUID | MS_NOEXEC);
-	mount("/sys", "sysfs",    MS_NOSUID | MS_NOEXEC | MS_NODEV);
+	mount_mkdir("/dev", "devtmpfs", MS_NOSUID | MS_NOEXEC);
+	mount_mkdir("/sys", "sysfs",    MS_NOSUID | MS_NOEXEC | MS_NODEV);
 
 	mkdir("/mnt");
+}
+
+static void mount_procfs(void)
+{
+	mount_ifext("/proc", "proc", MS_NOSUID | MS_NOEXEC | MS_NODEV);
 }
 
 /* Once the new root has been mounted under /mnt,
@@ -181,6 +204,8 @@ static void switch_root(CTX)
 
 	move_mount("/dev");
 	move_mount("/sys");
+
+	mount_ifext("/proc", "proc", MS_NOSUID | MS_NOEXEC | MS_NODEV);
 
 	clear_initramfs(ctx);
 
@@ -234,6 +259,8 @@ int main(int argc, char** argv)
 	setup_fds_two(ctx);
 
 	switch_root(ctx);
+
+	mount_procfs();
 
 	invoke_next_stage(ctx);
 }

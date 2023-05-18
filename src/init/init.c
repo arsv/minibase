@@ -53,25 +53,14 @@ static void setup_std_fds(void)
 		_exit(0xFD);
 }
 
-static int mkdir(char* name, int mode)
-{
-	int ret;
-
-	if((ret = sys_mkdir(name, mode)) >= 0)
-		return ret;
-	if(ret == -EEXIST)
-		return 0;
-
-	warn("mkdir", name, ret);
-
-	return ret;
-}
-
 static void mount(char* dir, char* fstype, int flags)
 {
 	int ret;
+	struct stat st;
 
-	if(mkdir(dir, 0755) < 0)
+	if((ret = sys_stat(dir, &st)) < 0)
+		return;
+	if((st.mode & S_IFMT) != S_IFDIR)
 		return;
 
 	if((ret = sys_mount("none", dir, fstype, flags, NULL)) >= 0)
