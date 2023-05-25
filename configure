@@ -6,11 +6,10 @@ uselds=yes   # use custom ld script if available for the target
 
 # Configurable global paths for config.h
 
-BASE_BIN="/base/bin"
 BASE_ETC="/base/etc"     # config files
-BASE_VAR="/var/base"     # saved state
+BASE_VAR="/base/var"     # saved state
 INIT_ETC="/etc"          # config files in initrd mode
-RUN_CTRL="/run/ctrl"     # control sockets
+RUN_CTRL="/base/run"     # control sockets
 
 HERE=""  # gets prepended to misc global paths, HERE "/run" -> "./run"
 
@@ -193,7 +192,6 @@ fi
 chmod a+x mini-cc
 
 cat > config.h <<END
-#define BASE_BIN "$BASE_BIN"
 #define BASE_ETC "$BASE_ETC"
 #define BASE_VAR "$BASE_VAR"
 #define INIT_ETC "$INIT_ETC"
@@ -212,7 +210,6 @@ echo "  STRIP = $strip"
 echo "  CFLAGS = $cflags"
 test -n "$qemu" && echo "  QEMU = $qemu"
 echo
-echo "  BASE_BIN = $BASE_BIN"
 echo "  BASE_ETC = $BASE_ETC"
 echo "  BASE_VAR = $BASE_VAR"
 echo "  INIT_ETC = $INIT_ETC"
