@@ -8,8 +8,6 @@
 and monitoring a set system services.
 '''
 .SH USAGE
-\fBsvchub\fR should be run as pid 1 on the real rootfs.
-.P
 Upon startup, \fBsvchub\fR spawns \fB/etc/boot/startup\fR and waits
 for it to start start some services (by invoking \fBsvcctl start\fR)
 and everything that needs to be running in the system. After \fBstartup\fR
@@ -22,24 +20,16 @@ shutdown scripts.
 .SH FILES
 .IP "/etc/boot/startup" 4
 System startup script.
-.IP "/run/ctrl/svchub" 4
+.IP "/run/svchub" 4
 Control socket.
 .IP "/etc/init/\fIname\fR" 4
 Service startup scripts (\fBsvcctl start \fIname\fR).
-.P
-While stopping the system, \fBsvchub\fR will atttemp to run one of the
-following scripts depending on how the shutdown was initiated:
-.IP "/etc/boot/reboot" 4
-On SIGINT, SIGTERM or \fBsvctl reboot\fR.
 .IP "/etc/boot/shutdown" 4
-On \fBsvctl shutdown\fR.
-.IP "/etc/boot/poweroff" 4
-On SIGPWR or \fBsvctl poweroff\fR.
+System shutdown (svcctl reboot, svcctl poweroff etc).
 .IP "/etc/boot/failure" 4
-On any non-recoverable error, or with no services left running.
+Unexpected (non-commanded) shutdown.
 .P
-The shutdown scripts should in most cases just run \fBreboot\fR(1)
-with appropriate arguments.
+The shutdown scripts should in most cases just invoke \fBreboot\fR(1).
 '''
 .SH SEE ALSO
 \fBsvcctl\fR(1), \fBreboot\fR(1), \fBmsh\fR(1).

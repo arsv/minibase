@@ -1,0 +1,41 @@
+This directory contains the top-level supervisor, aka pid 1,
+aka system service or startup manager.
+
+Bringing up a usable Linux system requires running some blocking
+commands and then launching some services to run in background.
+
+All svchub does is basically this:
+
+    #!/bin/sh
+
+    mount something
+    mount something else
+
+    /etc/svc/sysklogd &
+    /etc/svc/service1 &
+    /etc/svc/service2 &
+
+    wait
+
+..but more control over the spawned processes.
+And without the need run a POSIX style shell.
+
+With svchub, the script above becomes /base/etc/boot/startup:
+
+    #!/base/bin/msh
+
+    # blocking commands
+    mount something
+    mount something else
+
+    # IPC calls to launch the services
+    svcctl start sysklogd
+    svcctl start service1
+    svcctl start service2
+
+    # startup script exits here
+
+The spawned processes will keep running under svchub, with IPC available
+to query their status, check their output, stop or restart them.
+
+The early startup stuff has been moved to ../init instead.
