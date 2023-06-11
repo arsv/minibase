@@ -39,3 +39,34 @@ The spawned processes will keep running under svchub, with IPC available
 to query their status, check their output, stop or restart them.
 
 The early startup stuff has been moved to ../init instead.
+
+
+Why a startup script
+~~~~~~~~~~~~~~~~~~~~
+Earlier versions of svchub auto-started everything in the service directory.
+That approach proved to be quite limited, so a decision was made to switch
+to the current scheme where svchub starts a single script while accepting
+control connections and expects the script to command it to start everything
+the system needs.
+
+This makes svchub behave a lot like apphub or ptyhub, it also makes svchub
+itself much simpler (no directory scanning code, no reloads etc).
+But more importantly, it makes the startup much more flexible.
+
+One thing that can be done now is starting something and waiting for it to
+initialize before proceeding further. A simple example is syslog:
+
+    svcctl start sysklog
+    waitfor /dev/log
+    svcctl start everything else
+
+This approach also allows starting non-services together with services:
+
+    svcctl start some services
+    waitfor X11 socket
+    appctl start some apps
+
+And it let svchub manage optional services, that is, services that do not
+need to start when the system boots. Just do not mention it in the system
+startup script. With the auto-starting design, it would require some
+additional effort to mark the services as non-auto-starting.

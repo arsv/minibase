@@ -1,0 +1,44 @@
+The "init" in this project is a small application invoked by the kernel
+which does basic system initialization and execs into svchub. It does
+few very system-specific things that are difficult to do otherwise and
+which do not really belong in svchub. Moving these out of svchub makes
+svchub much easier to test and work with, and it also allows replacing
+this code to fit the needs of a particular system.
+
+There are two of them here right now, but more might be added.
+The two are: `init` which is meant for systems starting from the real
+root (i.e. those where the kernel mounts the rootfs), and `rdinit`
+for initramfs. Now the `init` one is essentially a stub, it doesn't do
+much, but it does effectively replace `rdinit` so the same svchub stuff
+can be re-used between initramfs and real-root setups.
+
+One things that these tools have to do (and which is very difficult to do
+otherwise) is setting up fds 0, 1 and 2. If Linux fails to initialize
+its console devices, it will invoke init with those fds free. Which is no
+good since almost everything assumes fd 2 is stderr.
+
+This is probably the right place to put a tool that would wait e.g. for
+a USB UART console, but that's implemented right now.
+
+
+Initramfs specifics
+~~~~~~~~~~~~~~~~~~~
+See ../../doc/initrd.txt for more information.
+
+The `init` is a small part of `rdinit` which acts as a short-time pid 1
+supervisor and also as udev event monitor while the system runs from initrd.
+Once it's done switching to the real root, it attempts to invoke svchub
+by calling a script in /base/etc/boot.
+
+
+Real root startup
+~~~~~~~~~~~~~~~~~
+Without initrd, the kernel would attempt to start /sbin/init or a few other
+options outside of /base; `rdinit` skips this step completely, however, if
+the system can start without initrd, then `init` can be placed to /sbin
+(or symlinked from /sbin) as a bridge to get the system to run svchub.
+
+Since `rdinit` mounts /dev and /sys and `init` is supposed to be a drop-in
+replacement, `init` also mounts /dev and /sys. That was deemed acceptable
+because the chances or ever running a Linux system without those two are
+very small. Anything else has to be mounted in the startup script.
