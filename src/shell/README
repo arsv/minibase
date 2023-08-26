@@ -1,0 +1,26 @@
+Simple interactive recovery shell.
+
+This is meant to be primarily a fallback or a recovery shell for the system
+console (especially if it's a serial console), not really for everyday use.
+It might also serve as a pathfinder for the clihub environment, but clihub
+should eventually get something better to run as the default shell.
+
+Unlike conventional POSIX-style interactive shells, this thing works in the
+"cooked mode" and does not have a prompt. The assumption here is that the line
+editing happens on the terminal side, and the shell only gets to see the full
+lines from the user, or something close to full lines. This should make it a
+lot more usable on a serial console (ever tried working with a prompt while
+the kernel keeps spewing messages at you?) and it also fits nicely with the
+design ideas behind clihub. This approach also removes a lot of really nasty
+code from the shell that doesn't really belong in a shell, basically the stuff
+that GNU handles with its readline library.
+
+# But it also means no tab completion, at least for now.
+
+This shell is also the project's "busybox", in the sense that it should allow
+the user to do basic file ops without having to call other executables,
+at least to the extent that would make sense. Long-running ops (e.g. copy tree)
+will likely remain separate tools.
+
+See ../../doc/shells.txt for more info on shells.
+This one goes under "interactive shells" but it's not a general-purpose one.
