@@ -25,61 +25,19 @@
 
 ERRTAG("shell");
 
-int opts;
-char** envp;
+struct shell sh;
 
-char inbuf[256];
-
-int parser_state;
-
-char argbuf[512];
-
-int argsep;
-int argptr;
-
-int argidx;
-int argcount;
-
-char* args[20];
-
-char tmpbuf[1024];
-char outbuf[2048];
-struct bufout bo;
-
-char* shift(void)
-{
-	if(argidx >= argcount)
-		return NULL;
-
-	return args[argidx++];
-}
-
-void output(char* str, int len)
-{
-	int ret;
-
-	if((ret = bufout(&bo, str, len)) < 0)
-		fail("write", NULL, 0);
-}
-
-void outstr(char* str)
-{
-	output(str, strlen(str));
-}
+char inbuf[1024];
+char argbuf[2048];
 
 /* Command line parsing */
 
-static int reset_args(void)
+static void reset_args(void)
 {
-	argsep = 0;
-	argptr = 0;
-	argidx = 0;
-	argcount = 0;
-}
-
-static int valid_end(int s)
-{
-	return (s == S_SEP);
+	sh.argsep = 0;
+	sh.argptr = 0;
+	sh.argidx = 0;
+	sh.argcnt = 0;
 }
 
 static int syntax(char c, char* msg)
@@ -96,26 +54,40 @@ static int syntax(char c, char* msg)
 
 static int add_char(char c, int s)
 {
-	if(argptr >= sizeof(argbuf))
+	int ptr = sh.argptr;
+	int max = sizeof(argbuf);
+
+	if(ptr >= max)
 		return syntax(c, "overflow");
 
-	argbuf[argptr++] = c;
+	argbuf[ptr++] = c;
+
+	sh.argptr = ptr;
 
 	return s;
 }
 
 static int end_arg(char c, int s)
 {
-	if(argptr >= sizeof(argbuf))
+	int ptr = sh.argptr;
+	int maxptr = sizeof(argbuf);
+
+	if(ptr >= maxptr)
 		return syntax(c, "overflow");
 
-	argbuf[argptr++] = '\0';
+	argbuf[ptr++] = '\0';
+	sh.argptr = ptr;
 
-	if(argcount >= ARRAY_SIZE(args))
+	int cnt = sh.argcnt;
+	int sep = sh.argsep;
+	int maxcnt = ARRAY_SIZE(sh.args);
+
+	if(cnt >= maxcnt)
 		return syntax(c, "overargs");
 
-	args[argcount++] = &argbuf[argsep];
-	argsep = argptr;
+	sh.args[cnt] = &argbuf[sep];
+	sh.argsep = ptr;
+	sh.argcnt = cnt + 1;
 
 	return s;
 }
@@ -190,11 +162,9 @@ static int dispatch(int s, char c)
 
 static int complete(int s)
 {
-	if(s != S_EXEC)
-		return s;
-
 	run_command();
-	bufoutflush(&bo);
+	//bufoutflush(&bo);
+	reset_heap();
 	reset_args();
 
 	return S_SEP;
@@ -202,14 +172,17 @@ static int complete(int s)
 
 static void parse_input(char* buf, int len)
 {
-	int s = parser_state;
+	int s = sh.state;
 
 	for(int i = 0; i < len; i++) {
 		s = dispatch(s, buf[i]);
+
+		if(s != S_EXEC) continue;
+
 		s = complete(s);
 	}
 
-	parser_state = s;
+	sh.state = s;
 }
 
 static void input_loop(void)
@@ -230,17 +203,16 @@ static void input_loop(void)
 
 int main(int argc, char** argv)
 {
-	int ret;
 	int i = 1;
 
 	if(i < argc && argv[i][0] == '-')
-		opts = argbits(OPTS, argv[i++] + 1);
+		sh.opts = argbits(OPTS, argv[i++] + 1);
 	if(i < argc)
 		fail("too many arguments", NULL, 0);
 
-	envp = argv + argc + 1;
+	sh.envp = argv + argc + 1;
 
-	bufoutset(&bo, STDOUT, outbuf, sizeof(outbuf));
+	init_heap();
 
 	warn("ready to accept commands", NULL, 0);
 

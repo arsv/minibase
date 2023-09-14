@@ -8,7 +8,6 @@ include $/config.mk
 
 subdirs := \
 	apphub \
-	cmd \
 	cpio \
 	ctool \
 	dcrypt \

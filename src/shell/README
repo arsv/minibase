@@ -17,10 +17,9 @@ that GNU handles with its readline library.
 
 # But it also means no tab completion, at least for now.
 
-This shell is also the project's "busybox", in the sense that it should allow
-the user to do basic file ops without having to call other executables,
-at least to the extent that would make sense. Long-running ops (e.g. copy tree)
-will likely remain separate tools.
+This shell is also the project's "line-oriented mc", in the sense that it
+allows traversing the filesystem and performing simple file-related tasks
+without the need to launch external tools.
 
 See ../../doc/shells.txt for more info on shells.
 This one goes under "interactive shells" but it's not a general-purpose one.
