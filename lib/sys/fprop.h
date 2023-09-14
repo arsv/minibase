@@ -50,6 +50,15 @@ inline static long sys_chown(const char* path, int uid, int gid)
 #endif
 }
 
+inline static long sys_lchown(const char* path, int uid, int gid)
+{
+#ifdef NR_fchownat
+	return syscall5(NR_fchownat, AT_FDCWD, (long)path, uid, gid, AT_SYMLINK_NOFOLLOW);
+#else
+	return syscall3(NR_lchown, (long)path, uid, gid);
+#endif
+}
+
 inline static long sys_fchown(int fd, int uid, int gid)
 {
 #ifdef NR_fchownat
