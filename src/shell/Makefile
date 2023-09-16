@@ -10,6 +10,7 @@ shell: shell.o \
 	shell_cmds.o \
 	shell_list.o \
 	shell_proc.o \
+	shell_file.o \
 	shell_stat.o
 
 -include *.d

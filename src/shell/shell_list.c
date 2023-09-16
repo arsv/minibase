@@ -12,9 +12,11 @@
 #define BUFSIZE 4096
 #define MAXENTS 100
 
-#define LS_ONLY_HIDDEN (1<<0)
-#define LS_ONLY_DIRS   (1<<1)
-#define LS_ONLY_EXEC   (1<<2)
+#define LS_HIDE_DOTTED (1<<0)
+#define LS_HIDE_NONDOT (1<<1)
+#define LS_ONLY_DIRS   (1<<2)
+#define LS_ONLY_EXEC   (1<<3)
+#define LS_ONLY_FILES  (1<<4)
 
 #define DT_LNK_DIR 71	/* symlink pointing to a dir, custom value */
 
@@ -73,6 +75,9 @@ static void stat_target(CTX, int at, struct ent* en)
 		return;
 	if(S_ISDIR(st.mode))
 		en->type = DT_LNK_DIR;
+
+	/* mark symlinks-to-executable-target as executable */
+	en->mode |= st.mode & 0111;
 }
 
 static int pattern_match(CTX, char* name)
@@ -85,11 +90,13 @@ static int pattern_match(CTX, char* name)
 
 	int nlen = strlen(name);
 
-	if(patt[0] == '.' && !(ctx->flags & LS_ONLY_HIDDEN)) {
-		if(nlen <= plen)
-			return 0;
+	if(!(ctx->flags & LS_HIDE_NONDOT)) {
+		if(patt[0] == '.') {
+			if(nlen <= plen)
+				return 0;
 
-		return !memcmp(name + nlen - plen, patt, plen);
+			return !memcmp(name + nlen - plen, patt, plen);
+		}
 	}
 
 	return !strncmp(name, patt, plen);
@@ -102,10 +109,10 @@ static int pre_match(CTX, struct dirent* de)
 	int type = de->type;
 
 	if(name[0] == '.') {
-		if(!(flags & LS_ONLY_HIDDEN))
+		if(flags & LS_HIDE_DOTTED)
 			return 0;
 	} else {
-		if(flags & LS_ONLY_HIDDEN)
+		if(flags & LS_HIDE_NONDOT)
 			return 0;
 	}
 
@@ -118,6 +125,10 @@ static int pre_match(CTX, struct dirent* de)
 
 	if(flags & LS_ONLY_EXEC)
 		if((type != DT_REG) && (type != DT_LNK))
+			return 0;
+
+	if(flags & LS_ONLY_FILES)
+		if((type == DT_DIR) || (type == DT_LNK))
 			return 0;
 
 	if(!pattern_match(ctx, name))
@@ -319,7 +330,7 @@ static void dump_file_name(struct bufout* bo, struct ent* en)
 	char* p = pref;
 	char* e = pref + sizeof(pref) - 1;
 
-	p = fmtstr(p, e, "  ");
+	p = fmtstr(p, e, " ");
 	p = fmtchar(p, e, typechar(en));
 
 	bufout(bo, pref, p - pref);
@@ -420,20 +431,40 @@ void list_common(int flags)
 
 void cmd_ls(void)
 {
-	list_common(0);
+	list_common(LS_HIDE_DOTTED);
 }
 
-void cmd_lh(void)
+void cmd_la(void)
 {
-	list_common(LS_ONLY_HIDDEN);
+	list_common(0);
 }
 
 void cmd_ld(void)
 {
-	list_common(LS_ONLY_DIRS);
+	list_common(LS_HIDE_DOTTED | LS_ONLY_DIRS);
+}
+
+void cmd_lf(void)
+{
+	list_common(LS_HIDE_DOTTED | LS_ONLY_FILES);
 }
 
 void cmd_lx(void)
 {
-	list_common(LS_ONLY_EXEC);
+	list_common(LS_HIDE_DOTTED | LS_ONLY_EXEC);
+}
+
+void cmd_lh(void)
+{
+	list_common(LS_HIDE_NONDOT);
+}
+
+void cmd_lhd(void)
+{
+	list_common(LS_HIDE_NONDOT | LS_ONLY_DIRS);
+}
+
+void cmd_lhf(void)
+{
+	list_common(LS_HIDE_NONDOT | LS_ONLY_FILES);
 }

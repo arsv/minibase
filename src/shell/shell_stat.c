@@ -343,7 +343,7 @@ static void format_sysinfo(struct sysinfo* si)
 	output(buf, p - buf);
 }
 
-void cmd_info(void)
+void cmd_sysinfo(void)
 {
 	struct sysinfo si;
 	int ret;
@@ -356,7 +356,7 @@ void cmd_info(void)
 	format_sysinfo(&si);
 }
 
-void cmd_time(void)
+void cmd_systime(void)
 {
 	struct timeval tv;
 	struct tm tm;

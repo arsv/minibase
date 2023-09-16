@@ -190,36 +190,59 @@ void cmd_cd(void)
 	cmd_pwd();
 }
 
+void cmd_up(void)
+{
+	char* dir = "..";
+	int ret;
+
+	if(extra_arguments())
+		return;
+
+	if((ret = sys_chdir(dir)) < 0)
+		return warn(NULL, NULL, ret);
+
+	cmd_pwd();
+}
+
 static const struct cmd {
 	char name[8];
 	void (*call)(void);
 } commands[] = {
-	{ "echo",  cmd_echo },
-	{ "pwd",   cmd_pwd  },
-	{ "cd",    cmd_cd   },
+	{ "echo",     cmd_echo    },
 
-	{ "sync",  cmd_sync },
-	{ "chown", cmd_chown },
-	{ "chmod", cmd_chmod },
-	{ "unlink", cmd_unlink },
-	{ "rmdir", cmd_rmdir },
-	{ "symlink", cmd_symlink },
+	{ "pwd",      cmd_pwd     },
+	{ "cd",       cmd_cd      },
+	{ "up",       cmd_up      },
 
-	{ "ls",    cmd_ls   },  /* list files and dirs */
-	{ "lh",    cmd_lh   },  /* list dotted entries */
-	{ "ld",    cmd_ld   },  /* list directories */
-	{ "lx",    cmd_lx   },  /* list executable */
-	//{ "lu",    cmd_lu   },  /* list all, unsorted */
+	{ "chown",    cmd_chown   },
+	{ "chmod",    cmd_chmod   },
+	{ "unlink",   cmd_unlink  },
+	{ "rmdir",    cmd_rmdir   },
+	{ "symlink",  cmd_symlink },
 
-	{ "stat",    cmd_stat   },  /* file stat */
-	{ "time",    cmd_time },
-	{ "info",    cmd_info },
+	{ "ls",       cmd_ls      },  /* list files and dirs */
+	{ "la",       cmd_la      },  /* list all files (dotted/non-dotted) */
+	{ "ld",       cmd_ld      },  /* list directories */
+	{ "lf",       cmd_lf      },
+	{ "lx",       cmd_lx      },  /* list executable */
 
-	//{ "mntstat", cmd_mntstat },
-	//{ "mount", cmd_mount },
+	{ "lh",       cmd_lh      },  /* list hidden entries */
+	{ "lhf",      cmd_lhf     },  /* list hidden files */
+	{ "lhd",      cmd_lhd     },  /* list hidden directories */
 
-	{ "ps", cmd_ps }, /* list processes maybe */
-	{ "kill", cmd_kill }, /* child, or by pid, or by name? */
+	{ "stat",     cmd_stat    },  /* file stat */
+	{ "systime",  cmd_systime },
+	{ "sysinfo",  cmd_sysinfo },
+
+	//{ "mntstat",  cmd_mntstat },
+	//{ "mount",    cmd_mount   },
+	//{ "umount",   cmd_umount  },
+	{ "sync",     cmd_sync    },
+
+	{ "write",    cmd_write   },
+
+	{ "ps",       cmd_ps      }, /* list processes maybe */
+	{ "kill",     cmd_kill    }, /* child, or by pid, or by name? */
 
 	//{ "find", cmd_find }, /* maybe ??? */
 };

@@ -46,13 +46,20 @@ void output(char* buf, int len);
 void cmd_echo(void);
 
 void cmd_ls(void);
-void cmd_lh(void);
+void cmd_la(void);
 void cmd_ld(void);
+void cmd_lf(void);
 void cmd_lx(void);
 
+void cmd_lh(void);
+void cmd_lhf(void);
+void cmd_lhd(void);
+
 void cmd_stat(void);
-void cmd_info(void);
-void cmd_time(void);
+void cmd_sysinfo(void);
+void cmd_systime(void);
 
 void cmd_ps(void);
 void cmd_kill(void);
+
+void cmd_write(void);
