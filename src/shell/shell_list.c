@@ -28,7 +28,7 @@ struct ent {
 	char name[];
 };
 
-struct list {
+struct listcontext {
 	int dirfd;
 	int flags;
 
@@ -48,7 +48,7 @@ struct list {
 	int indexed;
 };
 
-#define CTX struct list* ctx
+#define CTX struct listcontext* ctx
 
 static void stat_entry(CTX, int at, struct ent* en)
 {
@@ -406,7 +406,7 @@ static void close_directory(CTX)
 
 void list_common(int flags)
 {
-	struct list context, *ctx = &context;
+	struct listcontext c, *ctx = &c;
 
 	memzero(ctx, sizeof(*ctx));
 
