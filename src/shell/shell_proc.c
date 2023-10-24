@@ -1,5 +1,6 @@
 #include <sys/file.h>
 #include <sys/dents.h>
+#include <sys/signal.h>
 
 #include <string.h>
 #include <format.h>
@@ -8,11 +9,25 @@
 
 #include "shell.h"
 
+/* The entries in /proc are sorted (getdents return them in order) so there's
+   no point in read-sort-process sequence like with ls.
+   Instead, we just read one at a time and process it immediately.
+
+   There's a "name" entry in /proc/$pid/status but it's almost useless
+   because it's too short. We always read /proc/$pid/cmdline, in most scenarios
+   where using this shell would make sense the command lines should be short and
+   printing them whole makes sense. */
+
+#define PS_NAME 0
+#define PS_KILL 1
+
 #define DIRBUF 2048
 #define CMDBUF 512
 #define OUTBUF 1024
 
 struct proccontext {
+	int mode;
+
 	void* dirbuf;
 	void* cmdbuf;
 	int cmdlen;
@@ -22,6 +37,9 @@ struct proccontext {
 	int pid, ppid;
 	int uid, euid;
 	int gid, egid;
+
+	char* patt;
+	int sig;
 
 	struct bufout bo;
 };
@@ -233,6 +251,22 @@ static int check_proc_info(CTX)
 	return 0;
 }
 
+static int check_proc_cmdline(CTX)
+{
+	char* patt = ctx->patt;
+
+	if(!patt)
+		return 0;
+
+	int len = ctx->cmdlen;
+	char* cmd = ctx->cmdbuf;
+
+	if(strnstr(cmd, patt, len))
+		return 0;
+
+	return -1;
+}
+
 static void reset_proc_data(CTX)
 {
 	ctx->cmdlen = 0;
@@ -241,8 +275,6 @@ static void reset_proc_data(CTX)
 
 	ctx->pid = -1;
 	ctx->ppid = -1;
-
-	//ctx->ptr = ctx->brk;
 }
 
 static void read_proc(CTX, int at, char* pidstr)
@@ -260,8 +292,8 @@ static void read_proc(CTX, int at, char* pidstr)
 		goto out;
 	if(read_proc_cmdline(ctx, fd) < 0)
 		goto out;
-	//if(check_proc_cmdline(ctx, pidstr))
-	//	goto out;
+	if(check_proc_cmdline(ctx))
+		goto out;
 
 	format_proc_status(ctx);
 	format_proc_cmdline(ctx);
@@ -303,12 +335,24 @@ static void read_proc_list(CTX)
 	}
 }
 
-static void prep_context(CTX)
+static int needs_output(CTX)
+{
+	int mode = ctx->mode;
+
+	return (mode != PS_KILL);
+}
+
+static void prep_context(CTX, int mode)
 {
 	memzero(ctx, sizeof(*ctx));
 
+	ctx->mode = mode;
+
 	ctx->dirbuf = heap_alloc(DIRBUF);
 	ctx->cmdbuf = heap_alloc(CMDBUF);
+
+	if(!needs_output(ctx))
+		return;
 
 	void* outbuf = heap_alloc(OUTBUF);
 
@@ -317,6 +361,9 @@ static void prep_context(CTX)
 
 static void fini_context(CTX)
 {
+	if(!needs_output(ctx))
+		return;
+
 	bufoutflush(&ctx->bo);
 }
 
@@ -324,13 +371,47 @@ void cmd_ps(void)
 {
 	struct proccontext c, *ctx = &c;
 
-	prep_context(ctx);
+	prep_context(ctx, PS_NAME);
+
+	ctx->patt = shift();
+
+	read_proc_list(ctx);
+
+	fini_context(ctx);
+}
+
+static void kill_by_name(char* name, int sig)
+{
+	struct proccontext c, *ctx = &c;
+
+	ctx->patt = name;
+	ctx->sig = sig;
+
+	prep_context(ctx, PS_KILL);
 	read_proc_list(ctx);
 	fini_context(ctx);
-	//repl("not implemented", NULL, 0);
+}
+
+static void kill_by_id(int pid, int sig)
+{
+	int ret;
+
+	if((ret = sys_kill(pid, sig)) < 0)
+		return repl(NULL, NULL, ret);
 }
 
 void cmd_kill(void)
 {
-	repl("not implemented", NULL, 0);
+	char* spec;
+	char* p;
+	int pid;
+	int sig = SIGTERM;
+
+	if(!(spec = shift_arg()))
+		return;
+
+	if(!(p = parseint(spec, &pid)) || *p)
+		kill_by_name(spec, sig);
+	else
+		kill_by_id(pid, sig);
 }

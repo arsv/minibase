@@ -231,8 +231,8 @@ static const struct cmd {
 	{ "lhd",      cmd_lhd     },  /* list hidden directories */
 
 	{ "stat",     cmd_stat    },  /* file stat */
-	{ "systime",  cmd_systime },
-	{ "sysinfo",  cmd_sysinfo },
+	{ "time",     cmd_time    },
+	{ "info",     cmd_info    },
 
 	//{ "mntstat",  cmd_mntstat },
 	//{ "mount",    cmd_mount   },
@@ -241,7 +241,7 @@ static const struct cmd {
 
 	{ "write",    cmd_write   },
 
-	{ "ps",       cmd_ps      }, /* list processes maybe */
+	{ "ps",       cmd_ps      }, /* list processes */
 	{ "kill",     cmd_kill    }, /* child, or by pid, or by name? */
 
 	//{ "find", cmd_find }, /* maybe ??? */

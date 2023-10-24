@@ -56,8 +56,8 @@ void cmd_lhf(void);
 void cmd_lhd(void);
 
 void cmd_stat(void);
-void cmd_sysinfo(void);
-void cmd_systime(void);
+void cmd_info(void);
+void cmd_time(void);
 
 void cmd_ps(void);
 void cmd_kill(void);
