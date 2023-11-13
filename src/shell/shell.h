@@ -26,6 +26,7 @@ extern struct shell {
 
 char* shift(void);
 char* shift_arg(void);
+char* shift_opt(void);
 
 int got_more_args(void);
 int extra_arguments(void);
@@ -63,3 +64,7 @@ void cmd_ps(void);
 void cmd_kill(void);
 
 void cmd_write(void);
+
+void cmd_mount(void);
+void cmd_umount(void);
+void cmd_mounts(void);

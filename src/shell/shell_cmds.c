@@ -234,9 +234,9 @@ static const struct cmd {
 	{ "time",     cmd_time    },
 	{ "info",     cmd_info    },
 
-	//{ "mntstat",  cmd_mntstat },
-	//{ "mount",    cmd_mount   },
-	//{ "umount",   cmd_umount  },
+	{ "mounts",   cmd_mounts  },
+	{ "mount",    cmd_mount   },
+	{ "umount",   cmd_umount  },
 	{ "sync",     cmd_sync    },
 
 	{ "write",    cmd_write   },

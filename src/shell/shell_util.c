@@ -13,9 +13,9 @@ char* shift(void)
 	if(idx >= cnt)
 		return NULL;
 
-	char* arg = sh.args[idx++];
+	char* arg = sh.args[idx];
 
-	sh.argidx = idx;
+	sh.argidx = idx + 1;
 
 	return arg;
 }
@@ -28,6 +28,32 @@ char* shift_arg(void)
 		repl("argument required", NULL, 0);
 
 	return arg;
+}
+
+char* shift_opt(void)
+{
+	int idx = sh.argidx;
+	int cnt = sh.argcnt;
+
+	if(idx >= cnt)
+		return NULL;
+
+	char* arg = sh.args[idx];
+
+	if(*arg != '-')
+		return NULL;
+
+	sh.argidx = idx + 1;
+
+	return arg + 1;
+}
+
+int got_more_args(void)
+{
+	int idx = sh.argidx;
+	int cnt = sh.argcnt;
+
+	return (idx < cnt);
 }
 
 int extra_arguments(void)

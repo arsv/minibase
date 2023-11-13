@@ -33,6 +33,9 @@
 #define CMDBUF 512
 #define OUTBUF 1024
 
+#define STAT_SHORT 0
+#define STAT_LONG  1
+
 struct proccontext {
 	int mode;
 
@@ -186,7 +189,7 @@ static void set_uids(char* p, int* uid, int* euid)
 	(void)parseint(p, euid);
 }
 
-static int parse_status(CTX, char* buf, int len)
+static int parse_status(CTX, char* buf, int len, int longstat)
 {
 	char* end = buf + len;
 	char* ls;
@@ -209,6 +212,8 @@ static int parse_status(CTX, char* buf, int len)
 			set_int(val, &ctx->pid);
 		else if(!strcmp(key, "PPid"))
 			set_int(val, &ctx->ppid);
+		else if(!longstat)
+			continue;
 		else if(!strcmp(key, "Uid"))
 			set_uids(val, &ctx->uid, &ctx->euid);
 		else if(!strcmp(key, "Gid"))
@@ -230,7 +235,7 @@ static int read_proc_status(CTX, int at)
 
 	sys_close(fd);
 
-	return parse_status(ctx, buf, rd);
+	return parse_status(ctx, buf, rd, STAT_SHORT);
 }
 
 static int read_proc_cmdline(CTX, int at)
