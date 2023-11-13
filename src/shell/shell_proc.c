@@ -9,14 +9,22 @@
 
 #include "shell.h"
 
-/* The entries in /proc are sorted (getdents return them in order) so there's
+/* Most of the code below is shared between "ps (name)" and "kill (name)".
+   This might sounds somewhat counter-intuitive until you realize how
+   "kill (name)" has to work in Linux. A neat side-effect of this code
+   sharing is that "ps (name)" lists the same processes that "kill (name)"
+   would send the signal to.
+
+   The entries in /proc are sorted (getdents return them in order) so there's
    no point in read-sort-process sequence like with ls.
    Instead, we just read one at a time and process it immediately.
 
-   There's a "name" entry in /proc/$pid/status but it's almost useless
+   There's a "Name" entry in /proc/$pid/status but it's almost useless
    because it's too short. We always read /proc/$pid/cmdline, in most scenarios
-   where using this shell would make sense the command lines should be short and
-   printing them whole makes sense. */
+   where using this shell would make sense the command lines should be short
+   and printing them whole by default is a better approach than say having
+   a dedicated command to do that. Also, conventional psproc implementations
+   do the same. */
 
 #define PS_NAME 0
 #define PS_KILL 1
@@ -60,6 +68,7 @@ static void format_proc_status(CTX)
 	char* p = buf;
 	char* e = buf + sizeof(buf) - 1;
 
+	p = fmtstr(p, e, "  ");
 	p = fmtint(p, e, ctx->pid);
 
 	proc_output(ctx, buf, p - buf);
@@ -277,9 +286,26 @@ static void reset_proc_data(CTX)
 	ctx->ppid = -1;
 }
 
+static void process_list(CTX)
+{
+	format_proc_status(ctx);
+	format_proc_cmdline(ctx);
+}
+
+static void process_kill(CTX)
+{
+	int pid = ctx->pid;
+	int sig = ctx->sig;
+	int ret;
+
+	if((ret = sys_kill(pid, sig)) < 0)
+		return repl(NULL, NULL, ret);
+}
+
 static void read_proc(CTX, int at, char* pidstr)
 {
-	int fd;
+	int fd; /* dirfs of "/proc/$pid"; at is just "/proc" */
+	int mode = ctx->mode;
 
 	if((fd = sys_openat(at, pidstr, O_DIRECTORY)) < 0)
 		return;
@@ -295,8 +321,10 @@ static void read_proc(CTX, int at, char* pidstr)
 	if(check_proc_cmdline(ctx))
 		goto out;
 
-	format_proc_status(ctx);
-	format_proc_cmdline(ctx);
+	if(mode == PS_KILL)
+		process_kill(ctx);
+	else
+		process_list(ctx);
 out:
 	sys_close(fd);
 }
@@ -384,11 +412,13 @@ static void kill_by_name(char* name, int sig)
 {
 	struct proccontext c, *ctx = &c;
 
+	prep_context(ctx, PS_KILL);
+
 	ctx->patt = name;
 	ctx->sig = sig;
 
-	prep_context(ctx, PS_KILL);
 	read_proc_list(ctx);
+
 	fini_context(ctx);
 }
 
@@ -408,6 +438,8 @@ void cmd_kill(void)
 	int sig = SIGTERM;
 
 	if(!(spec = shift_arg()))
+		return;
+	if(extra_arguments())
 		return;
 
 	if(!(p = parseint(spec, &pid)) || *p)
