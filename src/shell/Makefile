@@ -12,7 +12,6 @@ shell: shell.o \
 	shell_proc.o \
 	shell_file.o \
 	shell_stat.o \
-	shell_mount.o \
-	shell_minfo.o
+	shell_mount.o
 
 -include *.d
