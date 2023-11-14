@@ -1,3 +1,4 @@
+#include <sys/file.h>
 #include <sys/mman.h>
 #include <format.h>
 #include <string.h>
@@ -64,6 +65,14 @@ int extra_arguments(void)
 		repl("extra arguments", NULL, 0);
 
 	return !!arg;
+}
+
+void check_close(int fd)
+{
+	int ret;
+
+	if((ret = sys_close(fd)) < 0)
+		fail("close", NULL, ret);
 }
 
 /* Heap stuff */

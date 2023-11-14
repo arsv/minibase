@@ -30,6 +30,7 @@ char* shift_opt(void);
 
 int got_more_args(void);
 int extra_arguments(void);
+void check_close(int fd);
 
 void run_command(void);
 
@@ -68,3 +69,5 @@ void cmd_write(void);
 void cmd_mount(void);
 void cmd_umount(void);
 void cmd_mounts(void);
+void cmd_rfs(void);
+void cmd_vfs(void);

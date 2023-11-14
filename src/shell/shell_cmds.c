@@ -234,10 +234,12 @@ static const struct cmd {
 	{ "time",     cmd_time    },
 	{ "info",     cmd_info    },
 
-	{ "mounts",   cmd_mounts  },
 	{ "mount",    cmd_mount   },
 	{ "umount",   cmd_umount  },
 	{ "sync",     cmd_sync    },
+	{ "mounts",   cmd_mounts  },
+	{ "rfs",      cmd_rfs     },
+	{ "vfs",      cmd_vfs     },
 
 	{ "write",    cmd_write   },
 
