@@ -9,6 +9,12 @@
 
 #include "shell.h"
 
+/* Directory listing. The code builds a stack of entries (struct ent)
+   in the heap, indexes them, and dumps the results.
+
+   Some filtering on top to list only files of specific types and/or
+   only those with a particular substring in the name. */
+
 #define BUFSIZE 4096
 #define MAXENTS 100
 

@@ -6,7 +6,10 @@
 
 #include "shell.h"
 
-/* several commands fetching some status info and formatting it nicely */
+/* Several commands fetching some status info and formatting it nicely.
+
+   `stat file`, but also `time` and `info`; all of them are quire similar
+   in that it's mostly output formatting. */
 
 static const char* typemark(struct stat* st)
 {

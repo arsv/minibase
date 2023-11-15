@@ -25,10 +25,10 @@
 
 ERRTAG("shell");
 
-struct shell sh;
-
 char inbuf[1024];
 char argbuf[2048];
+
+struct shell sh;
 
 /* Command line parsing */
 
