@@ -163,7 +163,6 @@ static int dispatch(int s, char c)
 static int complete(int s)
 {
 	run_command();
-	//bufoutflush(&bo);
 	reset_heap();
 	reset_args();
 
