@@ -22,57 +22,28 @@ to put into initrd.
 
 Project status
 ~~~~~~~~~~~~~~
-The project is ONGOING but not yet complete or even stable.
-Components currently included in the package:
+Dead-end experimentation.
 
-  * batch command runner / script interpreter (msh)
-  * early-stage boot utils (switchroot, modprobe, mount)
-  * block device locating tools (devinit, findblk)
-  * block device encryption tools (passblk, dektool, deitool)
-  - no fsck for any file system yet
-  * system shutdown tool (reboot)
+This project started as an experiment in making a better userspace for Linux,
+with a different (compared to mainline) way of running applications. No SUID,
+different approach to shells, better isolation. In a way, it was about making
+Linux a better OS that it was meant to be.
 
-  * top-level process supervisor (svchub)
+Back when it started, the Linux kernel was still a decent choice to build
+such a project on. Not great, it's definitely not the style of kernel
+I would prefer given the choice, but it was acceptable, and there was not
+much choice anyway.
 
-  * udev event monitor (udevmod)
-  * syslog and related tools (sysklogd)
+Then, Linux (the kernel) took a nosedive.
 
-  * VT/DRI/input multiplexer (vtmux) and related tools
+In its current state, this project only makes sense if the underlying kernel
+is worth spending time on. The Linux kernel isn't anymore. The loss of a viable
+kernel effectively left the development hanging.
 
-  * network interface monitor (ifmon)
-  * Wi-Fi client and connection manager (wsupp) [WPA2-PSK only]
-  * DHCP client (dhconf)
-  * time synchronization (SNTP) service (timed)
-  * manual/static interface setup tools (ip4cfg, ip4info) [incomplete]
-
-  * simple interactive shell (cmd).
-  * small linux-specific tools (systime, sync, dmesg etc).
-
-  * application supervisors (apphub, ptyhub)
-
-  * package management tools (mpac, mpkg, ctool) [incomplete]
-
-  - no audio tools of any kind.
-
-With everything in place, the system should boot on kernel and minibase alone
-to the point where it can run X or Wayland GUI, establish internet connection
-and start downloading packages.
-
-
-Quick start
-~~~~~~~~~~~
-Bootable images for QEMU (buildroot, minibase, Xorg, Weston) along
-with the build scripts are maintained in a dedicated repository:
-
-    https://github.com/arsv/minibase-br/
-
-Get the latest sys-plain or sys-crypt from Releases, check included
-instructions. Inspect the build scripts, rootfs and initrd contents
-to understand how the system boots.
-
-The images there tend to lag behind the master branch here.
-However, those images should still give a pretty good idea of how
-the whole thing is supposed to work.
+The real next step, would be a lightweight kernel better suited for running
+the applications the right way. I might still push this project for some kind
+of completion, but only with a much reduced scope, as a no-dependencies toolbox
+for small embedded Linux systems I might need to work with.
 
 
 How to build and run the tools
